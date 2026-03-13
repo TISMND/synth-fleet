@@ -12,3 +12,6 @@ func _ready() -> void:
 	$VBox/StudioButton.pressed.connect(func() -> void:
 		get_tree().change_scene_to_file("res://scenes/ui/aesthetic_workshop.tscn")
 	)
+	$VBox/EffectsButton.pressed.connect(func() -> void:
+		get_tree().change_scene_to_file("res://scenes/ui/effect_designer.tscn")
+	)

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EffectProfile" format=3]
+
+[ext_resource type="Script" path="res://resources/effect_profile.gd" id="1_gd8gg"]
+
+[resource]
+script = ExtResource("1_gd8gg")
+id = "new_effect"
+display_name = "New Effect"
+shape_type = "diamond"
+trail_type = "sparkle"
+trail_params = {
+"amount": 30.0,
+"lifetime": 0.5,
+"velocity_max": 59.0
+}
+impact_type = "nova_flash"
+impact_params = {
+"radius": 81.0
+}

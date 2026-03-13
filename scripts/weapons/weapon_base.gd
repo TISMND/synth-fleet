@@ -12,6 +12,7 @@ var _subdivision_counter: int = 0
 
 var _projectile_scene: PackedScene
 var _muzzle_flash_scene: PackedScene
+var _ring_effect_scene: PackedScene
 
 const COLOR_MAP := {
 	"cyan": Color(0, 1, 1),
@@ -34,6 +35,7 @@ var _eighth_tick: int = 0  # counts eighth-note ticks within a beat
 func _ready() -> void:
 	_projectile_scene = preload("res://scenes/game/projectile.tscn")
 	_muzzle_flash_scene = preload("res://scenes/effects/muzzle_flash.tscn")
+	_ring_effect_scene = preload("res://scenes/effects/ring_effect.tscn")
 	BeatClock.beat_hit.connect(_on_beat_hit)
 
 
@@ -80,6 +82,8 @@ func fire(override_color: String = "", override_pitch: float = 1.0, override_dir
 	if weapon_data:
 		projectile.speed = weapon_data.projectile_speed
 		projectile.damage = weapon_data.damage
+		if weapon_data.effect_profile:
+			projectile.effect_profile = weapon_data.effect_profile
 	var c: String = override_color if override_color != "" else color_name
 	# Set neon color on projectile
 	if COLOR_MAP.has(c):
@@ -103,11 +107,67 @@ func _get_player() -> CharacterBody2D:
 
 
 func _spawn_muzzle_flash(c: String) -> void:
+	var col: Color = COLOR_MAP.get(c, Color(0, 1, 1))
+	var ep: EffectProfile = weapon_data.effect_profile if weapon_data else null
+
+	if ep and ep.muzzle_type != "none":
+		_spawn_profile_muzzle(ep, col)
+		return
+
+	if ep and ep.muzzle_type == "none":
+		return
+
+	# Default muzzle flash
 	var flash := _muzzle_flash_scene.instantiate() as GPUParticles2D
 	flash.global_position = global_position
-	if flash.has_method("set_color") and COLOR_MAP.has(c):
-		flash.set_color(COLOR_MAP[c])
+	if flash.has_method("set_color"):
+		flash.set_color(col)
 	get_tree().current_scene.add_child(flash)
+
+
+func _spawn_profile_muzzle(ep: EffectProfile, col: Color) -> void:
+	var mp := ep.muzzle_params
+	match ep.muzzle_type:
+		"radial_burst":
+			var md := EffectProfile.get_muzzle_defaults("radial_burst")
+			var flash := _muzzle_flash_scene.instantiate() as GPUParticles2D
+			flash.global_position = global_position
+			flash.amount = int(mp.get("particle_count", md["particle_count"]))
+			flash.lifetime = mp.get("lifetime", md["lifetime"])
+			var mat := flash.process_material as ParticleProcessMaterial
+			if mat:
+				mat = mat.duplicate() as ParticleProcessMaterial
+				mat.color = col
+				mat.spread = mp.get("spread_angle", md["spread_angle"]) / 2.0
+				mat.initial_velocity_max = mp.get("velocity_max", md["velocity_max"])
+				mat.initial_velocity_min = mat.initial_velocity_max * 0.5
+				flash.process_material = mat
+			get_tree().current_scene.add_child(flash)
+		"directional_flash":
+			var md := EffectProfile.get_muzzle_defaults("directional_flash")
+			var flash := _muzzle_flash_scene.instantiate() as GPUParticles2D
+			flash.global_position = global_position
+			flash.amount = int(mp.get("particle_count", md["particle_count"]))
+			flash.lifetime = mp.get("lifetime", md["lifetime"])
+			var mat := flash.process_material as ParticleProcessMaterial
+			if mat:
+				mat = mat.duplicate() as ParticleProcessMaterial
+				mat.color = col
+				mat.spread = mp.get("spread_angle", md["spread_angle"]) / 2.0
+				mat.initial_velocity_max = mp.get("velocity_max", md["velocity_max"])
+				mat.initial_velocity_min = mat.initial_velocity_max * 0.6
+				flash.process_material = mat
+			get_tree().current_scene.add_child(flash)
+		"ring_pulse":
+			var md := EffectProfile.get_muzzle_defaults("ring_pulse")
+			var ring := _ring_effect_scene.instantiate() as RingEffect
+			ring.global_position = global_position
+			ring.radius_end = mp.get("radius_end", md["radius_end"])
+			ring.lifetime = mp.get("lifetime", md["lifetime"])
+			ring.segments = int(mp.get("segments", md["segments"]))
+			ring.line_width = mp.get("line_width", md["line_width"])
+			ring.set_color(col)
+			get_tree().current_scene.add_child(ring)
 
 
 func set_fire_direction(dir: Vector2) -> void:
