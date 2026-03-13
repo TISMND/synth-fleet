@@ -40,7 +40,14 @@ Project scaffolding is complete. The game runs: player ship moves, background sc
 - **Sibling `_ready()` order is not guaranteed.** If node A needs to call a method on sibling node B that uses B's child refs, use `call_deferred()` so B's `_ready()` has run first. Without this, B's `$Child` refs will still be null and you'll get "Nil" property access errors.
 - **Integer regen from floats:** `int(rate * delta)` truncates to 0 when `rate * delta < 1`. Use a float accumulator: add `rate * delta` each frame, convert to int when ≥ 1, subtract the int portion.
 - **Script inheritance:** Don't use `extends "res://path/to/script.gd"` — it causes "Could not resolve class" errors. Instead, give the base script a `class_name` and extend by name (e.g. `class_name MyBase` → `extends MyBase`).
-- **NEVER use `:=` with Dictionary values.** Any value from a Dictionary — via `dict[key]`, `dict.get()`, `dict.values()`, or `for key in dict:` — has type `Variant`, and `:=` fails with "Cannot infer the type". **Always use an explicit type annotation instead:** `var x: float = dict["key"]`, `var col: Color = dict.get(k, default)`, `var key: String = k`. This includes expressions built from Dictionary values (e.g. `dict["a"] / dict["b"]` is still `Variant`). Wrapping in `int()` / `float()` also works since those return concrete types.
+- **NEVER use `:=` when the right-hand side might be `Variant`.** This includes:
+  1. **Dictionary values** — `dict[key]`, `dict.get()`, `dict.values()`, `for key in dict:`
+  2. **Loosely-typed node access** — `get_parent()` returns `Node`, so `get_parent().some_property` is Variant. Cast first: `var parent: Node2D = get_parent()`
+  3. **`load()` / `preload()` return values** — returns `Resource` (Variant-like). Use `as` cast: `var res: AudioStream = load(path) as AudioStream`
+  4. **Array element access on untyped Arrays** — `array[i]` when array is `Array` not `Array[Type]`
+  5. **Any property access on a base-class-typed variable** when the property only exists on a subclass
+
+  **Always use explicit type annotations instead:** `var x: float = dict["key"]`, `var pos: Vector2 = parent.global_position`, `var res: PackedScene = load(path)`. Wrapping in `int()` / `float()` also works since those return concrete types.
 
 ### Key design rules
 - Weapons fire on BeatClock subdivisions (quarter/eighth/triplet), NOT on input

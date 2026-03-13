@@ -17,7 +17,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	var parent := get_parent()
+	var parent: Node = get_parent()
 	if not parent:
 		return
 

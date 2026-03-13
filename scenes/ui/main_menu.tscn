@@ -66,5 +66,5 @@ theme_override_font_sizes/font_size = 24
 [node name="EffectsButton" type="Button" parent="VBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 50)
-text = "EFFECTS"
+text = "WEAPON BUILDER"
 theme_override_font_sizes/font_size = 24

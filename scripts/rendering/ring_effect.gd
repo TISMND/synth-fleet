@@ -8,6 +8,7 @@ var lifetime: float = 0.2
 var segments: int = 16
 var line_width: float = 4.0
 var color: Color = Color(0, 1, 1)
+var delay: float = 0.0  ## Delay before ring starts expanding
 
 var _elapsed: float = 0.0
 var _additive_mat: CanvasItemMaterial
@@ -21,14 +22,16 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_elapsed += delta
-	if _elapsed >= lifetime:
+	if _elapsed < delay:
+		return
+	if _elapsed - delay >= lifetime:
 		queue_free()
 		return
 	queue_redraw()
 
 
 func _draw() -> void:
-	var t := _elapsed / lifetime
+	var t := (_elapsed - delay) / lifetime
 	var radius := lerpf(0.0, radius_end, t)
 	var alpha := 1.0 - t
 

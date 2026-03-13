@@ -44,6 +44,9 @@ var _pattern: WeaponPattern
 var _cell_map: Dictionary = {}  # Vector2i(col, pitch_idx) -> PianoCell
 var _preview_weapon: WeaponBase = null
 var _cursor_slot: int = -1
+var _all_weapons: Array = []
+var _selected_weapon: WeaponData = null
+var _weapon_option: OptionButton = null
 
 @onready var timeline_scroll: ScrollContainer = $VBox/BottomPanel/TimelineScroll
 @onready var color_grid: GridContainer = $VBox/TopPanels/RightPanel/VBox/ColorGrid
@@ -56,6 +59,8 @@ var _cursor_slot: int = -1
 
 func _ready() -> void:
 	_load_pattern()
+	_load_weapons()
+	_build_weapon_selector()
 	_build_piano_grid()
 	_build_color_buttons()
 	_update_brush_label()
@@ -69,10 +74,57 @@ func _ready() -> void:
 		_preview_weapon = preview_weapon_node as WeaponBase
 		_preview_weapon.preview_mode = true
 		_preview_weapon.pattern = _pattern
+		if _selected_weapon:
+			_preview_weapon.weapon_data = _selected_weapon
 
 	# Start BeatClock for preview
 	BeatClock.start(120.0)
 	BeatClock.beat_hit.connect(_on_beat_for_cursor)
+
+
+func _load_weapons() -> void:
+	_all_weapons = GameState.get_all_weapons()
+	# Try to find the currently equipped weapon
+	var current_id: String = GameState.current_loadout.get("forward", "")
+	for w in _all_weapons:
+		if w.id == current_id:
+			_selected_weapon = w
+			brush_color = w.available_colors[0] if w.available_colors.size() > 0 else "cyan"
+			break
+
+
+func _build_weapon_selector() -> void:
+	# Insert weapon selector before color grid in the right panel VBox
+	var right_vbox: VBoxContainer = $VBox/TopPanels/RightPanel/VBox
+	var weapon_label := Label.new()
+	weapon_label.text = "WEAPON"
+	weapon_label.add_theme_font_size_override("font_size", 18)
+	right_vbox.add_child(weapon_label)
+	right_vbox.move_child(weapon_label, 0)
+
+	_weapon_option = OptionButton.new()
+	_weapon_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var selected_idx := 0
+	for i in _all_weapons.size():
+		var w: WeaponData = _all_weapons[i]
+		var label: String = w.display_name if w.display_name != "" else w.id
+		_weapon_option.add_item(label)
+		if _selected_weapon and w.id == _selected_weapon.id:
+			selected_idx = i
+	if _all_weapons.is_empty():
+		_weapon_option.add_item("(no weapons)")
+	else:
+		_weapon_option.selected = selected_idx
+	right_vbox.add_child(_weapon_option)
+	right_vbox.move_child(_weapon_option, 1)
+
+	_weapon_option.item_selected.connect(func(idx: int) -> void:
+		if idx < _all_weapons.size():
+			_selected_weapon = _all_weapons[idx]
+			GameState.current_loadout["forward"] = _selected_weapon.id
+			if _preview_weapon:
+				_preview_weapon.weapon_data = _selected_weapon
+	)
 
 
 func _exit_tree() -> void:
@@ -232,5 +284,7 @@ func _on_done() -> void:
 	for i in WeaponPattern.SLOTS:
 		slot_array.append(_pattern.slots[i].duplicate())
 	GameState.weapon_patterns[mount_name] = slot_array
+	if _selected_weapon:
+		GameState.current_loadout["forward"] = _selected_weapon.id
 	GameState.save_game()
 	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")

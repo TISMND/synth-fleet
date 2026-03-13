@@ -14,4 +14,4 @@ func _ready() -> void:
 	)
 	$VBox/EffectsButton.pressed.connect(func() -> void:
 		get_tree().change_scene_to_file("res://scenes/ui/effect_designer.tscn")
-	)
+	)  # Button text is now "WEAPON BUILDER"

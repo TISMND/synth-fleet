@@ -49,6 +49,15 @@ func play_color(color_name: String, volume_db: float = 0.0, pitch_scale: float =
 		play_sample(color_sample_map[color_name], volume_db, pitch_scale)
 
 
+func play_weapon_sound(weapon: WeaponData, color_name: String, pitch: float = 1.0) -> void:
+	if weapon and weapon.audio_sample_path != "":
+		var sample := load(weapon.audio_sample_path) as AudioStream
+		if sample:
+			play_sample(sample, 0.0, weapon.audio_pitch * pitch)
+			return
+	play_color(color_name, 0.0, pitch)
+
+
 func load_color_samples(mapping: Dictionary) -> void:
 	## mapping: { "cyan": "res://assets/audio/samples/cyan_pulse.wav", ... }
 	color_sample_map.clear()

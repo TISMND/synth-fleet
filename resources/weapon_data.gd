@@ -14,3 +14,5 @@ extends Resource
 @export var description: String = ""
 @export var fire_pattern: String = "single"  ## single, burst, dual, wave, spread, beam, scatter
 @export var effect_profile: EffectProfile = null
+@export var audio_sample_path: String = ""  ## Direct path to .wav, overrides color-based lookup
+@export var audio_pitch: float = 1.0

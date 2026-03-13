@@ -5,7 +5,9 @@
       "Bash(grep:*)",
       "Bash(tree -L 3 /c/coding/synth-fleet -I \"node_modules|.godot|.git\" 2>/dev/null || find /c/coding/synth-fleet -not -path \"*/.*\" -not -path \"*/.godot/*\" -not -path \"*/node_modules/*\" | sort | head -150)",
       "Bash(ls \"/c/coding/synth-fleet/assets/audio/samples/\"*.wav 2>/dev/null | wc -l)",
-      "Bash(ls -la \"C:\\\\coding\\\\synth-fleet\\\\addons\\\\\" 2>/dev/null || echo \"No addons directory found\")"
+      "Bash(ls -la \"C:\\\\coding\\\\synth-fleet\\\\addons\\\\\" 2>/dev/null || echo \"No addons directory found\")",
+      "Bash(ls -la \"C:\\\\coding\\\\synth-fleet\\\\assets\\\\audio\\\\samples\\\\\" 2>/dev/null || echo \"Directory does not exist or is empty\")",
+      "Bash(find /c/coding/synth-fleet -name \"*.tres\" -type f 2>/dev/null | head -20)"
     ]
   }
 }

@@ -7,6 +7,12 @@ var width_start: float = 3.0
 var width_end: float = 0.0
 var trail_color: Color = Color(0, 1, 1, 0.6)
 
+# Sine ribbon options
+var sine_wave: bool = false
+var sine_amplitude: float = 4.0
+var sine_frequency: float = 5.0
+var _sine_age: float = 0.0
+
 var _additive_mat: CanvasItemMaterial
 
 
@@ -25,12 +31,18 @@ func _ready() -> void:
 	top_level = true
 
 
-func _process(_delta: float) -> void:
-	var parent := get_parent()
+func _process(delta: float) -> void:
+	var parent: Node = get_parent()
 	if not parent:
 		return
-	# Add current position to front
-	add_point(parent.global_position, 0)
+	_sine_age += delta
+	# Add current position to front, with optional sine offset
+	var pos: Vector2 = parent.global_position
+	if sine_wave:
+		var lateral := Vector2(1, 0)  # Horizontal oscillation
+		var offset := sin(_sine_age * sine_frequency * TAU) * sine_amplitude
+		pos += lateral * offset
+	add_point(pos, 0)
 	# Trim excess points
 	while get_point_count() > trail_length:
 		remove_point(get_point_count() - 1)

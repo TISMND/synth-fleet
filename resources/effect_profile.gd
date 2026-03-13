@@ -6,19 +6,23 @@ extends Resource
 @export var id: String = ""
 @export var display_name: String = ""
 
-# Muzzle: "none", "radial_burst", "directional_flash", "ring_pulse"
+# Motion: "none", "sine_wave", "corkscrew", "wobble"
+@export var motion_type: String = "none"
+@export var motion_params: Dictionary = {}
+
+# Muzzle: "none", "radial_burst", "directional_flash", "ring_pulse", "spiral_burst"
 @export var muzzle_type: String = "radial_burst"
 @export var muzzle_params: Dictionary = {}
 
-# Shape: "rect", "streak", "orb", "diamond", "arrow"
+# Shape: "rect", "streak", "orb", "diamond", "arrow", "pulse_orb"
 @export var shape_type: String = "rect"
 @export var shape_params: Dictionary = {}
 
-# Trail: "none", "particle", "ribbon", "afterimage", "sparkle"
+# Trail: "none", "particle", "ribbon", "afterimage", "sparkle", "sine_ribbon"
 @export var trail_type: String = "particle"
 @export var trail_params: Dictionary = {}
 
-# Impact: "none", "burst", "ring_expand", "shatter_lines", "nova_flash"
+# Impact: "none", "burst", "ring_expand", "shatter_lines", "nova_flash", "ripple"
 @export var impact_type: String = "burst"
 @export var impact_params: Dictionary = {}
 
@@ -72,6 +76,14 @@ func get_shape_points() -> PackedVector2Array:
 				Vector2(0, h / 2.0 - notch),
 				Vector2(-w / 2.0, h / 2.0),
 			])
+		"pulse_orb":
+			var radius: float = p.get("radius", 6.0)
+			var segments: int = int(p.get("segments", 12))
+			var pts := PackedVector2Array()
+			for i in segments:
+				var angle := TAU * float(i) / float(segments)
+				pts.append(Vector2(cos(angle) * radius, sin(angle) * radius))
+			return pts
 	# Fallback: default rect
 	return PackedVector2Array([Vector2(-2, -6), Vector2(2, -6), Vector2(2, 6), Vector2(-2, 6)])
 
@@ -85,6 +97,19 @@ static func get_muzzle_defaults(type: String) -> Dictionary:
 			return {"particle_count": 12, "lifetime": 0.12, "spread_angle": 30.0, "velocity_max": 120.0}
 		"ring_pulse":
 			return {"radius_end": 30.0, "lifetime": 0.2, "segments": 16, "line_width": 4.0}
+		"spiral_burst":
+			return {"particle_count": 16, "lifetime": 0.2, "spiral_speed": 8.0, "velocity_max": 80.0}
+	return {}
+
+
+static func get_motion_defaults(type: String) -> Dictionary:
+	match type:
+		"sine_wave":
+			return {"amplitude": 8.0, "frequency": 3.0, "phase_offset": 0.0}
+		"corkscrew":
+			return {"amplitude": 6.0, "frequency": 4.0, "phase_offset": 0.0}
+		"wobble":
+			return {"amplitude": 3.0, "frequency": 6.0, "phase_offset": 0.0}
 	return {}
 
 
@@ -99,6 +124,8 @@ static func get_trail_defaults(type: String) -> Dictionary:
 			return {"count": 5, "spacing_frames": 2, "fade_speed": 3.0}
 		"sparkle":
 			return {"amount": 12, "lifetime": 0.25, "velocity_max": 30.0}
+		"sine_ribbon":
+			return {"length": 12, "width_start": 3.0, "width_end": 0.5, "wave_amplitude": 4.0, "wave_frequency": 5.0}
 	return {}
 
 
@@ -113,6 +140,8 @@ static func get_impact_defaults(type: String) -> Dictionary:
 			return {"line_count": 6, "line_length": 20.0, "lifetime": 0.3, "velocity": 150.0}
 		"nova_flash":
 			return {"radius": 50.0, "lifetime": 0.12, "intensity": 1.0}
+		"ripple":
+			return {"ring_count": 3, "radius_end": 35.0, "lifetime": 0.4, "segments": 16, "stagger": 0.08}
 	return {}
 
 
@@ -129,6 +158,8 @@ static func get_shape_defaults(type: String) -> Dictionary:
 			return {"width": 6.0, "height": 14.0}
 		"arrow":
 			return {"width": 8.0, "height": 14.0, "notch": 4.0}
+		"pulse_orb":
+			return {"radius": 6.0, "segments": 12, "pulse_speed": 4.0, "pulse_amount": 1.5}
 	return {}
 
 

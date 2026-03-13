@@ -93,14 +93,17 @@ func fire(override_color: String = "", override_pitch: float = 1.0, override_dir
 	# Muzzle flash
 	if not preview_mode:
 		_spawn_muzzle_flash(c)
-	AudioManager.play_color(c, 0.0, override_pitch)
+	if weapon_data:
+		AudioManager.play_weapon_sound(weapon_data, c, override_pitch)
+	else:
+		AudioManager.play_color(c, 0.0, override_pitch)
 
 
 func _get_player() -> CharacterBody2D:
 	if preview_mode:
 		return null
 	# Weapon -> Mount -> Player
-	var mount := get_parent()
+	var mount: Node = get_parent()
 	if mount:
 		return mount.get_parent() as CharacterBody2D
 	return null
@@ -168,6 +171,22 @@ func _spawn_profile_muzzle(ep: EffectProfile, col: Color) -> void:
 			ring.line_width = mp.get("line_width", md["line_width"])
 			ring.set_color(col)
 			get_tree().current_scene.add_child(ring)
+		"spiral_burst":
+			var md := EffectProfile.get_muzzle_defaults("spiral_burst")
+			var flash := _muzzle_flash_scene.instantiate() as GPUParticles2D
+			flash.global_position = global_position
+			flash.amount = int(mp.get("particle_count", md["particle_count"]))
+			flash.lifetime = mp.get("lifetime", md["lifetime"])
+			var mat := flash.process_material as ParticleProcessMaterial
+			if mat:
+				mat = mat.duplicate() as ParticleProcessMaterial
+				mat.color = col
+				mat.spread = 180.0
+				mat.initial_velocity_max = mp.get("velocity_max", md["velocity_max"])
+				mat.initial_velocity_min = mat.initial_velocity_max * 0.5
+				mat.angular_velocity_max = mp.get("spiral_speed", md["spiral_speed"]) * 60.0
+				flash.process_material = mat
+			get_tree().current_scene.add_child(flash)
 
 
 func set_fire_direction(dir: Vector2) -> void:

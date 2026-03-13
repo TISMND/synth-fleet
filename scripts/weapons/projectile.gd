@@ -9,6 +9,10 @@ var direction: Vector2 = Vector2.UP
 var neon_color: Color = Color(0, 1, 1)
 var effect_profile: EffectProfile = null
 
+var _age: float = 0.0
+var _base_position: Vector2 = Vector2.ZERO
+var _lateral: Vector2 = Vector2.ZERO  # Perpendicular to direction
+
 var _impact_scene: PackedScene
 var _ring_effect_scene: PackedScene
 var _shatter_effect_scene: PackedScene
@@ -135,10 +139,47 @@ func _apply_effect_profile() -> void:
 					mat.scale_min = 0.3
 					mat.scale_max = 0.8
 					default_trail.process_material = mat
+		"sine_ribbon":
+			if default_trail:
+				default_trail.visible = false
+				default_trail.emitting = false
+			var tp := effect_profile.trail_params
+			var td := EffectProfile.get_trail_defaults("sine_ribbon")
+			var ribbon := RibbonTrail.new()
+			ribbon.trail_length = int(tp.get("length", td["length"]))
+			ribbon.width_start = tp.get("width_start", td["width_start"])
+			ribbon.width_end = tp.get("width_end", td["width_end"])
+			ribbon.set_color(neon_color)
+			ribbon.sine_wave = true
+			ribbon.sine_amplitude = tp.get("wave_amplitude", td["wave_amplitude"])
+			ribbon.sine_frequency = tp.get("wave_frequency", td["wave_frequency"])
+			add_child(ribbon)
 
 
 func _physics_process(delta: float) -> void:
+	_age += delta
 	position += direction * speed * delta
+	# Apply motion modifiers
+	if effect_profile and effect_profile.motion_type != "none":
+		if _lateral == Vector2.ZERO:
+			_lateral = Vector2(-direction.y, direction.x)
+		var mp := effect_profile.motion_params
+		var md := EffectProfile.get_motion_defaults(effect_profile.motion_type)
+		var amp: float = mp.get("amplitude", md.get("amplitude", 8.0))
+		var freq: float = mp.get("frequency", md.get("frequency", 3.0))
+		var phase: float = mp.get("phase_offset", md.get("phase_offset", 0.0))
+		match effect_profile.motion_type:
+			"sine_wave":
+				var offset := sin(_age * freq * TAU + phase) * amp
+				position += _lateral * offset * delta * freq
+			"corkscrew":
+				var offset_x := cos(_age * freq * TAU + phase) * amp
+				var offset_y := sin(_age * freq * TAU + phase) * amp * 0.5
+				position += _lateral * offset_x * delta * freq
+				position += direction.rotated(PI / 2.0) * offset_y * delta * freq
+			"wobble":
+				var offset := sin(_age * freq * TAU + phase) * amp * sin(_age * freq * 2.0)
+				position += _lateral * offset * delta * freq
 
 
 func _on_body_entered(body: Node2D) -> void:
@@ -208,3 +249,16 @@ func _spawn_profile_impact() -> void:
 			nova.intensity = ip.get("intensity", id["intensity"])
 			nova.set_color(neon_color)
 			get_tree().current_scene.add_child(nova)
+		"ripple":
+			var id := EffectProfile.get_impact_defaults("ripple")
+			var ring_count := int(ip.get("ring_count", id["ring_count"]))
+			var stagger: float = ip.get("stagger", id["stagger"])
+			for ri in ring_count:
+				var ring := _ring_effect_scene.instantiate() as RingEffect
+				ring.global_position = global_position
+				ring.radius_end = ip.get("radius_end", id["radius_end"])
+				ring.lifetime = ip.get("lifetime", id["lifetime"])
+				ring.segments = int(ip.get("segments", id["segments"]))
+				ring.set_color(neon_color)
+				ring.delay = stagger * float(ri)
+				get_tree().current_scene.add_child(ring)

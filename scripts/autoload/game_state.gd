@@ -87,6 +87,35 @@ func _set_defaults() -> void:
 	weapon_patterns = { "forward": default_slots }
 
 
+func get_all_weapons() -> Array:
+	var weapons: Array = []
+	# Built-in weapons from res://resources/
+	var res_dir := DirAccess.open("res://resources/")
+	if res_dir:
+		res_dir.list_dir_begin()
+		var fname := res_dir.get_next()
+		while fname != "":
+			if fname.ends_with(".tres"):
+				var res := load("res://resources/" + fname)
+				if res is WeaponData:
+					weapons.append(res)
+			fname = res_dir.get_next()
+		res_dir.list_dir_end()
+	# User-created weapons from user://weapons/
+	var user_dir := DirAccess.open("user://weapons/")
+	if user_dir:
+		user_dir.list_dir_begin()
+		var fname2 := user_dir.get_next()
+		while fname2 != "":
+			if fname2.ends_with(".tres"):
+				var res := load("user://weapons/" + fname2)
+				if res is WeaponData:
+					weapons.append(res)
+			fname2 = user_dir.get_next()
+		user_dir.list_dir_end()
+	return weapons
+
+
 func _set_default_patterns() -> void:
 	var default_slots: Array = []
 	for i in 8:

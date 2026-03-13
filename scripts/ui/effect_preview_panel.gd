@@ -40,6 +40,7 @@ func _fire_projectile() -> void:
 		"vel": Vector2(0, -220.0),
 		"age": 0.0,
 		"trail": [] as Array[Dictionary],
+		"base_x": spawn_pos.x,
 	})
 	# Muzzle effect
 	_spawn_muzzle_effect(spawn_pos)
@@ -85,6 +86,28 @@ func _spawn_muzzle_effect(pos: Vector2) -> void:
 				"segments": int(mp.get("segments", md["segments"])),
 				"line_width": float(mp.get("line_width", md["line_width"])),
 				"type": "ring",
+			})
+		"spiral_burst":
+			var md := EffectProfile.get_muzzle_defaults("spiral_burst")
+			var count := int(mp.get("particle_count", md["particle_count"]))
+			var lt := float(mp.get("lifetime", md["lifetime"]))
+			var vel_max := float(mp.get("velocity_max", md["velocity_max"]))
+			var spiral_spd := float(mp.get("spiral_speed", md["spiral_speed"]))
+			var particles: Array[Dictionary] = []
+			for i in count:
+				var base_angle := TAU * float(i) / float(count)
+				var spd := randf_range(vel_max * 0.4, vel_max)
+				particles.append({
+					"base_angle": base_angle,
+					"speed": spd,
+					"spiral_speed": spiral_spd,
+				})
+			_muzzle_effects.append({
+				"pos": pos,
+				"age": 0.0,
+				"lifetime": lt,
+				"particles": particles,
+				"type": "spiral",
 			})
 
 
@@ -142,6 +165,18 @@ func _spawn_impact_effect(pos: Vector2) -> void:
 				"intensity": float(ip.get("intensity", id["intensity"])),
 				"type": "nova",
 			})
+		"ripple":
+			var id := EffectProfile.get_impact_defaults("ripple")
+			var ring_count := int(ip.get("ring_count", id["ring_count"]))
+			var stagger: float = ip.get("stagger", id["stagger"])
+			for ri in ring_count:
+				_impact_effects.append({
+					"pos": pos, "age": -stagger * float(ri),
+					"lifetime": float(ip.get("lifetime", id["lifetime"])),
+					"radius_end": float(ip.get("radius_end", id["radius_end"])),
+					"segments": int(ip.get("segments", id["segments"])),
+					"type": "ring",
+				})
 
 
 func set_effect_profile(ep: EffectProfile) -> void:
@@ -169,6 +204,22 @@ func _process(delta: float) -> void:
 		var p: Dictionary = _projectiles[i]
 		p["age"] += delta
 		p["pos"] += p["vel"] * delta
+		# Apply motion modifiers in preview
+		if effect_profile and effect_profile.motion_type != "none":
+			var mp := effect_profile.motion_params
+			var md := EffectProfile.get_motion_defaults(effect_profile.motion_type)
+			var amp: float = mp.get("amplitude", md.get("amplitude", 8.0))
+			var freq: float = mp.get("frequency", md.get("frequency", 3.0))
+			var phase: float = mp.get("phase_offset", md.get("phase_offset", 0.0))
+			var age: float = p["age"]
+			var base_x: float = p["base_x"]
+			match effect_profile.motion_type:
+				"sine_wave":
+					p["pos"].x = base_x + sin(age * freq * TAU + phase) * amp
+				"corkscrew":
+					p["pos"].x = base_x + cos(age * freq * TAU + phase) * amp
+				"wobble":
+					p["pos"].x = base_x + sin(age * freq * TAU + phase) * amp * sin(age * freq * 2.0)
 
 		# Trail recording
 		var trail: Array = p["trail"]
@@ -238,9 +289,17 @@ func _draw() -> void:
 	# Projectiles (shape from profile)
 	for p in _projectiles:
 		var shape_pts := _get_shape_points()
+		# Pulse orb shimmer
+		var scale_factor := 1.0
+		if effect_profile and effect_profile.shape_type == "pulse_orb":
+			var sp2 := effect_profile.shape_params
+			var pulse_spd: float = sp2.get("pulse_speed", 4.0)
+			var pulse_amt: float = sp2.get("pulse_amount", 1.5)
+			var age: float = p["age"]
+			scale_factor = 1.0 + sin(age * pulse_spd * TAU) * (pulse_amt - 1.0) * 0.5
 		var pts := PackedVector2Array()
 		for sp in shape_pts:
-			pts.append(sp + p["pos"])
+			pts.append(sp * scale_factor + p["pos"])
 		if pts.size() > 0:
 			pts.append(pts[0])
 		_draw_neon_poly(pts, col, pulse)
@@ -310,10 +369,26 @@ func _draw_projectile_trail(p: Dictionary, col: Color) -> void:
 				var tc := Color(col.r, col.g, col.b, alpha)
 				draw_polyline(pts, tc, 1.5, true)
 				count += 1
+		"sine_ribbon":
+			if trail.size() >= 2:
+				var tp2 := effect_profile.trail_params if effect_profile else {}
+				var td2 := EffectProfile.get_trail_defaults("sine_ribbon")
+				var ws2: float = tp2.get("width_start", td2["width_start"])
+				var wave_amp: float = tp2.get("wave_amplitude", td2["wave_amplitude"])
+				var wave_freq: float = tp2.get("wave_frequency", td2["wave_frequency"])
+				var pts := PackedVector2Array()
+				for ti in trail.size():
+					var tpos: Vector2 = trail[ti]["pos"]
+					var wave_offset := sin(float(ti) / float(trail.size()) * wave_freq * TAU) * wave_amp
+					pts.append(tpos + Vector2(wave_offset, 0))
+				var tc := Color(col.r, col.g, col.b, 0.5)
+				draw_polyline(pts, tc, ws2, true)
 
 
 func _draw_muzzle_effect(fx: Dictionary, col: Color) -> void:
 	var t: float = fx["age"] / fx["lifetime"]
+	if t < 0.0:
+		return
 	var alpha := 1.0 - t
 
 	match fx["type"]:
@@ -330,10 +405,22 @@ func _draw_muzzle_effect(fx: Dictionary, col: Color) -> void:
 				var angle := TAU * float(i) / float(segs)
 				pts.append(fx["pos"] + Vector2(cos(angle) * radius, sin(angle) * radius))
 			var rc := Color(col.r, col.g, col.b, alpha * 0.7)
-			draw_polyline(pts, rc, fx["line_width"] * (1.0 - t * 0.5), true)
+			draw_polyline(pts, rc, fx.get("line_width", 3.0) * (1.0 - t * 0.5), true)
+		"spiral":
+			for particle in fx["particles"]:
+				var base_angle: float = particle["base_angle"]
+				var spd: float = particle["speed"]
+				var spiral_spd: float = particle["spiral_speed"]
+				var cur_angle: float = base_angle + float(fx["age"]) * spiral_spd
+				var dist: float = spd * float(fx["age"])
+				var pos: Vector2 = fx["pos"] + Vector2(cos(cur_angle), sin(cur_angle)) * dist
+				var pc := Color(col.r, col.g, col.b, alpha * 0.6)
+				draw_circle(pos, 1.5, pc)
 
 
 func _draw_impact_effect(fx: Dictionary, col: Color) -> void:
+	if fx["age"] < 0.0:
+		return
 	var t: float = fx["age"] / fx["lifetime"]
 	var alpha := 1.0 - t
 
