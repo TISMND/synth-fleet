@@ -113,6 +113,10 @@ func _ready() -> void:
 	_hud.name = "HUD"
 	add_child(_hud)
 
+	# Wire HUD to player for hardpoint display
+	_player._hud = _hud
+	_player._update_hud_hardpoints()
+
 	# Start level intro
 	_start_level_intro()
 

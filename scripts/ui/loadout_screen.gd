@@ -31,6 +31,9 @@ var _weapon_ids: Array[String] = []
 var _weapon_cache: Dictionary = {}
 var _piano_rolls: Dictionary = {}        # {hp_id: PianoRoll}
 var _hp_weapon_selectors: Dictionary = {} # {hp_id: OptionButton}
+var _hp_stage_patterns: Dictionary = {}  # {hp_id: {0: Array, 1: Array, 2: Array}}
+var _hp_active_stage: Dictionary = {}    # {hp_id: int} — currently selected stage (0, 1, or 2)
+var _hp_stage_buttons: Dictionary = {}   # {hp_id: Array[Button]}
 var _is_playing: bool = false
 var _playback_step: int = -1
 var _playback_timer: Timer = null
@@ -298,6 +301,9 @@ func _rebuild_hardpoint_panel() -> void:
 		child.queue_free()
 	_piano_rolls.clear()
 	_hp_weapon_selectors.clear()
+	_hp_stage_patterns.clear()
+	_hp_active_stage.clear()
+	_hp_stage_buttons.clear()
 
 	if not _current_ship:
 		return
@@ -347,6 +353,38 @@ func _rebuild_hardpoint_panel() -> void:
 		weapon_row.add_child(selector)
 		_hp_weapon_selectors[hp_id] = selector
 
+		# Stage buttons + Piano roll in an HBoxContainer
+		var roll_row := HBoxContainer.new()
+		roll_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_hardpoint_container.add_child(roll_row)
+
+		# Stage buttons (left of piano roll)
+		var stage_vbox := VBoxContainer.new()
+		stage_vbox.custom_minimum_size.x = 32
+		roll_row.add_child(stage_vbox)
+
+		var stage_btns: Array = []
+		for si in 3:
+			var sbtn := Button.new()
+			sbtn.text = str(si + 1)
+			sbtn.custom_minimum_size = Vector2(32, 32)
+			var bound_hp: String = hp_id
+			var bound_si: int = si
+			sbtn.pressed.connect(func() -> void:
+				_on_stage_button(bound_hp, bound_si)
+			)
+			stage_vbox.add_child(sbtn)
+			stage_btns.append(sbtn)
+		_hp_stage_buttons[hp_id] = stage_btns
+
+		# Initialize stage patterns (all blank)
+		var blank_pattern: Array = []
+		blank_pattern.resize(_get_current_loop_length())
+		blank_pattern.fill(-1)
+		_hp_stage_patterns[hp_id] = {0: blank_pattern.duplicate(), 1: blank_pattern.duplicate(), 2: blank_pattern.duplicate()}
+		_hp_active_stage[hp_id] = 0
+		_update_stage_button_colors(hp_id)
+
 		# Piano roll
 		var roll := PianoRoll.new()
 		roll.custom_minimum_size = Vector2(0, 220)
@@ -358,8 +396,38 @@ func _rebuild_hardpoint_panel() -> void:
 		roll.pattern_changed.connect(func(_new_pattern: Array) -> void:
 			_on_pattern_changed(bound_id)
 		)
-		_hardpoint_container.add_child(roll)
+		roll_row.add_child(roll)
 		_piano_rolls[hp_id] = roll
+
+
+func _on_stage_button(hp_id: String, stage_index: int) -> void:
+	var roll: PianoRoll = _piano_rolls.get(hp_id)
+	if not roll:
+		return
+	var old_stage: int = int(_hp_active_stage.get(hp_id, 0))
+	# Save current roll pattern to old stage
+	_hp_stage_patterns[hp_id][old_stage] = roll.pattern.duplicate()
+	# Switch to new stage
+	_hp_active_stage[hp_id] = stage_index
+	# Load new stage pattern into roll
+	var new_pattern: Array = _hp_stage_patterns[hp_id].get(stage_index, [])
+	if new_pattern.is_empty():
+		new_pattern.resize(roll.loop_length)
+		new_pattern.fill(-1)
+		_hp_stage_patterns[hp_id][stage_index] = new_pattern.duplicate()
+	roll.set_pattern(new_pattern)
+	_update_stage_button_colors(hp_id)
+
+
+func _update_stage_button_colors(hp_id: String) -> void:
+	var btns: Array = _hp_stage_buttons.get(hp_id, [])
+	var active: int = int(_hp_active_stage.get(hp_id, 0))
+	for i in btns.size():
+		var btn: Button = btns[i]
+		if i == active:
+			btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.8))
+		else:
+			btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 
 
 func _on_weapon_selected_for_hp(hp_id: String, idx: int) -> void:
@@ -509,14 +577,27 @@ func _collect_loadout_data() -> Dictionary:
 		var weapon_id: String = ""
 		if selector.selected > 0:
 			weapon_id = selector.get_item_text(selector.selected)
+		# Save current roll pattern to active stage before collecting
 		var roll: PianoRoll = _piano_rolls.get(hp_id)
-		var stages: Array = []
 		if roll:
-			stages.append({
-				"stage_number": 1,
-				"loop_length": _get_current_loop_length(),
-				"pattern": roll.pattern.duplicate(),
-			})
+			var active: int = int(_hp_active_stage.get(hp_id, 0))
+			_hp_stage_patterns[hp_id][active] = roll.pattern.duplicate()
+		# Build stages array — only include stages with at least one note
+		var stages: Array = []
+		var stage_data: Dictionary = _hp_stage_patterns.get(hp_id, {})
+		for si in 3:
+			var pat: Array = stage_data.get(si, [])
+			var has_note: bool = false
+			for val in pat:
+				if int(val) >= 0:
+					has_note = true
+					break
+			if has_note:
+				stages.append({
+					"stage_number": si + 1,
+					"loop_length": _get_current_loop_length(),
+					"pattern": pat.duplicate(),
+				})
 		assignments[hp_id] = {
 			"weapon_id": weapon_id,
 			"stages": stages,
@@ -608,21 +689,34 @@ func _populate_from_loadout(loadout: LoadoutData) -> void:
 					var cells: int = PianoRoll.duration_to_cells(w.note_duration)
 					roll_dur.set_note_duration_cells(cells)
 
-		# Load pattern from stages
+		# Load all stages from assignment
 		var stages: Array = assignment.get("stages", [])
 		if stages.size() > 0:
-			var stage: Dictionary = stages[0]
-			var loop_len: int = int(stage.get("loop_length", 8))
-			# Set loop selector to match
+			# Set loop length from first stage
+			var first_stage: Dictionary = stages[0]
+			var loop_len: int = int(first_stage.get("loop_length", 8))
 			for li in LOOP_LENGTHS.size():
 				if LOOP_LENGTHS[li] == loop_len:
 					_loop_selector.selected = li
 					_on_loop_length_changed(li)
 					break
-			var saved_pattern: Array = stage.get("pattern", [])
+
+			# Load each stage pattern into _hp_stage_patterns
+			for stage in stages:
+				var snum: int = int(stage.get("stage_number", 1))
+				var si: int = snum - 1  # 0-indexed
+				if si >= 0 and si < 3:
+					var saved_pattern: Array = stage.get("pattern", [])
+					if saved_pattern.size() > 0:
+						_hp_stage_patterns[hp_id][si] = saved_pattern.duplicate()
+
+			# Display stage 0 in the piano roll
+			_hp_active_stage[hp_id] = 0
+			_update_stage_button_colors(hp_id)
 			var roll: PianoRoll = _piano_rolls.get(hp_id)
-			if roll and saved_pattern.size() > 0:
-				roll.set_pattern(saved_pattern)
+			var stage0_pattern: Array = _hp_stage_patterns[hp_id].get(0, [])
+			if roll and stage0_pattern.size() > 0:
+				roll.set_pattern(stage0_pattern)
 
 
 func _on_delete() -> void:

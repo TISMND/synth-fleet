@@ -10,6 +10,8 @@ var _menu_hint: Label = null
 var _wave_label: Label = null
 var _level_label: Label = null
 var _intro_label: Label = null
+var _hardpoint_hbox: HBoxContainer = null
+var _hardpoint_labels: Array = []
 
 
 func _ready() -> void:
@@ -127,6 +129,12 @@ func _build_ui() -> void:
 	_game_over_label.visible = false
 	add_child(_game_over_label)
 
+	# Hardpoint stage indicators — bottom-left
+	_hardpoint_hbox = HBoxContainer.new()
+	_hardpoint_hbox.position = Vector2(20, 1000)
+	_hardpoint_hbox.add_theme_constant_override("separation", 16)
+	add_child(_hardpoint_hbox)
+
 
 func update_health(current_shield: float, max_shield: int, current_hull: int, max_hull: int) -> void:
 	_shield_bar.max_value = max_shield
@@ -171,6 +179,33 @@ func show_victory() -> void:
 
 func show_game_over() -> void:
 	_game_over_label.visible = true
+
+
+func update_hardpoints(data: Array) -> void:
+	# Clear existing labels
+	for lbl in _hardpoint_labels:
+		if is_instance_valid(lbl):
+			lbl.queue_free()
+	_hardpoint_labels.clear()
+
+	for i in data.size():
+		var entry: Dictionary = data[i]
+		var stage: int = int(entry.get("stage", -1))
+		var max_stage: int = int(entry.get("max_stage", 0))
+		var weapon_name: String = str(entry.get("weapon_name", "?"))
+		var color: Color = entry.get("color", Color.CYAN) as Color
+		var hp_num: int = i + 1
+
+		var lbl := Label.new()
+		if stage < 0:
+			lbl.text = str(hp_num) + ": OFF"
+			lbl.add_theme_color_override("font_color", Color(0.35, 0.35, 0.4))
+		else:
+			lbl.text = str(hp_num) + ": " + weapon_name + " [" + str(stage + 1) + "]"
+			lbl.add_theme_color_override("font_color", color)
+		lbl.add_theme_font_size_override("font_size", 14)
+		_hardpoint_hbox.add_child(lbl)
+		_hardpoint_labels.append(lbl)
 
 
 func _on_beat(beat_index: int) -> void:

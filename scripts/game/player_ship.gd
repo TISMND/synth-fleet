@@ -13,6 +13,8 @@ var speed: float = 400.0
 var _cell_size: float = 3.0
 var _hardpoint_controllers: Array = []
 var _player_area: Area2D = null
+var _hud: CanvasLayer = null
+var _weapon_data_per_hp: Array = []
 
 
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
@@ -35,6 +37,7 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 		var gp: Array = hp.get("grid_pos", [0, 0])
 		var dir_deg: float = float(hp.get("direction_deg", 0.0))
 		var hp_pos: Vector2 = (Vector2(float(gp[0]), float(gp[1])) - grid_center) * _cell_size
+		var hp_label: String = str(hp.get("label", hp_id))
 
 		var assignment: Dictionary = assignments.get(hp_id, {})
 		var weapon_id: String = str(assignment.get("weapon_id", ""))
@@ -50,8 +53,12 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 		controller.position = hp_pos
 		add_child(controller)
 		controller.setup(weapon, stages, dir_deg, proj_container)
-		controller.start_sequencer()
+		# Hardpoints start OFF — no start_sequencer() call
 		_hardpoint_controllers.append(controller)
+		_weapon_data_per_hp.append({
+			"label": hp_label,
+			"weapon": weapon,
+		})
 
 	# Player collision area for contact damage
 	_player_area = Area2D.new()
@@ -75,6 +82,62 @@ func _process(delta: float) -> void:
 	position.y = clampf(position.y, 50.0, 1030.0)
 	# Shield regen
 	shield = minf(shield + shield_regen * delta, float(shield_max))
+
+
+func _input(event: InputEvent) -> void:
+	# Individual hardpoint toggles (1-9)
+	for i in mini(_hardpoint_controllers.size(), 9):
+		var action: String = "hardpoint_" + str(i + 1)
+		if event.is_action_pressed(action):
+			_hardpoint_controllers[i].cycle_stage()
+			_update_hud_hardpoints()
+			return
+
+	# All hardpoints up
+	if event.is_action_pressed("hardpoints_up"):
+		for c in _hardpoint_controllers:
+			c.raise_stage()
+		_update_hud_hardpoints()
+		return
+
+	# All hardpoints down
+	if event.is_action_pressed("hardpoints_down"):
+		for c in _hardpoint_controllers:
+			c.lower_stage()
+		_update_hud_hardpoints()
+		return
+
+	# All hardpoints off
+	if event.is_action_pressed("hardpoints_off"):
+		for c in _hardpoint_controllers:
+			c.set_stage(-1)
+		_update_hud_hardpoints()
+		return
+
+	# All hardpoints max
+	if event.is_action_pressed("hardpoints_max"):
+		for c in _hardpoint_controllers:
+			c.set_stage(c.get_max_stage())
+		_update_hud_hardpoints()
+		return
+
+
+func _update_hud_hardpoints() -> void:
+	if not _hud or not _hud.has_method("update_hardpoints"):
+		return
+	var data: Array = []
+	for i in _hardpoint_controllers.size():
+		var controller: Node2D = _hardpoint_controllers[i]
+		var hp_info: Dictionary = _weapon_data_per_hp[i]
+		var weapon: WeaponData = hp_info["weapon"]
+		data.append({
+			"label": hp_info["label"],
+			"weapon_name": weapon.display_name if weapon.display_name != "" else weapon.id,
+			"color": Color(weapon.color),
+			"stage": controller.get_stage(),
+			"max_stage": controller.get_max_stage(),
+		})
+	_hud.update_hardpoints(data)
 
 
 func take_damage(amount: int) -> void:

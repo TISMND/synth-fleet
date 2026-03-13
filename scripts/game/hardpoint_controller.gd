@@ -1,6 +1,7 @@
 extends Node2D
 ## Per-hardpoint sequencer. Steps through the piano roll pattern at 1/32-note intervals,
 ## fires projectiles and plays audio on trigger steps.
+## Supports multiple stages (patterns) that can be switched at runtime.
 
 var weapon_data: WeaponData = null
 var pattern: Array = []
@@ -9,21 +10,92 @@ var direction_deg: float = 0.0
 var _step: int = 0
 var _timer: Timer = null
 var _projectiles_container: Node2D = null
+var _all_stages: Array = []
+var _current_stage: int = -1  # -1 = OFF
+var _max_stage: int = -1
 
 
 func setup(weapon: WeaponData, stages: Array, dir_deg: float, proj_container: Node2D) -> void:
 	weapon_data = weapon
 	direction_deg = dir_deg
 	_projectiles_container = proj_container
-	if stages.size() > 0:
-		var stage: Dictionary = stages[0]
-		pattern = stage.get("pattern", [])
-		loop_length = int(stage.get("loop_length", 32))
+	_all_stages = stages.duplicate(true)
+	_max_stage = mini(_all_stages.size() - 1, 2)
+	# Start OFF — no pattern loaded, no timer
+
+
+func set_stage(stage_index: int) -> int:
+	if stage_index < 0 or stage_index > _max_stage:
+		# Go to OFF state
+		_current_stage = -1
+		pattern = []
+		stop_sequencer()
+		return -1
+	var was_off: bool = _current_stage < 0
+	_current_stage = stage_index
+	var stage: Dictionary = _all_stages[stage_index]
+	pattern = stage.get("pattern", []).duplicate()
+	loop_length = int(stage.get("loop_length", 32))
 	if pattern.is_empty():
 		pattern.resize(loop_length)
 		pattern.fill(-1)
 	if loop_length <= 0:
 		loop_length = pattern.size()
+	if was_off:
+		# Coming from OFF — start fresh
+		_step = 0
+		_restart_timer()
+	else:
+		# Already playing — just swap pattern, keep step and timer in sync
+		if _step >= loop_length:
+			_step = _step % loop_length
+	return _current_stage
+
+
+func get_stage() -> int:
+	return _current_stage
+
+
+func get_max_stage() -> int:
+	return _max_stage
+
+
+func cycle_stage() -> int:
+	if _max_stage < 0:
+		return -1
+	# -1 → 0 → 1 → 2 → -1, skipping stages beyond _max_stage
+	var next: int = _current_stage + 1
+	if next > _max_stage:
+		next = -1
+	return set_stage(next)
+
+
+func raise_stage() -> int:
+	if _current_stage < _max_stage:
+		return set_stage(_current_stage + 1)
+	return _current_stage
+
+
+func lower_stage() -> int:
+	if _current_stage > -1:
+		return set_stage(_current_stage - 1)
+	return _current_stage
+
+
+func _restart_timer() -> void:
+	if _timer:
+		_timer.stop()
+		_timer.queue_free()
+		_timer = null
+	if pattern.is_empty() or not weapon_data:
+		return
+	_timer = Timer.new()
+	_timer.one_shot = false
+	_timer.wait_time = BeatClock.get_beat_duration() / 8.0
+	_timer.timeout.connect(_on_step)
+	add_child(_timer)
+	_timer.start()
+	_on_step()
 
 
 func start_sequencer() -> void:
