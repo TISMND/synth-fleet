@@ -36,6 +36,10 @@ Project scaffolding is complete. The game runs: player ship moves, background sc
 - **GameState** — Persistent player data (credits, loadout, owned items). Saves to `user://save_data.json`.
 - **AudioManager** — Pooled audio playback. Maps weapon colors → audio samples. Weapons call `AudioManager.play_color()` on fire.
 
+### Godot gotchas
+- **Sibling `_ready()` order is not guaranteed.** If node A needs to call a method on sibling node B that uses B's child refs, use `call_deferred()` so B's `_ready()` has run first. Without this, B's `$Child` refs will still be null and you'll get "Nil" property access errors.
+- **Integer regen from floats:** `int(rate * delta)` truncates to 0 when `rate * delta < 1`. Use a float accumulator: add `rate * delta` each frame, convert to int when ≥ 1, subtract the int portion.
+
 ### Key design rules
 - Weapons fire on BeatClock subdivisions (quarter/eighth/triplet), NOT on input
 - Player chooses weapon color = chooses the synth sound that plays

@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/game/player.tscn" id="1"]
 [ext_resource type="Script" path="res://scripts/weapons/weapon_base.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/enemies/enemy_spawner.gd" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/game/enemy_basic.tscn" id="4"]
 [ext_resource type="Script" path="res://scripts/systems/level_controller.gd" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="6"]
 
 [node name="Level" type="Node2D"]
 
@@ -12,19 +13,19 @@
 
 [node name="StarsFar" type="ParallaxLayer" parent="ScrollingBG"]
 motion_scale = Vector2(0.3, 0.3)
-motion_mirroring = Vector2(0, 960)
+motion_mirroring = Vector2(0, 1080)
 
 [node name="FarStars" type="ColorRect" parent="ScrollingBG/StarsFar"]
-offset_right = 640.0
-offset_bottom = 960.0
+offset_right = 1920.0
+offset_bottom = 1080.0
 color = Color(0.02, 0.02, 0.08, 1)
 
 [node name="StarsNear" type="ParallaxLayer" parent="ScrollingBG"]
 motion_scale = Vector2(0.7, 0.7)
-motion_mirroring = Vector2(0, 960)
+motion_mirroring = Vector2(0, 1080)
 
 [node name="Player" parent="." instance=ExtResource("1")]
-position = Vector2(320, 800)
+position = Vector2(960, 900)
 
 [node name="ForwardWeapon" type="Node2D" parent="Player/ForwardMount"]
 script = ExtResource("2")
@@ -39,6 +40,8 @@ script = ExtResource("5")
 
 [node name="BeatVisual" type="ColorRect" parent="."]
 visible = false
-offset_right = 640.0
+offset_right = 1920.0
 offset_bottom = 4.0
 color = Color(1, 1, 1, 0.3)
+
+[node name="HUD" parent="." instance=ExtResource("6")]

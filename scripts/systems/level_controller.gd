@@ -5,14 +5,29 @@ extends Node
 @export var level_bpm: float = 120.0
 @export var scroll_speed: float = 50.0
 
-@onready var parallax_bg: ParallaxBackground = $"../ScrollingBG"
-@onready var enemy_spawner: Node = $"../EnemySpawner"
+var parallax_bg: ParallaxBackground
+var enemy_spawner: Node
+var hud: CanvasLayer
+var player: CharacterBody2D
 
 
 func _ready() -> void:
+	parallax_bg = $"../ScrollingBG"
+	enemy_spawner = $"../EnemySpawner"
+	player = $"../Player"
+	hud = $"../HUD"
+
 	BeatClock.start(level_bpm)
 	if enemy_spawner.has_method("start_spawning"):
 		enemy_spawner.start_spawning()
+	if hud and player:
+		# Deferred so HUD's _ready() has resolved its child node refs first
+		hud.connect_to_player.call_deferred(player)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("quit_game"):
+		get_tree().quit()
 
 
 func _process(delta: float) -> void:
