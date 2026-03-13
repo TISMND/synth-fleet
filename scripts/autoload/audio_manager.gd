@@ -19,17 +19,18 @@ func _ready() -> void:
 		_player_pool.append(player)
 
 
-func play_sample(sample: AudioStream, volume_db: float = 0.0) -> void:
+func play_sample(sample: AudioStream, volume_db: float = 0.0, pitch_scale: float = 1.0) -> void:
 	var player := _player_pool[_next_player]
 	_next_player = (_next_player + 1) % POOL_SIZE
 	player.stream = sample
 	player.volume_db = volume_db
+	player.pitch_scale = pitch_scale
 	player.play()
 
 
-func play_color(color_name: String, volume_db: float = 0.0) -> void:
+func play_color(color_name: String, volume_db: float = 0.0, pitch_scale: float = 1.0) -> void:
 	if color_name in color_sample_map:
-		play_sample(color_sample_map[color_name], volume_db)
+		play_sample(color_sample_map[color_name], volume_db, pitch_scale)
 
 
 func load_color_samples(mapping: Dictionary) -> void:

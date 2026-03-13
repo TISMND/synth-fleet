@@ -18,6 +18,13 @@ func _ready() -> void:
 	hud = $"../HUD"
 
 	BeatClock.start(level_bpm)
+
+	# Load weapon pattern from GameState onto the forward weapon
+	var forward_weapon := player.get_node_or_null("ForwardMount/ForwardWeapon")
+	if forward_weapon and forward_weapon is WeaponBase:
+		if "forward" in GameState.weapon_patterns:
+			forward_weapon.load_pattern_from_slots(GameState.weapon_patterns["forward"])
+
 	if enemy_spawner.has_method("start_spawning"):
 		enemy_spawner.start_spawning()
 	if hud and player:

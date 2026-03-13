@@ -1,0 +1,14 @@
+extends Control
+## Main menu — Play, Loadout (sequencer), Studio (placeholder).
+
+
+func _ready() -> void:
+	$VBox/PlayButton.pressed.connect(func() -> void:
+		get_tree().change_scene_to_file("res://scenes/main.tscn")
+	)
+	$VBox/LoadoutButton.pressed.connect(func() -> void:
+		get_tree().change_scene_to_file("res://scenes/ui/weapon_customizer.tscn")
+	)
+	$VBox/StudioButton.pressed.connect(func() -> void:
+		pass  # Placeholder — another instance will build this
+	)
