@@ -17,6 +17,8 @@ var mirror_enabled: bool = false
 var current_line_color: String = "#00FFFF"
 var mode: Mode = Mode.DRAW_LINE
 
+var display_only: bool = false
+
 var _draw_start: Vector2i = Vector2i(-1, -1)
 var _mouse_grid_pos: Vector2i = Vector2i(0, 0)
 var _next_hp_id: int = 0
@@ -236,33 +238,34 @@ func _draw() -> void:
 	if cell_size <= 0:
 		return
 
-	# Grid lines
-	var grid_color: Color = Color(0.12, 0.12, 0.18, 0.4)
-	var grid_color_major: Color = Color(0.18, 0.18, 0.25, 0.5)
-	var dot_color: Color = Color(0.25, 0.25, 0.35, 0.6)
+	if not display_only:
+		# Grid lines
+		var grid_color: Color = Color(0.12, 0.12, 0.18, 0.4)
+		var grid_color_major: Color = Color(0.18, 0.18, 0.25, 0.5)
+		var dot_color: Color = Color(0.25, 0.25, 0.35, 0.6)
 
-	for x in range(0, grid_size.x + 1):
-		var px: float = offset.x + x * cell_size
-		var col: Color = grid_color_major if x % 8 == 0 else grid_color
-		draw_line(Vector2(px, offset.y), Vector2(px, offset.y + grid_size.y * cell_size), col, 1.0)
-	for y in range(0, grid_size.y + 1):
-		var py: float = offset.y + y * cell_size
-		var col: Color = grid_color_major if y % 8 == 0 else grid_color
-		draw_line(Vector2(offset.x, py), Vector2(offset.x + grid_size.x * cell_size, py), col, 1.0)
-
-	# Grid intersection dots
-	for x in range(0, grid_size.x + 1):
+		for x in range(0, grid_size.x + 1):
+			var px: float = offset.x + x * cell_size
+			var col: Color = grid_color_major if x % 8 == 0 else grid_color
+			draw_line(Vector2(px, offset.y), Vector2(px, offset.y + grid_size.y * cell_size), col, 1.0)
 		for y in range(0, grid_size.y + 1):
-			draw_circle(_grid_to_pixel(Vector2i(x, y)), 1.5, dot_color)
+			var py: float = offset.y + y * cell_size
+			var col: Color = grid_color_major if y % 8 == 0 else grid_color
+			draw_line(Vector2(offset.x, py), Vector2(offset.x + grid_size.x * cell_size, py), col, 1.0)
 
-	# Mirror center axis
-	if mirror_enabled:
-		var cx: float = offset.x + (grid_size.x / 2.0) * cell_size
-		draw_line(
-			Vector2(cx, offset.y),
-			Vector2(cx, offset.y + grid_size.y * cell_size),
-			Color(1.0, 0.4, 0.4, 0.35), 2.0
-		)
+		# Grid intersection dots
+		for x in range(0, grid_size.x + 1):
+			for y in range(0, grid_size.y + 1):
+				draw_circle(_grid_to_pixel(Vector2i(x, y)), 1.5, dot_color)
+
+		# Mirror center axis
+		if mirror_enabled:
+			var cx: float = offset.x + (grid_size.x / 2.0) * cell_size
+			draw_line(
+				Vector2(cx, offset.y),
+				Vector2(cx, offset.y + grid_size.y * cell_size),
+				Color(1.0, 0.4, 0.4, 0.35), 2.0
+			)
 
 	# Ship lines with neon glow
 	for line_data in lines:
@@ -281,23 +284,24 @@ func _draw() -> void:
 		var dir_deg: float = float(hp.get("direction_deg", 0.0))
 		_draw_hardpoint(pos, dir_deg)
 
-	# In-progress line ghost
-	if _draw_start != Vector2i(-1, -1):
-		var a: Vector2 = _grid_to_pixel(_draw_start)
-		var b: Vector2 = _grid_to_pixel(_mouse_grid_pos)
-		_draw_dashed_line(a, b, Color(1, 1, 1, 0.5))
-		if mirror_enabled:
-			var ma: Vector2 = _grid_to_pixel(_get_mirrored_pos(_draw_start))
-			var mb: Vector2 = _grid_to_pixel(_get_mirrored_pos(_mouse_grid_pos))
-			if ma != a or mb != b:
-				_draw_dashed_line(ma, mb, Color(1, 1, 1, 0.3))
+	if not display_only:
+		# In-progress line ghost
+		if _draw_start != Vector2i(-1, -1):
+			var a: Vector2 = _grid_to_pixel(_draw_start)
+			var b: Vector2 = _grid_to_pixel(_mouse_grid_pos)
+			_draw_dashed_line(a, b, Color(1, 1, 1, 0.5))
+			if mirror_enabled:
+				var ma: Vector2 = _grid_to_pixel(_get_mirrored_pos(_draw_start))
+				var mb: Vector2 = _grid_to_pixel(_get_mirrored_pos(_mouse_grid_pos))
+				if ma != a or mb != b:
+					_draw_dashed_line(ma, mb, Color(1, 1, 1, 0.3))
 
-	# Cursor crosshair
-	var cursor_pos: Vector2 = _grid_to_pixel(_mouse_grid_pos)
-	var ch_size: float = cell_size * 0.4
-	var ch_color: Color = Color(1, 1, 1, 0.7)
-	draw_line(cursor_pos - Vector2(ch_size, 0), cursor_pos + Vector2(ch_size, 0), ch_color, 1.0)
-	draw_line(cursor_pos - Vector2(0, ch_size), cursor_pos + Vector2(0, ch_size), ch_color, 1.0)
+		# Cursor crosshair
+		var cursor_pos: Vector2 = _grid_to_pixel(_mouse_grid_pos)
+		var ch_size: float = cell_size * 0.4
+		var ch_color: Color = Color(1, 1, 1, 0.7)
+		draw_line(cursor_pos - Vector2(ch_size, 0), cursor_pos + Vector2(ch_size, 0), ch_color, 1.0)
+		draw_line(cursor_pos - Vector2(0, ch_size), cursor_pos + Vector2(0, ch_size), ch_color, 1.0)
 
 
 func _draw_neon_line(a: Vector2, b: Vector2, col: Color) -> void:

@@ -8,6 +8,7 @@ var credits: int = 0
 var owned_weapon_ids: Array[String] = []
 var owned_ship_ids: Array[String] = []
 var current_loadout_id: String = ""
+var current_level: int = 0
 var stats: Dictionary = {}
 
 
@@ -21,6 +22,7 @@ func save_game() -> void:
 		"owned_weapon_ids": owned_weapon_ids,
 		"owned_ship_ids": owned_ship_ids,
 		"current_loadout_id": current_loadout_id,
+		"current_level": current_level,
 		"stats": stats,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -51,6 +53,7 @@ func load_game() -> void:
 	for sid in sids:
 		owned_ship_ids.append(str(sid))
 	current_loadout_id = str(data.get("current_loadout_id", ""))
+	current_level = int(data.get("current_level", 0))
 	stats = data.get("stats", {})
 
 
@@ -59,7 +62,13 @@ func _set_defaults() -> void:
 	owned_weapon_ids = []
 	owned_ship_ids = []
 	current_loadout_id = ""
+	current_level = 0
 	stats = {}
+
+
+func reset_campaign() -> void:
+	current_level = 0
+	save_game()
 
 
 func add_credits(amount: int) -> void:

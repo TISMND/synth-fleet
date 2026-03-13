@@ -45,6 +45,10 @@ vertical_alignment = 1
 layout_mode = 2
 text = "PLAY"
 
+[node name="RestartButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "RESTART CAMPAIGN"
+
 [node name="LoadoutButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "LOADOUT"
