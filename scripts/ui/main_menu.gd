@@ -13,7 +13,7 @@ func _on_play() -> void:
 
 
 func _on_loadout() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/loadout_placeholder.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/loadout_screen.tscn")
 
 
 func _on_dev_studio() -> void:
