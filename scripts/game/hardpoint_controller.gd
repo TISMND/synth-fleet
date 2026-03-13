@@ -66,36 +66,84 @@ func _fire(note: int) -> void:
 	var base_pos: Vector2 = global_position
 	var fp: String = weapon_data.fire_pattern
 	if fp == "single":
-		_spawn_projectile(base_pos, dir, false)
+		_spawn_projectile(base_pos, dir)
 	elif fp == "dual":
-		_spawn_projectile(base_pos + perp * 20.0, dir, false)
-		_spawn_projectile(base_pos - perp * 20.0, dir, false)
+		_spawn_projectile(base_pos + perp * 20.0, dir)
+		_spawn_projectile(base_pos - perp * 20.0, dir)
 	elif fp == "spread":
-		_spawn_projectile(base_pos, dir, false)
-		_spawn_projectile(base_pos, dir.rotated(deg_to_rad(15.0)), false)
-		_spawn_projectile(base_pos, dir.rotated(deg_to_rad(-15.0)), false)
+		_spawn_projectile(base_pos, dir)
+		_spawn_projectile(base_pos, dir.rotated(deg_to_rad(15.0)))
+		_spawn_projectile(base_pos, dir.rotated(deg_to_rad(-15.0)))
 	elif fp == "burst":
-		_spawn_projectile(base_pos, dir, false)
-		_spawn_projectile(base_pos - dir * 12.0, dir, false)
-		_spawn_projectile(base_pos - dir * 24.0, dir, false)
+		_spawn_projectile(base_pos, dir)
+		_spawn_projectile(base_pos - dir * 12.0, dir)
+		_spawn_projectile(base_pos - dir * 24.0, dir)
 	elif fp == "scatter":
 		for i in 4:
 			var angle_off: float = randf_range(-25.0, 25.0)
-			_spawn_projectile(base_pos, dir.rotated(deg_to_rad(angle_off)), false)
+			_spawn_projectile(base_pos, dir.rotated(deg_to_rad(angle_off)))
 	elif fp == "wave":
-		_spawn_projectile(base_pos, dir, true)
+		_spawn_projectile(base_pos, dir)
 	elif fp == "beam":
-		_spawn_projectile(base_pos, dir, false, 3.0)
+		_spawn_projectile(base_pos, dir, 3.0)
 	else:
-		_spawn_projectile(base_pos, dir, false)
+		_spawn_projectile(base_pos, dir)
+
+	_spawn_muzzle_effect(base_pos)
 
 
-func _spawn_projectile(pos: Vector2, dir: Vector2, wave: bool, speed_mult: float = 1.0) -> void:
+func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0) -> void:
 	var proj := Projectile.new()
 	proj.position = pos
 	proj.direction = dir
 	proj.speed = weapon_data.projectile_speed * speed_mult
 	proj.damage = weapon_data.damage
 	proj.weapon_color = Color(weapon_data.color)
-	proj.is_wave = wave
+	proj.effect_profile = weapon_data.effect_profile
 	_projectiles_container.add_child(proj)
+
+
+func _spawn_muzzle_effect(origin: Vector2) -> void:
+	if not weapon_data or weapon_data.effect_profile.is_empty():
+		return
+	var muzzle: Dictionary = weapon_data.effect_profile.get("muzzle", {}) as Dictionary
+	var mtype: String = str(muzzle.get("type", "none"))
+	if mtype == "none":
+		return
+	var params: Dictionary = muzzle.get("params", {}) as Dictionary
+	var count: int = int(params.get("particle_count", 6))
+	var lifetime: float = float(params.get("lifetime", 0.3))
+	var spread: float = float(params.get("spread_angle", 360.0))
+	var color: Color = Color(weapon_data.color)
+
+	var particles: Array = []
+	for i in count:
+		var angle: float = 0.0
+		var spd: float = randf_range(80, 200)
+		match mtype:
+			"radial_burst":
+				angle = randf_range(0, TAU)
+			"directional_flash":
+				angle = -PI / 2.0 + randf_range(-deg_to_rad(spread / 2.0), deg_to_rad(spread / 2.0))
+			"ring_pulse":
+				angle = TAU * float(i) / float(count)
+				spd = 120.0
+			"spiral_burst":
+				angle = TAU * float(i) / float(count) + float(i) * 0.3
+				spd = 100.0 + float(i) * 10.0
+			_:
+				angle = randf_range(0, TAU)
+
+		particles.append({
+			"pos": Vector2.ZERO,
+			"vel": Vector2(cos(angle), sin(angle)) * spd,
+			"age": 0.0,
+			"lifetime": lifetime,
+			"size": randf_range(2.0, 4.0),
+			"color": color,
+		})
+
+	var fx: EffectParticles = EffectParticles.new()
+	fx.position = origin
+	fx.setup(particles, color)
+	_projectiles_container.add_child(fx)
