@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/weapon_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "basic_pulse"
+display_name = "Basic Pulse"
+damage = 10
+projectile_speed = 600.0
+subdivision = 1
+available_colors = PackedStringArray("cyan")
+power_cost = 1
+shop_cost = 0
+mount_type = "forward"
