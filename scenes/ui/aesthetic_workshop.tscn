@@ -1,10 +1,7 @@
-[gd_scene load_steps=6 format=3 uid="uid://c6aesthetic_ws"]
+[gd_scene load_steps=3 format=3 uid="uid://c6aesthetic_ws"]
 
 [ext_resource type="Script" path="res://scripts/ui/aesthetic_workshop.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ui/hard_neon_preview.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/ui/soft_bloom_preview.gd" id="3"]
-[ext_resource type="Script" path="res://scripts/ui/chromatic_preview.gd" id="4"]
-[ext_resource type="Script" path="res://scripts/ui/minimal_preview.gd" id="5"]
 
 [node name="AestheticWorkshop" type="Control"]
 layout_mode = 3
@@ -24,51 +21,64 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.03, 0.03, 0.06, 1)
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="MainVBox" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="VBox"]
+[node name="Title" type="Label" parent="MainVBox"]
 layout_mode = 2
-text = "AESTHETIC WORKSHOP"
+text = "HARD NEON WORKSHOP"
 horizontal_alignment = 1
 vertical_alignment = 1
-custom_minimum_size = Vector2(0, 50)
+custom_minimum_size = Vector2(0, 40)
 
-[node name="Panels" type="HBoxContainer" parent="VBox"]
+[node name="HSplit" type="HSplitContainer" parent="MainVBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 12
+split_offset = -300
 
-[node name="Panel1" type="PanelContainer" parent="VBox/Panels"]
+[node name="LeftPanel" type="VBoxContainer" parent="MainVBox/HSplit"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_stretch_ratio = 3.0
 
-[node name="VBox1" type="VBoxContainer" parent="VBox/Panels/Panel1"]
+[node name="Grid" type="GridContainer" parent="MainVBox/HSplit/LeftPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="Panel1" type="PanelContainer" parent="MainVBox/HSplit/LeftPanel/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="VBox1" type="VBoxContainer" parent="MainVBox/HSplit/LeftPanel/Grid/Panel1"]
 layout_mode = 2
 
-[node name="Label1" type="Label" parent="VBox/Panels/Panel1/VBox1"]
+[node name="Label1" type="Label" parent="MainVBox/HSplit/LeftPanel/Grid/Panel1/VBox1"]
 layout_mode = 2
-text = "HARD NEON"
+text = "TIGHT"
 horizontal_alignment = 1
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 24)
 
-[node name="SubViewportContainer1" type="SubViewportContainer" parent="VBox/Panels/Panel1/VBox1"]
+[node name="SVC1" type="SubViewportContainer" parent="MainVBox/HSplit/LeftPanel/Grid/Panel1/VBox1"]
 layout_mode = 2
 size_flags_vertical = 3
 stretch = true
 
-[node name="SubViewport1" type="SubViewport" parent="VBox/Panels/Panel1/VBox1/SubViewportContainer1"]
+[node name="SV1" type="SubViewport" parent="MainVBox/HSplit/LeftPanel/Grid/Panel1/VBox1/SVC1"]
 handle_input_locally = false
 size = Vector2i(420, 500)
 render_target_update_mode = 4
 
-[node name="Preview1" type="Control" parent="VBox/Panels/Panel1/VBox1/SubViewportContainer1/SubViewport1"]
+[node name="Preview1" type="Control" parent="MainVBox/HSplit/LeftPanel/Grid/Panel1/VBox1/SVC1/SV1"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -77,103 +87,120 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2")
 
-[node name="Panel2" type="PanelContainer" parent="VBox/Panels"]
+[node name="Panel2" type="PanelContainer" parent="MainVBox/HSplit/LeftPanel/Grid"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 
-[node name="VBox2" type="VBoxContainer" parent="VBox/Panels/Panel2"]
+[node name="VBox2" type="VBoxContainer" parent="MainVBox/HSplit/LeftPanel/Grid/Panel2"]
 layout_mode = 2
 
-[node name="Label2" type="Label" parent="VBox/Panels/Panel2/VBox2"]
+[node name="Label2" type="Label" parent="MainVBox/HSplit/LeftPanel/Grid/Panel2/VBox2"]
 layout_mode = 2
-text = "SOFT BLOOM"
+text = "WIDE"
 horizontal_alignment = 1
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 24)
 
-[node name="SubViewportContainer2" type="SubViewportContainer" parent="VBox/Panels/Panel2/VBox2"]
+[node name="SVC2" type="SubViewportContainer" parent="MainVBox/HSplit/LeftPanel/Grid/Panel2/VBox2"]
 layout_mode = 2
 size_flags_vertical = 3
 stretch = true
 
-[node name="SubViewport2" type="SubViewport" parent="VBox/Panels/Panel2/VBox2/SubViewportContainer2"]
+[node name="SV2" type="SubViewport" parent="MainVBox/HSplit/LeftPanel/Grid/Panel2/VBox2/SVC2"]
 handle_input_locally = false
 size = Vector2i(420, 500)
 render_target_update_mode = 4
 
-[node name="Preview2" type="Control" parent="VBox/Panels/Panel2/VBox2/SubViewportContainer2/SubViewport2"]
+[node name="Preview2" type="Control" parent="MainVBox/HSplit/LeftPanel/Grid/Panel2/VBox2/SVC2/SV2"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("3")
+script = ExtResource("2")
 
-[node name="Panel3" type="PanelContainer" parent="VBox/Panels"]
+[node name="Panel3" type="PanelContainer" parent="MainVBox/HSplit/LeftPanel/Grid"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 
-[node name="VBox3" type="VBoxContainer" parent="VBox/Panels/Panel3"]
+[node name="VBox3" type="VBoxContainer" parent="MainVBox/HSplit/LeftPanel/Grid/Panel3"]
 layout_mode = 2
 
-[node name="Label3" type="Label" parent="VBox/Panels/Panel3/VBox3"]
+[node name="Label3" type="Label" parent="MainVBox/HSplit/LeftPanel/Grid/Panel3/VBox3"]
 layout_mode = 2
-text = "CHROMATIC"
+text = "INTENSE"
 horizontal_alignment = 1
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 24)
 
-[node name="SubViewportContainer3" type="SubViewportContainer" parent="VBox/Panels/Panel3/VBox3"]
+[node name="SVC3" type="SubViewportContainer" parent="MainVBox/HSplit/LeftPanel/Grid/Panel3/VBox3"]
 layout_mode = 2
 size_flags_vertical = 3
 stretch = true
 
-[node name="SubViewport3" type="SubViewport" parent="VBox/Panels/Panel3/VBox3/SubViewportContainer3"]
+[node name="SV3" type="SubViewport" parent="MainVBox/HSplit/LeftPanel/Grid/Panel3/VBox3/SVC3"]
 handle_input_locally = false
 size = Vector2i(420, 500)
 render_target_update_mode = 4
 
-[node name="Preview3" type="Control" parent="VBox/Panels/Panel3/VBox3/SubViewportContainer3/SubViewport3"]
+[node name="Preview3" type="Control" parent="MainVBox/HSplit/LeftPanel/Grid/Panel3/VBox3/SVC3/SV3"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("4")
+script = ExtResource("2")
 
-[node name="Panel4" type="PanelContainer" parent="VBox/Panels"]
+[node name="Panel4" type="PanelContainer" parent="MainVBox/HSplit/LeftPanel/Grid"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 
-[node name="VBox4" type="VBoxContainer" parent="VBox/Panels/Panel4"]
+[node name="VBox4" type="VBoxContainer" parent="MainVBox/HSplit/LeftPanel/Grid/Panel4"]
 layout_mode = 2
 
-[node name="Label4" type="Label" parent="VBox/Panels/Panel4/VBox4"]
+[node name="Label4" type="Label" parent="MainVBox/HSplit/LeftPanel/Grid/Panel4/VBox4"]
 layout_mode = 2
-text = "MINIMAL"
+text = "FLICKER"
 horizontal_alignment = 1
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 24)
 
-[node name="SubViewportContainer4" type="SubViewportContainer" parent="VBox/Panels/Panel4/VBox4"]
+[node name="SVC4" type="SubViewportContainer" parent="MainVBox/HSplit/LeftPanel/Grid/Panel4/VBox4"]
 layout_mode = 2
 size_flags_vertical = 3
 stretch = true
 
-[node name="SubViewport4" type="SubViewport" parent="VBox/Panels/Panel4/VBox4/SubViewportContainer4"]
+[node name="SV4" type="SubViewport" parent="MainVBox/HSplit/LeftPanel/Grid/Panel4/VBox4/SVC4"]
 handle_input_locally = false
 size = Vector2i(420, 500)
 render_target_update_mode = 4
 
-[node name="Preview4" type="Control" parent="VBox/Panels/Panel4/VBox4/SubViewportContainer4/SubViewport4"]
+[node name="Preview4" type="Control" parent="MainVBox/HSplit/LeftPanel/Grid/Panel4/VBox4/SVC4/SV4"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("5")
+script = ExtResource("2")
 
-[node name="BackButton" type="Button" parent="VBox"]
+[node name="RightPanel" type="PanelContainer" parent="MainVBox/HSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+custom_minimum_size = Vector2(260, 0)
+
+[node name="ControlsScroll" type="ScrollContainer" parent="MainVBox/HSplit/RightPanel"]
+layout_mode = 2
+
+[node name="ControlsVBox" type="VBoxContainer" parent="MainVBox/HSplit/RightPanel/ControlsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="BackButton" type="Button" parent="MainVBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 40)
 size_flags_horizontal = 4
