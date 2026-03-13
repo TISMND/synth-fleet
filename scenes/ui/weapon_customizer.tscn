@@ -94,19 +94,6 @@ columns = 4
 layout_mode = 2
 text = "Brush: Cyan"
 
-[node name="PitchTitle" type="Label" parent="VBox/TopPanels/RightPanel/VBox"]
-layout_mode = 2
-text = "PITCH"
-theme_override_font_sizes/font_size = 18
-
-[node name="PitchGrid" type="GridContainer" parent="VBox/TopPanels/RightPanel/VBox"]
-layout_mode = 2
-columns = 8
-
-[node name="PitchValueLabel" type="Label" parent="VBox/TopPanels/RightPanel/VBox"]
-layout_mode = 2
-text = "Pitch: C4"
-
 [node name="DirectionTitle" type="Label" parent="VBox/TopPanels/RightPanel/VBox"]
 layout_mode = 2
 text = "DIRECTION (degrees)"
@@ -138,13 +125,7 @@ theme_override_font_sizes/font_size = 22
 
 [node name="BottomPanel" type="PanelContainer" parent="VBox"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 380)
 
 [node name="TimelineScroll" type="ScrollContainer" parent="VBox/BottomPanel"]
 layout_mode = 2
-
-[node name="Timeline" type="HBoxContainer" parent="VBox/BottomPanel/TimelineScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_constants/separation = 4

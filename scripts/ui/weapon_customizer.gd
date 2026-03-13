@@ -1,8 +1,8 @@
 extends Control
 ## Weapon customizer / sequencer screen.
-## Three panels: turret preview (left), controls (right), timeline (bottom).
+## Three panels: turret preview (left), controls (right), piano-roll grid (bottom).
 
-const SLOT_SCENE := preload("res://scenes/ui/sequencer_slot.tscn")
+const PianoCell := preload("res://scripts/ui/piano_cell.gd")
 
 const COLORS := ["cyan", "magenta", "yellow", "green", "orange", "red", "blue", "white"]
 const COLOR_MAP := {
@@ -34,32 +34,30 @@ const PITCHES := [
 	{ "name": "C5", "value": 2.0 },
 ]
 
+const BEAT_LABELS := ["1", "&", "2", "&", "3", "&", "4", "&"]
+
 var mount_name: String = "forward"
 var brush_color: String = "cyan"
-var brush_pitch: float = 1.0
 var brush_direction: float = 0.0
 
 var _pattern: WeaponPattern
-var _slot_nodes: Array = []
+var _cell_map: Dictionary = {}  # Vector2i(col, pitch_idx) -> PianoCell
 var _preview_weapon: WeaponBase = null
 var _cursor_slot: int = -1
 
-@onready var timeline_container: HBoxContainer = $VBox/BottomPanel/TimelineScroll/Timeline
+@onready var timeline_scroll: ScrollContainer = $VBox/BottomPanel/TimelineScroll
 @onready var color_grid: GridContainer = $VBox/TopPanels/RightPanel/VBox/ColorGrid
-@onready var pitch_grid: GridContainer = $VBox/TopPanels/RightPanel/VBox/PitchGrid
 @onready var direction_spin: SpinBox = $VBox/TopPanels/RightPanel/VBox/DirectionRow/DirectionSpin
 @onready var done_button: Button = $VBox/TopPanels/RightPanel/VBox/DoneButton
 @onready var preview_viewport: SubViewport = $VBox/TopPanels/LeftPanel/SubViewportContainer/PreviewViewport
 @onready var preview_weapon_node: Node2D = $VBox/TopPanels/LeftPanel/SubViewportContainer/PreviewViewport/PreviewShip/PreviewMount/PreviewWeapon
 @onready var color_label: Label = $VBox/TopPanels/RightPanel/VBox/BrushLabel
-@onready var pitch_label: Label = $VBox/TopPanels/RightPanel/VBox/PitchValueLabel
 
 
 func _ready() -> void:
 	_load_pattern()
-	_build_timeline()
+	_build_piano_grid()
 	_build_color_buttons()
-	_build_pitch_buttons()
 	_update_brush_label()
 
 	direction_spin.value = brush_direction
@@ -90,14 +88,51 @@ func _load_pattern() -> void:
 				_pattern.slots[i] = slot_array[i].duplicate()
 
 
-func _build_timeline() -> void:
-	for i in WeaponPattern.SLOTS:
-		var slot_node := SLOT_SCENE.instantiate()
-		slot_node.slot_index = i
-		timeline_container.add_child(slot_node)
-		slot_node.set_note(_pattern.slots[i])
-		slot_node.slot_clicked.connect(_on_slot_clicked)
-		_slot_nodes.append(slot_node)
+func _build_piano_grid() -> void:
+	var grid := GridContainer.new()
+	grid.columns = 9  # 1 label column + 8 time columns
+	grid.add_theme_constant_override("h_separation", 2)
+	grid.add_theme_constant_override("v_separation", 1)
+	timeline_scroll.add_child(grid)
+
+	# Row 0: corner spacer + beat labels
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(36, 22)
+	grid.add_child(spacer)
+	for col in WeaponPattern.SLOTS:
+		var lbl := Label.new()
+		lbl.text = BEAT_LABELS[col]
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.custom_minimum_size = Vector2(44, 22)
+		grid.add_child(lbl)
+
+	# Rows 1-15: pitch labels + cells, C5 (top) -> C3 (bottom)
+	for row in range(PITCHES.size()):
+		# pitch_index: row 0 = C5 (index 14), row 14 = C3 (index 0)
+		var pitch_idx: int = PITCHES.size() - 1 - row
+		var pitch_name: String = PITCHES[pitch_idx]["name"]
+		var is_c_row: bool = pitch_name.begins_with("C")
+
+		# Pitch label
+		var lbl := Label.new()
+		lbl.text = pitch_name
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		lbl.custom_minimum_size = Vector2(36, 22)
+		if is_c_row:
+			lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+		else:
+			lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		grid.add_child(lbl)
+
+		# 8 cells for this pitch row
+		for col in WeaponPattern.SLOTS:
+			var cell: ColorRect = PianoCell.new()
+			cell.setup(col, pitch_idx, is_c_row)
+			cell.cell_clicked.connect(_on_cell_clicked)
+			grid.add_child(cell)
+			_cell_map[Vector2i(col, pitch_idx)] = cell
+
+	_refresh_all_cells()
 
 
 func _build_color_buttons() -> void:
@@ -115,54 +150,59 @@ func _build_color_buttons() -> void:
 		color_grid.add_child(btn)
 
 
-func _build_pitch_buttons() -> void:
-	for p in PITCHES:
-		var btn := Button.new()
-		btn.text = p["name"]
-		btn.custom_minimum_size = Vector2(50, 28)
-		btn.pressed.connect(_select_pitch.bind(p["value"], p["name"]))
-		pitch_grid.add_child(btn)
-
-
 func _select_color(c: String) -> void:
 	brush_color = c
-	_update_brush_label()
-
-
-func _select_pitch(val: float, _name: String) -> void:
-	brush_pitch = val
 	_update_brush_label()
 
 
 func _update_brush_label() -> void:
 	if color_label:
 		color_label.text = "Brush: " + brush_color.capitalize()
-	if pitch_label:
-		# Find pitch name
-		for p in PITCHES:
-			if absf(p["value"] - brush_pitch) < 0.01:
-				pitch_label.text = "Pitch: " + p["name"]
-				break
 
 
-func _on_slot_clicked(index: int) -> void:
-	if _pattern.is_slot_empty(index):
-		_pattern.set_note(index, brush_color, brush_pitch, brush_direction)
+func _on_cell_clicked(column: int, pitch_index: int) -> void:
+	var clicked_pitch: float = PITCHES[pitch_index]["value"]
+	var current_note: Dictionary = _pattern.slots[column]
+
+	if current_note.is_empty():
+		# Empty slot — place note
+		_pattern.set_note(column, brush_color, clicked_pitch, brush_direction)
+	elif _pitch_matches(current_note.get("pitch", -1.0), clicked_pitch):
+		# Same pitch — clear note
+		_pattern.clear_note(column)
 	else:
-		_pattern.clear_note(index)
-	_slot_nodes[index].set_note(_pattern.slots[index])
-	# Update preview weapon
+		# Different pitch — move note to clicked row with brush color
+		_pattern.set_note(column, brush_color, clicked_pitch, brush_direction)
+
+	_refresh_column(column)
 	if _preview_weapon:
 		_preview_weapon.pattern = _pattern
+
+
+func _pitch_matches(a: float, b: float) -> bool:
+	return absf(a - b) < 0.01
+
+
+func _refresh_column(col: int) -> void:
+	var note: Dictionary = _pattern.slots[col]
+	for pitch_idx in range(PITCHES.size()):
+		var cell = _cell_map[Vector2i(col, pitch_idx)]
+		if not note.is_empty() and _pitch_matches(note.get("pitch", -1.0), PITCHES[pitch_idx]["value"]):
+			cell.set_filled(COLOR_MAP.get(note.get("color", "cyan"), Color(0, 1, 1)))
+		else:
+			cell.set_empty()
+
+
+func _refresh_all_cells() -> void:
+	for col in WeaponPattern.SLOTS:
+		_refresh_column(col)
 
 
 var _eighth_counter: int = 0
 
 func _on_beat_for_cursor(_beat_index: int) -> void:
-	# Advance cursor two slots per beat (eighth notes)
 	_highlight_cursor(_eighth_counter)
 	_eighth_counter = (_eighth_counter + 1) % WeaponPattern.SLOTS
-	# Schedule second eighth highlight
 	var half := BeatClock.get_beat_duration() / 2.0
 	get_tree().create_timer(half, false).timeout.connect(
 		func() -> void:
@@ -172,15 +212,22 @@ func _on_beat_for_cursor(_beat_index: int) -> void:
 
 
 func _highlight_cursor(slot: int) -> void:
-	if _cursor_slot >= 0 and _cursor_slot < _slot_nodes.size():
-		_slot_nodes[_cursor_slot].set_cursor_active(false)
+	# Clear previous column
+	if _cursor_slot >= 0:
+		for pitch_idx in range(PITCHES.size()):
+			var key := Vector2i(_cursor_slot, pitch_idx)
+			if key in _cell_map:
+				_cell_map[key].set_cursor_highlight(false)
+	# Highlight new column
 	_cursor_slot = slot
-	if _cursor_slot >= 0 and _cursor_slot < _slot_nodes.size():
-		_slot_nodes[_cursor_slot].set_cursor_active(true)
+	if _cursor_slot >= 0:
+		for pitch_idx in range(PITCHES.size()):
+			var key := Vector2i(_cursor_slot, pitch_idx)
+			if key in _cell_map:
+				_cell_map[key].set_cursor_highlight(true)
 
 
 func _on_done() -> void:
-	# Save pattern
 	var slot_array: Array = []
 	for i in WeaponPattern.SLOTS:
 		slot_array.append(_pattern.slots[i].duplicate())
