@@ -10,5 +10,5 @@ func _ready() -> void:
 		get_tree().change_scene_to_file("res://scenes/ui/weapon_customizer.tscn")
 	)
 	$VBox/StudioButton.pressed.connect(func() -> void:
-		pass  # Placeholder — another instance will build this
+		get_tree().change_scene_to_file("res://scenes/ui/aesthetic_workshop.tscn")
 	)

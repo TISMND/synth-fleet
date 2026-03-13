@@ -17,6 +17,22 @@ func _ready() -> void:
 		player.bus = "SFX"
 		add_child(player)
 		_player_pool.append(player)
+	_load_default_samples()
+
+
+func _load_default_samples() -> void:
+	var base := "res://assets/audio/samples/"
+	var defaults := {
+		"cyan": base + "017_SEPH_-_Synth_Hit_C3.wav",
+		"magenta": base + "011_Synth_Hit_145bpm_A#_-_DOOFPSY_Zenhiser.wav",
+		"yellow": base + "049_Synth_Hit_E_-_CATALYST_Zenhiser.wav",
+		"green": base + "04_FPH_Synth_Hit_C.wav",
+		"orange": base + "030_Synth_Hit_C_-_TECHNOLOGY_Zenhiser.wav",
+		"red": base + "141_Synth_Hit_G_-_PSYONESHOTS_Zenhiser.wav",
+		"blue": base + "054_SEB_-_Synth_Hit_C3.wav",
+		"white": base + "ESM_Notification_3_or_Victory_Hit_Simulation_Notification_Synth_Electronic_Particle_Cute_Cartoon.wav",
+	}
+	load_color_samples(defaults)
 
 
 func play_sample(sample: AudioStream, volume_db: float = 0.0, pitch_scale: float = 1.0) -> void:
