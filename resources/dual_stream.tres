@@ -4,14 +4,14 @@
 
 [resource]
 script = ExtResource("1")
-id = "basic_pulse"
-display_name = "Basic Pulse"
-damage = 10
+id = "dual_stream"
+display_name = "Dual Stream"
+damage = 8
 projectile_speed = 600.0
-subdivision = 1
+subdivision = 2
 available_colors = PackedStringArray("cyan")
-power_cost = 1
-shop_cost = 0
+power_cost = 2
+shop_cost = 250
 mount_type = "forward"
-description = "Steady single shot on the beat"
-fire_pattern = "single"
+description = "Two parallel shots on eighth notes"
+fire_pattern = "dual"

@@ -11,3 +11,5 @@ extends Resource
 @export var power_cost: int = 1
 @export var shop_cost: int = 100
 @export var mount_type: String = "forward"  ## forward, back, left, right, special
+@export var description: String = ""
+@export var fire_pattern: String = "single"  ## single, burst, dual, wave, spread, beam, scatter

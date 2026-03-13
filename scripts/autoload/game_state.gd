@@ -68,7 +68,7 @@ func load_game() -> void:
 
 func _set_defaults() -> void:
 	credits = 0
-	owned_weapons = ["basic_pulse"]
+	owned_weapons = ["basic_pulse", "rapid_burst", "dual_stream", "wave_shot", "spread_fan", "beam", "scatter"]
 	owned_ships = ["default"]
 	current_ship = "default"
 	current_loadout = {

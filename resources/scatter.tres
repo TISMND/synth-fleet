@@ -4,14 +4,14 @@
 
 [resource]
 script = ExtResource("1")
-id = "basic_pulse"
-display_name = "Basic Pulse"
-damage = 10
-projectile_speed = 600.0
-subdivision = 1
+id = "scatter"
+display_name = "Scatter"
+damage = 5
+projectile_speed = 650.0
+subdivision = 2
 available_colors = PackedStringArray("cyan")
-power_cost = 1
-shop_cost = 0
+power_cost = 3
+shop_cost = 400
 mount_type = "forward"
-description = "Steady single shot on the beat"
-fire_pattern = "single"
+description = "Random angle spray"
+fire_pattern = "scatter"

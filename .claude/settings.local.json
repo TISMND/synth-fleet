@@ -3,7 +3,8 @@
     "allow": [
       "Bash(git:*)",
       "Bash(grep:*)",
-      "Bash(tree -L 3 /c/coding/synth-fleet -I \"node_modules|.godot|.git\" 2>/dev/null || find /c/coding/synth-fleet -not -path \"*/.*\" -not -path \"*/.godot/*\" -not -path \"*/node_modules/*\" | sort | head -150)"
+      "Bash(tree -L 3 /c/coding/synth-fleet -I \"node_modules|.godot|.git\" 2>/dev/null || find /c/coding/synth-fleet -not -path \"*/.*\" -not -path \"*/.godot/*\" -not -path \"*/node_modules/*\" | sort | head -150)",
+      "Bash(ls \"/c/coding/synth-fleet/assets/audio/samples/\"*.wav 2>/dev/null | wc -l)"
     ]
   }
 }

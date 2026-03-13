@@ -1,3 +1,4 @@
+class_name HardNeonPreview
 extends PreviewBase
 ## Hard Neon preview — Multi-pass glow polylines with white-hot cores.
 ## All 4 workshop panels use this script with different presets.

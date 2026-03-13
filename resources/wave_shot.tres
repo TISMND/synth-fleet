@@ -4,14 +4,14 @@
 
 [resource]
 script = ExtResource("1")
-id = "basic_pulse"
-display_name = "Basic Pulse"
+id = "wave_shot"
+display_name = "Wave Shot"
 damage = 10
-projectile_speed = 600.0
-subdivision = 1
+projectile_speed = 500.0
+subdivision = 2
 available_colors = PackedStringArray("cyan")
-power_cost = 1
-shop_cost = 0
+power_cost = 2
+shop_cost = 300
 mount_type = "forward"
-description = "Steady single shot on the beat"
-fire_pattern = "single"
+description = "Sinusoidal weaving projectile path"
+fire_pattern = "wave"
