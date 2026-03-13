@@ -1,28 +1,14 @@
 extends Node
-## Persistent game state — credits, owned weapons/ships, current loadout.
-## Lives across scene changes. Saves to user:// for session persistence.
+## Persistent game state — credits, owned items, current loadout.
+## Saves to user://save_data.json. References weapons/ships/loadouts by ID only.
 
 const SAVE_PATH := "user://save_data.json"
 
 var credits: int = 0
-var owned_weapons: Array[String] = []
-var owned_ships: Array[String] = []
-var current_ship: String = "default"
-var current_loadout: Dictionary = {
-	"forward": "",
-	"back": "",
-	"left": "",
-	"right": "",
-	"special": "",
-}
-
-# Player stats
-var hull_max: int = 100
-var shield_max: int = 50
-var generator_power: int = 10
-
-# mount_name -> Array of slot dicts (serialized WeaponPattern)
-var weapon_patterns: Dictionary = {}
+var owned_weapon_ids: Array[String] = []
+var owned_ship_ids: Array[String] = []
+var current_loadout_id: String = ""
+var stats: Dictionary = {}
 
 
 func _ready() -> void:
@@ -30,17 +16,16 @@ func _ready() -> void:
 
 
 func save_game() -> void:
-	var data := {
+	var data: Dictionary = {
 		"credits": credits,
-		"owned_weapons": owned_weapons,
-		"owned_ships": owned_ships,
-		"current_ship": current_ship,
-		"current_loadout": current_loadout,
-		"weapon_patterns": weapon_patterns,
+		"owned_weapon_ids": owned_weapon_ids,
+		"owned_ship_ids": owned_ship_ids,
+		"current_loadout_id": current_loadout_id,
+		"stats": stats,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify(data))
+		file.store_string(JSON.stringify(data, "\t"))
 
 
 func load_game() -> void:
@@ -56,70 +41,35 @@ func load_game() -> void:
 		_set_defaults()
 		return
 	var data: Dictionary = json.data
-	credits = data.get("credits", 0)
-	owned_weapons.assign(data.get("owned_weapons", []))
-	owned_ships.assign(data.get("owned_ships", []))
-	current_ship = data.get("current_ship", "default")
-	current_loadout = data.get("current_loadout", current_loadout)
-	weapon_patterns = data.get("weapon_patterns", {})
-	if weapon_patterns.is_empty():
-		_set_default_patterns()
+	credits = int(data.get("credits", 0))
+	var wids: Array = data.get("owned_weapon_ids", [])
+	owned_weapon_ids.clear()
+	for wid in wids:
+		owned_weapon_ids.append(str(wid))
+	var sids: Array = data.get("owned_ship_ids", [])
+	owned_ship_ids.clear()
+	for sid in sids:
+		owned_ship_ids.append(str(sid))
+	current_loadout_id = str(data.get("current_loadout_id", ""))
+	stats = data.get("stats", {})
 
 
 func _set_defaults() -> void:
 	credits = 0
-	owned_weapons = ["basic_pulse", "rapid_burst", "dual_stream", "wave_shot", "spread_fan", "beam", "scatter"]
-	owned_ships = ["default"]
-	current_ship = "default"
-	current_loadout = {
-		"forward": "basic_pulse",
-		"back": "",
-		"left": "",
-		"right": "",
-		"special": "",
-	}
-	# Default pattern: notes on beats 1 and 3 (slots 0 and 4)
-	var default_slots: Array = []
-	for i in 8:
-		default_slots.append({})
-	default_slots[0] = { "color": "cyan", "pitch": 1.0, "direction_deg": 0.0 }
-	default_slots[4] = { "color": "cyan", "pitch": 1.0, "direction_deg": 0.0 }
-	weapon_patterns = { "forward": default_slots }
+	owned_weapon_ids = []
+	owned_ship_ids = []
+	current_loadout_id = ""
+	stats = {}
 
 
-func get_all_weapons() -> Array:
-	var weapons: Array = []
-	# Built-in weapons from res://resources/
-	var res_dir := DirAccess.open("res://resources/")
-	if res_dir:
-		res_dir.list_dir_begin()
-		var fname := res_dir.get_next()
-		while fname != "":
-			if fname.ends_with(".tres"):
-				var res := load("res://resources/" + fname)
-				if res is WeaponData:
-					weapons.append(res)
-			fname = res_dir.get_next()
-		res_dir.list_dir_end()
-	# User-created weapons from user://weapons/
-	var user_dir := DirAccess.open("user://weapons/")
-	if user_dir:
-		user_dir.list_dir_begin()
-		var fname2 := user_dir.get_next()
-		while fname2 != "":
-			if fname2.ends_with(".tres"):
-				var res := load("user://weapons/" + fname2)
-				if res is WeaponData:
-					weapons.append(res)
-			fname2 = user_dir.get_next()
-		user_dir.list_dir_end()
-	return weapons
+func add_credits(amount: int) -> void:
+	credits += amount
+	save_game()
 
 
-func _set_default_patterns() -> void:
-	var default_slots: Array = []
-	for i in 8:
-		default_slots.append({})
-	default_slots[0] = { "color": "cyan", "pitch": 1.0, "direction_deg": 0.0 }
-	default_slots[4] = { "color": "cyan", "pitch": 1.0, "direction_deg": 0.0 }
-	weapon_patterns = { "forward": default_slots }
+func spend_credits(amount: int) -> bool:
+	if credits < amount:
+		return false
+	credits -= amount
+	save_game()
+	return true

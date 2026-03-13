@@ -1,17 +1,25 @@
 extends Control
-## Main menu — Play, Loadout (sequencer), Studio (placeholder).
+## Main menu with navigation to Play, Loadout, and Dev Studio.
 
 
 func _ready() -> void:
-	$VBox/PlayButton.pressed.connect(func() -> void:
-		get_tree().change_scene_to_file("res://scenes/main.tscn")
-	)
-	$VBox/LoadoutButton.pressed.connect(func() -> void:
-		get_tree().change_scene_to_file("res://scenes/ui/weapon_customizer.tscn")
-	)
-	$VBox/StudioButton.pressed.connect(func() -> void:
-		get_tree().change_scene_to_file("res://scenes/ui/aesthetic_workshop.tscn")
-	)
-	$VBox/EffectsButton.pressed.connect(func() -> void:
-		get_tree().change_scene_to_file("res://scenes/ui/effect_designer.tscn")
-	)  # Button text is now "WEAPON BUILDER"
+	$VBoxContainer/PlayButton.pressed.connect(_on_play)
+	$VBoxContainer/LoadoutButton.pressed.connect(_on_loadout)
+	$VBoxContainer/DevStudioButton.pressed.connect(_on_dev_studio)
+
+
+func _on_play() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/play_placeholder.tscn")
+
+
+func _on_loadout() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/loadout_placeholder.tscn")
+
+
+func _on_dev_studio() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/dev_studio.tscn")
+
+
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("quit_game"):
+		get_tree().quit()

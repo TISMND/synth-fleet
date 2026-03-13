@@ -7,7 +7,11 @@
       "Bash(ls \"/c/coding/synth-fleet/assets/audio/samples/\"*.wav 2>/dev/null | wc -l)",
       "Bash(ls -la \"C:\\\\coding\\\\synth-fleet\\\\addons\\\\\" 2>/dev/null || echo \"No addons directory found\")",
       "Bash(ls -la \"C:\\\\coding\\\\synth-fleet\\\\assets\\\\audio\\\\samples\\\\\" 2>/dev/null || echo \"Directory does not exist or is empty\")",
-      "Bash(find /c/coding/synth-fleet -name \"*.tres\" -type f 2>/dev/null | head -20)"
+      "Bash(find /c/coding/synth-fleet -name \"*.tres\" -type f 2>/dev/null | head -20)",
+      "Bash(ls -la \"C:\\\\coding\\\\synth-fleet\\\\resources\\\\effects\\\\\" 2>/dev/null | grep -E \"\\\\.tres|\\\\.gd\")",
+      "Bash(ls -la /c/coding/synth-fleet/resources/*.tres)",
+      "Bash(ls /c/coding/synth-fleet/assets/audio/samples/*.wav | wc -l && find /c/coding/synth-fleet/scenes/game /c/coding/synth-fleet/scenes/effects -type d 2>/dev/null | head -5)",
+      "Bash(ls -la /c/coding/synth-fleet/assets/audio/samples/*.wav 2>/dev/null | wc -l && ls /c/coding/synth-fleet/assets/audio/samples/*.wav 2>/dev/null | head -20)"
     ]
   }
 }

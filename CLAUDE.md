@@ -58,22 +58,25 @@ Project scaffolding is complete. The game runs: player ship moves, background sc
 
 ### Directory layout
 ```
-scenes/          .tscn scene files
-  game/          Gameplay scenes (player, enemies, level, projectiles)
-  ui/            Menus, HUD, shop
-scripts/         .gd scripts
+scenes/
+  ui/            Menus, dev studio, placeholders
+scripts/
   autoload/      Singletons (BeatClock, GameState, AudioManager)
-  player/        Player ship
-  weapons/       Weapon base + specifics
-  enemies/       Enemy base + specifics
-  systems/       Health, shop, scoring, level controller
-resources/       .tres/.gd resource definitions (WeaponData, etc.)
-assets/          Raw art, audio, fonts
-  sprites/
+  data/          DataManagers (WeaponDataManager, ShipDataManager, LoadoutDataManager)
+  ui/            UI scripts (main_menu, dev_studio)
+resources/       Resource class definitions (.gd) — populated from JSON at runtime
+assets/
   audio/samples/ Synth one-shots (weapon sounds)
-  audio/music/   Background tracks per level
-  fonts/
-addons/          Editor plugins / dev tools
+```
+
+### Data storage
+All dev-created content is JSON in `user://`:
+```
+user://weapons/       Weapon definition JSON files
+user://ships/         Ship definition JSON files
+user://loadouts/      Player loadout JSON files
+user://settings/      Global settings (BPM, aesthetics)
+user://save_data.json GameState persistence
 ```
 
 ### Collision layers
@@ -82,6 +85,6 @@ addons/          Editor plugins / dev tools
 - Layer 4: Enemies
 
 ### Adding a new weapon
-1. Create a `WeaponData` resource in `resources/` defining damage, speed, subdivision, colors, cost
-2. Optionally subclass `WeaponBase` in `scripts/weapons/` for custom fire patterns
-3. Add the weapon ID to `GameState._set_defaults()` if it should be available at start
+1. Use the Weapon Builder in Dev Studio, or save a JSON file to `user://weapons/`
+2. JSON schema matches `WeaponData` resource class fields
+3. Weapons are loaded at runtime via `WeaponDataManager.load_by_id(id)`
