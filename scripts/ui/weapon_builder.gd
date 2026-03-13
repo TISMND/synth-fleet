@@ -633,17 +633,24 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 
 func _scan_audio_samples() -> Array[String]:
 	var samples: Array[String] = []
-	var dir := DirAccess.open("res://assets/audio/samples/")
+	_scan_audio_dir("res://assets/audio/samples/", samples)
+	samples.sort()
+	return samples
+
+
+func _scan_audio_dir(path: String, results: Array[String]) -> void:
+	var dir := DirAccess.open(path)
 	if not dir:
-		return samples
+		return
 	dir.list_dir_begin()
 	var fname: String = dir.get_next()
 	while fname != "":
-		if not dir.current_is_dir():
+		if dir.current_is_dir():
+			if not fname.begins_with("."):
+				_scan_audio_dir(path + fname + "/", results)
+		else:
 			var ext: String = fname.get_extension().to_lower()
 			if ext == "wav" or ext == "ogg" or ext == "mp3":
-				samples.append("res://assets/audio/samples/" + fname)
+				results.append(path + fname)
 		fname = dir.get_next()
 	dir.list_dir_end()
-	samples.sort()
-	return samples

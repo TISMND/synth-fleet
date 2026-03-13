@@ -1,18 +1,40 @@
 extends Node
-## Persistent game state — credits, owned items, current loadout.
-## Saves to user://save_data.json. References weapons/ships/loadouts by ID only.
+## Persistent game state — credits, owned items, current ship/hardpoint config.
+## Saves to user://save_data.json. References weapons/ships by ID only.
 
 const SAVE_PATH := "user://save_data.json"
 
 var credits: int = 0
 var owned_weapon_ids: Array[String] = []
 var owned_ship_ids: Array[String] = []
-var current_loadout_id: String = ""
+var current_loadout_id: String = ""  # kept for backward compat, unused in main flow
+var current_ship_id: String = ""
+var hardpoint_config: Dictionary = {}
+# hardpoint_config structure:
+# {
+#   "hp_1": {
+#     "weapon_id": "laser_pulse_01",
+#     "stages": [
+#       { "stage_number": 1, "loop_length": 8, "pattern": [...] }
+#     ]
+#   }
+# }
+var device_config: Dictionary = {}
+# device_config structure:
+# {
+#   "slot_0": "generator_mk_i",
+#   "slot_1": ""
+# }
 var current_level: int = 0
 var stats: Dictionary = {}
 
+# Transient — not saved. Used to pass context between screens.
+var _editing_hp_id: String = ""
+var _editing_device_slot: int = -1
+
 
 func _ready() -> void:
+	DeviceDataManager.ensure_starter_devices()
 	load_game()
 
 
@@ -22,6 +44,9 @@ func save_game() -> void:
 		"owned_weapon_ids": owned_weapon_ids,
 		"owned_ship_ids": owned_ship_ids,
 		"current_loadout_id": current_loadout_id,
+		"current_ship_id": current_ship_id,
+		"hardpoint_config": hardpoint_config,
+		"device_config": device_config,
 		"current_level": current_level,
 		"stats": stats,
 	}
@@ -53,6 +78,9 @@ func load_game() -> void:
 	for sid in sids:
 		owned_ship_ids.append(str(sid))
 	current_loadout_id = str(data.get("current_loadout_id", ""))
+	current_ship_id = str(data.get("current_ship_id", ""))
+	hardpoint_config = data.get("hardpoint_config", {})
+	device_config = data.get("device_config", {})
 	current_level = int(data.get("current_level", 0))
 	stats = data.get("stats", {})
 
@@ -62,6 +90,9 @@ func _set_defaults() -> void:
 	owned_weapon_ids = []
 	owned_ship_ids = []
 	current_loadout_id = ""
+	current_ship_id = ""
+	hardpoint_config = {}
+	device_config = {}
 	current_level = 0
 	stats = {}
 
@@ -82,3 +113,43 @@ func spend_credits(amount: int) -> bool:
 	credits -= amount
 	save_game()
 	return true
+
+
+# ── Ship / Hardpoint helpers (auto-save) ─────────────────────
+
+func set_ship(id: String) -> void:
+	current_ship_id = id
+	hardpoint_config = {}
+	device_config = {}
+	save_game()
+
+
+func set_hardpoint_weapon(hp_id: String, weapon_id: String) -> void:
+	if not hardpoint_config.has(hp_id):
+		hardpoint_config[hp_id] = {"weapon_id": "", "stages": []}
+	hardpoint_config[hp_id]["weapon_id"] = weapon_id
+	save_game()
+
+
+func set_hardpoint_stages(hp_id: String, stages: Array) -> void:
+	if not hardpoint_config.has(hp_id):
+		hardpoint_config[hp_id] = {"weapon_id": "", "stages": []}
+	hardpoint_config[hp_id]["stages"] = stages
+	save_game()
+
+
+# ── Device helpers (auto-save) ───────────────────────────────
+
+func set_device(slot: int, device_id: String) -> void:
+	device_config["slot_" + str(slot)] = device_id
+	save_game()
+
+
+func get_loadout_data() -> LoadoutData:
+	## Constructs a LoadoutData from current_ship_id + hardpoint_config
+	## so player_ship.setup() still receives LoadoutData unchanged.
+	var l := LoadoutData.new()
+	l.id = "live"
+	l.ship_id = current_ship_id
+	l.hardpoint_assignments = hardpoint_config.duplicate(true)
+	return l

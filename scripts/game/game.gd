@@ -53,19 +53,16 @@ var _parallax_bg: ParallaxBackground = null
 
 
 func _ready() -> void:
-	# Load the active loadout
-	var loadout_id: String = GameState.current_loadout_id
-	if loadout_id == "":
-		_show_error("No active loadout. Go to Loadout screen and press SET ACTIVE.")
+	# Load ship + hardpoint config from GameState
+	var ship_id: String = GameState.current_ship_id
+	if ship_id == "":
+		_show_error("No ship selected. Go to HANGAR to choose a ship.")
 		return
-	var loadout: LoadoutData = LoadoutDataManager.load_by_id(loadout_id)
-	if not loadout:
-		_show_error("Failed to load loadout: " + loadout_id)
-		return
-	var ship: ShipData = ShipDataManager.load_by_id(loadout.ship_id)
+	var ship: ShipData = ShipDataManager.load_by_id(ship_id)
 	if not ship:
-		_show_error("Failed to load ship: " + loadout.ship_id)
+		_show_error("Failed to load ship: " + ship_id)
 		return
+	var loadout: LoadoutData = GameState.get_loadout_data()
 
 	# Determine current level
 	_current_level = GameState.current_level

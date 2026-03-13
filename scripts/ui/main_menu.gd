@@ -11,7 +11,7 @@ func _ready() -> void:
 
 	$VBoxContainer/PlayButton.pressed.connect(_on_play)
 	$VBoxContainer/RestartButton.pressed.connect(_on_restart)
-	$VBoxContainer/LoadoutButton.pressed.connect(_on_loadout)
+	$VBoxContainer/HangarButton.pressed.connect(_on_hangar)
 	$VBoxContainer/DevStudioButton.pressed.connect(_on_dev_studio)
 
 
@@ -24,8 +24,8 @@ func _on_restart() -> void:
 	$VBoxContainer/PlayButton.text = "PLAY"
 
 
-func _on_loadout() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/loadout_screen.tscn")
+func _on_hangar() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
 
 
 func _on_dev_studio() -> void:

@@ -27,6 +27,20 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	speed = float(stats.get("speed", 400))
 	shield_regen = float(stats.get("shield_regen", 5.0))
 
+	# Apply device modifiers
+	for slot_key in GameState.device_config:
+		var device_id: String = str(GameState.device_config[slot_key])
+		if device_id == "":
+			continue
+		var dev: DeviceData = DeviceDataManager.load_by_id(device_id)
+		if dev:
+			var mods: Dictionary = dev.stats_modifiers
+			shield_max += int(mods.get("shield_max", 0))
+			hull_max += int(mods.get("hull_max", 0))
+			speed += float(mods.get("speed", 0))
+	shield = float(shield_max)
+	hull = hull_max
+
 	# Compute grid center for offset
 	var grid_center: Vector2 = Vector2(ship_data.grid_size.x / 2.0, ship_data.grid_size.y / 2.0)
 

@@ -5,13 +5,14 @@ extends Control
 
 signal pattern_changed(new_pattern: Array)
 
-const NOTE_COUNT: int = 24  # C3–B4
 const NOTE_NAMES: Array[String] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const LABEL_MARGIN: float = 36.0
 const HEADER_HEIGHT: float = 20.0
 
+var note_count: int = 12  # number of note rows (was 24)
+var base_note: int = 12  # MIDI-ish offset: 12 = C4, so range is C4–B4 (the brighter octave)
 var loop_length: int = 32
-var pattern: Array = []  # length = loop_length, each element: -1 (silent) or 0–23 (note index)
+var pattern: Array = []  # length = loop_length, each element: -1 (silent) or 0–(note_count-1) (note index)
 var weapon_color: Color = Color.CYAN
 var playback_step: int = -1  # visual cursor, set externally
 var note_duration_cells: int = 1  # how many cells one note occupies
@@ -41,8 +42,8 @@ func _recalc_cells() -> void:
 		_cell_width = grid_width / float(loop_length)
 	else:
 		_cell_width = 0.0
-	if NOTE_COUNT > 0:
-		_cell_height = grid_height / float(NOTE_COUNT)
+	if note_count > 0:
+		_cell_height = grid_height / float(note_count)
 	else:
 		_cell_height = 0.0
 
@@ -99,17 +100,18 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.08, 0.08, 0.12))
 
 	# 2. Row shading
-	for r in NOTE_COUNT:
-		var note_idx: int = NOTE_COUNT - 1 - r
-		var octave_note: int = note_idx % 12
+	for r in note_count:
+		var note_idx: int = note_count - 1 - r
+		var abs_note: int = base_note + note_idx
+		var octave_note: int = abs_note % 12
 		var row_rect := Rect2(grid_x, grid_y + r * _cell_height, grid_w, _cell_height)
 
 		# Sharps (black keys) get darker bg
 		if octave_note in [1, 3, 6, 8, 10]:
 			draw_rect(row_rect, Color(0.06, 0.06, 0.09))
 
-		# Middle C highlight (C4 = index 12, visual row 11)
-		if note_idx == 12:
+		# C note highlight (root of octave)
+		if octave_note == 0:
 			draw_rect(row_rect, Color(0.12, 0.15, 0.2))
 
 	# 3. Grid lines
@@ -117,7 +119,7 @@ func _draw() -> void:
 		var x: float = grid_x + col * _cell_width
 		var line_color: Color = Color(0.35, 0.35, 0.45) if col % 4 == 0 else Color(0.2, 0.2, 0.28)
 		draw_line(Vector2(x, grid_y), Vector2(x, grid_y + grid_h), line_color)
-	for row in NOTE_COUNT + 1:
+	for row in note_count + 1:
 		var y: float = grid_y + row * _cell_height
 		draw_line(Vector2(grid_x, y), Vector2(grid_x + grid_w, y), Color(0.18, 0.18, 0.25))
 
@@ -129,10 +131,11 @@ func _draw() -> void:
 		draw_string(ThemeDB.fallback_font, Vector2(x + 3, HEADER_HEIGHT - 4), num_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, text_color)
 
 	# 5. Note labels on left margin (naturals only)
-	for r in NOTE_COUNT:
-		var note_idx: int = NOTE_COUNT - 1 - r
-		var octave_note: int = note_idx % 12
-		var octave: int = 3 + note_idx / 12
+	for r in note_count:
+		var note_idx: int = note_count - 1 - r
+		var abs_note: int = base_note + note_idx
+		var octave_note: int = abs_note % 12
+		var octave: int = abs_note / 12
 		if octave_note not in [1, 3, 6, 8, 10]:
 			var note_name: String = NOTE_NAMES[octave_note] + str(octave)
 			var y: float = grid_y + r * _cell_height + _cell_height * 0.7
@@ -141,9 +144,9 @@ func _draw() -> void:
 	# 6. Active notes — trigger cells + cooldown tails
 	for col in pattern.size():
 		var note_val: int = int(pattern[col])
-		if note_val < 0 or note_val >= NOTE_COUNT:
+		if note_val < 0 or note_val >= note_count:
 			continue
-		var visual_row: int = NOTE_COUNT - 1 - note_val
+		var visual_row: int = note_count - 1 - note_val
 		# Draw trigger cell (solid)
 		var cell_rect := Rect2(
 			grid_x + col * _cell_width + 1,
@@ -181,7 +184,7 @@ func _draw() -> void:
 		draw_rect(cursor_rect, Color(1.0, 1.0, 1.0, 0.12))
 
 	# 8. Hover highlight
-	if _hovered_col >= 0 and _hovered_col < loop_length and _hovered_row >= 0 and _hovered_row < NOTE_COUNT:
+	if _hovered_col >= 0 and _hovered_col < loop_length and _hovered_row >= 0 and _hovered_row < note_count:
 		var hover_rect := Rect2(
 			grid_x + _hovered_col * _cell_width + 1,
 			grid_y + _hovered_row * _cell_height + 1,
@@ -210,9 +213,9 @@ func _gui_input(event: InputEvent) -> void:
 			var coords: Vector2i = _mouse_to_grid(mb.position)
 			var col: int = coords.x
 			var row: int = coords.y
-			if col < 0 or col >= loop_length or row < 0 or row >= NOTE_COUNT:
+			if col < 0 or col >= loop_length or row < 0 or row >= note_count:
 				return
-			var note_idx: int = NOTE_COUNT - 1 - row
+			var note_idx: int = note_count - 1 - row
 
 			# Check if clicking on an existing trigger at this col
 			var existing: int = int(pattern[col])
@@ -289,6 +292,6 @@ func set_note_duration_cells(cells: int) -> void:
 
 # ── Static Utility ───────────────────────────────────────────
 
-static func get_pitch_scale(note_index: int) -> float:
-	## Index 12 (C4) = 1.0, index 0 (C3) = 0.5, index 23 (B4) ≈ 1.888
-	return pow(2.0, float(note_index - 12) / 12.0)
+static func get_pitch_scale(note_index: int, p_base_note: int = 12) -> float:
+	## With default base_note=12: index 0 (C4) = 1.0, index 11 (B4) ≈ 1.888
+	return pow(2.0, float(p_base_note + note_index - 12) / 12.0)

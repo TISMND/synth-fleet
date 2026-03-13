@@ -13,6 +13,7 @@ extends Resource
 	"shield_max": 50,
 	"speed": 400,
 	"generator_power": 10,
+	"device_slots": 2,
 }
 
 

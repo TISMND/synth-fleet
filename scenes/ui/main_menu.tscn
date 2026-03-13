@@ -49,9 +49,9 @@ text = "PLAY"
 layout_mode = 2
 text = "RESTART CAMPAIGN"
 
-[node name="LoadoutButton" type="Button" parent="VBoxContainer"]
+[node name="HangarButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-text = "LOADOUT"
+text = "HANGAR"
 
 [node name="DevStudioButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
