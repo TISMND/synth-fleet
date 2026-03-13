@@ -11,6 +11,18 @@ var _fire_direction: Vector2 = Vector2.UP
 var _subdivision_counter: int = 0
 
 var _projectile_scene: PackedScene
+var _muzzle_flash_scene: PackedScene
+
+const COLOR_MAP := {
+	"cyan": Color(0, 1, 1),
+	"magenta": Color(1, 0, 1),
+	"yellow": Color(1, 1, 0),
+	"green": Color(0, 1, 0.5),
+	"orange": Color(1, 0.5, 0),
+	"red": Color(1, 0.2, 0.2),
+	"blue": Color(0.3, 0.3, 1),
+	"white": Color(1, 1, 1),
+}
 
 # Pattern playback
 var pattern: WeaponPattern = null
@@ -21,6 +33,7 @@ var _eighth_tick: int = 0  # counts eighth-note ticks within a beat
 
 func _ready() -> void:
 	_projectile_scene = preload("res://scenes/game/projectile.tscn")
+	_muzzle_flash_scene = preload("res://scenes/effects/muzzle_flash.tscn")
 	BeatClock.beat_hit.connect(_on_beat_hit)
 
 
@@ -67,9 +80,15 @@ func fire(override_color: String = "", override_pitch: float = 1.0, override_dir
 	if weapon_data:
 		projectile.speed = weapon_data.projectile_speed
 		projectile.damage = weapon_data.damage
+	var c: String = override_color if override_color != "" else color_name
+	# Set neon color on projectile
+	if COLOR_MAP.has(c):
+		projectile.neon_color = COLOR_MAP[c]
 	# Add to scene tree (level root, not weapon mount, so it doesn't follow the ship)
 	get_tree().current_scene.add_child(projectile)
-	var c: String = override_color if override_color != "" else color_name
+	# Muzzle flash
+	if not preview_mode:
+		_spawn_muzzle_flash(c)
 	AudioManager.play_color(c, 0.0, override_pitch)
 
 
@@ -81,6 +100,14 @@ func _get_player() -> CharacterBody2D:
 	if mount:
 		return mount.get_parent() as CharacterBody2D
 	return null
+
+
+func _spawn_muzzle_flash(c: String) -> void:
+	var flash := _muzzle_flash_scene.instantiate() as GPUParticles2D
+	flash.global_position = global_position
+	if flash.has_method("set_color") and COLOR_MAP.has(c):
+		flash.set_color(COLOR_MAP[c])
+	get_tree().current_scene.add_child(flash)
 
 
 func set_fire_direction(dir: Vector2) -> void:
