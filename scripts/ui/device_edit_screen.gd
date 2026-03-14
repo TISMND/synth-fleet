@@ -99,7 +99,7 @@ func _update_button_highlights() -> void:
 		var btn: Button = entry["button"]
 		var did: String = str(entry["id"])
 		if did == _selected_device_id:
-			btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.8))
+			btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		else:
 			btn.remove_theme_color_override("font_color")
 
@@ -179,8 +179,8 @@ func _build_ui() -> void:
 
 	var title := Label.new()
 	title.text = "DEVICES"
-	title.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	left_vbox.add_child(title)
 
 	var canvas_panel := PanelContainer.new()
@@ -222,8 +222,8 @@ func _build_ui() -> void:
 
 	_slot_title = Label.new()
 	_slot_title.text = "SLOT"
-	_slot_title.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-	_slot_title.add_theme_font_size_override("font_size", 18)
+	_slot_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_slot_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	right_vbox.add_child(_slot_title)
 
 	var scroll := ScrollContainer.new()
@@ -246,8 +246,8 @@ func _build_ui() -> void:
 
 	_detail_name = Label.new()
 	_detail_name.text = ""
-	_detail_name.add_theme_color_override("font_color", Color(0.3, 1.0, 0.8))
-	_detail_name.add_theme_font_size_override("font_size", 16)
+	_detail_name.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	_detail_name.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	detail_vbox.add_child(_detail_name)
 
 	_detail_desc = Label.new()
@@ -257,7 +257,7 @@ func _build_ui() -> void:
 
 	_detail_stats = Label.new()
 	_detail_stats.text = ""
-	_detail_stats.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+	_detail_stats.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 	detail_vbox.add_child(_detail_stats)
 
 	var back_btn := Button.new()

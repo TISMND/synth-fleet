@@ -35,11 +35,14 @@ var _hp_dir_label: Label
 
 # State
 var _current_id: String = ""
+var _section_headers: Array[Label] = []
+var _hp_popup_title: Label
 
 
 func _ready() -> void:
 	_build_ui()
 	_refresh_load_list()
+	ThemeManager.theme_changed.connect(_apply_theme)
 
 
 func _build_ui() -> void:
@@ -239,10 +242,10 @@ func _build_hp_popup(parent: Control) -> void:
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_hp_popup.add_child(vbox)
 
-	var title := Label.new()
-	title.text = "Edit Hardpoint"
-	title.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-	vbox.add_child(title)
+	_hp_popup_title = Label.new()
+	_hp_popup_title.text = "Edit Hardpoint"
+	_hp_popup_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	vbox.add_child(_hp_popup_title)
 
 	var label_row := HBoxContainer.new()
 	vbox.add_child(label_row)
@@ -292,12 +295,22 @@ func _build_hp_popup(parent: Control) -> void:
 
 # ── UI Helpers ──────────────────────────────────────────────
 
+func _apply_theme() -> void:
+	for label in _section_headers:
+		if is_instance_valid(label):
+			label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+			label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if is_instance_valid(_hp_popup_title):
+		_hp_popup_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+
+
 func _add_section_header(parent: Control, text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
 	parent.add_child(label)
+	_section_headers.append(label)
 	return label
 
 

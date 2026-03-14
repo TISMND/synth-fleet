@@ -27,6 +27,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_init_pattern()
 	_recalc_cells()
+	ThemeManager.theme_changed.connect(queue_redraw)
 
 
 func _init_pattern() -> void:
@@ -97,7 +98,7 @@ func _draw() -> void:
 	var grid_h: float = size.y - HEADER_HEIGHT
 
 	# 1. Dark background
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.08, 0.08, 0.12))
+	draw_rect(Rect2(Vector2.ZERO, size), ThemeManager.get_color("panel"))
 
 	# 2. Row shading
 	for r in note_count:
@@ -108,11 +109,13 @@ func _draw() -> void:
 
 		# Sharps (black keys) get darker bg
 		if octave_note in [1, 3, 6, 8, 10]:
-			draw_rect(row_rect, Color(0.06, 0.06, 0.09))
+			var panel_dark: Color = ThemeManager.get_color("panel").darkened(0.3)
+			draw_rect(row_rect, panel_dark)
 
 		# C note highlight (root of octave)
 		if octave_note == 0:
-			draw_rect(row_rect, Color(0.12, 0.15, 0.2))
+			var panel_light: Color = ThemeManager.get_color("panel").lightened(0.15)
+			draw_rect(row_rect, panel_light)
 
 	# 3. Grid lines
 	for col in loop_length + 1:
@@ -127,7 +130,7 @@ func _draw() -> void:
 	for col in loop_length:
 		var x: float = grid_x + col * _cell_width
 		var num_str: String = str(col + 1)
-		var text_color: Color = Color(0.5, 0.5, 0.6) if col % 4 != 0 else Color(0.7, 0.7, 0.8)
+		var text_color: Color = ThemeManager.get_color("dimmed") if col % 4 != 0 else ThemeManager.get_color("text")
 		draw_string(ThemeDB.fallback_font, Vector2(x + 3, HEADER_HEIGHT - 4), num_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, text_color)
 
 	# 5. Note labels on left margin (naturals only)
@@ -139,7 +142,7 @@ func _draw() -> void:
 		if octave_note not in [1, 3, 6, 8, 10]:
 			var note_name: String = NOTE_NAMES[octave_note] + str(octave)
 			var y: float = grid_y + r * _cell_height + _cell_height * 0.7
-			draw_string(ThemeDB.fallback_font, Vector2(2, y), note_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.5, 0.5, 0.6))
+			draw_string(ThemeDB.fallback_font, Vector2(2, y), note_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, ThemeManager.get_color("dimmed"))
 
 	# 6. Active notes — trigger cells + cooldown tails
 	for col in pattern.size():

@@ -84,6 +84,7 @@ var _effect_param_sliders: Dictionary = {}
 var _current_id: String = ""
 var _audio_samples: Array[String] = []
 var _audio_muted: bool = false
+var _section_headers: Array[Label] = []
 
 
 func _ready() -> void:
@@ -91,6 +92,7 @@ func _ready() -> void:
 	_build_ui()
 	_refresh_load_list()
 	call_deferred("_start_preview")
+	ThemeManager.theme_changed.connect(_apply_theme)
 
 
 func _exit_tree() -> void:
@@ -354,7 +356,7 @@ func _rebuild_effect_params(layer: String, type_name: String) -> void:
 	if type_params.is_empty():
 		var no_params := Label.new()
 		no_params.text = "  (no parameters)"
-		no_params.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		no_params.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 		container.add_child(no_params)
 		return
 
@@ -376,9 +378,10 @@ func _rebuild_effect_params(layer: String, type_name: String) -> void:
 func _add_section_header(parent: Control, text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
 	parent.add_child(label)
+	_section_headers.append(label)
 	return label
 
 
@@ -629,6 +632,13 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 				slider.value = float(params[param_name])
 
 	_update_preview()
+
+
+func _apply_theme() -> void:
+	for label in _section_headers:
+		if is_instance_valid(label):
+			label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+			label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
 
 
 func _scan_audio_samples() -> Array[String]:

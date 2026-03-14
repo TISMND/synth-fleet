@@ -51,9 +51,11 @@ func _ready() -> void:
 func _build_ui() -> void:
 	# Background
 	var bg := ColorRect.new()
-	bg.color = Color(0.02, 0.02, 0.06)
+	bg.color = ThemeManager.get_color("background")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	ThemeManager.apply_grid_background(bg)
+	ThemeManager.theme_changed.connect(func() -> void: ThemeManager.apply_grid_background(bg))
 
 	var main_vbox := VBoxContainer.new()
 	main_vbox.set_anchors_preset(Control.PRESET_CENTER)
@@ -66,15 +68,15 @@ func _build_ui() -> void:
 	var title := Label.new()
 	title.text = "SUPPLY DEPOT"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 40)
-	title.add_theme_color_override("font_color", Color(0.3, 0.9, 1.0))
+	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header") * 2)
+	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	main_vbox.add_child(title)
 
 	# Credits
 	_credits_label = Label.new()
 	_credits_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_credits_label.add_theme_font_size_override("font_size", 22)
-	_credits_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+	_credits_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	_credits_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 	main_vbox.add_child(_credits_label)
 
 	# Next level info
@@ -85,8 +87,8 @@ func _build_ui() -> void:
 		var next_info := Label.new()
 		next_info.text = "NEXT: " + level_names[next_level] + " (" + str(level_bpms[next_level]) + " BPM)"
 		next_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		next_info.add_theme_font_size_override("font_size", 16)
-		next_info.add_theme_color_override("font_color", Color(0.6, 0.6, 0.8))
+		next_info.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
+		next_info.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
 		main_vbox.add_child(next_info)
 
 	# Separator
@@ -143,16 +145,16 @@ func _refresh_items() -> void:
 		var info_label := Label.new()
 		info_label.text = weapon_name + " — " + weapon_desc
 		info_label.custom_minimum_size = Vector2(350, 0)
-		info_label.add_theme_font_size_override("font_size", 16)
-		info_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.9))
+		info_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
+		info_label.add_theme_color_override("font_color", ThemeManager.get_color("text"))
 		row.add_child(info_label)
 
 		# Price
 		var price_label := Label.new()
 		price_label.text = str(price) + " CR"
 		price_label.custom_minimum_size = Vector2(80, 0)
-		price_label.add_theme_font_size_override("font_size", 16)
-		price_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+		price_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
+		price_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 		row.add_child(price_label)
 
 		# Buy/Owned button

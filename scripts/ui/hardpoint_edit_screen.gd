@@ -158,13 +158,13 @@ func _build_ui() -> void:
 
 	_hp_title = Label.new()
 	_hp_title.text = ""
-	_hp_title.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-	_hp_title.add_theme_font_size_override("font_size", 16)
+	_hp_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_hp_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	right_vbox.add_child(_hp_title)
 
 	var select_label := Label.new()
 	select_label.text = "SELECT WEAPON"
-	select_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	select_label.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
 	right_vbox.add_child(select_label)
 
 	var weapon_scroll := ScrollContainer.new()
@@ -327,7 +327,7 @@ func _update_weapon_highlights() -> void:
 		var btn: Button = entry["button"]
 		var wid: String = str(entry["id"])
 		if wid == _selected_weapon_id:
-			btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.8))
+			btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		else:
 			btn.remove_theme_color_override("font_color")
 
@@ -351,9 +351,9 @@ func _update_stage_button_colors() -> void:
 	for i in _stage_buttons.size():
 		var btn: Button = _stage_buttons[i]
 		if i == _active_stage:
-			btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.8))
+			btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		else:
-			btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+			btn.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
 
 
 # ── Pattern Changed ──────────────────────────────────────────
@@ -440,14 +440,14 @@ func _update_power_budget() -> void:
 
 	if total_power > max_power:
 		var red_style := StyleBoxFlat.new()
-		red_style.bg_color = Color(0.8, 0.15, 0.15)
+		red_style.bg_color = ThemeManager.get_color("bar_negative")
 		_power_bar.add_theme_stylebox_override("fill", red_style)
-		_power_budget_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
 	else:
 		var green_style := StyleBoxFlat.new()
-		green_style.bg_color = Color(0.15, 0.7, 0.3)
+		green_style.bg_color = ThemeManager.get_color("bar_positive")
 		_power_bar.add_theme_stylebox_override("fill", green_style)
-		_power_budget_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 
 
 # ── Playback ─────────────────────────────────────────────────

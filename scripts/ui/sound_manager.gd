@@ -26,6 +26,7 @@ var _move_submenu: PopupMenu
 var _palette_flow: HFlowContainer
 var _palette_name_input: LineEdit
 var _palette_color_picker: ColorPickerButton
+var _palette_header_label: Label
 
 # Pre-cached StyleBoxFlat instances
 var _style_normal: StyleBoxFlat
@@ -50,6 +51,7 @@ func _ready() -> void:
 	_refresh_folder_tree()
 	_refresh_file_list()
 	visibility_changed.connect(_on_visibility_changed)
+	ThemeManager.theme_changed.connect(_apply_theme)
 
 
 func _create_styles() -> void:
@@ -148,7 +150,7 @@ func _build_ui() -> void:
 
 	_file_header_label = Label.new()
 	_file_header_label.text = "FILES IN: " + SAMPLES_ROOT
-	_file_header_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
+	_file_header_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	right_vbox.add_child(_file_header_label)
 
 	var scroll := ScrollContainer.new()
@@ -173,10 +175,10 @@ func _build_ui() -> void:
 	var palette_header_row := HBoxContainer.new()
 	palette_section.add_child(palette_header_row)
 
-	var palette_header := Label.new()
-	palette_header.text = "TAG PALETTE"
-	palette_header.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-	palette_header_row.add_child(palette_header)
+	_palette_header_label = Label.new()
+	_palette_header_label.text = "TAG PALETTE"
+	_palette_header_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	palette_header_row.add_child(_palette_header_label)
 
 	var palette_spacer := Control.new()
 	palette_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -339,9 +341,9 @@ func _add_file_row(file_path: String) -> void:
 	indicator.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	indicator.text = "■" if _playing_file == file_path else "▶"
 	if _playing_file == file_path:
-		indicator.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))
+		indicator.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 	else:
-		indicator.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		indicator.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 	hbox.add_child(indicator)
 
 	# Filename
@@ -593,10 +595,10 @@ func _update_row_indicator(file_path: String) -> void:
 		return
 	if _playing_file == file_path:
 		indicator.text = "■"
-		indicator.add_theme_color_override("font_color", Color(0.3, 1.0, 0.3))
+		indicator.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 	else:
 		indicator.text = "▶"
-		indicator.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		indicator.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 
 
 func _update_all_row_styles() -> void:
@@ -825,6 +827,13 @@ func _on_new_folder() -> void:
 
 	add_child(dialog)
 	dialog.popup_centered()
+
+
+func _apply_theme() -> void:
+	if is_instance_valid(_file_header_label):
+		_file_header_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	if is_instance_valid(_palette_header_label):
+		_palette_header_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 
 
 # ── Refresh ──────────────────────────────────────────────────

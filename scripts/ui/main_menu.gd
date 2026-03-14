@@ -3,6 +3,9 @@ extends Control
 
 
 func _ready() -> void:
+	ThemeManager.apply_grid_background($Background)
+	ThemeManager.theme_changed.connect(_on_theme_changed)
+
 	# Update play button text based on campaign progress
 	if GameState.current_level > 0:
 		$VBoxContainer/PlayButton.text = "CONTINUE (LVL " + str(GameState.current_level + 1) + ")"
@@ -30,6 +33,10 @@ func _on_hangar() -> void:
 
 func _on_dev_studio() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/dev_studio.tscn")
+
+
+func _on_theme_changed() -> void:
+	ThemeManager.apply_grid_background($Background)
 
 
 func _input(event: InputEvent) -> void:

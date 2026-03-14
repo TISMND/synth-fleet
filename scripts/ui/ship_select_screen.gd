@@ -17,6 +17,20 @@ var _ships: Dictionary = {}  # id -> ShipData
 func _ready() -> void:
 	_build_ui()
 	_load_ships()
+	ThemeManager.theme_changed.connect(_apply_theme)
+	call_deferred("_apply_grid_bg")
+
+
+func _apply_theme() -> void:
+	_apply_grid_bg()
+
+
+func _apply_grid_bg() -> void:
+	var parent_node: Node = get_parent()
+	if parent_node and parent_node.has_node("Background"):
+		var bg: ColorRect = parent_node.get_node("Background") as ColorRect
+		if bg:
+			ThemeManager.apply_grid_background(bg)
 
 
 func _load_ships() -> void:
@@ -51,8 +65,8 @@ func _build_ui() -> void:
 
 	var title := Label.new()
 	title.text = "SELECT SHIP"
-	title.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	left_vbox.add_child(title)
 
 	_ship_list = ItemList.new()
@@ -75,8 +89,8 @@ func _build_ui() -> void:
 
 	_ship_name_label = Label.new()
 	_ship_name_label.text = ""
-	_ship_name_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.8))
-	_ship_name_label.add_theme_font_size_override("font_size", 18)
+	_ship_name_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	_ship_name_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	right_vbox.add_child(_ship_name_label)
 
 	# Ship canvas preview

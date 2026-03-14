@@ -34,6 +34,7 @@ var _hp_weapon_selectors: Dictionary = {} # {hp_id: OptionButton}
 var _hp_stage_patterns: Dictionary = {}  # {hp_id: {0: Array, 1: Array, 2: Array}}
 var _hp_active_stage: Dictionary = {}    # {hp_id: int} — currently selected stage (0, 1, or 2)
 var _hp_stage_buttons: Dictionary = {}   # {hp_id: Array[Button]}
+var _section_headers: Array[Label] = []
 var _is_playing: bool = false
 var _playback_step: int = -1
 var _playback_timer: Timer = null
@@ -45,6 +46,7 @@ func _ready() -> void:
 	_refresh_load_list()
 	_refresh_ship_list()
 	_setup_playback_timer()
+	ThemeManager.theme_changed.connect(_apply_theme)
 
 
 func _cache_weapons() -> void:
@@ -311,7 +313,7 @@ func _rebuild_hardpoint_panel() -> void:
 	if _current_ship.hardpoints.size() == 0:
 		var no_hp_label := Label.new()
 		no_hp_label.text = "This ship has no hardpoints"
-		no_hp_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		no_hp_label.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
 		_hardpoint_container.add_child(no_hp_label)
 		return
 
@@ -323,11 +325,8 @@ func _rebuild_hardpoint_panel() -> void:
 		_add_separator(_hardpoint_container)
 
 		# Section header
-		var header := Label.new()
-		header.text = "◆ " + hp_id + " \"" + hp_label_text + "\" (" + str(int(dir_deg)) + "°)"
-		header.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-		header.add_theme_font_size_override("font_size", 14)
-		_hardpoint_container.add_child(header)
+		var header_text: String = "◆ " + hp_id + " \"" + hp_label_text + "\" (" + str(int(dir_deg)) + "°)"
+		_add_section_header(_hardpoint_container, header_text)
 
 		# Weapon selector row
 		var weapon_row := HBoxContainer.new()
@@ -425,9 +424,9 @@ func _update_stage_button_colors(hp_id: String) -> void:
 	for i in btns.size():
 		var btn: Button = btns[i]
 		if i == active:
-			btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.8))
+			btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		else:
-			btn.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+			btn.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
 
 
 func _on_weapon_selected_for_hp(hp_id: String, idx: int) -> void:
@@ -503,14 +502,14 @@ func _update_power_budget() -> void:
 
 	if total_power > max_power:
 		var red_style := StyleBoxFlat.new()
-		red_style.bg_color = Color(0.8, 0.15, 0.15)
+		red_style.bg_color = ThemeManager.get_color("bar_negative")
 		_power_bar.add_theme_stylebox_override("fill", red_style)
-		_power_budget_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
 	else:
 		var green_style := StyleBoxFlat.new()
-		green_style.bg_color = Color(0.15, 0.7, 0.3)
+		green_style.bg_color = ThemeManager.get_color("bar_positive")
 		_power_bar.add_theme_stylebox_override("fill", green_style)
-		_power_budget_label.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 
 
 # ── Playback System ─────────────────────────────────────────
@@ -776,12 +775,20 @@ func _generate_id(display_name: String) -> String:
 
 # ── UI Helpers ───────────────────────────────────────────────
 
+func _apply_theme() -> void:
+	for label in _section_headers:
+		if is_instance_valid(label):
+			label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+			label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+
+
 func _add_section_header(parent: Control, text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
-	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
 	parent.add_child(label)
+	_section_headers.append(label)
 	return label
 
 

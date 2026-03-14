@@ -4,6 +4,12 @@ extends Control
 
 func _ready() -> void:
 	$BackButton.pressed.connect(_on_back)
+	ThemeManager.apply_grid_background($Background)
+	ThemeManager.theme_changed.connect(_on_theme_changed)
+
+
+func _on_theme_changed() -> void:
+	ThemeManager.apply_grid_background($Background)
 
 
 func _on_back() -> void:

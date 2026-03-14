@@ -1,9 +1,11 @@
-[gd_scene load_steps=5 format=3 uid="uid://dev_studio"]
+[gd_scene load_steps=7 format=3 uid="uid://dev_studio"]
 
 [ext_resource type="Script" path="res://scripts/ui/dev_studio.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ui/weapon_builder.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/ui/ship_builder.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/ui/sound_manager.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/ui/synth_lab.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/ui/aesthetic_workshop.gd" id="6"]
 
 [node name="DevStudio" type="Control"]
 layout_mode = 3
@@ -58,17 +60,17 @@ script = ExtResource("3")
 [node name="Aesthetic Workshop" type="MarginContainer" parent="VBoxContainer/TabContainer"]
 visible = false
 layout_mode = 2
-
-[node name="Label" type="Label" parent="VBoxContainer/TabContainer/Aesthetic Workshop"]
-layout_mode = 2
-text = "Aesthetic Workshop - Coming in Phase 6"
-horizontal_alignment = 1
-vertical_alignment = 1
+script = ExtResource("6")
 
 [node name="Sound Manager" type="MarginContainer" parent="VBoxContainer/TabContainer"]
 visible = false
 layout_mode = 2
 script = ExtResource("4")
+
+[node name="Synth Lab" type="MarginContainer" parent="VBoxContainer/TabContainer"]
+visible = false
+layout_mode = 2
+script = ExtResource("5")
 
 [node name="BackButton" type="Button" parent="."]
 layout_mode = 1
