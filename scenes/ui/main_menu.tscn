@@ -28,9 +28,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -150.0
-offset_top = -120.0
+offset_top = -150.0
 offset_right = 150.0
-offset_bottom = 120.0
+offset_bottom = 150.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 20
@@ -52,6 +52,10 @@ text = "RESTART CAMPAIGN"
 [node name="HangarButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "HANGAR"
+
+[node name="ShipViewerButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "SHIP VIEWER"
 
 [node name="DevStudioButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
