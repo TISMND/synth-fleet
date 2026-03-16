@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cgai3sx4pr52f"
+path="res://.godot/imported/Please Don't Interest - 120 BPM - 3 - Synth - spm_melodic_loop_thehammer_115_Dm.wav-ae2a32185794219eb77635e77de41e0c.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/Please Don't Interest - 120 BPM - 3 - Synth - spm_melodic_loop_thehammer_115_Dm.wav"
+dest_files=["res://.godot/imported/Please Don't Interest - 120 BPM - 3 - Synth - spm_melodic_loop_thehammer_115_Dm.wav-ae2a32185794219eb77635e77de41e0c.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://byo81qxnbrqqj"
+path="res://.godot/imported/Sleepy The Tea - 120 BPM - 4 - Synth - ida2_synths_15_116_b.wav-9bf76fdaf292eaaec08c6f189896d293.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/Sleepy The Tea - 120 BPM - 4 - Synth - ida2_synths_15_116_b.wav"
+dest_files=["res://.godot/imported/Sleepy The Tea - 120 BPM - 4 - Synth - ida2_synths_15_116_b.wav-9bf76fdaf292eaaec08c6f189896d293.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://6jx3u4gqxjl2"
+path="res://.godot/imported/Fortunate Interval - 120 BPM - 7 - Pads - AU_PC_94_synth_pad_loop_supersaw_C#min.wav-62cc1a08d056b66cd29ef74f062552ab.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/pads/Fortunate Interval - 120 BPM - 7 - Pads - AU_PC_94_synth_pad_loop_supersaw_C#min.wav"
+dest_files=["res://.godot/imported/Fortunate Interval - 120 BPM - 7 - Pads - AU_PC_94_synth_pad_loop_supersaw_C#min.wav-62cc1a08d056b66cd29ef74f062552ab.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

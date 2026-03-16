@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cqf5doboe6rfx"
+path="res://.godot/imported/Thinking About Reaction - 120 BPM - 8 - Others - NW_NTN2_90_kit_loop_outsider_full_D#maj.wav-1dec874fd4a6f2c420a7f7fa7eacb152.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/others/Thinking About Reaction - 120 BPM - 8 - Others - NW_NTN2_90_kit_loop_outsider_full_D#maj.wav"
+dest_files=["res://.godot/imported/Thinking About Reaction - 120 BPM - 8 - Others - NW_NTN2_90_kit_loop_outsider_full_D#maj.wav-1dec874fd4a6f2c420a7f7fa7eacb152.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

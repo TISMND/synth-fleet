@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://c8rijvlk6q6i2"
+path="res://.godot/imported/Sleepy The Tea - 120 BPM - 8 - Pads - NW_NL2_90_songstarter_pad_penthouse_Gmin.wav-91c9854995d30758dfa7a2e9b3d72f58.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/pads/Sleepy The Tea - 120 BPM - 8 - Pads - NW_NL2_90_songstarter_pad_penthouse_Gmin.wav"
+dest_files=["res://.godot/imported/Sleepy The Tea - 120 BPM - 8 - Pads - NW_NL2_90_songstarter_pad_penthouse_Gmin.wav-91c9854995d30758dfa7a2e9b3d72f58.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

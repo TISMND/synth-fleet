@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://04usri2cry8l"
+path="res://.godot/imported/Microdose Sleep - 120 BPM - 7 - Bass - NW_ND2_80_bass_riskybusiness_Emin.wav-cac8e75bcb33316f1949e15f1f41ac65.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/bass/Microdose Sleep - 120 BPM - 7 - Bass - NW_ND2_80_bass_riskybusiness_Emin.wav"
+dest_files=["res://.godot/imported/Microdose Sleep - 120 BPM - 7 - Bass - NW_ND2_80_bass_riskybusiness_Emin.wav-cac8e75bcb33316f1949e15f1f41ac65.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

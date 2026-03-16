@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://ckgi8s5je6yj8"
+path="res://.godot/imported/Microdose Sleep - 120 BPM - 8 - Strings - BPM120_Gm_Sensitive_Cello_Ensemble.wav-3fd2d1a3a7e257781052084638899ce1.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/strings/Microdose Sleep - 120 BPM - 8 - Strings - BPM120_Gm_Sensitive_Cello_Ensemble.wav"
+dest_files=["res://.godot/imported/Microdose Sleep - 120 BPM - 8 - Strings - BPM120_Gm_Sensitive_Cello_Ensemble.wav-3fd2d1a3a7e257781052084638899ce1.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

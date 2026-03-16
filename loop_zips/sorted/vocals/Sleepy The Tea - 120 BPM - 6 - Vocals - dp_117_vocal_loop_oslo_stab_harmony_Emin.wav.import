@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cvap7c2wuuu7w"
+path="res://.godot/imported/Sleepy The Tea - 120 BPM - 6 - Vocals - dp_117_vocal_loop_oslo_stab_harmony_Emin.wav-c96b1a71546292322d79fda9a01b952c.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/vocals/Sleepy The Tea - 120 BPM - 6 - Vocals - dp_117_vocal_loop_oslo_stab_harmony_Emin.wav"
+dest_files=["res://.godot/imported/Sleepy The Tea - 120 BPM - 6 - Vocals - dp_117_vocal_loop_oslo_stab_harmony_Emin.wav-c96b1a71546292322d79fda9a01b952c.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

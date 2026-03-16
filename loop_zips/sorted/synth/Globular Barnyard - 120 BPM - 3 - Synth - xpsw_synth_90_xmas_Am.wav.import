@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://6uv15v5hg6yv"
+path="res://.godot/imported/Globular Barnyard - 120 BPM - 3 - Synth - xpsw_synth_90_xmas_Am.wav-d6a1ba9ca4319a47d200d2c7fa722285.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/Globular Barnyard - 120 BPM - 3 - Synth - xpsw_synth_90_xmas_Am.wav"
+dest_files=["res://.godot/imported/Globular Barnyard - 120 BPM - 3 - Synth - xpsw_synth_90_xmas_Am.wav-d6a1ba9ca4319a47d200d2c7fa722285.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

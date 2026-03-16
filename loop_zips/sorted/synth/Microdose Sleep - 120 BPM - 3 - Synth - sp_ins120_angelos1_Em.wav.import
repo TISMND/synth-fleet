@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bo2kwl62l2cyt"
+path="res://.godot/imported/Microdose Sleep - 120 BPM - 3 - Synth - sp_ins120_angelos1_Em.wav-4493be9a9d8f81e05948896c90540d2f.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/Microdose Sleep - 120 BPM - 3 - Synth - sp_ins120_angelos1_Em.wav"
+dest_files=["res://.godot/imported/Microdose Sleep - 120 BPM - 3 - Synth - sp_ins120_angelos1_Em.wav-4493be9a9d8f81e05948896c90540d2f.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

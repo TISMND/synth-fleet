@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://1gax54j8s4et"
+path="res://.godot/imported/Microdose Sleep - 120 BPM - 1 - Drums - 012_a__Drum_Beat_100bpm_Am_-_80SCYBERPUNK_Zenhiser.wav-c26954d8dc401e4cf185593fd13f2a7a.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/drums/Microdose Sleep - 120 BPM - 1 - Drums - 012_a__Drum_Beat_100bpm_Am_-_80SCYBERPUNK_Zenhiser.wav"
+dest_files=["res://.godot/imported/Microdose Sleep - 120 BPM - 1 - Drums - 012_a__Drum_Beat_100bpm_Am_-_80SCYBERPUNK_Zenhiser.wav-c26954d8dc401e4cf185593fd13f2a7a.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

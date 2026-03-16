@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://i5x88gpl8nfh"
+path="res://.godot/imported/Dreading Sphere - 120 BPM - 3 - FX - vw2_war80_consciousness_Am.wav-db0555bbc27dc92b916774b7f107ff0f.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/fx/Dreading Sphere - 120 BPM - 3 - FX - vw2_war80_consciousness_Am.wav"
+dest_files=["res://.godot/imported/Dreading Sphere - 120 BPM - 3 - FX - vw2_war80_consciousness_Am.wav-db0555bbc27dc92b916774b7f107ff0f.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

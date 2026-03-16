@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://4v5nr75xc5d2"
+path="res://.godot/imported/Dreading Sphere - 120 BPM - 5 - Brass & Winds - nw_vhs_124_kit_loop_eightieshigh_horns_Fmaj.wav-0d34de9c6b1274030e18d1401d5b43f0.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/brass_and_winds/Dreading Sphere - 120 BPM - 5 - Brass & Winds - nw_vhs_124_kit_loop_eightieshigh_horns_Fmaj.wav"
+dest_files=["res://.godot/imported/Dreading Sphere - 120 BPM - 5 - Brass & Winds - nw_vhs_124_kit_loop_eightieshigh_horns_Fmaj.wav-0d34de9c6b1274030e18d1401d5b43f0.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

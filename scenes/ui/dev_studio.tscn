@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://dev_studio"]
 
 [ext_resource type="Script" path="res://scripts/ui/dev_studio.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/ui/weapon_builder.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/ui/weapons_tab.gd" id="3"]
 
 [node name="DevStudio" type="Control"]
 layout_mode = 3
@@ -44,9 +44,9 @@ text = "DEV STUDIO"
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Weapon Builder" type="MarginContainer" parent="VBoxContainer/TabContainer"]
+[node name="Weapons" type="MarginContainer" parent="VBoxContainer/TabContainer"]
 layout_mode = 2
-script = ExtResource("2")
+script = ExtResource("3")
 
 [node name="BackButton" type="Button" parent="."]
 layout_mode = 1

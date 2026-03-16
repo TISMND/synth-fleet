@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dl6r6krvwyuas"
+path="res://.godot/imported/Fortunate Interval - 120 BPM - 3 - Synth - rw_insp100_asabove_ful_C#m.wav-6083baf1295c44d9f8399e1349f87eed.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/Fortunate Interval - 120 BPM - 3 - Synth - rw_insp100_asabove_ful_C#m.wav"
+dest_files=["res://.godot/imported/Fortunate Interval - 120 BPM - 3 - Synth - rw_insp100_asabove_ful_C#m.wav-6083baf1295c44d9f8399e1349f87eed.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

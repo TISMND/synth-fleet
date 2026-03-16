@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bb82awo5sr6u5"
+path="res://.godot/imported/Oscillating Spoons - 120 BPM - 7 - Keys - FRANCMOODY_115_sh101_loop_pulse_F#maj.wav-ce572ac2deb783810d6bc55354ddccaa.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/keys/Oscillating Spoons - 120 BPM - 7 - Keys - FRANCMOODY_115_sh101_loop_pulse_F#maj.wav"
+dest_files=["res://.godot/imported/Oscillating Spoons - 120 BPM - 7 - Keys - FRANCMOODY_115_sh101_loop_pulse_F#maj.wav-ce572ac2deb783810d6bc55354ddccaa.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

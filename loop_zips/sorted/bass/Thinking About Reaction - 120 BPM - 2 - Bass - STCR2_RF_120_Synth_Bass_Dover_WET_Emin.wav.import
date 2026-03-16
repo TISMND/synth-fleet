@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://b1w1rti5khg21"
+path="res://.godot/imported/Thinking About Reaction - 120 BPM - 2 - Bass - STCR2_RF_120_Synth_Bass_Dover_WET_Emin.wav-d51c0f2fa905a1c059d0c2cc90c1f45c.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/bass/Thinking About Reaction - 120 BPM - 2 - Bass - STCR2_RF_120_Synth_Bass_Dover_WET_Emin.wav"
+dest_files=["res://.godot/imported/Thinking About Reaction - 120 BPM - 2 - Bass - STCR2_RF_120_Synth_Bass_Dover_WET_Emin.wav-d51c0f2fa905a1c059d0c2cc90c1f45c.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

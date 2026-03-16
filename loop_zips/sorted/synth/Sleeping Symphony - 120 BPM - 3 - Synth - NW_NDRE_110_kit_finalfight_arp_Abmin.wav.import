@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bngp4hfm0kqlu"
+path="res://.godot/imported/Sleeping Symphony - 120 BPM - 3 - Synth - NW_NDRE_110_kit_finalfight_arp_Abmin.wav-c0ed4bacc41384531283afa38b6b1d85.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/Sleeping Symphony - 120 BPM - 3 - Synth - NW_NDRE_110_kit_finalfight_arp_Abmin.wav"
+dest_files=["res://.godot/imported/Sleeping Symphony - 120 BPM - 3 - Synth - NW_NDRE_110_kit_finalfight_arp_Abmin.wav-c0ed4bacc41384531283afa38b6b1d85.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

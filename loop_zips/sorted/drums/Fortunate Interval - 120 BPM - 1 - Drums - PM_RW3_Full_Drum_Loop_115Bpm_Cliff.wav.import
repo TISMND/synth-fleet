@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bptijvooe4uqv"
+path="res://.godot/imported/Fortunate Interval - 120 BPM - 1 - Drums - PM_RW3_Full_Drum_Loop_115Bpm_Cliff.wav-cbb455727dabf4c10f14dfc6e796f65e.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/drums/Fortunate Interval - 120 BPM - 1 - Drums - PM_RW3_Full_Drum_Loop_115Bpm_Cliff.wav"
+dest_files=["res://.godot/imported/Fortunate Interval - 120 BPM - 1 - Drums - PM_RW3_Full_Drum_Loop_115Bpm_Cliff.wav-cbb455727dabf4c10f14dfc6e796f65e.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

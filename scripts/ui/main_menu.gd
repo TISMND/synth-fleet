@@ -5,7 +5,6 @@ var _vhs_overlay: ColorRect
 
 
 func _ready() -> void:
-	ThemeManager.apply_grid_background($Background)
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
@@ -78,7 +77,6 @@ func _setup_vhs_overlay() -> void:
 
 
 func _on_theme_changed() -> void:
-	ThemeManager.apply_grid_background($Background)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 	_apply_styles()
 

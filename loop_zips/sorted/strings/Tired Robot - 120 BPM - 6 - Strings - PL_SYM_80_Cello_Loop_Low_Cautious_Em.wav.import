@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://ch0asqv7mr2ea"
+path="res://.godot/imported/Tired Robot - 120 BPM - 6 - Strings - PL_SYM_80_Cello_Loop_Low_Cautious_Em.wav-ec7987b12c02daa5964b60b05daec632.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/strings/Tired Robot - 120 BPM - 6 - Strings - PL_SYM_80_Cello_Loop_Low_Cautious_Em.wav"
+dest_files=["res://.godot/imported/Tired Robot - 120 BPM - 6 - Strings - PL_SYM_80_Cello_Loop_Low_Cautious_Em.wav-ec7987b12c02daa5964b60b05daec632.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

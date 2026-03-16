@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cnci2klg07463"
+path="res://.godot/imported/Microdose Sleep - 120 BPM - 2 - Bass - PMVI_Bass_Loop_20_Amaj_84.wav-4eff2e64ae6804d01ade90496eb8e665.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/bass/Microdose Sleep - 120 BPM - 2 - Bass - PMVI_Bass_Loop_20_Amaj_84.wav"
+dest_files=["res://.godot/imported/Microdose Sleep - 120 BPM - 2 - Bass - PMVI_Bass_Loop_20_Amaj_84.wav-4eff2e64ae6804d01ade90496eb8e665.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

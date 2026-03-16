@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://blbwfxp0nmyes"
+path="res://.godot/imported/Sleepy The Tea - 120 BPM - 7 - Leads - AT_Vapor_116_Synth_Lead_Loop_Expanse_g#m.wav-1dbf874464cb4af0a0bc0ab47b7b468e.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/leads/Sleepy The Tea - 120 BPM - 7 - Leads - AT_Vapor_116_Synth_Lead_Loop_Expanse_g#m.wav"
+dest_files=["res://.godot/imported/Sleepy The Tea - 120 BPM - 7 - Leads - AT_Vapor_116_Synth_Lead_Loop_Expanse_g#m.wav-1dbf874464cb4af0a0bc0ab47b7b468e.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

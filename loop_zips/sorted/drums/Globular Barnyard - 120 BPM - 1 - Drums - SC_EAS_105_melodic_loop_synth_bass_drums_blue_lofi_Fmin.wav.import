@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://m7ehvhins3tv"
+path="res://.godot/imported/Globular Barnyard - 120 BPM - 1 - Drums - SC_EAS_105_melodic_loop_synth_bass_drums_blue_lofi_Fmin.wav-5626400979a0127a83870674ee4b20fd.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/drums/Globular Barnyard - 120 BPM - 1 - Drums - SC_EAS_105_melodic_loop_synth_bass_drums_blue_lofi_Fmin.wav"
+dest_files=["res://.godot/imported/Globular Barnyard - 120 BPM - 1 - Drums - SC_EAS_105_melodic_loop_synth_bass_drums_blue_lofi_Fmin.wav-5626400979a0127a83870674ee4b20fd.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

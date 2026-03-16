@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://b3wj5qhbdiouu"
+path="res://.godot/imported/Sleeping Symphony - 120 BPM - 4 - Bass - BOS_IEV_90_Synth_Bass_Loop_Future_F.wav-35957babb0609c78f826183e88b6055c.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/bass/Sleeping Symphony - 120 BPM - 4 - Bass - BOS_IEV_90_Synth_Bass_Loop_Future_F.wav"
+dest_files=["res://.godot/imported/Sleeping Symphony - 120 BPM - 4 - Bass - BOS_IEV_90_Synth_Bass_Loop_Future_F.wav-35957babb0609c78f826183e88b6055c.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

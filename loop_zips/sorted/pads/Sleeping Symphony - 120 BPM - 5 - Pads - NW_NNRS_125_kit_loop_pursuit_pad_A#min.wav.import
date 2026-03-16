@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://y238c0dohnt3"
+path="res://.godot/imported/Sleeping Symphony - 120 BPM - 5 - Pads - NW_NNRS_125_kit_loop_pursuit_pad_A#min.wav-8436f6c3a5cebf41fe75f3894113917e.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/pads/Sleeping Symphony - 120 BPM - 5 - Pads - NW_NNRS_125_kit_loop_pursuit_pad_A#min.wav"
+dest_files=["res://.godot/imported/Sleeping Symphony - 120 BPM - 5 - Pads - NW_NNRS_125_kit_loop_pursuit_pad_A#min.wav-8436f6c3a5cebf41fe75f3894113917e.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

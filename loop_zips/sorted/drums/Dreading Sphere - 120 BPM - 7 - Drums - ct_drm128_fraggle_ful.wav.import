@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://y8pykfue3lqh"
+path="res://.godot/imported/Dreading Sphere - 120 BPM - 7 - Drums - ct_drm128_fraggle_ful.wav-56db3fa1c6c19a0d62dcd5a44a8b5221.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/drums/Dreading Sphere - 120 BPM - 7 - Drums - ct_drm128_fraggle_ful.wav"
+dest_files=["res://.godot/imported/Dreading Sphere - 120 BPM - 7 - Drums - ct_drm128_fraggle_ful.wav-56db3fa1c6c19a0d62dcd5a44a8b5221.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

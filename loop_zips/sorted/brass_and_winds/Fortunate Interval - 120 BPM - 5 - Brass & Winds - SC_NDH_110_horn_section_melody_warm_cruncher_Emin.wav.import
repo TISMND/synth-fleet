@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://b5fj8jh8vx1bf"
+path="res://.godot/imported/Fortunate Interval - 120 BPM - 5 - Brass & Winds - SC_NDH_110_horn_section_melody_warm_cruncher_Emin.wav-fd5d5ff3f7fb45b39ec61f53b11ad260.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/brass_and_winds/Fortunate Interval - 120 BPM - 5 - Brass & Winds - SC_NDH_110_horn_section_melody_warm_cruncher_Emin.wav"
+dest_files=["res://.godot/imported/Fortunate Interval - 120 BPM - 5 - Brass & Winds - SC_NDH_110_horn_section_melody_warm_cruncher_Emin.wav-fd5d5ff3f7fb45b39ec61f53b11ad260.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

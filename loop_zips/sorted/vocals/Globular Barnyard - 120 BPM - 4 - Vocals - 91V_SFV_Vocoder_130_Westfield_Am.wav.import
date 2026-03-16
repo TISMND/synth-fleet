@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://do1k8dpc86eaq"
+path="res://.godot/imported/Globular Barnyard - 120 BPM - 4 - Vocals - 91V_SFV_Vocoder_130_Westfield_Am.wav-f01232763fae4182e076a1ce568c6f28.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/vocals/Globular Barnyard - 120 BPM - 4 - Vocals - 91V_SFV_Vocoder_130_Westfield_Am.wav"
+dest_files=["res://.godot/imported/Globular Barnyard - 120 BPM - 4 - Vocals - 91V_SFV_Vocoder_130_Westfield_Am.wav-f01232763fae4182e076a1ce568c6f28.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

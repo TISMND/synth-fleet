@@ -21,12 +21,11 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - Shield/hull health system with HUD
 - GameState save/load to user://
 - WeaponData resource with loop_file_path, loop_length_bars, fire_triggers
-- Weapon Builder with waveform editor for placing fire triggers
-- ThemeManager for visual theming across all screens
+- Weapons Tab with subtabs (Timing / Effects / Stats), time-based waveform editor, loop browser, fire trigger editor with Free/snap modes
+- ThemeManager for visual theming across all screens — every screen fully themed with grid bg, button styles, text glow, LED bars, VHS/CRT overlay, and `theme_changed` reactivity
 
 **What's next (rough priority):**
 1. Add Splice WAV loops to `assets/audio/loops/` and `assets/audio/atmosphere/`
-2. Visual polish / aesthetic pass (ThemeManager presets)
 3. More enemy types + actual wave/level design
 4. Shop UI between levels
 5. Additional weapons with different loop lengths/trigger patterns
@@ -43,7 +42,7 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - **GameState** — Persistent player data (credits, loadout, owned items). Saves to `user://save_data.json`.
 - **AudioManager** — Pooled audio playback for non-loop SFX (impacts, UI clicks).
 - **LoopMixer** — Manages N AudioStreamPlayers for loops. All play from bar 1 simultaneously. Mute = `volume_db = -80.0`, unmute = restore volume. API: `add_loop()`, `remove_loop()`, `mute()`, `unmute()`, `start_all()`.
-- **ThemeManager** — Color/glow/font theming with presets.
+- **ThemeManager** — Color/glow/font theming with presets. Helpers: `apply_grid_background()`, `apply_button_style()`, `apply_text_glow()`, `apply_vhs_overlay()`, `apply_led_bar()`, color/font/float getters. All screens connect `theme_changed` and call helpers in `_apply_theme()` so preset changes propagate everywhere.
 
 ### Godot gotchas
 - **Sibling `_ready()` order is not guaranteed.** If node A needs to call a method on sibling node B that uses B's child refs, use `call_deferred()` so B's `_ready()` has run first. Without this, B's `$Child` refs will still be null and you'll get "Nil" property access errors.
@@ -66,6 +65,16 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - Health = shields (regen) + hull (doesn't). Generator = simple power budget limiting equipped weapons.
 - Shop between levels/deaths for weapons, upgrades, ships
 
+### Screen theming pattern
+Every UI screen must follow this pattern for full theme consistency:
+1. **Grid background** — `ThemeManager.apply_grid_background(bg_rect)` on a full-rect `ColorRect`
+2. **VHS/CRT overlay** — `CanvasLayer` at layer 10 with a full-rect `ColorRect` (`mouse_filter = IGNORE`), apply via `ThemeManager.apply_vhs_overlay(overlay)`. For scripts on child nodes (e.g. `Content` MarginContainer), add the CanvasLayer to `get_parent()`.
+3. **Button styling** — `ThemeManager.apply_button_style(btn)` on every `Button`
+4. **Text glow** — `ThemeManager.apply_text_glow(label, "header"/"body")` on key labels
+5. **LED bars** — `ThemeManager.apply_led_bar(bar, color, ratio)` on `ProgressBar` nodes
+6. **Fonts/colors** — Use `get_font()`, `get_font_size()`, `get_color()` instead of hardcoded values
+7. **`theme_changed` connection** — Connect in `_ready()`, handler re-applies all of the above
+
 ### WeaponData schema
 - `id`, `display_name`, `description`, `color` — identity
 - `loop_file_path` — path to Splice WAV (e.g. `res://assets/audio/loops/bass_4bar.wav`)
@@ -84,7 +93,7 @@ scripts/
   autoload/      Singletons (BeatClock, GameState, AudioManager, LoopMixer, ThemeManager)
   data/          DataManagers (WeaponDataManager, ShipDataManager, LoadoutDataManager)
   game/          Game logic (game, player_ship, hardpoint_controller, enemy, etc.)
-  ui/            UI scripts (main_menu, dev_studio, weapon_builder, waveform_editor, etc.)
+  ui/            UI scripts (main_menu, dev_studio, weapons_tab, waveform_editor, loop_browser, etc.)
 resources/       Resource class definitions (.gd) — populated from JSON at runtime
 assets/
   audio/loops/       Weapon audio loops (Splice WAVs)
@@ -106,12 +115,22 @@ user://save_data.json GameState persistence
 - Layer 2: Player projectiles
 - Layer 4: Enemies
 
+### Waveform Editor coordinate system
+The waveform editor works in **normalized time (0.0–1.0)** internally. Fire triggers are placed and displayed in time-space, not beat-space. Conversion to beat positions happens only at save/load boundaries in `weapons_tab.gd`:
+- **On save**: `beat_pos = normalized_time * total_beats` (total_beats = loop_length_bars * 4)
+- **On load**: `normalized_time = beat_pos / total_beats`
+
+The playback cursor uses **dynamic duration detection**: it tracks `_prev_playback_pos` each frame and detects wraps to determine the actual stream duration. This avoids mismatches between raw WAV duration and Godot's imported stream duration (caused by resampling, format conversion, etc.).
+
+Snap modes: Free (click anywhere), 1/4, 1/8, 1/16. Beat grid overlay is optional and visual-only.
+
 ### Adding a new weapon
-1. Use the Weapon Builder in Dev Studio, or save a JSON file to `user://weapons/`
-2. Place the weapon's audio loop WAV in `assets/audio/loops/`
-3. In Weapon Builder: select loop file, set loop length (bars), click waveform to place fire triggers
-4. JSON schema matches `WeaponData` resource class fields
-5. Weapons are loaded at runtime via `WeaponDataManager.load_by_id(id)`
+1. Use the Weapons Tab in Dev Studio, or save a JSON file to `user://weapons/`
+2. Place the weapon's audio loop WAV in `assets/audio/loops/` or `loop_zips/sorted/`
+3. In Weapons Tab (Timing subtab): browse loops, waveform auto-loads with real PCM data, click to place fire triggers (Free or snapped)
+4. Use Effects subtab for visual effect layers, Stats subtab for combat values
+5. JSON schema matches `WeaponData` resource class fields — fire_triggers stored as beat positions
+6. Weapons are loaded at runtime via `WeaponDataManager.load_by_id(id)`
 
 ### HardpointController
 Frame-based trigger checking replaces the old timer-based step sequencer:

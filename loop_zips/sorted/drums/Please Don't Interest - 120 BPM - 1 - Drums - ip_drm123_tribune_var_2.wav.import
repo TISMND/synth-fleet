@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bgep3jnb56sgg"
+path="res://.godot/imported/Please Don't Interest - 120 BPM - 1 - Drums - ip_drm123_tribune_var_2.wav-2c1820a41b7c1ad2bb3e4201f39dbca2.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/drums/Please Don't Interest - 120 BPM - 1 - Drums - ip_drm123_tribune_var_2.wav"
+dest_files=["res://.godot/imported/Please Don't Interest - 120 BPM - 1 - Drums - ip_drm123_tribune_var_2.wav-2c1820a41b7c1ad2bb3e4201f39dbca2.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dm2t6cfs0bfap"
+path="res://.godot/imported/Please Don't Interest - 120 BPM - 7 - Strings - MNT_WC_120_Cello_Spruce_Legato_Full_Variation_C#min.wav-56ad4a7bc8e4af7a0ad9d0d38fa22c27.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/strings/Please Don't Interest - 120 BPM - 7 - Strings - MNT_WC_120_Cello_Spruce_Legato_Full_Variation_C#min.wav"
+dest_files=["res://.godot/imported/Please Don't Interest - 120 BPM - 7 - Strings - MNT_WC_120_Cello_Spruce_Legato_Full_Variation_C#min.wav-56ad4a7bc8e4af7a0ad9d0d38fa22c27.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://c7q0u5veeplab"
+path="res://.godot/imported/Thinking About Reaction - 120 BPM - 4 - Brass & Winds - NW_CDFI_110_synth_brass_nova_Cmin.wav-2d10df3b9ba767dcfcdfa807d10ce9c5.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/brass_and_winds/Thinking About Reaction - 120 BPM - 4 - Brass & Winds - NW_CDFI_110_synth_brass_nova_Cmin.wav"
+dest_files=["res://.godot/imported/Thinking About Reaction - 120 BPM - 4 - Brass & Winds - NW_CDFI_110_synth_brass_nova_Cmin.wav-2d10df3b9ba767dcfcdfa807d10ce9c5.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://0nwc3vlq44nc"
+path="res://.godot/imported/Sleeping Symphony - 120 BPM - 1 - Drums - NW_SYS_135_drum_loop_angels_full.wav-42ec8aa99c2961968b37cc8e59f94490.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/drums/Sleeping Symphony - 120 BPM - 1 - Drums - NW_SYS_135_drum_loop_angels_full.wav"
+dest_files=["res://.godot/imported/Sleeping Symphony - 120 BPM - 1 - Drums - NW_SYS_135_drum_loop_angels_full.wav-42ec8aa99c2961968b37cc8e59f94490.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

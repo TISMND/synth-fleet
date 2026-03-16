@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dve8ns0frqdcq"
+path="res://.godot/imported/Globular Barnyard - 120 BPM - 7 - Pads - nc_kit07_progressive_pad_loop_100_Am.wav-f8350dfcb8da66144c9d64ee22ef0e6a.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/pads/Globular Barnyard - 120 BPM - 7 - Pads - nc_kit07_progressive_pad_loop_100_Am.wav"
+dest_files=["res://.godot/imported/Globular Barnyard - 120 BPM - 7 - Pads - nc_kit07_progressive_pad_loop_100_Am.wav-f8350dfcb8da66144c9d64ee22ef0e6a.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

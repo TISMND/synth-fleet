@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://p1qfxj3dobvd"
+path="res://.godot/imported/Sleepy The Tea - 120 BPM - 2 - Bass - NW_SYS_105_kit_loop_arnie_bass_sub_Dmin.wav-3ada46fc7f3463efa782e9e05a5ac371.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/bass/Sleepy The Tea - 120 BPM - 2 - Bass - NW_SYS_105_kit_loop_arnie_bass_sub_Dmin.wav"
+dest_files=["res://.godot/imported/Sleepy The Tea - 120 BPM - 2 - Bass - NW_SYS_105_kit_loop_arnie_bass_sub_Dmin.wav-3ada46fc7f3463efa782e9e05a5ac371.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

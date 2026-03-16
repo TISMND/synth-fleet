@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cow7wx71wdujf"
+path="res://.godot/imported/Tired Robot - 120 BPM - 7 - Bass - ZEN_S80F_115_bass_synth_loop_alabaster_Amin.wav-68f0f783cf3b37f76f486f429d8a9d56.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/bass/Tired Robot - 120 BPM - 7 - Bass - ZEN_S80F_115_bass_synth_loop_alabaster_Amin.wav"
+dest_files=["res://.godot/imported/Tired Robot - 120 BPM - 7 - Bass - ZEN_S80F_115_bass_synth_loop_alabaster_Amin.wav-68f0f783cf3b37f76f486f429d8a9d56.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

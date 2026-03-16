@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bl854bpemp6c7"
+path="res://.godot/imported/Thinking About Reaction - 120 BPM - 7 - Strings - jc_sc_85_quartet_stack_heroic_full_F#maj.wav-f045634e21f5ee809f5d5d7569db62c9.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/strings/Thinking About Reaction - 120 BPM - 7 - Strings - jc_sc_85_quartet_stack_heroic_full_F#maj.wav"
+dest_files=["res://.godot/imported/Thinking About Reaction - 120 BPM - 7 - Strings - jc_sc_85_quartet_stack_heroic_full_F#maj.wav-f045634e21f5ee809f5d5d7569db62c9.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bkdar64un0kmg"
+path="res://.godot/imported/Oscillating Spoons - 120 BPM - 3 - Synth - FL_MSW_110_Synth_Loop_Atmosphere_G.wav-abf1a05c583915ba3acf761448586638.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/Oscillating Spoons - 120 BPM - 3 - Synth - FL_MSW_110_Synth_Loop_Atmosphere_G.wav"
+dest_files=["res://.godot/imported/Oscillating Spoons - 120 BPM - 3 - Synth - FL_MSW_110_Synth_Loop_Atmosphere_G.wav-abf1a05c583915ba3acf761448586638.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

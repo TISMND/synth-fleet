@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dcpdqr8sj7qby"
+path="res://.godot/imported/Thinking About Reaction - 120 BPM - 5 - Leads - NW_NTN2_115_synth_loop_repeat_F#maj.wav-c8533d55c2cc377477f3ee2d146696e7.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/leads/Thinking About Reaction - 120 BPM - 5 - Leads - NW_NTN2_115_synth_loop_repeat_F#maj.wav"
+dest_files=["res://.godot/imported/Thinking About Reaction - 120 BPM - 5 - Leads - NW_NTN2_115_synth_loop_repeat_F#maj.wav-c8533d55c2cc377477f3ee2d146696e7.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

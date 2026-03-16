@@ -11,18 +11,21 @@ var muzzle_config: Dictionary = {"type": "none", "params": {}}
 var shape_config: Dictionary = {"type": "rect", "params": {}}
 var trail_config: Dictionary = {"type": "none", "params": {}}
 var impact_config: Dictionary = {"type": "none", "params": {}}
+var direction_deg: float = 0.0
 var loop_file_path: String = ""
 var loop_length_bars: int = 2
 var fire_triggers: Array = []
 
 var _projectiles: Array = []
-var _fire_accumulator: float = 0.0
 var _particles: Array = []
 var _preview_active: bool = false
 var _viewport_size: Vector2 = Vector2(400, 500)
 var _fire_point: Vector2 = Vector2(200, 460)
 var _impact_y: float = 40.0
 var _next_id: int = 0
+var _prev_loop_pos: float = -1.0
+var _fire_triggers_sorted: Array = []
+var _loop_length_beats: float = 0.0
 
 
 func _ready() -> void:
@@ -32,7 +35,7 @@ func _ready() -> void:
 
 func start() -> void:
 	_preview_active = true
-	_fire_accumulator = 0.0
+	_prev_loop_pos = -1.0
 
 
 func stop() -> void:
@@ -52,77 +55,56 @@ func update_weapon(data: Dictionary) -> void:
 	shape_config = ep.get("shape", {"type": "rect", "params": {}})
 	trail_config = ep.get("trail", {"type": "none", "params": {}})
 	impact_config = ep.get("impact", {"type": "none", "params": {}})
+	direction_deg = float(data.get("direction_deg", 0.0))
 	loop_file_path = str(data.get("loop_file_path", ""))
 	loop_length_bars = int(data.get("loop_length_bars", 2))
 	fire_triggers = data.get("fire_triggers", [])
-	_update_fire_interval()
-
-
-var _preview_fire_interval: float = 0.5
-var _preview_triggers_sorted: Array = []
-
-
-func _update_fire_interval() -> void:
-	# For preview, calculate a simple fire interval from triggers
-	if fire_triggers.size() >= 2:
-		_preview_triggers_sorted = fire_triggers.duplicate()
-		_preview_triggers_sorted.sort()
-		# Use average gap between triggers
-		var total_gap: float = 0.0
-		for i in range(_preview_triggers_sorted.size() - 1):
-			total_gap += float(_preview_triggers_sorted[i + 1]) - float(_preview_triggers_sorted[i])
-		var avg_gap: float = total_gap / float(_preview_triggers_sorted.size() - 1)
-		var bpm: float = float(BeatClock.bpm) if BeatClock.bpm > 0 else 120.0
-		_preview_fire_interval = avg_gap * (60.0 / bpm)
-	elif fire_triggers.size() == 1:
-		var bpm: float = float(BeatClock.bpm) if BeatClock.bpm > 0 else 120.0
-		var total_beats: float = float(loop_length_bars * BeatClock.beats_per_measure)
-		_preview_fire_interval = total_beats * (60.0 / bpm)
-	else:
-		# No triggers: fire at quarter note rate for visual preview
-		var bpm: float = float(BeatClock.bpm) if BeatClock.bpm > 0 else 120.0
-		_preview_fire_interval = 60.0 / bpm
+	_fire_triggers_sorted = fire_triggers.duplicate()
+	_fire_triggers_sorted.sort()
+	_loop_length_beats = float(loop_length_bars * BeatClock.beats_per_measure)
+	_prev_loop_pos = -1.0
 
 
 func _fire_projectiles() -> void:
 	var spawn_points: Array = []
 	var directions: Array = []
+	var base_dir: Vector2 = Vector2.UP.rotated(deg_to_rad(direction_deg))
 
 	match fire_pattern:
 		"single":
 			spawn_points.append(_fire_point)
-			directions.append(Vector2.UP)
+			directions.append(base_dir)
 		"dual":
 			spawn_points.append(_fire_point + Vector2(-15, 0))
 			spawn_points.append(_fire_point + Vector2(15, 0))
-			directions.append(Vector2.UP)
-			directions.append(Vector2.UP)
+			directions.append(base_dir)
+			directions.append(base_dir)
 		"burst":
 			for i in 3:
 				spawn_points.append(_fire_point)
-				directions.append(Vector2.UP)
+				directions.append(base_dir)
 		"spread":
-			for angle_deg in [-20.0, -10.0, 0.0, 10.0, 20.0]:
+			for angle_off in [-20.0, -10.0, 0.0, 10.0, 20.0]:
 				spawn_points.append(_fire_point)
-				directions.append(Vector2.UP.rotated(deg_to_rad(angle_deg)))
+				directions.append(base_dir.rotated(deg_to_rad(angle_off)))
 		"wave":
 			spawn_points.append(_fire_point + Vector2(-20, 0))
 			spawn_points.append(_fire_point)
 			spawn_points.append(_fire_point + Vector2(20, 0))
-			directions.append(Vector2.UP)
-			directions.append(Vector2.UP)
-			directions.append(Vector2.UP)
+			directions.append(base_dir)
+			directions.append(base_dir)
+			directions.append(base_dir)
 		"scatter":
 			for i in 4:
 				spawn_points.append(_fire_point + Vector2(randf_range(-10, 10), 0))
 				var scatter_angle: float = randf_range(-15, 15)
-				directions.append(Vector2.UP.rotated(deg_to_rad(scatter_angle)))
+				directions.append(base_dir.rotated(deg_to_rad(scatter_angle)))
 		"beam":
 			spawn_points.append(_fire_point)
-			directions.append(Vector2.UP)
+			directions.append(base_dir)
 		_:
 			spawn_points.append(_fire_point)
-			directions.append(Vector2.UP)
+			directions.append(base_dir)
 
 	for i in spawn_points.size():
 		var proj: Dictionary = {
@@ -213,12 +195,22 @@ func _process(delta: float) -> void:
 	if not _preview_active:
 		return
 
-	# Fire based on trigger interval
-	var interval: float = _preview_fire_interval
-	_fire_accumulator += delta
-	while _fire_accumulator >= interval:
-		_fire_accumulator -= interval
-		_fire_projectiles()
+	# Fire at exact beat positions, matching HardpointController logic
+	if not _fire_triggers_sorted.is_empty() and _loop_length_beats > 0.0:
+		var curr: float = BeatClock.get_loop_beat_position(_loop_length_beats)
+		if _prev_loop_pos < 0.0:
+			_prev_loop_pos = curr
+		else:
+			var prev: float = _prev_loop_pos
+			_prev_loop_pos = curr
+			for trigger in _fire_triggers_sorted:
+				var t: float = float(trigger)
+				if curr >= prev:
+					if t > prev and t <= curr:
+						_fire_projectiles()
+				else:
+					if t > prev or t <= curr:
+						_fire_projectiles()
 
 	# Update projectiles
 	var to_remove: Array = []
@@ -247,7 +239,8 @@ func _process(delta: float) -> void:
 				x_offset = sin(age * freq * TAU) * amp * (1.0 + 0.3 * sin(age * freq * 3.7))
 
 		var vel: Vector2 = proj["vel"]
-		proj["pos"] = Vector2(float(proj["base_x"]) + x_offset, (proj["pos"] as Vector2).y + vel.y * delta)
+		var current_pos: Vector2 = proj["pos"]
+		proj["pos"] = Vector2(float(proj["base_x"]) + x_offset + vel.x * age, current_pos.y + vel.y * delta)
 
 		# Spawn trail particles
 		_spawn_trail_particle(proj)
@@ -259,9 +252,9 @@ func _process(delta: float) -> void:
 		if trail_pts.size() > 20:
 			trail_pts.pop_front()
 
-		# Check if off screen
+		# Check if off screen (any edge)
 		var pos: Vector2 = proj["pos"]
-		if pos.y < _impact_y:
+		if pos.y < _impact_y or pos.y > _viewport_size.y + 10.0 or pos.x < -10.0 or pos.x > _viewport_size.x + 10.0:
 			_spawn_impact_particles(pos)
 			to_remove.append(proj)
 

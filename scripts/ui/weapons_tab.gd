@@ -1,15 +1,21 @@
 extends MarginContainer
-## Weapon Builder — full weapon editor with loop-based audio, waveform trigger editor,
-## live preview, effect profiles, save/load/delete.
+## Weapons Tab — weapon editor with subtabs (Timing / Effects / Stats),
+## live preview, loop browser, time-based waveform triggers, save/load/delete.
 
 const FIRE_PATTERNS: Array[String] = ["single", "burst", "dual", "wave", "spread", "beam", "scatter"]
-const LOOP_LENGTH_BARS: Array[int] = [1, 2, 4, 8]
-const SNAP_SUBDIVISIONS: Array[Dictionary] = [
+const SNAP_MODES: Array[Dictionary] = [
+	{"label": "Free", "value": 0},
 	{"label": "1/4", "value": 4},
 	{"label": "1/8", "value": 8},
 	{"label": "1/16", "value": 16},
 ]
-const SPECIAL_EFFECTS: Array[String] = ["none", "disable_shields", "disable_weapons", "drain_shields_for_power"]
+const BARS_OPTIONS: Array[Dictionary] = [
+	{"label": "Auto", "value": 0},
+	{"label": "1", "value": 1},
+	{"label": "2", "value": 2},
+	{"label": "4", "value": 4},
+	{"label": "8", "value": 8},
+]
 
 const EFFECT_LAYERS: Array[String] = ["motion", "muzzle", "shape", "trail", "impact"]
 
@@ -61,7 +67,24 @@ const EFFECT_PARAM_DEFS: Dictionary = {
 	},
 }
 
-# UI references
+# UI references — shared
+var _load_button: OptionButton
+var _save_button: Button
+var _delete_button: Button
+var _new_button: Button
+var _status_label: Label
+var _preview_node: WeaponPreview
+var _tab_container: TabContainer
+
+# Timing subtab
+var _waveform_editor: WaveformEditor
+var _loop_browser: LoopBrowser
+var _mute_button: Button
+var _snap_button: OptionButton
+var _grid_toggle: Button
+var _bars_button: OptionButton
+
+# Stats subtab
 var _name_input: LineEdit
 var _color_picker: ColorPickerButton
 var _damage_slider: HSlider
@@ -70,18 +93,9 @@ var _speed_slider: HSlider
 var _speed_label: Label
 var _power_slider: HSlider
 var _power_label: Label
+var _direction_slider: HSlider
+var _direction_label: Label
 var _pattern_button: OptionButton
-var _loop_file_button: OptionButton
-var _loop_length_button: OptionButton
-var _snap_button: OptionButton
-var _special_button: OptionButton
-var _load_button: OptionButton
-var _save_button: Button
-var _delete_button: Button
-var _status_label: Label
-var _preview_node: WeaponPreview
-var _waveform_editor: WaveformEditor
-var _audition_button: Button
 
 # Effect section tracking
 var _effect_type_buttons: Dictionary = {}
@@ -90,22 +104,19 @@ var _effect_param_sliders: Dictionary = {}
 
 # State
 var _current_id: String = ""
-var _loop_files: Array[String] = []
-var _is_auditioning: bool = false
-var _audition_loop_id: String = "weapon_builder_audition"
 var _section_headers: Array[Label] = []
+var _ui_ready: bool = false
 
 
 func _ready() -> void:
-	_loop_files = _scan_loop_files()
 	_build_ui()
+	_ui_ready = true
 	_refresh_load_list()
 	call_deferred("_start_preview")
 	ThemeManager.theme_changed.connect(_apply_theme)
 
 
 func _exit_tree() -> void:
-	_stop_audition()
 	if _preview_node:
 		_preview_node.stop()
 
@@ -122,7 +133,7 @@ func _build_ui() -> void:
 	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(root)
 
-	# Top bar: Load / Delete
+	# Top bar: Load / Delete / New
 	var top_bar := HBoxContainer.new()
 	root.add_child(top_bar)
 
@@ -144,10 +155,10 @@ func _build_ui() -> void:
 	_delete_button.pressed.connect(_on_delete)
 	top_bar.add_child(_delete_button)
 
-	var new_btn := Button.new()
-	new_btn.text = "NEW"
-	new_btn.pressed.connect(_on_new)
-	top_bar.add_child(new_btn)
+	_new_button = Button.new()
+	_new_button.text = "NEW"
+	_new_button.pressed.connect(_on_new)
+	top_bar.add_child(_new_button)
 
 	# Main content: HSplitContainer
 	var split := HSplitContainer.new()
@@ -155,13 +166,27 @@ func _build_ui() -> void:
 	split.split_offset = 420
 	root.add_child(split)
 
-	# Left: Preview + Waveform
+	# Left: Preview (always visible)
 	var left_panel := _build_left_panel()
 	split.add_child(left_panel)
 
-	# Right: Form
-	var form_panel := _build_form_panel()
-	split.add_child(form_panel)
+	# Right: TabContainer with subtabs
+	_tab_container = TabContainer.new()
+	_tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.add_child(_tab_container)
+
+	var timing_tab := _build_timing_tab()
+	timing_tab.name = "Timing"
+	_tab_container.add_child(timing_tab)
+
+	var effects_tab := _build_effects_tab()
+	effects_tab.name = "Effects"
+	_tab_container.add_child(effects_tab)
+
+	var stats_tab := _build_stats_tab()
+	stats_tab.name = "Stats"
+	_tab_container.add_child(stats_tab)
 
 	# Bottom bar: Save + Status
 	var bottom_bar := HBoxContainer.new()
@@ -191,6 +216,7 @@ func _build_left_panel() -> Control:
 	preview_label.text = "LIVE PREVIEW"
 	preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(preview_label)
+	_section_headers.append(preview_label)
 
 	var viewport_container := SubViewportContainer.new()
 	viewport_container.custom_minimum_size = Vector2(400, 350)
@@ -207,38 +233,106 @@ func _build_left_panel() -> Control:
 	_preview_node = WeaponPreview.new()
 	viewport.add_child(_preview_node)
 
-	# Waveform editor
+	return panel
+
+
+func _build_timing_tab() -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+
+	# Loop Browser
+	_add_section_header(vbox, "LOOP BROWSER")
+	_loop_browser = LoopBrowser.new()
+	_loop_browser.loop_selected.connect(_on_loop_selected)
+	vbox.add_child(_loop_browser)
+
+	_add_separator(vbox)
+
+	# Waveform Editor
 	_add_section_header(vbox, "WAVEFORM / TRIGGERS")
 	_waveform_editor = WaveformEditor.new()
 	_waveform_editor.custom_minimum_size = Vector2(400, 140)
 	_waveform_editor.triggers_changed.connect(_on_triggers_changed)
+	_waveform_editor.set_audition_loop_id("loop_browser_audition")
 	vbox.add_child(_waveform_editor)
 
-	# Audition controls
-	var audition_row := HBoxContainer.new()
-	vbox.add_child(audition_row)
+	# Control row: Mute + Snap + Grid toggle
+	var control_row := HBoxContainer.new()
+	vbox.add_child(control_row)
 
-	_audition_button = Button.new()
-	_audition_button.text = "PLAY LOOP"
-	_audition_button.pressed.connect(_on_audition_toggle)
-	audition_row.add_child(_audition_button)
+	_mute_button = Button.new()
+	_mute_button.text = "MUTE"
+	_mute_button.custom_minimum_size.x = 80
+	_mute_button.pressed.connect(_on_mute_toggle)
+	ThemeManager.apply_button_style(_mute_button)
+	control_row.add_child(_mute_button)
 
-	# Snap subdivision
 	var snap_label := Label.new()
 	snap_label.text = "  Snap:"
-	audition_row.add_child(snap_label)
+	control_row.add_child(snap_label)
 
 	_snap_button = OptionButton.new()
-	for sd in SNAP_SUBDIVISIONS:
-		_snap_button.add_item(str(sd["label"]))
-	_snap_button.selected = 0  # 1/4
+	for sm in SNAP_MODES:
+		_snap_button.add_item(str(sm["label"]))
+	_snap_button.selected = 0
 	_snap_button.item_selected.connect(_on_snap_changed)
-	audition_row.add_child(_snap_button)
+	control_row.add_child(_snap_button)
 
-	return panel
+	var grid_label := Label.new()
+	grid_label.text = "  Grid:"
+	control_row.add_child(grid_label)
+
+	_grid_toggle = Button.new()
+	_grid_toggle.text = "ON"
+	_grid_toggle.toggle_mode = true
+	_grid_toggle.button_pressed = true
+	_grid_toggle.custom_minimum_size.x = 50
+	_grid_toggle.toggled.connect(_on_grid_toggled)
+	ThemeManager.apply_button_style(_grid_toggle)
+	control_row.add_child(_grid_toggle)
+
+	# Bars override row
+	var bars_row := HBoxContainer.new()
+	vbox.add_child(bars_row)
+
+	var bars_label := Label.new()
+	bars_label.text = "Bars:"
+	bars_row.add_child(bars_label)
+
+	_bars_button = OptionButton.new()
+	for bo in BARS_OPTIONS:
+		_bars_button.add_item(str(bo["label"]))
+	_bars_button.selected = 0  # Auto
+	_bars_button.item_selected.connect(_on_bars_changed)
+	bars_row.add_child(_bars_button)
+
+	return scroll
 
 
-func _build_form_panel() -> Control:
+func _build_effects_tab() -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+
+	var form := VBoxContainer.new()
+	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(form)
+
+	for layer in EFFECT_LAYERS:
+		_build_effect_section(form, layer)
+		_add_separator(form)
+
+	return scroll
+
+
+func _build_stats_tab() -> Control:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -256,6 +350,8 @@ func _build_form_panel() -> Control:
 	_name_input.text_changed.connect(func(_t: String) -> void: _update_preview())
 	form.add_child(_name_input)
 
+	_add_separator(form)
+
 	# Color
 	_add_section_header(form, "COLOR")
 	var color_row := HBoxContainer.new()
@@ -268,33 +364,6 @@ func _build_form_panel() -> Control:
 	var color_info := Label.new()
 	color_info.text = "  Weapon color (affects projectile and effects)"
 	color_row.add_child(color_info)
-
-	_add_separator(form)
-
-	# Loop File
-	_add_section_header(form, "AUDIO LOOP")
-	_loop_file_button = OptionButton.new()
-	_loop_file_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_loop_file_button.add_item("(none)")
-	for lf in _loop_files:
-		_loop_file_button.add_item(lf.get_file())
-	_loop_file_button.item_selected.connect(_on_loop_file_changed)
-	form.add_child(_loop_file_button)
-
-	# Loop Length
-	var loop_len_row := HBoxContainer.new()
-	form.add_child(loop_len_row)
-	var loop_len_label := Label.new()
-	loop_len_label.text = "Loop Length (bars):"
-	loop_len_label.custom_minimum_size.x = 130
-	loop_len_row.add_child(loop_len_label)
-	_loop_length_button = OptionButton.new()
-	_loop_length_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for bars in LOOP_LENGTH_BARS:
-		_loop_length_button.add_item(str(bars))
-	_loop_length_button.selected = 1  # default 2 bars
-	_loop_length_button.item_selected.connect(_on_loop_length_changed)
-	loop_len_row.add_child(_loop_length_button)
 
 	_add_separator(form)
 
@@ -314,23 +383,14 @@ func _build_form_panel() -> Control:
 
 	_add_separator(form)
 
-	# Fire Pattern
+	# Fire Pattern + Direction
 	_add_section_header(form, "FIRE PATTERN")
 	_pattern_button = _add_option_button(form, FIRE_PATTERNS)
 	_pattern_button.item_selected.connect(func(_i: int) -> void: _update_preview())
 
-	_add_separator(form)
-
-	# Special Effect
-	_add_section_header(form, "SPECIAL EFFECT")
-	_special_button = _add_option_button(form, SPECIAL_EFFECTS)
-
-	_add_separator(form)
-
-	# Effect Profile Sections
-	for layer in EFFECT_LAYERS:
-		_build_effect_section(form, layer)
-		_add_separator(form)
+	var dir_row := _add_slider_row(form, "Direction (deg):", 0, 360, 0, 1)
+	_direction_slider = dir_row[0]
+	_direction_label = dir_row[1]
 
 	return scroll
 
@@ -354,18 +414,15 @@ func _build_effect_section(parent: Control, layer: String) -> void:
 	type_row.add_child(type_btn)
 	_effect_type_buttons[layer] = type_btn
 
-	# Container for dynamic param sliders
 	var param_container := VBoxContainer.new()
 	param_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(param_container)
 	_effect_param_containers[layer] = param_container
 	_effect_param_sliders[layer] = {}
 
-	# Build initial params
 	var initial_type: String = str(types[0])
 	_rebuild_effect_params(layer, initial_type)
 
-	# Connect type change
 	type_btn.item_selected.connect(func(idx: int) -> void:
 		var new_type: String = type_btn.get_item_text(idx)
 		_rebuild_effect_params(layer, new_type)
@@ -376,12 +433,10 @@ func _build_effect_section(parent: Control, layer: String) -> void:
 func _rebuild_effect_params(layer: String, type_name: String) -> void:
 	var container: VBoxContainer = _effect_param_containers[layer]
 
-	# Clear existing
 	for child in container.get_children():
 		child.queue_free()
 	_effect_param_sliders[layer] = {}
 
-	# Get param definitions for this type
 	var layer_defs: Dictionary = EFFECT_PARAM_DEFS.get(layer, {})
 	var type_params: Dictionary = layer_defs.get(type_name, {})
 
@@ -467,14 +522,19 @@ func _add_option_button(parent: Control, options: Array[String]) -> OptionButton
 	return btn
 
 
-# ── Data Collection ─────────────────────────────────────────
+# ── Data Collection (time → beats conversion on save) ─────
 
 func _collect_weapon_data() -> Dictionary:
-	var loop_path: String = ""
-	if _loop_file_button.selected > 0:
-		loop_path = _loop_files[_loop_file_button.selected - 1]
+	var loop_path: String = _loop_browser.get_selected_path()
+	var loop_bars: int = _waveform_editor.get_detected_bars()
+	var total_beats: float = float(loop_bars * 4)
 
-	var loop_bars: int = LOOP_LENGTH_BARS[_loop_length_button.selected]
+	# Convert normalized time triggers (0.0–1.0) to beat positions for storage
+	var time_triggers: Array = _waveform_editor.get_triggers()
+	var beat_triggers: Array = []
+	for t in time_triggers:
+		var beat_pos: float = float(t) * total_beats
+		beat_triggers.append(beat_pos)
 
 	return {
 		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
@@ -486,10 +546,11 @@ func _collect_weapon_data() -> Dictionary:
 		"power_cost": int(_power_slider.value),
 		"loop_file_path": loop_path,
 		"loop_length_bars": loop_bars,
-		"fire_triggers": _waveform_editor.get_triggers(),
+		"fire_triggers": beat_triggers,
 		"fire_pattern": _pattern_button.get_item_text(_pattern_button.selected),
 		"effect_profile": _collect_effect_profile(),
-		"special_effect": _special_button.get_item_text(_special_button.selected),
+		"special_effect": "none",
+		"direction_deg": _direction_slider.value,
 	}
 
 
@@ -525,74 +586,58 @@ func _generate_id(display_name: String) -> String:
 # ── Preview ─────────────────────────────────────────────────
 
 func _update_preview() -> void:
-	if not _preview_node:
+	if not _ui_ready or not _preview_node:
 		return
 	var data: Dictionary = _collect_weapon_data()
 	_preview_node.update_weapon(data)
 
 
-# ── Loop / Waveform Events ──────────────────────────────────
+# ── Loop Browser Events ────────────────────────────────────
 
-func _on_loop_file_changed(_idx: int) -> void:
-	_stop_audition()
-	if _loop_file_button.selected > 0:
-		var path: String = _loop_files[_loop_file_button.selected - 1]
-		var stream: AudioStream = load(path) as AudioStream
-		_waveform_editor.set_stream(stream)
-	else:
-		_waveform_editor.set_stream(null)
-	_update_preview()
-
-
-func _on_loop_length_changed(_idx: int) -> void:
-	var bars: int = LOOP_LENGTH_BARS[_loop_length_button.selected]
-	_waveform_editor.set_loop_length_bars(bars)
+func _on_loop_selected(path: String, _category: String) -> void:
+	_waveform_editor.set_stream_from_path(path)
+	# Reset bars override to Auto when a new loop is selected
+	_bars_button.selected = 0
 	_update_preview()
 
 
 func _on_snap_changed(idx: int) -> void:
-	var subdiv: int = int(SNAP_SUBDIVISIONS[idx]["value"])
-	_waveform_editor.set_snap_subdivision(subdiv)
+	var mode: int = int(SNAP_MODES[idx]["value"])
+	_waveform_editor.set_snap_mode(mode)
 
 
-func _on_triggers_changed(triggers: Array) -> void:
+func _on_grid_toggled(pressed: bool) -> void:
+	_grid_toggle.text = "ON" if pressed else "OFF"
+	_waveform_editor.set_show_beat_grid(pressed)
+
+
+func _on_bars_changed(idx: int) -> void:
+	var bars_val: int = int(BARS_OPTIONS[idx]["value"])
+	if bars_val == 0:
+		# Auto: re-detect from WAV duration
+		_waveform_editor._auto_detect_bars()
+	else:
+		_waveform_editor.set_loop_length_bars(bars_val)
 	_update_preview()
 
 
-func _on_audition_toggle() -> void:
-	if _is_auditioning:
-		_stop_audition()
-	else:
-		_start_audition()
+func _on_triggers_changed(_triggers: Array) -> void:
+	_update_preview()
 
 
-func _start_audition() -> void:
-	if _loop_file_button.selected <= 0:
-		_status_label.text = "Select a loop file first."
+func _on_mute_toggle() -> void:
+	var audition_id: String = "loop_browser_audition"
+	if not LoopMixer.has_loop(audition_id):
 		return
-	var path: String = _loop_files[_loop_file_button.selected - 1]
-	_is_auditioning = true
-	_audition_button.text = "STOP LOOP"
-
-	# Use LoopMixer for audition
-	if LoopMixer.has_loop(_audition_loop_id):
-		LoopMixer.remove_loop(_audition_loop_id)
-	LoopMixer.add_loop(_audition_loop_id, path, "Master", 0.0, false)
-	if not BeatClock._running:
-		BeatClock.start()
-	LoopMixer.start_all()
-	_waveform_editor.set_show_cursor(true)
+	if LoopMixer.is_muted(audition_id):
+		LoopMixer.unmute(audition_id)
+		_mute_button.text = "MUTE"
+	else:
+		LoopMixer.mute(audition_id)
+		_mute_button.text = "UNMUTE"
 
 
-func _stop_audition() -> void:
-	_is_auditioning = false
-	if _audition_button:
-		_audition_button.text = "PLAY LOOP"
-	LoopMixer.remove_loop(_audition_loop_id)
-	_waveform_editor.set_show_cursor(false)
-
-
-# ── Events ──────────────────────────────────────────────────
+# ── Save / Load / Delete ───────────────────────────────────
 
 func _on_save() -> void:
 	var name_text: String = _name_input.text.strip_edges()
@@ -632,21 +677,18 @@ func _on_delete() -> void:
 
 
 func _on_new() -> void:
-	_stop_audition()
 	_current_id = ""
 	_name_input.text = ""
 	_color_picker.color = Color.CYAN
 	_damage_slider.value = 10
 	_speed_slider.value = 600
 	_power_slider.value = 5
-	_loop_file_button.selected = 0
-	_loop_length_button.selected = 1  # 2 bars
+	_direction_slider.value = 0
 	_pattern_button.selected = 0
-	_special_button.selected = 0
-	_waveform_editor.set_stream(null)
+	_waveform_editor.set_stream_from_path("")
 	_waveform_editor.set_triggers([])
+	_bars_button.selected = 0
 
-	# Reset all effect sections
 	for layer in EFFECT_LAYERS:
 		var type_btn: OptionButton = _effect_type_buttons[layer]
 		type_btn.selected = 0
@@ -666,41 +708,36 @@ func _refresh_load_list() -> void:
 
 
 func _populate_from_weapon(weapon: WeaponData) -> void:
-	_stop_audition()
 	_current_id = weapon.id
 	_name_input.text = weapon.display_name
 	_color_picker.color = Color(weapon.color)
 	_damage_slider.value = weapon.damage
 	_speed_slider.value = weapon.projectile_speed
 	_power_slider.value = weapon.power_cost
+	_direction_slider.value = weapon.direction_deg
 
-	# Loop file
-	_loop_file_button.selected = 0
+	# Select loop in browser
 	if weapon.loop_file_path != "":
-		for i in _loop_files.size():
-			if _loop_files[i] == weapon.loop_file_path:
-				_loop_file_button.selected = i + 1
-				var stream: AudioStream = load(weapon.loop_file_path) as AudioStream
-				_waveform_editor.set_stream(stream)
-				break
+		_loop_browser.select_path(weapon.loop_file_path)
+		_waveform_editor.set_stream_from_path(weapon.loop_file_path)
+	else:
+		_waveform_editor.set_stream_from_path("")
 
-	# Loop length
-	for i in LOOP_LENGTH_BARS.size():
-		if LOOP_LENGTH_BARS[i] == weapon.loop_length_bars:
-			_loop_length_button.selected = i
-			break
-	_waveform_editor.set_loop_length_bars(weapon.loop_length_bars)
+	# Convert beat-position triggers to normalized time (0.0–1.0)
+	var total_beats: float = float(weapon.loop_length_bars * 4)
+	var time_triggers: Array = []
+	if total_beats > 0.0:
+		for beat_pos in weapon.fire_triggers:
+			var t: float = float(beat_pos) / total_beats
+			time_triggers.append(t)
+	_waveform_editor.set_triggers(time_triggers)
 
-	# Fire triggers
-	_waveform_editor.set_triggers(weapon.fire_triggers)
+	# Reset bars override to Auto
+	_bars_button.selected = 0
 
 	# Fire pattern
 	var pat_idx: int = FIRE_PATTERNS.find(weapon.fire_pattern)
 	_pattern_button.selected = pat_idx if pat_idx >= 0 else 0
-
-	# Special effect
-	var spec_idx: int = SPECIAL_EFFECTS.find(weapon.special_effect)
-	_special_button.selected = spec_idx if spec_idx >= 0 else 0
 
 	# Effect profile
 	var ep: Dictionary = weapon.effect_profile
@@ -709,7 +746,6 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 		var type_name: String = str(layer_data.get("type", "none"))
 		var params: Dictionary = layer_data.get("params", {})
 
-		# Set type dropdown
 		var type_btn: OptionButton = _effect_type_buttons[layer]
 		var types: Array = EFFECT_TYPES[layer]
 		var type_idx: int = -1
@@ -723,7 +759,6 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 			type_btn.selected = 0
 			type_name = str(types[0])
 
-		# Rebuild params and set values
 		_rebuild_effect_params(layer, type_name)
 		var sliders: Dictionary = _effect_param_sliders.get(layer, {})
 		for param_name in params:
@@ -739,28 +774,13 @@ func _apply_theme() -> void:
 		if is_instance_valid(label):
 			label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 			label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-
-
-func _scan_loop_files() -> Array[String]:
-	var loops: Array[String] = []
-	_scan_dir("res://assets/audio/loops/", loops)
-	loops.sort()
-	return loops
-
-
-func _scan_dir(path: String, results: Array[String]) -> void:
-	var dir := DirAccess.open(path)
-	if not dir:
-		return
-	dir.list_dir_begin()
-	var fname: String = dir.get_next()
-	while fname != "":
-		if dir.current_is_dir():
-			if not fname.begins_with("."):
-				_scan_dir(path + fname + "/", results)
-		else:
-			var ext: String = fname.get_extension().to_lower()
-			if ext == "wav" or ext == "ogg" or ext == "mp3":
-				results.append(path + fname)
-		fname = dir.get_next()
-	dir.list_dir_end()
+	if _mute_button:
+		ThemeManager.apply_button_style(_mute_button)
+	if _grid_toggle:
+		ThemeManager.apply_button_style(_grid_toggle)
+	if _save_button:
+		ThemeManager.apply_button_style(_save_button)
+	if _delete_button:
+		ThemeManager.apply_button_style(_delete_button)
+	if _new_button:
+		ThemeManager.apply_button_style(_new_button)

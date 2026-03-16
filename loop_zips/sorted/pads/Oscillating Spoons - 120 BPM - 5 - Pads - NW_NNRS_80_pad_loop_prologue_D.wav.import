@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bb8j2qggijs5f"
+path="res://.godot/imported/Oscillating Spoons - 120 BPM - 5 - Pads - NW_NNRS_80_pad_loop_prologue_D.wav-8dbee9b4ec690ee7875c94f5e0c53741.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/pads/Oscillating Spoons - 120 BPM - 5 - Pads - NW_NNRS_80_pad_loop_prologue_D.wav"
+dest_files=["res://.godot/imported/Oscillating Spoons - 120 BPM - 5 - Pads - NW_NNRS_80_pad_loop_prologue_D.wav-8dbee9b4ec690ee7875c94f5e0c53741.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

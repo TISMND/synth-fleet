@@ -15,6 +15,7 @@ extends Resource
 @export var fire_pattern: String = "single"
 @export var effect_profile: Dictionary = {}
 @export var special_effect: String = "none"
+@export var direction_deg: float = 0.0
 
 
 static func from_dict(data: Dictionary) -> WeaponData:
@@ -35,6 +36,7 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.fire_pattern = data.get("fire_pattern", "single")
 	w.effect_profile = data.get("effect_profile", {})
 	w.special_effect = data.get("special_effect", "none")
+	w.direction_deg = float(data.get("direction_deg", 0.0))
 	return w
 
 
@@ -53,4 +55,5 @@ func to_dict() -> Dictionary:
 		"fire_pattern": fire_pattern,
 		"effect_profile": effect_profile,
 		"special_effect": special_effect,
+		"direction_deg": direction_deg,
 	}

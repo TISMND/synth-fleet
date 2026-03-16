@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dfpqamdygf8ek"
+path="res://.godot/imported/Globular Barnyard - 120 BPM - 8 - FX - NW_NR_80_atmosphere_loop_praise_Dmin.wav-44abc6fb42afe8a73c33abb93caa4455.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/fx/Globular Barnyard - 120 BPM - 8 - FX - NW_NR_80_atmosphere_loop_praise_Dmin.wav"
+dest_files=["res://.godot/imported/Globular Barnyard - 120 BPM - 8 - FX - NW_NR_80_atmosphere_loop_praise_Dmin.wav-44abc6fb42afe8a73c33abb93caa4455.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

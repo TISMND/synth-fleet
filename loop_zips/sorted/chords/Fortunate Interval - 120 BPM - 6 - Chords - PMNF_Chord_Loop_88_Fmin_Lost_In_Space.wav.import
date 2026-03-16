@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://2pamc3f2fwfs"
+path="res://.godot/imported/Fortunate Interval - 120 BPM - 6 - Chords - PMNF_Chord_Loop_88_Fmin_Lost_In_Space.wav-d101552198f19b9882d97b2b94634a3a.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/chords/Fortunate Interval - 120 BPM - 6 - Chords - PMNF_Chord_Loop_88_Fmin_Lost_In_Space.wav"
+dest_files=["res://.godot/imported/Fortunate Interval - 120 BPM - 6 - Chords - PMNF_Chord_Loop_88_Fmin_Lost_In_Space.wav-d101552198f19b9882d97b2b94634a3a.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

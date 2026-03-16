@@ -20,7 +20,10 @@
       "WebFetch(domain:godotshaders.com)",
       "WebFetch(domain:github.com)",
       "Bash(cd:*)",
-      "WebFetch(domain:fonts.google.com)"
+      "WebFetch(domain:fonts.google.com)",
+      "Bash(python3:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)"
     ]
   }
 }

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cd2u3j4yugty3"
+path="res://.godot/imported/Sleeping Symphony - 120 BPM - 7 - Synth - AU_VM15_110_bright_synth_arp_i_need_you_imbued_wet_Gmin.wav-b03a6b1c10243db26af0a08e17867671.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/Sleeping Symphony - 120 BPM - 7 - Synth - AU_VM15_110_bright_synth_arp_i_need_you_imbued_wet_Gmin.wav"
+dest_files=["res://.godot/imported/Sleeping Symphony - 120 BPM - 7 - Synth - AU_VM15_110_bright_synth_arp_i_need_you_imbued_wet_Gmin.wav-b03a6b1c10243db26af0a08e17867671.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2
