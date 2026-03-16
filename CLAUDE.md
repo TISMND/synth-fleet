@@ -15,7 +15,7 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - Player movement (WASD / arrows), clamped to screen
 - BeatClock running at level BPM with beat position tracking
 - LoopMixer: all loops play simultaneously, mute/unmute for perfect sync
-- HardpointController fires projectiles at specific beat positions (fire_triggers)
+- HardpointController fires projectiles at normalized time positions via LoopMixer (fire_triggers)
 - Enemies spawn, drift down, can be hit by projectiles
 - Parallax scrolling background
 - Shield/hull health system with HUD
@@ -79,7 +79,7 @@ Every UI screen must follow this pattern for full theme consistency:
 - `id`, `display_name`, `description`, `color` — identity
 - `loop_file_path` — path to Splice WAV (e.g. `res://assets/audio/loops/bass_4bar.wav`)
 - `loop_length_bars` — 1, 2, 4, or 8
-- `fire_triggers` — Array[float] beat positions where shots fire
+- `fire_triggers` — Array[float] normalized time positions (0.0–1.0) where shots fire
 - `damage`, `projectile_speed`, `power_cost` — combat stats
 - `fire_pattern` — single/dual/spread/burst/scatter/wave/beam
 - `effect_profile` — visual effects (motion, muzzle, shape, trail, impact)
@@ -116,11 +116,11 @@ user://save_data.json GameState persistence
 - Layer 4: Enemies
 
 ### Waveform Editor coordinate system
-The waveform editor works in **normalized time (0.0–1.0)** internally. Fire triggers are placed and displayed in time-space, not beat-space. Conversion to beat positions happens only at save/load boundaries in `weapons_tab.gd`:
-- **On save**: `beat_pos = normalized_time * total_beats` (total_beats = loop_length_bars * 4)
-- **On load**: `normalized_time = beat_pos / total_beats`
+The waveform editor works in **normalized time (0.0–1.0)** internally. Fire triggers are placed, displayed, and stored in normalized time — no beat-space conversion anywhere in the pipeline.
 
-The playback cursor uses **dynamic duration detection**: it tracks `_prev_playback_pos` each frame and detects wraps to determine the actual stream duration. This avoids mismatches between raw WAV duration and Godot's imported stream duration (caused by resampling, format conversion, etc.).
+The playback cursor reads `LoopMixer.get_playback_position() / get_stream_duration()` — the same clock source as HardpointController. One clock, zero drift.
+
+Beat grid overlay uses `loop_length_bars` for cosmetic display only (snap lines, bar markers).
 
 Snap modes: Free (click anywhere), 1/4, 1/8, 1/16. Beat grid overlay is optional and visual-only.
 
@@ -129,11 +129,12 @@ Snap modes: Free (click anywhere), 1/4, 1/8, 1/16. Beat grid overlay is optional
 2. Place the weapon's audio loop WAV in `assets/audio/loops/` or `loop_zips/sorted/`
 3. In Weapons Tab (Timing subtab): browse loops, waveform auto-loads with real PCM data, click to place fire triggers (Free or snapped)
 4. Use Effects subtab for visual effect layers, Stats subtab for combat values
-5. JSON schema matches `WeaponData` resource class fields — fire_triggers stored as beat positions
+5. JSON schema matches `WeaponData` resource class fields — fire_triggers stored as normalized time (0.0–1.0)
 6. Weapons are loaded at runtime via `WeaponDataManager.load_by_id(id)`
 
 ### HardpointController
-Frame-based trigger checking replaces the old timer-based step sequencer:
-- Each frame: get `BeatClock.get_loop_beat_position(loop_length_beats)`, check if any fire trigger was crossed since last frame
+Frame-based trigger checking using LoopMixer as the single clock source:
+- Each frame: get `LoopMixer.get_playback_position() / get_stream_duration()` for normalized time (0.0–1.0), check if any fire trigger was crossed since last frame
 - Wrap-around detection: if `curr < prev`, trigger fires if `> prev OR <= curr`
 - `activate()` / `deactivate()` / `toggle()` — unmute/mute via LoopMixer
+- BeatClock is NOT used for trigger checking — only LoopMixer provides the clock

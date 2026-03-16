@@ -100,3 +100,15 @@ func get_playback_position(loop_id: String) -> float:
 	if not player.playing:
 		return -1.0
 	return player.get_playback_position()
+
+
+func get_stream_duration(loop_id: String) -> float:
+	## Returns the Godot stream's duration in seconds, or -1.0 if not found.
+	## Same source of truth as get_playback_position() — guaranteed to match.
+	if not _loops.has(loop_id):
+		return -1.0
+	var entry: Dictionary = _loops[loop_id]
+	var player: AudioStreamPlayer = entry["player"]
+	if not player.stream:
+		return -1.0
+	return player.stream.get_length()

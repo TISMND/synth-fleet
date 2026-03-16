@@ -123,6 +123,7 @@ func _exit_tree() -> void:
 
 func _start_preview() -> void:
 	if _preview_node:
+		_preview_node.set_loop_id("loop_browser_audition")
 		_preview_node.start()
 		_update_preview()
 
@@ -522,19 +523,14 @@ func _add_option_button(parent: Control, options: Array[String]) -> OptionButton
 	return btn
 
 
-# ── Data Collection (time → beats conversion on save) ─────
+# ── Data Collection (triggers stored as normalized time 0.0–1.0) ─────
 
 func _collect_weapon_data() -> Dictionary:
 	var loop_path: String = _loop_browser.get_selected_path()
 	var loop_bars: int = _waveform_editor.get_detected_bars()
-	var total_beats: float = float(loop_bars * 4)
 
-	# Convert normalized time triggers (0.0–1.0) to beat positions for storage
-	var time_triggers: Array = _waveform_editor.get_triggers()
-	var beat_triggers: Array = []
-	for t in time_triggers:
-		var beat_pos: float = float(t) * total_beats
-		beat_triggers.append(beat_pos)
+	# Triggers are already normalized time (0.0–1.0) — no conversion needed
+	var triggers: Array = _waveform_editor.get_triggers()
 
 	return {
 		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
@@ -546,7 +542,7 @@ func _collect_weapon_data() -> Dictionary:
 		"power_cost": int(_power_slider.value),
 		"loop_file_path": loop_path,
 		"loop_length_bars": loop_bars,
-		"fire_triggers": beat_triggers,
+		"fire_triggers": triggers,
 		"fire_pattern": _pattern_button.get_item_text(_pattern_button.selected),
 		"effect_profile": _collect_effect_profile(),
 		"special_effect": "none",
@@ -723,14 +719,8 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	else:
 		_waveform_editor.set_stream_from_path("")
 
-	# Convert beat-position triggers to normalized time (0.0–1.0)
-	var total_beats: float = float(weapon.loop_length_bars * 4)
-	var time_triggers: Array = []
-	if total_beats > 0.0:
-		for beat_pos in weapon.fire_triggers:
-			var t: float = float(beat_pos) / total_beats
-			time_triggers.append(t)
-	_waveform_editor.set_triggers(time_triggers)
+	# Triggers are already normalized time (0.0–1.0) from WeaponData
+	_waveform_editor.set_triggers(weapon.fire_triggers)
 
 	# Reset bars override to Auto
 	_bars_button.selected = 0

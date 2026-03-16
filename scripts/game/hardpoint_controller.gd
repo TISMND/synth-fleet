@@ -1,13 +1,12 @@
 extends Node2D
-## Per-hardpoint controller. Fires projectiles at beat positions defined by weapon's fire_triggers.
-## Audio is handled by LoopMixer (mute/unmute), not per-shot playback.
+## Per-hardpoint controller. Fires projectiles at normalized time positions (0.0–1.0)
+## synced to LoopMixer playback. Audio is handled by LoopMixer (mute/unmute).
 
 var weapon_data: WeaponData = null
 var direction_deg: float = 0.0
 var _projectiles_container: Node2D = null
 var _active: bool = false
 var _loop_id: String = ""
-var _loop_length_beats: float = 0.0
 var _fire_triggers_sorted: Array = []
 var _prev_loop_pos: float = -1.0
 
@@ -20,10 +19,7 @@ func setup(weapon: WeaponData, dir_deg: float, proj_container: Node2D, hp_index:
 	# Build unique loop ID for this hardpoint
 	_loop_id = weapon.id + "_hp_" + str(hp_index)
 
-	# Calculate loop length in beats
-	_loop_length_beats = float(weapon.loop_length_bars) * float(BeatClock.beats_per_measure)
-
-	# Sort fire triggers
+	# Sort fire triggers (already normalized time 0.0–1.0)
 	_fire_triggers_sorted = weapon.fire_triggers.duplicate()
 	_fire_triggers_sorted.sort()
 
@@ -36,7 +32,7 @@ func activate() -> void:
 	if _active:
 		return
 	_active = true
-	_prev_loop_pos = BeatClock.get_loop_beat_position(_loop_length_beats) if _loop_length_beats > 0.0 else 0.0
+	_prev_loop_pos = -1.0
 	LoopMixer.unmute(_loop_id)
 
 
@@ -63,10 +59,15 @@ func cleanup() -> void:
 
 
 func _process(_delta: float) -> void:
-	if not _active or not weapon_data or _loop_length_beats <= 0.0 or _fire_triggers_sorted.is_empty():
+	if not _active or not weapon_data or _fire_triggers_sorted.is_empty():
 		return
 
-	var curr: float = BeatClock.get_loop_beat_position(_loop_length_beats)
+	var pos_sec: float = LoopMixer.get_playback_position(_loop_id)
+	var duration: float = LoopMixer.get_stream_duration(_loop_id)
+	if pos_sec < 0.0 or duration <= 0.0:
+		return
+
+	var curr: float = pos_sec / duration  # normalized 0.0–1.0
 
 	# Skip first frame (no previous position to compare)
 	if _prev_loop_pos < 0.0:

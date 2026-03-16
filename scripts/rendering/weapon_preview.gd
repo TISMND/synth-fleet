@@ -1,7 +1,7 @@
 class_name WeaponPreview
 extends Node2D
 ## Live weapon preview — renders projectiles with full effect stack inside a SubViewport.
-## Synced to BeatClock. Used by the Weapon Builder.
+## Synced to LoopMixer playback. Used by the Weapon Builder.
 
 var weapon_color: Color = Color.CYAN
 var projectile_speed: float = 600.0
@@ -25,7 +25,7 @@ var _impact_y: float = 40.0
 var _next_id: int = 0
 var _prev_loop_pos: float = -1.0
 var _fire_triggers_sorted: Array = []
-var _loop_length_beats: float = 0.0
+var _loop_id: String = ""
 
 
 func _ready() -> void:
@@ -45,6 +45,10 @@ func stop() -> void:
 	queue_redraw()
 
 
+func set_loop_id(id: String) -> void:
+	_loop_id = id
+
+
 func update_weapon(data: Dictionary) -> void:
 	weapon_color = Color(str(data.get("color", "#00FFFF")))
 	projectile_speed = float(data.get("projectile_speed", 600.0))
@@ -61,7 +65,6 @@ func update_weapon(data: Dictionary) -> void:
 	fire_triggers = data.get("fire_triggers", [])
 	_fire_triggers_sorted = fire_triggers.duplicate()
 	_fire_triggers_sorted.sort()
-	_loop_length_beats = float(loop_length_bars * BeatClock.beats_per_measure)
 	_prev_loop_pos = -1.0
 
 
@@ -195,22 +198,25 @@ func _process(delta: float) -> void:
 	if not _preview_active:
 		return
 
-	# Fire at exact beat positions, matching HardpointController logic
-	if not _fire_triggers_sorted.is_empty() and _loop_length_beats > 0.0:
-		var curr: float = BeatClock.get_loop_beat_position(_loop_length_beats)
-		if _prev_loop_pos < 0.0:
-			_prev_loop_pos = curr
-		else:
-			var prev: float = _prev_loop_pos
-			_prev_loop_pos = curr
-			for trigger in _fire_triggers_sorted:
-				var t: float = float(trigger)
-				if curr >= prev:
-					if t > prev and t <= curr:
-						_fire_projectiles()
-				else:
-					if t > prev or t <= curr:
-						_fire_projectiles()
+	# Fire at normalized time positions, synced to LoopMixer playback
+	if not _fire_triggers_sorted.is_empty() and _loop_id != "":
+		var pos_sec: float = LoopMixer.get_playback_position(_loop_id)
+		var duration: float = LoopMixer.get_stream_duration(_loop_id)
+		if pos_sec >= 0.0 and duration > 0.0:
+			var curr: float = pos_sec / duration
+			if _prev_loop_pos < 0.0:
+				_prev_loop_pos = curr
+			else:
+				var prev: float = _prev_loop_pos
+				_prev_loop_pos = curr
+				for trigger in _fire_triggers_sorted:
+					var t: float = float(trigger)
+					if curr >= prev:
+						if t > prev and t <= curr:
+							_fire_projectiles()
+					else:
+						if t > prev or t <= curr:
+							_fire_projectiles()
 
 	# Update projectiles
 	var to_remove: Array = []

@@ -16,9 +16,7 @@ var _hovered_time: float = -1.0
 var _cursor_progress: float = -1.0  # 0.0–1.0 normalized
 var _show_cursor: bool = false
 var _has_stream: bool = false
-var _detected_duration_sec: float = 0.0  # From raw WAV parsing (for waveform rendering)
-var _playback_duration_sec: float = 0.0  # From actual stream playback (for cursor mapping)
-var _prev_playback_pos: float = -1.0  # For wrap detection
+var _detected_duration_sec: float = 0.0  # From raw WAV parsing (for bar auto-detection)
 var _audition_loop_id: String = ""
 var _show_beat_grid: bool = true
 
@@ -49,8 +47,6 @@ func set_stream_from_path(path: String) -> void:
 	## Also auto-detects loop length in bars from duration + BPM.
 	_waveform_data.clear()
 	_detected_duration_sec = 0.0
-	_playback_duration_sec = 0.0
-	_prev_playback_pos = -1.0
 
 	if path == "":
 		_has_stream = false
@@ -131,9 +127,6 @@ func set_stream_from_path(path: String) -> void:
 	var bytes_per_sample: int = bits_per_sample / 8
 	var total_samples: int = data_bytes.size() / (bytes_per_sample * channels)
 	_detected_duration_sec = float(total_samples) / float(sample_rate)
-
-	# Use detected duration as initial estimate for playback duration
-	_playback_duration_sec = _detected_duration_sec
 
 	# Downsample to ~512 peak-amplitude values
 	var display_count: int = 512
@@ -220,27 +213,12 @@ func set_audition_loop_id(id: String) -> void:
 	_audition_loop_id = id
 
 
-func _get_effective_duration() -> float:
-	if _playback_duration_sec > 0.0:
-		return _playback_duration_sec
-	return _detected_duration_sec
-
-
 func _process(_delta: float) -> void:
 	if not _show_cursor or _audition_loop_id == "":
 		return
 	var pos_sec: float = LoopMixer.get_playback_position(_audition_loop_id)
-	if pos_sec < 0.0:
-		return
-
-	# Dynamic duration detection: when playback wraps, the previous position
-	# is the true stream duration (accounts for Godot's resampling)
-	if _prev_playback_pos >= 0.0 and pos_sec < _prev_playback_pos - 0.05:
-		_playback_duration_sec = _prev_playback_pos
-	_prev_playback_pos = pos_sec
-
-	var duration: float = _get_effective_duration()
-	if duration <= 0.0:
+	var duration: float = LoopMixer.get_stream_duration(_audition_loop_id)
+	if pos_sec < 0.0 or duration <= 0.0:
 		return
 	_cursor_progress = clampf(pos_sec / duration, 0.0, 1.0)
 	queue_redraw()

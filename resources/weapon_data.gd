@@ -11,7 +11,7 @@ extends Resource
 @export var power_cost: int = 5
 @export var loop_file_path: String = ""
 @export var loop_length_bars: int = 2
-@export var fire_triggers: Array = []  # Array of float beat positions
+@export var fire_triggers: Array = []  # Array of float, normalized time 0.0–1.0
 @export var fire_pattern: String = "single"
 @export var effect_profile: Dictionary = {}
 @export var special_effect: String = "none"
@@ -31,8 +31,19 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.loop_length_bars = int(data.get("loop_length_bars", 2))
 	var triggers: Array = data.get("fire_triggers", [])
 	w.fire_triggers = []
+	# Migration: if any trigger > 1.0, they're old beat-position format
+	var needs_conversion: bool = false
 	for t in triggers:
-		w.fire_triggers.append(float(t))
+		if float(t) > 1.0:
+			needs_conversion = true
+			break
+	if needs_conversion and w.loop_length_bars > 0:
+		var total_beats: float = float(w.loop_length_bars) * 4.0
+		for t in triggers:
+			w.fire_triggers.append(float(t) / total_beats)
+	else:
+		for t in triggers:
+			w.fire_triggers.append(float(t))
 	w.fire_pattern = data.get("fire_pattern", "single")
 	w.effect_profile = data.get("effect_profile", {})
 	w.special_effect = data.get("special_effect", "none")
