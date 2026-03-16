@@ -1,6 +1,7 @@
 extends MarginContainer
 ## Weapons Tab — weapon editor with subtabs (Timing / Effects / Stats),
 ## live preview, loop browser, time-based waveform triggers, save/load/delete.
+## Effects tab supports stackable layers per slot, per-trigger overrides, and beat_fx.
 
 const FIRE_PATTERNS: Array[String] = ["single", "burst", "dual", "wave", "spread", "beam", "scatter"]
 const SNAP_MODES: Array[Dictionary] = [
@@ -17,7 +18,7 @@ const BARS_OPTIONS: Array[Dictionary] = [
 	{"label": "8", "value": 8},
 ]
 
-const EFFECT_LAYERS: Array[String] = ["motion", "muzzle", "shape", "trail", "impact"]
+const EFFECT_SLOTS: Array[String] = ["shape", "motion", "muzzle", "trail", "impact", "beat_fx"]
 
 const EFFECT_TYPES: Dictionary = {
 	"motion": ["none", "sine_wave", "corkscrew", "wobble"],
@@ -25,6 +26,7 @@ const EFFECT_TYPES: Dictionary = {
 	"shape": ["rect", "streak", "orb", "diamond", "arrow", "pulse_orb"],
 	"trail": ["none", "particle", "ribbon", "afterimage", "sparkle", "sine_ribbon"],
 	"impact": ["none", "burst", "ring_expand", "shatter_lines", "nova_flash", "ripple"],
+	"beat_fx": ["none", "color_pulse", "scale_pulse", "sparkle_burst", "glow_flash", "ring_ping"],
 }
 
 const EFFECT_PARAM_DEFS: Dictionary = {
@@ -65,6 +67,14 @@ const EFFECT_PARAM_DEFS: Dictionary = {
 		"nova_flash": {"particle_count": [6, 24, 10, 1], "lifetime": [0.2, 1.0, 0.5, 0.05], "radius": [10.0, 80.0, 40.0, 1.0]},
 		"ripple": {"particle_count": [4, 20, 8, 1], "lifetime": [0.1, 1.0, 0.4, 0.05], "radius": [10.0, 70.0, 35.0, 1.0]},
 	},
+	"beat_fx": {
+		"none": {},
+		"color_pulse": {"subdivision": [2, 32, 16, 1], "intensity": [0.1, 1.0, 0.6, 0.05], "r": [0.0, 1.0, 1.0, 0.05], "g": [0.0, 1.0, 1.0, 0.05], "b": [0.0, 1.0, 1.0, 0.05]},
+		"scale_pulse": {"subdivision": [2, 32, 16, 1], "intensity": [0.1, 1.0, 0.6, 0.05], "max_scale": [1.1, 2.0, 1.5, 0.05]},
+		"sparkle_burst": {"subdivision": [2, 32, 16, 1], "intensity": [0.1, 1.0, 0.6, 0.05]},
+		"glow_flash": {"subdivision": [2, 32, 16, 1], "intensity": [0.1, 1.0, 0.6, 0.05]},
+		"ring_ping": {"subdivision": [2, 32, 8, 1], "intensity": [0.1, 1.0, 0.6, 0.05]},
+	},
 }
 
 # UI references — shared
@@ -97,15 +107,21 @@ var _direction_slider: HSlider
 var _direction_label: Label
 var _pattern_button: OptionButton
 
-# Effect section tracking
-var _effect_type_buttons: Dictionary = {}
-var _effect_param_containers: Dictionary = {}
-var _effect_param_sliders: Dictionary = {}
+# Effect section tracking — per-slot: Array of layer UIs
+# _slot_layers_data[slot] = Array of { "type_btn": OptionButton, "param_container": VBoxContainer, "param_sliders": Dictionary, "row_container": VBoxContainer }
+var _slot_layers_data: Dictionary = {}
+var _slot_containers: Dictionary = {}  # slot -> VBoxContainer that holds all layer rows
+var _slot_add_buttons: Dictionary = {}  # slot -> Button
+
+# Per-trigger override state
+var _trigger_override_selector: OptionButton
+var _editing_trigger_index: int = -1  # -1 = editing defaults
 
 # State
 var _current_id: String = ""
 var _section_headers: Array[Label] = []
 var _ui_ready: bool = false
+var _effects_form: VBoxContainer
 
 
 func _ready() -> void:
@@ -322,13 +338,30 @@ func _build_effects_tab() -> Control:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 
-	var form := VBoxContainer.new()
-	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(form)
+	_effects_form = VBoxContainer.new()
+	_effects_form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_effects_form)
 
-	for layer in EFFECT_LAYERS:
-		_build_effect_section(form, layer)
-		_add_separator(form)
+	# Per-trigger override selector
+	var override_row := HBoxContainer.new()
+	_effects_form.add_child(override_row)
+
+	var override_label := Label.new()
+	override_label.text = "Editing:"
+	override_row.add_child(override_label)
+
+	_trigger_override_selector = OptionButton.new()
+	_trigger_override_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_trigger_override_selector.add_item("All Triggers (Defaults)")
+	_trigger_override_selector.item_selected.connect(_on_trigger_override_changed)
+	override_row.add_child(_trigger_override_selector)
+
+	_add_separator(_effects_form)
+
+	# Build slot sections
+	for slot in EFFECT_SLOTS:
+		_build_effect_slot_section(_effects_form, slot)
+		_add_separator(_effects_form)
 
 	return scroll
 
@@ -396,58 +429,177 @@ func _build_stats_tab() -> Control:
 	return scroll
 
 
-func _build_effect_section(parent: Control, layer: String) -> void:
-	_add_section_header(parent, "EFFECT: " + layer.to_upper())
+# ── Effect Slot Section (stackable layers) ─────────────────
 
-	var type_row := HBoxContainer.new()
-	parent.add_child(type_row)
+func _build_effect_slot_section(parent: Control, slot: String) -> void:
+	_add_section_header(parent, "EFFECT: " + slot.to_upper())
 
-	var type_label := Label.new()
-	type_label.text = "Type:"
-	type_label.custom_minimum_size.x = 60
-	type_row.add_child(type_label)
+	# Container for all layer rows in this slot
+	var layers_container := VBoxContainer.new()
+	layers_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(layers_container)
+	_slot_containers[slot] = layers_container
+	_slot_layers_data[slot] = []
 
-	var types: Array = EFFECT_TYPES[layer]
+	# Add first default layer
+	_add_effect_layer(slot)
+
+	# Add Layer button
+	var add_btn := Button.new()
+	add_btn.text = "+ Add " + slot.capitalize() + " Layer"
+	add_btn.pressed.connect(_on_add_layer.bind(slot))
+	ThemeManager.apply_button_style(add_btn)
+	parent.add_child(add_btn)
+	_slot_add_buttons[slot] = add_btn
+
+
+func _add_effect_layer(slot: String, type_name: String = "", params: Dictionary = {}) -> void:
+	var layers_data: Array = _slot_layers_data[slot]
+	if layers_data.size() >= EffectLayerRenderer.MAX_LAYERS_PER_SLOT:
+		return
+
+	var container: VBoxContainer = _slot_containers[slot]
+	var layer_idx: int = layers_data.size()
+
+	# Layer row container
+	var row_container := VBoxContainer.new()
+	row_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	container.add_child(row_container)
+
+	# Header row: [Layer N] type_selector [^] [v] [X]
+	var header_row := HBoxContainer.new()
+	row_container.add_child(header_row)
+
+	var layer_label := Label.new()
+	layer_label.text = "[Layer " + str(layer_idx + 1) + "]"
+	layer_label.custom_minimum_size.x = 70
+	header_row.add_child(layer_label)
+
+	var types: Array = EFFECT_TYPES[slot]
 	var type_btn := OptionButton.new()
 	type_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for t in types:
 		type_btn.add_item(str(t))
-	type_row.add_child(type_btn)
-	_effect_type_buttons[layer] = type_btn
+	header_row.add_child(type_btn)
 
+	# Set initial type
+	if type_name != "":
+		var type_idx: int = -1
+		for i in types.size():
+			if str(types[i]) == type_name:
+				type_idx = i
+				break
+		if type_idx >= 0:
+			type_btn.selected = type_idx
+	else:
+		type_btn.selected = 0
+
+	# Param container
 	var param_container := VBoxContainer.new()
 	param_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	parent.add_child(param_container)
-	_effect_param_containers[layer] = param_container
-	_effect_param_sliders[layer] = {}
+	row_container.add_child(param_container)
 
-	var initial_type: String = str(types[0])
-	_rebuild_effect_params(layer, initial_type)
+	var layer_data: Dictionary = {
+		"type_btn": type_btn,
+		"param_container": param_container,
+		"param_sliders": {},
+		"row_container": row_container,
+		"label": layer_label,
+	}
+	layers_data.append(layer_data)
 
+	# Reorder/remove buttons — bind layer_data ref, resolve index dynamically
+	var up_btn := Button.new()
+	up_btn.text = "^"
+	up_btn.custom_minimum_size.x = 30
+	up_btn.pressed.connect(func() -> void:
+		var idx: int = _find_layer_index(slot, layer_data)
+		if idx >= 0:
+			_on_reorder_layer(slot, idx, -1)
+	)
+	ThemeManager.apply_button_style(up_btn)
+	header_row.add_child(up_btn)
+
+	var down_btn := Button.new()
+	down_btn.text = "v"
+	down_btn.custom_minimum_size.x = 30
+	down_btn.pressed.connect(func() -> void:
+		var idx: int = _find_layer_index(slot, layer_data)
+		if idx >= 0:
+			_on_reorder_layer(slot, idx, 1)
+	)
+	ThemeManager.apply_button_style(down_btn)
+	header_row.add_child(down_btn)
+
+	var remove_btn := Button.new()
+	remove_btn.text = "X"
+	remove_btn.custom_minimum_size.x = 30
+	remove_btn.pressed.connect(func() -> void:
+		var idx: int = _find_layer_index(slot, layer_data)
+		if idx >= 0:
+			_on_remove_layer(slot, idx)
+	)
+	ThemeManager.apply_button_style(remove_btn)
+	header_row.add_child(remove_btn)
+
+	# Build params for initial type
+	var initial_type: String = type_btn.get_item_text(type_btn.selected)
+	_rebuild_layer_params(slot, layer_idx, initial_type)
+
+	# Set param values if provided
+	if not params.is_empty():
+		var sliders: Dictionary = layer_data["param_sliders"]
+		for param_name in params:
+			if param_name in sliders:
+				var slider: HSlider = sliders[param_name]
+				slider.value = float(params[param_name])
+
+	# Connect type change
 	type_btn.item_selected.connect(func(idx: int) -> void:
 		var new_type: String = type_btn.get_item_text(idx)
-		_rebuild_effect_params(layer, new_type)
+		# Find current index of this layer in the array
+		var current_idx: int = _find_layer_index(slot, layer_data)
+		if current_idx >= 0:
+			_rebuild_layer_params(slot, current_idx, new_type)
 		_update_preview()
 	)
 
+	# Separator between layers
+	var sep := HSeparator.new()
+	sep.add_theme_constant_override("separation", 4)
+	row_container.add_child(sep)
 
-func _rebuild_effect_params(layer: String, type_name: String) -> void:
-	var container: VBoxContainer = _effect_param_containers[layer]
 
-	for child in container.get_children():
+func _find_layer_index(slot: String, layer_data: Dictionary) -> int:
+	var layers: Array = _slot_layers_data[slot]
+	for i in layers.size():
+		if layers[i] == layer_data:
+			return i
+	return -1
+
+
+func _rebuild_layer_params(slot: String, layer_idx: int, type_name: String) -> void:
+	var layers_data: Array = _slot_layers_data[slot]
+	if layer_idx < 0 or layer_idx >= layers_data.size():
+		return
+	var layer_data: Dictionary = layers_data[layer_idx]
+	var param_container: VBoxContainer = layer_data["param_container"]
+
+	for child in param_container.get_children():
 		child.queue_free()
-	_effect_param_sliders[layer] = {}
+	layer_data["param_sliders"] = {}
 
-	var layer_defs: Dictionary = EFFECT_PARAM_DEFS.get(layer, {})
+	var layer_defs: Dictionary = EFFECT_PARAM_DEFS.get(slot, {})
 	var type_params: Dictionary = layer_defs.get(type_name, {})
 
 	if type_params.is_empty():
 		var no_params := Label.new()
 		no_params.text = "  (no parameters)"
 		no_params.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
-		container.add_child(no_params)
+		param_container.add_child(no_params)
 		return
 
+	var sliders_dict: Dictionary = {}
 	for param_name in type_params:
 		var bounds: Array = type_params[param_name]
 		var min_val: float = float(bounds[0])
@@ -455,10 +607,98 @@ func _rebuild_effect_params(layer: String, type_name: String) -> void:
 		var default_val: float = float(bounds[2])
 		var step_val: float = float(bounds[3])
 
-		var row := _add_slider_row(container, param_name + ":", min_val, max_val, default_val, step_val)
-		var sliders_dict: Dictionary = _effect_param_sliders[layer]
+		var row := _add_slider_row(param_container, param_name + ":", min_val, max_val, default_val, step_val)
 		sliders_dict[param_name] = row[0]
-		_effect_param_sliders[layer] = sliders_dict
+
+	layer_data["param_sliders"] = sliders_dict
+
+
+func _on_add_layer(slot: String) -> void:
+	_add_effect_layer(slot)
+	_update_preview()
+
+
+func _on_remove_layer(slot: String, layer_idx: int) -> void:
+	var layers_data: Array = _slot_layers_data[slot]
+	if layers_data.size() <= 1:
+		# Don't remove the last layer, just reset it to "none"/first type
+		var layer_data: Dictionary = layers_data[0]
+		var type_btn: OptionButton = layer_data["type_btn"]
+		type_btn.selected = 0
+		var types: Array = EFFECT_TYPES[slot]
+		_rebuild_layer_params(slot, 0, str(types[0]))
+		_update_preview()
+		return
+	if layer_idx < 0 or layer_idx >= layers_data.size():
+		return
+	# Remove the UI and data
+	var layer_data: Dictionary = layers_data[layer_idx]
+	var row_container: VBoxContainer = layer_data["row_container"]
+	row_container.queue_free()
+	layers_data.remove_at(layer_idx)
+	# Update labels
+	_update_layer_labels(slot)
+	_update_preview()
+
+
+func _on_reorder_layer(slot: String, layer_idx: int, direction: int) -> void:
+	var layers_data: Array = _slot_layers_data[slot]
+	var new_idx: int = layer_idx + direction
+	if new_idx < 0 or new_idx >= layers_data.size():
+		return
+	# Swap data
+	var temp: Dictionary = layers_data[layer_idx]
+	layers_data[layer_idx] = layers_data[new_idx]
+	layers_data[new_idx] = temp
+	# Swap visual order
+	var container: VBoxContainer = _slot_containers[slot]
+	var row_a: VBoxContainer = (layers_data[layer_idx] as Dictionary)["row_container"]
+	var row_b: VBoxContainer = (layers_data[new_idx] as Dictionary)["row_container"]
+	container.move_child(row_a, layer_idx)
+	container.move_child(row_b, new_idx)
+	_update_layer_labels(slot)
+	_update_preview()
+
+
+func _update_layer_labels(slot: String) -> void:
+	var layers_data: Array = _slot_layers_data[slot]
+	for i in layers_data.size():
+		var layer_data: Dictionary = layers_data[i]
+		var label: Label = layer_data["label"]
+		label.text = "[Layer " + str(i + 1) + "]"
+
+
+# ── Per-Trigger Override ────────────────────────────────────
+
+func _on_trigger_override_changed(idx: int) -> void:
+	# Save current editing state before switching
+	if idx == 0:
+		_editing_trigger_index = -1
+	else:
+		_editing_trigger_index = idx - 1
+
+	# Rebuild effects UI with the selected trigger's data
+	_rebuild_effects_from_profile(_get_current_profile())
+
+
+func _refresh_trigger_override_selector() -> void:
+	if not _trigger_override_selector:
+		return
+	var prev_selected: int = _trigger_override_selector.selected
+	_trigger_override_selector.clear()
+	_trigger_override_selector.add_item("All Triggers (Defaults)")
+	var triggers: Array = _waveform_editor.get_triggers()
+	for i in triggers.size():
+		_trigger_override_selector.add_item("Trigger " + str(i + 1) + " (%.3f)" % float(triggers[i]))
+	if prev_selected < _trigger_override_selector.item_count:
+		_trigger_override_selector.selected = prev_selected
+	else:
+		_trigger_override_selector.selected = 0
+		_editing_trigger_index = -1
+
+
+func _get_current_profile() -> Dictionary:
+	return _collect_effect_profile()
 
 
 # ── UI Helpers ──────────────────────────────────────────────
@@ -523,7 +763,7 @@ func _add_option_button(parent: Control, options: Array[String]) -> OptionButton
 	return btn
 
 
-# ── Data Collection (triggers stored as normalized time 0.0–1.0) ─────
+# ── Data Collection (v2 format) ─────────────────────────────
 
 func _collect_weapon_data() -> Dictionary:
 	var loop_path: String = _loop_browser.get_selected_path()
@@ -551,17 +791,54 @@ func _collect_weapon_data() -> Dictionary:
 
 
 func _collect_effect_profile() -> Dictionary:
-	var profile: Dictionary = {}
-	for layer in EFFECT_LAYERS:
-		var type_btn: OptionButton = _effect_type_buttons[layer]
-		var type_name: String = type_btn.get_item_text(type_btn.selected)
-		var params: Dictionary = {}
-		var sliders: Dictionary = _effect_param_sliders.get(layer, {})
-		for param_name in sliders:
-			var slider: HSlider = sliders[param_name]
-			params[param_name] = slider.value
-		profile[layer] = {"type": type_name, "params": params}
+	# Collect current UI state as layer arrays for the currently-editing target
+	var current_layers: Dictionary = {}
+	for slot in EFFECT_SLOTS:
+		var layers_data: Array = _slot_layers_data.get(slot, [])
+		var slot_layers: Array = []
+		for layer_data in layers_data:
+			var ld: Dictionary = layer_data as Dictionary
+			var type_btn: OptionButton = ld["type_btn"]
+			var type_name: String = type_btn.get_item_text(type_btn.selected)
+			if type_name == "none":
+				continue
+			var params: Dictionary = {}
+			var sliders: Dictionary = ld.get("param_sliders", {}) as Dictionary
+			for param_name in sliders:
+				var slider: HSlider = sliders[param_name]
+				params[param_name] = slider.value
+			slot_layers.append({"type": type_name, "params": params})
+		if not slot_layers.is_empty():
+			current_layers[slot] = slot_layers
+
+	# Build v2 profile
+	# Start from the existing profile if we're editing an override
+	var profile: Dictionary = {"version": 2, "defaults": {}, "trigger_overrides": {}}
+
+	# Preserve existing data we're not currently editing
+	if _current_profile_cache.has("defaults"):
+		profile["defaults"] = (_current_profile_cache["defaults"] as Dictionary).duplicate(true)
+	if _current_profile_cache.has("trigger_overrides"):
+		profile["trigger_overrides"] = (_current_profile_cache["trigger_overrides"] as Dictionary).duplicate(true)
+
+	if _editing_trigger_index < 0:
+		# Editing defaults
+		profile["defaults"] = current_layers
+	else:
+		# Editing a specific trigger override
+		var key: String = str(_editing_trigger_index)
+		var overrides: Dictionary = profile.get("trigger_overrides", {}) as Dictionary
+		if current_layers.is_empty():
+			overrides.erase(key)
+		else:
+			overrides[key] = current_layers
+		profile["trigger_overrides"] = overrides
+
+	_current_profile_cache = profile.duplicate(true)
 	return profile
+
+# Cache to preserve non-editing-target data
+var _current_profile_cache: Dictionary = {"version": 2, "defaults": {}, "trigger_overrides": {}}
 
 
 func _generate_id(display_name: String) -> String:
@@ -618,6 +895,7 @@ func _on_bars_changed(idx: int) -> void:
 
 
 func _on_triggers_changed(_triggers: Array) -> void:
+	_refresh_trigger_override_selector()
 	_update_preview()
 
 
@@ -684,12 +962,15 @@ func _on_new() -> void:
 	_waveform_editor.set_stream_from_path("")
 	_waveform_editor.set_triggers([])
 	_bars_button.selected = 0
+	_editing_trigger_index = -1
+	if _trigger_override_selector:
+		_trigger_override_selector.selected = 0
+	_current_profile_cache = {"version": 2, "defaults": {}, "trigger_overrides": {}}
 
-	for layer in EFFECT_LAYERS:
-		var type_btn: OptionButton = _effect_type_buttons[layer]
-		type_btn.selected = 0
-		var types: Array = EFFECT_TYPES[layer]
-		_rebuild_effect_params(layer, str(types[0]))
+	# Reset all slots to single layer with first type
+	for slot in EFFECT_SLOTS:
+		_clear_slot_layers(slot)
+		_add_effect_layer(slot)
 
 	_update_preview()
 	_status_label.text = "New weapon — ready to edit."
@@ -729,34 +1010,55 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	var pat_idx: int = FIRE_PATTERNS.find(weapon.fire_pattern)
 	_pattern_button.selected = pat_idx if pat_idx >= 0 else 0
 
-	# Effect profile
-	var ep: Dictionary = weapon.effect_profile
-	for layer in EFFECT_LAYERS:
-		var layer_data: Dictionary = ep.get(layer, {"type": "none", "params": {}})
-		var type_name: String = str(layer_data.get("type", "none"))
-		var params: Dictionary = layer_data.get("params", {})
-
-		var type_btn: OptionButton = _effect_type_buttons[layer]
-		var types: Array = EFFECT_TYPES[layer]
-		var type_idx: int = -1
-		for i in types.size():
-			if str(types[i]) == type_name:
-				type_idx = i
-				break
-		if type_idx >= 0:
-			type_btn.selected = type_idx
-		else:
-			type_btn.selected = 0
-			type_name = str(types[0])
-
-		_rebuild_effect_params(layer, type_name)
-		var sliders: Dictionary = _effect_param_sliders.get(layer, {})
-		for param_name in params:
-			if param_name in sliders:
-				var slider: HSlider = sliders[param_name]
-				slider.value = float(params[param_name])
+	# Effect profile (v2 format — WeaponData.from_dict auto-migrates)
+	_current_profile_cache = weapon.effect_profile.duplicate(true)
+	_editing_trigger_index = -1
+	if _trigger_override_selector:
+		_trigger_override_selector.selected = 0
+	_refresh_trigger_override_selector()
+	_rebuild_effects_from_profile(weapon.effect_profile)
 
 	_update_preview()
+
+
+func _rebuild_effects_from_profile(profile: Dictionary) -> void:
+	# Determine which layers to show based on editing target
+	var layers_source: Dictionary = {}
+	if _editing_trigger_index < 0:
+		# Editing defaults
+		layers_source = profile.get("defaults", {}) as Dictionary
+	else:
+		# Editing a specific trigger override
+		var overrides: Dictionary = profile.get("trigger_overrides", {}) as Dictionary
+		var key: String = str(_editing_trigger_index)
+		if overrides.has(key):
+			layers_source = overrides[key] as Dictionary
+		else:
+			# No override for this trigger — show defaults (user can modify to create override)
+			layers_source = profile.get("defaults", {}) as Dictionary
+
+	# Rebuild all slots
+	for slot in EFFECT_SLOTS:
+		_clear_slot_layers(slot)
+		var slot_layers: Array = layers_source.get(slot, []) as Array
+		if slot_layers.is_empty():
+			# Add a single empty/default layer
+			_add_effect_layer(slot)
+		else:
+			for layer_dict in slot_layers:
+				var ld: Dictionary = layer_dict as Dictionary
+				var type_name: String = str(ld.get("type", "none"))
+				var params: Dictionary = ld.get("params", {}) as Dictionary
+				_add_effect_layer(slot, type_name, params)
+
+
+func _clear_slot_layers(slot: String) -> void:
+	var layers_data: Array = _slot_layers_data.get(slot, [])
+	for layer_data in layers_data:
+		var ld: Dictionary = layer_data as Dictionary
+		var row_container: VBoxContainer = ld["row_container"]
+		row_container.queue_free()
+	_slot_layers_data[slot] = []
 
 
 func _apply_theme() -> void:
@@ -774,3 +1076,7 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_delete_button)
 	if _new_button:
 		ThemeManager.apply_button_style(_new_button)
+	for slot in _slot_add_buttons:
+		var btn: Button = _slot_add_buttons[slot]
+		if is_instance_valid(btn):
+			ThemeManager.apply_button_style(btn)

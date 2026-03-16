@@ -1,6 +1,7 @@
 class_name WeaponData
 extends Resource
 ## Type-safe container for weapon definitions. Populated from JSON at runtime.
+## effect_profile uses v2 format: { version: 2, defaults: { slot: [layers...] }, trigger_overrides: {...} }
 
 @export var id: String = ""
 @export var display_name: String = ""
@@ -45,10 +46,36 @@ static func from_dict(data: Dictionary) -> WeaponData:
 		for t in triggers:
 			w.fire_triggers.append(float(t))
 	w.fire_pattern = data.get("fire_pattern", "single")
-	w.effect_profile = data.get("effect_profile", {})
+	w.effect_profile = _migrate_effect_profile(data.get("effect_profile", {}))
 	w.special_effect = data.get("special_effect", "none")
 	w.direction_deg = float(data.get("direction_deg", 0.0))
 	return w
+
+
+## Ensure effect_profile is v2 format. Auto-migrates v1.
+static func _migrate_effect_profile(ep: Dictionary) -> Dictionary:
+	var version: int = int(ep.get("version", 0))
+	if version >= 2:
+		return ep
+	# v1 or unversioned: each slot is {type, params} — wrap in array under "defaults"
+	if ep.is_empty():
+		return {"version": 2, "defaults": {}, "trigger_overrides": {}}
+	# Check if this is already v2 (has "defaults" key)
+	if ep.has("defaults"):
+		var result: Dictionary = ep.duplicate(true)
+		result["version"] = 2
+		return result
+	# v1 migration: wrap each slot value in an array
+	var defaults: Dictionary = {}
+	for slot in ["shape", "motion", "muzzle", "trail", "impact"]:
+		var layer_data: Dictionary = ep.get(slot, {}) as Dictionary
+		if layer_data.is_empty():
+			continue
+		var type_val: String = str(layer_data.get("type", "none"))
+		if type_val == "none":
+			continue
+		defaults[slot] = [layer_data]
+	return {"version": 2, "defaults": defaults, "trigger_overrides": {}}
 
 
 func to_dict() -> Dictionary:

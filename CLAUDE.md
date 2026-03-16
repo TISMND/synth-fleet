@@ -22,6 +22,8 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - GameState save/load to user://
 - WeaponData resource with loop_file_path, loop_length_bars, fire_triggers
 - Weapons Tab with subtabs (Timing / Effects / Stats), time-based waveform editor, loop browser, fire trigger editor with Free/snap modes
+- Composable Effect Layer System: stackable layers per slot (shape, motion, muzzle, trail, impact, beat_fx), per-trigger overrides, beat-synced sub-effects
+- EffectLayerRenderer: centralized rendering utility used by Projectile, WeaponPreview, and ShipFiringPreview
 - ThemeManager for visual theming across all screens — every screen fully themed with grid bg, button styles, text glow, LED bars, VHS/CRT overlay, and `theme_changed` reactivity
 
 **What's next (rough priority):**
@@ -82,8 +84,23 @@ Every UI screen must follow this pattern for full theme consistency:
 - `fire_triggers` — Array[float] normalized time positions (0.0–1.0) where shots fire
 - `damage`, `projectile_speed`, `power_cost` — combat stats
 - `fire_pattern` — single/dual/spread/burst/scatter/wave/beam
-- `effect_profile` — visual effects (motion, muzzle, shape, trail, impact)
+- `effect_profile` — v2 composable effect layers (see below)
 - `special_effect` — none/disable_shields/disable_weapons/drain_shields_for_power
+
+### Effect Profile (v2)
+Format: `{ "version": 2, "defaults": { slot: [layers...] }, "trigger_overrides": { "idx": { slot: [layers...] } } }`
+
+6 slot categories, each an **array of layers** (max 4 per slot):
+- **shape** — each layer draws in order (alpha-blended). Types: rect, streak, orb, diamond, arrow, pulse_orb
+- **motion** — x-offsets from all layers sum (compound movement). Types: sine_wave, corkscrew, wobble
+- **muzzle** — each layer spawns independent particle burst. Types: radial_burst, directional_flash, ring_pulse, spiral_burst
+- **trail** — each layer runs independent trail stream. Types: particle, ribbon, afterimage, sparkle, sine_ribbon
+- **impact** — each layer spawns independent explosion. Types: burst, ring_expand, shatter_lines, nova_flash, ripple
+- **beat_fx** — beat-synced sub-effects on projectiles in flight. Types: color_pulse, scale_pulse, sparkle_burst, glow_flash, ring_ping
+
+`trigger_overrides` keyed by trigger index (string). Missing slots inherit from defaults.
+v1 profiles (flat `{slot: {type, params}}`) auto-migrate on load via `WeaponData._migrate_effect_profile()`.
+`EffectLayerRenderer.resolve_layers(profile, trigger_index)` returns final per-slot layer arrays.
 
 ### Directory layout
 ```
@@ -92,7 +109,7 @@ scenes/
 scripts/
   autoload/      Singletons (BeatClock, GameState, AudioManager, LoopMixer, ThemeManager)
   data/          DataManagers (WeaponDataManager, ShipDataManager, LoadoutDataManager)
-  game/          Game logic (game, player_ship, hardpoint_controller, enemy, etc.)
+  game/          Game logic (game, player_ship, hardpoint_controller, enemy, effect_layer_renderer, etc.)
   ui/            UI scripts (main_menu, dev_studio, weapons_tab, waveform_editor, loop_browser, etc.)
 resources/       Resource class definitions (.gd) — populated from JSON at runtime
 assets/

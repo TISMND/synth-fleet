@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://main_menu"]
 
 [ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1"]
-[ext_resource type="Texture2D" uid="uid://main_menu_bg" path="res://assets/main_menu_bg.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/Syntherion_bg_titled.png" id="2"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -34,11 +34,6 @@ offset_right = 360.0
 offset_bottom = 150.0
 grow_vertical = 2
 theme_override_constants/separation = 20
-
-[node name="Title" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-text = "SYNTH FLEET"
-vertical_alignment = 1
 
 [node name="PlayButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
