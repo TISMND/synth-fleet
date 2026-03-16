@@ -16,6 +16,7 @@ func _ready() -> void:
 	$VBoxContainer/RestartButton.pressed.connect(_on_restart)
 	$VBoxContainer/HangarButton.pressed.connect(_on_hangar)
 	$VBoxContainer/ShipViewerButton.pressed.connect(_on_ship_viewer)
+	$VBoxContainer/AestheticStudioButton.pressed.connect(_on_aesthetic_studio)
 	$VBoxContainer/DevStudioButton.pressed.connect(_on_dev_studio)
 
 
@@ -34,6 +35,10 @@ func _on_hangar() -> void:
 
 func _on_ship_viewer() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/ship_viewer.tscn")
+
+
+func _on_aesthetic_studio() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/aesthetic_studio.tscn")
 
 
 func _on_dev_studio() -> void:

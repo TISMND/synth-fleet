@@ -16,7 +16,11 @@
       "Bash(tree -L 3 /c/coding/synth-fleet -I \"node_modules|.godot|.git\" 2>/dev/null || find /c/coding/synth-fleet -maxdepth 3 -not -path \"*/.*\" -not -path \"*/.godot/*\" | head -80)",
       "WebFetch(domain:patternsinrandomness.blogspot.com)",
       "Bash(find:*)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:godotshaders.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(cd:*)",
+      "WebFetch(domain:fonts.google.com)"
     ]
   }
 }

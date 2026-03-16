@@ -25,12 +25,45 @@ var _colors: Dictionary = {
 
 # ── Float keys ──
 var _floats: Dictionary = {
-	"glow_intensity": 0.8,
-	"neon_brightness": 1.0,
 	"grid_spacing": 64.0,
 	"grid_scroll_speed": 20.0,
-	"grid_glow_intensity": 0.6,
 	"grid_line_width": 1.0,
+	"grid_inner_intensity": 0.0,
+	"grid_aura_size": 4.0,
+	"grid_aura_intensity": 0.6,
+	"grid_bloom_size": 12.0,
+	"grid_bloom_intensity": 0.2,
+	"grid_smudge_blur": 0.0,
+	"header_inner_intensity": 0.0,
+	"header_aura_size": 0.0,
+	"header_aura_intensity": 0.0,
+	"header_bloom_size": 0.0,
+	"header_bloom_intensity": 0.0,
+	"header_smudge_blur": 0.0,
+	"body_inner_intensity": 0.0,
+	"body_aura_size": 0.0,
+	"body_aura_intensity": 0.0,
+	"body_bloom_size": 0.0,
+	"body_bloom_intensity": 0.0,
+	"body_smudge_blur": 0.0,
+	"vhs_scanline_strength": 0.0,
+	"vhs_scanline_spacing": 2.0,
+	"vhs_chromatic_aberration": 0.0,
+	"vhs_barrel_distortion": 0.0,
+	"vhs_vignette_strength": 0.0,
+	"vhs_noise_intensity": 0.0,
+	"vhs_color_bleed": 0.0,
+	"vhs_roll_speed": 0.0,
+	"vhs_roll_strength": 0.0,
+	"led_bar_enabled": 0.0,
+	"led_segment_count": 20.0,
+	"led_segment_gap": 0.015,
+	"led_inner_intensity": 0.3,
+	"led_aura_size": 0.02,
+	"led_aura_intensity": 0.8,
+	"led_bloom_size": 0.05,
+	"led_bloom_intensity": 0.4,
+	"led_smudge_blur": 0.008,
 }
 
 # ── Int keys (font sizes) ──
@@ -40,6 +73,14 @@ var _ints: Dictionary = {
 	"font_size_section": 14,
 	"font_size_body": 13,
 }
+
+# ── Font paths ──
+var _font_paths: Dictionary = {
+	"font_header": "res://assets/fonts/Orbitron.ttf",
+	"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
+}
+
+var _font_cache: Dictionary = {}
 
 # ── Grid line color (separate since it's used in shader) ──
 var _grid_line_color: Color = Color(0.15, 0.35, 0.6, 0.4)
@@ -61,12 +102,42 @@ const BUILTIN_PRESETS: Dictionary = {
 			"bar_negative": "#CC2626",
 		},
 		"floats": {
-			"glow_intensity": 0.8,
-			"neon_brightness": 1.0,
 			"grid_spacing": 64.0,
 			"grid_scroll_speed": 20.0,
-			"grid_glow_intensity": 0.6,
 			"grid_line_width": 1.0,
+			"grid_inner_intensity": 0.0,
+			"grid_aura_size": 4.0,
+			"grid_aura_intensity": 0.6,
+			"grid_bloom_size": 12.0,
+			"grid_bloom_intensity": 0.2,
+			"grid_smudge_blur": 0.0,
+			"header_inner_intensity": 0.0,
+			"header_aura_size": 0.0,
+			"header_aura_intensity": 0.0,
+			"header_bloom_size": 0.0,
+			"header_bloom_intensity": 0.0,
+			"header_smudge_blur": 0.0,
+			"body_inner_intensity": 0.0,
+			"body_aura_size": 0.0,
+			"body_aura_intensity": 0.0,
+			"body_bloom_size": 0.0,
+			"body_bloom_intensity": 0.0,
+			"body_smudge_blur": 0.0,
+			"vhs_scanline_strength": 0.0,
+			"vhs_scanline_spacing": 2.0,
+			"vhs_chromatic_aberration": 0.0,
+			"vhs_barrel_distortion": 0.0,
+			"vhs_vignette_strength": 0.0,
+			"vhs_noise_intensity": 0.0,
+			"vhs_color_bleed": 0.0,
+			"vhs_roll_speed": 0.0,
+			"vhs_roll_strength": 0.0,
+			"led_bar_enabled": 0.0,
+			"led_segment_count": 20.0,
+			"led_segment_gap": 0.04,
+			"led_glow_size": 3.0,
+			"led_glow_strength": 1.5,
+			"led_smudge_blur": 1.0,
 		},
 		"ints": {
 			"font_size_header": 20,
@@ -75,6 +146,10 @@ const BUILTIN_PRESETS: Dictionary = {
 			"font_size_body": 13,
 		},
 		"grid_line_color": "#265999",
+		"font_paths": {
+			"font_header": "res://assets/fonts/Orbitron.ttf",
+			"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
+		},
 	},
 	"Neon Frost": {
 		"colors": {
@@ -91,12 +166,42 @@ const BUILTIN_PRESETS: Dictionary = {
 			"bar_negative": "#CC3355",
 		},
 		"floats": {
-			"glow_intensity": 1.2,
-			"neon_brightness": 1.3,
 			"grid_spacing": 48.0,
 			"grid_scroll_speed": 15.0,
-			"grid_glow_intensity": 0.9,
 			"grid_line_width": 1.5,
+			"grid_inner_intensity": 0.0,
+			"grid_aura_size": 5.0,
+			"grid_aura_intensity": 0.9,
+			"grid_bloom_size": 14.0,
+			"grid_bloom_intensity": 0.3,
+			"grid_smudge_blur": 0.0,
+			"header_inner_intensity": 0.0,
+			"header_aura_size": 0.0,
+			"header_aura_intensity": 0.0,
+			"header_bloom_size": 0.0,
+			"header_bloom_intensity": 0.0,
+			"header_smudge_blur": 0.0,
+			"body_inner_intensity": 0.0,
+			"body_aura_size": 0.0,
+			"body_aura_intensity": 0.0,
+			"body_bloom_size": 0.0,
+			"body_bloom_intensity": 0.0,
+			"body_smudge_blur": 0.0,
+			"vhs_scanline_strength": 0.1,
+			"vhs_scanline_spacing": 2.0,
+			"vhs_chromatic_aberration": 0.5,
+			"vhs_barrel_distortion": 0.0,
+			"vhs_vignette_strength": 0.2,
+			"vhs_noise_intensity": 0.0,
+			"vhs_color_bleed": 0.0,
+			"vhs_roll_speed": 0.0,
+			"vhs_roll_strength": 0.0,
+			"led_bar_enabled": 0.0,
+			"led_segment_count": 20.0,
+			"led_segment_gap": 0.04,
+			"led_glow_size": 3.0,
+			"led_glow_strength": 1.5,
+			"led_smudge_blur": 1.0,
 		},
 		"ints": {
 			"font_size_header": 20,
@@ -105,6 +210,10 @@ const BUILTIN_PRESETS: Dictionary = {
 			"font_size_body": 13,
 		},
 		"grid_line_color": "#338899",
+		"font_paths": {
+			"font_header": "res://assets/fonts/Orbitron.ttf",
+			"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
+		},
 	},
 	"Void Purple": {
 		"colors": {
@@ -121,12 +230,42 @@ const BUILTIN_PRESETS: Dictionary = {
 			"bar_negative": "#993333",
 		},
 		"floats": {
-			"glow_intensity": 1.0,
-			"neon_brightness": 1.1,
 			"grid_spacing": 72.0,
 			"grid_scroll_speed": 12.0,
-			"grid_glow_intensity": 0.7,
 			"grid_line_width": 1.2,
+			"grid_inner_intensity": 0.0,
+			"grid_aura_size": 4.5,
+			"grid_aura_intensity": 0.7,
+			"grid_bloom_size": 14.0,
+			"grid_bloom_intensity": 0.25,
+			"grid_smudge_blur": 0.0,
+			"header_inner_intensity": 0.0,
+			"header_aura_size": 0.0,
+			"header_aura_intensity": 0.0,
+			"header_bloom_size": 0.0,
+			"header_bloom_intensity": 0.0,
+			"header_smudge_blur": 0.0,
+			"body_inner_intensity": 0.0,
+			"body_aura_size": 0.0,
+			"body_aura_intensity": 0.0,
+			"body_bloom_size": 0.0,
+			"body_bloom_intensity": 0.0,
+			"body_smudge_blur": 0.0,
+			"vhs_scanline_strength": 0.15,
+			"vhs_scanline_spacing": 3.0,
+			"vhs_chromatic_aberration": 1.0,
+			"vhs_barrel_distortion": 0.05,
+			"vhs_vignette_strength": 0.4,
+			"vhs_noise_intensity": 0.03,
+			"vhs_color_bleed": 0.5,
+			"vhs_roll_speed": 0.0,
+			"vhs_roll_strength": 0.0,
+			"led_bar_enabled": 0.0,
+			"led_segment_count": 20.0,
+			"led_segment_gap": 0.04,
+			"led_glow_size": 3.0,
+			"led_glow_strength": 1.5,
+			"led_smudge_blur": 1.0,
 		},
 		"ints": {
 			"font_size_header": 20,
@@ -135,6 +274,10 @@ const BUILTIN_PRESETS: Dictionary = {
 			"font_size_body": 13,
 		},
 		"grid_line_color": "#442266",
+		"font_paths": {
+			"font_header": "res://assets/fonts/Orbitron.ttf",
+			"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
+		},
 	},
 }
 
@@ -165,6 +308,30 @@ func get_font_size(key: String) -> int:
 func get_float(key: String) -> float:
 	var f: float = float(_floats.get(key, 0.0))
 	return f
+
+
+func get_font(key: String) -> Font:
+	var path: String = str(_font_paths.get(key, ""))
+	if path == "":
+		return null
+	if path in _font_cache:
+		return _font_cache[path] as Font
+	if not FileAccess.file_exists(path) and not ResourceLoader.exists(path):
+		return null
+	var font: Font = load(path) as Font
+	if font:
+		_font_cache[path] = font
+	return font
+
+
+func get_font_path(key: String) -> String:
+	return str(_font_paths.get(key, ""))
+
+
+func set_font_path(key: String, path: String) -> void:
+	_font_paths[key] = path
+	_font_cache.erase(path)
+	theme_changed.emit()
 
 
 # ── Setters ───────────────────────────────────────────────────
@@ -207,8 +374,175 @@ func _update_grid_material(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("bg_color", get_color("background"))
 	mat.set_shader_parameter("spacing", get_float("grid_spacing"))
 	mat.set_shader_parameter("scroll_speed", get_float("grid_scroll_speed"))
-	mat.set_shader_parameter("glow_intensity", get_float("grid_glow_intensity"))
 	mat.set_shader_parameter("line_width", get_float("grid_line_width"))
+	mat.set_shader_parameter("inner_intensity", get_float("grid_inner_intensity"))
+	mat.set_shader_parameter("aura_size", get_float("grid_aura_size"))
+	mat.set_shader_parameter("aura_intensity", get_float("grid_aura_intensity"))
+	mat.set_shader_parameter("bloom_size", get_float("grid_bloom_size"))
+	mat.set_shader_parameter("bloom_intensity", get_float("grid_bloom_intensity"))
+	mat.set_shader_parameter("smudge_blur", get_float("grid_smudge_blur"))
+
+
+# ── VHS Overlay Helper ────────────────────────────────────────
+
+var _vhs_shader: Shader = null
+
+func apply_vhs_overlay(color_rect: ColorRect) -> void:
+	if not _vhs_shader:
+		_vhs_shader = load("res://assets/shaders/vhs_crt.gdshader") as Shader
+	if not _vhs_shader:
+		return
+	var mat: ShaderMaterial
+	if color_rect.material is ShaderMaterial:
+		mat = color_rect.material as ShaderMaterial
+	else:
+		mat = ShaderMaterial.new()
+		mat.shader = _vhs_shader
+		color_rect.material = mat
+	_update_vhs_material(mat)
+
+
+func _update_vhs_material(mat: ShaderMaterial) -> void:
+	mat.set_shader_parameter("scanline_strength", get_float("vhs_scanline_strength"))
+	mat.set_shader_parameter("scanline_spacing", get_float("vhs_scanline_spacing"))
+	mat.set_shader_parameter("chromatic_aberration", get_float("vhs_chromatic_aberration"))
+	mat.set_shader_parameter("barrel_distortion", get_float("vhs_barrel_distortion"))
+	mat.set_shader_parameter("vignette_strength", get_float("vhs_vignette_strength"))
+	mat.set_shader_parameter("noise_intensity", get_float("vhs_noise_intensity"))
+	mat.set_shader_parameter("color_bleed", get_float("vhs_color_bleed"))
+	mat.set_shader_parameter("roll_speed", get_float("vhs_roll_speed"))
+	mat.set_shader_parameter("roll_strength", get_float("vhs_roll_strength"))
+
+
+# ── LED Bar Helper ───────────────────────────────────────────
+
+var _led_shader: Shader = null
+
+func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float) -> void:
+	var overlay_name := "led_overlay"
+	var existing: ColorRect = bar.get_node_or_null(overlay_name) as ColorRect
+
+	if get_float("led_bar_enabled") > 0.5:
+		if not _led_shader:
+			_led_shader = load("res://assets/shaders/led_bar.gdshader") as Shader
+		if not _led_shader:
+			return
+
+		# Hide bar's own rendering — transparent styleboxes
+		var transparent := StyleBoxFlat.new()
+		transparent.bg_color = Color(0, 0, 0, 0)
+		bar.add_theme_stylebox_override("fill", transparent)
+		bar.add_theme_stylebox_override("background", transparent)
+		bar.material = null
+		bar.clip_contents = false
+
+		# Also disable clipping on bar's parent so overlay can extend
+		var bar_parent: Control = bar.get_parent() as Control
+		if bar_parent:
+			bar_parent.clip_contents = false
+
+		# Compute padding from glow settings — enough room for bloom falloff
+		var max_glow: float = maxf(get_float("led_bloom_size"), get_float("led_aura_size"))
+		var bar_w: float = maxf(bar.custom_minimum_size.x, 100.0)
+		var bar_h: float = maxf(bar.custom_minimum_size.y, 14.0)
+		var pad_px: float = clampf(max_glow * bar_w * 2.5 + 4.0, 4.0, 50.0)
+
+		# Create or reuse overlay ColorRect
+		var overlay: ColorRect
+		if existing:
+			overlay = existing
+		else:
+			overlay = ColorRect.new()
+			overlay.name = overlay_name
+			overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			overlay.color = Color(1, 1, 1, 1)  # Shader overrides this
+			bar.add_child(overlay)
+
+		# Position overlay to extend beyond bar bounds
+		overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+		overlay.offset_left = -pad_px
+		overlay.offset_top = -pad_px
+		overlay.offset_right = pad_px
+		overlay.offset_bottom = pad_px
+
+		# Calculate padding as fraction of overlay size
+		var total_w: float = bar_w + pad_px * 2.0
+		var total_h: float = bar_h + pad_px * 2.0
+		var pad_x: float = pad_px / total_w
+		var pad_y: float = pad_px / total_h
+
+		# Apply shader to overlay
+		var mat: ShaderMaterial
+		if overlay.material is ShaderMaterial:
+			mat = overlay.material as ShaderMaterial
+		else:
+			mat = ShaderMaterial.new()
+			mat.shader = _led_shader
+			overlay.material = mat
+		mat.set_shader_parameter("pad_x", pad_x)
+		mat.set_shader_parameter("pad_y", pad_y)
+		mat.set_shader_parameter("segment_count", int(get_float("led_segment_count")))
+		mat.set_shader_parameter("segment_gap", get_float("led_segment_gap"))
+		mat.set_shader_parameter("inner_intensity", get_float("led_inner_intensity"))
+		mat.set_shader_parameter("aura_size", get_float("led_aura_size"))
+		mat.set_shader_parameter("aura_intensity", get_float("led_aura_intensity"))
+		mat.set_shader_parameter("bloom_size", get_float("led_bloom_size"))
+		mat.set_shader_parameter("bloom_intensity", get_float("led_bloom_intensity"))
+		mat.set_shader_parameter("smudge_blur", get_float("led_smudge_blur"))
+		mat.set_shader_parameter("fill_color", fill_color)
+		mat.set_shader_parameter("bg_color", get_color("panel"))
+		mat.set_shader_parameter("fill_ratio", value_ratio)
+	else:
+		# Remove overlay, restore normal bar
+		if existing:
+			existing.queue_free()
+		bar.clip_contents = false
+		bar.material = null
+		var fill_style := StyleBoxFlat.new()
+		fill_style.bg_color = fill_color
+		fill_style.set_corner_radius_all(2)
+		bar.add_theme_stylebox_override("fill", fill_style)
+		var bg_style := StyleBoxFlat.new()
+		bg_style.bg_color = get_color("panel")
+		bg_style.set_corner_radius_all(2)
+		bar.add_theme_stylebox_override("background", bg_style)
+
+
+# ── Text Glow Helper ─────────────────────────────────────────
+
+var _text_glow_shader: Shader = null
+
+func apply_text_glow(label: Label, prefix: String) -> void:
+	var ii: float = get_float(prefix + "_inner_intensity")
+	var as_val: float = get_float(prefix + "_aura_size")
+	var ai: float = get_float(prefix + "_aura_intensity")
+	var bs: float = get_float(prefix + "_bloom_size")
+	var bi: float = get_float(prefix + "_bloom_intensity")
+	var sb: float = get_float(prefix + "_smudge_blur")
+
+	var all_zero: bool = ii <= 0.0 and as_val <= 0.0 and ai <= 0.0 and bs <= 0.0 and bi <= 0.0 and sb <= 0.0
+	if all_zero:
+		label.material = null
+		return
+
+	if not _text_glow_shader:
+		_text_glow_shader = load("res://assets/shaders/text_glow.gdshader") as Shader
+	if not _text_glow_shader:
+		return
+
+	var mat: ShaderMaterial
+	if label.material is ShaderMaterial:
+		mat = label.material as ShaderMaterial
+	else:
+		mat = ShaderMaterial.new()
+		mat.shader = _text_glow_shader
+		label.material = mat
+	mat.set_shader_parameter("inner_intensity", ii)
+	mat.set_shader_parameter("aura_size", as_val)
+	mat.set_shader_parameter("aura_intensity", ai)
+	mat.set_shader_parameter("bloom_size", bs)
+	mat.set_shader_parameter("bloom_intensity", bi)
+	mat.set_shader_parameter("smudge_blur", sb)
 
 
 # ── Persistence ───────────────────────────────────────────────
@@ -248,6 +582,7 @@ func _serialize() -> Dictionary:
 		"floats": _floats.duplicate(),
 		"ints": _ints.duplicate(),
 		"grid_line_color": "#" + _grid_line_color.to_html(false),
+		"font_paths": _font_paths.duplicate(),
 	}
 
 
@@ -267,6 +602,10 @@ func _deserialize(data: Dictionary) -> void:
 	var glc: String = str(data.get("grid_line_color", ""))
 	if glc != "":
 		_grid_line_color = Color(glc)
+	var font_data: Dictionary = data.get("font_paths", {})
+	for key in font_data:
+		_font_paths[key] = str(font_data[key])
+	_font_cache.clear()
 
 
 # ── Presets ───────────────────────────────────────────────────

@@ -57,6 +57,10 @@ text = "HANGAR"
 layout_mode = 2
 text = "SHIP VIEWER"
 
+[node name="AestheticStudioButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "AESTHETIC STUDIO"
+
 [node name="DevStudioButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "DEV STUDIO"
