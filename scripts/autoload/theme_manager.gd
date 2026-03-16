@@ -283,6 +283,8 @@ const BUILTIN_PRESETS: Dictionary = {
 
 var _custom_presets: Dictionary = {}
 var _grid_shader: Shader = null
+var _active_preset: String = ""
+var _preset_dirty: bool = false
 
 
 func _ready() -> void:
@@ -331,6 +333,7 @@ func get_font_path(key: String) -> String:
 func set_font_path(key: String, path: String) -> void:
 	_font_paths[key] = path
 	_font_cache.erase(path)
+	_preset_dirty = true
 	theme_changed.emit()
 
 
@@ -341,16 +344,19 @@ func set_color(key: String, value: Color) -> void:
 		_grid_line_color = value
 	else:
 		_colors[key] = value
+	_preset_dirty = true
 	theme_changed.emit()
 
 
 func set_font_size(key: String, value: int) -> void:
 	_ints[key] = value
+	_preset_dirty = true
 	theme_changed.emit()
 
 
 func set_float(key: String, value: float) -> void:
 	_floats[key] = value
+	_preset_dirty = true
 	theme_changed.emit()
 
 
@@ -583,6 +589,7 @@ func _serialize() -> Dictionary:
 		"ints": _ints.duplicate(),
 		"grid_line_color": "#" + _grid_line_color.to_html(false),
 		"font_paths": _font_paths.duplicate(),
+		"active_preset": _active_preset,
 	}
 
 
@@ -606,6 +613,9 @@ func _deserialize(data: Dictionary) -> void:
 	for key in font_data:
 		_font_paths[key] = str(font_data[key])
 	_font_cache.clear()
+	var ap: String = str(data.get("active_preset", ""))
+	if ap != "":
+		_active_preset = ap
 
 
 # ── Presets ───────────────────────────────────────────────────
@@ -621,6 +631,14 @@ func list_preset_names() -> Array[String]:
 	return names
 
 
+func get_active_preset() -> String:
+	return _active_preset
+
+
+func is_preset_dirty() -> bool:
+	return _preset_dirty
+
+
 func apply_preset(preset_name: String) -> void:
 	var data: Dictionary = {}
 	if preset_name in BUILTIN_PRESETS:
@@ -630,13 +648,18 @@ func apply_preset(preset_name: String) -> void:
 	else:
 		return
 	_deserialize(data)
+	_active_preset = preset_name
+	_preset_dirty = false
 	theme_changed.emit()
 	save_settings()
 
 
 func save_custom_preset(preset_name: String) -> void:
 	_custom_presets[preset_name] = _serialize()
+	_active_preset = preset_name
+	_preset_dirty = false
 	_save_custom_presets()
+	save_settings()
 
 
 func delete_custom_preset(preset_name: String) -> void:
