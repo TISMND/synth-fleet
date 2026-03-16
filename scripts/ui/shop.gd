@@ -42,20 +42,25 @@ const STOCK_WEAPONS: Array[Dictionary] = [
 
 var _credits_label: Label = null
 var _items_container: VBoxContainer = null
+var _title: Label = null
+var _continue_btn: Button = null
+var _bg: ColorRect = null
+var _vhs_overlay: ColorRect = null
 
 
 func _ready() -> void:
 	_build_ui()
+	_setup_vhs_overlay()
+	ThemeManager.theme_changed.connect(_on_theme_changed)
 
 
 func _build_ui() -> void:
 	# Background
-	var bg := ColorRect.new()
-	bg.color = ThemeManager.get_color("background")
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	ThemeManager.apply_grid_background(bg)
-	ThemeManager.theme_changed.connect(func() -> void: ThemeManager.apply_grid_background(bg))
+	_bg = ColorRect.new()
+	_bg.color = ThemeManager.get_color("background")
+	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_bg)
+	ThemeManager.apply_grid_background(_bg)
 
 	var main_vbox := VBoxContainer.new()
 	main_vbox.set_anchors_preset(Control.PRESET_CENTER)
@@ -65,18 +70,14 @@ func _build_ui() -> void:
 	add_child(main_vbox)
 
 	# Title
-	var title := Label.new()
-	title.text = "SUPPLY DEPOT"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header") * 2)
-	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	main_vbox.add_child(title)
+	_title = Label.new()
+	_title.text = "SUPPLY DEPOT"
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_vbox.add_child(_title)
 
 	# Credits
 	_credits_label = Label.new()
 	_credits_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_credits_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	_credits_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 	main_vbox.add_child(_credits_label)
 
 	# Next level info
@@ -109,13 +110,42 @@ func _build_ui() -> void:
 	main_vbox.add_child(sep2)
 
 	# Continue button
-	var continue_btn := Button.new()
-	continue_btn.text = "CONTINUE"
-	continue_btn.custom_minimum_size = Vector2(200, 40)
-	continue_btn.pressed.connect(_on_continue)
-	main_vbox.add_child(continue_btn)
+	_continue_btn = Button.new()
+	_continue_btn.text = "CONTINUE"
+	_continue_btn.custom_minimum_size = Vector2(200, 40)
+	_continue_btn.pressed.connect(_on_continue)
+	main_vbox.add_child(_continue_btn)
 
 	_update_credits()
+	_apply_styles()
+
+
+func _apply_styles() -> void:
+	var header_font: Font = ThemeManager.get_font("font_header")
+	var body_font: Font = ThemeManager.get_font("font_body")
+
+	# Title
+	_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header") * 2)
+	_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	if header_font:
+		_title.add_theme_font_override("font", header_font)
+	ThemeManager.apply_text_glow(_title, "header")
+
+	# Credits
+	_credits_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	_credits_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
+	if body_font:
+		_credits_label.add_theme_font_override("font", body_font)
+
+	# Continue button
+	ThemeManager.apply_button_style(_continue_btn)
+
+	# Style item buttons
+	for child in _items_container.get_children():
+		if child is HBoxContainer:
+			for sub in child.get_children():
+				if sub is Button:
+					ThemeManager.apply_button_style(sub as Button)
 
 
 func _refresh_items() -> void:
@@ -123,6 +153,7 @@ func _refresh_items() -> void:
 		child.queue_free()
 
 	var owned_ids: Array[String] = WeaponDataManager.list_ids()
+	var body_font: Font = ThemeManager.get_font("font_body")
 
 	for weapon in STOCK_WEAPONS:
 		var weapon_id: String = str(weapon.get("id", ""))
@@ -147,6 +178,8 @@ func _refresh_items() -> void:
 		info_label.custom_minimum_size = Vector2(350, 0)
 		info_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 		info_label.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+		if body_font:
+			info_label.add_theme_font_override("font", body_font)
 		row.add_child(info_label)
 
 		# Price
@@ -155,6 +188,8 @@ func _refresh_items() -> void:
 		price_label.custom_minimum_size = Vector2(80, 0)
 		price_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 		price_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
+		if body_font:
+			price_label.add_theme_font_override("font", body_font)
 		row.add_child(price_label)
 
 		# Buy/Owned button
@@ -166,6 +201,7 @@ func _refresh_items() -> void:
 			btn.text = "BUY"
 			btn.pressed.connect(_on_buy.bind(weapon))
 		btn.custom_minimum_size = Vector2(80, 30)
+		ThemeManager.apply_button_style(btn)
 		row.add_child(btn)
 
 
@@ -197,6 +233,23 @@ func _on_buy(weapon: Dictionary) -> void:
 
 func _update_credits() -> void:
 	_credits_label.text = "CREDITS: " + str(GameState.credits)
+
+
+func _setup_vhs_overlay() -> void:
+	var vhs_layer := CanvasLayer.new()
+	vhs_layer.layer = 10
+	add_child(vhs_layer)
+	_vhs_overlay = ColorRect.new()
+	_vhs_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vhs_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vhs_layer.add_child(_vhs_overlay)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+
+func _on_theme_changed() -> void:
+	ThemeManager.apply_grid_background(_bg)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+	_apply_styles()
 
 
 func _on_continue() -> void:

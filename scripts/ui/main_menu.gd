@@ -1,9 +1,12 @@
 extends Control
 ## Main menu with navigation to Play, Loadout, and Dev Studio.
 
+var _vhs_overlay: ColorRect
+
 
 func _ready() -> void:
 	ThemeManager.apply_grid_background($Background)
+	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
 	# Update play button text based on campaign progress
@@ -18,6 +21,8 @@ func _ready() -> void:
 	$VBoxContainer/ShipViewerButton.pressed.connect(_on_ship_viewer)
 	$VBoxContainer/AestheticStudioButton.pressed.connect(_on_aesthetic_studio)
 	$VBoxContainer/DevStudioButton.pressed.connect(_on_dev_studio)
+
+	_apply_styles()
 
 
 func _on_play() -> void:
@@ -45,8 +50,37 @@ func _on_dev_studio() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/dev_studio.tscn")
 
 
+func _apply_styles() -> void:
+	# Title
+	var title: Label = $VBoxContainer/Title
+	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	var header_font: Font = ThemeManager.get_font("font_header")
+	if header_font:
+		title.add_theme_font_override("font", header_font)
+	ThemeManager.apply_text_glow(title, "header")
+
+	# Buttons
+	for btn_node in $VBoxContainer.get_children():
+		if btn_node is Button:
+			ThemeManager.apply_button_style(btn_node as Button)
+
+
+func _setup_vhs_overlay() -> void:
+	var vhs_layer := CanvasLayer.new()
+	vhs_layer.layer = 10
+	add_child(vhs_layer)
+	_vhs_overlay = ColorRect.new()
+	_vhs_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vhs_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vhs_layer.add_child(_vhs_overlay)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+
 func _on_theme_changed() -> void:
 	ThemeManager.apply_grid_background($Background)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+	_apply_styles()
 
 
 func _input(event: InputEvent) -> void:

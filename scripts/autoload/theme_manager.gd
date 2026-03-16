@@ -55,6 +55,7 @@ var _floats: Dictionary = {
 	"vhs_color_bleed": 0.0,
 	"vhs_roll_speed": 0.0,
 	"vhs_roll_strength": 0.0,
+	"vhs_roll_period": 4.0,
 	"led_bar_enabled": 0.0,
 	"led_segment_count": 20.0,
 	"led_segment_gap": 0.015,
@@ -64,6 +65,14 @@ var _floats: Dictionary = {
 	"led_bloom_size": 0.05,
 	"led_bloom_intensity": 0.4,
 	"led_smudge_blur": 0.008,
+	"btn_border_width": 1.0,
+	"btn_corner_radius": 2.0,
+	"btn_border_alpha": 0.8,
+	"btn_bg_alpha": 0.15,
+	"btn_hover_brighten": 0.12,
+	"btn_pressed_darken": 0.1,
+	"btn_shadow_size": 0.0,
+	"btn_shadow_alpha": 0.0,
 }
 
 # ── Int keys (font sizes) ──
@@ -132,12 +141,21 @@ const BUILTIN_PRESETS: Dictionary = {
 			"vhs_color_bleed": 0.0,
 			"vhs_roll_speed": 0.0,
 			"vhs_roll_strength": 0.0,
+			"vhs_roll_period": 4.0,
 			"led_bar_enabled": 0.0,
 			"led_segment_count": 20.0,
 			"led_segment_gap": 0.04,
 			"led_glow_size": 3.0,
 			"led_glow_strength": 1.5,
 			"led_smudge_blur": 1.0,
+			"btn_border_width": 1.0,
+			"btn_corner_radius": 2.0,
+			"btn_border_alpha": 0.8,
+			"btn_bg_alpha": 0.15,
+			"btn_hover_brighten": 0.12,
+			"btn_pressed_darken": 0.1,
+			"btn_shadow_size": 0.0,
+			"btn_shadow_alpha": 0.0,
 		},
 		"ints": {
 			"font_size_header": 20,
@@ -196,12 +214,21 @@ const BUILTIN_PRESETS: Dictionary = {
 			"vhs_color_bleed": 0.0,
 			"vhs_roll_speed": 0.0,
 			"vhs_roll_strength": 0.0,
+			"vhs_roll_period": 4.0,
 			"led_bar_enabled": 0.0,
 			"led_segment_count": 20.0,
 			"led_segment_gap": 0.04,
 			"led_glow_size": 3.0,
 			"led_glow_strength": 1.5,
 			"led_smudge_blur": 1.0,
+			"btn_border_width": 1.0,
+			"btn_corner_radius": 2.0,
+			"btn_border_alpha": 0.8,
+			"btn_bg_alpha": 0.15,
+			"btn_hover_brighten": 0.12,
+			"btn_pressed_darken": 0.1,
+			"btn_shadow_size": 0.0,
+			"btn_shadow_alpha": 0.0,
 		},
 		"ints": {
 			"font_size_header": 20,
@@ -260,12 +287,21 @@ const BUILTIN_PRESETS: Dictionary = {
 			"vhs_color_bleed": 0.5,
 			"vhs_roll_speed": 0.0,
 			"vhs_roll_strength": 0.0,
+			"vhs_roll_period": 4.0,
 			"led_bar_enabled": 0.0,
 			"led_segment_count": 20.0,
 			"led_segment_gap": 0.04,
 			"led_glow_size": 3.0,
 			"led_glow_strength": 1.5,
 			"led_smudge_blur": 1.0,
+			"btn_border_width": 1.0,
+			"btn_corner_radius": 2.0,
+			"btn_border_alpha": 0.8,
+			"btn_bg_alpha": 0.15,
+			"btn_hover_brighten": 0.12,
+			"btn_pressed_darken": 0.1,
+			"btn_shadow_size": 0.0,
+			"btn_shadow_alpha": 0.0,
 		},
 		"ints": {
 			"font_size_header": 20,
@@ -418,6 +454,7 @@ func _update_vhs_material(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("color_bleed", get_float("vhs_color_bleed"))
 	mat.set_shader_parameter("roll_speed", get_float("vhs_roll_speed"))
 	mat.set_shader_parameter("roll_strength", get_float("vhs_roll_strength"))
+	mat.set_shader_parameter("roll_period", get_float("vhs_roll_period"))
 
 
 # ── LED Bar Helper ───────────────────────────────────────────
@@ -549,6 +586,147 @@ func apply_text_glow(label: Label, prefix: String) -> void:
 	mat.set_shader_parameter("bloom_size", bs)
 	mat.set_shader_parameter("bloom_intensity", bi)
 	mat.set_shader_parameter("smudge_blur", sb)
+
+
+# ── Button Style Helper ──────────────────────────────────────
+
+const BUTTON_STYLE_PRESETS: Dictionary = {
+	"Neon Outline": {
+		"btn_border_width": 1.5,
+		"btn_corner_radius": 1.0,
+		"btn_border_alpha": 1.0,
+		"btn_bg_alpha": 0.05,
+		"btn_hover_brighten": 0.18,
+		"btn_pressed_darken": 0.08,
+		"btn_shadow_size": 0.0,
+		"btn_shadow_alpha": 0.0,
+	},
+	"Glowing Slab": {
+		"btn_border_width": 2.0,
+		"btn_corner_radius": 0.0,
+		"btn_border_alpha": 0.9,
+		"btn_bg_alpha": 0.25,
+		"btn_hover_brighten": 0.2,
+		"btn_pressed_darken": 0.15,
+		"btn_shadow_size": 4.0,
+		"btn_shadow_alpha": 0.5,
+	},
+	"Chrome Pill": {
+		"btn_border_width": 1.0,
+		"btn_corner_radius": 16.0,
+		"btn_border_alpha": 0.6,
+		"btn_bg_alpha": 0.2,
+		"btn_hover_brighten": 0.15,
+		"btn_pressed_darken": 0.1,
+		"btn_shadow_size": 2.0,
+		"btn_shadow_alpha": 0.3,
+	},
+	"Holo Panel": {
+		"btn_border_width": 1.0,
+		"btn_corner_radius": 4.0,
+		"btn_border_alpha": 0.4,
+		"btn_bg_alpha": 0.35,
+		"btn_hover_brighten": 0.1,
+		"btn_pressed_darken": 0.05,
+		"btn_shadow_size": 6.0,
+		"btn_shadow_alpha": 0.25,
+	},
+	"Razor Edge": {
+		"btn_border_width": 2.0,
+		"btn_corner_radius": 0.0,
+		"btn_border_alpha": 1.0,
+		"btn_bg_alpha": 0.0,
+		"btn_hover_brighten": 0.25,
+		"btn_pressed_darken": 0.12,
+		"btn_shadow_size": 0.0,
+		"btn_shadow_alpha": 0.0,
+	},
+}
+
+func apply_button_style(btn: Button) -> void:
+	var border_w: int = int(get_float("btn_border_width"))
+	var corner_r: int = int(get_float("btn_corner_radius"))
+	var border_a: float = get_float("btn_border_alpha")
+	var bg_a: float = get_float("btn_bg_alpha")
+	var hover_b: float = get_float("btn_hover_brighten")
+	var press_d: float = get_float("btn_pressed_darken")
+	var shadow_s: int = int(get_float("btn_shadow_size"))
+	var shadow_a: float = get_float("btn_shadow_alpha")
+
+	var accent: Color = get_color("accent")
+	var panel_col: Color = get_color("panel")
+	var text_col: Color = get_color("text")
+
+	# Normal state
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(accent.r, accent.g, accent.b, bg_a)
+	normal.border_color = Color(accent.r, accent.g, accent.b, border_a)
+	normal.set_border_width_all(border_w)
+	normal.set_corner_radius_all(corner_r)
+	normal.set_content_margin_all(8)
+	if shadow_s > 0 and shadow_a > 0.0:
+		normal.shadow_color = Color(accent.r, accent.g, accent.b, shadow_a * 0.5)
+		normal.shadow_size = shadow_s
+	btn.add_theme_stylebox_override("normal", normal)
+
+	# Hover state
+	var hover := StyleBoxFlat.new()
+	var hover_col: Color = accent.lightened(hover_b)
+	hover.bg_color = Color(hover_col.r, hover_col.g, hover_col.b, bg_a + 0.1)
+	hover.border_color = Color(hover_col.r, hover_col.g, hover_col.b, min(border_a + 0.15, 1.0))
+	hover.set_border_width_all(border_w)
+	hover.set_corner_radius_all(corner_r)
+	hover.set_content_margin_all(8)
+	if shadow_s > 0 and shadow_a > 0.0:
+		hover.shadow_color = Color(accent.r, accent.g, accent.b, shadow_a)
+		hover.shadow_size = shadow_s + 2
+	btn.add_theme_stylebox_override("hover", hover)
+
+	# Pressed state
+	var pressed := StyleBoxFlat.new()
+	var press_col: Color = accent.darkened(press_d)
+	pressed.bg_color = Color(press_col.r, press_col.g, press_col.b, bg_a + 0.2)
+	pressed.border_color = Color(press_col.r, press_col.g, press_col.b, border_a)
+	pressed.set_border_width_all(border_w)
+	pressed.set_corner_radius_all(corner_r)
+	pressed.set_content_margin_all(8)
+	btn.add_theme_stylebox_override("pressed", pressed)
+
+	# Disabled state
+	var disabled := StyleBoxFlat.new()
+	var dim_col: Color = get_color("disabled")
+	disabled.bg_color = Color(dim_col.r, dim_col.g, dim_col.b, bg_a * 0.5)
+	disabled.border_color = Color(dim_col.r, dim_col.g, dim_col.b, border_a * 0.4)
+	disabled.set_border_width_all(border_w)
+	disabled.set_corner_radius_all(corner_r)
+	disabled.set_content_margin_all(8)
+	btn.add_theme_stylebox_override("disabled", disabled)
+
+	# Focus (same as hover)
+	btn.add_theme_stylebox_override("focus", hover.duplicate())
+
+	# Font colors
+	btn.add_theme_color_override("font_color", text_col)
+	btn.add_theme_color_override("font_hover_color", hover_col.lightened(0.2))
+	btn.add_theme_color_override("font_pressed_color", press_col)
+	btn.add_theme_color_override("font_disabled_color", dim_col)
+
+	# Font
+	var body_font: Font = get_font("font_body")
+	if body_font:
+		btn.add_theme_font_override("font", body_font)
+	btn.add_theme_font_size_override("font_size", get_font_size("font_size_body"))
+
+
+func apply_button_style_preset(preset_name: String) -> void:
+	if preset_name not in BUTTON_STYLE_PRESETS:
+		return
+	var preset: Dictionary = BUTTON_STYLE_PRESETS[preset_name]
+	for key in preset:
+		var val: float = float(preset[key])
+		_floats[key] = val
+	_preset_dirty = true
+	theme_changed.emit()
 
 
 # ── Persistence ───────────────────────────────────────────────

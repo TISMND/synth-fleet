@@ -10,6 +10,7 @@ uniform float noise_intensity : hint_range(0.0, 0.5) = 0.05;
 uniform float color_bleed : hint_range(0.0, 5.0) = 0.0;
 uniform float roll_speed : hint_range(0.0, 2.0) = 0.0;
 uniform float roll_strength : hint_range(0.0, 0.1) = 0.0;
+uniform float roll_period : hint_range(1.0, 20.0) = 1.0;
 
 // Hash function for noise
 float hash(vec2 p) {
@@ -43,11 +44,20 @@ void fragment() {
 		// VHS roll distortion
 		vec2 roll_uv = uv;
 		if (roll_speed > 0.001 && roll_strength > 0.001) {
-			float roll_line = fract(TIME * roll_speed);
-			float dist_to_roll = abs(uv.y - roll_line);
-			dist_to_roll = min(dist_to_roll, 1.0 - dist_to_roll);
-			float roll_effect = smoothstep(0.05, 0.0, dist_to_roll);
-			roll_uv.x += roll_effect * roll_strength * sin(TIME * 13.0);
+			// roll_period = total cycle time in seconds
+			// The sweep itself takes 1/roll_speed seconds, rest is dead time
+			float sweep_duration = 1.0 / roll_speed;
+			float cycle_pos = mod(TIME, roll_period);
+
+			if (cycle_pos < sweep_duration) {
+				// Active sweep: roll_line goes 0→1 during sweep_duration
+				float roll_line = cycle_pos * roll_speed;
+				float dist_to_roll = abs(uv.y - roll_line);
+				dist_to_roll = min(dist_to_roll, 1.0 - dist_to_roll);
+				float roll_effect = smoothstep(0.05, 0.0, dist_to_roll);
+				roll_uv.x += roll_effect * roll_strength * sin(TIME * 13.0);
+			}
+			// else: dead time, no roll
 		}
 
 		// Chromatic aberration — offset R and B channels

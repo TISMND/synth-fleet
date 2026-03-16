@@ -19,8 +19,10 @@ var _preview_buttons: Array[Button] = []
 var _preview_panels: Array[PanelContainer] = []
 var _preview_bars: Array[ProgressBar] = []
 
-# Buttons & Panels: samples container (rebuilt) vs slider container (stable)
+# Panels & Bars: samples container (rebuilt) vs slider container (stable)
 var _bp_samples_vbox: VBoxContainer
+# Buttons tab: preview container (rebuilt on theme change)
+var _btn_preview_container: HBoxContainer
 
 # Typography tab inline preview labels keyed by size key
 var _typo_preview_labels: Dictionary = {}
@@ -94,8 +96,9 @@ func _build_ui() -> void:
 	_build_colors_tab()
 	_build_typography_tab()
 	_build_glow_grid_tab()
+	_build_buttons_tab()
 	_build_vhs_tab()
-	_build_buttons_panels_tab()
+	_build_panels_bars_tab()
 
 	# Preview panel (right)
 	var preview_scroll := ScrollContainer.new()
@@ -374,6 +377,7 @@ func _build_vhs_tab() -> void:
 		"vhs_color_bleed": {"min": 0.0, "max": 5.0},
 		"vhs_roll_speed": {"min": 0.0, "max": 2.0},
 		"vhs_roll_strength": {"min": 0.0, "max": 0.1},
+		"vhs_roll_period": {"min": 1.0, "max": 20.0},
 	}
 	for key in vhs_params:
 		var params: Dictionary = vhs_params[key]
@@ -382,9 +386,89 @@ func _build_vhs_tab() -> void:
 		_add_float_slider(vbox, key, min_val, max_val, ThemeManager.get_float(key))
 
 
-func _build_buttons_panels_tab() -> void:
+func _build_buttons_tab() -> void:
 	var scroll := ScrollContainer.new()
-	scroll.name = "Buttons & Panels"
+	scroll.name = "Buttons"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_tab_container.add_child(scroll)
+
+	var root := VBoxContainer.new()
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.add_theme_constant_override("separation", 10)
+	scroll.add_child(root)
+
+	# ── Style presets (audition buttons) ──
+	var presets_header := Label.new()
+	presets_header.text = "Button Style Presets"
+	presets_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	presets_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(presets_header)
+
+	var presets_row := HBoxContainer.new()
+	presets_row.add_theme_constant_override("separation", 6)
+	root.add_child(presets_row)
+
+	var style_names: Array[String] = []
+	for key in ThemeManager.BUTTON_STYLE_PRESETS:
+		style_names.append(str(key))
+	style_names.sort()
+
+	for style_name in style_names:
+		var style_btn := Button.new()
+		style_btn.text = style_name
+		style_btn.custom_minimum_size = Vector2(0, 32)
+		style_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var bound_name: String = style_name
+		style_btn.pressed.connect(func() -> void:
+			ThemeManager.apply_button_style_preset(bound_name)
+		)
+		presets_row.add_child(style_btn)
+
+	# ── Live preview ──
+	var preview_sep := HSeparator.new()
+	root.add_child(preview_sep)
+
+	var preview_header := Label.new()
+	preview_header.text = "Preview"
+	preview_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	preview_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(preview_header)
+
+	_btn_preview_container = HBoxContainer.new()
+	_btn_preview_container.add_theme_constant_override("separation", 10)
+	root.add_child(_btn_preview_container)
+	_populate_btn_preview()
+
+	# ── Sliders ──
+	var slider_sep := HSeparator.new()
+	root.add_child(slider_sep)
+
+	var slider_header := Label.new()
+	slider_header.text = "Fine Tuning"
+	slider_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	slider_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(slider_header)
+
+	var btn_params: Dictionary = {
+		"btn_border_width": {"min": 0.0, "max": 4.0},
+		"btn_corner_radius": {"min": 0.0, "max": 20.0},
+		"btn_border_alpha": {"min": 0.0, "max": 1.0},
+		"btn_bg_alpha": {"min": 0.0, "max": 0.6},
+		"btn_hover_brighten": {"min": 0.0, "max": 0.5},
+		"btn_pressed_darken": {"min": 0.0, "max": 0.4},
+		"btn_shadow_size": {"min": 0.0, "max": 12.0},
+		"btn_shadow_alpha": {"min": 0.0, "max": 1.0},
+	}
+	for key in btn_params:
+		var params: Dictionary = btn_params[key]
+		var min_val: float = float(params["min"])
+		var max_val: float = float(params["max"])
+		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
+
+
+func _build_panels_bars_tab() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.name = "Panels & Bars"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tab_container.add_child(scroll)
 
@@ -420,27 +504,21 @@ func _build_buttons_panels_tab() -> void:
 	_add_float_slider(root, "led_smudge_blur", 0.0, 0.03, ThemeManager.get_float("led_smudge_blur"))
 
 
-func _populate_bp_samples(vbox: VBoxContainer) -> void:
-	var section_lbl := Label.new()
-	section_lbl.text = "Sample Buttons"
-	section_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	section_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	vbox.add_child(section_lbl)
-
-	var btn_row := HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 8)
-	vbox.add_child(btn_row)
-
-	var btn_names: Array[String] = ["Normal", "Hover", "Pressed", "Disabled"]
+func _populate_btn_preview() -> void:
+	var btn_names: Array[String] = ["PLAY", "HANGAR", "WEAPONS", "DISABLED"]
 	for i in btn_names.size():
 		var btn := Button.new()
 		btn.text = btn_names[i]
-		btn.custom_minimum_size = Vector2(100, 36)
+		btn.custom_minimum_size = Vector2(110, 38)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		if i == 3:
 			btn.disabled = true
-		btn_row.add_child(btn)
+		ThemeManager.apply_button_style(btn)
+		_btn_preview_container.add_child(btn)
 		_preview_buttons.append(btn)
 
+
+func _populate_bp_samples(vbox: VBoxContainer) -> void:
 	# Sample panel
 	var panel_lbl := Label.new()
 	panel_lbl.text = "Sample Panel"
@@ -539,6 +617,7 @@ func _build_preview_panel() -> void:
 		var btn := Button.new()
 		btn.text = btn_text
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ThemeManager.apply_button_style(btn)
 		menu_vbox.add_child(btn)
 		_preview_buttons.append(btn)
 
@@ -947,6 +1026,10 @@ func _rebuild_preview_and_buttons() -> void:
 	for child in _bp_samples_vbox.get_children():
 		child.queue_free()
 
+	# Clear button preview
+	for child in _btn_preview_container.get_children():
+		child.queue_free()
+
 	# Use call_deferred so queue_free completes first
 	_do_rebuild.call_deferred()
 
@@ -954,6 +1037,7 @@ func _rebuild_preview_and_buttons() -> void:
 func _do_rebuild() -> void:
 	_build_preview_panel()
 	_populate_bp_samples(_bp_samples_vbox)
+	_populate_btn_preview()
 
 
 func _refresh_preset_list() -> void:

@@ -9,6 +9,10 @@ var _power_bar: ProgressBar
 var _hp_title: Label
 var _weapon_container: VBoxContainer
 var _weapon_buttons: Array = []  # Array[Dictionary] {button, weapon_id}
+var _back_btn: Button
+var _select_label: Label
+var _bg_rect: ColorRect = null
+var _vhs_overlay: ColorRect = null
 
 # State
 var _ship: ShipData = null
@@ -28,6 +32,9 @@ func _ready() -> void:
 	_cache_weapons()
 	_build_ui()
 	_load_data()
+	_setup_vhs_overlay()
+	ThemeManager.theme_changed.connect(_apply_theme)
+	call_deferred("_apply_theme")
 
 
 func _cache_weapons() -> void:
@@ -76,6 +83,13 @@ func _load_data() -> void:
 # ── UI Construction ──────────────────────────────────────────
 
 func _build_ui() -> void:
+	# Grid background
+	_bg_rect = ColorRect.new()
+	_bg_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_bg_rect.show_behind_parent = true
+	add_child(_bg_rect)
+	move_child(_bg_rect, 0)
+
 	var root := VBoxContainer.new()
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -118,14 +132,11 @@ func _build_ui() -> void:
 
 	_hp_title = Label.new()
 	_hp_title.text = ""
-	_hp_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_hp_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	right_vbox.add_child(_hp_title)
 
-	var select_label := Label.new()
-	select_label.text = "SELECT WEAPON"
-	select_label.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
-	right_vbox.add_child(select_label)
+	_select_label = Label.new()
+	_select_label.text = "SELECT WEAPON"
+	right_vbox.add_child(_select_label)
 
 	var weapon_scroll := ScrollContainer.new()
 	weapon_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -143,7 +154,7 @@ func _build_ui() -> void:
 	right_vbox.add_child(_power_budget_label)
 
 	_power_bar = ProgressBar.new()
-	_power_bar.custom_minimum_size.y = 16
+	_power_bar.custom_minimum_size = Vector2(180, 16)
 	_power_bar.max_value = 1
 	_power_bar.value = 0
 	_power_bar.show_percentage = false
@@ -157,10 +168,62 @@ func _build_ui() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bottom_hbox.add_child(spacer)
 
-	var back_btn := Button.new()
-	back_btn.text = "BACK"
-	back_btn.pressed.connect(_on_back)
-	bottom_hbox.add_child(back_btn)
+	_back_btn = Button.new()
+	_back_btn.text = "BACK"
+	_back_btn.pressed.connect(_on_back)
+	bottom_hbox.add_child(_back_btn)
+
+
+func _setup_vhs_overlay() -> void:
+	var root_node: Node = get_parent() if get_parent() else self
+	var vhs_layer := CanvasLayer.new()
+	vhs_layer.layer = 10
+	root_node.add_child(vhs_layer)
+	_vhs_overlay = ColorRect.new()
+	_vhs_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vhs_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vhs_layer.add_child(_vhs_overlay)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+
+func _apply_theme() -> void:
+	# Grid background
+	if _bg_rect:
+		ThemeManager.apply_grid_background(_bg_rect)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var header_font: Font = ThemeManager.get_font("font_header")
+
+	# Title
+	_hp_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_hp_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
+	if header_font:
+		_hp_title.add_theme_font_override("font", header_font)
+	ThemeManager.apply_text_glow(_hp_title, "header")
+
+	# Select label
+	_select_label.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+	_select_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		_select_label.add_theme_font_override("font", body_font)
+
+	# Power label
+	_power_budget_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		_power_budget_label.add_theme_font_override("font", body_font)
+
+	# Back button
+	ThemeManager.apply_button_style(_back_btn)
+
+	# Weapon buttons
+	for entry in _weapon_buttons:
+		var btn: Button = entry["button"]
+		ThemeManager.apply_button_style(btn)
+	_update_weapon_highlights()
+
+	# LED bar on power
+	_update_power_budget()
 
 
 # ── Weapon List ──────────────────────────────────────────────
@@ -175,6 +238,7 @@ func _rebuild_weapon_list() -> void:
 	none_btn.text = "(none)"
 	none_btn.custom_minimum_size.y = 45
 	none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	ThemeManager.apply_button_style(none_btn)
 	none_btn.pressed.connect(func() -> void:
 		_on_weapon_button_pressed("")
 	)
@@ -190,6 +254,7 @@ func _rebuild_weapon_list() -> void:
 		btn.text = display
 		btn.custom_minimum_size.y = 45
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		ThemeManager.apply_button_style(btn)
 		var bound_id: String = wid
 		btn.pressed.connect(func() -> void:
 			_on_weapon_button_pressed(bound_id)
@@ -262,16 +327,16 @@ func _update_power_budget() -> void:
 		_power_bar.max_value = 1
 		_power_bar.value = 0
 
+	var bar_color: Color
 	if total_power > max_power:
-		var red_style := StyleBoxFlat.new()
-		red_style.bg_color = ThemeManager.get_color("bar_negative")
-		_power_bar.add_theme_stylebox_override("fill", red_style)
 		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
+		bar_color = ThemeManager.get_color("bar_negative")
 	else:
-		var green_style := StyleBoxFlat.new()
-		green_style.bg_color = ThemeManager.get_color("bar_positive")
-		_power_bar.add_theme_stylebox_override("fill", green_style)
 		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
+		bar_color = ThemeManager.get_color("bar_positive")
+
+	var ratio: float = float(total_power) / maxf(float(max_power), 1.0)
+	ThemeManager.apply_led_bar(_power_bar, bar_color, ratio)
 
 
 # ── Navigation ───────────────────────────────────────────────

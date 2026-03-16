@@ -13,6 +13,11 @@ var _detail_desc: Label
 var _detail_stats: Label
 var _device_container: VBoxContainer
 var _device_buttons: Array = []
+var _title: Label
+var _back_btn: Button
+var _bg_rect: ColorRect = null
+var _vhs_overlay: ColorRect = null
+var _stat_labels: Array[Label] = []
 
 var _slot: int = -1
 var _ship: ShipData = null
@@ -27,6 +32,9 @@ func _ready() -> void:
 		return
 	_build_ui()
 	_load_data()
+	_setup_vhs_overlay()
+	ThemeManager.theme_changed.connect(_apply_theme)
+	call_deferred("_apply_theme")
 
 
 func _load_data() -> void:
@@ -59,6 +67,7 @@ func _rebuild_device_list() -> void:
 	none_btn.text = "(none)"
 	none_btn.custom_minimum_size.y = 40
 	none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	ThemeManager.apply_button_style(none_btn)
 	none_btn.pressed.connect(func() -> void:
 		_on_device_selected("")
 	)
@@ -76,6 +85,7 @@ func _rebuild_device_list() -> void:
 		btn.text = "[" + type_badge + "] " + dev.display_name + stats_text
 		btn.custom_minimum_size.y = 45
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		ThemeManager.apply_button_style(btn)
 		var bound_id: String = dev.id
 		btn.pressed.connect(func() -> void:
 			_on_device_selected(bound_id)
@@ -166,6 +176,13 @@ func _update_detail() -> void:
 
 
 func _build_ui() -> void:
+	# Grid background
+	_bg_rect = ColorRect.new()
+	_bg_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_bg_rect.show_behind_parent = true
+	add_child(_bg_rect)
+	move_child(_bg_rect, 0)
+
 	var root := HBoxContainer.new()
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -177,11 +194,9 @@ func _build_ui() -> void:
 	left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(left_vbox)
 
-	var title := Label.new()
-	title.text = "DEVICES"
-	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	left_vbox.add_child(title)
+	_title = Label.new()
+	_title.text = "DEVICES"
+	left_vbox.add_child(_title)
 
 	var canvas_panel := PanelContainer.new()
 	canvas_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -201,18 +216,22 @@ func _build_ui() -> void:
 	_hull_label = Label.new()
 	_hull_label.text = "Hull: —"
 	stats_box.add_child(_hull_label)
+	_stat_labels.append(_hull_label)
 
 	_shield_label = Label.new()
 	_shield_label.text = "Shield: —"
 	stats_box.add_child(_shield_label)
+	_stat_labels.append(_shield_label)
 
 	_speed_label = Label.new()
 	_speed_label.text = "Speed: —"
 	stats_box.add_child(_speed_label)
+	_stat_labels.append(_speed_label)
 
 	_generator_label = Label.new()
 	_generator_label.text = "Generator: —"
 	stats_box.add_child(_generator_label)
+	_stat_labels.append(_generator_label)
 
 	# RIGHT — device list + detail
 	var right_vbox := VBoxContainer.new()
@@ -222,8 +241,6 @@ func _build_ui() -> void:
 
 	_slot_title = Label.new()
 	_slot_title.text = "SLOT"
-	_slot_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_slot_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	right_vbox.add_child(_slot_title)
 
 	var scroll := ScrollContainer.new()
@@ -246,8 +263,6 @@ func _build_ui() -> void:
 
 	_detail_name = Label.new()
 	_detail_name.text = ""
-	_detail_name.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	_detail_name.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	detail_vbox.add_child(_detail_name)
 
 	_detail_desc = Label.new()
@@ -257,14 +272,80 @@ func _build_ui() -> void:
 
 	_detail_stats = Label.new()
 	_detail_stats.text = ""
-	_detail_stats.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 	detail_vbox.add_child(_detail_stats)
 
-	var back_btn := Button.new()
-	back_btn.text = "BACK"
-	back_btn.custom_minimum_size.y = 40
-	back_btn.pressed.connect(_on_back)
-	right_vbox.add_child(back_btn)
+	_back_btn = Button.new()
+	_back_btn.text = "BACK"
+	_back_btn.custom_minimum_size.y = 40
+	_back_btn.pressed.connect(_on_back)
+	right_vbox.add_child(_back_btn)
+
+
+func _setup_vhs_overlay() -> void:
+	var root_node: Node = get_parent() if get_parent() else self
+	var vhs_layer := CanvasLayer.new()
+	vhs_layer.layer = 10
+	root_node.add_child(vhs_layer)
+	_vhs_overlay = ColorRect.new()
+	_vhs_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vhs_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vhs_layer.add_child(_vhs_overlay)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+
+func _apply_theme() -> void:
+	# Grid background
+	if _bg_rect:
+		ThemeManager.apply_grid_background(_bg_rect)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var header_font: Font = ThemeManager.get_font("font_header")
+
+	# Title
+	_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	if header_font:
+		_title.add_theme_font_override("font", header_font)
+	ThemeManager.apply_text_glow(_title, "header")
+
+	# Slot title
+	_slot_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_slot_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
+	if header_font:
+		_slot_title.add_theme_font_override("font", header_font)
+
+	# Stat labels
+	for lbl in _stat_labels:
+		lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+		lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		if body_font:
+			lbl.add_theme_font_override("font", body_font)
+
+	# Detail labels
+	_detail_name.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	_detail_name.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
+	if body_font:
+		_detail_name.add_theme_font_override("font", body_font)
+
+	_detail_desc.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	_detail_desc.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		_detail_desc.add_theme_font_override("font", body_font)
+
+	_detail_stats.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
+	_detail_stats.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		_detail_stats.add_theme_font_override("font", body_font)
+
+	# Back button
+	ThemeManager.apply_button_style(_back_btn)
+
+	# Device buttons
+	for entry in _device_buttons:
+		var btn: Button = entry["button"]
+		ThemeManager.apply_button_style(btn)
+	_update_button_highlights()
 
 
 func _on_back() -> void:

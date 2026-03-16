@@ -13,6 +13,13 @@ var _ship_name_label: Label
 var _right_vbox: VBoxContainer
 var _weapon_section: VBoxContainer
 var _device_section: VBoxContainer
+var _title: Label
+var _weapons_header: Label
+var _devices_header: Label
+var _change_ship_btn: Button
+var _back_btn: Button
+var _stat_labels: Array[Label] = []
+var _vhs_overlay: ColorRect = null
 
 var _ship: ShipData = null
 var _weapon_cache: Dictionary = {}
@@ -24,12 +31,72 @@ func _ready() -> void:
 	_build_ui()
 	_auto_select_ship()
 	_load_ship()
+	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_apply_theme)
-	call_deferred("_apply_grid_bg")
+	call_deferred("_apply_theme")
+
+
+func _setup_vhs_overlay() -> void:
+	var root_node: Node = get_parent() if get_parent() else self
+	var vhs_layer := CanvasLayer.new()
+	vhs_layer.layer = 10
+	root_node.add_child(vhs_layer)
+	_vhs_overlay = ColorRect.new()
+	_vhs_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vhs_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vhs_layer.add_child(_vhs_overlay)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 
 func _apply_theme() -> void:
 	_apply_grid_bg()
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var header_font: Font = ThemeManager.get_font("font_header")
+
+	# Title
+	_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	if header_font:
+		_title.add_theme_font_override("font", header_font)
+	ThemeManager.apply_text_glow(_title, "header")
+
+	# Ship name
+	_ship_name_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	_ship_name_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
+	if body_font:
+		_ship_name_label.add_theme_font_override("font", body_font)
+
+	# Stat labels
+	for lbl in _stat_labels:
+		lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+		lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		if body_font:
+			lbl.add_theme_font_override("font", body_font)
+
+	# Section headers
+	_weapons_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_weapons_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if body_font:
+		_weapons_header.add_theme_font_override("font", body_font)
+
+	_devices_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_devices_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if body_font:
+		_devices_header.add_theme_font_override("font", body_font)
+
+	# Buttons
+	ThemeManager.apply_button_style(_change_ship_btn)
+	ThemeManager.apply_button_style(_back_btn)
+
+	# Weapon/device buttons
+	for child in _weapon_section.get_children():
+		if child is Button:
+			ThemeManager.apply_button_style(child as Button)
+	for child in _device_section.get_children():
+		if child is Button:
+			ThemeManager.apply_button_style(child as Button)
 
 
 func _apply_grid_bg() -> void:
@@ -115,6 +182,7 @@ func _rebuild_buttons() -> void:
 		btn.text = hp_label + "  —  " + weapon_name
 		btn.custom_minimum_size.y = 55
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		ThemeManager.apply_button_style(btn)
 		var bound_hp_id: String = hp_id
 		btn.pressed.connect(func() -> void:
 			GameState._editing_hp_id = bound_hp_id
@@ -139,6 +207,7 @@ func _rebuild_buttons() -> void:
 		btn.text = "SLOT " + str(i + 1) + "  —  " + device_name
 		btn.custom_minimum_size.y = 50
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		ThemeManager.apply_button_style(btn)
 		var bound_slot: int = i
 		btn.pressed.connect(func() -> void:
 			GameState._editing_device_slot = bound_slot
@@ -159,16 +228,12 @@ func _build_ui() -> void:
 	left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(left_vbox)
 
-	var title := Label.new()
-	title.text = "HANGAR"
-	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	left_vbox.add_child(title)
+	_title = Label.new()
+	_title.text = "HANGAR"
+	left_vbox.add_child(_title)
 
 	_ship_name_label = Label.new()
 	_ship_name_label.text = ""
-	_ship_name_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	_ship_name_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	left_vbox.add_child(_ship_name_label)
 
 	var canvas_panel := PanelContainer.new()
@@ -190,26 +255,32 @@ func _build_ui() -> void:
 	_hull_label = Label.new()
 	_hull_label.text = "Hull: —"
 	stats_box.add_child(_hull_label)
+	_stat_labels.append(_hull_label)
 
 	_shield_label = Label.new()
 	_shield_label.text = "Shield: —"
 	stats_box.add_child(_shield_label)
+	_stat_labels.append(_shield_label)
 
 	_speed_label = Label.new()
 	_speed_label.text = "Speed: —"
 	stats_box.add_child(_speed_label)
+	_stat_labels.append(_speed_label)
 
 	_generator_label = Label.new()
 	_generator_label.text = "Generator: —"
 	stats_box.add_child(_generator_label)
+	_stat_labels.append(_generator_label)
 
 	_hp_count_label = Label.new()
 	_hp_count_label.text = "Hardpoints: —"
 	stats_box.add_child(_hp_count_label)
+	_stat_labels.append(_hp_count_label)
 
 	_device_slots_label = Label.new()
 	_device_slots_label.text = "Device Slots: —"
 	stats_box.add_child(_device_slots_label)
+	_stat_labels.append(_device_slots_label)
 
 	# RIGHT — grouped buttons
 	_right_vbox = VBoxContainer.new()
@@ -217,18 +288,16 @@ func _build_ui() -> void:
 	_right_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(_right_vbox)
 
-	var weapons_header := Label.new()
-	weapons_header.text = "━━ WEAPONS ━━━━━━━━"
-	weapons_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_right_vbox.add_child(weapons_header)
+	_weapons_header = Label.new()
+	_weapons_header.text = "━━ WEAPONS ━━━━━━━━"
+	_right_vbox.add_child(_weapons_header)
 
 	_weapon_section = VBoxContainer.new()
 	_right_vbox.add_child(_weapon_section)
 
-	var devices_header := Label.new()
-	devices_header.text = "━━ DEVICES ━━━━━━━━"
-	devices_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_right_vbox.add_child(devices_header)
+	_devices_header = Label.new()
+	_devices_header.text = "━━ DEVICES ━━━━━━━━"
+	_right_vbox.add_child(_devices_header)
 
 	_device_section = VBoxContainer.new()
 	_right_vbox.add_child(_device_section)
@@ -237,17 +306,17 @@ func _build_ui() -> void:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_right_vbox.add_child(spacer)
 
-	var change_ship_btn := Button.new()
-	change_ship_btn.text = "CHANGE SHIP"
-	change_ship_btn.custom_minimum_size.y = 40
-	change_ship_btn.pressed.connect(_on_change_ship)
-	_right_vbox.add_child(change_ship_btn)
+	_change_ship_btn = Button.new()
+	_change_ship_btn.text = "CHANGE SHIP"
+	_change_ship_btn.custom_minimum_size.y = 40
+	_change_ship_btn.pressed.connect(_on_change_ship)
+	_right_vbox.add_child(_change_ship_btn)
 
-	var back_btn := Button.new()
-	back_btn.text = "BACK"
-	back_btn.custom_minimum_size.y = 40
-	back_btn.pressed.connect(_on_back)
-	_right_vbox.add_child(back_btn)
+	_back_btn = Button.new()
+	_back_btn.text = "BACK"
+	_back_btn.custom_minimum_size.y = 40
+	_back_btn.pressed.connect(_on_back)
+	_right_vbox.add_child(_back_btn)
 
 
 func _on_change_ship() -> void:

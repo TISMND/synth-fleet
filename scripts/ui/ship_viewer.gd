@@ -15,10 +15,12 @@ var _exhaust_particles: Array[Dictionary] = []
 var _exhaust_timer := 0.0
 var _ship_selector: Node2D
 var _selected_ship := 0
+var _vhs_overlay: ColorRect
 
 
 func _ready() -> void:
 	ThemeManager.apply_grid_background($Background)
+	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
 	_exhaust_draw = _ExhaustDraw.new()
@@ -117,8 +119,20 @@ func _update_exhaust(delta: float) -> void:
 		i += 1
 
 
+func _setup_vhs_overlay() -> void:
+	var vhs_layer := CanvasLayer.new()
+	vhs_layer.layer = 10
+	add_child(vhs_layer)
+	_vhs_overlay = ColorRect.new()
+	_vhs_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vhs_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vhs_layer.add_child(_vhs_overlay)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+
 func _on_theme_changed() -> void:
 	ThemeManager.apply_grid_background($Background)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 
 func _input(event: InputEvent) -> void:

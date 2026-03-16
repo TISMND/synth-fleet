@@ -9,6 +9,11 @@ var _speed_label: Label
 var _generator_label: Label
 var _hp_count_label: Label
 var _ship_name_label: Label
+var _title: Label
+var _back_btn: Button
+var _select_btn: Button
+var _stat_labels: Array[Label] = []
+var _vhs_overlay: ColorRect = null
 
 var _ship_ids: Array[String] = []
 var _ships: Dictionary = {}  # id -> ShipData
@@ -17,12 +22,53 @@ var _ships: Dictionary = {}  # id -> ShipData
 func _ready() -> void:
 	_build_ui()
 	_load_ships()
+	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_apply_theme)
-	call_deferred("_apply_grid_bg")
+	call_deferred("_apply_theme")
+
+
+func _setup_vhs_overlay() -> void:
+	var root_node: Node = get_parent() if get_parent() else self
+	var vhs_layer := CanvasLayer.new()
+	vhs_layer.layer = 10
+	root_node.add_child(vhs_layer)
+	_vhs_overlay = ColorRect.new()
+	_vhs_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vhs_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vhs_layer.add_child(_vhs_overlay)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 
 func _apply_theme() -> void:
 	_apply_grid_bg()
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var header_font: Font = ThemeManager.get_font("font_header")
+
+	# Title
+	_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	if header_font:
+		_title.add_theme_font_override("font", header_font)
+	ThemeManager.apply_text_glow(_title, "header")
+
+	# Ship name
+	_ship_name_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	_ship_name_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
+	if body_font:
+		_ship_name_label.add_theme_font_override("font", body_font)
+
+	# Stat labels
+	for lbl in _stat_labels:
+		lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+		lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		if body_font:
+			lbl.add_theme_font_override("font", body_font)
+
+	# Buttons
+	ThemeManager.apply_button_style(_back_btn)
+	ThemeManager.apply_button_style(_select_btn)
 
 
 func _apply_grid_bg() -> void:
@@ -63,11 +109,9 @@ func _build_ui() -> void:
 	left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(left_vbox)
 
-	var title := Label.new()
-	title.text = "SELECT SHIP"
-	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	left_vbox.add_child(title)
+	_title = Label.new()
+	_title.text = "SELECT SHIP"
+	left_vbox.add_child(_title)
 
 	_ship_list = ItemList.new()
 	_ship_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -76,10 +120,10 @@ func _build_ui() -> void:
 	_ship_list.item_activated.connect(_on_ship_activated)
 	left_vbox.add_child(_ship_list)
 
-	var back_btn := Button.new()
-	back_btn.text = "BACK"
-	back_btn.pressed.connect(_on_back)
-	left_vbox.add_child(back_btn)
+	_back_btn = Button.new()
+	_back_btn.text = "BACK"
+	_back_btn.pressed.connect(_on_back)
+	left_vbox.add_child(_back_btn)
 
 	# RIGHT — preview + stats
 	var right_vbox := VBoxContainer.new()
@@ -89,8 +133,6 @@ func _build_ui() -> void:
 
 	_ship_name_label = Label.new()
 	_ship_name_label.text = ""
-	_ship_name_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	_ship_name_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	right_vbox.add_child(_ship_name_label)
 
 	# Ship canvas preview
@@ -113,28 +155,33 @@ func _build_ui() -> void:
 	_hull_label = Label.new()
 	_hull_label.text = "Hull: —"
 	stats_box.add_child(_hull_label)
+	_stat_labels.append(_hull_label)
 
 	_shield_label = Label.new()
 	_shield_label.text = "Shield: —"
 	stats_box.add_child(_shield_label)
+	_stat_labels.append(_shield_label)
 
 	_speed_label = Label.new()
 	_speed_label.text = "Speed: —"
 	stats_box.add_child(_speed_label)
+	_stat_labels.append(_speed_label)
 
 	_generator_label = Label.new()
 	_generator_label.text = "Generator: —"
 	stats_box.add_child(_generator_label)
+	_stat_labels.append(_generator_label)
 
 	_hp_count_label = Label.new()
 	_hp_count_label.text = "Hardpoints: —"
 	stats_box.add_child(_hp_count_label)
+	_stat_labels.append(_hp_count_label)
 
-	var select_btn := Button.new()
-	select_btn.text = "SELECT SHIP"
-	select_btn.custom_minimum_size.y = 40
-	select_btn.pressed.connect(_on_select_pressed)
-	right_vbox.add_child(select_btn)
+	_select_btn = Button.new()
+	_select_btn.text = "SELECT SHIP"
+	_select_btn.custom_minimum_size.y = 40
+	_select_btn.pressed.connect(_on_select_pressed)
+	right_vbox.add_child(_select_btn)
 
 
 func _on_ship_selected(idx: int) -> void:

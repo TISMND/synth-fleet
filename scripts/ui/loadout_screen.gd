@@ -17,6 +17,12 @@ var _status_label: Label
 var _save_button: Button
 var _set_active_button: Button
 var _delete_button: Button
+var _new_button: Button
+var _back_button: Button
+var _bg_rect: ColorRect = null
+var _vhs_overlay: ColorRect = null
+var _load_label: Label
+var _ship_label: Label
 
 # State
 var _current_id: String = ""
@@ -25,6 +31,8 @@ var _weapon_ids: Array[String] = []
 var _weapon_cache: Dictionary = {}
 var _hp_weapon_selectors: Dictionary = {} # {hp_id: OptionButton}
 var _section_headers: Array[Label] = []
+var _stat_labels: Array[Label] = []
+var _all_buttons: Array[Button] = []
 
 
 func _ready() -> void:
@@ -32,7 +40,21 @@ func _ready() -> void:
 	_cache_weapons()
 	_refresh_load_list()
 	_refresh_ship_list()
+	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_apply_theme)
+	call_deferred("_apply_theme")
+
+
+func _setup_vhs_overlay() -> void:
+	var root_node: Node = get_parent() if get_parent() else self
+	var vhs_layer := CanvasLayer.new()
+	vhs_layer.layer = 10
+	root_node.add_child(vhs_layer)
+	_vhs_overlay = ColorRect.new()
+	_vhs_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vhs_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vhs_layer.add_child(_vhs_overlay)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 
 func _cache_weapons() -> void:
@@ -47,6 +69,13 @@ func _cache_weapons() -> void:
 # ── UI Construction ──────────────────────────────────────────
 
 func _build_ui() -> void:
+	# Grid background
+	_bg_rect = ColorRect.new()
+	_bg_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_bg_rect.show_behind_parent = true
+	add_child(_bg_rect)
+	move_child(_bg_rect, 0)
+
 	var root := VBoxContainer.new()
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -56,9 +85,9 @@ func _build_ui() -> void:
 	var top_bar := HBoxContainer.new()
 	root.add_child(top_bar)
 
-	var load_label := Label.new()
-	load_label.text = "Load:"
-	top_bar.add_child(load_label)
+	_load_label = Label.new()
+	_load_label.text = "Load:"
+	top_bar.add_child(_load_label)
 
 	_load_button = OptionButton.new()
 	_load_button.custom_minimum_size.x = 250
@@ -73,11 +102,13 @@ func _build_ui() -> void:
 	_delete_button.text = "DELETE"
 	_delete_button.pressed.connect(_on_delete)
 	top_bar.add_child(_delete_button)
+	_all_buttons.append(_delete_button)
 
-	var new_btn := Button.new()
-	new_btn.text = "NEW"
-	new_btn.pressed.connect(_on_new)
-	top_bar.add_child(new_btn)
+	_new_button = Button.new()
+	_new_button.text = "NEW"
+	_new_button.pressed.connect(_on_new)
+	top_bar.add_child(_new_button)
+	_all_buttons.append(_new_button)
 
 	# Main split
 	var split := HSplitContainer.new()
@@ -95,9 +126,9 @@ func _build_ui() -> void:
 	var ship_row := HBoxContainer.new()
 	left_vbox.add_child(ship_row)
 
-	var ship_label := Label.new()
-	ship_label.text = "Ship:"
-	ship_row.add_child(ship_label)
+	_ship_label = Label.new()
+	_ship_label.text = "Ship:"
+	ship_row.add_child(_ship_label)
 
 	_ship_selector = OptionButton.new()
 	_ship_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -120,18 +151,22 @@ func _build_ui() -> void:
 	_hull_label = Label.new()
 	_hull_label.text = "Hull: —"
 	left_vbox.add_child(_hull_label)
+	_stat_labels.append(_hull_label)
 
 	_shield_label = Label.new()
 	_shield_label.text = "Shield: —"
 	left_vbox.add_child(_shield_label)
+	_stat_labels.append(_shield_label)
 
 	_speed_label = Label.new()
 	_speed_label.text = "Speed: —"
 	left_vbox.add_child(_speed_label)
+	_stat_labels.append(_speed_label)
 
 	_generator_label = Label.new()
 	_generator_label.text = "Generator: —"
 	left_vbox.add_child(_generator_label)
+	_stat_labels.append(_generator_label)
 
 	_add_separator(left_vbox)
 
@@ -141,7 +176,7 @@ func _build_ui() -> void:
 	left_vbox.add_child(_power_budget_label)
 
 	_power_bar = ProgressBar.new()
-	_power_bar.custom_minimum_size.y = 20
+	_power_bar.custom_minimum_size = Vector2(180, 16)
 	_power_bar.max_value = 1
 	_power_bar.value = 0
 	_power_bar.show_percentage = false
@@ -171,12 +206,14 @@ func _build_ui() -> void:
 	_save_button.custom_minimum_size.x = 100
 	_save_button.pressed.connect(_on_save)
 	bottom_bar.add_child(_save_button)
+	_all_buttons.append(_save_button)
 
 	_set_active_button = Button.new()
 	_set_active_button.text = "SET ACTIVE"
 	_set_active_button.custom_minimum_size.x = 120
 	_set_active_button.pressed.connect(_on_set_active)
 	bottom_bar.add_child(_set_active_button)
+	_all_buttons.append(_set_active_button)
 
 	_status_label = Label.new()
 	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -187,10 +224,11 @@ func _build_ui() -> void:
 	bottom_spacer2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bottom_bar.add_child(bottom_spacer2)
 
-	var back_btn := Button.new()
-	back_btn.text = "BACK"
-	back_btn.pressed.connect(_on_back)
-	bottom_bar.add_child(back_btn)
+	_back_button = Button.new()
+	_back_button.text = "BACK"
+	_back_button.pressed.connect(_on_back)
+	bottom_bar.add_child(_back_button)
+	_all_buttons.append(_back_button)
 
 
 # ── Ship Selection ───────────────────────────────────────────
@@ -336,16 +374,16 @@ func _update_power_budget() -> void:
 		_power_bar.max_value = 1
 		_power_bar.value = 0
 
+	var bar_color: Color
 	if total_power > max_power:
-		var red_style := StyleBoxFlat.new()
-		red_style.bg_color = ThemeManager.get_color("bar_negative")
-		_power_bar.add_theme_stylebox_override("fill", red_style)
 		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
+		bar_color = ThemeManager.get_color("bar_negative")
 	else:
-		var green_style := StyleBoxFlat.new()
-		green_style.bg_color = ThemeManager.get_color("bar_positive")
-		_power_bar.add_theme_stylebox_override("fill", green_style)
 		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
+		bar_color = ThemeManager.get_color("bar_positive")
+
+	var ratio: float = float(total_power) / maxf(float(max_power), 1.0)
+	ThemeManager.apply_led_bar(_power_bar, bar_color, ratio)
 
 
 # ── Save / Load / Delete ────────────────────────────────────
@@ -490,10 +528,54 @@ func _generate_id(display_name: String) -> String:
 # ── UI Helpers ───────────────────────────────────────────────
 
 func _apply_theme() -> void:
+	# Grid background
+	if _bg_rect:
+		ThemeManager.apply_grid_background(_bg_rect)
+	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+
+	# Section headers
 	for label in _section_headers:
 		if is_instance_valid(label):
 			label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 			label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+			if body_font:
+				label.add_theme_font_override("font", body_font)
+
+	# Stat labels
+	for lbl in _stat_labels:
+		lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+		lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		if body_font:
+			lbl.add_theme_font_override("font", body_font)
+
+	# Misc labels
+	_load_label.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	_load_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		_load_label.add_theme_font_override("font", body_font)
+
+	_ship_label.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	_ship_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		_ship_label.add_theme_font_override("font", body_font)
+
+	_status_label.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+	_status_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		_status_label.add_theme_font_override("font", body_font)
+
+	_power_budget_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		_power_budget_label.add_theme_font_override("font", body_font)
+
+	# Buttons
+	for btn in _all_buttons:
+		ThemeManager.apply_button_style(btn)
+
+	# LED bar on power
+	_update_power_budget()
 
 
 func _add_section_header(parent: Control, text: String) -> Label:
@@ -501,6 +583,9 @@ func _add_section_header(parent: Control, text: String) -> Label:
 	label.text = text
 	label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	var body_font: Font = ThemeManager.get_font("font_body")
+	if body_font:
+		label.add_theme_font_override("font", body_font)
 	parent.add_child(label)
 	_section_headers.append(label)
 	return label
