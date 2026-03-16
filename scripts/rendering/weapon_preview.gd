@@ -11,10 +11,9 @@ var muzzle_config: Dictionary = {"type": "none", "params": {}}
 var shape_config: Dictionary = {"type": "rect", "params": {}}
 var trail_config: Dictionary = {"type": "none", "params": {}}
 var impact_config: Dictionary = {"type": "none", "params": {}}
-var audio_sample_path: String = ""
-var audio_pitch: float = 1.0
-var audio_muted: bool = false
-var note_duration: String = "1/8"
+var loop_file_path: String = ""
+var loop_length_bars: int = 2
+var fire_triggers: Array = []
 
 var _projectiles: Array = []
 var _fire_accumulator: float = 0.0
@@ -53,32 +52,39 @@ func update_weapon(data: Dictionary) -> void:
 	shape_config = ep.get("shape", {"type": "rect", "params": {}})
 	trail_config = ep.get("trail", {"type": "none", "params": {}})
 	impact_config = ep.get("impact", {"type": "none", "params": {}})
-	audio_sample_path = str(data.get("audio_sample_path", ""))
-	audio_pitch = float(data.get("audio_pitch", 1.0))
-	audio_muted = bool(data.get("audio_muted", false))
-	note_duration = str(data.get("note_duration", "1/8"))
+	loop_file_path = str(data.get("loop_file_path", ""))
+	loop_length_bars = int(data.get("loop_length_bars", 2))
+	fire_triggers = data.get("fire_triggers", [])
+	_update_fire_interval()
 
 
-func _get_fire_interval() -> float:
-	var bpm: float = float(BeatClock.bpm) if BeatClock.bpm > 0 else 120.0
-	var quarter: float = 60.0 / bpm
-	match note_duration:
-		"1/4":
-			return quarter
-		"1/8":
-			return quarter / 2.0
-		"1/16":
-			return quarter / 4.0
-		"1/32":
-			return quarter / 8.0
-		_:
-			return quarter / 2.0
+var _preview_fire_interval: float = 0.5
+var _preview_triggers_sorted: Array = []
+
+
+func _update_fire_interval() -> void:
+	# For preview, calculate a simple fire interval from triggers
+	if fire_triggers.size() >= 2:
+		_preview_triggers_sorted = fire_triggers.duplicate()
+		_preview_triggers_sorted.sort()
+		# Use average gap between triggers
+		var total_gap: float = 0.0
+		for i in range(_preview_triggers_sorted.size() - 1):
+			total_gap += float(_preview_triggers_sorted[i + 1]) - float(_preview_triggers_sorted[i])
+		var avg_gap: float = total_gap / float(_preview_triggers_sorted.size() - 1)
+		var bpm: float = float(BeatClock.bpm) if BeatClock.bpm > 0 else 120.0
+		_preview_fire_interval = avg_gap * (60.0 / bpm)
+	elif fire_triggers.size() == 1:
+		var bpm: float = float(BeatClock.bpm) if BeatClock.bpm > 0 else 120.0
+		var total_beats: float = float(loop_length_bars * BeatClock.beats_per_measure)
+		_preview_fire_interval = total_beats * (60.0 / bpm)
+	else:
+		# No triggers: fire at quarter note rate for visual preview
+		var bpm: float = float(BeatClock.bpm) if BeatClock.bpm > 0 else 120.0
+		_preview_fire_interval = 60.0 / bpm
 
 
 func _fire_projectiles() -> void:
-	if not audio_muted and audio_sample_path != "":
-		AudioManager.play_weapon_sound(audio_sample_path, audio_pitch)
-
 	var spawn_points: Array = []
 	var directions: Array = []
 
@@ -207,8 +213,8 @@ func _process(delta: float) -> void:
 	if not _preview_active:
 		return
 
-	# Fire based on note_duration accumulator
-	var interval: float = _get_fire_interval()
+	# Fire based on trigger interval
+	var interval: float = _preview_fire_interval
 	_fire_accumulator += delta
 	while _fire_accumulator >= interval:
 		_fire_accumulator -= interval

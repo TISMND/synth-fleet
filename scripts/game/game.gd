@@ -135,8 +135,19 @@ func _start_level_intro() -> void:
 	var level_name: String = str(level.get("name", "UNKNOWN"))
 	var level_bpm: float = float(level.get("bpm", 120))
 
-	# Start music during intro — feels good to hear the beat before enemies appear
+	# Start BeatClock and LoopMixer during intro
 	BeatClock.start(level_bpm)
+
+	# Load atmosphere loops if defined
+	var atmo_loops: Array = level.get("atmosphere_loops", [])
+	for atmo in atmo_loops:
+		var atmo_id: String = str(atmo.get("id", ""))
+		var atmo_path: String = str(atmo.get("path", ""))
+		if atmo_id != "" and atmo_path != "":
+			LoopMixer.add_loop(atmo_id, atmo_path, "Master", 0.0, false)
+
+	# Start all loops (atmosphere unmuted, weapon loops muted by their controllers)
+	LoopMixer.start_all()
 
 	if _hud:
 		_hud.show_level_intro(level_name, _current_level + 1)
@@ -178,6 +189,7 @@ func _on_all_waves_cleared() -> void:
 
 	GameState.add_credits(bonus)
 	BeatClock.stop()
+	LoopMixer.remove_all_loops()
 	if _player:
 		_player.stop_all()
 
@@ -206,6 +218,7 @@ func _after_level_complete() -> void:
 func _on_player_died() -> void:
 	_phase = GamePhase.GAME_OVER
 	BeatClock.stop()
+	LoopMixer.remove_all_loops()
 	if _wave_manager:
 		_wave_manager.stop()
 	if _player:
@@ -231,6 +244,7 @@ func _input(event: InputEvent) -> void:
 
 func _return_to_menu() -> void:
 	BeatClock.stop()
+	LoopMixer.remove_all_loops()
 	if _wave_manager:
 		_wave_manager.stop()
 	if _player:

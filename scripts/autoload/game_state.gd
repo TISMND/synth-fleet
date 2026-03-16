@@ -13,10 +13,7 @@ var hardpoint_config: Dictionary = {}
 # hardpoint_config structure:
 # {
 #   "hp_1": {
-#     "weapon_id": "laser_pulse_01",
-#     "stages": [
-#       { "stage_number": 1, "loop_length": 8, "pattern": [...] }
-#     ]
+#     "weapon_id": "bass_synth_01"
 #   }
 # }
 var device_config: Dictionary = {}
@@ -126,15 +123,8 @@ func set_ship(id: String) -> void:
 
 func set_hardpoint_weapon(hp_id: String, weapon_id: String) -> void:
 	if not hardpoint_config.has(hp_id):
-		hardpoint_config[hp_id] = {"weapon_id": "", "stages": []}
+		hardpoint_config[hp_id] = {"weapon_id": ""}
 	hardpoint_config[hp_id]["weapon_id"] = weapon_id
-	save_game()
-
-
-func set_hardpoint_stages(hp_id: String, stages: Array) -> void:
-	if not hardpoint_config.has(hp_id):
-		hardpoint_config[hp_id] = {"weapon_id": "", "stages": []}
-	hardpoint_config[hp_id]["stages"] = stages
 	save_game()
 
 

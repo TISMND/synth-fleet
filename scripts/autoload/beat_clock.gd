@@ -4,6 +4,7 @@ extends Node
 
 signal beat_hit(beat_index: int)
 signal measure_hit(measure_index: int)
+signal position_updated(beat_pos: float, bar: int)
 
 const SETTINGS_PATH := "user://settings/beat_clock.json"
 
@@ -13,7 +14,11 @@ var beat_index: int = 0
 var measure_index: int = 0
 var beats_per_measure: int = 4
 
-var _time_since_last_beat: float = 0.0
+## Fractional position within current measure (0.0 to beats_per_measure), wraps each measure.
+var beat_position: float = 0.0
+## Monotonically increasing since start.
+var total_beat_position: float = 0.0
+
 var _running: bool = false
 
 
@@ -46,7 +51,8 @@ func start(new_bpm: float = bpm) -> void:
 	bpm = new_bpm
 	beat_index = 0
 	measure_index = 0
-	_time_since_last_beat = 0.0
+	beat_position = 0.0
+	total_beat_position = 0.0
 	_running = true
 	set_process(true)
 
@@ -64,23 +70,29 @@ func get_beat_duration() -> float:
 	return 60.0 / bpm
 
 
-func get_subdivision_duration(subdivision: int) -> float:
-	## subdivision: 1 = quarter, 2 = eighth, 3 = triplet
-	return get_beat_duration() / subdivision
+func get_loop_beat_position(loop_length_beats: float) -> float:
+	return fmod(total_beat_position, loop_length_beats)
 
 
 func _process(delta: float) -> void:
 	if not _running:
 		return
 
-	_time_since_last_beat += delta
-
 	var beat_duration: float = get_beat_duration()
-	while _time_since_last_beat >= beat_duration:
-		_time_since_last_beat -= beat_duration
+	var delta_beats: float = delta / beat_duration
+
+	var prev_beat_position: float = beat_position
+	beat_position += delta_beats
+	total_beat_position += delta_beats
+
+	# Check for beat crossings
+	while beat_position >= 1.0:
+		beat_position -= 1.0
 		beat_index += 1
 		beat_hit.emit(beat_index)
 
 		if beat_index % beats_per_measure == 0:
 			measure_index += 1
 			measure_hit.emit(measure_index)
+
+	position_updated.emit(beat_position, measure_index)

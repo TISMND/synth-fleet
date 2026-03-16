@@ -190,18 +190,17 @@ func update_hardpoints(data: Array) -> void:
 
 	for i in data.size():
 		var entry: Dictionary = data[i]
-		var stage: int = int(entry.get("stage", -1))
-		var max_stage: int = int(entry.get("max_stage", 0))
+		var active: bool = entry.get("active", false) as bool
 		var weapon_name: String = str(entry.get("weapon_name", "?"))
 		var color: Color = entry.get("color", Color.CYAN) as Color
 		var hp_num: int = i + 1
 
 		var lbl := Label.new()
-		if stage < 0:
+		if not active:
 			lbl.text = str(hp_num) + ": OFF"
 			lbl.add_theme_color_override("font_color", Color(0.35, 0.35, 0.4))
 		else:
-			lbl.text = str(hp_num) + ": " + weapon_name + " [" + str(stage + 1) + "]"
+			lbl.text = str(hp_num) + ": " + weapon_name + " [ON]"
 			lbl.add_theme_color_override("font_color", color)
 		lbl.add_theme_font_size_override("font_size", 14)
 		_hardpoint_hbox.add_child(lbl)

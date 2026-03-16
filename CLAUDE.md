@@ -1,40 +1,49 @@
 # Synth Fleet — Project Guide
 
 ## What is this?
-A Tyrian-style vertical scrolling shooter built in Godot 4.6 / GDScript. Core mechanic: weapons fire on a beat grid, and players choose the sound/color of their projectiles, so gameplay produces coherent 80s synth music.
+A Tyrian-style vertical scrolling shooter built in Godot 4.6 / GDScript. Core mechanic: weapons fire on a beat grid, and each weapon has an associated audio loop (Splice WAV). Equipping and activating weapons layers loops together like a DAW mixer, so gameplay produces coherent 80s synth music.
 
 ## Running
 - Open in Godot 4.6
-- Main scene: `scenes/main.tscn`
+- Main scene: `scenes/ui/main_menu.tscn`
 - Run with Cmd+B (macOS) or the play button in the Godot editor
 
 ## Current status
-Project scaffolding is complete. The game runs: player ship moves, background scrolls, enemies spawn and drift down, forward weapon fires projectiles on every beat. Everything uses placeholder visuals (colored polygons/rects).
+Game runs with loop-based audio system. Player ship moves, background scrolls, enemies spawn, weapons fire projectiles at beat-synced trigger positions. Weapons mute/unmute audio loops via LoopMixer.
 
 **What works:**
 - Player movement (WASD / arrows), clamped to screen
-- BeatClock running at 120 BPM, weapon fires on beat
+- BeatClock running at level BPM with beat position tracking
+- LoopMixer: all loops play simultaneously, mute/unmute for perfect sync
+- HardpointController fires projectiles at specific beat positions (fire_triggers)
 - Enemies spawn, drift down, can be hit by projectiles
 - Parallax scrolling background
-- Shield/hull health system (not yet visible via HUD)
+- Shield/hull health system with HUD
 - GameState save/load to user://
-- WeaponData resource class + basic_pulse.tres starter weapon
+- WeaponData resource with loop_file_path, loop_length_bars, fire_triggers
+- Weapon Builder with waveform editor for placing fire triggers
+- ThemeManager for visual theming across all screens
 
 **What's next (rough priority):**
-1. Audio samples — add synth one-shots to `assets/audio/samples/`, wire up color→sample mapping so weapons make sound
-2. HUD — health bar, credits display, beat indicator
+1. Add Splice WAV loops to `assets/audio/loops/` and `assets/audio/atmosphere/`
+2. Visual polish / aesthetic pass (ThemeManager presets)
 3. More enemy types + actual wave/level design
 4. Shop UI between levels
-5. Additional weapons with different subdivisions/patterns
+5. Additional weapons with different loop lengths/trigger patterns
 6. Real sprite art to replace placeholder polygons
-7. Background music tracks per level
+7. Level atmosphere loops for background music layers
 
 ## Architecture
 
+### Audio Model
+All audio loops play simultaneously from level start and are muted/unmuted — never started/stopped — so they stay perfectly in sync. Player creativity = choosing which weapons (= which audio loops) to equip and when to activate/deactivate them during gameplay.
+
 ### Autoloads (singletons, always available)
-- **BeatClock** — Musical clock. Everything syncs to `beat_hit` / `measure_hit` signals. Each level sets its own BPM.
+- **BeatClock** — Musical clock with `beat_hit`/`measure_hit` signals, plus continuous `beat_position`/`total_beat_position` tracking. `get_loop_beat_position(loop_length_beats)` for varied-length loops.
 - **GameState** — Persistent player data (credits, loadout, owned items). Saves to `user://save_data.json`.
-- **AudioManager** — Pooled audio playback. Maps weapon colors → audio samples. Weapons call `AudioManager.play_color()` on fire.
+- **AudioManager** — Pooled audio playback for non-loop SFX (impacts, UI clicks).
+- **LoopMixer** — Manages N AudioStreamPlayers for loops. All play from bar 1 simultaneously. Mute = `volume_db = -80.0`, unmute = restore volume. API: `add_loop()`, `remove_loop()`, `mute()`, `unmute()`, `start_all()`.
+- **ThemeManager** — Color/glow/font theming with presets.
 
 ### Godot gotchas
 - **Sibling `_ready()` order is not guaranteed.** If node A needs to call a method on sibling node B that uses B's child refs, use `call_deferred()` so B's `_ready()` has run first. Without this, B's `$Child` refs will still be null and you'll get "Nil" property access errors.
@@ -50,23 +59,36 @@ Project scaffolding is complete. The game runs: player ship moves, background sc
   **Always use explicit type annotations instead:** `var x: float = dict["key"]`, `var pos: Vector2 = parent.global_position`, `var res: PackedScene = load(path)`. Wrapping in `int()` / `float()` also works since those return concrete types.
 
 ### Key design rules
-- Weapons fire on BeatClock subdivisions (quarter/eighth/triplet), NOT on input
-- Player chooses weapon color = chooses the synth sound that plays
+- Weapons fire at specific beat positions defined by `fire_triggers` (Array[float])
+- Each weapon has an audio loop that plays/mutes in sync via LoopMixer
+- Player toggles weapons ON/OFF (1-9 keys, Space = all on, C = all off)
 - 3 long levels, fixed BPM each. No dynamic tempo.
 - Health = shields (regen) + hull (doesn't). Generator = simple power budget limiting equipped weapons.
 - Shop between levels/deaths for weapons, upgrades, ships
 
+### WeaponData schema
+- `id`, `display_name`, `description`, `color` — identity
+- `loop_file_path` — path to Splice WAV (e.g. `res://assets/audio/loops/bass_4bar.wav`)
+- `loop_length_bars` — 1, 2, 4, or 8
+- `fire_triggers` — Array[float] beat positions where shots fire
+- `damage`, `projectile_speed`, `power_cost` — combat stats
+- `fire_pattern` — single/dual/spread/burst/scatter/wave/beam
+- `effect_profile` — visual effects (motion, muzzle, shape, trail, impact)
+- `special_effect` — none/disable_shields/disable_weapons/drain_shields_for_power
+
 ### Directory layout
 ```
 scenes/
-  ui/            Menus, dev studio, placeholders
+  ui/            Menus, dev studio, hangar, shop
 scripts/
-  autoload/      Singletons (BeatClock, GameState, AudioManager)
+  autoload/      Singletons (BeatClock, GameState, AudioManager, LoopMixer, ThemeManager)
   data/          DataManagers (WeaponDataManager, ShipDataManager, LoadoutDataManager)
-  ui/            UI scripts (main_menu, dev_studio)
+  game/          Game logic (game, player_ship, hardpoint_controller, enemy, etc.)
+  ui/            UI scripts (main_menu, dev_studio, weapon_builder, waveform_editor, etc.)
 resources/       Resource class definitions (.gd) — populated from JSON at runtime
 assets/
-  audio/samples/ Synth one-shots (weapon sounds)
+  audio/loops/       Weapon audio loops (Splice WAVs)
+  audio/atmosphere/  Level/boss atmospheric loops (Splice WAVs)
 ```
 
 ### Data storage
@@ -86,5 +108,13 @@ user://save_data.json GameState persistence
 
 ### Adding a new weapon
 1. Use the Weapon Builder in Dev Studio, or save a JSON file to `user://weapons/`
-2. JSON schema matches `WeaponData` resource class fields
-3. Weapons are loaded at runtime via `WeaponDataManager.load_by_id(id)`
+2. Place the weapon's audio loop WAV in `assets/audio/loops/`
+3. In Weapon Builder: select loop file, set loop length (bars), click waveform to place fire triggers
+4. JSON schema matches `WeaponData` resource class fields
+5. Weapons are loaded at runtime via `WeaponDataManager.load_by_id(id)`
+
+### HardpointController
+Frame-based trigger checking replaces the old timer-based step sequencer:
+- Each frame: get `BeatClock.get_loop_beat_position(loop_length_beats)`, check if any fire trigger was crossed since last frame
+- Wrap-around detection: if `curr < prev`, trigger fires if `> prev OR <= curr`
+- `activate()` / `deactivate()` / `toggle()` — unmute/mute via LoopMixer

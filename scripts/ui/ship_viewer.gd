@@ -542,10 +542,19 @@ class _ShipDraw extends Node2D:
 		var gc := color
 		gc.a = 0.25
 		draw_line(a, b, gc, width * 3.0, true)
+		draw_circle(a, width * 1.5, gc)
+		draw_circle(b, width * 1.5, gc)
 		gc.a = 0.5
 		draw_line(a, b, gc, width * 1.8, true)
+		draw_circle(a, width * 0.9, gc)
+		draw_circle(b, width * 0.9, gc)
 		draw_line(a, b, color, width, true)
-		draw_line(a, b, Color(1, 1, 1, 0.6), width * 0.4, true)
+		draw_circle(a, width * 0.5, color)
+		draw_circle(b, width * 0.5, color)
+		var w := Color(1, 1, 1, 0.6)
+		draw_line(a, b, w, width * 0.4, true)
+		draw_circle(a, width * 0.2, w)
+		draw_circle(b, width * 0.2, w)
 
 	func _draw_neon_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
 		var glow := color
@@ -556,22 +565,34 @@ class _ShipDraw extends Node2D:
 	func _draw_neon_lines(points: PackedVector2Array, color: Color, width: float) -> void:
 		if points.size() < 2:
 			return
-		var glow_color := color
-		glow_color.a = 0.25
+		var gc := color
+		# Outer glow
+		gc.a = 0.25
 		for i in range(points.size()):
 			var ni: int = (i + 1) % points.size()
-			draw_line(points[i], points[ni], glow_color, width * 3.0, true)
-		glow_color.a = 0.5
+			draw_line(points[i], points[ni], gc, width * 3.0, true)
+		for pt in points:
+			draw_circle(pt, width * 1.5, gc)
+		# Mid glow
+		gc.a = 0.5
 		for i in range(points.size()):
 			var ni: int = (i + 1) % points.size()
-			draw_line(points[i], points[ni], glow_color, width * 1.8, true)
+			draw_line(points[i], points[ni], gc, width * 1.8, true)
+		for pt in points:
+			draw_circle(pt, width * 0.9, gc)
+		# Bright core
 		for i in range(points.size()):
 			var ni: int = (i + 1) % points.size()
 			draw_line(points[i], points[ni], color, width, true)
+		for pt in points:
+			draw_circle(pt, width * 0.5, color)
+		# White-hot center
 		var white := Color(1, 1, 1, 0.6)
 		for i in range(points.size()):
 			var ni: int = (i + 1) % points.size()
 			draw_line(points[i], points[ni], white, width * 0.4, true)
+		for pt in points:
+			draw_circle(pt, width * 0.2, white)
 
 
 # ── Exhaust Drawing (inner class) ────────────────────────────
@@ -658,18 +679,28 @@ class _ShipSelector extends Node2D:
 		var fill := color
 		fill.a = 0.12
 		draw_colored_polygon(points, fill)
+		var gc := color
+		gc.a = 0.3
 		for j in range(points.size()):
 			var nj: int = (j + 1) % points.size()
-			var gc := color
-			gc.a = 0.3
 			draw_line(points[j], points[nj], gc, w * 2.0, true)
+		for pt in points:
+			draw_circle(pt, w, gc)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
 			draw_line(points[j], points[nj], color, w, true)
+		for pt in points:
+			draw_circle(pt, w * 0.5, color)
 
 	func _ml(a: Vector2, b: Vector2, color: Color, w: float) -> void:
 		var gc := color
 		gc.a = 0.3
 		draw_line(a, b, gc, w * 2.0, true)
+		draw_circle(a, w, gc)
+		draw_circle(b, w, gc)
 		draw_line(a, b, color, w, true)
+		draw_circle(a, w * 0.5, color)
+		draw_circle(b, w * 0.5, color)
 
 	func _draw_number(pos: Vector2, num: int, color: Color) -> void:
 		var sw := 3.0

@@ -157,9 +157,6 @@ func _process(delta: float) -> void:
 
 
 func _fire_projectiles() -> void:
-	if _weapon and not _weapon.audio_sample_path.is_empty():
-		AudioManager.play_weapon_sound(_weapon.audio_sample_path, _weapon.audio_pitch)
-
 	var spawn_points: Array = []
 	var directions: Array = []
 	var speed: float = _weapon.projectile_speed if _weapon else 600.0
