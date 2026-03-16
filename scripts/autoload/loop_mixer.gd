@@ -6,7 +6,7 @@ extends Node
 signal loop_state_changed(loop_id: String, muted: bool)
 
 var _loops: Dictionary = {}
-# Each entry: {player: AudioStreamPlayer, target_volume: float, muted: bool}
+# Each entry: {player: AudioStreamPlayer, target_volume: float, muted: bool, duration: float}
 
 
 func add_loop(loop_id: String, stream_path: String, bus: String = "Master", volume_db: float = 0.0, start_muted: bool = true) -> void:
@@ -16,16 +16,29 @@ func add_loop(loop_id: String, stream_path: String, bus: String = "Master", volu
 	if not stream:
 		push_warning("LoopMixer: failed to load stream: " + stream_path)
 		return
+	var duration_sec: float = 0.0
 	if stream is AudioStreamWAV:
+		# Get duration BEFORE enabling looping (get_length() may return 0 for looping streams)
+		duration_sec = stream.get_length()
+
+		# Enable looping
 		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		# Compute sample frame count so loop_end covers the whole file
-		var bytes_per_sample: int = 1
-		if stream.format == AudioStreamWAV.FORMAT_16_BITS:
-			bytes_per_sample = 2
-		elif stream.format == AudioStreamWAV.FORMAT_IMA_ADPCM:
-			bytes_per_sample = 4
-		var channels: int = 2 if stream.stereo else 1
-		stream.loop_end = stream.data.size() / (bytes_per_sample * channels)
+		stream.loop_begin = 0
+
+		# Derive loop_end from duration — format-independent, matches get_length()
+		if duration_sec > 0.0:
+			stream.loop_end = int(duration_sec * float(stream.mix_rate))
+		else:
+			# Fallback: byte math if get_length() returned 0
+			var bytes_per_sample: int = 1
+			if stream.format == AudioStreamWAV.FORMAT_16_BITS:
+				bytes_per_sample = 2
+			var channels: int = 2 if stream.stereo else 1
+			duration_sec = float(stream.data.size() / (bytes_per_sample * channels)) / float(stream.mix_rate)
+			stream.loop_end = int(duration_sec * float(stream.mix_rate))
+		print("LoopMixer: \"%s\" duration=%.3fs loop_end=%d mix_rate=%d data_bytes=%d" % [loop_id, duration_sec, stream.loop_end, stream.mix_rate, stream.data.size()])
+	else:
+		duration_sec = stream.get_length()
 	var player := AudioStreamPlayer.new()
 	player.stream = stream
 	player.bus = bus
@@ -35,6 +48,7 @@ func add_loop(loop_id: String, stream_path: String, bus: String = "Master", volu
 		"player": player,
 		"target_volume": volume_db,
 		"muted": start_muted,
+		"duration": duration_sec,
 	}
 
 
@@ -103,12 +117,9 @@ func get_playback_position(loop_id: String) -> float:
 
 
 func get_stream_duration(loop_id: String) -> float:
-	## Returns the Godot stream's duration in seconds, or -1.0 if not found.
-	## Same source of truth as get_playback_position() — guaranteed to match.
+	## Returns the cached pre-loop-mode duration in seconds, or -1.0 if not found.
+	## Same source of truth as loop_end — guaranteed consistent.
 	if not _loops.has(loop_id):
 		return -1.0
 	var entry: Dictionary = _loops[loop_id]
-	var player: AudioStreamPlayer = entry["player"]
-	if not player.stream:
-		return -1.0
-	return player.stream.get_length()
+	return float(entry["duration"])

@@ -3,6 +3,7 @@ extends Control
 ## Visual waveform editor: displays WAV waveform, optional beat grid overlay,
 ## click-to-place fire triggers in normalized time (0.0–1.0).
 ## Snap modes: Free, 1/4, 1/8, 1/16. Playback cursor synced to LoopMixer.
+## Supports select, drag, and delete of markers.
 
 signal triggers_changed(triggers: Array)
 
@@ -20,6 +21,17 @@ var _detected_duration_sec: float = 0.0  # From raw WAV parsing (for bar auto-de
 var _audition_loop_id: String = ""
 var _show_beat_grid: bool = true
 
+# Marker interaction state
+enum MarkerState { IDLE, HOVERING, DRAGGING }
+var _marker_state: int = MarkerState.IDLE
+var _selected_idx: int = -1        # Index into _fire_triggers, -1 = none
+var _hovered_idx: int = -1         # Index of marker mouse is near
+var _mouse_down: bool = false
+var _drag_start_pos: Vector2 = Vector2.ZERO
+var _drag_original_time: float = 0.0
+const DRAG_THRESHOLD_PX: float = 5.0
+const MARKER_HIT_PX: float = 10.0
+
 # Colors
 var _bg_color: Color = Color(0.05, 0.05, 0.1)
 var _waveform_color: Color = Color(0.2, 0.6, 0.9, 0.6)
@@ -28,11 +40,14 @@ var _bar_line_color: Color = Color(0.4, 0.4, 0.6)
 var _trigger_color: Color = Color(1.0, 0.3, 0.3)
 var _cursor_color: Color = Color(0.3, 1.0, 0.5, 0.8)
 var _hover_color: Color = Color(1.0, 1.0, 1.0, 0.3)
+var _selected_color: Color = Color(1.0, 0.85, 0.2)       # Gold for selected
+var _hovered_marker_color: Color = Color(1.0, 0.5, 0.5)   # Light red for hover
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	custom_minimum_size = Vector2(0, 120)
+	focus_mode = Control.FOCUS_ALL
 
 
 func set_stream(stream: AudioStream) -> void:
@@ -192,6 +207,10 @@ func set_snap_mode(mode: int) -> void:
 
 func set_triggers(triggers: Array) -> void:
 	_fire_triggers = triggers.duplicate()
+	_selected_idx = -1
+	_hovered_idx = -1
+	_marker_state = MarkerState.IDLE
+	_mouse_down = false
 	queue_redraw()
 
 
@@ -267,49 +286,141 @@ func _read_fourcc(file: FileAccess) -> String:
 	return bytes.get_string_from_ascii()
 
 
-func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mb: InputEventMouseButton = event
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			_handle_click(mb.position)
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
-			_handle_right_click(mb.position)
-	elif event is InputEventMouseMotion:
-		_hovered_time = _pos_to_time(event.position)
-		queue_redraw()
+func _find_nearest_trigger_px(pos: Vector2) -> int:
+	## Returns index of nearest trigger within MARKER_HIT_PX pixels, or -1.
+	var best_idx: int = -1
+	var best_dist: float = MARKER_HIT_PX
+	for i in _fire_triggers.size():
+		var tx: float = _time_to_x(float(_fire_triggers[i]))
+		var dist: float = absf(pos.x - tx)
+		if dist < best_dist:
+			best_dist = dist
+			best_idx = i
+	return best_idx
 
 
-func _handle_click(pos: Vector2) -> void:
-	var t: float = _pos_to_time(pos)
-	t = _snap_time(t)
-	# Toggle: if trigger exists near this time, remove it; otherwise add it
-	var removed: bool = false
+func _place_new_trigger(pos: Vector2) -> void:
+	## Place a new trigger at the snapped time corresponding to pos.
+	var t: float = _snap_time(_pos_to_time(pos))
+	# Don't place if too close to an existing trigger
 	var snap_threshold: float = _get_snap_threshold()
-	for i in range(_fire_triggers.size() - 1, -1, -1):
+	for i in _fire_triggers.size():
 		if absf(float(_fire_triggers[i]) - t) < snap_threshold:
-			_fire_triggers.remove_at(i)
-			removed = true
-			break
-	if not removed:
-		_fire_triggers.append(t)
-		_fire_triggers.sort()
+			return
+	_fire_triggers.append(t)
+	_fire_triggers.sort()
 	triggers_changed.emit(_fire_triggers.duplicate())
 	queue_redraw()
 
 
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed:
+				_handle_left_down(mb.position)
+			else:
+				_handle_left_up(mb.position)
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
+			_handle_right_click(mb.position)
+
+	elif event is InputEventMouseMotion:
+		_handle_mouse_motion(event.position)
+
+	elif event is InputEventKey:
+		var key: InputEventKey = event
+		if key.pressed and not key.echo:
+			if key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE:
+				if _selected_idx >= 0 and _selected_idx < _fire_triggers.size():
+					_fire_triggers.remove_at(_selected_idx)
+					_selected_idx = -1
+					_marker_state = MarkerState.IDLE
+					triggers_changed.emit(_fire_triggers.duplicate())
+					queue_redraw()
+					accept_event()
+
+
+func _handle_left_down(pos: Vector2) -> void:
+	grab_focus()
+	var hit_idx: int = _find_nearest_trigger_px(pos)
+	if hit_idx >= 0:
+		# Near a marker — prepare for potential drag
+		_mouse_down = true
+		_drag_start_pos = pos
+		_drag_original_time = float(_fire_triggers[hit_idx])
+		_hovered_idx = hit_idx
+	else:
+		# Empty space — deselect and place new trigger
+		_selected_idx = -1
+		_marker_state = MarkerState.IDLE
+		_place_new_trigger(pos)
+
+
+func _handle_left_up(pos: Vector2) -> void:
+	if _marker_state == MarkerState.DRAGGING:
+		# Finalize drag: sort and re-find selected by time value
+		var dragged_time: float = float(_fire_triggers[_selected_idx])
+		_fire_triggers.sort()
+		# Find the index of the dragged trigger after sorting
+		_selected_idx = -1
+		for i in _fire_triggers.size():
+			if absf(float(_fire_triggers[i]) - dragged_time) < 0.0001:
+				_selected_idx = i
+				break
+		_marker_state = MarkerState.IDLE
+		_mouse_down = false
+		triggers_changed.emit(_fire_triggers.duplicate())
+		queue_redraw()
+	elif _mouse_down:
+		# Was a click (no drag) — select the marker
+		_selected_idx = _hovered_idx
+		_marker_state = MarkerState.IDLE
+		_mouse_down = false
+		queue_redraw()
+	else:
+		_mouse_down = false
+
+
+func _handle_mouse_motion(pos: Vector2) -> void:
+	_hovered_time = _pos_to_time(pos)
+
+	if _mouse_down and _marker_state != MarkerState.DRAGGING:
+		# Check if we should start dragging
+		if pos.distance_to(_drag_start_pos) > DRAG_THRESHOLD_PX:
+			_marker_state = MarkerState.DRAGGING
+			_selected_idx = _hovered_idx
+			queue_redraw()
+			return
+
+	if _marker_state == MarkerState.DRAGGING:
+		# Update trigger position during drag
+		if _selected_idx >= 0 and _selected_idx < _fire_triggers.size():
+			var new_time: float = _snap_time(_pos_to_time(pos))
+			_fire_triggers[_selected_idx] = new_time
+			queue_redraw()
+		return
+
+	# Not dragging — update hover state
+	_hovered_idx = _find_nearest_trigger_px(pos)
+	if _hovered_idx >= 0:
+		_marker_state = MarkerState.HOVERING
+	elif not _mouse_down:
+		_marker_state = MarkerState.IDLE
+	queue_redraw()
+
+
 func _handle_right_click(pos: Vector2) -> void:
-	# Remove nearest trigger
-	var t: float = _pos_to_time(pos)
-	var snap_threshold: float = _get_snap_threshold() * 2.0
-	var best_idx: int = -1
-	var best_dist: float = snap_threshold
-	for i in _fire_triggers.size():
-		var dist: float = absf(float(_fire_triggers[i]) - t)
-		if dist < best_dist:
-			best_dist = dist
-			best_idx = i
-	if best_idx >= 0:
-		_fire_triggers.remove_at(best_idx)
+	# Remove nearest trigger within hit range
+	var hit_idx: int = _find_nearest_trigger_px(pos)
+	if hit_idx >= 0:
+		# Clear selection if deleting the selected marker
+		if hit_idx == _selected_idx:
+			_selected_idx = -1
+		elif _selected_idx > hit_idx:
+			_selected_idx -= 1
+		_fire_triggers.remove_at(hit_idx)
+		_hovered_idx = -1
+		_marker_state = MarkerState.IDLE
 		triggers_changed.emit(_fire_triggers.duplicate())
 		queue_redraw()
 
@@ -360,23 +471,43 @@ func _draw() -> void:
 	if _show_beat_grid:
 		_draw_beat_grid()
 
-	# Hover indicator
-	if _hovered_time >= 0.0:
+	# Hover indicator (hide during drag — the marker itself is feedback)
+	if _hovered_time >= 0.0 and _marker_state != MarkerState.DRAGGING:
 		var snapped: float = _snap_time(_hovered_time)
 		var hx: float = _time_to_x(snapped)
 		draw_line(Vector2(hx, 0), Vector2(hx, size.y), _hover_color, 2.0)
 
 	# Fire trigger markers
-	for trigger in _fire_triggers:
-		var tx: float = _time_to_x(float(trigger))
-		draw_line(Vector2(tx, 0), Vector2(tx, size.y), _trigger_color, 3.0)
+	for i in _fire_triggers.size():
+		var trigger_time: float = float(_fire_triggers[i])
+		var tx: float = _time_to_x(trigger_time)
+
+		# Determine color and style based on state
+		var color: Color = _trigger_color
+		var line_width: float = 3.0
+		var tri_size: float = 6.0
+
+		if i == _selected_idx:
+			color = _selected_color
+			line_width = 4.0
+			tri_size = 8.0
+		elif i == _hovered_idx and _marker_state == MarkerState.HOVERING:
+			color = _hovered_marker_color
+
+		# Vertical line
+		draw_line(Vector2(tx, 0), Vector2(tx, size.y), color, line_width)
+
 		# Triangle marker at top
 		var tri: PackedVector2Array = PackedVector2Array([
-			Vector2(tx - 6, 0),
-			Vector2(tx + 6, 0),
-			Vector2(tx, 10),
+			Vector2(tx - tri_size, 0),
+			Vector2(tx + tri_size, 0),
+			Vector2(tx, tri_size * 1.667),
 		])
-		draw_colored_polygon(tri, _trigger_color)
+		draw_colored_polygon(tri, color)
+
+		# Glow circle for selected marker
+		if i == _selected_idx:
+			draw_circle(Vector2(tx, tri_size * 1.667 + 4.0), 4.0, Color(_selected_color, 0.4))
 
 	# Playback cursor
 	if _show_cursor and _cursor_progress >= 0.0:
@@ -424,4 +555,13 @@ func _draw_waveform() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_MOUSE_EXIT:
 		_hovered_time = -1.0
+		_hovered_idx = -1
+		if _marker_state == MarkerState.DRAGGING:
+			# Cancel drag — restore original time
+			if _selected_idx >= 0 and _selected_idx < _fire_triggers.size():
+				_fire_triggers[_selected_idx] = _drag_original_time
+			_mouse_down = false
+			_marker_state = MarkerState.IDLE
+		elif _marker_state == MarkerState.HOVERING:
+			_marker_state = MarkerState.IDLE
 		queue_redraw()
