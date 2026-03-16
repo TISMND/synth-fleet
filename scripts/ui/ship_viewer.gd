@@ -86,7 +86,7 @@ func _process(delta: float) -> void:
 
 func _spawn_exhaust() -> void:
 	var ship_pos: Vector2 = _ship_draw.position
-	var s := 1.4
+	var s: float = _ShipDraw.get_ship_scale(_selected_ship)
 	var x_shift: float = _bank * 2.5 * s
 	var engines: Array[Vector2] = _ShipDraw.get_engine_offsets(_selected_ship)
 	for eng in engines:
@@ -200,14 +200,25 @@ class _ShipDraw extends Node2D:
 		col.a = clampf(col.a + bank * side * 0.06, 0.5, 1.0)
 		return col
 
+	static func get_ship_scale(id: int) -> float:
+		match id:
+			0: return 1.2
+			6: return 1.7
+			7: return 1.9
+			8: return 1.8
+		return 1.4
+
 	static func get_engine_offsets(id: int) -> Array[Vector2]:
 		match id:
-			0: return [Vector2(-8.0, 30.0), Vector2(0.0, 30.0), Vector2(8.0, 30.0)]
-			1: return [Vector2(0.0, 32.0)]
+			0: return [Vector2(-3.0, 18.0), Vector2(3.0, 18.0)]
+			1: return [Vector2(-5.0, 24.0), Vector2(5.0, 24.0)]
 			2: return [Vector2(-8.0, 20.0), Vector2(8.0, 20.0)]
-			3: return [Vector2(-14.0, 34.0), Vector2(-6.0, 34.0), Vector2(6.0, 34.0), Vector2(14.0, 34.0)]
+			3: return [Vector2(-5.0, 24.0), Vector2(5.0, 24.0)]
 			4: return [Vector2(-4.0, 24.0), Vector2(4.0, 24.0)]
 			5: return [Vector2(-13.0, 28.0), Vector2(0.0, 28.0), Vector2(13.0, 28.0)]
+			6: return [Vector2(-15.0, 36.0), Vector2(-9.0, 36.0), Vector2(-3.0, 36.0), Vector2(3.0, 36.0), Vector2(9.0, 36.0), Vector2(15.0, 36.0)]
+			7: return [Vector2(-14.0, 40.0), Vector2(-10.0, 40.0), Vector2(-6.0, 40.0), Vector2(-2.0, 40.0), Vector2(2.0, 40.0), Vector2(6.0, 40.0), Vector2(10.0, 40.0), Vector2(14.0, 40.0)]
+			8: return [Vector2(-12.0, 34.0), Vector2(-4.0, 34.0), Vector2(4.0, 34.0), Vector2(12.0, 34.0)]
 		return [Vector2(0.0, 30.0)]
 
 	# ── Dispatch helpers ──
@@ -242,17 +253,17 @@ class _ShipDraw extends Node2D:
 
 	func _draw() -> void:
 		match ship_id:
-			0: _draw_hammerhead()
-			1: _draw_needle()
+			0: _draw_switchblade()
+			1: _draw_phantom()
 			2: _draw_mantis()
-			3: _draw_bulwark()
+			3: _draw_corsair()
 			4: _draw_stiletto()
 			5: _draw_trident()
+			6: _draw_ironclad()
+			7: _draw_dreadnought()
+			8: _draw_bastion()
 
 	# ── Chrome drawing helpers ──
-
-	func _chrome_side_brightness(base_brightness: float, side: float) -> float:
-		return clampf(base_brightness + bank * side * 0.4, 0.08, 1.0)
 
 	func _draw_chrome_polygon(points: PackedVector2Array, tint_color: Color, bk: float) -> void:
 		if points.size() < 3:
@@ -418,117 +429,116 @@ class _ShipDraw extends Node2D:
 		# Bright rim on canopy edges
 		_draw_chrome_edges(points, bk)
 
-	# ── Ship 0: Hammerhead — wide hulking gunship ──
-	func _draw_hammerhead() -> void:
-		var s := 1.4
-		var ry: float = -bank * 1.5 * s
-		var ly: float = bank * 1.5 * s
+	# ── Ship 0: Switchblade — tiny aggressive interceptor ──
+	func _draw_switchblade() -> void:
+		var s := 1.2
+		var ry: float = -bank * 1.2 * s
+		var ly: float = bank * 1.2 * s
 
-		# Wide flat hull
+		# Compact wedge hull
 		var hull := PackedVector2Array([
-			_bp(0, -30, s, 0.08), _bp(14, -22, s, 0.08),
-			_bp(18, -5, s, 0.08), _bp(16, 20, s, 0.08),
-			_bp(10, 28, s, 0.08), _bp(-10, 28, s, 0.08),
-			_bp(-16, 20, s, 0.08), _bp(-18, -5, s, 0.08),
-			_bp(-14, -22, s, 0.08),
+			_bp(0, -32, s, 0.1), _bp(5, -22, s, 0.1),
+			_bp(8, -6, s, 0.12), _bp(10, 8, s, 0.12),
+			_bp(8, 20, s, 0.1), _bp(-8, 20, s, 0.1),
+			_bp(-10, 8, s, 0.12), _bp(-8, -6, s, 0.12),
+			_bp(-5, -22, s, 0.1),
 		])
-		_poly(hull, hull_color, 2.0 * s)
+		_poly(hull, hull_color, 1.8 * s)
 
-		# Right weapon pod
-		var rp := PackedVector2Array([
-			_bp(18, -8, s, 0.2) + Vector2(0, ry),
-			_bp(28, -4, s, 0.2) + Vector2(0, ry),
-			_bp(30, 8, s, 0.2) + Vector2(0, ry),
-			_bp(26, 14, s, 0.2) + Vector2(0, ry),
-			_bp(18, 10, s, 0.2) + Vector2(0, ry),
+		# Right swept-forward canard
+		var rc := PackedVector2Array([
+			_bp(8, -10, s, 0.22) + Vector2(0, ry),
+			_bp(20, -18, s, 0.22) + Vector2(0, ry),
+			_bp(18, -12, s, 0.22) + Vector2(0, ry),
+			_bp(8, -6, s, 0.22) + Vector2(0, ry * 0.5),
 		])
-		_poly(rp, _side_color(hull_color, 1.0), 1.5 * s)
-		# Left weapon pod
-		var lp := PackedVector2Array([
-			_bp(-18, -8, s, 0.2) + Vector2(0, ly),
-			_bp(-28, -4, s, 0.2) + Vector2(0, ly),
-			_bp(-30, 8, s, 0.2) + Vector2(0, ly),
-			_bp(-26, 14, s, 0.2) + Vector2(0, ly),
-			_bp(-18, 10, s, 0.2) + Vector2(0, ly),
+		_poly(rc, _side_color(detail_color, 1.0), 1.2 * s)
+		# Left swept-forward canard
+		var lc := PackedVector2Array([
+			_bp(-8, -10, s, 0.22) + Vector2(0, ly),
+			_bp(-20, -18, s, 0.22) + Vector2(0, ly),
+			_bp(-18, -12, s, 0.22) + Vector2(0, ly),
+			_bp(-8, -6, s, 0.22) + Vector2(0, ly * 0.5),
 		])
-		_poly(lp, _side_color(hull_color, -1.0), 1.5 * s)
+		_poly(lc, _side_color(detail_color, -1.0), 1.2 * s)
 
-		# Gun barrels
-		_line(_bp(24, -4, s, 0.2) + Vector2(0, ry), _bp(24, -14, s, 0.2) + Vector2(0, ry), accent_color, 1.2 * s)
-		_line(_bp(-24, -4, s, 0.2) + Vector2(0, ly), _bp(-24, -14, s, 0.2) + Vector2(0, ly), accent_color, 1.2 * s)
-
-		# Wide visor canopy
-		var cx: float = -bank * 1.5 * s
+		# Tiny triangular canopy
+		var cx: float = -bank * 1.0 * s
 		var can := PackedVector2Array([
-			_bp(-8, -18, s, 0.05) + Vector2(cx, 0),
-			_bp(8, -18, s, 0.05) + Vector2(cx, 0),
-			_bp(6, -10, s, 0.05) + Vector2(cx, 0),
-			_bp(-6, -10, s, 0.05) + Vector2(cx, 0),
+			_bp(0, -26, s, 0.05) + Vector2(cx, 0),
+			_bp(3, -16, s, 0.05) + Vector2(cx, 0),
+			_bp(-3, -16, s, 0.05) + Vector2(cx, 0),
 		])
 		_canopy(can)
-
-		# Armor plate detail lines
-		_line(_bp(-14, -2, s, 0.08), _bp(14, -2, s, 0.08), detail_color, 0.8 * s)
-		_line(_bp(-14, 12, s, 0.08), _bp(14, 12, s, 0.08), detail_color, 0.8 * s)
-
-		# Triple engines
-		_exhaust_line(_bp(-8, 26, s, 0.12), _bp(-8, 33, s, 0.12), 3.0 * s)
-		_exhaust_line(_bp(0, 26, s, 0.12), _bp(0, 33, s, 0.12), 3.0 * s)
-		_exhaust_line(_bp(8, 26, s, 0.12), _bp(8, 33, s, 0.12), 3.0 * s)
-
-	# ── Ship 1: Needle — sleek wingless dart ──
-	func _draw_needle() -> void:
-		var s := 1.4
-
-		# Long thin body
-		var hull := PackedVector2Array([
-			_bp(0, -42, s, 0.08), _bp(4, -28, s, 0.08),
-			_bp(7, -8, s, 0.08), _bp(7, 18, s, 0.08),
-			_bp(5, 30, s, 0.08), _bp(-5, 30, s, 0.08),
-			_bp(-7, 18, s, 0.08), _bp(-7, -8, s, 0.08),
-			_bp(-4, -28, s, 0.08),
-		])
-		_poly(hull, hull_color, 2.0 * s)
-
-		# Right rear stabilizer fin
-		var ry: float = -bank * 1.0 * s
-		var ly: float = bank * 1.0 * s
-		var rf := PackedVector2Array([
-			_bp(7, 18, s, 0.2) + Vector2(0, ry),
-			_bp(16, 24, s, 0.2) + Vector2(0, ry),
-			_bp(14, 30, s, 0.2) + Vector2(0, ry),
-			_bp(7, 26, s, 0.2) + Vector2(0, ry),
-		])
-		_poly(rf, _side_color(detail_color, 1.0), 1.5 * s)
-		# Left rear stabilizer fin
-		var lf := PackedVector2Array([
-			_bp(-7, 18, s, 0.2) + Vector2(0, ly),
-			_bp(-16, 24, s, 0.2) + Vector2(0, ly),
-			_bp(-14, 30, s, 0.2) + Vector2(0, ly),
-			_bp(-7, 26, s, 0.2) + Vector2(0, ly),
-		])
-		_poly(lf, _side_color(detail_color, -1.0), 1.5 * s)
 
 		# Spine accent
-		_line(_bp(0, -38, s, 0.08), _bp(0, 28, s, 0.08), accent_color, 1.2 * s)
+		_line(_bp(0, -14, s, 0.1), _bp(0, 16, s, 0.1), accent_color, 1.0 * s)
 
-		# Long narrow canopy
-		var cx: float = -bank * 1.5 * s
+		# Side panel lines
+		_line(_bp(6, -18, s, 0.1), _bp(8, 12, s, 0.1), detail_color, 0.6 * s)
+		_line(_bp(-6, -18, s, 0.1), _bp(-8, 12, s, 0.1), detail_color, 0.6 * s)
+
+		# Twin close engines
+		_exhaust_line(_bp(-3, 18, s, 0.08), _bp(-3, 25, s, 0.08), 2.5 * s)
+		_exhaust_line(_bp(3, 18, s, 0.08), _bp(3, 25, s, 0.08), 2.5 * s)
+
+	# ── Ship 1: Phantom — smooth curved stealth fighter ──
+	func _draw_phantom() -> void:
+		var s := 1.4
+		var ry: float = -bank * 1.0 * s
+		var ly: float = bank * 1.0 * s
+
+		# Smooth teardrop hull (many vertices for curves)
+		var hull := PackedVector2Array([
+			_bp(0, -36, s, 0.06), _bp(6, -28, s, 0.06),
+			_bp(10, -16, s, 0.08), _bp(14, -4, s, 0.08),
+			_bp(16, 8, s, 0.08), _bp(12, 20, s, 0.08),
+			_bp(6, 26, s, 0.06), _bp(-6, 26, s, 0.06),
+			_bp(-12, 20, s, 0.08), _bp(-16, 8, s, 0.08),
+			_bp(-14, -4, s, 0.08), _bp(-10, -16, s, 0.08),
+			_bp(-6, -28, s, 0.06),
+		])
+		_poly(hull, hull_color, 2.0 * s)
+
+		# Subtle blended wing stubs
+		var rw := PackedVector2Array([
+			_bp(14, -2, s, 0.18) + Vector2(0, ry * 0.4),
+			_bp(22, 4, s, 0.18) + Vector2(0, ry),
+			_bp(20, 10, s, 0.18) + Vector2(0, ry),
+			_bp(14, 8, s, 0.18) + Vector2(0, ry * 0.4),
+		])
+		_poly(rw, _side_color(hull_color, 1.0), 1.2 * s)
+		var lw := PackedVector2Array([
+			_bp(-14, -2, s, 0.18) + Vector2(0, ly * 0.4),
+			_bp(-22, 4, s, 0.18) + Vector2(0, ly),
+			_bp(-20, 10, s, 0.18) + Vector2(0, ly),
+			_bp(-14, 8, s, 0.18) + Vector2(0, ly * 0.4),
+		])
+		_poly(lw, _side_color(hull_color, -1.0), 1.2 * s)
+
+		# Recessed elongated canopy
+		var cx: float = -bank * 1.2 * s
 		var can := PackedVector2Array([
-			_bp(0, -36, s, 0.05) + Vector2(cx, 0),
-			_bp(3, -20, s, 0.05) + Vector2(cx, 0),
-			_bp(2, -8, s, 0.05) + Vector2(cx, 0),
-			_bp(-2, -8, s, 0.05) + Vector2(cx, 0),
-			_bp(-3, -20, s, 0.05) + Vector2(cx, 0),
+			_bp(0, -30, s, 0.04) + Vector2(cx, 0),
+			_bp(4, -18, s, 0.04) + Vector2(cx, 0),
+			_bp(3, -8, s, 0.04) + Vector2(cx, 0),
+			_bp(-3, -8, s, 0.04) + Vector2(cx, 0),
+			_bp(-4, -18, s, 0.04) + Vector2(cx, 0),
 		])
 		_canopy(can)
 
-		# Side detail lines
-		_line(_bp(5, -20, s, 0.08), _bp(6, 10, s, 0.08), detail_color, 0.8 * s)
-		_line(_bp(-5, -20, s, 0.08), _bp(-6, 10, s, 0.08), detail_color, 0.8 * s)
+		# Flowing contour lines
+		_line(_bp(8, -22, s, 0.06), _bp(14, 2, s, 0.08), detail_color, 0.7 * s)
+		_line(_bp(-8, -22, s, 0.06), _bp(-14, 2, s, 0.08), detail_color, 0.7 * s)
+		_line(_bp(12, 10, s, 0.08), _bp(6, 22, s, 0.06), detail_color, 0.7 * s)
+		_line(_bp(-12, 10, s, 0.08), _bp(-6, 22, s, 0.06), detail_color, 0.7 * s)
 
-		# Single large engine
-		_exhaust_line(_bp(0, 28, s, 0.08), _bp(0, 38, s, 0.08), 4.0 * s)
+		# Spine accent
+		_line(_bp(0, -6, s, 0.06), _bp(0, 22, s, 0.06), accent_color, 1.0 * s)
+
+		# Twin buried engines
+		_exhaust_line(_bp(-5, 24, s, 0.06), _bp(-5, 32, s, 0.06), 3.0 * s)
+		_exhaust_line(_bp(5, 24, s, 0.06), _bp(5, 32, s, 0.06), 3.0 * s)
 
 	# ── Ship 2: Mantis — flying wing ──
 	func _draw_mantis() -> void:
@@ -586,51 +596,67 @@ class _ShipDraw extends Node2D:
 		_exhaust_line(_bp(8, 16, s, 0.1), _bp(8, 24, s, 0.1), 2.5 * s)
 		_exhaust_line(_bp(-8, 16, s, 0.1), _bp(-8, 24, s, 0.1), 2.5 * s)
 
-	# ── Ship 3: Bulwark — heavy armored carrier ──
-	func _draw_bulwark() -> void:
+	# ── Ship 3: Corsair — asymmetric fighter ──
+	func _draw_corsair() -> void:
 		var s := 1.4
+		var ry: float = -bank * 1.4 * s
+		var ly: float = bank * 1.4 * s
 
-		# Big blocky hull
+		# Main fuselage (slightly offset)
 		var hull := PackedVector2Array([
-			_bp(-5, -38, s, 0.06), _bp(5, -38, s, 0.06),
-			_bp(18, -28, s, 0.06), _bp(22, -12, s, 0.06),
-			_bp(22, 24, s, 0.06), _bp(18, 34, s, 0.06),
-			_bp(-18, 34, s, 0.06), _bp(-22, 24, s, 0.06),
-			_bp(-22, -12, s, 0.06), _bp(-18, -28, s, 0.06),
+			_bp(-2, -34, s, 0.08), _bp(6, -24, s, 0.08),
+			_bp(8, -8, s, 0.1), _bp(8, 16, s, 0.1),
+			_bp(6, 26, s, 0.08), _bp(-6, 26, s, 0.08),
+			_bp(-8, 16, s, 0.1), _bp(-10, -8, s, 0.1),
+			_bp(-8, -24, s, 0.08),
 		])
 		_poly(hull, hull_color, 2.0 * s)
 
-		# Armor plate lines
-		_line(_bp(-20, -8, s, 0.06), _bp(20, -8, s, 0.06), detail_color, 0.8 * s)
-		_line(_bp(-20, 8, s, 0.06), _bp(20, 8, s, 0.06), detail_color, 0.8 * s)
-		_line(_bp(-18, 22, s, 0.06), _bp(18, 22, s, 0.06), detail_color, 0.8 * s)
+		# Long right swept wing
+		var rw := PackedVector2Array([
+			_bp(8, -4, s, 0.22) + Vector2(0, ry * 0.3),
+			_bp(26, 0, s, 0.22) + Vector2(0, ry),
+			_bp(30, 10, s, 0.22) + Vector2(0, ry),
+			_bp(24, 14, s, 0.22) + Vector2(0, ry),
+			_bp(8, 8, s, 0.22) + Vector2(0, ry * 0.3),
+		])
+		_poly(rw, _side_color(hull_color, 1.0), 1.5 * s)
 
-		# Side turret bumps
-		var ry: float = -bank * 1.0 * s
-		var ly: float = bank * 1.0 * s
-		_line(_bp(22, -2, s, 0.12) + Vector2(0, ry), _bp(28, -2, s, 0.12) + Vector2(0, ry), accent_color, 1.5 * s)
-		_line(_bp(22, 4, s, 0.12) + Vector2(0, ry), _bp(28, 4, s, 0.12) + Vector2(0, ry), accent_color, 1.5 * s)
-		_line(_bp(-22, -2, s, 0.12) + Vector2(0, ly), _bp(-28, -2, s, 0.12) + Vector2(0, ly), accent_color, 1.5 * s)
-		_line(_bp(-22, 4, s, 0.12) + Vector2(0, ly), _bp(-28, 4, s, 0.12) + Vector2(0, ly), accent_color, 1.5 * s)
+		# Short armored left stub
+		var ls := PackedVector2Array([
+			_bp(-10, -4, s, 0.18) + Vector2(0, ly * 0.3),
+			_bp(-18, 0, s, 0.18) + Vector2(0, ly),
+			_bp(-16, 8, s, 0.18) + Vector2(0, ly),
+			_bp(-10, 6, s, 0.18) + Vector2(0, ly * 0.3),
+		])
+		_poly(ls, _side_color(detail_color, -1.0), 1.5 * s)
 
-		# Bridge canopy — wide rectangular
-		var cx: float = -bank * 1.5 * s
+		# Gun barrel on right wing
+		_line(_bp(24, -2, s, 0.22) + Vector2(0, ry), _bp(24, -12, s, 0.22) + Vector2(0, ry), accent_color, 1.2 * s)
+
+		# Armor plate on left stub
+		_line(_bp(-12, 0, s, 0.18) + Vector2(0, ly * 0.6), _bp(-16, 4, s, 0.18) + Vector2(0, ly), accent_color, 1.0 * s)
+
+		# Offset canopy
+		var cx: float = -bank * 1.2 * s
 		var can := PackedVector2Array([
-			_bp(-8, -32, s, 0.04) + Vector2(cx, 0),
-			_bp(8, -32, s, 0.04) + Vector2(cx, 0),
-			_bp(10, -20, s, 0.04) + Vector2(cx, 0),
-			_bp(-10, -20, s, 0.04) + Vector2(cx, 0),
+			_bp(-1, -28, s, 0.04) + Vector2(cx, 0),
+			_bp(4, -16, s, 0.04) + Vector2(cx, 0),
+			_bp(2, -8, s, 0.04) + Vector2(cx, 0),
+			_bp(-4, -8, s, 0.04) + Vector2(cx, 0),
+			_bp(-5, -16, s, 0.04) + Vector2(cx, 0),
 		])
 		_canopy(can)
 
-		# Spine accent
-		_line(_bp(0, -18, s, 0.06), _bp(0, 30, s, 0.06), accent_color, 1.0 * s)
+		# Wing edge accent
+		_line(_bp(12, -2, s, 0.22) + Vector2(0, ry * 0.5), _bp(26, 6, s, 0.22) + Vector2(0, ry), detail_color, 0.7 * s)
 
-		# Four engines
-		_exhaust_line(_bp(-14, 32, s, 0.1), _bp(-14, 40, s, 0.1), 2.5 * s)
-		_exhaust_line(_bp(-6, 32, s, 0.1), _bp(-6, 40, s, 0.1), 2.5 * s)
-		_exhaust_line(_bp(6, 32, s, 0.1), _bp(6, 40, s, 0.1), 2.5 * s)
-		_exhaust_line(_bp(14, 32, s, 0.1), _bp(14, 40, s, 0.1), 2.5 * s)
+		# Spine
+		_line(_bp(0, -6, s, 0.08), _bp(0, 22, s, 0.08), accent_color, 1.0 * s)
+
+		# Twin engines
+		_exhaust_line(_bp(-5, 24, s, 0.08), _bp(-5, 32, s, 0.08), 2.8 * s)
+		_exhaust_line(_bp(5, 24, s, 0.08), _bp(5, 32, s, 0.08), 2.8 * s)
 
 	# ── Ship 4: Stiletto — angular stealth ──
 	func _draw_stiletto() -> void:
@@ -751,6 +777,254 @@ class _ShipDraw extends Node2D:
 			_bp(-15, 35, s, 0.18) + Vector2(0, ly * 0.5),
 			2.5 * s)
 
+	# ── Ship 6: Ironclad — blocky barrel cruiser ──
+	func _draw_ironclad() -> void:
+		var s := 1.7
+		var ry: float = -bank * 1.0 * s
+		var ly: float = bank * 1.0 * s
+
+		# Wide barrel hull
+		var hull := PackedVector2Array([
+			_bp(-6, -42, s, 0.05), _bp(6, -42, s, 0.05),
+			_bp(20, -34, s, 0.05), _bp(24, -18, s, 0.05),
+			_bp(24, 20, s, 0.05), _bp(22, 32, s, 0.05),
+			_bp(18, 38, s, 0.05), _bp(-18, 38, s, 0.05),
+			_bp(-22, 32, s, 0.05), _bp(-24, 20, s, 0.05),
+			_bp(-24, -18, s, 0.05), _bp(-20, -34, s, 0.05),
+		])
+		_poly(hull, hull_color, 2.2 * s)
+
+		# Right turret bump upper
+		var rtu := PackedVector2Array([
+			_bp(24, -10, s, 0.1) + Vector2(0, ry * 0.3),
+			_bp(30, -8, s, 0.1) + Vector2(0, ry * 0.5),
+			_bp(30, -2, s, 0.1) + Vector2(0, ry * 0.5),
+			_bp(24, 0, s, 0.1) + Vector2(0, ry * 0.3),
+		])
+		_poly(rtu, _side_color(accent_color, 1.0), 1.2 * s)
+		# Right turret bump lower
+		var rtl := PackedVector2Array([
+			_bp(24, 10, s, 0.1) + Vector2(0, ry * 0.3),
+			_bp(30, 12, s, 0.1) + Vector2(0, ry * 0.5),
+			_bp(30, 18, s, 0.1) + Vector2(0, ry * 0.5),
+			_bp(24, 20, s, 0.1) + Vector2(0, ry * 0.3),
+		])
+		_poly(rtl, _side_color(accent_color, 1.0), 1.2 * s)
+		# Left turret bumps
+		var ltu := PackedVector2Array([
+			_bp(-24, -10, s, 0.1) + Vector2(0, ly * 0.3),
+			_bp(-30, -8, s, 0.1) + Vector2(0, ly * 0.5),
+			_bp(-30, -2, s, 0.1) + Vector2(0, ly * 0.5),
+			_bp(-24, 0, s, 0.1) + Vector2(0, ly * 0.3),
+		])
+		_poly(ltu, _side_color(accent_color, -1.0), 1.2 * s)
+		var ltl := PackedVector2Array([
+			_bp(-24, 10, s, 0.1) + Vector2(0, ly * 0.3),
+			_bp(-30, 12, s, 0.1) + Vector2(0, ly * 0.5),
+			_bp(-30, 18, s, 0.1) + Vector2(0, ly * 0.5),
+			_bp(-24, 20, s, 0.1) + Vector2(0, ly * 0.3),
+		])
+		_poly(ltl, _side_color(accent_color, -1.0), 1.2 * s)
+
+		# Turret gun barrels
+		_line(_bp(28, -10, s, 0.1) + Vector2(0, ry * 0.5), _bp(28, -18, s, 0.1) + Vector2(0, ry * 0.5), accent_color, 1.0 * s)
+		_line(_bp(28, 10, s, 0.1) + Vector2(0, ry * 0.5), _bp(28, 4, s, 0.1) + Vector2(0, ry * 0.5), accent_color, 1.0 * s)
+		_line(_bp(-28, -10, s, 0.1) + Vector2(0, ly * 0.5), _bp(-28, -18, s, 0.1) + Vector2(0, ly * 0.5), accent_color, 1.0 * s)
+		_line(_bp(-28, 10, s, 0.1) + Vector2(0, ly * 0.5), _bp(-28, 4, s, 0.1) + Vector2(0, ly * 0.5), accent_color, 1.0 * s)
+
+		# Heavy armor plate lines
+		_line(_bp(-22, -12, s, 0.05), _bp(22, -12, s, 0.05), detail_color, 0.8 * s)
+		_line(_bp(-22, 4, s, 0.05), _bp(22, 4, s, 0.05), detail_color, 0.8 * s)
+		_line(_bp(-22, 20, s, 0.05), _bp(22, 20, s, 0.05), detail_color, 0.8 * s)
+		_line(_bp(-20, 30, s, 0.05), _bp(20, 30, s, 0.05), detail_color, 0.8 * s)
+
+		# Wide bridge canopy
+		var cx: float = -bank * 1.5 * s
+		var can := PackedVector2Array([
+			_bp(-10, -36, s, 0.03) + Vector2(cx, 0),
+			_bp(10, -36, s, 0.03) + Vector2(cx, 0),
+			_bp(12, -26, s, 0.03) + Vector2(cx, 0),
+			_bp(-12, -26, s, 0.03) + Vector2(cx, 0),
+		])
+		_canopy(can)
+
+		# Spine accent
+		_line(_bp(0, -24, s, 0.05), _bp(0, 34, s, 0.05), accent_color, 1.0 * s)
+
+		# Six engines
+		_exhaust_line(_bp(-15, 36, s, 0.06), _bp(-15, 44, s, 0.06), 2.2 * s)
+		_exhaust_line(_bp(-9, 36, s, 0.06), _bp(-9, 44, s, 0.06), 2.2 * s)
+		_exhaust_line(_bp(-3, 36, s, 0.06), _bp(-3, 44, s, 0.06), 2.2 * s)
+		_exhaust_line(_bp(3, 36, s, 0.06), _bp(3, 44, s, 0.06), 2.2 * s)
+		_exhaust_line(_bp(9, 36, s, 0.06), _bp(9, 44, s, 0.06), 2.2 * s)
+		_exhaust_line(_bp(15, 36, s, 0.06), _bp(15, 44, s, 0.06), 2.2 * s)
+
+	# ── Ship 7: Dreadnought — massive capital ship ──
+	func _draw_dreadnought() -> void:
+		var s := 1.9
+		var ry: float = -bank * 0.8 * s
+		var ly: float = bank * 0.8 * s
+
+		# Elongated rectangular hull
+		var hull := PackedVector2Array([
+			_bp(-4, -48, s, 0.04), _bp(4, -48, s, 0.04),
+			_bp(16, -40, s, 0.04), _bp(20, -26, s, 0.04),
+			_bp(20, 26, s, 0.04), _bp(18, 36, s, 0.04),
+			_bp(16, 42, s, 0.04), _bp(-16, 42, s, 0.04),
+			_bp(-18, 36, s, 0.04), _bp(-20, 26, s, 0.04),
+			_bp(-20, -26, s, 0.04), _bp(-16, -40, s, 0.04),
+		])
+		_poly(hull, hull_color, 2.4 * s)
+
+		# Right hangar bay (recessed panel)
+		var rhb := PackedVector2Array([
+			_bp(20, -8, s, 0.08) + Vector2(0, ry * 0.2),
+			_bp(26, -6, s, 0.08) + Vector2(0, ry * 0.4),
+			_bp(26, 8, s, 0.08) + Vector2(0, ry * 0.4),
+			_bp(20, 10, s, 0.08) + Vector2(0, ry * 0.2),
+		])
+		_poly(rhb, _side_color(detail_color, 1.0), 1.0 * s)
+		# Left hangar bay
+		var lhb := PackedVector2Array([
+			_bp(-20, -8, s, 0.08) + Vector2(0, ly * 0.2),
+			_bp(-26, -6, s, 0.08) + Vector2(0, ly * 0.4),
+			_bp(-26, 8, s, 0.08) + Vector2(0, ly * 0.4),
+			_bp(-20, 10, s, 0.08) + Vector2(0, ly * 0.2),
+		])
+		_poly(lhb, _side_color(detail_color, -1.0), 1.0 * s)
+
+		# Triple turret bumps per side (small lines)
+		_line(_bp(20, -22, s, 0.06) + Vector2(0, ry * 0.2), _bp(26, -22, s, 0.06) + Vector2(0, ry * 0.3), accent_color, 1.0 * s)
+		_line(_bp(20, -16, s, 0.06) + Vector2(0, ry * 0.2), _bp(26, -16, s, 0.06) + Vector2(0, ry * 0.3), accent_color, 1.0 * s)
+		_line(_bp(20, 18, s, 0.06) + Vector2(0, ry * 0.2), _bp(26, 18, s, 0.06) + Vector2(0, ry * 0.3), accent_color, 1.0 * s)
+		_line(_bp(-20, -22, s, 0.06) + Vector2(0, ly * 0.2), _bp(-26, -22, s, 0.06) + Vector2(0, ly * 0.3), accent_color, 1.0 * s)
+		_line(_bp(-20, -16, s, 0.06) + Vector2(0, ly * 0.2), _bp(-26, -16, s, 0.06) + Vector2(0, ly * 0.3), accent_color, 1.0 * s)
+		_line(_bp(-20, 18, s, 0.06) + Vector2(0, ly * 0.2), _bp(-26, 18, s, 0.06) + Vector2(0, ly * 0.3), accent_color, 1.0 * s)
+
+		# Many armor plate lines
+		_line(_bp(-18, -20, s, 0.04), _bp(18, -20, s, 0.04), detail_color, 0.7 * s)
+		_line(_bp(-18, -10, s, 0.04), _bp(18, -10, s, 0.04), detail_color, 0.7 * s)
+		_line(_bp(-18, 0, s, 0.04), _bp(18, 0, s, 0.04), detail_color, 0.7 * s)
+		_line(_bp(-18, 12, s, 0.04), _bp(18, 12, s, 0.04), detail_color, 0.7 * s)
+		_line(_bp(-18, 24, s, 0.04), _bp(18, 24, s, 0.04), detail_color, 0.7 * s)
+		_line(_bp(-16, 34, s, 0.04), _bp(16, 34, s, 0.04), detail_color, 0.7 * s)
+
+		# Command bridge canopy
+		var cx: float = -bank * 1.5 * s
+		var can := PackedVector2Array([
+			_bp(-8, -42, s, 0.02) + Vector2(cx, 0),
+			_bp(8, -42, s, 0.02) + Vector2(cx, 0),
+			_bp(10, -32, s, 0.02) + Vector2(cx, 0),
+			_bp(-10, -32, s, 0.02) + Vector2(cx, 0),
+		])
+		_canopy(can)
+
+		# Spine accent
+		_line(_bp(0, -30, s, 0.04), _bp(0, 38, s, 0.04), accent_color, 1.2 * s)
+
+		# Eight engines
+		_exhaust_line(_bp(-14, 40, s, 0.04), _bp(-14, 48, s, 0.04), 1.8 * s)
+		_exhaust_line(_bp(-10, 40, s, 0.04), _bp(-10, 48, s, 0.04), 1.8 * s)
+		_exhaust_line(_bp(-6, 40, s, 0.04), _bp(-6, 48, s, 0.04), 1.8 * s)
+		_exhaust_line(_bp(-2, 40, s, 0.04), _bp(-2, 48, s, 0.04), 1.8 * s)
+		_exhaust_line(_bp(2, 40, s, 0.04), _bp(2, 48, s, 0.04), 1.8 * s)
+		_exhaust_line(_bp(6, 40, s, 0.04), _bp(6, 48, s, 0.04), 1.8 * s)
+		_exhaust_line(_bp(10, 40, s, 0.04), _bp(10, 48, s, 0.04), 1.8 * s)
+		_exhaust_line(_bp(14, 40, s, 0.04), _bp(14, 48, s, 0.04), 1.8 * s)
+
+	# ── Ship 8: Bastion — octagonal fortress ──
+	func _draw_bastion() -> void:
+		var s := 1.8
+		var ry: float = -bank * 0.9 * s
+		var ly: float = bank * 0.9 * s
+
+		# Octagonal hull
+		var hull := PackedVector2Array([
+			_bp(-8, -38, s, 0.04), _bp(8, -38, s, 0.04),
+			_bp(22, -26, s, 0.05), _bp(28, -8, s, 0.05),
+			_bp(28, 12, s, 0.05), _bp(22, 28, s, 0.05),
+			_bp(8, 36, s, 0.04), _bp(-8, 36, s, 0.04),
+			_bp(-22, 28, s, 0.05), _bp(-28, 12, s, 0.05),
+			_bp(-28, -8, s, 0.05), _bp(-22, -26, s, 0.05),
+		])
+		_poly(hull, hull_color, 2.2 * s)
+
+		# Forward shield plate
+		var shield := PackedVector2Array([
+			_bp(-6, -42, s, 0.04),
+			_bp(6, -42, s, 0.04),
+			_bp(8, -38, s, 0.04),
+			_bp(-8, -38, s, 0.04),
+		])
+		_poly(shield, accent_color, 1.5 * s)
+
+		# Corner turret mounts (4 diagonal)
+		# Upper-right
+		var tr_ur := PackedVector2Array([
+			_bp(22, -26, s, 0.08) + Vector2(0, ry * 0.3),
+			_bp(30, -30, s, 0.08) + Vector2(0, ry * 0.5),
+			_bp(32, -24, s, 0.08) + Vector2(0, ry * 0.5),
+			_bp(26, -22, s, 0.08) + Vector2(0, ry * 0.3),
+		])
+		_poly(tr_ur, _side_color(accent_color, 1.0), 1.0 * s)
+		# Lower-right
+		var tr_lr := PackedVector2Array([
+			_bp(22, 28, s, 0.08) + Vector2(0, ry * 0.3),
+			_bp(30, 32, s, 0.08) + Vector2(0, ry * 0.5),
+			_bp(32, 26, s, 0.08) + Vector2(0, ry * 0.5),
+			_bp(26, 24, s, 0.08) + Vector2(0, ry * 0.3),
+		])
+		_poly(tr_lr, _side_color(accent_color, 1.0), 1.0 * s)
+		# Upper-left
+		var tr_ul := PackedVector2Array([
+			_bp(-22, -26, s, 0.08) + Vector2(0, ly * 0.3),
+			_bp(-30, -30, s, 0.08) + Vector2(0, ly * 0.5),
+			_bp(-32, -24, s, 0.08) + Vector2(0, ly * 0.5),
+			_bp(-26, -22, s, 0.08) + Vector2(0, ly * 0.3),
+		])
+		_poly(tr_ul, _side_color(accent_color, -1.0), 1.0 * s)
+		# Lower-left
+		var tr_ll := PackedVector2Array([
+			_bp(-22, 28, s, 0.08) + Vector2(0, ly * 0.3),
+			_bp(-30, 32, s, 0.08) + Vector2(0, ly * 0.5),
+			_bp(-32, 26, s, 0.08) + Vector2(0, ly * 0.5),
+			_bp(-26, 24, s, 0.08) + Vector2(0, ly * 0.3),
+		])
+		_poly(tr_ll, _side_color(accent_color, -1.0), 1.0 * s)
+
+		# Turret gun barrels (diagonal)
+		_line(_bp(28, -30, s, 0.08) + Vector2(0, ry * 0.5), _bp(32, -38, s, 0.08) + Vector2(0, ry * 0.5), accent_color, 1.0 * s)
+		_line(_bp(28, 32, s, 0.08) + Vector2(0, ry * 0.5), _bp(32, 38, s, 0.08) + Vector2(0, ry * 0.5), accent_color, 1.0 * s)
+		_line(_bp(-28, -30, s, 0.08) + Vector2(0, ly * 0.5), _bp(-32, -38, s, 0.08) + Vector2(0, ly * 0.5), accent_color, 1.0 * s)
+		_line(_bp(-28, 32, s, 0.08) + Vector2(0, ly * 0.5), _bp(-32, 38, s, 0.08) + Vector2(0, ly * 0.5), accent_color, 1.0 * s)
+
+		# Heavy armor plate lines
+		_line(_bp(-26, -14, s, 0.05), _bp(26, -14, s, 0.05), detail_color, 0.9 * s)
+		_line(_bp(-28, 0, s, 0.05), _bp(28, 0, s, 0.05), detail_color, 0.9 * s)
+		_line(_bp(-26, 16, s, 0.05), _bp(26, 16, s, 0.05), detail_color, 0.9 * s)
+		# Diagonal armor braces
+		_line(_bp(-8, -38, s, 0.04), _bp(-22, -26, s, 0.05), detail_color, 0.7 * s)
+		_line(_bp(8, -38, s, 0.04), _bp(22, -26, s, 0.05), detail_color, 0.7 * s)
+
+		# Bridge canopy
+		var cx: float = -bank * 1.2 * s
+		var can := PackedVector2Array([
+			_bp(-8, -32, s, 0.03) + Vector2(cx, 0),
+			_bp(8, -32, s, 0.03) + Vector2(cx, 0),
+			_bp(10, -22, s, 0.03) + Vector2(cx, 0),
+			_bp(-10, -22, s, 0.03) + Vector2(cx, 0),
+		])
+		_canopy(can)
+
+		# Spine accent
+		_line(_bp(0, -20, s, 0.04), _bp(0, 32, s, 0.04), accent_color, 1.2 * s)
+
+		# Four heavy engines
+		_exhaust_line(_bp(-12, 34, s, 0.05), _bp(-12, 42, s, 0.05), 2.8 * s)
+		_exhaust_line(_bp(-4, 34, s, 0.05), _bp(-4, 42, s, 0.05), 2.8 * s)
+		_exhaust_line(_bp(4, 34, s, 0.05), _bp(4, 42, s, 0.05), 2.8 * s)
+		_exhaust_line(_bp(12, 34, s, 0.05), _bp(12, 42, s, 0.05), 2.8 * s)
+
 	# ── Neon drawing helpers ──
 
 	func _draw_neon_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
@@ -835,8 +1109,8 @@ class _ExhaustDraw extends Node2D:
 
 class _ShipSelector extends Node2D:
 	const BAR_HEIGHT := 110.0
-	const SLOT_WIDTH := 100.0
-	const SHIP_COUNT := 6
+	const SLOT_WIDTH := 80.0
+	const SHIP_COUNT := 9
 
 	var viewer: Control
 	var render_mode: int = _ShipDraw.RenderMode.NEON
@@ -880,12 +1154,15 @@ class _ShipSelector extends Node2D:
 
 			var origin := Vector2(cx, center_y)
 			match i:
-				0: _draw_hammerhead(origin)
-				1: _draw_needle(origin)
+				0: _draw_switchblade(origin)
+				1: _draw_phantom(origin)
 				2: _draw_mantis(origin)
-				3: _draw_bulwark(origin)
+				3: _draw_corsair(origin)
 				4: _draw_stiletto(origin)
 				5: _draw_trident(origin)
+				6: _draw_ironclad(origin)
+				7: _draw_dreadnought(origin)
+				8: _draw_bastion(origin)
 
 			var label_pos := Vector2(cx - 3, bar_y + BAR_HEIGHT - 10)
 			var label_col: Color = cyan if selected else Color(0.5, 0.5, 0.6)
@@ -969,6 +1246,9 @@ class _ShipSelector extends Node2D:
 			4: segs = [false, true, true, false, false, true, true]
 			5: segs = [true, false, true, true, false, true, true]
 			6: segs = [true, false, true, true, true, true, true]
+			7: segs = [true, true, true, false, false, false, false]
+			8: segs = [true, true, true, true, true, true, true]
+			9: segs = [true, true, true, true, false, true, true]
 		if segs.size() < 7:
 			return
 		if segs[0]: draw_line(p + Vector2(-sw, -h), p + Vector2(sw, -h), color, 1.0, true)
@@ -981,76 +1261,57 @@ class _ShipSelector extends Node2D:
 
 	# ── Mini ship thumbnails ──
 
-	func _draw_hammerhead(o: Vector2) -> void:
-		var s := 0.45
+	func _draw_switchblade(o: Vector2) -> void:
+		var s := 0.4
 		var hull := PackedVector2Array([
-			o + Vector2(0, -30) * s, o + Vector2(14, -22) * s,
-			o + Vector2(18, -5) * s, o + Vector2(16, 20) * s,
-			o + Vector2(10, 28) * s, o + Vector2(-10, 28) * s,
-			o + Vector2(-16, 20) * s, o + Vector2(-18, -5) * s,
-			o + Vector2(-14, -22) * s,
+			o + Vector2(0, -32) * s, o + Vector2(5, -22) * s,
+			o + Vector2(8, -6) * s, o + Vector2(10, 8) * s,
+			o + Vector2(8, 20) * s, o + Vector2(-8, 20) * s,
+			o + Vector2(-10, 8) * s, o + Vector2(-8, -6) * s,
+			o + Vector2(-5, -22) * s,
 		])
-		_mp(hull, cyan, 1.0)
-		var rp := PackedVector2Array([
-			o + Vector2(18, -8) * s, o + Vector2(28, -4) * s,
-			o + Vector2(30, 8) * s, o + Vector2(26, 14) * s,
-			o + Vector2(18, 10) * s,
+		_mp(hull, cyan, 0.8)
+		var rc := PackedVector2Array([
+			o + Vector2(8, -10) * s, o + Vector2(20, -18) * s,
+			o + Vector2(18, -12) * s, o + Vector2(8, -6) * s,
 		])
-		_mp(rp, cyan, 0.8)
-		var lp := PackedVector2Array([
-			o + Vector2(-18, -8) * s, o + Vector2(-28, -4) * s,
-			o + Vector2(-30, 8) * s, o + Vector2(-26, 14) * s,
-			o + Vector2(-18, 10) * s,
+		_mp(rc, teal, 0.6)
+		var lc := PackedVector2Array([
+			o + Vector2(-8, -10) * s, o + Vector2(-20, -18) * s,
+			o + Vector2(-18, -12) * s, o + Vector2(-8, -6) * s,
 		])
-		_mp(lp, cyan, 0.8)
-		_ml(o + Vector2(24, -4) * s, o + Vector2(24, -12) * s, magenta, 1.0)
-		_ml(o + Vector2(-24, -4) * s, o + Vector2(-24, -12) * s, magenta, 1.0)
-		var can := PackedVector2Array([
-			o + Vector2(-8, -18) * s, o + Vector2(8, -18) * s,
-			o + Vector2(6, -10) * s, o + Vector2(-6, -10) * s,
-		])
-		if render_mode == _ShipDraw.RenderMode.CHROME:
-			draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
-		else:
-			var cf := purple
-			cf.a = 0.25
-			draw_colored_polygon(can, cf)
-		_ml(o + Vector2(-8, 26) * s, o + Vector2(-8, 33) * s, orange, 1.5)
-		_ml(o + Vector2(0, 26) * s, o + Vector2(0, 33) * s, orange, 1.5)
-		_ml(o + Vector2(8, 26) * s, o + Vector2(8, 33) * s, orange, 1.5)
+		_mp(lc, teal, 0.6)
+		_ml(o + Vector2(0, -14) * s, o + Vector2(0, 16) * s, magenta, 0.6)
+		_ml(o + Vector2(-3, 18) * s, o + Vector2(-3, 25) * s, orange, 1.0)
+		_ml(o + Vector2(3, 18) * s, o + Vector2(3, 25) * s, orange, 1.0)
 
-	func _draw_needle(o: Vector2) -> void:
-		var s := 0.5
+	func _draw_phantom(o: Vector2) -> void:
+		var s := 0.42
 		var hull := PackedVector2Array([
-			o + Vector2(0, -38) * s, o + Vector2(4, -25) * s,
-			o + Vector2(6, -5) * s, o + Vector2(6, 20) * s,
-			o + Vector2(4, 30) * s, o + Vector2(-4, 30) * s,
-			o + Vector2(-6, 20) * s, o + Vector2(-6, -5) * s,
-			o + Vector2(-4, -25) * s,
+			o + Vector2(0, -36) * s, o + Vector2(6, -28) * s,
+			o + Vector2(10, -16) * s, o + Vector2(14, -4) * s,
+			o + Vector2(16, 8) * s, o + Vector2(12, 20) * s,
+			o + Vector2(6, 26) * s, o + Vector2(-6, 26) * s,
+			o + Vector2(-12, 20) * s, o + Vector2(-16, 8) * s,
+			o + Vector2(-14, -4) * s, o + Vector2(-10, -16) * s,
+			o + Vector2(-6, -28) * s,
 		])
-		_mp(hull, cyan, 1.0)
-		var rf := PackedVector2Array([
-			o + Vector2(6, 18) * s, o + Vector2(14, 24) * s,
-			o + Vector2(12, 28) * s, o + Vector2(6, 25) * s,
+		_mp(hull, cyan, 0.8)
+		var rw := PackedVector2Array([
+			o + Vector2(14, -2) * s, o + Vector2(22, 4) * s,
+			o + Vector2(20, 10) * s, o + Vector2(14, 8) * s,
 		])
-		_mp(rf, teal, 0.8)
-		var lf := PackedVector2Array([
-			o + Vector2(-6, 18) * s, o + Vector2(-14, 24) * s,
-			o + Vector2(-12, 28) * s, o + Vector2(-6, 25) * s,
+		_mp(rw, cyan, 0.6)
+		var lw := PackedVector2Array([
+			o + Vector2(-14, -2) * s, o + Vector2(-22, 4) * s,
+			o + Vector2(-20, 10) * s, o + Vector2(-14, 8) * s,
 		])
-		_mp(lf, teal, 0.8)
-		_ml(o + Vector2(0, -34) * s, o + Vector2(0, 28) * s, magenta, 0.8)
-		var can := PackedVector2Array([
-			o + Vector2(0, -32) * s, o + Vector2(3, -18) * s,
-			o + Vector2(2, -8) * s, o + Vector2(-2, -8) * s, o + Vector2(-3, -18) * s,
-		])
-		if render_mode == _ShipDraw.RenderMode.CHROME:
-			draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
-		else:
-			var cf := purple
-			cf.a = 0.25
-			draw_colored_polygon(can, cf)
-		_ml(o + Vector2(0, 28) * s, o + Vector2(0, 36) * s, orange, 2.5)
+		_mp(lw, cyan, 0.6)
+		_ml(o + Vector2(8, -22) * s, o + Vector2(14, 2) * s, teal, 0.5)
+		_ml(o + Vector2(-8, -22) * s, o + Vector2(-14, 2) * s, teal, 0.5)
+		_ml(o + Vector2(0, -6) * s, o + Vector2(0, 22) * s, magenta, 0.6)
+		_ml(o + Vector2(-5, 24) * s, o + Vector2(-5, 32) * s, orange, 1.2)
+		_ml(o + Vector2(5, 24) * s, o + Vector2(5, 32) * s, orange, 1.2)
 
 	func _draw_mantis(o: Vector2) -> void:
 		var s := 0.42
@@ -1079,35 +1340,33 @@ class _ShipSelector extends Node2D:
 		_ml(o + Vector2(12, -8) * s, o + Vector2(36, 8) * s, teal, 0.6)
 		_ml(o + Vector2(-12, -8) * s, o + Vector2(-36, 8) * s, teal, 0.6)
 
-	func _draw_bulwark(o: Vector2) -> void:
-		var s := 0.4
+	func _draw_corsair(o: Vector2) -> void:
+		var s := 0.42
 		var hull := PackedVector2Array([
-			o + Vector2(-4, -35) * s, o + Vector2(4, -35) * s,
-			o + Vector2(16, -25) * s, o + Vector2(20, -10) * s,
-			o + Vector2(20, 22) * s, o + Vector2(16, 32) * s,
-			o + Vector2(-16, 32) * s, o + Vector2(-20, 22) * s,
-			o + Vector2(-20, -10) * s, o + Vector2(-16, -25) * s,
+			o + Vector2(-2, -34) * s, o + Vector2(6, -24) * s,
+			o + Vector2(8, -8) * s, o + Vector2(8, 16) * s,
+			o + Vector2(6, 26) * s, o + Vector2(-6, 26) * s,
+			o + Vector2(-8, 16) * s, o + Vector2(-10, -8) * s,
+			o + Vector2(-8, -24) * s,
 		])
-		_mp(hull, cyan, 1.0)
-		_ml(o + Vector2(-18, -5) * s, o + Vector2(18, -5) * s, teal, 0.6)
-		_ml(o + Vector2(-18, 10) * s, o + Vector2(18, 10) * s, teal, 0.6)
-		_ml(o + Vector2(-16, 22) * s, o + Vector2(16, 22) * s, teal, 0.6)
-		var can := PackedVector2Array([
-			o + Vector2(-6, -28) * s, o + Vector2(6, -28) * s,
-			o + Vector2(8, -18) * s, o + Vector2(-8, -18) * s,
+		_mp(hull, cyan, 0.8)
+		# Long right wing
+		var rw := PackedVector2Array([
+			o + Vector2(8, -4) * s, o + Vector2(26, 0) * s,
+			o + Vector2(30, 10) * s, o + Vector2(24, 14) * s,
+			o + Vector2(8, 8) * s,
 		])
-		if render_mode == _ShipDraw.RenderMode.CHROME:
-			draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
-		else:
-			var cf := purple
-			cf.a = 0.25
-			draw_colored_polygon(can, cf)
-		_ml(o + Vector2(-14, 30) * s, o + Vector2(-14, 38) * s, orange, 1.3)
-		_ml(o + Vector2(-6, 30) * s, o + Vector2(-6, 38) * s, orange, 1.3)
-		_ml(o + Vector2(6, 30) * s, o + Vector2(6, 38) * s, orange, 1.3)
-		_ml(o + Vector2(14, 30) * s, o + Vector2(14, 38) * s, orange, 1.3)
-		_ml(o + Vector2(20, 0) * s, o + Vector2(26, 0) * s, magenta, 1.0)
-		_ml(o + Vector2(-20, 0) * s, o + Vector2(-26, 0) * s, magenta, 1.0)
+		_mp(rw, cyan, 0.7)
+		# Short left stub
+		var ls := PackedVector2Array([
+			o + Vector2(-10, -4) * s, o + Vector2(-18, 0) * s,
+			o + Vector2(-16, 8) * s, o + Vector2(-10, 6) * s,
+		])
+		_mp(ls, teal, 0.6)
+		_ml(o + Vector2(24, -2) * s, o + Vector2(24, -10) * s, magenta, 0.8)
+		_ml(o + Vector2(0, -6) * s, o + Vector2(0, 22) * s, magenta, 0.6)
+		_ml(o + Vector2(-5, 24) * s, o + Vector2(-5, 32) * s, orange, 1.2)
+		_ml(o + Vector2(5, 24) * s, o + Vector2(5, 32) * s, orange, 1.2)
 
 	func _draw_stiletto(o: Vector2) -> void:
 		var s := 0.5
@@ -1181,3 +1440,103 @@ class _ShipSelector extends Node2D:
 		_ml(o + Vector2(0, 24) * s, o + Vector2(0, 32) * s, orange, 1.5)
 		_ml(o + Vector2(13, 26) * s, o + Vector2(13, 33) * s, orange, 1.2)
 		_ml(o + Vector2(-13, 26) * s, o + Vector2(-13, 33) * s, orange, 1.2)
+
+	func _draw_ironclad(o: Vector2) -> void:
+		var s := 0.32
+		var hull := PackedVector2Array([
+			o + Vector2(-6, -42) * s, o + Vector2(6, -42) * s,
+			o + Vector2(20, -34) * s, o + Vector2(24, -18) * s,
+			o + Vector2(24, 20) * s, o + Vector2(22, 32) * s,
+			o + Vector2(18, 38) * s, o + Vector2(-18, 38) * s,
+			o + Vector2(-22, 32) * s, o + Vector2(-24, 20) * s,
+			o + Vector2(-24, -18) * s, o + Vector2(-20, -34) * s,
+		])
+		_mp(hull, cyan, 0.8)
+		# Turret bumps
+		_ml(o + Vector2(24, -6) * s, o + Vector2(30, -6) * s, magenta, 0.7)
+		_ml(o + Vector2(24, 14) * s, o + Vector2(30, 14) * s, magenta, 0.7)
+		_ml(o + Vector2(-24, -6) * s, o + Vector2(-30, -6) * s, magenta, 0.7)
+		_ml(o + Vector2(-24, 14) * s, o + Vector2(-30, 14) * s, magenta, 0.7)
+		# Armor lines
+		_ml(o + Vector2(-22, -12) * s, o + Vector2(22, -12) * s, teal, 0.4)
+		_ml(o + Vector2(-22, 4) * s, o + Vector2(22, 4) * s, teal, 0.4)
+		_ml(o + Vector2(-22, 20) * s, o + Vector2(22, 20) * s, teal, 0.4)
+		# Engines
+		_ml(o + Vector2(-15, 36) * s, o + Vector2(-15, 44) * s, orange, 0.8)
+		_ml(o + Vector2(-9, 36) * s, o + Vector2(-9, 44) * s, orange, 0.8)
+		_ml(o + Vector2(-3, 36) * s, o + Vector2(-3, 44) * s, orange, 0.8)
+		_ml(o + Vector2(3, 36) * s, o + Vector2(3, 44) * s, orange, 0.8)
+		_ml(o + Vector2(9, 36) * s, o + Vector2(9, 44) * s, orange, 0.8)
+		_ml(o + Vector2(15, 36) * s, o + Vector2(15, 44) * s, orange, 0.8)
+
+	func _draw_dreadnought(o: Vector2) -> void:
+		var s := 0.28
+		var hull := PackedVector2Array([
+			o + Vector2(-4, -48) * s, o + Vector2(4, -48) * s,
+			o + Vector2(16, -40) * s, o + Vector2(20, -26) * s,
+			o + Vector2(20, 26) * s, o + Vector2(18, 36) * s,
+			o + Vector2(16, 42) * s, o + Vector2(-16, 42) * s,
+			o + Vector2(-18, 36) * s, o + Vector2(-20, 26) * s,
+			o + Vector2(-20, -26) * s, o + Vector2(-16, -40) * s,
+		])
+		_mp(hull, cyan, 0.8)
+		# Hangar bays
+		var rhb := PackedVector2Array([
+			o + Vector2(20, -8) * s, o + Vector2(26, -6) * s,
+			o + Vector2(26, 8) * s, o + Vector2(20, 10) * s,
+		])
+		_mp(rhb, teal, 0.5)
+		var lhb := PackedVector2Array([
+			o + Vector2(-20, -8) * s, o + Vector2(-26, -6) * s,
+			o + Vector2(-26, 8) * s, o + Vector2(-20, 10) * s,
+		])
+		_mp(lhb, teal, 0.5)
+		# Turrets
+		_ml(o + Vector2(20, -22) * s, o + Vector2(26, -22) * s, magenta, 0.6)
+		_ml(o + Vector2(-20, -22) * s, o + Vector2(-26, -22) * s, magenta, 0.6)
+		_ml(o + Vector2(20, 18) * s, o + Vector2(26, 18) * s, magenta, 0.6)
+		_ml(o + Vector2(-20, 18) * s, o + Vector2(-26, 18) * s, magenta, 0.6)
+		# Armor lines
+		_ml(o + Vector2(-18, -10) * s, o + Vector2(18, -10) * s, teal, 0.3)
+		_ml(o + Vector2(-18, 0) * s, o + Vector2(18, 0) * s, teal, 0.3)
+		_ml(o + Vector2(-18, 12) * s, o + Vector2(18, 12) * s, teal, 0.3)
+		_ml(o + Vector2(0, -30) * s, o + Vector2(0, 38) * s, magenta, 0.5)
+		# Engines
+		_ml(o + Vector2(-12, 40) * s, o + Vector2(-12, 48) * s, orange, 0.6)
+		_ml(o + Vector2(-6, 40) * s, o + Vector2(-6, 48) * s, orange, 0.6)
+		_ml(o + Vector2(0, 40) * s, o + Vector2(0, 48) * s, orange, 0.6)
+		_ml(o + Vector2(6, 40) * s, o + Vector2(6, 48) * s, orange, 0.6)
+		_ml(o + Vector2(12, 40) * s, o + Vector2(12, 48) * s, orange, 0.6)
+
+	func _draw_bastion(o: Vector2) -> void:
+		var s := 0.30
+		var hull := PackedVector2Array([
+			o + Vector2(-8, -38) * s, o + Vector2(8, -38) * s,
+			o + Vector2(22, -26) * s, o + Vector2(28, -8) * s,
+			o + Vector2(28, 12) * s, o + Vector2(22, 28) * s,
+			o + Vector2(8, 36) * s, o + Vector2(-8, 36) * s,
+			o + Vector2(-22, 28) * s, o + Vector2(-28, 12) * s,
+			o + Vector2(-28, -8) * s, o + Vector2(-22, -26) * s,
+		])
+		_mp(hull, cyan, 0.8)
+		# Shield plate
+		var sp := PackedVector2Array([
+			o + Vector2(-6, -42) * s, o + Vector2(6, -42) * s,
+			o + Vector2(8, -38) * s, o + Vector2(-8, -38) * s,
+		])
+		_mp(sp, magenta, 0.6)
+		# Corner turrets
+		_ml(o + Vector2(22, -26) * s, o + Vector2(28, -32) * s, magenta, 0.7)
+		_ml(o + Vector2(-22, -26) * s, o + Vector2(-28, -32) * s, magenta, 0.7)
+		_ml(o + Vector2(22, 28) * s, o + Vector2(28, 34) * s, magenta, 0.7)
+		_ml(o + Vector2(-22, 28) * s, o + Vector2(-28, 34) * s, magenta, 0.7)
+		# Armor lines
+		_ml(o + Vector2(-26, -14) * s, o + Vector2(26, -14) * s, teal, 0.4)
+		_ml(o + Vector2(-28, 0) * s, o + Vector2(28, 0) * s, teal, 0.4)
+		_ml(o + Vector2(-26, 16) * s, o + Vector2(26, 16) * s, teal, 0.4)
+		_ml(o + Vector2(0, -20) * s, o + Vector2(0, 32) * s, magenta, 0.5)
+		# Engines
+		_ml(o + Vector2(-12, 34) * s, o + Vector2(-12, 42) * s, orange, 1.0)
+		_ml(o + Vector2(-4, 34) * s, o + Vector2(-4, 42) * s, orange, 1.0)
+		_ml(o + Vector2(4, 34) * s, o + Vector2(4, 42) * s, orange, 1.0)
+		_ml(o + Vector2(12, 34) * s, o + Vector2(12, 42) * s, orange, 1.0)
