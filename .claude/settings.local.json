@@ -23,7 +23,11 @@
       "WebFetch(domain:fonts.google.com)",
       "Bash(python3:*)",
       "Bash(wc:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(curl -sL \"https://fonts.google.com/download?family=Bungee\" -o /tmp/bungee.zip)",
+      "Bash(unzip -o /tmp/bungee.zip -d /tmp/bungee/)",
+      "Read(//tmp/**)",
+      "Bash(curl:*)"
     ]
   }
 }

@@ -21,7 +21,7 @@ func _apply_styles() -> void:
 	var header_font: Font = ThemeManager.get_font("font_header")
 	if header_font:
 		title.add_theme_font_override("font", header_font)
-	ThemeManager.apply_text_glow(title, "header")
+	ThemeManager.apply_header_chrome(title)
 
 
 func _setup_vhs_overlay() -> void:

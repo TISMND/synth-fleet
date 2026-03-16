@@ -1,5 +1,6 @@
 extends Control
 ## Visual showcase screen: a hand-drawn synthwave ship with neon glow.
+## Tab toggles between NEON and CHROME rendering modes.
 
 const MOVE_ACCEL := 1200.0
 const MOVE_DECEL := 800.0
@@ -19,6 +20,7 @@ var _vhs_overlay: ColorRect
 
 
 func _ready() -> void:
+	focus_mode = Control.FOCUS_NONE
 	ThemeManager.apply_grid_background($Background)
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
@@ -71,6 +73,7 @@ func _process(delta: float) -> void:
 	_bank = lerpf(_bank, target_bank, BANK_LERP * delta)
 	_ship_draw.bank = _bank
 	_ship_draw.ship_id = _selected_ship
+	_ship_draw._time += delta
 	_ship_draw.queue_redraw()
 
 	_exhaust_timer += delta
@@ -135,6 +138,19 @@ func _on_theme_changed() -> void:
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		var ke: InputEventKey = event as InputEventKey
+		if ke.pressed and not ke.echo and ke.keycode == KEY_TAB:
+			if _ship_draw.render_mode == _ShipDraw.RenderMode.NEON:
+				_ship_draw.render_mode = _ShipDraw.RenderMode.CHROME
+			else:
+				_ship_draw.render_mode = _ShipDraw.RenderMode.NEON
+			_ship_selector.render_mode = _ship_draw.render_mode
+			_ship_draw.queue_redraw()
+			_ship_selector.queue_redraw()
+			get_viewport().set_input_as_handled()
+
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("return_to_menu"):
 		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
@@ -154,6 +170,14 @@ func _input(event: InputEvent) -> void:
 # ── Ship Drawing (inner class) ───────────────────────────────
 
 class _ShipDraw extends Node2D:
+	enum RenderMode { NEON, CHROME }
+
+	const CHROME_DARK := Color(0.12, 0.13, 0.18)
+	const CHROME_MID := Color(0.35, 0.38, 0.45)
+	const CHROME_LIGHT := Color(0.65, 0.70, 0.80)
+	const CHROME_BRIGHT := Color(0.85, 0.88, 0.95)
+	const CHROME_SPEC := Color(1.0, 1.0, 1.0, 0.9)
+
 	var hull_color := Color(0.0, 0.9, 1.0)
 	var accent_color := Color(1.0, 0.2, 0.6)
 	var engine_color := Color(1.0, 0.5, 0.1)
@@ -161,6 +185,8 @@ class _ShipDraw extends Node2D:
 	var detail_color := Color(0.0, 1.0, 0.7)
 	var bank := 0.0
 	var ship_id := 0
+	var render_mode: int = RenderMode.NEON
+	var _time := 0.0
 
 	func _bx(x: float, s: float, intensity: float) -> float:
 		var sf: float = signf(x) if x != 0.0 else 0.0
@@ -184,6 +210,36 @@ class _ShipDraw extends Node2D:
 			5: return [Vector2(-13.0, 28.0), Vector2(0.0, 28.0), Vector2(13.0, 28.0)]
 		return [Vector2(0.0, 30.0)]
 
+	# ── Dispatch helpers ──
+
+	func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
+		if render_mode == RenderMode.CHROME:
+			_draw_chrome_polygon(points, color, bank)
+		else:
+			_draw_neon_polygon(points, color, width)
+
+	func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
+		if render_mode == RenderMode.CHROME:
+			_draw_chrome_line(a, b, color, width)
+		else:
+			_draw_neon_line(a, b, color, width)
+
+	func _canopy(points: PackedVector2Array) -> void:
+		if render_mode == RenderMode.CHROME:
+			_draw_chrome_canopy(points, bank)
+		else:
+			var cf := canopy_color
+			cf.a = 0.3
+			draw_colored_polygon(points, cf)
+			_draw_neon_lines(points, canopy_color, 1.2 * 1.4)
+
+	func _exhaust_line(a: Vector2, b: Vector2, width: float) -> void:
+		var exhaust := Color(1.0, 0.8, 0.3, 0.8)
+		if render_mode == RenderMode.CHROME:
+			_draw_chrome_line(a, b, exhaust, width)
+		else:
+			_draw_neon_line(a, b, exhaust, width)
+
 	func _draw() -> void:
 		match ship_id:
 			0: _draw_hammerhead()
@@ -192,6 +248,175 @@ class _ShipDraw extends Node2D:
 			3: _draw_bulwark()
 			4: _draw_stiletto()
 			5: _draw_trident()
+
+	# ── Chrome drawing helpers ──
+
+	func _chrome_side_brightness(base_brightness: float, side: float) -> float:
+		return clampf(base_brightness + bank * side * 0.4, 0.08, 1.0)
+
+	func _draw_chrome_polygon(points: PackedVector2Array, tint_color: Color, bk: float) -> void:
+		if points.size() < 3:
+			return
+		# Dark base fill
+		draw_colored_polygon(points, CHROME_DARK)
+
+		# Compute bounding box for horizontal gradient bands
+		var min_y := points[0].y
+		var max_y := points[0].y
+		var min_x := points[0].x
+		var max_x := points[0].x
+		for pt in points:
+			min_y = minf(min_y, pt.y)
+			max_y = maxf(max_y, pt.y)
+			min_x = minf(min_x, pt.x)
+			max_x = maxf(max_x, pt.x)
+		var height: float = max_y - min_y
+		var width: float = max_x - min_x
+		if height < 0.5 or width < 0.5:
+			return
+
+		# Horizontal gradient bands — bottom dark, top bright (overhead light)
+		var band_colors: Array[Color] = [
+			CHROME_DARK.lerp(CHROME_MID, 0.3),
+			CHROME_MID,
+			CHROME_LIGHT,
+			CHROME_BRIGHT,
+		]
+		var band_count: int = band_colors.size()
+		for i in range(band_count):
+			var t0: float = float(i) / float(band_count)
+			var t1: float = float(i + 1) / float(band_count)
+			var y0: float = max_y - t0 * height  # bottom to top
+			var y1: float = max_y - t1 * height
+			var band_rect := PackedVector2Array([
+				Vector2(min_x - 5.0, y0),
+				Vector2(max_x + 5.0, y0),
+				Vector2(max_x + 5.0, y1),
+				Vector2(min_x - 5.0, y1),
+			])
+			var clipped: Array = Geometry2D.intersect_polygons(points, band_rect)
+			for clip_idx in range(clipped.size()):
+				var clip_poly: PackedVector2Array = clipped[clip_idx]
+				if clip_poly.size() >= 3:
+					draw_colored_polygon(clip_poly, band_colors[i])
+
+		# Bank-reactive left/right shading — brighten facing side
+		var center_x: float = (min_x + max_x) * 0.5
+		var left_rect := PackedVector2Array([
+			Vector2(min_x - 5.0, min_y - 5.0),
+			Vector2(center_x, min_y - 5.0),
+			Vector2(center_x, max_y + 5.0),
+			Vector2(min_x - 5.0, max_y + 5.0),
+		])
+		var right_rect := PackedVector2Array([
+			Vector2(center_x, min_y - 5.0),
+			Vector2(max_x + 5.0, min_y - 5.0),
+			Vector2(max_x + 5.0, max_y + 5.0),
+			Vector2(center_x, max_y + 5.0),
+		])
+
+		# When banking right (bk < 0), left side faces us = brighter
+		var left_alpha: float = clampf(-bk * 0.15, -0.08, 0.15)
+		var right_alpha: float = clampf(bk * 0.15, -0.08, 0.15)
+		if left_alpha > 0.01:
+			var left_clips: Array = Geometry2D.intersect_polygons(points, left_rect)
+			for clip_idx in range(left_clips.size()):
+				var clip_poly: PackedVector2Array = left_clips[clip_idx]
+				if clip_poly.size() >= 3:
+					draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, left_alpha))
+		elif left_alpha < -0.01:
+			var left_clips: Array = Geometry2D.intersect_polygons(points, left_rect)
+			for clip_idx in range(left_clips.size()):
+				var clip_poly: PackedVector2Array = left_clips[clip_idx]
+				if clip_poly.size() >= 3:
+					draw_colored_polygon(clip_poly, Color(0.0, 0.0, 0.0, -left_alpha))
+		if right_alpha > 0.01:
+			var right_clips: Array = Geometry2D.intersect_polygons(points, right_rect)
+			for clip_idx in range(right_clips.size()):
+				var clip_poly: PackedVector2Array = right_clips[clip_idx]
+				if clip_poly.size() >= 3:
+					draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, right_alpha))
+		elif right_alpha < -0.01:
+			var right_clips: Array = Geometry2D.intersect_polygons(points, right_rect)
+			for clip_idx in range(right_clips.size()):
+				var clip_poly: PackedVector2Array = right_clips[clip_idx]
+				if clip_poly.size() >= 3:
+					draw_colored_polygon(clip_poly, Color(0.0, 0.0, 0.0, -right_alpha))
+
+		# Specular highlight — soft gradient gleam that slides with bank
+		var spec_x: float = center_x + bk * width * 0.4 + sin(_time * 0.8) * width * 0.05
+		var spec_brightness: float = 0.9 + sin(_time * 1.2) * 0.1
+		# Draw multiple overlapping strips from wide/faint to narrow/bright
+		var gleam_layers: Array[Array] = [
+			[width * 0.22, 0.06],   # widest, faintest
+			[width * 0.14, 0.12],
+			[width * 0.08, 0.20],
+			[width * 0.03, 0.35],   # narrowest, brightest
+		]
+		for layer in gleam_layers:
+			var half_w: float = layer[0]
+			var alpha: float = layer[1] * spec_brightness
+			var strip := PackedVector2Array([
+				Vector2(spec_x - half_w, min_y - 5.0),
+				Vector2(spec_x + half_w, min_y - 5.0),
+				Vector2(spec_x + half_w, max_y + 5.0),
+				Vector2(spec_x - half_w, max_y + 5.0),
+			])
+			var strip_clips: Array = Geometry2D.intersect_polygons(points, strip)
+			for clip_idx in range(strip_clips.size()):
+				var clip_poly: PackedVector2Array = strip_clips[clip_idx]
+				if clip_poly.size() >= 3:
+					draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, alpha))
+
+		# Subtle color tint overlay from original weapon color
+		var tint := tint_color
+		tint.a = 0.08
+		draw_colored_polygon(points, tint)
+
+		# Chrome edges — hard rim lighting
+		_draw_chrome_edges(points, bk)
+
+	func _draw_chrome_edges(points: PackedVector2Array, bk: float) -> void:
+		if points.size() < 2:
+			return
+		var light_dir := Vector2(bk * 0.7, -1.0).normalized()
+		for i in range(points.size()):
+			var ni: int = (i + 1) % points.size()
+			var a: Vector2 = points[i]
+			var b: Vector2 = points[ni]
+			var edge_dir: Vector2 = (b - a).normalized()
+			var edge_normal := Vector2(-edge_dir.y, edge_dir.x)
+			var facing: float = edge_normal.dot(light_dir)
+			var brightness: float = clampf(facing * 0.5 + 0.5, 0.15, 1.0)
+			var edge_col := CHROME_DARK.lerp(CHROME_SPEC, brightness)
+			edge_col.a = 0.6 + brightness * 0.4
+			draw_line(a, b, edge_col, 1.5, true)
+
+	func _draw_chrome_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
+		# Shadow offset
+		var perp: Vector2 = (b - a).normalized()
+		perp = Vector2(-perp.y, perp.x)
+		var shadow_off: Vector2 = perp * 1.0
+		draw_line(a + shadow_off, b + shadow_off, CHROME_DARK, width * 1.2, true)
+		# Bright highlight offset
+		draw_line(a - shadow_off, b - shadow_off, CHROME_BRIGHT, width * 0.8, true)
+		# Core mid-tone with color tint
+		var mid := CHROME_MID.lerp(color, 0.15)
+		draw_line(a, b, mid, width, true)
+		# Hot specular center
+		var spec_brightness: float = 0.9 + sin(_time * 1.2) * 0.1
+		var spec := CHROME_SPEC
+		spec.a = 0.4 * spec_brightness
+		draw_line(a, b, spec, width * 0.3, true)
+
+	func _draw_chrome_canopy(points: PackedVector2Array, bk: float) -> void:
+		if points.size() < 3:
+			return
+		# Dark blue-tinted glass fill
+		var glass := Color(0.05, 0.08, 0.2, 0.85)
+		draw_colored_polygon(points, glass)
+		# Bright rim on canopy edges
+		_draw_chrome_edges(points, bk)
 
 	# ── Ship 0: Hammerhead — wide hulking gunship ──
 	func _draw_hammerhead() -> void:
@@ -207,7 +432,7 @@ class _ShipDraw extends Node2D:
 			_bp(-16, 20, s, 0.08), _bp(-18, -5, s, 0.08),
 			_bp(-14, -22, s, 0.08),
 		])
-		_draw_neon_polygon(hull, hull_color, 2.0 * s)
+		_poly(hull, hull_color, 2.0 * s)
 
 		# Right weapon pod
 		var rp := PackedVector2Array([
@@ -217,7 +442,7 @@ class _ShipDraw extends Node2D:
 			_bp(26, 14, s, 0.2) + Vector2(0, ry),
 			_bp(18, 10, s, 0.2) + Vector2(0, ry),
 		])
-		_draw_neon_polygon(rp, _side_color(hull_color, 1.0), 1.5 * s)
+		_poly(rp, _side_color(hull_color, 1.0), 1.5 * s)
 		# Left weapon pod
 		var lp := PackedVector2Array([
 			_bp(-18, -8, s, 0.2) + Vector2(0, ly),
@@ -226,11 +451,11 @@ class _ShipDraw extends Node2D:
 			_bp(-26, 14, s, 0.2) + Vector2(0, ly),
 			_bp(-18, 10, s, 0.2) + Vector2(0, ly),
 		])
-		_draw_neon_polygon(lp, _side_color(hull_color, -1.0), 1.5 * s)
+		_poly(lp, _side_color(hull_color, -1.0), 1.5 * s)
 
 		# Gun barrels
-		_draw_neon_line(_bp(24, -4, s, 0.2) + Vector2(0, ry), _bp(24, -14, s, 0.2) + Vector2(0, ry), accent_color, 1.2 * s)
-		_draw_neon_line(_bp(-24, -4, s, 0.2) + Vector2(0, ly), _bp(-24, -14, s, 0.2) + Vector2(0, ly), accent_color, 1.2 * s)
+		_line(_bp(24, -4, s, 0.2) + Vector2(0, ry), _bp(24, -14, s, 0.2) + Vector2(0, ry), accent_color, 1.2 * s)
+		_line(_bp(-24, -4, s, 0.2) + Vector2(0, ly), _bp(-24, -14, s, 0.2) + Vector2(0, ly), accent_color, 1.2 * s)
 
 		# Wide visor canopy
 		var cx: float = -bank * 1.5 * s
@@ -240,20 +465,16 @@ class _ShipDraw extends Node2D:
 			_bp(6, -10, s, 0.05) + Vector2(cx, 0),
 			_bp(-6, -10, s, 0.05) + Vector2(cx, 0),
 		])
-		var cf := canopy_color
-		cf.a = 0.3
-		draw_colored_polygon(can, cf)
-		_draw_neon_lines(can, canopy_color, 1.2 * s)
+		_canopy(can)
 
 		# Armor plate detail lines
-		_draw_neon_line(_bp(-14, -2, s, 0.08), _bp(14, -2, s, 0.08), detail_color, 0.8 * s)
-		_draw_neon_line(_bp(-14, 12, s, 0.08), _bp(14, 12, s, 0.08), detail_color, 0.8 * s)
+		_line(_bp(-14, -2, s, 0.08), _bp(14, -2, s, 0.08), detail_color, 0.8 * s)
+		_line(_bp(-14, 12, s, 0.08), _bp(14, 12, s, 0.08), detail_color, 0.8 * s)
 
 		# Triple engines
-		var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-		_draw_neon_line(_bp(-8, 26, s, 0.12), _bp(-8, 33, s, 0.12), exhaust, 3.0 * s)
-		_draw_neon_line(_bp(0, 26, s, 0.12), _bp(0, 33, s, 0.12), exhaust, 3.0 * s)
-		_draw_neon_line(_bp(8, 26, s, 0.12), _bp(8, 33, s, 0.12), exhaust, 3.0 * s)
+		_exhaust_line(_bp(-8, 26, s, 0.12), _bp(-8, 33, s, 0.12), 3.0 * s)
+		_exhaust_line(_bp(0, 26, s, 0.12), _bp(0, 33, s, 0.12), 3.0 * s)
+		_exhaust_line(_bp(8, 26, s, 0.12), _bp(8, 33, s, 0.12), 3.0 * s)
 
 	# ── Ship 1: Needle — sleek wingless dart ──
 	func _draw_needle() -> void:
@@ -267,7 +488,7 @@ class _ShipDraw extends Node2D:
 			_bp(-7, 18, s, 0.08), _bp(-7, -8, s, 0.08),
 			_bp(-4, -28, s, 0.08),
 		])
-		_draw_neon_polygon(hull, hull_color, 2.0 * s)
+		_poly(hull, hull_color, 2.0 * s)
 
 		# Right rear stabilizer fin
 		var ry: float = -bank * 1.0 * s
@@ -278,7 +499,7 @@ class _ShipDraw extends Node2D:
 			_bp(14, 30, s, 0.2) + Vector2(0, ry),
 			_bp(7, 26, s, 0.2) + Vector2(0, ry),
 		])
-		_draw_neon_polygon(rf, _side_color(detail_color, 1.0), 1.5 * s)
+		_poly(rf, _side_color(detail_color, 1.0), 1.5 * s)
 		# Left rear stabilizer fin
 		var lf := PackedVector2Array([
 			_bp(-7, 18, s, 0.2) + Vector2(0, ly),
@@ -286,10 +507,10 @@ class _ShipDraw extends Node2D:
 			_bp(-14, 30, s, 0.2) + Vector2(0, ly),
 			_bp(-7, 26, s, 0.2) + Vector2(0, ly),
 		])
-		_draw_neon_polygon(lf, _side_color(detail_color, -1.0), 1.5 * s)
+		_poly(lf, _side_color(detail_color, -1.0), 1.5 * s)
 
 		# Spine accent
-		_draw_neon_line(_bp(0, -38, s, 0.08), _bp(0, 28, s, 0.08), accent_color, 1.2 * s)
+		_line(_bp(0, -38, s, 0.08), _bp(0, 28, s, 0.08), accent_color, 1.2 * s)
 
 		# Long narrow canopy
 		var cx: float = -bank * 1.5 * s
@@ -300,18 +521,14 @@ class _ShipDraw extends Node2D:
 			_bp(-2, -8, s, 0.05) + Vector2(cx, 0),
 			_bp(-3, -20, s, 0.05) + Vector2(cx, 0),
 		])
-		var cf := canopy_color
-		cf.a = 0.3
-		draw_colored_polygon(can, cf)
-		_draw_neon_lines(can, canopy_color, 1.2 * s)
+		_canopy(can)
 
 		# Side detail lines
-		_draw_neon_line(_bp(5, -20, s, 0.08), _bp(6, 10, s, 0.08), detail_color, 0.8 * s)
-		_draw_neon_line(_bp(-5, -20, s, 0.08), _bp(-6, 10, s, 0.08), detail_color, 0.8 * s)
+		_line(_bp(5, -20, s, 0.08), _bp(6, 10, s, 0.08), detail_color, 0.8 * s)
+		_line(_bp(-5, -20, s, 0.08), _bp(-6, 10, s, 0.08), detail_color, 0.8 * s)
 
 		# Single large engine
-		var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-		_draw_neon_line(_bp(0, 28, s, 0.08), _bp(0, 38, s, 0.08), exhaust, 4.0 * s)
+		_exhaust_line(_bp(0, 28, s, 0.08), _bp(0, 38, s, 0.08), 4.0 * s)
 
 	# ── Ship 2: Mantis — flying wing ──
 	func _draw_mantis() -> void:
@@ -329,7 +546,7 @@ class _ShipDraw extends Node2D:
 			_bp(8, 18, s, 0.08),
 			_bp(0, 18, s, 0.08),
 		])
-		_draw_neon_polygon(r_wing, _side_color(hull_color, 1.0), 1.8 * s)
+		_poly(r_wing, _side_color(hull_color, 1.0), 1.8 * s)
 
 		# Left half of chevron wing
 		var l_wing := PackedVector2Array([
@@ -341,17 +558,17 @@ class _ShipDraw extends Node2D:
 			_bp(-8, 18, s, 0.08),
 			_bp(0, 18, s, 0.08),
 		])
-		_draw_neon_polygon(l_wing, _side_color(hull_color, -1.0), 1.8 * s)
+		_poly(l_wing, _side_color(hull_color, -1.0), 1.8 * s)
 
 		# Center spine accent
-		_draw_neon_line(_bp(0, -24, s, 0.08), _bp(0, 14, s, 0.08), accent_color, 1.5 * s)
+		_line(_bp(0, -24, s, 0.08), _bp(0, 14, s, 0.08), accent_color, 1.5 * s)
 
 		# Wing edge accents
-		_draw_neon_line(
+		_line(
 			_bp(12, -10, s, 0.25) + Vector2(0, ry),
 			_bp(38, 8, s, 0.25) + Vector2(0, ry),
 			detail_color, 0.8 * s)
-		_draw_neon_line(
+		_line(
 			_bp(-12, -10, s, 0.25) + Vector2(0, ly),
 			_bp(-38, 8, s, 0.25) + Vector2(0, ly),
 			detail_color, 0.8 * s)
@@ -363,15 +580,11 @@ class _ShipDraw extends Node2D:
 			_bp(4, -10, s, 0.05) + Vector2(cx, 0),
 			_bp(-4, -10, s, 0.05) + Vector2(cx, 0),
 		])
-		var cf := canopy_color
-		cf.a = 0.3
-		draw_colored_polygon(can, cf)
-		_draw_neon_lines(can, canopy_color, 1.2 * s)
+		_canopy(can)
 
 		# Two buried engines
-		var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-		_draw_neon_line(_bp(8, 16, s, 0.1), _bp(8, 24, s, 0.1), exhaust, 2.5 * s)
-		_draw_neon_line(_bp(-8, 16, s, 0.1), _bp(-8, 24, s, 0.1), exhaust, 2.5 * s)
+		_exhaust_line(_bp(8, 16, s, 0.1), _bp(8, 24, s, 0.1), 2.5 * s)
+		_exhaust_line(_bp(-8, 16, s, 0.1), _bp(-8, 24, s, 0.1), 2.5 * s)
 
 	# ── Ship 3: Bulwark — heavy armored carrier ──
 	func _draw_bulwark() -> void:
@@ -385,20 +598,20 @@ class _ShipDraw extends Node2D:
 			_bp(-18, 34, s, 0.06), _bp(-22, 24, s, 0.06),
 			_bp(-22, -12, s, 0.06), _bp(-18, -28, s, 0.06),
 		])
-		_draw_neon_polygon(hull, hull_color, 2.0 * s)
+		_poly(hull, hull_color, 2.0 * s)
 
 		# Armor plate lines
-		_draw_neon_line(_bp(-20, -8, s, 0.06), _bp(20, -8, s, 0.06), detail_color, 0.8 * s)
-		_draw_neon_line(_bp(-20, 8, s, 0.06), _bp(20, 8, s, 0.06), detail_color, 0.8 * s)
-		_draw_neon_line(_bp(-18, 22, s, 0.06), _bp(18, 22, s, 0.06), detail_color, 0.8 * s)
+		_line(_bp(-20, -8, s, 0.06), _bp(20, -8, s, 0.06), detail_color, 0.8 * s)
+		_line(_bp(-20, 8, s, 0.06), _bp(20, 8, s, 0.06), detail_color, 0.8 * s)
+		_line(_bp(-18, 22, s, 0.06), _bp(18, 22, s, 0.06), detail_color, 0.8 * s)
 
 		# Side turret bumps
 		var ry: float = -bank * 1.0 * s
 		var ly: float = bank * 1.0 * s
-		_draw_neon_line(_bp(22, -2, s, 0.12) + Vector2(0, ry), _bp(28, -2, s, 0.12) + Vector2(0, ry), accent_color, 1.5 * s)
-		_draw_neon_line(_bp(22, 4, s, 0.12) + Vector2(0, ry), _bp(28, 4, s, 0.12) + Vector2(0, ry), accent_color, 1.5 * s)
-		_draw_neon_line(_bp(-22, -2, s, 0.12) + Vector2(0, ly), _bp(-28, -2, s, 0.12) + Vector2(0, ly), accent_color, 1.5 * s)
-		_draw_neon_line(_bp(-22, 4, s, 0.12) + Vector2(0, ly), _bp(-28, 4, s, 0.12) + Vector2(0, ly), accent_color, 1.5 * s)
+		_line(_bp(22, -2, s, 0.12) + Vector2(0, ry), _bp(28, -2, s, 0.12) + Vector2(0, ry), accent_color, 1.5 * s)
+		_line(_bp(22, 4, s, 0.12) + Vector2(0, ry), _bp(28, 4, s, 0.12) + Vector2(0, ry), accent_color, 1.5 * s)
+		_line(_bp(-22, -2, s, 0.12) + Vector2(0, ly), _bp(-28, -2, s, 0.12) + Vector2(0, ly), accent_color, 1.5 * s)
+		_line(_bp(-22, 4, s, 0.12) + Vector2(0, ly), _bp(-28, 4, s, 0.12) + Vector2(0, ly), accent_color, 1.5 * s)
 
 		# Bridge canopy — wide rectangular
 		var cx: float = -bank * 1.5 * s
@@ -408,20 +621,16 @@ class _ShipDraw extends Node2D:
 			_bp(10, -20, s, 0.04) + Vector2(cx, 0),
 			_bp(-10, -20, s, 0.04) + Vector2(cx, 0),
 		])
-		var cf := canopy_color
-		cf.a = 0.3
-		draw_colored_polygon(can, cf)
-		_draw_neon_lines(can, canopy_color, 1.2 * s)
+		_canopy(can)
 
 		# Spine accent
-		_draw_neon_line(_bp(0, -18, s, 0.06), _bp(0, 30, s, 0.06), accent_color, 1.0 * s)
+		_line(_bp(0, -18, s, 0.06), _bp(0, 30, s, 0.06), accent_color, 1.0 * s)
 
 		# Four engines
-		var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-		_draw_neon_line(_bp(-14, 32, s, 0.1), _bp(-14, 40, s, 0.1), exhaust, 2.5 * s)
-		_draw_neon_line(_bp(-6, 32, s, 0.1), _bp(-6, 40, s, 0.1), exhaust, 2.5 * s)
-		_draw_neon_line(_bp(6, 32, s, 0.1), _bp(6, 40, s, 0.1), exhaust, 2.5 * s)
-		_draw_neon_line(_bp(14, 32, s, 0.1), _bp(14, 40, s, 0.1), exhaust, 2.5 * s)
+		_exhaust_line(_bp(-14, 32, s, 0.1), _bp(-14, 40, s, 0.1), 2.5 * s)
+		_exhaust_line(_bp(-6, 32, s, 0.1), _bp(-6, 40, s, 0.1), 2.5 * s)
+		_exhaust_line(_bp(6, 32, s, 0.1), _bp(6, 40, s, 0.1), 2.5 * s)
+		_exhaust_line(_bp(14, 32, s, 0.1), _bp(14, 40, s, 0.1), 2.5 * s)
 
 	# ── Ship 4: Stiletto — angular stealth ──
 	func _draw_stiletto() -> void:
@@ -439,15 +648,15 @@ class _ShipDraw extends Node2D:
 			_bp(-28, 4, s, 0.2),
 			_bp(-14, -12, s, 0.15),
 		])
-		_draw_neon_polygon(hull, hull_color, 2.0 * s)
+		_poly(hull, hull_color, 2.0 * s)
 
 		# Facet edge lines
-		_draw_neon_line(_bp(0, -32, s, 0.1), _bp(14, -12, s, 0.15), detail_color, 0.8 * s)
-		_draw_neon_line(_bp(0, -32, s, 0.1), _bp(-14, -12, s, 0.15), detail_color, 0.8 * s)
-		_draw_neon_line(_bp(14, -12, s, 0.15), _bp(10, 24, s, 0.1), detail_color, 0.8 * s)
-		_draw_neon_line(_bp(-14, -12, s, 0.15), _bp(-10, 24, s, 0.1), detail_color, 0.8 * s)
+		_line(_bp(0, -32, s, 0.1), _bp(14, -12, s, 0.15), detail_color, 0.8 * s)
+		_line(_bp(0, -32, s, 0.1), _bp(-14, -12, s, 0.15), detail_color, 0.8 * s)
+		_line(_bp(14, -12, s, 0.15), _bp(10, 24, s, 0.1), detail_color, 0.8 * s)
+		_line(_bp(-14, -12, s, 0.15), _bp(-10, 24, s, 0.1), detail_color, 0.8 * s)
 		# Cross facet
-		_draw_neon_line(_bp(-14, -12, s, 0.15), _bp(14, -12, s, 0.15), detail_color, 0.6 * s)
+		_line(_bp(-14, -12, s, 0.15), _bp(14, -12, s, 0.15), detail_color, 0.6 * s)
 
 		# Angular canopy slit
 		var cx: float = -bank * 1.2 * s
@@ -458,18 +667,14 @@ class _ShipDraw extends Node2D:
 			_bp(-5, -6, s, 0.05) + Vector2(cx, 0),
 			_bp(-7, -14, s, 0.05) + Vector2(cx, 0),
 		])
-		var cf := canopy_color
-		cf.a = 0.3
-		draw_colored_polygon(can, cf)
-		_draw_neon_lines(can, canopy_color, 1.2 * s)
+		_canopy(can)
 
 		# Spine
-		_draw_neon_line(_bp(0, -6, s, 0.1), _bp(0, 20, s, 0.1), accent_color, 1.2 * s)
+		_line(_bp(0, -6, s, 0.1), _bp(0, 20, s, 0.1), accent_color, 1.2 * s)
 
 		# Twin tight engines
-		var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-		_draw_neon_line(_bp(-4, 22, s, 0.08), _bp(-4, 30, s, 0.08), exhaust, 3.0 * s)
-		_draw_neon_line(_bp(4, 22, s, 0.08), _bp(4, 30, s, 0.08), exhaust, 3.0 * s)
+		_exhaust_line(_bp(-4, 22, s, 0.08), _bp(-4, 30, s, 0.08), 3.0 * s)
+		_exhaust_line(_bp(4, 22, s, 0.08), _bp(4, 30, s, 0.08), 3.0 * s)
 
 	# ── Ship 5: Trident — triple-engine racer ──
 	func _draw_trident() -> void:
@@ -485,7 +690,7 @@ class _ShipDraw extends Node2D:
 			_bp(-9, 16, s, 0.08), _bp(-8, -6, s, 0.08),
 			_bp(-6, -24, s, 0.08),
 		])
-		_draw_neon_polygon(hull, hull_color, 2.0 * s)
+		_poly(hull, hull_color, 2.0 * s)
 
 		# Right canard
 		var rc := PackedVector2Array([
@@ -494,7 +699,7 @@ class _ShipDraw extends Node2D:
 			_bp(16, -8, s, 0.2) + Vector2(0, ry),
 			_bp(6, -12, s, 0.2) + Vector2(0, ry * 0.5),
 		])
-		_draw_neon_polygon(rc, _side_color(detail_color, 1.0), 1.2 * s)
+		_poly(rc, _side_color(detail_color, 1.0), 1.2 * s)
 		# Left canard
 		var lc := PackedVector2Array([
 			_bp(-6, -18, s, 0.2) + Vector2(0, ly * 0.5),
@@ -502,7 +707,7 @@ class _ShipDraw extends Node2D:
 			_bp(-16, -8, s, 0.2) + Vector2(0, ly),
 			_bp(-6, -12, s, 0.2) + Vector2(0, ly * 0.5),
 		])
-		_draw_neon_polygon(lc, _side_color(detail_color, -1.0), 1.2 * s)
+		_poly(lc, _side_color(detail_color, -1.0), 1.2 * s)
 
 		# Right engine nacelle
 		var re := PackedVector2Array([
@@ -512,7 +717,7 @@ class _ShipDraw extends Node2D:
 			_bp(14, 30, s, 0.18) + Vector2(0, ry * 0.5),
 			_bp(9, 24, s, 0.18) + Vector2(0, ry * 0.3),
 		])
-		_draw_neon_polygon(re, _side_color(hull_color, 1.0), 1.5 * s)
+		_poly(re, _side_color(hull_color, 1.0), 1.5 * s)
 		# Left engine nacelle
 		var le := PackedVector2Array([
 			_bp(-9, 12, s, 0.18) + Vector2(0, ly * 0.3),
@@ -521,7 +726,7 @@ class _ShipDraw extends Node2D:
 			_bp(-14, 30, s, 0.18) + Vector2(0, ly * 0.5),
 			_bp(-9, 24, s, 0.18) + Vector2(0, ly * 0.3),
 		])
-		_draw_neon_polygon(le, _side_color(hull_color, -1.0), 1.5 * s)
+		_poly(le, _side_color(hull_color, -1.0), 1.5 * s)
 
 		# Canopy
 		var cx: float = -bank * 1.0 * s
@@ -530,25 +735,21 @@ class _ShipDraw extends Node2D:
 			_bp(4, -20, s, 0.05) + Vector2(cx, 0),
 			_bp(-4, -20, s, 0.05) + Vector2(cx, 0),
 		])
-		var cf := canopy_color
-		cf.a = 0.3
-		draw_colored_polygon(can, cf)
-		_draw_neon_lines(can, canopy_color, 1.2 * s)
+		_canopy(can)
 
 		# Spine
-		_draw_neon_line(_bp(0, -20, s, 0.08), _bp(0, 24, s, 0.08), accent_color, 1.0 * s)
+		_line(_bp(0, -20, s, 0.08), _bp(0, 24, s, 0.08), accent_color, 1.0 * s)
 
 		# Three engine exhausts
-		var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-		_draw_neon_line(_bp(0, 26, s, 0.08), _bp(0, 34, s, 0.08), exhaust, 3.0 * s)
-		_draw_neon_line(
+		_exhaust_line(_bp(0, 26, s, 0.08), _bp(0, 34, s, 0.08), 3.0 * s)
+		_exhaust_line(
 			_bp(15, 28, s, 0.18) + Vector2(0, ry * 0.5),
 			_bp(15, 35, s, 0.18) + Vector2(0, ry * 0.5),
-			exhaust, 2.5 * s)
-		_draw_neon_line(
+			2.5 * s)
+		_exhaust_line(
 			_bp(-15, 28, s, 0.18) + Vector2(0, ly * 0.5),
 			_bp(-15, 35, s, 0.18) + Vector2(0, ly * 0.5),
-			exhaust, 2.5 * s)
+			2.5 * s)
 
 	# ── Neon drawing helpers ──
 
@@ -638,6 +839,7 @@ class _ShipSelector extends Node2D:
 	const SHIP_COUNT := 6
 
 	var viewer: Control
+	var render_mode: int = _ShipDraw.RenderMode.NEON
 
 	var cyan := Color(0.0, 0.9, 1.0)
 	var magenta := Color(1.0, 0.2, 0.6)
@@ -689,7 +891,21 @@ class _ShipSelector extends Node2D:
 			var label_col: Color = cyan if selected else Color(0.5, 0.5, 0.6)
 			_draw_number(label_pos, i + 1, label_col)
 
+	# ── Thumbnail dispatch helpers ──
+
 	func _mp(points: PackedVector2Array, color: Color, w: float) -> void:
+		if render_mode == _ShipDraw.RenderMode.CHROME:
+			_mp_chrome(points, w)
+		else:
+			_mp_neon(points, color, w)
+
+	func _ml(a: Vector2, b: Vector2, color: Color, w: float) -> void:
+		if render_mode == _ShipDraw.RenderMode.CHROME:
+			_ml_chrome(a, b, w)
+		else:
+			_ml_neon(a, b, color, w)
+
+	func _mp_neon(points: PackedVector2Array, color: Color, w: float) -> void:
 		var fill := color
 		fill.a = 0.12
 		draw_colored_polygon(points, fill)
@@ -706,7 +922,7 @@ class _ShipSelector extends Node2D:
 		for pt in points:
 			draw_circle(pt, w * 0.5, color)
 
-	func _ml(a: Vector2, b: Vector2, color: Color, w: float) -> void:
+	func _ml_neon(a: Vector2, b: Vector2, color: Color, w: float) -> void:
 		var gc := color
 		gc.a = 0.3
 		draw_line(a, b, gc, w * 2.0, true)
@@ -715,6 +931,31 @@ class _ShipSelector extends Node2D:
 		draw_line(a, b, color, w, true)
 		draw_circle(a, w * 0.5, color)
 		draw_circle(b, w * 0.5, color)
+
+	func _mp_chrome(points: PackedVector2Array, w: float) -> void:
+		if points.size() < 3:
+			return
+		# Solid chrome fill — bright top, dark bottom
+		draw_colored_polygon(points, _ShipDraw.CHROME_MID)
+		# Bright top edge
+		var min_y := points[0].y
+		var max_y := points[0].y
+		for pt in points:
+			min_y = minf(min_y, pt.y)
+			max_y = maxf(max_y, pt.y)
+		var height: float = max_y - min_y
+		if height > 1.0:
+			for j in range(points.size()):
+				var nj: int = (j + 1) % points.size()
+				var mid_y: float = (points[j].y + points[nj].y) * 0.5
+				var t: float = 1.0 - (mid_y - min_y) / height
+				var edge_col: Color = _ShipDraw.CHROME_DARK.lerp(_ShipDraw.CHROME_BRIGHT, t)
+				edge_col.a = 0.8
+				draw_line(points[j], points[nj], edge_col, w, true)
+
+	func _ml_chrome(a: Vector2, b: Vector2, w: float) -> void:
+		draw_line(a, b, _ShipDraw.CHROME_MID, w * 1.2, true)
+		draw_line(a, b, _ShipDraw.CHROME_BRIGHT, w * 0.6, true)
 
 	func _draw_number(pos: Vector2, num: int, color: Color) -> void:
 		var sw := 3.0
@@ -768,9 +1009,12 @@ class _ShipSelector extends Node2D:
 			o + Vector2(-8, -18) * s, o + Vector2(8, -18) * s,
 			o + Vector2(6, -10) * s, o + Vector2(-6, -10) * s,
 		])
-		var cf := purple
-		cf.a = 0.25
-		draw_colored_polygon(can, cf)
+		if render_mode == _ShipDraw.RenderMode.CHROME:
+			draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
+		else:
+			var cf := purple
+			cf.a = 0.25
+			draw_colored_polygon(can, cf)
 		_ml(o + Vector2(-8, 26) * s, o + Vector2(-8, 33) * s, orange, 1.5)
 		_ml(o + Vector2(0, 26) * s, o + Vector2(0, 33) * s, orange, 1.5)
 		_ml(o + Vector2(8, 26) * s, o + Vector2(8, 33) * s, orange, 1.5)
@@ -800,9 +1044,12 @@ class _ShipSelector extends Node2D:
 			o + Vector2(0, -32) * s, o + Vector2(3, -18) * s,
 			o + Vector2(2, -8) * s, o + Vector2(-2, -8) * s, o + Vector2(-3, -18) * s,
 		])
-		var cf := purple
-		cf.a = 0.25
-		draw_colored_polygon(can, cf)
+		if render_mode == _ShipDraw.RenderMode.CHROME:
+			draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
+		else:
+			var cf := purple
+			cf.a = 0.25
+			draw_colored_polygon(can, cf)
 		_ml(o + Vector2(0, 28) * s, o + Vector2(0, 36) * s, orange, 2.5)
 
 	func _draw_mantis(o: Vector2) -> void:
@@ -821,9 +1068,12 @@ class _ShipSelector extends Node2D:
 			o + Vector2(0, -18) * s, o + Vector2(4, -8) * s,
 			o + Vector2(-4, -8) * s,
 		])
-		var cf := purple
-		cf.a = 0.3
-		draw_colored_polygon(can, cf)
+		if render_mode == _ShipDraw.RenderMode.CHROME:
+			draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
+		else:
+			var cf := purple
+			cf.a = 0.3
+			draw_colored_polygon(can, cf)
 		_ml(o + Vector2(8, 16) * s, o + Vector2(8, 22) * s, orange, 1.2)
 		_ml(o + Vector2(-8, 16) * s, o + Vector2(-8, 22) * s, orange, 1.2)
 		_ml(o + Vector2(12, -8) * s, o + Vector2(36, 8) * s, teal, 0.6)
@@ -846,9 +1096,12 @@ class _ShipSelector extends Node2D:
 			o + Vector2(-6, -28) * s, o + Vector2(6, -28) * s,
 			o + Vector2(8, -18) * s, o + Vector2(-8, -18) * s,
 		])
-		var cf := purple
-		cf.a = 0.25
-		draw_colored_polygon(can, cf)
+		if render_mode == _ShipDraw.RenderMode.CHROME:
+			draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
+		else:
+			var cf := purple
+			cf.a = 0.25
+			draw_colored_polygon(can, cf)
 		_ml(o + Vector2(-14, 30) * s, o + Vector2(-14, 38) * s, orange, 1.3)
 		_ml(o + Vector2(-6, 30) * s, o + Vector2(-6, 38) * s, orange, 1.3)
 		_ml(o + Vector2(6, 30) * s, o + Vector2(6, 38) * s, orange, 1.3)
@@ -874,9 +1127,12 @@ class _ShipSelector extends Node2D:
 			o + Vector2(0, -24) * s, o + Vector2(6, -12) * s,
 			o + Vector2(4, -6) * s, o + Vector2(-4, -6) * s, o + Vector2(-6, -12) * s,
 		])
-		var cf := purple
-		cf.a = 0.25
-		draw_colored_polygon(can, cf)
+		if render_mode == _ShipDraw.RenderMode.CHROME:
+			draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
+		else:
+			var cf := purple
+			cf.a = 0.25
+			draw_colored_polygon(can, cf)
 		_ml(o + Vector2(0, -6) * s, o + Vector2(0, 18) * s, magenta, 0.8)
 		_ml(o + Vector2(-4, 20) * s, o + Vector2(-4, 27) * s, orange, 1.5)
 		_ml(o + Vector2(4, 20) * s, o + Vector2(4, 27) * s, orange, 1.5)
@@ -915,9 +1171,12 @@ class _ShipSelector extends Node2D:
 			o + Vector2(0, -30) * s, o + Vector2(3, -18) * s,
 			o + Vector2(-3, -18) * s,
 		])
-		var cf := purple
-		cf.a = 0.25
-		draw_colored_polygon(can, cf)
+		if render_mode == _ShipDraw.RenderMode.CHROME:
+			draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
+		else:
+			var cf := purple
+			cf.a = 0.25
+			draw_colored_polygon(can, cf)
 		_ml(o + Vector2(0, -18) * s, o + Vector2(0, 22) * s, magenta, 0.7)
 		_ml(o + Vector2(0, 24) * s, o + Vector2(0, 32) * s, orange, 1.5)
 		_ml(o + Vector2(13, 26) * s, o + Vector2(13, 33) * s, orange, 1.2)

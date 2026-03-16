@@ -21,6 +21,7 @@ var _colors: Dictionary = {
 	"panel": Color(0.08, 0.08, 0.12),
 	"bar_positive": Color(0.15, 0.7, 0.3),
 	"bar_negative": Color(0.8, 0.15, 0.15),
+	"chrome_tint": Color(0.7, 0.75, 0.85, 1.0),
 }
 
 # ── Float keys ──
@@ -73,6 +74,14 @@ var _floats: Dictionary = {
 	"btn_pressed_darken": 0.1,
 	"btn_shadow_size": 0.0,
 	"btn_shadow_alpha": 0.0,
+	"header_chrome_enabled": 0.0,
+	"header_chrome_highlight_pos": 0.25,
+	"header_chrome_highlight_width": 0.12,
+	"header_chrome_highlight_intensity": 1.5,
+	"header_chrome_secondary_pos": 0.75,
+	"header_chrome_secondary_intensity": 0.4,
+	"header_chrome_base_brightness": 0.3,
+	"header_chrome_top_brightness": 0.15,
 }
 
 # ── Int keys (font sizes) ──
@@ -85,8 +94,9 @@ var _ints: Dictionary = {
 
 # ── Font paths ──
 var _font_paths: Dictionary = {
-	"font_header": "res://assets/fonts/Orbitron.ttf",
+	"font_header": "res://assets/fonts/Bungee-Regular.ttf",
 	"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
+	"font_button": "res://assets/fonts/Orbitron.ttf",
 }
 
 var _font_cache: Dictionary = {}
@@ -165,8 +175,9 @@ const BUILTIN_PRESETS: Dictionary = {
 		},
 		"grid_line_color": "#265999",
 		"font_paths": {
-			"font_header": "res://assets/fonts/Orbitron.ttf",
+			"font_header": "res://assets/fonts/Bungee-Regular.ttf",
 			"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
+			"font_button": "res://assets/fonts/Orbitron.ttf",
 		},
 	},
 	"Neon Frost": {
@@ -238,8 +249,9 @@ const BUILTIN_PRESETS: Dictionary = {
 		},
 		"grid_line_color": "#338899",
 		"font_paths": {
-			"font_header": "res://assets/fonts/Orbitron.ttf",
+			"font_header": "res://assets/fonts/Bungee-Regular.ttf",
 			"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
+			"font_button": "res://assets/fonts/Orbitron.ttf",
 		},
 	},
 	"Void Purple": {
@@ -311,8 +323,9 @@ const BUILTIN_PRESETS: Dictionary = {
 		},
 		"grid_line_color": "#442266",
 		"font_paths": {
-			"font_header": "res://assets/fonts/Orbitron.ttf",
+			"font_header": "res://assets/fonts/Bungee-Regular.ttf",
 			"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
+			"font_button": "res://assets/fonts/Orbitron.ttf",
 		},
 	},
 }
@@ -588,6 +601,49 @@ func apply_text_glow(label: Label, prefix: String) -> void:
 	mat.set_shader_parameter("smudge_blur", sb)
 
 
+# ── Header Chrome Helper ─────────────────────────────────────
+
+var _text_chrome_shader: Shader = null
+
+func apply_header_chrome(label: Label) -> void:
+	if get_float("header_chrome_enabled") <= 0.0:
+		apply_text_glow(label, "header")
+		return
+
+	if not _text_chrome_shader:
+		_text_chrome_shader = load("res://assets/shaders/text_chrome.gdshader") as Shader
+	if not _text_chrome_shader:
+		apply_text_glow(label, "header")
+		return
+
+	var mat: ShaderMaterial
+	if label.material is ShaderMaterial:
+		mat = label.material as ShaderMaterial
+	else:
+		mat = ShaderMaterial.new()
+	mat.shader = _text_chrome_shader
+	label.material = mat
+
+	# Glow uniforms (header prefix)
+	mat.set_shader_parameter("inner_intensity", get_float("header_inner_intensity"))
+	mat.set_shader_parameter("aura_size", get_float("header_aura_size"))
+	mat.set_shader_parameter("aura_intensity", get_float("header_aura_intensity"))
+	mat.set_shader_parameter("bloom_size", get_float("header_bloom_size"))
+	mat.set_shader_parameter("bloom_intensity", get_float("header_bloom_intensity"))
+	mat.set_shader_parameter("smudge_blur", get_float("header_smudge_blur"))
+
+	# Chrome uniforms
+	mat.set_shader_parameter("chrome_enabled", 1.0)
+	mat.set_shader_parameter("chrome_highlight_pos", get_float("header_chrome_highlight_pos"))
+	mat.set_shader_parameter("chrome_highlight_width", get_float("header_chrome_highlight_width"))
+	mat.set_shader_parameter("chrome_highlight_intensity", get_float("header_chrome_highlight_intensity"))
+	mat.set_shader_parameter("chrome_secondary_pos", get_float("header_chrome_secondary_pos"))
+	mat.set_shader_parameter("chrome_secondary_intensity", get_float("header_chrome_secondary_intensity"))
+	mat.set_shader_parameter("chrome_base_brightness", get_float("header_chrome_base_brightness"))
+	mat.set_shader_parameter("chrome_top_brightness", get_float("header_chrome_top_brightness"))
+	mat.set_shader_parameter("chrome_tint", get_color("chrome_tint"))
+
+
 # ── Button Style Helper ──────────────────────────────────────
 
 const BUTTON_STYLE_PRESETS: Dictionary = {
@@ -711,10 +767,12 @@ func apply_button_style(btn: Button) -> void:
 	btn.add_theme_color_override("font_pressed_color", press_col)
 	btn.add_theme_color_override("font_disabled_color", dim_col)
 
-	# Font
-	var body_font: Font = get_font("font_body")
-	if body_font:
-		btn.add_theme_font_override("font", body_font)
+	# Font — prefer font_button, fall back to font_body
+	var btn_font: Font = get_font("font_button")
+	if not btn_font:
+		btn_font = get_font("font_body")
+	if btn_font:
+		btn.add_theme_font_override("font", btn_font)
 	btn.add_theme_font_size_override("font_size", get_font_size("font_size_body"))
 
 

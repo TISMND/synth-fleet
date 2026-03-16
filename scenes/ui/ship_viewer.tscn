@@ -45,5 +45,5 @@ offset_top = -40.0
 offset_right = 200.0
 grow_horizontal = 2
 grow_vertical = 0
-text = "A/D to move  |  M to return"
+text = "A/D to move  |  Tab to toggle chrome  |  M to return"
 horizontal_alignment = 1

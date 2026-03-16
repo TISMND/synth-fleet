@@ -31,6 +31,10 @@ var _typo_preview_labels: Dictionary = {}
 var _header_glow_labels: Array[Label] = []
 var _body_glow_labels: Array[Label] = []
 
+# Header style mode selector
+var _header_mode_selector: OptionButton
+var _chrome_controls_box: VBoxContainer
+
 # Cached font list for selector sync
 var _available_fonts: Array[String] = []
 
@@ -211,7 +215,7 @@ func _build_typography_tab() -> void:
 
 	# Font selectors
 	_available_fonts = _scan_font_files()
-	var font_keys: Array[String] = ["font_header", "font_body"]
+	var font_keys: Array[String] = ["font_header", "font_body", "font_button"]
 	for key in font_keys:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -307,15 +311,77 @@ func _build_glow_grid_tab() -> void:
 		var max_val: float = float(params["max"])
 		_add_float_slider(vbox, key, min_val, max_val, ThemeManager.get_float(key))
 
-	# ── Header Text Glow section ──
+	# ── Header Style section (mode selector: Neon Glow / Chrome Metal) ──
 	var header_sep := HSeparator.new()
 	vbox.add_child(header_sep)
 
-	var header_glow_lbl := Label.new()
-	header_glow_lbl.text = "Header Text Glow"
-	header_glow_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	header_glow_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	vbox.add_child(header_glow_lbl)
+	var header_style_lbl := Label.new()
+	header_style_lbl.text = "Header Style"
+	header_style_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	header_style_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	vbox.add_child(header_style_lbl)
+
+	var mode_row := HBoxContainer.new()
+	mode_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(mode_row)
+
+	var mode_lbl := Label.new()
+	mode_lbl.text = "Mode"
+	mode_lbl.custom_minimum_size.x = 200
+	mode_lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	mode_row.add_child(mode_lbl)
+
+	_header_mode_selector = OptionButton.new()
+	_header_mode_selector.add_item("Neon Glow")
+	_header_mode_selector.add_item("Chrome Metal")
+	_header_mode_selector.selected = 1 if ThemeManager.get_float("header_chrome_enabled") > 0.5 else 0
+	_header_mode_selector.item_selected.connect(_on_header_mode_selected)
+	mode_row.add_child(_header_mode_selector)
+
+	# ── Chrome Metal controls (only visible in Chrome mode) ──
+	_chrome_controls_box = VBoxContainer.new()
+	_chrome_controls_box.add_theme_constant_override("separation", 6)
+	vbox.add_child(_chrome_controls_box)
+
+	# Chrome tint color picker
+	var tint_row := HBoxContainer.new()
+	tint_row.add_theme_constant_override("separation", 8)
+	_chrome_controls_box.add_child(tint_row)
+
+	var tint_lbl := Label.new()
+	tint_lbl.text = "chrome_tint"
+	tint_lbl.custom_minimum_size.x = 200
+	tint_lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	tint_row.add_child(tint_lbl)
+
+	var tint_picker := ColorPickerButton.new()
+	tint_picker.color = ThemeManager.get_color("chrome_tint")
+	tint_picker.custom_minimum_size = Vector2(60, 30)
+	tint_picker.edit_alpha = false
+	tint_picker.color_changed.connect(func(c: Color) -> void: _on_color_changed("chrome_tint", c))
+	tint_row.add_child(tint_picker)
+	_color_pickers["chrome_tint"] = tint_picker
+
+	var chrome_float_params: Dictionary = {
+		"header_chrome_highlight_pos": {"min": 0.0, "max": 1.0},
+		"header_chrome_highlight_width": {"min": 0.01, "max": 0.5},
+		"header_chrome_highlight_intensity": {"min": 0.5, "max": 3.0},
+		"header_chrome_secondary_pos": {"min": 0.0, "max": 1.0},
+		"header_chrome_secondary_intensity": {"min": 0.0, "max": 1.5},
+		"header_chrome_base_brightness": {"min": 0.0, "max": 1.0},
+		"header_chrome_top_brightness": {"min": 0.0, "max": 1.0},
+	}
+	for key in chrome_float_params:
+		var params: Dictionary = chrome_float_params[key]
+		var min_val: float = float(params["min"])
+		var max_val: float = float(params["max"])
+		_add_float_slider(_chrome_controls_box, key, min_val, max_val, ThemeManager.get_float(key))
+
+	# ── Header Glow sliders (always visible — applies to both neon and chrome) ──
+	var glow_sub_header := Label.new()
+	glow_sub_header.text = "Header Glow"
+	glow_sub_header.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+	vbox.add_child(glow_sub_header)
 
 	var header_glow_params: Dictionary = {
 		"header_inner_intensity": {"min": 0.0, "max": 1.0},
@@ -330,6 +396,8 @@ func _build_glow_grid_tab() -> void:
 		var min_val: float = float(params["min"])
 		var max_val: float = float(params["max"])
 		_add_float_slider(vbox, key, min_val, max_val, ThemeManager.get_float(key))
+
+	_update_header_mode_visibility()
 
 	# ── Body Text Glow section ──
 	var body_sep := HSeparator.new()
@@ -611,7 +679,7 @@ func _build_preview_panel() -> void:
 	menu_vbox.add_child(menu_title)
 	_preview_labels.append(menu_title)
 	_header_glow_labels.append(menu_title)
-	ThemeManager.apply_text_glow(menu_title, "header")
+	ThemeManager.apply_header_chrome(menu_title)
 
 	for btn_text in ["PLAY", "HANGAR", "AESTHETIC STUDIO"]:
 		var btn := Button.new()
@@ -748,7 +816,7 @@ func _build_preview_panel() -> void:
 		var is_header: bool = bool(s["is_header"])
 		if is_header:
 			_header_glow_labels.append(sample)
-			ThemeManager.apply_text_glow(sample, "header")
+			ThemeManager.apply_header_chrome(sample)
 		else:
 			_body_glow_labels.append(sample)
 			ThemeManager.apply_text_glow(sample, "body")
@@ -883,6 +951,17 @@ func _scan_font_files() -> Array[String]:
 
 # ── Callbacks ────────────────────────────────────────────────
 
+func _on_header_mode_selected(idx: int) -> void:
+	if _updating_from_theme:
+		return
+	ThemeManager.set_float("header_chrome_enabled", 1.0 if idx == 1 else 0.0)
+
+
+func _update_header_mode_visibility() -> void:
+	var chrome_on: bool = ThemeManager.get_float("header_chrome_enabled") > 0.5
+	_chrome_controls_box.visible = chrome_on
+
+
 func _on_color_changed(key: String, color: Color) -> void:
 	if _updating_from_theme:
 		return
@@ -967,6 +1046,11 @@ func _refresh_all_from_theme() -> void:
 	for key in _toggle_buttons:
 		var toggle: CheckButton = _toggle_buttons[key]
 		toggle.button_pressed = ThemeManager.get_float(key) > 0.5
+
+	# Sync header mode selector
+	if _header_mode_selector:
+		_header_mode_selector.selected = 1 if ThemeManager.get_float("header_chrome_enabled") > 0.5 else 0
+		_update_header_mode_visibility()
 
 	# Update int sliders
 	for key in _int_sliders:

@@ -200,7 +200,7 @@ func _apply_theme() -> void:
 	_hp_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	if header_font:
 		_hp_title.add_theme_font_override("font", header_font)
-	ThemeManager.apply_text_glow(_hp_title, "header")
+	ThemeManager.apply_header_chrome(_hp_title)
 
 	# Select label
 	_select_label.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))

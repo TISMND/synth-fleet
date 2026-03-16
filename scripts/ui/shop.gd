@@ -129,7 +129,7 @@ func _apply_styles() -> void:
 	_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	if header_font:
 		_title.add_theme_font_override("font", header_font)
-	ThemeManager.apply_text_glow(_title, "header")
+	ThemeManager.apply_header_chrome(_title)
 
 	# Credits
 	_credits_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))

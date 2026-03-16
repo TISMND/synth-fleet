@@ -182,14 +182,14 @@ func _apply_theme() -> void:
 	_intro_label.add_theme_font_size_override("font_size", header_size * 3)
 	if header_font:
 		_intro_label.add_theme_font_override("font", header_font)
-	ThemeManager.apply_text_glow(_intro_label, "header")
+	ThemeManager.apply_header_chrome(_intro_label)
 
 	# Game over label
 	_game_over_label.add_theme_font_size_override("font_size", header_size * 2)
 	_game_over_label.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
 	if header_font:
 		_game_over_label.add_theme_font_override("font", header_font)
-	ThemeManager.apply_text_glow(_game_over_label, "header")
+	ThemeManager.apply_header_chrome(_game_over_label)
 
 	# Beat indicators
 	for i in _beat_indicators.size():
