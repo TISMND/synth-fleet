@@ -42,13 +42,16 @@ func set_weapon(weapon: WeaponData, hp_index: int) -> void:
 	_weapon = weapon
 	_hp_index = hp_index
 	if _weapon:
-		_weapon_color = Color(_weapon.color)
 		_fire_pattern = _weapon.fire_pattern
 		_resolved_layers = EffectLayerRenderer.resolve_layers(_weapon.effect_profile, -1)
 		if _weapon.projectile_style_id != "":
 			_cached_style = ProjectileStyleManager.load_by_id(_weapon.projectile_style_id)
 		else:
 			_cached_style = null
+		if _cached_style:
+			_weapon_color = _cached_style.color
+		else:
+			_weapon_color = Color.CYAN
 	else:
 		_weapon_color = Color.CYAN
 		_fire_pattern = "single"

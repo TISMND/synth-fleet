@@ -55,7 +55,6 @@ func set_loop_id(id: String) -> void:
 
 
 func update_weapon(data: Dictionary) -> void:
-	weapon_color = Color(str(data.get("color", "#00FFFF")))
 	projectile_speed = float(data.get("projectile_speed", 600.0))
 	fire_pattern = str(data.get("fire_pattern", "single"))
 	effect_profile = data.get("effect_profile", {})
@@ -70,6 +69,11 @@ func update_weapon(data: Dictionary) -> void:
 			_cached_style = ProjectileStyleManager.load_by_id(projectile_style_id)
 		else:
 			_cached_style = null
+	# Color from style, fallback to cyan
+	if _cached_style:
+		weapon_color = _cached_style.color
+	else:
+		weapon_color = Color.CYAN
 	# Sort triggers preserving original indices
 	_fire_triggers_sorted = []
 	for i in fire_triggers.size():

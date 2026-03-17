@@ -6,7 +6,6 @@ extends Resource
 @export var id: String = ""
 @export var display_name: String = ""
 @export var description: String = ""
-@export var color: String = "#00FFFF"
 @export var damage: int = 10
 @export var projectile_speed: float = 600.0
 @export var power_cost: int = 5
@@ -18,6 +17,10 @@ extends Resource
 @export var special_effect: String = "none"
 @export var direction_deg: float = 0.0
 @export var projectile_style_id: String = ""
+@export var aim_mode: String = "fixed"  # "fixed", "sweep", "track"
+@export var sweep_arc_deg: float = 60.0  # sweep arc width in degrees
+@export var sweep_duration: float = 1.0  # seconds per full sweep cycle
+@export var mirror_mode: String = "none"  # "none", "mirror", "alternate"
 
 
 static func from_dict(data: Dictionary) -> WeaponData:
@@ -25,7 +28,7 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.id = data.get("id", "")
 	w.display_name = data.get("display_name", "")
 	w.description = data.get("description", "")
-	w.color = data.get("color", "#00FFFF")
+	# color field ignored (backwards compat with old JSON)
 	w.damage = int(data.get("damage", 10))
 	w.projectile_speed = float(data.get("projectile_speed", 600.0))
 	w.power_cost = int(data.get("power_cost", 5))
@@ -51,6 +54,10 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.special_effect = data.get("special_effect", "none")
 	w.direction_deg = float(data.get("direction_deg", 0.0))
 	w.projectile_style_id = str(data.get("projectile_style_id", ""))
+	w.aim_mode = data.get("aim_mode", "fixed")
+	w.sweep_arc_deg = float(data.get("sweep_arc_deg", 60.0))
+	w.sweep_duration = float(data.get("sweep_duration", 1.0))
+	w.mirror_mode = data.get("mirror_mode", "none")
 	return w
 
 
@@ -85,7 +92,6 @@ func to_dict() -> Dictionary:
 		"id": id,
 		"display_name": display_name,
 		"description": description,
-		"color": color,
 		"damage": damage,
 		"projectile_speed": projectile_speed,
 		"power_cost": power_cost,
@@ -97,4 +103,8 @@ func to_dict() -> Dictionary:
 		"special_effect": special_effect,
 		"direction_deg": direction_deg,
 		"projectile_style_id": projectile_style_id,
+		"aim_mode": aim_mode,
+		"sweep_arc_deg": sweep_arc_deg,
+		"sweep_duration": sweep_duration,
+		"mirror_mode": mirror_mode,
 	}

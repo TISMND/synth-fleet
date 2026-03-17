@@ -1,9 +1,15 @@
 extends Node2D
 ## Per-hardpoint controller. Fires projectiles at normalized time positions (0.0–1.0)
 ## synced to LoopMixer playback. Audio is handled by LoopMixer (mute/unmute).
+## Supports aim modes: fixed, sweep (oscillating), track (nearest enemy).
+## Supports mirror modes: none, mirror (symmetric), alternate (toggle sides).
 
 var weapon_data: WeaponData = null
 var direction_deg: float = 0.0
+var aim_mode: String = "fixed"
+var sweep_arc_deg: float = 60.0
+var sweep_duration: float = 1.0
+var mirror_mode: String = "none"
 var _projectiles_container: Node2D = null
 var _active: bool = false
 var _loop_id: String = ""
@@ -11,11 +17,18 @@ var _fire_triggers_sorted: Array = []  # Array of [trigger_value, original_index
 var _prev_loop_pos: float = -1.0
 var _cached_style: ProjectileStyle = null
 var _style_loaded: bool = false
+var _sweep_time: float = 0.0
+var _alternate_flip: bool = false
+var _enemies_group: String = "enemies"
 
 
 func setup(weapon: WeaponData, dir_deg: float, proj_container: Node2D, hp_index: int = 0) -> void:
 	weapon_data = weapon
 	direction_deg = dir_deg
+	aim_mode = weapon.aim_mode
+	sweep_arc_deg = weapon.sweep_arc_deg
+	sweep_duration = weapon.sweep_duration
+	mirror_mode = weapon.mirror_mode
 	_projectiles_container = proj_container
 
 	# Build unique loop ID for this hardpoint
@@ -62,9 +75,12 @@ func cleanup() -> void:
 	LoopMixer.remove_loop(_loop_id)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _active or not weapon_data or _fire_triggers_sorted.is_empty():
 		return
+
+	# Accumulate sweep time
+	_sweep_time += delta
 
 	var pos_sec: float = LoopMixer.get_playback_position(_loop_id)
 	var duration: float = LoopMixer.get_stream_duration(_loop_id)
@@ -98,10 +114,63 @@ func _trigger_crossed(prev: float, curr: float, trigger: float) -> bool:
 		return trigger > prev or trigger <= curr
 
 
+func _get_current_direction() -> float:
+	match aim_mode:
+		"sweep":
+			var phase: float = fmod(_sweep_time, sweep_duration) / sweep_duration
+			var sweep_offset: float = sin(phase * TAU) * sweep_arc_deg * 0.5
+			return direction_deg + sweep_offset
+		"track":
+			var nearest: Node2D = _find_nearest_enemy()
+			if nearest:
+				var to_enemy: Vector2 = nearest.global_position - global_position
+				return rad_to_deg(Vector2.UP.angle_to(to_enemy))
+			return direction_deg
+		_:  # "fixed"
+			return direction_deg
+
+
+func _find_nearest_enemy() -> Node2D:
+	var enemies: Array[Node] = get_tree().get_nodes_in_group(_enemies_group)
+	var best: Node2D = null
+	var best_dist_sq: float = INF
+	for node in enemies:
+		if node is Node2D:
+			var enemy: Node2D = node as Node2D
+			var dist_sq: float = global_position.distance_squared_to(enemy.global_position)
+			if dist_sq < best_dist_sq:
+				best_dist_sq = dist_sq
+				best = enemy
+	return best
+
+
 func _fire(trigger_idx: int = -1) -> void:
 	if not weapon_data or not _projectiles_container:
 		return
-	var dir: Vector2 = Vector2.UP.rotated(deg_to_rad(direction_deg))
+
+	var current_dir: float = _get_current_direction()
+
+	match mirror_mode:
+		"mirror":
+			# Fire at +dir and -dir (mirrored across up axis)
+			_fire_pattern_at(current_dir, trigger_idx)
+			if absf(current_dir) > 0.01:
+				_fire_pattern_at(-current_dir, trigger_idx)
+		"alternate":
+			# Alternate between +dir and -dir each trigger
+			if _alternate_flip:
+				_fire_pattern_at(-current_dir, trigger_idx)
+			else:
+				_fire_pattern_at(current_dir, trigger_idx)
+			_alternate_flip = not _alternate_flip
+		_:  # "none"
+			_fire_pattern_at(current_dir, trigger_idx)
+
+	_spawn_muzzle_effect(global_position, trigger_idx)
+
+
+func _fire_pattern_at(dir_deg: float, trigger_idx: int) -> void:
+	var dir: Vector2 = Vector2.UP.rotated(deg_to_rad(dir_deg))
 	var perp: Vector2 = dir.rotated(deg_to_rad(90.0))
 	var base_pos: Vector2 = global_position
 	var fp: String = weapon_data.fire_pattern
@@ -129,8 +198,6 @@ func _fire(trigger_idx: int = -1) -> void:
 	else:
 		_spawn_projectile(base_pos, dir, 1.0, trigger_idx)
 
-	_spawn_muzzle_effect(base_pos, trigger_idx)
-
 
 func _get_style() -> ProjectileStyle:
 	if not _style_loaded:
@@ -157,18 +224,20 @@ func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trig
 	proj.direction = dir
 	proj.speed = weapon_data.projectile_speed * speed_mult
 	proj.damage = weapon_data.damage
-	proj.weapon_color = Color(weapon_data.color)
 	proj.effect_profile = weapon_data.effect_profile
 	proj.trigger_index = trigger_idx
 	if style:
 		proj.projectile_style = style
+		proj.weapon_color = style.color
+	else:
+		proj.weapon_color = Color.CYAN
 	_projectiles_container.add_child(proj)
 
 
 func _spawn_beam(pos: Vector2, style: ProjectileStyle) -> void:
 	var beam := BeamProjectile.new()
 	beam.position = pos
-	beam.weapon_color = Color(weapon_data.color)
+	beam.weapon_color = style.color
 	beam.damage_per_tick = float(weapon_data.damage)
 	beam.projectile_style = style
 	var ap: Dictionary = style.archetype_params
@@ -181,7 +250,7 @@ func _spawn_beam(pos: Vector2, style: ProjectileStyle) -> void:
 func _spawn_pulse_wave(pos: Vector2, style: ProjectileStyle) -> void:
 	var pulse := PulseWaveProjectile.new()
 	pulse.position = pos
-	pulse.weapon_color = Color(weapon_data.color)
+	pulse.weapon_color = style.color
 	pulse.damage = weapon_data.damage
 	pulse.projectile_style = style
 	var ap: Dictionary = style.archetype_params
@@ -199,7 +268,7 @@ func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:
 	var muzzle_layers: Array = resolved.get("muzzle", []) as Array
 	if muzzle_layers.is_empty():
 		return
-	var color: Color = Color(weapon_data.color)
+	var color: Color = Color.CYAN
 
 	# Spawn GPU particle muzzle emitters
 	for layer in muzzle_layers:
@@ -207,6 +276,17 @@ func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:
 		var mtype: String = str(layer_dict.get("type", "none"))
 		if mtype == "none":
 			continue
-		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, color)
+		# Use per-layer color if present, otherwise fallback
+		var layer_color: Color = _get_layer_color(layer_dict, color)
+		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, layer_color)
 		emitter.position = origin
 		_projectiles_container.add_child(emitter)
+
+
+func _get_layer_color(layer_dict: Dictionary, fallback: Color) -> Color:
+	if layer_dict.has("color"):
+		var c: Array = layer_dict["color"] as Array
+		if c.size() >= 3:
+			var a: float = float(c[3]) if c.size() >= 4 else 1.0
+			return Color(float(c[0]), float(c[1]), float(c[2]), a)
+	return fallback

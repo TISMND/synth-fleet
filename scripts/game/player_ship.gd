@@ -136,7 +136,7 @@ func _update_hud_hardpoints() -> void:
 		data.append({
 			"label": hp_info["label"],
 			"weapon_name": weapon.display_name if weapon.display_name != "" else weapon.id,
-			"color": Color(weapon.color),
+			"color": Color.CYAN,
 			"active": controller.is_active(),
 		})
 	_hud.update_hardpoints(data)

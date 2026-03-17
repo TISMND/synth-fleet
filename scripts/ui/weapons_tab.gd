@@ -1,9 +1,13 @@
 extends MarginContainer
-## Weapons Tab — weapon editor with subtabs (Timing / Effects / Stats),
+## Weapons Tab — weapon editor with subtabs (Timing / Movement / Effects / Stats),
 ## live preview, loop browser, time-based waveform triggers, save/load/delete.
-## Effects tab supports stackable layers per slot, per-trigger overrides, and beat_fx.
+## Effects tab has 3 slots (muzzle/trail/impact) with single layer each + per-layer color.
 
 const FIRE_PATTERNS: Array[String] = ["single", "burst", "dual", "wave", "spread", "beam", "scatter"]
+const AIM_MODES: Array[String] = ["fixed", "sweep", "track"]
+const MIRROR_MODES: Array[String] = ["none", "mirror", "alternate"]
+const SPECIAL_EFFECTS: Array[String] = ["none", "disable_shields", "disable_weapons", "drain_shields_for_power"]
+
 const SNAP_MODES: Array[Dictionary] = [
 	{"label": "Free", "value": 0},
 	{"label": "1/4", "value": 4},
@@ -18,41 +22,26 @@ const BARS_OPTIONS: Array[Dictionary] = [
 	{"label": "8", "value": 8},
 ]
 
-const EFFECT_SLOTS: Array[String] = ["shape", "motion", "muzzle", "trail", "impact", "beat_fx"]
+const EFFECT_SLOTS: Array[String] = ["muzzle", "trail", "impact"]
+const EFFECT_SLOT_LABELS: Dictionary = {
+	"muzzle": "MUZZLE FLASH",
+	"trail": "TRAIL",
+	"impact": "IMPACT",
+}
 
 const EFFECT_TYPES: Dictionary = {
-	"motion": ["none", "sine_wave", "corkscrew", "wobble"],
 	"muzzle": ["none", "radial_burst", "directional_flash", "ring_pulse", "spiral_burst"],
-	"shape": ["rect", "streak", "orb", "diamond", "arrow", "pulse_orb", "energy", "plasma", "beam_shader"],
 	"trail": ["none", "particle", "ribbon", "afterimage", "sparkle", "sine_ribbon"],
 	"impact": ["none", "burst", "ring_expand", "shatter_lines", "nova_flash", "ripple"],
-	"beat_fx": ["none", "color_pulse", "scale_pulse", "sparkle_burst", "glow_flash", "ring_ping"],
 }
 
 const EFFECT_PARAM_DEFS: Dictionary = {
-	"motion": {
-		"none": {},
-		"sine_wave": {"amplitude": [5.0, 100.0, 30.0, 1.0], "frequency": [0.5, 10.0, 3.0, 0.1], "phase_offset": [0.0, 6.28, 0.0, 0.01]},
-		"corkscrew": {"amplitude": [5.0, 80.0, 20.0, 1.0], "frequency": [0.5, 10.0, 5.0, 0.1], "phase_offset": [0.0, 6.28, 0.0, 0.01]},
-		"wobble": {"amplitude": [2.0, 50.0, 10.0, 1.0], "frequency": [1.0, 15.0, 8.0, 0.1], "phase_offset": [0.0, 6.28, 0.0, 0.01]},
-	},
 	"muzzle": {
 		"none": {},
 		"radial_burst": {"particle_count": [2, 20, 6, 1], "lifetime": [0.1, 1.0, 0.3, 0.05], "spread_angle": [30.0, 360.0, 360.0, 5.0]},
 		"directional_flash": {"particle_count": [2, 12, 4, 1], "lifetime": [0.05, 0.5, 0.2, 0.05], "spread_angle": [10.0, 90.0, 30.0, 5.0]},
 		"ring_pulse": {"particle_count": [4, 24, 8, 1], "lifetime": [0.1, 0.8, 0.3, 0.05], "spread_angle": [180.0, 360.0, 360.0, 10.0]},
 		"spiral_burst": {"particle_count": [4, 20, 8, 1], "lifetime": [0.1, 1.0, 0.4, 0.05], "spread_angle": [180.0, 360.0, 360.0, 10.0]},
-	},
-	"shape": {
-		"rect": {"width": [2.0, 20.0, 6.0, 1.0], "height": [4.0, 30.0, 12.0, 1.0], "glow_width": [0.0, 10.0, 3.0, 0.5], "glow_intensity": [0.0, 2.0, 0.8, 0.1], "core_brightness": [0.0, 2.0, 1.0, 0.1]},
-		"streak": {"width": [1.0, 10.0, 3.0, 0.5], "height": [8.0, 40.0, 20.0, 1.0], "glow_width": [0.0, 12.0, 4.0, 0.5], "glow_intensity": [0.0, 2.0, 0.8, 0.1], "core_brightness": [0.0, 2.0, 1.0, 0.1]},
-		"orb": {"radius": [2.0, 15.0, 4.0, 0.5], "glow_width": [0.0, 10.0, 3.0, 0.5], "glow_intensity": [0.0, 2.0, 0.8, 0.1], "core_brightness": [0.0, 2.0, 1.0, 0.1]},
-		"diamond": {"width": [4.0, 24.0, 8.0, 1.0], "height": [6.0, 30.0, 14.0, 1.0], "glow_width": [0.0, 10.0, 3.0, 0.5], "glow_intensity": [0.0, 2.0, 0.8, 0.1], "core_brightness": [0.0, 2.0, 1.0, 0.1]},
-		"arrow": {"width": [4.0, 20.0, 8.0, 1.0], "height": [6.0, 30.0, 16.0, 1.0], "glow_width": [0.0, 8.0, 2.0, 0.5], "glow_intensity": [0.0, 2.0, 0.8, 0.1], "core_brightness": [0.0, 2.0, 1.0, 0.1]},
-		"pulse_orb": {"radius": [2.0, 15.0, 5.0, 0.5], "glow_width": [0.0, 12.0, 4.0, 0.5], "glow_intensity": [0.0, 2.5, 1.0, 0.1], "core_brightness": [0.0, 2.5, 1.2, 0.1]},
-		"energy": {"width": [8.0, 48.0, 24.0, 2.0], "height": [12.0, 64.0, 32.0, 2.0], "glow_intensity": [0.5, 3.0, 1.5, 0.1]},
-		"plasma": {"width": [8.0, 40.0, 20.0, 2.0], "height": [8.0, 40.0, 20.0, 2.0], "glow_intensity": [0.5, 3.0, 1.5, 0.1]},
-		"beam_shader": {"width": [6.0, 32.0, 12.0, 2.0], "height": [16.0, 80.0, 40.0, 2.0], "glow_intensity": [0.5, 3.0, 1.5, 0.1]},
 	},
 	"trail": {
 		"none": {},
@@ -69,14 +58,6 @@ const EFFECT_PARAM_DEFS: Dictionary = {
 		"shatter_lines": {"particle_count": [3, 16, 6, 1], "lifetime": [0.1, 0.8, 0.3, 0.05], "radius": [5.0, 50.0, 25.0, 1.0]},
 		"nova_flash": {"particle_count": [6, 24, 10, 1], "lifetime": [0.2, 1.0, 0.5, 0.05], "radius": [10.0, 80.0, 40.0, 1.0]},
 		"ripple": {"particle_count": [4, 20, 8, 1], "lifetime": [0.1, 1.0, 0.4, 0.05], "radius": [10.0, 70.0, 35.0, 1.0]},
-	},
-	"beat_fx": {
-		"none": {},
-		"color_pulse": {"subdivision": [2, 32, 16, 1], "intensity": [0.1, 1.0, 0.6, 0.05], "r": [0.0, 1.0, 1.0, 0.05], "g": [0.0, 1.0, 1.0, 0.05], "b": [0.0, 1.0, 1.0, 0.05]},
-		"scale_pulse": {"subdivision": [2, 32, 16, 1], "intensity": [0.1, 1.0, 0.6, 0.05], "max_scale": [1.1, 2.0, 1.5, 0.05]},
-		"sparkle_burst": {"subdivision": [2, 32, 16, 1], "intensity": [0.1, 1.0, 0.6, 0.05]},
-		"glow_flash": {"subdivision": [2, 32, 16, 1], "intensity": [0.1, 1.0, 0.6, 0.05]},
-		"ring_ping": {"subdivision": [2, 32, 8, 1], "intensity": [0.1, 1.0, 0.6, 0.05]},
 	},
 }
 
@@ -97,24 +78,25 @@ var _snap_button: OptionButton
 var _grid_toggle: Button
 var _bars_button: OptionButton
 
-# Stats subtab
-var _name_input: LineEdit
-var _color_picker: ColorPickerButton
-var _damage_slider: HSlider
-var _damage_label: Label
+# Movement subtab
+var _pattern_button: OptionButton
 var _speed_slider: HSlider
 var _speed_label: Label
-var _power_slider: HSlider
-var _power_label: Label
+var _aim_mode_button: OptionButton
 var _direction_slider: HSlider
 var _direction_label: Label
-var _pattern_button: OptionButton
+var _sweep_arc_slider: HSlider
+var _sweep_arc_label: Label
+var _sweep_duration_slider: HSlider
+var _sweep_duration_label: Label
+var _mirror_mode_button: OptionButton
+var _direction_section: VBoxContainer
+var _sweep_section: VBoxContainer
+var _mirror_section: VBoxContainer
 
-# Effect section tracking — per-slot: Array of layer UIs
-# _slot_layers_data[slot] = Array of { "type_btn": OptionButton, "param_container": VBoxContainer, "param_sliders": Dictionary, "row_container": VBoxContainer }
-var _slot_layers_data: Dictionary = {}
-var _slot_containers: Dictionary = {}  # slot -> VBoxContainer that holds all layer rows
-var _slot_add_buttons: Dictionary = {}  # slot -> Button
+# Effects subtab — per-slot single layer data
+# _slot_layer_data[slot] = { "type_btn": OptionButton, "param_container": VBoxContainer, "param_sliders": Dictionary, "color_picker": ColorPickerButton }
+var _slot_layer_data: Dictionary = {}
 
 # Per-trigger override state
 var _trigger_override_selector: OptionButton
@@ -123,6 +105,14 @@ var _editing_trigger_index: int = -1  # -1 = editing defaults
 # Projectile style selector
 var _style_selector: OptionButton
 var _style_ids: Array[String] = []
+
+# Stats subtab
+var _name_input: LineEdit
+var _damage_slider: HSlider
+var _damage_label: Label
+var _power_slider: HSlider
+var _power_label: Label
+var _special_effect_button: OptionButton
 
 # State
 var _current_id: String = ""
@@ -205,6 +195,10 @@ func _build_ui() -> void:
 	var timing_tab := _build_timing_tab()
 	timing_tab.name = "Timing"
 	_tab_container.add_child(timing_tab)
+
+	var movement_tab := _build_movement_tab()
+	movement_tab.name = "Movement"
+	_tab_container.add_child(movement_tab)
 
 	var effects_tab := _build_effects_tab()
 	effects_tab.name = "Effects"
@@ -344,6 +338,77 @@ func _build_timing_tab() -> Control:
 	return scroll
 
 
+func _build_movement_tab() -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+
+	var form := VBoxContainer.new()
+	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(form)
+
+	# Fire Pattern
+	_add_section_header(form, "FIRE PATTERN")
+	_pattern_button = _add_option_button(form, FIRE_PATTERNS)
+	_pattern_button.item_selected.connect(func(_i: int) -> void: _update_preview())
+
+	_add_separator(form)
+
+	# Projectile Speed
+	_add_section_header(form, "PROJECTILE SPEED")
+	var speed_row := _add_slider_row(form, "Speed:", 100, 1500, 600, 10)
+	_speed_slider = speed_row[0]
+	_speed_label = speed_row[1]
+
+	_add_separator(form)
+
+	# Aim Mode
+	_add_section_header(form, "AIM MODE")
+	_aim_mode_button = _add_option_button(form, AIM_MODES)
+	_aim_mode_button.item_selected.connect(_on_aim_mode_changed)
+
+	_add_separator(form)
+
+	# Direction section (visible for fixed + sweep)
+	_direction_section = VBoxContainer.new()
+	_direction_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	form.add_child(_direction_section)
+	_add_section_header(_direction_section, "DIRECTION")
+	var dir_row := _add_slider_row(_direction_section, "Angle (deg):", 0, 360, 0, 1)
+	_direction_slider = dir_row[0]
+	_direction_label = dir_row[1]
+	_direction_slider.value_changed.connect(func(_v: float) -> void: _update_mirror_visibility())
+
+	_add_separator(form)
+
+	# Sweep section (visible only for sweep mode)
+	_sweep_section = VBoxContainer.new()
+	_sweep_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sweep_section.visible = false
+	form.add_child(_sweep_section)
+	_add_section_header(_sweep_section, "SWEEP")
+	var arc_row := _add_slider_row(_sweep_section, "Arc (deg):", 10, 360, 60, 1)
+	_sweep_arc_slider = arc_row[0]
+	_sweep_arc_label = arc_row[1]
+	var dur_row := _add_slider_row(_sweep_section, "Duration (s):", 0.2, 5.0, 1.0, 0.1)
+	_sweep_duration_slider = dur_row[0]
+	_sweep_duration_label = dur_row[1]
+
+	_add_separator(form)
+
+	# Mirror Mode section (visible when direction != 0 or sweep mode)
+	_mirror_section = VBoxContainer.new()
+	_mirror_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mirror_section.visible = false
+	form.add_child(_mirror_section)
+	_add_section_header(_mirror_section, "MIRROR MODE")
+	_mirror_mode_button = _add_option_button(_mirror_section, MIRROR_MODES)
+	_mirror_mode_button.item_selected.connect(func(_i: int) -> void: _update_preview())
+
+	return scroll
+
+
 func _build_effects_tab() -> Control:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -384,7 +449,7 @@ func _build_effects_tab() -> Control:
 
 	_add_separator(_effects_form)
 
-	# Build slot sections
+	# Build slot sections (single layer each)
 	for slot in EFFECT_SLOTS:
 		_build_effect_slot_section(_effects_form, slot)
 		_add_separator(_effects_form)
@@ -412,30 +477,11 @@ func _build_stats_tab() -> Control:
 
 	_add_separator(form)
 
-	# Color
-	_add_section_header(form, "COLOR")
-	var color_row := HBoxContainer.new()
-	form.add_child(color_row)
-	_color_picker = ColorPickerButton.new()
-	_color_picker.color = Color.CYAN
-	_color_picker.custom_minimum_size = Vector2(80, 30)
-	_color_picker.color_changed.connect(func(_c: Color) -> void: _update_preview())
-	color_row.add_child(_color_picker)
-	var color_info := Label.new()
-	color_info.text = "  Weapon color (affects projectile and effects)"
-	color_row.add_child(color_info)
-
-	_add_separator(form)
-
 	# Combat Stats
 	_add_section_header(form, "COMBAT STATS")
 	var damage_row := _add_slider_row(form, "Damage:", 1, 100, 10, 1)
 	_damage_slider = damage_row[0]
 	_damage_label = damage_row[1]
-
-	var speed_row := _add_slider_row(form, "Projectile Speed:", 100, 1500, 600, 10)
-	_speed_slider = speed_row[0]
-	_speed_label = speed_row[1]
 
 	var power_row := _add_slider_row(form, "Power Cost:", 1, 30, 5, 1)
 	_power_slider = power_row[0]
@@ -443,180 +489,85 @@ func _build_stats_tab() -> Control:
 
 	_add_separator(form)
 
-	# Fire Pattern + Direction
-	_add_section_header(form, "FIRE PATTERN")
-	_pattern_button = _add_option_button(form, FIRE_PATTERNS)
-	_pattern_button.item_selected.connect(func(_i: int) -> void: _update_preview())
-
-	var dir_row := _add_slider_row(form, "Direction (deg):", 0, 360, 0, 1)
-	_direction_slider = dir_row[0]
-	_direction_label = dir_row[1]
+	# Special Effect
+	_add_section_header(form, "SPECIAL EFFECT")
+	_special_effect_button = _add_option_button(form, SPECIAL_EFFECTS)
+	_special_effect_button.item_selected.connect(func(_i: int) -> void: _update_preview())
 
 	return scroll
 
 
-# ── Effect Slot Section (stackable layers) ─────────────────
+# ── Effect Slot Section (single layer per slot) ─────────────────
 
 func _build_effect_slot_section(parent: Control, slot: String) -> void:
-	_add_section_header(parent, "EFFECT: " + slot.to_upper())
+	var slot_label: String = EFFECT_SLOT_LABELS.get(slot, slot.to_upper())
+	_add_section_header(parent, slot_label)
 
-	# Container for all layer rows in this slot
-	var layers_container := VBoxContainer.new()
-	layers_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	parent.add_child(layers_container)
-	_slot_containers[slot] = layers_container
-	_slot_layers_data[slot] = []
+	# Type selector row
+	var type_row := HBoxContainer.new()
+	parent.add_child(type_row)
 
-	# Add first default layer
-	_add_effect_layer(slot)
-
-	# Add Layer button
-	var add_btn := Button.new()
-	add_btn.text = "+ Add " + slot.capitalize() + " Layer"
-	add_btn.pressed.connect(_on_add_layer.bind(slot))
-	ThemeManager.apply_button_style(add_btn)
-	parent.add_child(add_btn)
-	_slot_add_buttons[slot] = add_btn
-
-
-func _add_effect_layer(slot: String, type_name: String = "", params: Dictionary = {}) -> void:
-	var layers_data: Array = _slot_layers_data[slot]
-	if layers_data.size() >= EffectLayerRenderer.MAX_LAYERS_PER_SLOT:
-		return
-
-	var container: VBoxContainer = _slot_containers[slot]
-	var layer_idx: int = layers_data.size()
-
-	# Layer row container
-	var row_container := VBoxContainer.new()
-	row_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	container.add_child(row_container)
-
-	# Header row: [Layer N] type_selector [^] [v] [X]
-	var header_row := HBoxContainer.new()
-	row_container.add_child(header_row)
-
-	var layer_label := Label.new()
-	layer_label.text = "[Layer " + str(layer_idx + 1) + "]"
-	layer_label.custom_minimum_size.x = 70
-	header_row.add_child(layer_label)
+	var type_label := Label.new()
+	type_label.text = "Type:"
+	type_label.custom_minimum_size.x = 60
+	type_row.add_child(type_label)
 
 	var types: Array = EFFECT_TYPES[slot]
 	var type_btn := OptionButton.new()
 	type_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for t in types:
 		type_btn.add_item(str(t))
-	header_row.add_child(type_btn)
+	type_btn.selected = 0
+	type_row.add_child(type_btn)
 
-	# Set initial type
-	if type_name != "":
-		var type_idx: int = -1
-		for i in types.size():
-			if str(types[i]) == type_name:
-				type_idx = i
-				break
-		if type_idx >= 0:
-			type_btn.selected = type_idx
-	else:
-		type_btn.selected = 0
+	# Color picker row
+	var color_row := HBoxContainer.new()
+	parent.add_child(color_row)
+
+	var color_label := Label.new()
+	color_label.text = "Effect Color:"
+	color_label.custom_minimum_size.x = 100
+	color_row.add_child(color_label)
+
+	var color_picker := ColorPickerButton.new()
+	color_picker.color = Color.WHITE
+	color_picker.custom_minimum_size = Vector2(80, 30)
+	color_picker.color_changed.connect(func(_c: Color) -> void: _update_preview())
+	color_row.add_child(color_picker)
 
 	# Param container
 	var param_container := VBoxContainer.new()
 	param_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row_container.add_child(param_container)
+	parent.add_child(param_container)
 
-	var layer_data: Dictionary = {
+	_slot_layer_data[slot] = {
 		"type_btn": type_btn,
 		"param_container": param_container,
 		"param_sliders": {},
-		"row_container": row_container,
-		"label": layer_label,
+		"color_picker": color_picker,
 	}
-	layers_data.append(layer_data)
-
-	# Reorder/remove buttons — bind layer_data ref, resolve index dynamically
-	var up_btn := Button.new()
-	up_btn.text = "^"
-	up_btn.custom_minimum_size.x = 30
-	up_btn.pressed.connect(func() -> void:
-		var idx: int = _find_layer_index(slot, layer_data)
-		if idx >= 0:
-			_on_reorder_layer(slot, idx, -1)
-	)
-	ThemeManager.apply_button_style(up_btn)
-	header_row.add_child(up_btn)
-
-	var down_btn := Button.new()
-	down_btn.text = "v"
-	down_btn.custom_minimum_size.x = 30
-	down_btn.pressed.connect(func() -> void:
-		var idx: int = _find_layer_index(slot, layer_data)
-		if idx >= 0:
-			_on_reorder_layer(slot, idx, 1)
-	)
-	ThemeManager.apply_button_style(down_btn)
-	header_row.add_child(down_btn)
-
-	var remove_btn := Button.new()
-	remove_btn.text = "X"
-	remove_btn.custom_minimum_size.x = 30
-	remove_btn.pressed.connect(func() -> void:
-		var idx: int = _find_layer_index(slot, layer_data)
-		if idx >= 0:
-			_on_remove_layer(slot, idx)
-	)
-	ThemeManager.apply_button_style(remove_btn)
-	header_row.add_child(remove_btn)
 
 	# Build params for initial type
-	var initial_type: String = type_btn.get_item_text(type_btn.selected)
-	_rebuild_layer_params(slot, layer_idx, initial_type)
-
-	# Set param values if provided
-	if not params.is_empty():
-		var sliders: Dictionary = layer_data["param_sliders"]
-		for param_name in params:
-			if param_name in sliders:
-				var slider: HSlider = sliders[param_name]
-				slider.value = float(params[param_name])
+	_rebuild_slot_params(slot, type_btn.get_item_text(type_btn.selected))
 
 	# Connect type change
 	type_btn.item_selected.connect(func(idx: int) -> void:
 		var new_type: String = type_btn.get_item_text(idx)
-		# Find current index of this layer in the array
-		var current_idx: int = _find_layer_index(slot, layer_data)
-		if current_idx >= 0:
-			_rebuild_layer_params(slot, current_idx, new_type)
+		_rebuild_slot_params(slot, new_type)
 		_update_preview()
 	)
 
-	# Separator between layers
-	var sep := HSeparator.new()
-	sep.add_theme_constant_override("separation", 4)
-	row_container.add_child(sep)
 
-
-func _find_layer_index(slot: String, layer_data: Dictionary) -> int:
-	var layers: Array = _slot_layers_data[slot]
-	for i in layers.size():
-		if layers[i] == layer_data:
-			return i
-	return -1
-
-
-func _rebuild_layer_params(slot: String, layer_idx: int, type_name: String) -> void:
-	var layers_data: Array = _slot_layers_data[slot]
-	if layer_idx < 0 or layer_idx >= layers_data.size():
-		return
-	var layer_data: Dictionary = layers_data[layer_idx]
-	var param_container: VBoxContainer = layer_data["param_container"]
+func _rebuild_slot_params(slot: String, type_name: String) -> void:
+	var data: Dictionary = _slot_layer_data[slot]
+	var param_container: VBoxContainer = data["param_container"]
 
 	for child in param_container.get_children():
 		child.queue_free()
-	layer_data["param_sliders"] = {}
+	data["param_sliders"] = {}
 
-	var layer_defs: Dictionary = EFFECT_PARAM_DEFS.get(slot, {})
-	var type_params: Dictionary = layer_defs.get(type_name, {})
+	var slot_defs: Dictionary = EFFECT_PARAM_DEFS.get(slot, {})
+	var type_params: Dictionary = slot_defs.get(type_name, {})
 
 	if type_params.is_empty():
 		var no_params := Label.new()
@@ -636,74 +587,48 @@ func _rebuild_layer_params(slot: String, layer_idx: int, type_name: String) -> v
 		var row := _add_slider_row(param_container, param_name + ":", min_val, max_val, default_val, step_val)
 		sliders_dict[param_name] = row[0]
 
-	layer_data["param_sliders"] = sliders_dict
+	data["param_sliders"] = sliders_dict
 
 
-func _on_add_layer(slot: String) -> void:
-	_add_effect_layer(slot)
+# ── Aim Mode Visibility ────────────────────────────────────
+
+func _on_aim_mode_changed(idx: int) -> void:
+	var mode: String = AIM_MODES[idx]
+	match mode:
+		"fixed":
+			_direction_section.visible = true
+			_sweep_section.visible = false
+			_update_mirror_visibility()
+		"sweep":
+			_direction_section.visible = true
+			_sweep_section.visible = true
+			_mirror_section.visible = true
+		"track":
+			_direction_section.visible = false
+			_sweep_section.visible = false
+			_mirror_section.visible = false
 	_update_preview()
 
 
-func _on_remove_layer(slot: String, layer_idx: int) -> void:
-	var layers_data: Array = _slot_layers_data[slot]
-	if layers_data.size() <= 1:
-		# Don't remove the last layer, just reset it to "none"/first type
-		var layer_data: Dictionary = layers_data[0]
-		var type_btn: OptionButton = layer_data["type_btn"]
-		type_btn.selected = 0
-		var types: Array = EFFECT_TYPES[slot]
-		_rebuild_layer_params(slot, 0, str(types[0]))
-		_update_preview()
+func _update_mirror_visibility() -> void:
+	if not _aim_mode_button:
 		return
-	if layer_idx < 0 or layer_idx >= layers_data.size():
-		return
-	# Remove the UI and data
-	var layer_data: Dictionary = layers_data[layer_idx]
-	var row_container: VBoxContainer = layer_data["row_container"]
-	row_container.queue_free()
-	layers_data.remove_at(layer_idx)
-	# Update labels
-	_update_layer_labels(slot)
-	_update_preview()
-
-
-func _on_reorder_layer(slot: String, layer_idx: int, direction: int) -> void:
-	var layers_data: Array = _slot_layers_data[slot]
-	var new_idx: int = layer_idx + direction
-	if new_idx < 0 or new_idx >= layers_data.size():
-		return
-	# Swap data
-	var temp: Dictionary = layers_data[layer_idx]
-	layers_data[layer_idx] = layers_data[new_idx]
-	layers_data[new_idx] = temp
-	# Swap visual order
-	var container: VBoxContainer = _slot_containers[slot]
-	var row_a: VBoxContainer = (layers_data[layer_idx] as Dictionary)["row_container"]
-	var row_b: VBoxContainer = (layers_data[new_idx] as Dictionary)["row_container"]
-	container.move_child(row_a, layer_idx)
-	container.move_child(row_b, new_idx)
-	_update_layer_labels(slot)
-	_update_preview()
-
-
-func _update_layer_labels(slot: String) -> void:
-	var layers_data: Array = _slot_layers_data[slot]
-	for i in layers_data.size():
-		var layer_data: Dictionary = layers_data[i]
-		var label: Label = layer_data["label"]
-		label.text = "[Layer " + str(i + 1) + "]"
+	var mode: String = AIM_MODES[_aim_mode_button.selected]
+	if mode == "sweep":
+		_mirror_section.visible = true
+	elif mode == "fixed":
+		_mirror_section.visible = absf(_direction_slider.value) > 0.01 and _direction_slider.value < 359.99
+	else:
+		_mirror_section.visible = false
 
 
 # ── Per-Trigger Override ────────────────────────────────────
 
 func _on_trigger_override_changed(idx: int) -> void:
-	# Save current editing state before switching
 	if idx == 0:
 		_editing_trigger_index = -1
 	else:
 		_editing_trigger_index = idx - 1
-
-	# Rebuild effects UI with the selected trigger's data
 	_rebuild_effects_from_profile(_get_current_profile())
 
 
@@ -834,7 +759,6 @@ func _collect_weapon_data() -> Dictionary:
 		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
 		"display_name": _name_input.text,
 		"description": "",
-		"color": "#" + _color_picker.color.to_html(false),
 		"damage": int(_damage_slider.value),
 		"projectile_speed": _speed_slider.value,
 		"power_cost": int(_power_slider.value),
@@ -843,35 +767,41 @@ func _collect_weapon_data() -> Dictionary:
 		"fire_triggers": triggers,
 		"fire_pattern": _pattern_button.get_item_text(_pattern_button.selected),
 		"effect_profile": _collect_effect_profile(),
-		"special_effect": "none",
+		"special_effect": SPECIAL_EFFECTS[_special_effect_button.selected],
 		"direction_deg": _direction_slider.value,
 		"projectile_style_id": _get_selected_style_id(),
+		"aim_mode": AIM_MODES[_aim_mode_button.selected],
+		"sweep_arc_deg": _sweep_arc_slider.value,
+		"sweep_duration": _sweep_duration_slider.value,
+		"mirror_mode": MIRROR_MODES[_mirror_mode_button.selected],
 	}
 
 
 func _collect_effect_profile() -> Dictionary:
-	# Collect current UI state as layer arrays for the currently-editing target
+	# Collect current UI state — single layer per slot
 	var current_layers: Dictionary = {}
 	for slot in EFFECT_SLOTS:
-		var layers_data: Array = _slot_layers_data.get(slot, [])
-		var slot_layers: Array = []
-		for layer_data in layers_data:
-			var ld: Dictionary = layer_data as Dictionary
-			var type_btn: OptionButton = ld["type_btn"]
-			var type_name: String = type_btn.get_item_text(type_btn.selected)
-			if type_name == "none":
-				continue
-			var params: Dictionary = {}
-			var sliders: Dictionary = ld.get("param_sliders", {}) as Dictionary
-			for param_name in sliders:
-				var slider: HSlider = sliders[param_name]
-				params[param_name] = slider.value
-			slot_layers.append({"type": type_name, "params": params})
-		if not slot_layers.is_empty():
-			current_layers[slot] = slot_layers
+		var data: Dictionary = _slot_layer_data.get(slot, {})
+		if data.is_empty():
+			continue
+		var type_btn: OptionButton = data["type_btn"]
+		var type_name: String = type_btn.get_item_text(type_btn.selected)
+		if type_name == "none":
+			continue
+		var params: Dictionary = {}
+		var sliders: Dictionary = data.get("param_sliders", {}) as Dictionary
+		for param_name in sliders:
+			var slider: HSlider = sliders[param_name]
+			params[param_name] = slider.value
+		var layer_dict: Dictionary = {"type": type_name, "params": params}
+		# Add color if not white
+		var color_picker: ColorPickerButton = data["color_picker"]
+		var c: Color = color_picker.color
+		if not c.is_equal_approx(Color.WHITE):
+			layer_dict["color"] = [c.r, c.g, c.b, c.a]
+		current_layers[slot] = [layer_dict]
 
 	# Build v2 profile
-	# Start from the existing profile if we're editing an override
 	var profile: Dictionary = {"version": 2, "defaults": {}, "trigger_overrides": {}}
 
 	# Preserve existing data we're not currently editing
@@ -1012,12 +942,19 @@ func _on_delete() -> void:
 func _on_new() -> void:
 	_current_id = ""
 	_name_input.text = ""
-	_color_picker.color = Color.CYAN
 	_damage_slider.value = 10
 	_speed_slider.value = 600
 	_power_slider.value = 5
 	_direction_slider.value = 0
 	_pattern_button.selected = 0
+	_aim_mode_button.selected = 0  # fixed
+	_sweep_arc_slider.value = 60
+	_sweep_duration_slider.value = 1.0
+	_mirror_mode_button.selected = 0  # none
+	_special_effect_button.selected = 0  # none
+	_direction_section.visible = true
+	_sweep_section.visible = false
+	_mirror_section.visible = false
 	_waveform_editor.set_stream_from_path("")
 	_waveform_editor.set_triggers([])
 	_bars_button.selected = 0
@@ -1027,10 +964,15 @@ func _on_new() -> void:
 	_current_profile_cache = {"version": 2, "defaults": {}, "trigger_overrides": {}}
 	_refresh_style_list()
 
-	# Reset all slots to single layer with first type
+	# Reset all effect slots to "none" with white color
 	for slot in EFFECT_SLOTS:
-		_clear_slot_layers(slot)
-		_add_effect_layer(slot)
+		var data: Dictionary = _slot_layer_data.get(slot, {})
+		if not data.is_empty():
+			var type_btn: OptionButton = data["type_btn"]
+			type_btn.selected = 0
+			_rebuild_slot_params(slot, "none")
+			var color_picker: ColorPickerButton = data["color_picker"]
+			color_picker.color = Color.WHITE
 
 	_update_preview()
 	_status_label.text = "New weapon — ready to edit."
@@ -1047,7 +989,6 @@ func _refresh_load_list() -> void:
 func _populate_from_weapon(weapon: WeaponData) -> void:
 	_current_id = weapon.id
 	_name_input.text = weapon.display_name
-	_color_picker.color = Color(weapon.color)
 	_damage_slider.value = weapon.damage
 	_speed_slider.value = weapon.projectile_speed
 	_power_slider.value = weapon.power_cost
@@ -1069,6 +1010,23 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	# Fire pattern
 	var pat_idx: int = FIRE_PATTERNS.find(weapon.fire_pattern)
 	_pattern_button.selected = pat_idx if pat_idx >= 0 else 0
+
+	# Aim mode
+	var aim_idx: int = AIM_MODES.find(weapon.aim_mode)
+	_aim_mode_button.selected = aim_idx if aim_idx >= 0 else 0
+	_on_aim_mode_changed(_aim_mode_button.selected)
+
+	# Sweep params
+	_sweep_arc_slider.value = weapon.sweep_arc_deg
+	_sweep_duration_slider.value = weapon.sweep_duration
+
+	# Mirror mode
+	var mirror_idx: int = MIRROR_MODES.find(weapon.mirror_mode)
+	_mirror_mode_button.selected = mirror_idx if mirror_idx >= 0 else 0
+
+	# Special effect
+	var special_idx: int = SPECIAL_EFFECTS.find(weapon.special_effect)
+	_special_effect_button.selected = special_idx if special_idx >= 0 else 0
 
 	# Projectile style selector
 	_refresh_style_list()
@@ -1095,40 +1053,56 @@ func _rebuild_effects_from_profile(profile: Dictionary) -> void:
 	# Determine which layers to show based on editing target
 	var layers_source: Dictionary = {}
 	if _editing_trigger_index < 0:
-		# Editing defaults
 		layers_source = profile.get("defaults", {}) as Dictionary
 	else:
-		# Editing a specific trigger override
 		var overrides: Dictionary = profile.get("trigger_overrides", {}) as Dictionary
 		var key: String = str(_editing_trigger_index)
 		if overrides.has(key):
 			layers_source = overrides[key] as Dictionary
 		else:
-			# No override for this trigger — show defaults (user can modify to create override)
 			layers_source = profile.get("defaults", {}) as Dictionary
 
-	# Rebuild all slots
+	# Populate each slot from profile (single layer per slot)
 	for slot in EFFECT_SLOTS:
-		_clear_slot_layers(slot)
+		var data: Dictionary = _slot_layer_data.get(slot, {})
+		if data.is_empty():
+			continue
+		var type_btn: OptionButton = data["type_btn"]
+		var color_picker: ColorPickerButton = data["color_picker"]
 		var slot_layers: Array = layers_source.get(slot, []) as Array
 		if slot_layers.is_empty():
-			# Add a single empty/default layer
-			_add_effect_layer(slot)
+			type_btn.selected = 0
+			_rebuild_slot_params(slot, "none")
+			color_picker.color = Color.WHITE
 		else:
-			for layer_dict in slot_layers:
-				var ld: Dictionary = layer_dict as Dictionary
-				var type_name: String = str(ld.get("type", "none"))
-				var params: Dictionary = ld.get("params", {}) as Dictionary
-				_add_effect_layer(slot, type_name, params)
-
-
-func _clear_slot_layers(slot: String) -> void:
-	var layers_data: Array = _slot_layers_data.get(slot, [])
-	for layer_data in layers_data:
-		var ld: Dictionary = layer_data as Dictionary
-		var row_container: VBoxContainer = ld["row_container"]
-		row_container.queue_free()
-	_slot_layers_data[slot] = []
+			var layer_dict: Dictionary = slot_layers[0] as Dictionary
+			var type_name: String = str(layer_dict.get("type", "none"))
+			# Find type index
+			var types: Array = EFFECT_TYPES[slot]
+			var type_idx: int = -1
+			for i in types.size():
+				if str(types[i]) == type_name:
+					type_idx = i
+					break
+			type_btn.selected = type_idx if type_idx >= 0 else 0
+			_rebuild_slot_params(slot, type_name)
+			# Set param values
+			var params: Dictionary = layer_dict.get("params", {}) as Dictionary
+			var sliders: Dictionary = data.get("param_sliders", {}) as Dictionary
+			for param_name in params:
+				if param_name in sliders:
+					var slider: HSlider = sliders[param_name]
+					slider.value = float(params[param_name])
+			# Set color
+			if layer_dict.has("color"):
+				var c: Array = layer_dict["color"] as Array
+				if c.size() >= 3:
+					var a: float = float(c[3]) if c.size() >= 4 else 1.0
+					color_picker.color = Color(float(c[0]), float(c[1]), float(c[2]), a)
+				else:
+					color_picker.color = Color.WHITE
+			else:
+				color_picker.color = Color.WHITE
 
 
 func _apply_theme() -> void:
@@ -1146,7 +1120,3 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_delete_button)
 	if _new_button:
 		ThemeManager.apply_button_style(_new_button)
-	for slot in _slot_add_buttons:
-		var btn: Button = _slot_add_buttons[slot]
-		if is_instance_valid(btn):
-			ThemeManager.apply_button_style(btn)

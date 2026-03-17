@@ -21,8 +21,9 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - Shield/hull health system with HUD
 - GameState save/load to user://
 - WeaponData resource with loop_file_path, loop_length_bars, fire_triggers
-- Weapons Tab with subtabs (Timing / Effects / Stats), time-based waveform editor, loop browser, fire trigger editor with Free/snap modes
-- Composable Effect Layer System: stackable layers per slot (shape, motion, muzzle, trail, impact, beat_fx), per-trigger overrides, beat-synced sub-effects
+- Weapons Tab with subtabs (Timing / Movement / Effects / Stats), time-based waveform editor, loop browser, fire trigger editor with Free/snap modes
+- Movement system: aim modes (fixed/sweep/track), mirror modes (none/mirror/alternate), direction control
+- Effect system: muzzle/trail/impact slots with per-layer color, per-trigger overrides
 - EffectLayerRenderer: centralized rendering utility used by Projectile, WeaponPreview, and ShipFiringPreview
 - ThemeManager for visual theming across all screens — every screen fully themed with grid bg, button styles, text glow, LED bars, VHS/CRT overlay, and `theme_changed` reactivity
 
@@ -78,25 +79,30 @@ Every UI screen must follow this pattern for full theme consistency:
 7. **`theme_changed` connection** — Connect in `_ready()`, handler re-applies all of the above
 
 ### WeaponData schema
-- `id`, `display_name`, `description`, `color` — identity
+- `id`, `display_name`, `description` — identity
 - `loop_file_path` — path to Splice WAV (e.g. `res://assets/audio/loops/bass_4bar.wav`)
 - `loop_length_bars` — 1, 2, 4, or 8
 - `fire_triggers` — Array[float] normalized time positions (0.0–1.0) where shots fire
 - `damage`, `projectile_speed`, `power_cost` — combat stats
 - `fire_pattern` — single/dual/spread/burst/scatter/wave/beam
-- `effect_profile` — v2 composable effect layers (see below)
+- `direction_deg` — firing direction in degrees (0 = up)
+- `aim_mode` — fixed/sweep/track
+- `sweep_arc_deg`, `sweep_duration` — sweep parameters (arc width, seconds per cycle)
+- `mirror_mode` — none/mirror/alternate
+- `effect_profile` — v2 composable effect layers (see below), only muzzle/trail/impact slots
 - `special_effect` — none/disable_shields/disable_weapons/drain_shields_for_power
+- `projectile_style_id` — links to ProjectileStyle for visual design (color comes from style)
 
 ### Effect Profile (v2)
 Format: `{ "version": 2, "defaults": { slot: [layers...] }, "trigger_overrides": { "idx": { slot: [layers...] } } }`
 
-6 slot categories, each an **array of layers** (max 4 per slot):
-- **shape** — each layer draws in order (alpha-blended). Types: rect, streak, orb, diamond, arrow, pulse_orb
-- **motion** — x-offsets from all layers sum (compound movement). Types: sine_wave, corkscrew, wobble
-- **muzzle** — each layer spawns independent particle burst. Types: radial_burst, directional_flash, ring_pulse, spiral_burst
-- **trail** — each layer runs independent trail stream. Types: particle, ribbon, afterimage, sparkle, sine_ribbon
-- **impact** — each layer spawns independent explosion. Types: burst, ring_expand, shatter_lines, nova_flash, ripple
-- **beat_fx** — beat-synced sub-effects on projectiles in flight. Types: color_pulse, scale_pulse, sparkle_burst, glow_flash, ring_ping
+3 weapon-level effect slots (single layer each, with optional per-layer color):
+- **muzzle** — particle burst at fire origin. Types: radial_burst, directional_flash, ring_pulse, spiral_burst
+- **trail** — trail stream on projectiles. Types: particle, ribbon, afterimage, sparkle, sine_ribbon
+- **impact** — explosion on hit. Types: burst, ring_expand, shatter_lines, nova_flash, ripple
+
+Each layer dict may include `"color": [r, g, b, a]` for per-effect color (default white if absent).
+Shape, motion, and beat_fx are handled by ProjectileStyle / Projectile Animator, not the weapon effect profile.
 
 `trigger_overrides` keyed by trigger index (string). Missing slots inherit from defaults.
 v1 profiles (flat `{slot: {type, params}}`) auto-migrate on load via `WeaponData._migrate_effect_profile()`.
