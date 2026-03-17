@@ -54,6 +54,14 @@ var _hover_color: Color = Color(1.0, 1.0, 1.0, 0.3)
 var _selected_color: Color = Color(1.0, 0.85, 0.2)       # Gold for selected
 var _hovered_marker_color: Color = Color(1.0, 0.5, 0.5)   # Light red for hover
 
+# Per-marker color callback: Callable(idx: int) -> Color. Unset = use _trigger_color.
+var _marker_color_callback: Callable = Callable()
+
+
+func set_marker_color_callback(cb: Callable) -> void:
+	_marker_color_callback = cb
+	queue_redraw()
+
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -691,6 +699,8 @@ func _draw() -> void:
 
 		# Determine color and style based on state
 		var color: Color = _trigger_color
+		if _marker_color_callback.is_valid():
+			color = _marker_color_callback.call(i)
 		var line_width: float = 3.0
 		var tri_size: float = 6.0
 
