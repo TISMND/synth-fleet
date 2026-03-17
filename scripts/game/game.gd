@@ -289,6 +289,13 @@ func _setup_world_environment() -> void:
 
 
 func _setup_parallax() -> void:
+	# Grid background behind everything
+	var grid_bg := ColorRect.new()
+	grid_bg.size = Vector2(1920, 1080)
+	grid_bg.z_index = -10
+	ThemeManager.apply_grid_background(grid_bg)
+	add_child(grid_bg)
+
 	_parallax_bg = ParallaxBackground.new()
 	_parallax_bg.name = "ParallaxBG"
 	add_child(_parallax_bg)

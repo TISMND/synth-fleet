@@ -2,14 +2,14 @@ class_name ProjectileAnimatorPreview
 extends Node2D
 ## Live preview for the Projectile Animator tab.
 ## Shows animated projectile based on current style settings.
+## Bullet and pulse_wave are static (shader animates via TIME).
+## Beam shows its emit → sustain → end lifecycle on loop.
 
 var _viewport_size: Vector2 = Vector2(400, 500)
 var _sprite: Sprite2D = null
+var _content: Node2D = null  # Container for zoom/pan
 var _preview_color: Color = Color.CYAN
 var _archetype: String = "bullet"
-var _age: float = 0.0
-var _bullet_y: float = 0.0
-var _pulse_radius: float = 0.0
 var _beam_age: float = 0.0
 
 # Archetype params cache
@@ -21,6 +21,25 @@ var _max_radius: float = 200.0
 var _pulse_lifetime: float = 1.0
 var _ring_width: float = 8.0
 
+# Beam lifecycle timing
+var _beam_grow_time: float = 0.3
+var _beam_end_time: float = 0.15
+var _beam_gap_time: float = 0.5
+
+# Zoom and pan
+var _zoom: float = 1.0
+var _pan_offset: Vector2 = Vector2.ZERO
+var _is_panning: bool = false
+
+const ZOOM_MIN: float = 0.25
+const ZOOM_MAX: float = 4.0
+const ZOOM_STEP: float = 0.1
+
+
+func _ready() -> void:
+	_content = Node2D.new()
+	add_child(_content)
+
 
 func update_style(data: Dictionary) -> void:
 	# Remove old sprite
@@ -30,10 +49,12 @@ func update_style(data: Dictionary) -> void:
 
 	_archetype = str(data.get("archetype", "bullet"))
 	_preview_color = data.get("color", Color.CYAN) as Color
-	_age = 0.0
-	_bullet_y = _viewport_size.y - 60.0
-	_pulse_radius = 0.0
 	_beam_age = 0.0
+
+	# Reset zoom/pan on style change
+	_zoom = 1.0
+	_pan_offset = Vector2.ZERO
+	_apply_zoom_pan()
 
 	# Build a temporary ProjectileStyle from data
 	var style := ProjectileStyle.new()
@@ -55,84 +76,164 @@ func update_style(data: Dictionary) -> void:
 
 	_sprite = VFXFactory.create_styled_sprite(style, _preview_color)
 	if _sprite:
-		add_child(_sprite)
-		_sprite.position = Vector2(_viewport_size.x / 2.0, _viewport_size.y - 60.0)
+		_content.add_child(_sprite)
+		match _archetype:
+			"bullet":
+				_sprite.position = Vector2(_viewport_size.x / 2.0, _viewport_size.y / 2.0)
+			"pulse_wave":
+				_sprite.position = Vector2(_viewport_size.x / 2.0, _viewport_size.y / 2.0)
+				_sprite.modulate.a = 1.0
+				_sprite.scale = Vector2(3.0, 3.0)
+			"beam":
+				_sprite.visible = false
 
 	queue_redraw()
 
 
 func _process(delta: float) -> void:
-	_age += delta
-
-	match _archetype:
-		"bullet":
-			_process_bullet(delta)
-		"beam":
-			_process_beam(delta)
-		"pulse_wave":
-			_process_pulse_wave(delta)
+	if _archetype == "beam":
+		_process_beam(delta)
 
 	queue_redraw()
 
 
-func _process_bullet(delta: float) -> void:
-	_bullet_y -= 300.0 * delta
-	if _bullet_y < -20.0:
-		_bullet_y = _viewport_size.y - 60.0
-	if _sprite and is_instance_valid(_sprite):
-		_sprite.position = Vector2(_viewport_size.x / 2.0, _bullet_y)
+func _process_beam(delta: float) -> void:
+	_beam_age += delta
 
-
-func _process_beam(_delta: float) -> void:
-	_beam_age += _delta
-	# Loop beam pulse
-	if _beam_age > _beam_duration + 0.3:
+	var sustain_time: float = maxf(_beam_duration - _beam_grow_time, 0.1)
+	var total_cycle: float = _beam_grow_time + sustain_time + _beam_end_time + _beam_gap_time
+	if _beam_age > total_cycle:
 		_beam_age = 0.0
-	if _sprite and is_instance_valid(_sprite):
-		var center_x: float = _viewport_size.x / 2.0
-		var beam_base_y: float = _viewport_size.y - 80.0
-		if _beam_age < _beam_duration:
-			_sprite.visible = true
-			# Scale sprite to beam dimensions
-			var length_frac: float = minf(_beam_age / (_beam_duration * 0.3), 1.0)
-			var current_len: float = _max_length * length_frac
-			_sprite.scale = Vector2(_beam_width / maxf(_sprite.texture.get_width(), 1.0),
-				current_len / maxf(_sprite.texture.get_height(), 1.0))
-			_sprite.position = Vector2(center_x, beam_base_y - current_len / 2.0)
+
+	if not _sprite or not is_instance_valid(_sprite):
+		return
+
+	var center_x: float = _viewport_size.x / 2.0
+	var beam_base_y: float = _viewport_size.y - 40.0
+
+	# Phase 1: Emit / grow
+	if _beam_age < _beam_grow_time:
+		_sprite.visible = true
+		var t: float = _beam_age / _beam_grow_time
+		var current_len: float = _max_length * t
+		_apply_beam_transform(center_x, beam_base_y, current_len)
+		_sprite.modulate.a = 1.0
+
+	# Phase 2: Sustain
+	elif _beam_age < _beam_grow_time + sustain_time:
+		_sprite.visible = true
+		_apply_beam_transform(center_x, beam_base_y, _max_length)
+		_sprite.modulate.a = 1.0
+
+	# Phase 3: End / fade
+	elif _beam_age < _beam_grow_time + sustain_time + _beam_end_time:
+		_sprite.visible = true
+		var fade_t: float = (_beam_age - _beam_grow_time - sustain_time) / _beam_end_time
+		_apply_beam_transform(center_x, beam_base_y, _max_length * (1.0 - fade_t * 0.3))
+		_sprite.modulate.a = 1.0 - fade_t
+
+	# Phase 4: Gap
+	else:
+		_sprite.visible = false
+
+
+func _apply_beam_transform(center_x: float, base_y: float, length: float) -> void:
+	if not _sprite or not is_instance_valid(_sprite):
+		return
+	var tex_w: float = maxf(_sprite.texture.get_width(), 1.0)
+	var tex_h: float = maxf(_sprite.texture.get_height(), 1.0)
+	_sprite.scale = Vector2(_beam_width / tex_w, length / tex_h)
+	_sprite.position = Vector2(center_x, base_y - length / 2.0)
+
+
+func _apply_zoom_pan() -> void:
+	if not _content:
+		return
+	var center: Vector2 = _viewport_size / 2.0
+	# Scale around viewport center, then apply pan
+	_content.transform = Transform2D.IDENTITY
+	_content.position = center + _pan_offset * _zoom - center * _zoom
+	_content.scale = Vector2(_zoom, _zoom)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _is_event_in_bounds(event):
+		if event is InputEventMouseButton:
+			_is_panning = false
+		return
+
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb.pressed:
+			if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				_zoom = clampf(_zoom + ZOOM_STEP, ZOOM_MIN, ZOOM_MAX)
+				_apply_zoom_pan()
+				get_viewport().set_input_as_handled()
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				_zoom = clampf(_zoom - ZOOM_STEP, ZOOM_MIN, ZOOM_MAX)
+				_apply_zoom_pan()
+				get_viewport().set_input_as_handled()
+			elif mb.button_index == MOUSE_BUTTON_RIGHT or mb.button_index == MOUSE_BUTTON_MIDDLE:
+				_is_panning = true
+				get_viewport().set_input_as_handled()
 		else:
-			_sprite.visible = false
+			if mb.button_index == MOUSE_BUTTON_RIGHT or mb.button_index == MOUSE_BUTTON_MIDDLE:
+				_is_panning = false
+				get_viewport().set_input_as_handled()
+
+	if event is InputEventMouseMotion and _is_panning:
+		var mm: InputEventMouseMotion = event as InputEventMouseMotion
+		_pan_offset += mm.relative / _zoom
+		_apply_zoom_pan()
+		get_viewport().set_input_as_handled()
 
 
-func _process_pulse_wave(delta: float) -> void:
-	_pulse_radius += _expansion_rate * delta
-	if _pulse_radius > _max_radius:
-		_pulse_radius = 0.0
-	if _sprite and is_instance_valid(_sprite):
-		var scale_factor: float = _pulse_radius / maxf(_max_radius, 1.0) * 6.0
-		_sprite.scale = Vector2(maxf(scale_factor, 0.1), maxf(scale_factor, 0.1))
-		_sprite.modulate.a = clampf(1.0 - _pulse_radius / _max_radius, 0.1, 1.0)
-		_sprite.position = Vector2(_viewport_size.x / 2.0, _viewport_size.y / 2.0)
+func _is_event_in_bounds(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		var local: Vector2 = (event as InputEventMouseButton).position - global_position
+		return Rect2(Vector2.ZERO, _viewport_size).has_point(local)
+	if event is InputEventMouseMotion:
+		var local: Vector2 = (event as InputEventMouseMotion).position - global_position
+		return Rect2(Vector2.ZERO, _viewport_size).has_point(local)
+	return false
 
 
 func _draw() -> void:
-	# Background
+	# Background (always drawn without zoom/pan)
 	draw_rect(Rect2(Vector2.ZERO, _viewport_size), Color(0.02, 0.02, 0.05, 1.0))
 
-	# Subtle grid
+	# Grid with zoom/pan transform
+	var center: Vector2 = _viewport_size / 2.0
+	var grid_xform: Transform2D = Transform2D.IDENTITY
+	grid_xform.origin = center + _pan_offset * _zoom - center * _zoom
+	grid_xform = grid_xform.scaled(Vector2(_zoom, _zoom))
+	draw_set_transform_matrix(grid_xform)
+
 	var grid_color: Color = Color(0.1, 0.1, 0.15, 0.3)
-	for x in range(0, int(_viewport_size.x), 40):
+	var grid_extent: float = 2000.0
+	for x in range(-int(grid_extent), int(grid_extent), 40):
 		draw_line(Vector2(x, 0), Vector2(x, _viewport_size.y), grid_color, 1.0)
-	for y in range(0, int(_viewport_size.y), 40):
-		draw_line(Vector2(0, y), Vector2(_viewport_size.x, y), grid_color, 1.0)
+	for y in range(-int(grid_extent), int(grid_extent), 40):
+		draw_line(Vector2(0, y), Vector2(grid_extent, y), grid_color, 1.0)
+
+	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 	# Pulse wave fallback drawing when no sprite
 	if _archetype == "pulse_wave" and (not _sprite or not is_instance_valid(_sprite)):
+		draw_set_transform_matrix(grid_xform)
 		_draw_pulse_wave_fallback()
+		draw_set_transform_matrix(Transform2D.IDENTITY)
+
+	# Zoom level indicator
+	if _zoom != 1.0 or _pan_offset != Vector2.ZERO:
+		var zoom_text: String = "%.0f%%" % (_zoom * 100.0)
+		draw_string(ThemeDB.fallback_font, Vector2(8, _viewport_size.y - 8),
+			zoom_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.5, 0.5, 0.6, 0.6))
 
 
 func _draw_pulse_wave_fallback() -> void:
 	var center: Vector2 = Vector2(_viewport_size.x / 2.0, _viewport_size.y / 2.0)
-	var alpha: float = clampf(1.0 - _pulse_radius / _max_radius, 0.1, 1.0)
 	var hdr: float = 2.0
-	draw_arc(center, _pulse_radius, 0, TAU, 48,
-		Color(_preview_color.r * hdr, _preview_color.g * hdr, _preview_color.b * hdr, alpha), _ring_width)
+	var radius: float = _max_radius * 0.5
+	draw_arc(center, radius, 0, TAU, 48,
+		Color(_preview_color.r * hdr, _preview_color.g * hdr, _preview_color.b * hdr, 0.8), _ring_width)

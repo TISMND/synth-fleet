@@ -22,7 +22,7 @@ float grid_dist(vec2 uv_px, float y_offset) {
 
 void fragment() {
 	vec2 uv_px = FRAGCOORD.xy;
-	float y_offset = TIME * scroll_speed;
+	float y_offset = -TIME * scroll_speed;
 
 	float d = grid_dist(uv_px, y_offset);
 
