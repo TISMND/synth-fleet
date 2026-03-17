@@ -13,6 +13,7 @@ var _change_ship_btn: Button
 var _back_btn: Button
 var _vhs_overlay: ColorRect = null
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
+var _bar_segments: Dictionary = {}  # bar_name -> int segment count
 var _play_btn: Button
 var _mute_btn: Button
 var _is_playing: bool = false
@@ -99,7 +100,8 @@ func _apply_theme() -> void:
 		ThemeManager.apply_text_glow(lbl, "body")
 		var bar: ProgressBar = entry["bar"]
 		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
-		ThemeManager.apply_led_bar(bar, color, ratio)
+		var seg: int = int(_bar_segments.get(bar_name, -1))
+		ThemeManager.apply_led_bar(bar, color, ratio, seg)
 
 	# Buttons
 	ThemeManager.apply_button_style(_play_btn)
@@ -158,6 +160,10 @@ func _position_hangar_thumb() -> void:
 func _update_stats(s: Dictionary) -> void:
 	var hull_max: int = int(s.get("hull_max", 100))
 	var shield_max: int = int(s.get("shield_max", 50))
+	_bar_segments["SHIELD"] = int(s.get("shield_segments", -1))
+	_bar_segments["HULL"] = int(s.get("hull_segments", -1))
+	_bar_segments["THERMAL"] = int(s.get("thermal_segments", -1))
+	_bar_segments["ELECTRIC"] = int(s.get("electric_segments", -1))
 	_set_bar("SHIELD", shield_max, shield_max)
 	_set_bar("HULL", hull_max, hull_max)
 	_set_bar("THERMAL", 30, 100)
@@ -176,7 +182,8 @@ func _set_bar(bar_name: String, value: int, max_val: int) -> void:
 	for spec in specs:
 		if str(spec["name"]) == bar_name:
 			var color: Color = ThemeManager.resolve_bar_color(spec)
-			ThemeManager.apply_led_bar(bar, color, float(value) / maxf(float(max_val), 1.0))
+			var seg: int = int(_bar_segments.get(bar_name, -1))
+			ThemeManager.apply_led_bar(bar, color, float(value) / maxf(float(max_val), 1.0), seg)
 			break
 
 
@@ -411,7 +418,7 @@ func _create_bar_cell(text: String, color: Color) -> Dictionary:
 
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(100, 20)
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.max_value = 100
 	bar.value = 0

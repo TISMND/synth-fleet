@@ -14,6 +14,10 @@ extends Resource
 	"speed": 400,
 	"generator_power": 10,
 	"device_slots": 2,
+	"shield_segments": 10,
+	"hull_segments": 8,
+	"thermal_segments": 6,
+	"electric_segments": 8,
 }
 
 
@@ -26,12 +30,21 @@ static func from_dict(data: Dictionary) -> ShipData:
 	s.grid_size = Vector2i(int(gs[0]), int(gs[1]))
 	s.lines = data.get("lines", [])
 	s.hardpoints = data.get("hardpoints", [])
-	s.stats = data.get("stats", {
+	var default_stats: Dictionary = {
 		"hull_max": 100,
 		"shield_max": 50,
 		"speed": 400,
 		"generator_power": 10,
-	})
+		"shield_segments": 10,
+		"hull_segments": 8,
+		"thermal_segments": 6,
+		"electric_segments": 8,
+	}
+	s.stats = data.get("stats", default_stats)
+	# Fill missing segment keys with defaults
+	for k in default_stats:
+		if not s.stats.has(k):
+			s.stats[k] = default_stats[k]
 	return s
 
 

@@ -19,6 +19,7 @@ var _weapon_icons: Array = []  # Array of dicts: {container, bg_rect, number_lab
 var _beat_indicators: Array = []  # Array of ColorRect
 var _bars_grid: GridContainer = null
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
+var _bar_segments: Dictionary = {}  # bar_name -> int segment count
 var _vhs_overlay: ColorRect = null
 
 
@@ -121,7 +122,7 @@ func _create_bar_cell(text: String, color: Color, initial: int, max_val: int) ->
 
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size.y = BAR_HEIGHT
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.max_value = max_val
 	bar.value = initial
@@ -142,6 +143,16 @@ func _setup_vhs_overlay() -> void:
 	_vhs_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vhs_layer.add_child(_vhs_overlay)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+
+func set_bar_segments(stats: Dictionary) -> void:
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		var seg_key: String = str(spec.get("segments_stat", ""))
+		if seg_key != "":
+			_bar_segments[bar_name] = int(stats.get(seg_key, -1))
+	_apply_theme()
 
 
 func _apply_theme() -> void:
@@ -179,7 +190,8 @@ func _apply_theme() -> void:
 		_apply_bar_label_theme(lbl, color, body_font, body_size)
 		var bar: ProgressBar = entry["bar"]
 		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
-		ThemeManager.apply_led_bar(bar, color, ratio)
+		var seg: int = int(_bar_segments.get(bar_name, -1))
+		ThemeManager.apply_led_bar(bar, color, ratio, seg)
 
 	# Beat indicators
 	for i in _beat_indicators.size():
@@ -217,14 +229,16 @@ func update_health(current_shield: float, max_shield: int, current_hull: int, ma
 	shield_bar.max_value = max_shield
 	shield_bar.value = current_shield
 	var shield_ratio: float = current_shield / maxf(float(max_shield), 1.0)
-	ThemeManager.apply_led_bar(shield_bar, ThemeManager.get_color("bar_shield"), shield_ratio)
+	var shield_seg: int = int(_bar_segments.get("SHIELD", -1))
+	ThemeManager.apply_led_bar(shield_bar, ThemeManager.get_color("bar_shield"), shield_ratio, shield_seg)
 
 	var hull_entry: Dictionary = _bars["HULL"]
 	var hull_bar: ProgressBar = hull_entry["bar"]
 	hull_bar.max_value = max_hull
 	hull_bar.value = current_hull
 	var hull_ratio: float = float(current_hull) / maxf(float(max_hull), 1.0)
-	ThemeManager.apply_led_bar(hull_bar, ThemeManager.get_color("bar_hull"), hull_ratio)
+	var hull_seg: int = int(_bar_segments.get("HULL", -1))
+	ThemeManager.apply_led_bar(hull_bar, ThemeManager.get_color("bar_hull"), hull_ratio, hull_seg)
 
 
 func update_credits(amount: int) -> void:

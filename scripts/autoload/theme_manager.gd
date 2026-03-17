@@ -25,6 +25,9 @@ var _colors: Dictionary = {
 	"bar_hull": Color(1.0, 0.3, 0.3),
 	"bar_thermal": Color(1.0, 0.6, 0.1),
 	"bar_electric": Color(1.0, 0.9, 0.2),
+	"bar_warning": Color(1.0, 0.6, 0.1),
+	"bar_disabled": Color(0.4, 0.4, 0.4),
+	"bar_supercharged": Color(0.3, 0.8, 1.0),
 	"chrome_tint": Color(0.7, 0.75, 0.85, 1.0),
 }
 
@@ -61,7 +64,6 @@ var _floats: Dictionary = {
 	"vhs_roll_speed": 0.0,
 	"vhs_roll_strength": 0.0,
 	"vhs_roll_period": 4.0,
-	"led_bar_enabled": 0.0,
 	"led_segment_count": 20.0,
 	"led_segment_gap": 0.015,
 	"led_inner_intensity": 0.3,
@@ -70,6 +72,7 @@ var _floats: Dictionary = {
 	"led_bloom_size": 0.05,
 	"led_bloom_intensity": 0.4,
 	"led_smudge_blur": 0.008,
+	"led_segment_width_px": 10.0,
 	"btn_border_width": 1.0,
 	"btn_corner_radius": 2.0,
 	"btn_border_alpha": 0.8,
@@ -86,6 +89,9 @@ var _floats: Dictionary = {
 	"header_chrome_secondary_intensity": 0.4,
 	"header_chrome_base_brightness": 0.3,
 	"header_chrome_top_brightness": 0.15,
+	"supercharged_speed": 1.5,
+	"supercharged_intensity": 1.0,
+	"supercharged_distortion": 0.15,
 }
 
 # ── Int keys (font sizes) ──
@@ -127,6 +133,9 @@ const BUILTIN_PRESETS: Dictionary = {
 			"bar_hull": "#FF4D4D",
 			"bar_thermal": "#FF9933",
 			"bar_electric": "#FFE633",
+			"bar_warning": "#FF9933",
+			"bar_disabled": "#666666",
+			"bar_supercharged": "#66CCFF",
 		},
 		"floats": {
 			"grid_spacing": 64.0,
@@ -160,12 +169,12 @@ const BUILTIN_PRESETS: Dictionary = {
 			"vhs_roll_speed": 0.0,
 			"vhs_roll_strength": 0.0,
 			"vhs_roll_period": 4.0,
-			"led_bar_enabled": 0.0,
 			"led_segment_count": 20.0,
 			"led_segment_gap": 0.04,
 			"led_glow_size": 3.0,
 			"led_glow_strength": 1.5,
 			"led_smudge_blur": 1.0,
+			"led_segment_width_px": 10.0,
 			"btn_border_width": 1.0,
 			"btn_corner_radius": 2.0,
 			"btn_border_alpha": 0.8,
@@ -174,6 +183,9 @@ const BUILTIN_PRESETS: Dictionary = {
 			"btn_pressed_darken": 0.1,
 			"btn_shadow_size": 0.0,
 			"btn_shadow_alpha": 0.0,
+			"supercharged_speed": 1.5,
+			"supercharged_intensity": 1.0,
+			"supercharged_distortion": 0.15,
 		},
 		"ints": {
 			"font_size_header": 20,
@@ -205,6 +217,9 @@ const BUILTIN_PRESETS: Dictionary = {
 			"bar_hull": "#FF6680",
 			"bar_thermal": "#FFB366",
 			"bar_electric": "#FFE680",
+			"bar_warning": "#FFB366",
+			"bar_disabled": "#668899",
+			"bar_supercharged": "#80FFFF",
 		},
 		"floats": {
 			"grid_spacing": 48.0,
@@ -238,12 +253,12 @@ const BUILTIN_PRESETS: Dictionary = {
 			"vhs_roll_speed": 0.0,
 			"vhs_roll_strength": 0.0,
 			"vhs_roll_period": 4.0,
-			"led_bar_enabled": 0.0,
 			"led_segment_count": 20.0,
 			"led_segment_gap": 0.04,
 			"led_glow_size": 3.0,
 			"led_glow_strength": 1.5,
 			"led_smudge_blur": 1.0,
+			"led_segment_width_px": 10.0,
 			"btn_border_width": 1.0,
 			"btn_corner_radius": 2.0,
 			"btn_border_alpha": 0.8,
@@ -252,6 +267,9 @@ const BUILTIN_PRESETS: Dictionary = {
 			"btn_pressed_darken": 0.1,
 			"btn_shadow_size": 0.0,
 			"btn_shadow_alpha": 0.0,
+			"supercharged_speed": 1.5,
+			"supercharged_intensity": 1.0,
+			"supercharged_distortion": 0.15,
 		},
 		"ints": {
 			"font_size_header": 20,
@@ -283,6 +301,9 @@ const BUILTIN_PRESETS: Dictionary = {
 			"bar_hull": "#FF6633",
 			"bar_thermal": "#FF9933",
 			"bar_electric": "#FFE633",
+			"bar_warning": "#FF9933",
+			"bar_disabled": "#555566",
+			"bar_supercharged": "#CC80FF",
 		},
 		"floats": {
 			"grid_spacing": 72.0,
@@ -316,12 +337,12 @@ const BUILTIN_PRESETS: Dictionary = {
 			"vhs_roll_speed": 0.0,
 			"vhs_roll_strength": 0.0,
 			"vhs_roll_period": 4.0,
-			"led_bar_enabled": 0.0,
 			"led_segment_count": 20.0,
 			"led_segment_gap": 0.04,
 			"led_glow_size": 3.0,
 			"led_glow_strength": 1.5,
 			"led_smudge_blur": 1.0,
+			"led_segment_width_px": 10.0,
 			"btn_border_width": 1.0,
 			"btn_corner_radius": 2.0,
 			"btn_border_alpha": 0.8,
@@ -330,6 +351,9 @@ const BUILTIN_PRESETS: Dictionary = {
 			"btn_pressed_darken": 0.1,
 			"btn_shadow_size": 0.0,
 			"btn_shadow_alpha": 0.0,
+			"supercharged_speed": 2.0,
+			"supercharged_intensity": 1.2,
+			"supercharged_distortion": 0.2,
 		},
 		"ints": {
 			"font_size_header": 20,
@@ -429,10 +453,10 @@ func set_float(key: String, value: float) -> void:
 
 static func get_status_bar_specs() -> Array:
 	return [
-		{"name": "SHIELD", "color_key": "bar_shield", "color_fallback": Color(0, 0, 0, 0)},
-		{"name": "HULL", "color_key": "bar_hull", "color_fallback": Color(0, 0, 0, 0)},
-		{"name": "THERMAL", "color_key": "bar_thermal", "color_fallback": Color(0, 0, 0, 0)},
-		{"name": "ELECTRIC", "color_key": "bar_electric", "color_fallback": Color(0, 0, 0, 0)},
+		{"name": "SHIELD", "color_key": "bar_shield", "color_fallback": Color(0, 0, 0, 0), "segments_stat": "shield_segments"},
+		{"name": "HULL", "color_key": "bar_hull", "color_fallback": Color(0, 0, 0, 0), "segments_stat": "hull_segments"},
+		{"name": "THERMAL", "color_key": "bar_thermal", "color_fallback": Color(0, 0, 0, 0), "segments_stat": "thermal_segments"},
+		{"name": "ELECTRIC", "color_key": "bar_electric", "color_fallback": Color(0, 0, 0, 0), "segments_stat": "electric_segments"},
 	]
 
 
@@ -508,94 +532,173 @@ func _update_vhs_material(mat: ShaderMaterial) -> void:
 
 var _led_shader: Shader = null
 
-func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float) -> void:
+func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segment_count: int = -1) -> void:
 	var overlay_name := "led_overlay"
 	var existing: ColorRect = bar.get_node_or_null(overlay_name) as ColorRect
 
-	if get_float("led_bar_enabled") > 0.5:
-		if not _led_shader:
-			_led_shader = load("res://assets/shaders/led_bar.gdshader") as Shader
-		if not _led_shader:
-			return
+	if not _led_shader:
+		_led_shader = load("res://assets/shaders/led_bar.gdshader") as Shader
+	if not _led_shader:
+		return
 
-		# Hide bar's own rendering — transparent styleboxes
-		var transparent := StyleBoxFlat.new()
-		transparent.bg_color = Color(0, 0, 0, 0)
-		bar.add_theme_stylebox_override("fill", transparent)
-		bar.add_theme_stylebox_override("background", transparent)
-		bar.material = null
-		bar.clip_contents = false
+	var seg_count: int = segment_count if segment_count > 0 else int(get_float("led_segment_count"))
 
-		# Also disable clipping on bar's parent so overlay can extend
-		var bar_parent: Control = bar.get_parent() as Control
-		if bar_parent:
-			bar_parent.clip_contents = false
+	# When an explicit segment count is given, set fixed bar width
+	if segment_count > 0:
+		var seg_px: float = get_float("led_segment_width_px")
+		bar.custom_minimum_size.x = float(seg_count) * seg_px
+		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
-		# Compute padding from glow settings — enough room for bloom falloff
-		var max_glow: float = maxf(get_float("led_bloom_size"), get_float("led_aura_size"))
-		var bar_w: float = maxf(bar.custom_minimum_size.x, 100.0)
-		var bar_h: float = maxf(bar.custom_minimum_size.y, 14.0)
-		var pad_px: float = clampf(max_glow * bar_w * 2.5 + 4.0, 4.0, 50.0)
+	# Hide bar's own rendering — transparent styleboxes
+	var transparent := StyleBoxFlat.new()
+	transparent.bg_color = Color(0, 0, 0, 0)
+	bar.add_theme_stylebox_override("fill", transparent)
+	bar.add_theme_stylebox_override("background", transparent)
+	bar.material = null
+	bar.clip_contents = false
 
-		# Create or reuse overlay ColorRect
-		var overlay: ColorRect
-		if existing:
-			overlay = existing
-		else:
-			overlay = ColorRect.new()
-			overlay.name = overlay_name
-			overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			overlay.color = Color(1, 1, 1, 1)  # Shader overrides this
-			bar.add_child(overlay)
+	# Also disable clipping on bar's parent so overlay can extend
+	var bar_parent: Control = bar.get_parent() as Control
+	if bar_parent:
+		bar_parent.clip_contents = false
 
-		# Position overlay to extend beyond bar bounds
-		overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-		overlay.offset_left = -pad_px
-		overlay.offset_top = -pad_px
-		overlay.offset_right = pad_px
-		overlay.offset_bottom = pad_px
+	# Compute padding from glow settings — enough room for bloom falloff
+	var max_glow: float = maxf(get_float("led_bloom_size"), get_float("led_aura_size"))
+	var min_fallback: float = 20.0 if segment_count > 0 else 100.0
+	var bar_w: float = maxf(bar.custom_minimum_size.x, min_fallback)
+	var bar_h: float = maxf(bar.custom_minimum_size.y, 14.0)
+	var pad_px: float = clampf(max_glow * bar_w * 2.5 + 4.0, 4.0, 50.0)
 
-		# Calculate padding as fraction of overlay size
-		var total_w: float = bar_w + pad_px * 2.0
-		var total_h: float = bar_h + pad_px * 2.0
-		var pad_x: float = pad_px / total_w
-		var pad_y: float = pad_px / total_h
-
-		# Apply shader to overlay
-		var mat: ShaderMaterial
-		if overlay.material is ShaderMaterial:
-			mat = overlay.material as ShaderMaterial
-		else:
-			mat = ShaderMaterial.new()
-			mat.shader = _led_shader
-			overlay.material = mat
-		mat.set_shader_parameter("pad_x", pad_x)
-		mat.set_shader_parameter("pad_y", pad_y)
-		mat.set_shader_parameter("segment_count", int(get_float("led_segment_count")))
-		mat.set_shader_parameter("segment_gap", get_float("led_segment_gap"))
-		mat.set_shader_parameter("inner_intensity", get_float("led_inner_intensity"))
-		mat.set_shader_parameter("aura_size", get_float("led_aura_size"))
-		mat.set_shader_parameter("aura_intensity", get_float("led_aura_intensity"))
-		mat.set_shader_parameter("bloom_size", get_float("led_bloom_size"))
-		mat.set_shader_parameter("bloom_intensity", get_float("led_bloom_intensity"))
-		mat.set_shader_parameter("smudge_blur", get_float("led_smudge_blur"))
-		mat.set_shader_parameter("fill_color", fill_color)
-		mat.set_shader_parameter("bg_color", get_color("panel"))
-		mat.set_shader_parameter("fill_ratio", value_ratio)
+	# Create or reuse overlay ColorRect
+	var overlay: ColorRect
+	if existing:
+		overlay = existing
 	else:
-		# Remove overlay, restore normal bar
-		if existing:
-			existing.queue_free()
-		bar.clip_contents = false
-		bar.material = null
-		var fill_style := StyleBoxFlat.new()
-		fill_style.bg_color = fill_color
-		fill_style.set_corner_radius_all(2)
-		bar.add_theme_stylebox_override("fill", fill_style)
-		var bg_style := StyleBoxFlat.new()
-		bg_style.bg_color = get_color("panel")
-		bg_style.set_corner_radius_all(2)
-		bar.add_theme_stylebox_override("background", bg_style)
+		overlay = ColorRect.new()
+		overlay.name = overlay_name
+		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		overlay.color = Color(1, 1, 1, 1)  # Shader overrides this
+		bar.add_child(overlay)
+
+	# Position overlay to extend beyond bar bounds
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.offset_left = -pad_px
+	overlay.offset_top = -pad_px
+	overlay.offset_right = pad_px
+	overlay.offset_bottom = pad_px
+
+	# Calculate padding as fraction of overlay size
+	var total_w: float = bar_w + pad_px * 2.0
+	var total_h: float = bar_h + pad_px * 2.0
+	var pad_x: float = pad_px / total_w
+	var pad_y: float = pad_px / total_h
+
+	# Apply shader to overlay
+	var mat: ShaderMaterial
+	if overlay.material is ShaderMaterial:
+		mat = overlay.material as ShaderMaterial
+	else:
+		mat = ShaderMaterial.new()
+		mat.shader = _led_shader
+		overlay.material = mat
+	mat.set_shader_parameter("pad_x", pad_x)
+	mat.set_shader_parameter("pad_y", pad_y)
+	mat.set_shader_parameter("segment_count", seg_count)
+	mat.set_shader_parameter("segment_gap", get_float("led_segment_gap"))
+	mat.set_shader_parameter("inner_intensity", get_float("led_inner_intensity"))
+	mat.set_shader_parameter("aura_size", get_float("led_aura_size"))
+	mat.set_shader_parameter("aura_intensity", get_float("led_aura_intensity"))
+	mat.set_shader_parameter("bloom_size", get_float("led_bloom_size"))
+	mat.set_shader_parameter("bloom_intensity", get_float("led_bloom_intensity"))
+	mat.set_shader_parameter("smudge_blur", get_float("led_smudge_blur"))
+	mat.set_shader_parameter("fill_color", fill_color)
+	mat.set_shader_parameter("bg_color", get_color("panel"))
+	mat.set_shader_parameter("fill_ratio", value_ratio)
+
+
+# ── Supercharged LED Bar Helper ──────────────────────────────
+
+var _supercharged_shader: Shader = null
+
+func apply_supercharged_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segment_count: int = -1) -> void:
+	var overlay_name := "led_overlay"
+	var existing: ColorRect = bar.get_node_or_null(overlay_name) as ColorRect
+
+	if not _supercharged_shader:
+		_supercharged_shader = load("res://assets/shaders/led_bar_supercharged.gdshader") as Shader
+	if not _supercharged_shader:
+		return
+
+	var seg_count: int = segment_count if segment_count > 0 else int(get_float("led_segment_count"))
+
+	# When an explicit segment count is given, set fixed bar width
+	if segment_count > 0:
+		var seg_px: float = get_float("led_segment_width_px")
+		bar.custom_minimum_size.x = float(seg_count) * seg_px
+		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+
+	# Hide bar's own rendering
+	var transparent := StyleBoxFlat.new()
+	transparent.bg_color = Color(0, 0, 0, 0)
+	bar.add_theme_stylebox_override("fill", transparent)
+	bar.add_theme_stylebox_override("background", transparent)
+	bar.material = null
+	bar.clip_contents = false
+
+	var bar_parent: Control = bar.get_parent() as Control
+	if bar_parent:
+		bar_parent.clip_contents = false
+
+	var max_glow: float = maxf(get_float("led_bloom_size"), get_float("led_aura_size"))
+	var min_fallback: float = 20.0 if segment_count > 0 else 100.0
+	var bar_w: float = maxf(bar.custom_minimum_size.x, min_fallback)
+	var bar_h: float = maxf(bar.custom_minimum_size.y, 14.0)
+	var pad_px: float = clampf(max_glow * bar_w * 2.5 + 4.0, 4.0, 50.0)
+
+	var overlay: ColorRect
+	if existing:
+		overlay = existing
+	else:
+		overlay = ColorRect.new()
+		overlay.name = overlay_name
+		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		overlay.color = Color(1, 1, 1, 1)
+		bar.add_child(overlay)
+
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.offset_left = -pad_px
+	overlay.offset_top = -pad_px
+	overlay.offset_right = pad_px
+	overlay.offset_bottom = pad_px
+
+	var total_w: float = bar_w + pad_px * 2.0
+	var total_h: float = bar_h + pad_px * 2.0
+	var pad_x: float = pad_px / total_w
+	var pad_y: float = pad_px / total_h
+
+	var mat: ShaderMaterial
+	if overlay.material is ShaderMaterial:
+		mat = overlay.material as ShaderMaterial
+	else:
+		mat = ShaderMaterial.new()
+		mat.shader = _supercharged_shader
+		overlay.material = mat
+	mat.set_shader_parameter("pad_x", pad_x)
+	mat.set_shader_parameter("pad_y", pad_y)
+	mat.set_shader_parameter("segment_count", seg_count)
+	mat.set_shader_parameter("segment_gap", get_float("led_segment_gap"))
+	mat.set_shader_parameter("inner_intensity", get_float("led_inner_intensity"))
+	mat.set_shader_parameter("aura_size", get_float("led_aura_size"))
+	mat.set_shader_parameter("aura_intensity", get_float("led_aura_intensity"))
+	mat.set_shader_parameter("bloom_size", get_float("led_bloom_size"))
+	mat.set_shader_parameter("bloom_intensity", get_float("led_bloom_intensity"))
+	mat.set_shader_parameter("smudge_blur", get_float("led_smudge_blur"))
+	mat.set_shader_parameter("fill_color", fill_color)
+	mat.set_shader_parameter("bg_color", get_color("panel"))
+	mat.set_shader_parameter("fill_ratio", value_ratio)
+	mat.set_shader_parameter("animation_speed", get_float("supercharged_speed"))
+	mat.set_shader_parameter("pulse_intensity", get_float("supercharged_intensity"))
+	mat.set_shader_parameter("energy_distortion", get_float("supercharged_distortion"))
 
 
 # ── Text Glow Helper ─────────────────────────────────────────
