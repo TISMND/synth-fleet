@@ -5,6 +5,8 @@ extends Node2D
 ## Supports aim modes: fixed, sweep (oscillating), track (nearest enemy).
 ## Supports mirror modes: none, mirror (symmetric), alternate (toggle sides).
 
+signal bar_effect_fired(effects: Dictionary)
+
 var weapon_data: WeaponData = null
 var direction_deg: float = 0.0
 var aim_mode: String = "fixed"
@@ -204,6 +206,9 @@ func _fire(trigger_idx: int = -1) -> void:
 			_fire_pattern_at(current_dir, trigger_idx)
 
 	_spawn_muzzle_effect(global_position, trigger_idx)
+
+	if weapon_data and not weapon_data.bar_effects.is_empty():
+		bar_effect_fired.emit(weapon_data.bar_effects)
 
 
 func _fire_pattern_at(dir_deg: float, trigger_idx: int) -> void:

@@ -365,6 +365,11 @@ func _build_pulse_tab() -> Control:
 		override_container.visible = false
 		form.add_child(override_container)
 
+		var disable_checkbox := CheckBox.new()
+		disable_checkbox.text = "Disable pulsing"
+		disable_checkbox.button_pressed = false
+		override_container.add_child(disable_checkbox)
+
 		var b_row := _add_slider_row(override_container, "Brightness:", 0.0, 1.0, 0.5, 0.01)
 		var bn_row := _add_slider_row(override_container, "Brighten (s):", 0.01, 0.5, 0.05, 0.01)
 		var d_row := _add_slider_row(override_container, "Dim (s):", 0.05, 2.0, 0.3, 0.01)
@@ -375,6 +380,7 @@ func _build_pulse_tab() -> Control:
 
 		_per_bar_overrides[bar_type] = {
 			"checkbox": checkbox,
+			"disable_checkbox": disable_checkbox,
 			"brightness": b_row[0],
 			"brighten": bn_row[0],
 			"dim": d_row[0],
@@ -450,7 +456,7 @@ func _update_preview_bars(delta: float) -> void:
 			if crossed and i < _trigger_types.size():
 				var bar_type: String = _trigger_types[i]
 				var bar_idx: int = BAR_TYPES.find(bar_type)
-				if bar_idx >= 0:
+				if bar_idx >= 0 and not _is_pulsing_disabled(bar_type):
 					_preview_bar_brightness[bar_idx] = 1.0
 
 	_prev_loop_progress = progress
@@ -528,6 +534,19 @@ func _get_pulse_settings_for(bar_type: String) -> Dictionary:
 		"brighten_duration": _global_brighten_slider.value,
 		"dim_duration": _global_dim_slider.value,
 	}
+
+
+func _is_pulsing_disabled(bar_type: String) -> bool:
+	if not _ui_ready:
+		return false
+	var override_data: Dictionary = _per_bar_overrides.get(bar_type, {}) as Dictionary
+	if override_data.is_empty():
+		return false
+	var checkbox: CheckBox = override_data.get("checkbox") as CheckBox
+	if not checkbox or not checkbox.button_pressed:
+		return false
+	var disable_cb: CheckBox = override_data.get("disable_checkbox") as CheckBox
+	return disable_cb != null and disable_cb.button_pressed
 
 
 # ── Trigger Management ─────────────────────────────────────
@@ -665,11 +684,15 @@ func _collect_pulse_overrides() -> Dictionary:
 			continue
 		var checkbox: CheckBox = data.get("checkbox") as CheckBox
 		if checkbox and checkbox.button_pressed:
-			result[bar_type] = {
+			var entry: Dictionary = {
 				"brightness": (data["brightness"] as HSlider).value,
 				"brighten_duration": (data["brighten"] as HSlider).value,
 				"dim_duration": (data["dim"] as HSlider).value,
 			}
+			var disable_cb: CheckBox = data.get("disable_checkbox") as CheckBox
+			if disable_cb and disable_cb.button_pressed:
+				entry["disabled"] = true
+			result[bar_type] = entry
 	return result
 
 
@@ -733,6 +756,9 @@ func _on_new() -> void:
 		var data: Dictionary = _per_bar_overrides.get(bar_type, {}) as Dictionary
 		if not data.is_empty():
 			(data["checkbox"] as CheckBox).button_pressed = false
+			var disable_cb: CheckBox = data.get("disable_checkbox") as CheckBox
+			if disable_cb:
+				disable_cb.button_pressed = false
 			(data["brightness"] as HSlider).value = 0.5
 			(data["brighten"] as HSlider).value = 0.05
 			(data["dim"] as HSlider).value = 0.3
@@ -788,6 +814,9 @@ func _populate_from_power_core(data: PowerCoreData) -> void:
 			(override_data["brightness"] as HSlider).value = float(settings.get("brightness", 0.5))
 			(override_data["brighten"] as HSlider).value = float(settings.get("brighten_duration", 0.05))
 			(override_data["dim"] as HSlider).value = float(settings.get("dim_duration", 0.3))
+			var disable_cb: CheckBox = override_data.get("disable_checkbox") as CheckBox
+			if disable_cb:
+				disable_cb.button_pressed = settings.get("disabled", false) as bool
 		else:
 			checkbox.button_pressed = false
 			(override_data["container"] as VBoxContainer).visible = false

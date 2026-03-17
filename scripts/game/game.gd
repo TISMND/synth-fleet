@@ -73,7 +73,7 @@ func _process(delta: float) -> void:
 	if _parallax_bg:
 		_parallax_bg.scroll_offset.y += 80.0 * delta
 	if _hud and _player:
-		_hud.update_health(_player.shield, _player.shield_max, _player.hull, _player.hull_max)
+		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
 		_hud.update_credits(GameState.credits)
 
 

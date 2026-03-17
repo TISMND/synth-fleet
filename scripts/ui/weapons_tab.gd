@@ -116,6 +116,19 @@ var _power_slider: HSlider
 var _power_label: Label
 var _special_effect_button: OptionButton
 
+# Bar effects (Stats subtab)
+const BAR_TYPES: Array[String] = ["shield", "hull", "thermal", "electric"]
+const BAR_TYPE_LABELS: Array[String] = ["SHD", "HUL", "THR", "ELC"]
+const BAR_TYPE_COLOR_KEYS: Array[String] = ["bar_shield", "bar_hull", "bar_thermal", "bar_electric"]
+var _stats_preview_bars: Array[ProgressBar] = []
+var _stats_bar_base_colors: Array[Color] = []
+var _stats_bar_brightness: Array[float] = [0.0, 0.0, 0.0, 0.0]
+var _stats_bar_values: Array[float] = [50.0, 50.0, 50.0, 50.0]
+var _reset_bars_button: Button
+var _bar_effect_sliders: Dictionary = {}   # "shield" -> HSlider
+var _bar_effect_labels: Dictionary = {}    # "shield" -> Label
+var _stats_prev_loop_progress: float = -1.0
+
 # State
 var _current_id: String = ""
 var _section_headers: Array[Label] = []
@@ -131,6 +144,10 @@ func _ready() -> void:
 	_waveform_editor.set_snap_mode(16)
 	call_deferred("_start_preview")
 	ThemeManager.theme_changed.connect(_apply_theme)
+
+
+func _process(delta: float) -> void:
+	_update_stats_preview(delta)
 
 
 func _exit_tree() -> void:
@@ -492,6 +509,43 @@ func _build_stats_tab() -> Control:
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(form)
 
+	# Bar Effect Preview (LED bars at top)
+	_add_section_header(form, "BAR EFFECT PREVIEW")
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for i in specs.size():
+		var spec: Dictionary = specs[i]
+		var bar_hbox := HBoxContainer.new()
+		bar_hbox.add_theme_constant_override("separation", 6)
+		form.add_child(bar_hbox)
+
+		var bar_label := Label.new()
+		bar_label.text = str(spec["name"])
+		bar_label.custom_minimum_size.x = 70
+		bar_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		bar_label.add_theme_color_override("font_color", color)
+		bar_hbox.add_child(bar_label)
+
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size = Vector2(200, 22)
+		bar.max_value = 100.0
+		bar.value = 50.0
+		bar.show_percentage = false
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar_hbox.add_child(bar)
+		ThemeManager.apply_led_bar(bar, color, 0.5)
+		_stats_preview_bars.append(bar)
+		_stats_bar_base_colors.append(color)
+
+	_reset_bars_button = Button.new()
+	_reset_bars_button.text = "RESET BARS"
+	_reset_bars_button.custom_minimum_size = Vector2(120, 30)
+	_reset_bars_button.pressed.connect(_on_reset_bars)
+	ThemeManager.apply_button_style(_reset_bars_button)
+	form.add_child(_reset_bars_button)
+
+	_add_separator(form)
+
 	# Weapon Name
 	_add_section_header(form, "WEAPON NAME")
 	_name_input = LineEdit.new()
@@ -518,6 +572,47 @@ func _build_stats_tab() -> Control:
 	_add_section_header(form, "SPECIAL EFFECT")
 	_special_effect_button = _add_option_button(form, SPECIAL_EFFECTS)
 	_special_effect_button.item_selected.connect(func(_i: int) -> void: _update_preview())
+
+	_add_separator(form)
+
+	# Bar Effects (per trigger hit)
+	_add_section_header(form, "BAR EFFECTS (per trigger hit)")
+	for i in BAR_TYPES.size():
+		var bar_type: String = BAR_TYPES[i]
+		var color_key: String = BAR_TYPE_COLOR_KEYS[i]
+		var bar_color: Color = ThemeManager.get_color(color_key)
+
+		var row := HBoxContainer.new()
+		form.add_child(row)
+
+		var lbl := Label.new()
+		lbl.text = BAR_TYPE_LABELS[i] + ":"
+		lbl.custom_minimum_size.x = 50
+		lbl.add_theme_color_override("font_color", bar_color)
+		row.add_child(lbl)
+
+		var slider := HSlider.new()
+		slider.min_value = -5.0
+		slider.max_value = 5.0
+		slider.value = 0.0
+		slider.step = 0.1
+		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slider.custom_minimum_size.x = 150
+		row.add_child(slider)
+
+		var val_label := Label.new()
+		val_label.text = "0.0"
+		val_label.custom_minimum_size.x = 50
+		val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(val_label)
+
+		slider.value_changed.connect(func(val: float) -> void:
+			val_label.text = "%.1f" % val
+			_update_preview()
+		)
+
+		_bar_effect_sliders[bar_type] = slider
+		_bar_effect_labels[bar_type] = val_label
 
 	return scroll
 
@@ -799,6 +894,7 @@ func _collect_weapon_data() -> Dictionary:
 		"sweep_arc_deg": _sweep_arc_slider.value,
 		"sweep_duration": _sweep_duration_slider.value,
 		"mirror_mode": MIRROR_MODES[_mirror_mode_button.selected],
+		"bar_effects": _collect_bar_effects(),
 	}
 
 
@@ -988,6 +1084,17 @@ func _on_new() -> void:
 	_current_profile_cache = {"version": 2, "defaults": {}, "trigger_overrides": {}}
 	_refresh_style_list()
 
+	# Reset bar effect sliders
+	for bar_type in BAR_TYPES:
+		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
+		var val_label: Label = _bar_effect_labels.get(bar_type) as Label
+		if slider:
+			slider.value = 0.0
+		if val_label:
+			val_label.text = "0.0"
+	_on_reset_bars()
+	_stats_prev_loop_progress = -1.0
+
 	# Reset all effect slots to "none" with white color
 	for slot in EFFECT_SLOTS:
 		var data: Dictionary = _slot_layer_data.get(slot, {})
@@ -1070,6 +1177,17 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_refresh_trigger_override_selector()
 	_rebuild_effects_from_profile(weapon.effect_profile)
 
+	# Bar effects
+	for bar_type in BAR_TYPES:
+		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
+		var val_label: Label = _bar_effect_labels.get(bar_type) as Label
+		if slider:
+			var val: float = float(weapon.bar_effects.get(bar_type, 0.0))
+			slider.value = val
+			if val_label:
+				val_label.text = "%.1f" % val
+	_stats_prev_loop_progress = -1.0
+
 	_update_preview()
 
 
@@ -1129,6 +1247,109 @@ func _rebuild_effects_from_profile(profile: Dictionary) -> void:
 				color_picker.color = Color.WHITE
 
 
+# ── Stats Bar Preview ────────────────────────────────────────
+
+func _on_reset_bars() -> void:
+	for i in _stats_bar_values.size():
+		_stats_bar_values[i] = 50.0
+		_stats_bar_brightness[i] = 0.0
+	_refresh_stats_bars()
+
+
+func _update_stats_preview(delta: float) -> void:
+	if not _ui_ready or _stats_preview_bars.is_empty():
+		return
+	# Only animate when Stats subtab is active
+	if _tab_container.current_tab != 3:
+		return
+
+	var audition_id: String = "loop_browser_audition"
+	if not LoopMixer.has_loop(audition_id):
+		return
+
+	var pos_sec: float = LoopMixer.get_playback_position(audition_id)
+	var duration: float = LoopMixer.get_stream_duration(audition_id)
+	if pos_sec < 0.0 or duration <= 0.0:
+		return
+
+	var progress: float = clampf(pos_sec / duration, 0.0, 1.0)
+	var prev: float = _stats_prev_loop_progress
+
+	# Detect trigger crossings
+	if prev >= 0.0:
+		var triggers: Array = _waveform_editor.get_triggers()
+		for i in triggers.size():
+			var t: float = float(triggers[i])
+			var crossed: bool = false
+			if progress < prev:
+				crossed = t > prev or t <= progress
+			else:
+				crossed = t > prev and t <= progress
+			if crossed:
+				# Apply bar effect deltas
+				for bi in BAR_TYPES.size():
+					var bar_type: String = BAR_TYPES[bi]
+					var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
+					if slider and slider.value != 0.0:
+						_stats_bar_values[bi] = clampf(_stats_bar_values[bi] + slider.value, 0.0, 100.0)
+						_stats_bar_brightness[bi] = 1.0
+
+	_stats_prev_loop_progress = progress
+
+	# Decay brightness and update display
+	for i in _stats_preview_bars.size():
+		if i >= BAR_TYPES.size():
+			break
+		_stats_bar_brightness[i] = maxf(0.0, _stats_bar_brightness[i] - delta / 0.3)
+		_apply_stats_bar_glow(i)
+
+
+func _apply_stats_bar_glow(bar_idx: int) -> void:
+	if bar_idx < 0 or bar_idx >= _stats_preview_bars.size():
+		return
+	var bar: ProgressBar = _stats_preview_bars[bar_idx]
+	var ratio: float = _stats_bar_values[bar_idx] / 100.0
+	bar.value = _stats_bar_values[bar_idx]
+	var base_color: Color = _stats_bar_base_colors[bar_idx]
+
+	# Update LED bar fill
+	ThemeManager.apply_led_bar(bar, base_color, ratio)
+
+	# Apply glow pulse on the overlay
+	var glow: float = _stats_bar_brightness[bar_idx] * 0.5
+	var overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
+	if overlay and overlay.material is ShaderMaterial:
+		var mat: ShaderMaterial = overlay.material as ShaderMaterial
+		var bright: Color = base_color.lightened(0.6)
+		var modulated: Color = base_color.lerp(bright, clampf(glow, 0.0, 1.0))
+		mat.set_shader_parameter("fill_color", modulated)
+		var base_inner: float = ThemeManager.get_float("led_inner_intensity")
+		var base_bloom: float = ThemeManager.get_float("led_bloom_intensity")
+		var base_aura: float = ThemeManager.get_float("led_aura_intensity")
+		mat.set_shader_parameter("inner_intensity", base_inner + glow * 1.5)
+		mat.set_shader_parameter("bloom_intensity", base_bloom + glow * 0.8)
+		mat.set_shader_parameter("aura_intensity", base_aura + glow * 0.6)
+
+
+func _refresh_stats_bars() -> void:
+	for i in _stats_preview_bars.size():
+		if i >= BAR_TYPES.size():
+			break
+		var bar: ProgressBar = _stats_preview_bars[i]
+		bar.value = _stats_bar_values[i]
+		var color: Color = _stats_bar_base_colors[i]
+		ThemeManager.apply_led_bar(bar, color, _stats_bar_values[i] / 100.0)
+
+
+func _collect_bar_effects() -> Dictionary:
+	var result: Dictionary = {}
+	for bar_type in BAR_TYPES:
+		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
+		if slider and slider.value != 0.0:
+			result[bar_type] = slider.value
+	return result
+
+
 func _apply_theme() -> void:
 	for label in _section_headers:
 		if is_instance_valid(label):
@@ -1144,3 +1365,11 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_delete_button)
 	if _new_button:
 		ThemeManager.apply_button_style(_new_button)
+	if _reset_bars_button:
+		ThemeManager.apply_button_style(_reset_bars_button)
+	# Update stats preview bar base colors
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for i in _stats_preview_bars.size():
+		if i < specs.size():
+			_stats_bar_base_colors[i] = ThemeManager.resolve_bar_color(specs[i])
+	_refresh_stats_bars()

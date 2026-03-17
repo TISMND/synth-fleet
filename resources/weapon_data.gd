@@ -21,6 +21,7 @@ extends Resource
 @export var sweep_arc_deg: float = 60.0  # sweep arc width in degrees
 @export var sweep_duration: float = 1.0  # seconds per full sweep cycle
 @export var mirror_mode: String = "none"  # "none", "mirror", "alternate"
+@export var bar_effects: Dictionary = {}  # {"shield": -0.5, "thermal": 1.2, ...} float delta per trigger hit
 
 
 static func from_dict(data: Dictionary) -> WeaponData:
@@ -58,6 +59,10 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.sweep_arc_deg = float(data.get("sweep_arc_deg", 60.0))
 	w.sweep_duration = float(data.get("sweep_duration", 1.0))
 	w.mirror_mode = data.get("mirror_mode", "none")
+	var raw_bar_effects: Dictionary = data.get("bar_effects", {}) as Dictionary
+	w.bar_effects = {}
+	for key in raw_bar_effects:
+		w.bar_effects[str(key)] = float(raw_bar_effects[key])
 	return w
 
 
@@ -107,4 +112,5 @@ func to_dict() -> Dictionary:
 		"sweep_arc_deg": sweep_arc_deg,
 		"sweep_duration": sweep_duration,
 		"mirror_mode": mirror_mode,
+		"bar_effects": bar_effects,
 	}

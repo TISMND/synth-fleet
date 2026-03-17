@@ -11,6 +11,7 @@ extends Resource
 @export var pulse_triggers: Dictionary = {}  # {"shield": [0.0, 0.5], "hull": [0.25], ...}
 @export var global_pulse_settings: Dictionary = {"brightness": 0.5, "brighten_duration": 0.05, "dim_duration": 0.3}
 @export var pulse_settings: Dictionary = {}  # Per-bar overrides keyed by bar type, same shape as global
+@export var bar_effects: Dictionary = {}  # {"shield": -0.5, "thermal": 1.2, ...} float delta per trigger hit
 @export var power_cost: int = 5
 
 
@@ -22,6 +23,10 @@ static func from_dict(data: Dictionary) -> PowerCoreData:
 	pc.loop_file_path = data.get("loop_file_path", "")
 	pc.loop_length_bars = int(data.get("loop_length_bars", 2))
 	pc.power_cost = int(data.get("power_cost", 5))
+	var raw_bar_effects: Dictionary = data.get("bar_effects", {}) as Dictionary
+	pc.bar_effects = {}
+	for key in raw_bar_effects:
+		pc.bar_effects[str(key)] = float(raw_bar_effects[key])
 
 	# Parse pulse_triggers — ensure all values are Array[float]
 	var raw_triggers: Dictionary = data.get("pulse_triggers", {}) as Dictionary
@@ -66,5 +71,6 @@ func to_dict() -> Dictionary:
 		"pulse_triggers": pulse_triggers,
 		"global_pulse_settings": global_pulse_settings,
 		"pulse_settings": pulse_settings,
+		"bar_effects": bar_effects,
 		"power_cost": power_cost,
 	}

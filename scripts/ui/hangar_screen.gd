@@ -202,16 +202,21 @@ func _rebuild_buttons() -> void:
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
 		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		var weapon_name: String = "empty"
+		var bar_effect_text: String = ""
 		if weapon_id != "":
 			var w: WeaponData = _weapon_cache.get(weapon_id)
 			if w:
 				weapon_name = w.display_name if w.display_name != "" else w.id
+				bar_effect_text = _format_bar_effects(w.bar_effects)
 			else:
 				weapon_name = weapon_id
 
 		# Header button
 		var header := Button.new()
-		header.text = "WEAPON " + str(i + 1) + "  —  " + weapon_name
+		var header_text: String = "WEAPON " + str(i + 1) + "  —  " + weapon_name
+		if bar_effect_text != "":
+			header_text += "  " + bar_effect_text
+		header.text = header_text
 		header.custom_minimum_size.y = 55
 		header.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		ThemeManager.apply_button_style(header)
@@ -489,6 +494,7 @@ func _sync_preview() -> void:
 		var controller: Node2D = HardpointController.new()
 		_preview_node.add_child(controller)
 		controller.setup(weapon, weapon.direction_deg, _proj_container, i)
+		controller.bar_effect_fired.connect(_on_bar_effect_fired)
 		_preview_controllers.append(controller)
 
 	# If already playing, activate new controllers immediately
@@ -512,6 +518,40 @@ func _cleanup_preview() -> void:
 func _clear_projectiles() -> void:
 	for child in _proj_container.get_children():
 		child.queue_free()
+
+
+func _format_bar_effects(effects: Dictionary) -> String:
+	if effects.is_empty():
+		return ""
+	var abbreviations: Dictionary = {"shield": "SHD", "hull": "HUL", "thermal": "THR", "electric": "ELC"}
+	var parts: Array[String] = []
+	for key in effects:
+		var val: float = float(effects[key])
+		if val == 0.0:
+			continue
+		var prefix: String = "+" if val > 0.0 else ""
+		parts.append(str(abbreviations.get(key, str(key))) + ":" + prefix + "%.1f" % val)
+	return " ".join(parts)
+
+
+func _on_bar_effect_fired(effects: Dictionary) -> void:
+	var abbreviations: Dictionary = {"shield": "SHIELD", "hull": "HULL", "thermal": "THERMAL", "electric": "ELECTRIC"}
+	for key in effects:
+		var bar_name: String = str(abbreviations.get(str(key), str(key).to_upper()))
+		if not _bars.has(bar_name):
+			continue
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		var delta: float = float(effects[key])
+		bar.value = clampf(bar.value + delta, 0.0, bar.max_value)
+		# Re-apply LED with updated ratio
+		var specs: Array = ThemeManager.get_status_bar_specs()
+		for spec in specs:
+			if str(spec["name"]) == bar_name:
+				var color: Color = ThemeManager.resolve_bar_color(spec)
+				var seg: int = int(_bar_segments.get(bar_name, -1))
+				ThemeManager.apply_led_bar(bar, color, bar.value / maxf(bar.max_value, 1.0), seg)
+				break
 
 
 func _exit_tree() -> void:

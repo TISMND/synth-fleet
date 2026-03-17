@@ -9,6 +9,11 @@ var hull_max: int = 100
 var shield: float = 50.0
 var shield_max: int = 50
 var shield_regen: float = 5.0
+var thermal: float = 0.0
+var thermal_max: float = 100.0
+var electric: float = 100.0
+var electric_max: float = 100.0
+var _hull_accumulator: float = 0.0
 var speed: float = 400.0
 var _hardpoint_controllers: Array = []
 var _player_area: Area2D = null
@@ -80,6 +85,7 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 		controller.position = Vector2.ZERO
 		add_child(controller)
 		controller.setup(weapon, weapon.direction_deg, proj_container, hp_index)
+		controller.bar_effect_fired.connect(apply_bar_effects)
 		# Hardpoints start deactivated
 		_hardpoint_controllers.append(controller)
 		_weapon_data_per_hp.append({
@@ -185,6 +191,24 @@ func stop_all() -> void:
 			c.deactivate()
 		if c.has_method("cleanup"):
 			c.cleanup()
+
+
+func apply_bar_effects(effects: Dictionary) -> void:
+	for bar_type in effects:
+		var delta: float = float(effects[bar_type])
+		match str(bar_type):
+			"shield":
+				shield = clampf(shield + delta, 0.0, float(shield_max))
+			"hull":
+				_hull_accumulator += delta
+				if absf(_hull_accumulator) >= 1.0:
+					var int_part: int = int(_hull_accumulator)
+					hull = clampi(hull + int_part, 0, hull_max)
+					_hull_accumulator -= float(int_part)
+			"thermal":
+				thermal = clampf(thermal + delta, 0.0, thermal_max)
+			"electric":
+				electric = clampf(electric + delta, 0.0, electric_max)
 
 
 func _on_contact(area: Area2D) -> void:

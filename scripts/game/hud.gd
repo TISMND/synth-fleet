@@ -224,21 +224,27 @@ func _apply_weapon_icon_theme(icon: Dictionary) -> void:
 
 
 func update_health(current_shield: float, max_shield: int, current_hull: int, max_hull: int) -> void:
-	var shield_entry: Dictionary = _bars["SHIELD"]
-	var shield_bar: ProgressBar = shield_entry["bar"]
-	shield_bar.max_value = max_shield
-	shield_bar.value = current_shield
-	var shield_ratio: float = current_shield / maxf(float(max_shield), 1.0)
-	var shield_seg: int = int(_bar_segments.get("SHIELD", -1))
-	ThemeManager.apply_led_bar(shield_bar, ThemeManager.get_color("bar_shield"), shield_ratio, shield_seg)
+	_update_bar("SHIELD", current_shield, float(max_shield), "bar_shield")
+	_update_bar("HULL", float(current_hull), float(max_hull), "bar_hull")
 
-	var hull_entry: Dictionary = _bars["HULL"]
-	var hull_bar: ProgressBar = hull_entry["bar"]
-	hull_bar.max_value = max_hull
-	hull_bar.value = current_hull
-	var hull_ratio: float = float(current_hull) / maxf(float(max_hull), 1.0)
-	var hull_seg: int = int(_bar_segments.get("HULL", -1))
-	ThemeManager.apply_led_bar(hull_bar, ThemeManager.get_color("bar_hull"), hull_ratio, hull_seg)
+
+func update_all_bars(current_shield: float, max_shield: int, current_hull: int, max_hull: int, current_thermal: float, max_thermal: float, current_electric: float, max_electric: float) -> void:
+	_update_bar("SHIELD", current_shield, float(max_shield), "bar_shield")
+	_update_bar("HULL", float(current_hull), float(max_hull), "bar_hull")
+	_update_bar("THERMAL", current_thermal, max_thermal, "bar_thermal")
+	_update_bar("ELECTRIC", current_electric, max_electric, "bar_electric")
+
+
+func _update_bar(bar_name: String, current: float, max_val: float, color_key: String) -> void:
+	if not _bars.has(bar_name):
+		return
+	var entry: Dictionary = _bars[bar_name]
+	var bar: ProgressBar = entry["bar"]
+	bar.max_value = max_val
+	bar.value = current
+	var ratio: float = current / maxf(max_val, 1.0)
+	var seg: int = int(_bar_segments.get(bar_name, -1))
+	ThemeManager.apply_led_bar(bar, ThemeManager.get_color(color_key), ratio, seg)
 
 
 func update_credits(amount: int) -> void:
