@@ -17,9 +17,15 @@ static var _beam_shader: Shader = null
 static var _fire_shader: Shader = null
 static var _electric_shader: Shader = null
 static var _void_shader: Shader = null
+static var _ice_shader: Shader = null
+static var _toxic_shader: Shader = null
+static var _hologram_shader: Shader = null
+static var _glitch_shader: Shader = null
+static var _pulse_shader: Shader = null
+static var _smoke_shader: Shader = null
 
 # Valid fill shader names for validation
-const FILL_SHADERS: PackedStringArray = ["energy", "plasma", "beam", "fire", "electric", "void"]
+const FILL_SHADERS: PackedStringArray = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke"]
 
 
 # ── Texture Generation ──────────────────────────────────────
@@ -403,6 +409,42 @@ static func _load_void_shader() -> Shader:
 	return _void_shader
 
 
+static func _load_ice_shader() -> Shader:
+	if _ice_shader == null:
+		_ice_shader = load("res://assets/shaders/projectile_ice.gdshader") as Shader
+	return _ice_shader
+
+
+static func _load_toxic_shader() -> Shader:
+	if _toxic_shader == null:
+		_toxic_shader = load("res://assets/shaders/projectile_toxic.gdshader") as Shader
+	return _toxic_shader
+
+
+static func _load_hologram_shader() -> Shader:
+	if _hologram_shader == null:
+		_hologram_shader = load("res://assets/shaders/projectile_hologram.gdshader") as Shader
+	return _hologram_shader
+
+
+static func _load_glitch_shader() -> Shader:
+	if _glitch_shader == null:
+		_glitch_shader = load("res://assets/shaders/projectile_glitch.gdshader") as Shader
+	return _glitch_shader
+
+
+static func _load_pulse_shader() -> Shader:
+	if _pulse_shader == null:
+		_pulse_shader = load("res://assets/shaders/projectile_pulse.gdshader") as Shader
+	return _pulse_shader
+
+
+static func _load_smoke_shader() -> Shader:
+	if _smoke_shader == null:
+		_smoke_shader = load("res://assets/shaders/projectile_smoke.gdshader") as Shader
+	return _smoke_shader
+
+
 ## Create a Sprite2D with a shader material for shader-based shape types.
 ## Returns null if the shape type is not shader-based.
 static func create_shader_sprite(shape_type: String, color: Color, width: float, height: float) -> Sprite2D:
@@ -455,6 +497,18 @@ static func get_fill_shader(shader_name: String) -> Shader:
 			return _load_electric_shader()
 		"void":
 			return _load_void_shader()
+		"ice":
+			return _load_ice_shader()
+		"toxic":
+			return _load_toxic_shader()
+		"hologram":
+			return _load_hologram_shader()
+		"glitch":
+			return _load_glitch_shader()
+		"pulse":
+			return _load_pulse_shader()
+		"smoke":
+			return _load_smoke_shader()
 	return _load_energy_shader()
 
 

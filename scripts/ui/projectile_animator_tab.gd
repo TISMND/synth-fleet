@@ -3,7 +3,14 @@ extends MarginContainer
 ## Styles are saved to user://projectile_styles/ and referenced by weapons.
 
 const ARCHETYPES: Array[String] = ["bullet", "beam", "pulse_wave"]
-const FILL_SHADERS: Array[String] = ["energy", "plasma", "beam", "fire", "electric", "void"]
+const FILL_SHADERS: Array[String] = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke"]
+
+const COMMON_PARAM_DEFS: Dictionary = {
+	"brightness": [0.5, 4.0, 1.0, 0.1],
+	"color_mix": [0.0, 1.0, 0.0, 0.01],
+	"animation_speed": [0.1, 3.0, 1.0, 0.1],
+	"edge_softness": [0.0, 1.0, 0.5, 0.01],
+}
 
 const SHADER_PARAM_DEFS: Dictionary = {
 	"energy": {"scroll_speed": [0.5, 5.0, 2.0, 0.1], "distortion": [0.0, 0.5, 0.15, 0.01], "edge_glow": [0.5, 3.0, 1.5, 0.1]},
@@ -12,6 +19,12 @@ const SHADER_PARAM_DEFS: Dictionary = {
 	"fire": {"scroll_speed": [0.5, 5.0, 2.0, 0.1], "heat_distortion": [0.0, 0.3, 0.1, 0.01], "flame_detail": [1.0, 6.0, 3.0, 0.5]},
 	"electric": {"branch_density": [1.0, 8.0, 4.0, 0.5], "flicker_speed": [2.0, 16.0, 8.0, 1.0], "arc_width": [0.02, 0.2, 0.1, 0.01]},
 	"void": {"pulse_speed": [0.5, 4.0, 1.5, 0.1], "edge_width": [0.05, 0.4, 0.15, 0.01], "inner_darkness": [0.5, 1.0, 0.9, 0.05]},
+	"ice": {"crystal_density": [2.0, 10.0, 5.0, 0.5], "shimmer_speed": [0.5, 4.0, 2.0, 0.1], "fracture_sharpness": [0.5, 3.0, 1.5, 0.1]},
+	"toxic": {"bubble_speed": [0.5, 4.0, 2.0, 0.1], "bubble_density": [1.0, 8.0, 4.0, 0.5], "drip_intensity": [0.0, 1.0, 0.5, 0.05]},
+	"hologram": {"scan_speed": [1.0, 10.0, 4.0, 0.5], "scan_density": [4.0, 40.0, 20.0, 1.0], "aberration": [0.0, 0.1, 0.03, 0.005], "flicker_rate": [0.0, 8.0, 3.0, 0.5]},
+	"glitch": {"block_size": [2.0, 20.0, 8.0, 1.0], "glitch_rate": [1.0, 12.0, 6.0, 0.5], "rgb_split": [0.0, 0.15, 0.05, 0.005], "intensity": [0.2, 1.0, 0.7, 0.05]},
+	"pulse": {"ring_count": [2.0, 10.0, 5.0, 1.0], "ring_speed": [0.5, 4.0, 2.0, 0.1], "ring_width": [0.02, 0.2, 0.08, 0.01], "fade_rate": [0.5, 3.0, 1.5, 0.1]},
+	"smoke": {"flow_speed": [0.5, 4.0, 1.5, 0.1], "density": [1.0, 6.0, 3.0, 0.5], "wisp_scale": [1.0, 8.0, 4.0, 0.5], "turbulence": [0.0, 1.0, 0.5, 0.05]},
 }
 
 const BEAM_PARAM_DEFS: Dictionary = {
@@ -48,6 +61,8 @@ var _preview_node: ProjectileAnimatorPreview
 # Dynamic sections
 var _shader_params_container: VBoxContainer
 var _shader_param_sliders: Dictionary = {}
+var _common_params_container: VBoxContainer
+var _common_param_sliders: Dictionary = {}
 var _archetype_params_container: VBoxContainer
 var _archetype_param_sliders: Dictionary = {}
 var _mask_grid: GridContainer
@@ -180,18 +195,6 @@ func _build_left_panel() -> Control:
 	_preview_node = ProjectileAnimatorPreview.new()
 	viewport.add_child(_preview_node)
 
-	# Color picker at bottom of preview
-	var color_row := HBoxContainer.new()
-	vbox.add_child(color_row)
-	var color_label := Label.new()
-	color_label.text = "Test Color:"
-	color_row.add_child(color_label)
-	_color_picker = ColorPickerButton.new()
-	_color_picker.color = Color.CYAN
-	_color_picker.custom_minimum_size = Vector2(80, 30)
-	_color_picker.color_changed.connect(func(_c: Color) -> void: _update_preview())
-	color_row.add_child(_color_picker)
-
 	return panel
 
 
@@ -250,11 +253,35 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_shader_button.item_selected.connect(_on_shader_changed)
 	parent.add_child(_shader_button)
 
+	# Common Params (always visible)
+	_add_section_header(parent, "COMMON")
+	_common_params_container = VBoxContainer.new()
+	_common_params_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(_common_params_container)
+	_rebuild_common_params()
+
 	# Shader Params (dynamic)
 	_shader_params_container = VBoxContainer.new()
 	_shader_params_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(_shader_params_container)
 	_rebuild_shader_params("energy")
+
+	_add_separator(parent)
+
+	# Color
+	_add_section_header(parent, "COLOR")
+	var color_row := HBoxContainer.new()
+	parent.add_child(color_row)
+	var color_label := Label.new()
+	color_label.text = "Color:"
+	color_label.custom_minimum_size.x = 130
+	color_row.add_child(color_label)
+	_color_picker = ColorPickerButton.new()
+	_color_picker.color = Color.CYAN
+	_color_picker.custom_minimum_size = Vector2(80, 30)
+	_color_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_color_picker.color_changed.connect(func(_c: Color) -> void: _update_preview())
+	color_row.add_child(_color_picker)
 
 	_add_separator(parent)
 
@@ -287,6 +314,18 @@ func _build_controls(parent: VBoxContainer) -> void:
 
 
 # ── Dynamic Param Sections ─────────────────────────────────
+
+func _rebuild_common_params() -> void:
+	for child in _common_params_container.get_children():
+		child.queue_free()
+	_common_param_sliders.clear()
+
+	for param_name in COMMON_PARAM_DEFS:
+		var bounds: Array = COMMON_PARAM_DEFS[param_name]
+		var row: Array = _add_slider_row(_common_params_container, param_name + ":",
+			float(bounds[0]), float(bounds[1]), float(bounds[2]), float(bounds[3]))
+		_common_param_sliders[param_name] = row[0]
+
 
 func _rebuild_shader_params(shader_name: String) -> void:
 	for child in _shader_params_container.get_children():
@@ -437,6 +476,11 @@ func _on_shader_changed(_idx: int) -> void:
 
 func _collect_style_data() -> Dictionary:
 	var shader_params: Dictionary = {}
+	# Common params
+	for param_name in _common_param_sliders:
+		var slider: HSlider = _common_param_sliders[param_name]
+		shader_params[param_name] = slider.value
+	# Per-shader params
 	for param_name in _shader_param_sliders:
 		var slider: HSlider = _shader_param_sliders[param_name]
 		shader_params[param_name] = slider.value
@@ -460,6 +504,7 @@ func _collect_style_data() -> Dictionary:
 		"glow_intensity": _glow_slider.value,
 		"base_scale": [_scale_x_slider.value, _scale_y_slider.value],
 		"archetype_params": archetype_params,
+		"color": [_color_picker.color.r, _color_picker.color.g, _color_picker.color.b, _color_picker.color.a],
 	}
 
 
@@ -518,8 +563,10 @@ func _on_new() -> void:
 	_glow_slider.value = 1.5
 	_scale_x_slider.value = 24.0
 	_scale_y_slider.value = 32.0
+	_color_picker.color = Color.CYAN
 	_selected_mask = ""
 	_update_mask_highlights()
+	_rebuild_common_params()
 	_rebuild_shader_params("energy")
 	_rebuild_archetype_params("bullet")
 	_update_preview()
@@ -547,11 +594,20 @@ func _populate_from_style(style: ProjectileStyle) -> void:
 	_shader_button.selected = shader_idx if shader_idx >= 0 else 0
 	_rebuild_shader_params(style.fill_shader)
 
+	# Set common param values
+	for param_name in style.shader_params:
+		if param_name in _common_param_sliders:
+			var slider: HSlider = _common_param_sliders[param_name]
+			slider.value = float(style.shader_params[param_name])
+
 	# Set shader param values
 	for param_name in style.shader_params:
 		if param_name in _shader_param_sliders:
 			var slider: HSlider = _shader_param_sliders[param_name]
 			slider.value = float(style.shader_params[param_name])
+
+	# Color
+	_color_picker.color = style.color
 
 	# Glow + scale
 	_glow_slider.value = style.glow_intensity

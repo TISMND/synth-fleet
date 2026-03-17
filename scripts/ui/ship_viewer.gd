@@ -759,22 +759,57 @@ class _ShipDraw extends Node2D:
 		])
 		_poly(hull, hull_color, 2.0 * s)
 
-		# Right canard
-		var rc := PackedVector2Array([
-			_bp(6, -18, s, 0.2) + Vector2(0, ry * 0.5),
-			_bp(18, -14, s, 0.2) + Vector2(0, ry),
-			_bp(16, -8, s, 0.2) + Vector2(0, ry),
-			_bp(6, -12, s, 0.2) + Vector2(0, ry * 0.5),
+		# Right blade-fin — long swept forward prong
+		var rf_main := PackedVector2Array([
+			_bp(6, -20, s, 0.15) + Vector2(0, ry * 0.3),
+			_bp(14, -26, s, 0.15) + Vector2(0, ry * 0.6),
+			_bp(28, -38, s, 0.15) + Vector2(0, ry * 0.9),
+			_bp(34, -44, s, 0.15) + Vector2(0, ry),
+			_bp(30, -36, s, 0.15) + Vector2(0, ry * 0.9),
+			_bp(22, -22, s, 0.15) + Vector2(0, ry * 0.7),
+			_bp(18, -12, s, 0.15) + Vector2(0, ry * 0.5),
+			_bp(12, -6, s, 0.15) + Vector2(0, ry * 0.4),
+			_bp(8, -8, s, 0.15) + Vector2(0, ry * 0.3),
 		])
-		_poly(rc, _side_color(detail_color, 1.0), 1.2 * s)
-		# Left canard
-		var lc := PackedVector2Array([
-			_bp(-6, -18, s, 0.2) + Vector2(0, ly * 0.5),
-			_bp(-18, -14, s, 0.2) + Vector2(0, ly),
-			_bp(-16, -8, s, 0.2) + Vector2(0, ly),
-			_bp(-6, -12, s, 0.2) + Vector2(0, ly * 0.5),
+		_poly(rf_main, _side_color(hull_color, 1.0), 1.5 * s)
+		# Right fin trailing edge / winglet
+		var rf_wing := PackedVector2Array([
+			_bp(18, -12, s, 0.15) + Vector2(0, ry * 0.5),
+			_bp(26, -10, s, 0.15) + Vector2(0, ry * 0.7),
+			_bp(30, -16, s, 0.15) + Vector2(0, ry * 0.8),
+			_bp(22, -22, s, 0.15) + Vector2(0, ry * 0.7),
 		])
-		_poly(lc, _side_color(detail_color, -1.0), 1.2 * s)
+		_poly(rf_wing, _side_color(detail_color, 1.0), 1.0 * s)
+		# Right fin structural strut
+		_line(_bp(8, -14, s, 0.15) + Vector2(0, ry * 0.3), _bp(30, -38, s, 0.15) + Vector2(0, ry * 0.9), accent_color, 0.8 * s)
+		# Right fin tip accent
+		_line(_bp(32, -42, s, 0.15) + Vector2(0, ry), _bp(36, -46, s, 0.15) + Vector2(0, ry), accent_color, 1.2 * s)
+
+		# Left blade-fin — mirror
+		var lf_main := PackedVector2Array([
+			_bp(-6, -20, s, 0.15) + Vector2(0, ly * 0.3),
+			_bp(-14, -26, s, 0.15) + Vector2(0, ly * 0.6),
+			_bp(-28, -38, s, 0.15) + Vector2(0, ly * 0.9),
+			_bp(-34, -44, s, 0.15) + Vector2(0, ly),
+			_bp(-30, -36, s, 0.15) + Vector2(0, ly * 0.9),
+			_bp(-22, -22, s, 0.15) + Vector2(0, ly * 0.7),
+			_bp(-18, -12, s, 0.15) + Vector2(0, ly * 0.5),
+			_bp(-12, -6, s, 0.15) + Vector2(0, ly * 0.4),
+			_bp(-8, -8, s, 0.15) + Vector2(0, ly * 0.3),
+		])
+		_poly(lf_main, _side_color(hull_color, -1.0), 1.5 * s)
+		# Left fin trailing edge / winglet
+		var lf_wing := PackedVector2Array([
+			_bp(-18, -12, s, 0.15) + Vector2(0, ly * 0.5),
+			_bp(-26, -10, s, 0.15) + Vector2(0, ly * 0.7),
+			_bp(-30, -16, s, 0.15) + Vector2(0, ly * 0.8),
+			_bp(-22, -22, s, 0.15) + Vector2(0, ly * 0.7),
+		])
+		_poly(lf_wing, _side_color(detail_color, -1.0), 1.0 * s)
+		# Left fin structural strut
+		_line(_bp(-8, -14, s, 0.15) + Vector2(0, ly * 0.3), _bp(-30, -38, s, 0.15) + Vector2(0, ly * 0.9), accent_color, 0.8 * s)
+		# Left fin tip accent
+		_line(_bp(-32, -42, s, 0.15) + Vector2(0, ly), _bp(-36, -46, s, 0.15) + Vector2(0, ly), accent_color, 1.2 * s)
 
 		# Right engine nacelle
 		var re := PackedVector2Array([
@@ -992,110 +1027,135 @@ class _ShipDraw extends Node2D:
 		_exhaust_line(_bp(10, 40, s, 0.04), _bp(10, 48, s, 0.04), 1.8 * s)
 		_exhaust_line(_bp(14, 40, s, 0.04), _bp(14, 48, s, 0.04), 1.8 * s)
 
-	# ── Ship 8: Bastion — blocky armored fortress ──
+	# ── Ship 8: Bastion — stepped blocky capital ship (Sears Tower silhouette) ──
 	func _draw_bastion() -> void:
 		var s := 1.8
 		var ry: float = -bank * 0.9 * s
 		var ly: float = bank * 0.9 * s
 
-		# Main hull — big blocky rectangle with angled front
-		var hull := PackedVector2Array([
-			_bp(-12, -40, s, 0.04), _bp(12, -40, s, 0.04),
-			_bp(24, -32, s, 0.04), _bp(24, 34, s, 0.04),
-			_bp(20, 40, s, 0.04), _bp(-20, 40, s, 0.04),
-			_bp(-24, 34, s, 0.04), _bp(-24, -32, s, 0.04),
+		# TIER 1 (rear/widest) — full-width engine section
+		var tier1 := PackedVector2Array([
+			_bp(-28, 10, s, 0.04), _bp(28, 10, s, 0.04),
+			_bp(28, 44, s, 0.04), _bp(-28, 44, s, 0.04),
 		])
-		_poly(hull, hull_color, 2.2 * s)
+		_poly(tier1, hull_color, 2.2 * s)
 
-		# Right sponson — chunky side armor block
-		var r_sponson := PackedVector2Array([
-			_bp(24, -20, s, 0.06) + Vector2(0, ry * 0.2),
-			_bp(34, -18, s, 0.06) + Vector2(0, ry * 0.4),
-			_bp(34, 22, s, 0.06) + Vector2(0, ry * 0.4),
-			_bp(24, 24, s, 0.06) + Vector2(0, ry * 0.2),
+		# TIER 2 (mid) — steps in from tier 1
+		var tier2 := PackedVector2Array([
+			_bp(-22, -14, s, 0.04), _bp(22, -14, s, 0.04),
+			_bp(22, 12, s, 0.04), _bp(-22, 12, s, 0.04),
 		])
-		_poly(r_sponson, _side_color(hull_color, 1.0), 1.8 * s)
+		_poly(tier2, hull_color, 2.2 * s)
 
-		# Left sponson
-		var l_sponson := PackedVector2Array([
-			_bp(-24, -20, s, 0.06) + Vector2(0, ly * 0.2),
-			_bp(-34, -18, s, 0.06) + Vector2(0, ly * 0.4),
-			_bp(-34, 22, s, 0.06) + Vector2(0, ly * 0.4),
-			_bp(-24, 24, s, 0.06) + Vector2(0, ly * 0.2),
+		# TIER 3 (upper-mid) — narrower still
+		var tier3 := PackedVector2Array([
+			_bp(-16, -34, s, 0.04), _bp(16, -34, s, 0.04),
+			_bp(16, -12, s, 0.04), _bp(-16, -12, s, 0.04),
 		])
-		_poly(l_sponson, _side_color(hull_color, -1.0), 1.8 * s)
+		_poly(tier3, hull_color, 2.2 * s)
 
-		# Forward prow — thick armored wedge
-		var prow := PackedVector2Array([
-			_bp(-16, -40, s, 0.04),
-			_bp(16, -40, s, 0.04),
-			_bp(10, -48, s, 0.04),
-			_bp(-10, -48, s, 0.04),
+		# TIER 4 (bridge/prow) — blunt narrow top
+		var tier4 := PackedVector2Array([
+			_bp(-10, -48, s, 0.04), _bp(10, -48, s, 0.04),
+			_bp(10, -32, s, 0.04), _bp(-10, -32, s, 0.04),
 		])
-		_poly(prow, accent_color, 1.5 * s)
+		_poly(tier4, hull_color, 2.0 * s)
 
-		# Rear engine block — stepped behind hull
-		var eng_block := PackedVector2Array([
-			_bp(-18, 38, s, 0.04),
-			_bp(18, 38, s, 0.04),
-			_bp(16, 46, s, 0.04),
-			_bp(-16, 46, s, 0.04),
+		# Right side blocks — sponson pods on the wide tiers
+		# Tier 1 right pod
+		var r_pod1 := PackedVector2Array([
+			_bp(28, 16, s, 0.06) + Vector2(0, ry * 0.2),
+			_bp(36, 16, s, 0.06) + Vector2(0, ry * 0.4),
+			_bp(36, 38, s, 0.06) + Vector2(0, ry * 0.4),
+			_bp(28, 38, s, 0.06) + Vector2(0, ry * 0.2),
 		])
-		_poly(eng_block, hull_color, 1.5 * s)
+		_poly(r_pod1, _side_color(hull_color, 1.0), 1.8 * s)
+		# Tier 2 right pod (shorter)
+		var r_pod2 := PackedVector2Array([
+			_bp(22, -10, s, 0.06) + Vector2(0, ry * 0.2),
+			_bp(28, -10, s, 0.06) + Vector2(0, ry * 0.3),
+			_bp(28, 6, s, 0.06) + Vector2(0, ry * 0.3),
+			_bp(22, 6, s, 0.06) + Vector2(0, ry * 0.2),
+		])
+		_poly(r_pod2, _side_color(hull_color, 1.0), 1.5 * s)
 
-		# Heavy horizontal armor plate lines
-		_line(_bp(-24, -20, s, 0.04), _bp(24, -20, s, 0.04), detail_color, 0.9 * s)
-		_line(_bp(-24, -4, s, 0.04), _bp(24, -4, s, 0.04), detail_color, 0.9 * s)
-		_line(_bp(-24, 12, s, 0.04), _bp(24, 12, s, 0.04), detail_color, 0.9 * s)
-		_line(_bp(-24, 26, s, 0.04), _bp(24, 26, s, 0.04), detail_color, 0.7 * s)
+		# Left side blocks
+		var l_pod1 := PackedVector2Array([
+			_bp(-28, 16, s, 0.06) + Vector2(0, ly * 0.2),
+			_bp(-36, 16, s, 0.06) + Vector2(0, ly * 0.4),
+			_bp(-36, 38, s, 0.06) + Vector2(0, ly * 0.4),
+			_bp(-28, 38, s, 0.06) + Vector2(0, ly * 0.2),
+		])
+		_poly(l_pod1, _side_color(hull_color, -1.0), 1.8 * s)
+		var l_pod2 := PackedVector2Array([
+			_bp(-22, -10, s, 0.06) + Vector2(0, ly * 0.2),
+			_bp(-28, -10, s, 0.06) + Vector2(0, ly * 0.3),
+			_bp(-28, 6, s, 0.06) + Vector2(0, ly * 0.3),
+			_bp(-22, 6, s, 0.06) + Vector2(0, ly * 0.2),
+		])
+		_poly(l_pod2, _side_color(hull_color, -1.0), 1.5 * s)
 
-		# Vertical ribs (structural bracing)
-		_line(_bp(-14, -38, s, 0.04), _bp(-14, 36, s, 0.04), detail_color, 0.5 * s)
-		_line(_bp(14, -38, s, 0.04), _bp(14, 36, s, 0.04), detail_color, 0.5 * s)
+		# Step ledge accents — horizontal lines where tiers step in
+		_line(_bp(-28, 10, s, 0.04), _bp(28, 10, s, 0.04), accent_color, 1.0 * s)
+		_line(_bp(-22, -14, s, 0.04), _bp(22, -14, s, 0.04), accent_color, 1.0 * s)
+		_line(_bp(-16, -34, s, 0.04), _bp(16, -34, s, 0.04), accent_color, 0.9 * s)
 
-		# Sponson detail lines — panel seams
-		_line(_bp(26, -10, s, 0.06) + Vector2(0, ry * 0.3), _bp(32, -10, s, 0.06) + Vector2(0, ry * 0.4), detail_color, 0.5 * s)
-		_line(_bp(26, 6, s, 0.06) + Vector2(0, ry * 0.3), _bp(32, 6, s, 0.06) + Vector2(0, ry * 0.4), detail_color, 0.5 * s)
-		_line(_bp(26, 16, s, 0.06) + Vector2(0, ry * 0.3), _bp(32, 16, s, 0.06) + Vector2(0, ry * 0.4), detail_color, 0.5 * s)
-		_line(_bp(-26, -10, s, 0.06) + Vector2(0, ly * 0.3), _bp(-32, -10, s, 0.06) + Vector2(0, ly * 0.4), detail_color, 0.5 * s)
-		_line(_bp(-26, 6, s, 0.06) + Vector2(0, ly * 0.3), _bp(-32, 6, s, 0.06) + Vector2(0, ly * 0.4), detail_color, 0.5 * s)
-		_line(_bp(-26, 16, s, 0.06) + Vector2(0, ly * 0.3), _bp(-32, 16, s, 0.06) + Vector2(0, ly * 0.4), detail_color, 0.5 * s)
+		# Vertical step edges (right side silhouette)
+		_line(_bp(28, 10, s, 0.04), _bp(22, 10, s, 0.04), detail_color, 0.7 * s)
+		_line(_bp(22, -14, s, 0.04), _bp(16, -14, s, 0.04), detail_color, 0.7 * s)
+		_line(_bp(16, -34, s, 0.04), _bp(10, -34, s, 0.04), detail_color, 0.7 * s)
+		# Left side
+		_line(_bp(-28, 10, s, 0.04), _bp(-22, 10, s, 0.04), detail_color, 0.7 * s)
+		_line(_bp(-22, -14, s, 0.04), _bp(-16, -14, s, 0.04), detail_color, 0.7 * s)
+		_line(_bp(-16, -34, s, 0.04), _bp(-10, -34, s, 0.04), detail_color, 0.7 * s)
 
-		# Prow detail — reinforcement chevron
-		_line(_bp(-8, -44, s, 0.04), _bp(0, -48, s, 0.04), accent_color, 0.8 * s)
-		_line(_bp(8, -44, s, 0.04), _bp(0, -48, s, 0.04), accent_color, 0.8 * s)
+		# Armor plate lines within tiers
+		_line(_bp(-28, 24, s, 0.04), _bp(28, 24, s, 0.04), detail_color, 0.6 * s)
+		_line(_bp(-28, 36, s, 0.04), _bp(28, 36, s, 0.04), detail_color, 0.6 * s)
+		_line(_bp(-22, -4, s, 0.04), _bp(22, -4, s, 0.04), detail_color, 0.5 * s)
+		_line(_bp(-16, -24, s, 0.04), _bp(16, -24, s, 0.04), detail_color, 0.5 * s)
 
-		# Bridge canopy — small and recessed, industrial feel
+		# Vertical structural ribs down center
+		_line(_bp(-5, -46, s, 0.04), _bp(-5, 42, s, 0.04), detail_color, 0.4 * s)
+		_line(_bp(5, -46, s, 0.04), _bp(5, 42, s, 0.04), detail_color, 0.4 * s)
+
+		# Spine accent — doubled
+		_line(_bp(-2, -44, s, 0.04), _bp(-2, 40, s, 0.04), accent_color, 0.8 * s)
+		_line(_bp(2, -44, s, 0.04), _bp(2, 40, s, 0.04), accent_color, 0.8 * s)
+
+		# Bridge canopy on tier 4
 		var cx: float = -bank * 1.2 * s
 		var can := PackedVector2Array([
-			_bp(-6, -34, s, 0.03) + Vector2(cx, 0),
-			_bp(6, -34, s, 0.03) + Vector2(cx, 0),
-			_bp(7, -26, s, 0.03) + Vector2(cx, 0),
-			_bp(-7, -26, s, 0.03) + Vector2(cx, 0),
+			_bp(-5, -46, s, 0.03) + Vector2(cx, 0),
+			_bp(5, -46, s, 0.03) + Vector2(cx, 0),
+			_bp(6, -38, s, 0.03) + Vector2(cx, 0),
+			_bp(-6, -38, s, 0.03) + Vector2(cx, 0),
 		])
 		_canopy(can)
 
-		# Spine accent — doubled for heavy look
-		_line(_bp(-3, -24, s, 0.04), _bp(-3, 34, s, 0.04), accent_color, 0.9 * s)
-		_line(_bp(3, -24, s, 0.04), _bp(3, 34, s, 0.04), accent_color, 0.9 * s)
+		# Pod panel seams
+		_line(_bp(30, 24, s, 0.06) + Vector2(0, ry * 0.3), _bp(34, 24, s, 0.06) + Vector2(0, ry * 0.4), detail_color, 0.4 * s)
+		_line(_bp(30, 30, s, 0.06) + Vector2(0, ry * 0.3), _bp(34, 30, s, 0.06) + Vector2(0, ry * 0.4), detail_color, 0.4 * s)
+		_line(_bp(-30, 24, s, 0.06) + Vector2(0, ly * 0.3), _bp(-34, 24, s, 0.06) + Vector2(0, ly * 0.4), detail_color, 0.4 * s)
+		_line(_bp(-30, 30, s, 0.06) + Vector2(0, ly * 0.3), _bp(-34, 30, s, 0.06) + Vector2(0, ly * 0.4), detail_color, 0.4 * s)
 
-		# Antenna stubs on sponsons
-		_line(_bp(34, -16, s, 0.06) + Vector2(0, ry * 0.4), _bp(36, -22, s, 0.06) + Vector2(0, ry * 0.5), detail_color, 0.6 * s)
-		_line(_bp(-34, -16, s, 0.06) + Vector2(0, ly * 0.4), _bp(-36, -22, s, 0.06) + Vector2(0, ly * 0.5), detail_color, 0.6 * s)
+		# Antenna stubs on tier 2 pods
+		_line(_bp(28, -8, s, 0.06) + Vector2(0, ry * 0.3), _bp(30, -14, s, 0.06) + Vector2(0, ry * 0.4), detail_color, 0.5 * s)
+		_line(_bp(-28, -8, s, 0.06) + Vector2(0, ly * 0.3), _bp(-30, -14, s, 0.06) + Vector2(0, ly * 0.4), detail_color, 0.5 * s)
 
-		# Vent grates on rear hull (small horizontal marks)
-		_line(_bp(-8, 30, s, 0.04), _bp(-4, 30, s, 0.04), detail_color, 0.4 * s)
-		_line(_bp(-8, 33, s, 0.04), _bp(-4, 33, s, 0.04), detail_color, 0.4 * s)
-		_line(_bp(4, 30, s, 0.04), _bp(8, 30, s, 0.04), detail_color, 0.4 * s)
-		_line(_bp(4, 33, s, 0.04), _bp(8, 33, s, 0.04), detail_color, 0.4 * s)
+		# Vent grates on tier 1 rear
+		_line(_bp(-12, 38, s, 0.04), _bp(-8, 38, s, 0.04), detail_color, 0.4 * s)
+		_line(_bp(-12, 41, s, 0.04), _bp(-8, 41, s, 0.04), detail_color, 0.4 * s)
+		_line(_bp(8, 38, s, 0.04), _bp(12, 38, s, 0.04), detail_color, 0.4 * s)
+		_line(_bp(8, 41, s, 0.04), _bp(12, 41, s, 0.04), detail_color, 0.4 * s)
 
-		# Six heavy engines — wide spread
+		# Six heavy engines across the wide rear
+		_exhaust_line(_bp(-22, 44, s, 0.04), _bp(-22, 52, s, 0.04), 2.8 * s)
 		_exhaust_line(_bp(-14, 44, s, 0.04), _bp(-14, 52, s, 0.04), 2.8 * s)
-		_exhaust_line(_bp(-8, 44, s, 0.04), _bp(-8, 52, s, 0.04), 2.8 * s)
-		_exhaust_line(_bp(-2, 44, s, 0.04), _bp(-2, 52, s, 0.04), 2.8 * s)
-		_exhaust_line(_bp(2, 44, s, 0.04), _bp(2, 52, s, 0.04), 2.8 * s)
-		_exhaust_line(_bp(8, 44, s, 0.04), _bp(8, 52, s, 0.04), 2.8 * s)
+		_exhaust_line(_bp(-6, 44, s, 0.04), _bp(-6, 52, s, 0.04), 2.8 * s)
+		_exhaust_line(_bp(6, 44, s, 0.04), _bp(6, 52, s, 0.04), 2.8 * s)
 		_exhaust_line(_bp(14, 44, s, 0.04), _bp(14, 52, s, 0.04), 2.8 * s)
+		_exhaust_line(_bp(22, 44, s, 0.04), _bp(22, 52, s, 0.04), 2.8 * s)
 
 	# ── Neon drawing helpers ──
 
@@ -1496,16 +1556,26 @@ class _ShipSelector extends Node2D:
 			o + Vector2(-5, -22) * s,
 		])
 		_mp(hull, cyan, 1.0)
-		var rc := PackedVector2Array([
-			o + Vector2(5, -16) * s, o + Vector2(16, -12) * s,
-			o + Vector2(14, -8) * s, o + Vector2(5, -10) * s,
+		# Right blade-fin
+		var rf := PackedVector2Array([
+			o + Vector2(5, -18) * s, o + Vector2(12, -24) * s,
+			o + Vector2(26, -36) * s, o + Vector2(30, -40) * s,
+			o + Vector2(24, -30) * s, o + Vector2(16, -14) * s,
+			o + Vector2(10, -6) * s, o + Vector2(6, -8) * s,
 		])
-		_mp(rc, teal, 0.7)
-		var lc := PackedVector2Array([
-			o + Vector2(-5, -16) * s, o + Vector2(-16, -12) * s,
-			o + Vector2(-14, -8) * s, o + Vector2(-5, -10) * s,
+		_mp(rf, cyan, 0.7)
+		_ml(o + Vector2(16, -14) * s, o + Vector2(22, -10) * s, teal, 0.5)
+		_ml(o + Vector2(6, -14) * s, o + Vector2(26, -36) * s, magenta, 0.4)
+		# Left blade-fin
+		var lf := PackedVector2Array([
+			o + Vector2(-5, -18) * s, o + Vector2(-12, -24) * s,
+			o + Vector2(-26, -36) * s, o + Vector2(-30, -40) * s,
+			o + Vector2(-24, -30) * s, o + Vector2(-16, -14) * s,
+			o + Vector2(-10, -6) * s, o + Vector2(-6, -8) * s,
 		])
-		_mp(lc, teal, 0.7)
+		_mp(lf, cyan, 0.7)
+		_ml(o + Vector2(-16, -14) * s, o + Vector2(-22, -10) * s, teal, 0.5)
+		_ml(o + Vector2(-6, -14) * s, o + Vector2(-26, -36) * s, magenta, 0.4)
 		var re := PackedVector2Array([
 			o + Vector2(8, 12) * s, o + Vector2(14, 14) * s,
 			o + Vector2(16, 26) * s, o + Vector2(12, 28) * s, o + Vector2(8, 22) * s,
@@ -1612,42 +1682,44 @@ class _ShipSelector extends Node2D:
 
 	func _draw_bastion(o: Vector2) -> void:
 		var s := 0.30
-		# Main blocky hull
-		var hull := PackedVector2Array([
-			o + Vector2(-12, -40) * s, o + Vector2(12, -40) * s,
-			o + Vector2(24, -32) * s, o + Vector2(24, 34) * s,
-			o + Vector2(20, 40) * s, o + Vector2(-20, 40) * s,
-			o + Vector2(-24, 34) * s, o + Vector2(-24, -32) * s,
+		# Tier 1 — widest rear block
+		var t1 := PackedVector2Array([
+			o + Vector2(-28, 10) * s, o + Vector2(28, 10) * s,
+			o + Vector2(28, 44) * s, o + Vector2(-28, 44) * s,
 		])
-		_mp(hull, cyan, 0.8)
-		# Right sponson
-		var rsp := PackedVector2Array([
-			o + Vector2(24, -20) * s, o + Vector2(34, -18) * s,
-			o + Vector2(34, 22) * s, o + Vector2(24, 24) * s,
+		_mp(t1, cyan, 0.8)
+		# Tier 2 — mid block
+		var t2 := PackedVector2Array([
+			o + Vector2(-22, -14) * s, o + Vector2(22, -14) * s,
+			o + Vector2(22, 12) * s, o + Vector2(-22, 12) * s,
 		])
-		_mp(rsp, cyan, 0.6)
-		# Left sponson
-		var lsp := PackedVector2Array([
-			o + Vector2(-24, -20) * s, o + Vector2(-34, -18) * s,
-			o + Vector2(-34, 22) * s, o + Vector2(-24, 24) * s,
+		_mp(t2, cyan, 0.7)
+		# Tier 3 — upper block
+		var t3 := PackedVector2Array([
+			o + Vector2(-16, -34) * s, o + Vector2(16, -34) * s,
+			o + Vector2(16, -12) * s, o + Vector2(-16, -12) * s,
 		])
-		_mp(lsp, cyan, 0.6)
-		# Armored prow
-		var prow := PackedVector2Array([
-			o + Vector2(-16, -40) * s, o + Vector2(16, -40) * s,
-			o + Vector2(10, -48) * s, o + Vector2(-10, -48) * s,
+		_mp(t3, cyan, 0.7)
+		# Tier 4 — blunt prow
+		var t4 := PackedVector2Array([
+			o + Vector2(-10, -48) * s, o + Vector2(10, -48) * s,
+			o + Vector2(10, -32) * s, o + Vector2(-10, -32) * s,
 		])
-		_mp(prow, magenta, 0.6)
+		_mp(t4, cyan, 0.6)
+		# Step ledge accents
+		_ml(o + Vector2(-28, 10) * s, o + Vector2(28, 10) * s, magenta, 0.5)
+		_ml(o + Vector2(-22, -14) * s, o + Vector2(22, -14) * s, magenta, 0.5)
+		_ml(o + Vector2(-16, -34) * s, o + Vector2(16, -34) * s, magenta, 0.4)
 		# Armor plate lines
-		_ml(o + Vector2(-24, -20) * s, o + Vector2(24, -20) * s, teal, 0.4)
-		_ml(o + Vector2(-24, -4) * s, o + Vector2(24, -4) * s, teal, 0.4)
-		_ml(o + Vector2(-24, 12) * s, o + Vector2(24, 12) * s, teal, 0.4)
-		# Spine lines
-		_ml(o + Vector2(-3, -24) * s, o + Vector2(-3, 34) * s, magenta, 0.4)
-		_ml(o + Vector2(3, -24) * s, o + Vector2(3, 34) * s, magenta, 0.4)
+		_ml(o + Vector2(-28, 24) * s, o + Vector2(28, 24) * s, teal, 0.3)
+		_ml(o + Vector2(-28, 36) * s, o + Vector2(28, 36) * s, teal, 0.3)
+		# Spine
+		_ml(o + Vector2(-2, -44) * s, o + Vector2(-2, 40) * s, magenta, 0.3)
+		_ml(o + Vector2(2, -44) * s, o + Vector2(2, 40) * s, magenta, 0.3)
 		# Engines
+		_ml(o + Vector2(-20, 44) * s, o + Vector2(-20, 52) * s, orange, 0.8)
 		_ml(o + Vector2(-12, 44) * s, o + Vector2(-12, 52) * s, orange, 0.8)
-		_ml(o + Vector2(-6, 44) * s, o + Vector2(-6, 52) * s, orange, 0.8)
-		_ml(o + Vector2(0, 44) * s, o + Vector2(0, 52) * s, orange, 0.8)
-		_ml(o + Vector2(6, 44) * s, o + Vector2(6, 52) * s, orange, 0.8)
+		_ml(o + Vector2(-4, 44) * s, o + Vector2(-4, 52) * s, orange, 0.8)
+		_ml(o + Vector2(4, 44) * s, o + Vector2(4, 52) * s, orange, 0.8)
 		_ml(o + Vector2(12, 44) * s, o + Vector2(12, 52) * s, orange, 0.8)
+		_ml(o + Vector2(20, 44) * s, o + Vector2(20, 52) * s, orange, 0.8)

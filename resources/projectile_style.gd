@@ -12,6 +12,7 @@ extends Resource
 @export var glow_intensity: float = 1.5
 @export var base_scale: Vector2 = Vector2(24, 32)
 @export var archetype_params: Dictionary = {}
+@export var color: Color = Color.CYAN
 
 
 static func from_dict(data: Dictionary) -> ProjectileStyle:
@@ -27,6 +28,11 @@ static func from_dict(data: Dictionary) -> ProjectileStyle:
 	if scale_data.size() >= 2:
 		s.base_scale = Vector2(float(scale_data[0]), float(scale_data[1]))
 	s.archetype_params = data.get("archetype_params", {}) as Dictionary
+	var color_data: Array = data.get("color", []) as Array
+	if color_data.size() >= 4:
+		s.color = Color(float(color_data[0]), float(color_data[1]), float(color_data[2]), float(color_data[3]))
+	elif color_data.size() >= 3:
+		s.color = Color(float(color_data[0]), float(color_data[1]), float(color_data[2]), 1.0)
 	return s
 
 
@@ -41,4 +47,5 @@ func to_dict() -> Dictionary:
 		"glow_intensity": glow_intensity,
 		"base_scale": [base_scale.x, base_scale.y],
 		"archetype_params": archetype_params,
+		"color": [color.r, color.g, color.b, color.a],
 	}

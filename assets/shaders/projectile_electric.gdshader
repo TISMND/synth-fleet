@@ -7,6 +7,12 @@ uniform float arc_width : hint_range(0.02, 0.2) = 0.1;
 uniform sampler2D mask_texture : hint_default_white;
 uniform bool use_mask = false;
 
+// Universal params
+uniform float brightness : hint_range(0.5, 4.0) = 1.0;
+uniform float color_mix : hint_range(0.0, 1.0) = 0.0;
+uniform float animation_speed : hint_range(0.1, 3.0) = 1.0;
+uniform float edge_softness : hint_range(0.0, 1.0) = 0.5;
+
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
 	p3 += dot(p3, p3.yzx + 33.33);
@@ -25,11 +31,12 @@ float noise(vec2 p) {
 }
 
 void fragment() {
+	float t = TIME * animation_speed;
 	vec2 uv = UV;
 	float center_x = uv.x - 0.5;
 
 	// Flickering time
-	float flicker = floor(TIME * flicker_speed) / flicker_speed;
+	float flicker = floor(t * flicker_speed) / flicker_speed;
 
 	// Multiple lightning branches
 	float lightning = 0.0;
@@ -41,7 +48,8 @@ void fragment() {
 		displacement += (noise(noise_uv * 8.0) - 0.5) * 0.15;
 
 		float dist = abs(center_x - displacement - branch_offset);
-		float branch_line = smoothstep(arc_width, arc_width * 0.2, dist);
+		float aw = mix(arc_width * 0.8, arc_width * 1.5, edge_softness);
+		float branch_line = smoothstep(aw, aw * 0.2, dist);
 
 		// Intensity varies per branch
 		float branch_intensity = 0.5 + 0.5 * noise(vec2(b * 5.0, flicker));
@@ -52,13 +60,14 @@ void fragment() {
 
 	// Ambient electric glow around center
 	float glow = smoothstep(0.5, 0.0, abs(center_x)) * 0.3;
-	float flicker_pulse = 0.7 + 0.3 * sin(TIME * flicker_speed * 0.7);
+	float flicker_pulse = 0.7 + 0.3 * sin(t * flicker_speed * 0.7);
 
 	// Combine
 	float intensity = lightning + glow * flicker_pulse;
 
 	// HDR color
-	vec3 col = weapon_color.rgb * intensity * 2.5;
+	vec3 base_col = mix(weapon_color.rgb, vec3(1.0), color_mix);
+	vec3 col = base_col * intensity * 2.5 * brightness;
 	col += vec3(1.0) * lightning * lightning * 0.6; // white-hot arcs
 
 	float alpha = smoothstep(0.01, 0.1, intensity) * weapon_color.a;

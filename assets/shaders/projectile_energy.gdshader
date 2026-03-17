@@ -7,6 +7,12 @@ uniform float edge_glow : hint_range(0.5, 3.0) = 1.5;
 uniform sampler2D mask_texture : hint_default_white;
 uniform bool use_mask = false;
 
+// Universal params
+uniform float brightness : hint_range(0.5, 4.0) = 1.0;
+uniform float color_mix : hint_range(0.0, 1.0) = 0.0;
+uniform float animation_speed : hint_range(0.1, 3.0) = 1.0;
+uniform float edge_softness : hint_range(0.0, 1.0) = 0.5;
+
 // Simple hash-based noise (no texture needed)
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -37,14 +43,15 @@ float fbm(vec2 p) {
 }
 
 void fragment() {
+	float t = TIME * animation_speed;
 	vec2 uv = UV - 0.5;
 	float dist = length(uv) * 2.0;
 
 	// Swirling noise
 	float angle = atan(uv.y, uv.x);
-	vec2 noise_uv = vec2(angle * 0.5 + TIME * scroll_speed * 0.3, dist * 3.0 - TIME * scroll_speed);
+	vec2 noise_uv = vec2(angle * 0.5 + t * scroll_speed * 0.3, dist * 3.0 - t * scroll_speed);
 	float n1 = fbm(noise_uv * 2.0);
-	float n2 = fbm(noise_uv * 3.0 + vec2(5.0, 3.0) + TIME * scroll_speed * 0.5);
+	float n2 = fbm(noise_uv * 3.0 + vec2(5.0, 3.0) + t * scroll_speed * 0.5);
 
 	// Distorted UV for energy swirl
 	vec2 distorted = uv + vec2(n1 - 0.5, n2 - 0.5) * distortion;
@@ -62,11 +69,13 @@ void fragment() {
 	float rim = smoothstep(0.7, 0.95, dist) * smoothstep(1.1, 0.95, dist) * edge_glow;
 
 	// Combine: HDR weapon color for bloom
-	vec3 col = weapon_color.rgb * (energy * 2.0 + rim * 1.5);
+	vec3 base_col = mix(weapon_color.rgb, vec3(1.0), color_mix);
+	vec3 col = base_col * (energy * 2.0 + rim * 1.5) * brightness;
 	col += vec3(1.0) * energy * 0.3; // white hot core
 
 	// Alpha: circular mask with soft edge
-	float alpha = smoothstep(1.0, 0.7, dist) * weapon_color.a;
+	float soft = mix(0.5, 0.9, edge_softness);
+	float alpha = smoothstep(1.0, soft, dist) * weapon_color.a;
 
 	if (use_mask) {
 		float mask_alpha = texture(mask_texture, UV).a;
