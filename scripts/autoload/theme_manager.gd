@@ -21,6 +21,10 @@ var _colors: Dictionary = {
 	"panel": Color(0.08, 0.08, 0.12),
 	"bar_positive": Color(0.15, 0.7, 0.3),
 	"bar_negative": Color(0.8, 0.15, 0.15),
+	"bar_shield": Color(0.3, 1.0, 0.8),
+	"bar_hull": Color(1.0, 0.3, 0.3),
+	"bar_thermal": Color(1.0, 0.6, 0.1),
+	"bar_electric": Color(1.0, 0.9, 0.2),
 	"chrome_tint": Color(0.7, 0.75, 0.85, 1.0),
 }
 
@@ -119,6 +123,10 @@ const BUILTIN_PRESETS: Dictionary = {
 			"panel": "#14141F",
 			"bar_positive": "#26B34D",
 			"bar_negative": "#CC2626",
+			"bar_shield": "#4DFFCC",
+			"bar_hull": "#FF4D4D",
+			"bar_thermal": "#FF9933",
+			"bar_electric": "#FFE633",
 		},
 		"floats": {
 			"grid_spacing": 64.0,
@@ -193,6 +201,10 @@ const BUILTIN_PRESETS: Dictionary = {
 			"panel": "#0A1A2A",
 			"bar_positive": "#339966",
 			"bar_negative": "#CC3355",
+			"bar_shield": "#B3FFE6",
+			"bar_hull": "#FF6680",
+			"bar_thermal": "#FFB366",
+			"bar_electric": "#FFE680",
 		},
 		"floats": {
 			"grid_spacing": 48.0,
@@ -267,6 +279,10 @@ const BUILTIN_PRESETS: Dictionary = {
 			"panel": "#1A0F26",
 			"bar_positive": "#339933",
 			"bar_negative": "#993333",
+			"bar_shield": "#FF80CC",
+			"bar_hull": "#FF6633",
+			"bar_thermal": "#FF9933",
+			"bar_electric": "#FFE633",
 		},
 		"floats": {
 			"grid_spacing": 72.0,
@@ -413,10 +429,10 @@ func set_float(key: String, value: float) -> void:
 
 static func get_status_bar_specs() -> Array:
 	return [
-		{"name": "SHIELD", "color_key": "accent", "color_fallback": Color(0, 0, 0, 0)},
-		{"name": "HULL", "color_key": "warning", "color_fallback": Color(0, 0, 0, 0)},
-		{"name": "THERMAL", "color_key": "", "color_fallback": Color(1.0, 0.6, 0.1)},
-		{"name": "ELECTRIC", "color_key": "", "color_fallback": Color(1.0, 0.9, 0.2)},
+		{"name": "SHIELD", "color_key": "bar_shield", "color_fallback": Color(0, 0, 0, 0)},
+		{"name": "HULL", "color_key": "bar_hull", "color_fallback": Color(0, 0, 0, 0)},
+		{"name": "THERMAL", "color_key": "bar_thermal", "color_fallback": Color(0, 0, 0, 0)},
+		{"name": "ELECTRIC", "color_key": "bar_electric", "color_fallback": Color(0, 0, 0, 0)},
 	]
 
 

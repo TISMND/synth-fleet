@@ -19,8 +19,10 @@ var _preview_buttons: Array[Button] = []
 var _preview_panels: Array[PanelContainer] = []
 var _preview_bars: Array[ProgressBar] = []
 
-# Panels & Bars: samples container (rebuilt) vs slider container (stable)
-var _bp_samples_vbox: VBoxContainer
+# Panels tab: samples container (rebuilt)
+var _panels_samples_vbox: VBoxContainer
+# Bars tab: preview container (rebuilt)
+var _bars_preview_vbox: VBoxContainer
 # Buttons tab: preview container (rebuilt on theme change)
 var _btn_preview_container: HBoxContainer
 
@@ -97,12 +99,12 @@ func _build_ui() -> void:
 	_tab_container.custom_minimum_size.x = 400
 	split.add_child(_tab_container)
 
-	_build_colors_tab()
 	_build_typography_tab()
 	_build_glow_grid_tab()
 	_build_buttons_tab()
 	_build_vhs_tab()
-	_build_panels_bars_tab()
+	_build_panels_tab()
+	_build_bars_tab()
 
 	# Preview panel (right)
 	var preview_scroll := ScrollContainer.new()
@@ -166,40 +168,27 @@ func _build_top_bar(parent: VBoxContainer) -> void:
 	_update_preset_buttons()
 
 
-func _build_colors_tab() -> void:
-	var scroll := ScrollContainer.new()
-	scroll.name = "Colors"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tab_container.add_child(scroll)
+# ── Reusable color picker row helper ─────────────────────────
 
-	var vbox := VBoxContainer.new()
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 6)
-	scroll.add_child(vbox)
+func _add_color_picker_row(parent: Control, color_key: String, display_label: String = "") -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	parent.add_child(row)
 
-	var color_keys: Array[String] = [
-		"header", "accent", "positive", "warning", "dimmed", "disabled",
-		"text", "background", "panel", "bar_positive", "bar_negative", "grid_line_color",
-	]
-	for key in color_keys:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		vbox.add_child(row)
+	var lbl := Label.new()
+	lbl.text = display_label if display_label != "" else color_key
+	lbl.custom_minimum_size.x = 140
+	lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	row.add_child(lbl)
 
-		var lbl := Label.new()
-		lbl.text = key
-		lbl.custom_minimum_size.x = 140
-		lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
-		row.add_child(lbl)
-
-		var picker := ColorPickerButton.new()
-		picker.color = ThemeManager.get_color(key)
-		picker.custom_minimum_size = Vector2(60, 30)
-		picker.edit_alpha = false
-		var bound_key: String = key
-		picker.color_changed.connect(func(c: Color) -> void: _on_color_changed(bound_key, c))
-		row.add_child(picker)
-		_color_pickers[key] = picker
+	var picker := ColorPickerButton.new()
+	picker.color = ThemeManager.get_color(color_key)
+	picker.custom_minimum_size = Vector2(60, 30)
+	picker.edit_alpha = false
+	var bound_key: String = color_key
+	picker.color_changed.connect(func(c: Color) -> void: _on_color_changed(bound_key, c))
+	row.add_child(picker)
+	_color_pickers[color_key] = picker
 
 
 func _build_typography_tab() -> void:
@@ -212,6 +201,21 @@ func _build_typography_tab() -> void:
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_theme_constant_override("separation", 10)
 	scroll.add_child(vbox)
+
+	# ── Text color pickers ──
+	var colors_header := Label.new()
+	colors_header.text = "Text Colors"
+	colors_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	colors_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	vbox.add_child(colors_header)
+
+	_add_color_picker_row(vbox, "header", "Header")
+	_add_color_picker_row(vbox, "text", "Body Text")
+	_add_color_picker_row(vbox, "dimmed", "Dimmed")
+	_add_color_picker_row(vbox, "disabled", "Disabled")
+
+	var sep0 := HSeparator.new()
+	vbox.add_child(sep0)
 
 	# Font selectors
 	_available_fonts = _scan_font_files()
@@ -286,6 +290,19 @@ func _build_glow_grid_tab() -> void:
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_theme_constant_override("separation", 6)
 	scroll.add_child(vbox)
+
+	# ── Grid color pickers ──
+	var grid_colors_header := Label.new()
+	grid_colors_header.text = "Grid Colors"
+	grid_colors_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	grid_colors_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	vbox.add_child(grid_colors_header)
+
+	_add_color_picker_row(vbox, "grid_line_color", "Grid Lines")
+	_add_color_picker_row(vbox, "background", "Background")
+
+	var color_sep := HSeparator.new()
+	vbox.add_child(color_sep)
 
 	# ── Grid Glow section ──
 	var grid_header := Label.new()
@@ -465,6 +482,19 @@ func _build_buttons_tab() -> void:
 	root.add_theme_constant_override("separation", 10)
 	scroll.add_child(root)
 
+	# ── Button color pickers ──
+	var colors_header := Label.new()
+	colors_header.text = "Button Colors"
+	colors_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	colors_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(colors_header)
+
+	_add_color_picker_row(root, "accent", "Accent")
+	_add_color_picker_row(root, "positive", "Positive")
+
+	var color_sep := HSeparator.new()
+	root.add_child(color_sep)
+
 	# ── Style presets (audition buttons) ──
 	var presets_header := Label.new()
 	presets_header.text = "Button Style Presets"
@@ -534,9 +564,9 @@ func _build_buttons_tab() -> void:
 		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
 
 
-func _build_panels_bars_tab() -> void:
+func _build_panels_tab() -> void:
 	var scroll := ScrollContainer.new()
-	scroll.name = "Panels & Bars"
+	scroll.name = "Panels"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tab_container.add_child(scroll)
 
@@ -545,18 +575,77 @@ func _build_panels_bars_tab() -> void:
 	root.add_theme_constant_override("separation", 12)
 	scroll.add_child(root)
 
+	# Panel color picker
+	_add_color_picker_row(root, "panel", "Panel Color")
+
+	var sep := HSeparator.new()
+	root.add_child(sep)
+
 	# Samples container (rebuilt on theme change)
-	_bp_samples_vbox = VBoxContainer.new()
-	_bp_samples_vbox.add_theme_constant_override("separation", 12)
-	root.add_child(_bp_samples_vbox)
-	_populate_bp_samples(_bp_samples_vbox)
+	_panels_samples_vbox = VBoxContainer.new()
+	_panels_samples_vbox.add_theme_constant_override("separation", 12)
+	root.add_child(_panels_samples_vbox)
+	_populate_panels_samples(_panels_samples_vbox)
 
-	# ── LED Bars sliders (stable, never rebuilt) ──
-	var led_sep := HSeparator.new()
-	root.add_child(led_sep)
 
+func _build_bars_tab() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.name = "Bars"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_tab_container.add_child(scroll)
+
+	var root := VBoxContainer.new()
+	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.add_theme_constant_override("separation", 10)
+	scroll.add_child(root)
+
+	# ── HUD Bar Colors ──
+	var hud_header := Label.new()
+	hud_header.text = "HUD Bar Colors"
+	hud_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	hud_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(hud_header)
+
+	_add_color_picker_row(root, "bar_shield", "Shield")
+	_add_color_picker_row(root, "bar_hull", "Hull")
+	_add_color_picker_row(root, "bar_thermal", "Thermal")
+	_add_color_picker_row(root, "bar_electric", "Electric")
+
+	var sep1 := HSeparator.new()
+	root.add_child(sep1)
+
+	# ── Other Bar Colors ──
+	var other_header := Label.new()
+	other_header.text = "Other Bar Colors"
+	other_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	other_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(other_header)
+
+	_add_color_picker_row(root, "warning", "Warning")
+	_add_color_picker_row(root, "bar_positive", "Budget OK")
+	_add_color_picker_row(root, "bar_negative", "Budget Over")
+
+	var sep2 := HSeparator.new()
+	root.add_child(sep2)
+
+	# ── Bar Preview ──
+	var preview_header := Label.new()
+	preview_header.text = "Preview"
+	preview_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	preview_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(preview_header)
+
+	_bars_preview_vbox = VBoxContainer.new()
+	_bars_preview_vbox.add_theme_constant_override("separation", 6)
+	root.add_child(_bars_preview_vbox)
+	_populate_bars_preview(_bars_preview_vbox)
+
+	var sep3 := HSeparator.new()
+	root.add_child(sep3)
+
+	# ── LED Settings (Global) ──
 	var led_header := Label.new()
-	led_header.text = "LED Bars"
+	led_header.text = "LED Settings (Global)"
 	led_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	led_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
 	root.add_child(led_header)
@@ -586,7 +675,7 @@ func _populate_btn_preview() -> void:
 		_preview_buttons.append(btn)
 
 
-func _populate_bp_samples(vbox: VBoxContainer) -> void:
+func _populate_panels_samples(vbox: VBoxContainer) -> void:
 	# Sample panel
 	var panel_lbl := Label.new()
 	panel_lbl.text = "Sample Panel"
@@ -613,37 +702,31 @@ func _populate_bp_samples(vbox: VBoxContainer) -> void:
 	panel.add_child(panel_text)
 	_preview_labels.append(panel_text)
 
-	# Progress bars
-	var bars_lbl := Label.new()
-	bars_lbl.text = "Sample Bars"
-	bars_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	bars_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	vbox.add_child(bars_lbl)
 
-	var bar_data: Array[Dictionary] = [
-		{"name": "Shield (75%)", "value": 75.0, "color_key": "bar_positive"},
-		{"name": "Hull (40%)", "value": 40.0, "color_key": "warning"},
-	]
-	for bd in bar_data:
+func _populate_bars_preview(vbox: VBoxContainer) -> void:
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	var preview_values: Dictionary = {"SHIELD": 85.0, "HULL": 60.0, "THERMAL": 30.0, "ELECTRIC": 70.0}
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		var val: float = float(preview_values.get(bar_name, 50.0))
+
 		var bar_row := HBoxContainer.new()
 		bar_row.add_theme_constant_override("separation", 8)
 		vbox.add_child(bar_row)
 
 		var bar_label := Label.new()
-		bar_label.text = str(bd["name"])
-		bar_label.custom_minimum_size.x = 100
-		bar_label.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+		bar_label.text = bar_name + " (" + str(int(val)) + "%)"
+		bar_label.custom_minimum_size.x = 120
+		bar_label.add_theme_color_override("font_color", color)
 		bar_row.add_child(bar_label)
 
 		var bar := ProgressBar.new()
 		bar.custom_minimum_size = Vector2(200, 20)
 		bar.max_value = 100.0
-		var bar_value: float = float(bd["value"])
-		bar.value = bar_value
+		bar.value = val
 		bar.show_percentage = false
-		var color_key: String = str(bd["color_key"])
-		var fill_col: Color = ThemeManager.get_color(color_key)
-		ThemeManager.apply_led_bar(bar, fill_col, bar_value / 100.0)
+		ThemeManager.apply_led_bar(bar, color, val / 100.0)
 		bar_row.add_child(bar)
 		_preview_bars.append(bar)
 
@@ -689,7 +772,7 @@ func _build_preview_panel() -> void:
 		menu_vbox.add_child(btn)
 		_preview_buttons.append(btn)
 
-	# Mini HUD
+	# Mini HUD with all 4 bars
 	var hud_section := _make_section_label("HUD Preview")
 	_preview_panel.add_child(hud_section)
 
@@ -708,51 +791,37 @@ func _build_preview_panel() -> void:
 	hud_vbox.add_theme_constant_override("separation", 4)
 	hud_panel.add_child(hud_vbox)
 
-	# Shield bar
-	var shield_row := HBoxContainer.new()
-	shield_row.add_theme_constant_override("separation", 6)
-	hud_vbox.add_child(shield_row)
+	# All 4 HUD bars from specs
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	var preview_values: Dictionary = {"SHIELD": 80.0, "HULL": 45.0, "THERMAL": 30.0, "ELECTRIC": 70.0}
+	var short_names: Dictionary = {"SHIELD": "SHD", "HULL": "HUL", "THERMAL": "THR", "ELECTRIC": "ELC"}
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		var val: float = float(preview_values.get(bar_name, 50.0))
+		var short: String = str(short_names.get(bar_name, bar_name))
 
-	var shield_lbl := Label.new()
-	shield_lbl.text = "SHD"
-	shield_lbl.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	shield_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-	shield_row.add_child(shield_lbl)
-	_preview_labels.append(shield_lbl)
-	_body_glow_labels.append(shield_lbl)
-	ThemeManager.apply_text_glow(shield_lbl, "body")
+		var bar_row := HBoxContainer.new()
+		bar_row.add_theme_constant_override("separation", 6)
+		hud_vbox.add_child(bar_row)
 
-	var shield_bar := ProgressBar.new()
-	shield_bar.custom_minimum_size = Vector2(150, 14)
-	shield_bar.max_value = 100.0
-	shield_bar.value = 80.0
-	shield_bar.show_percentage = false
-	ThemeManager.apply_led_bar(shield_bar, ThemeManager.get_color("bar_positive"), 0.8)
-	shield_row.add_child(shield_bar)
-	_preview_bars.append(shield_bar)
+		var bar_lbl := Label.new()
+		bar_lbl.text = short
+		bar_lbl.add_theme_color_override("font_color", color)
+		bar_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		bar_row.add_child(bar_lbl)
+		_preview_labels.append(bar_lbl)
+		_body_glow_labels.append(bar_lbl)
+		ThemeManager.apply_text_glow(bar_lbl, "body")
 
-	# Hull bar
-	var hull_row := HBoxContainer.new()
-	hull_row.add_theme_constant_override("separation", 6)
-	hud_vbox.add_child(hull_row)
-
-	var hull_lbl := Label.new()
-	hull_lbl.text = "HUL"
-	hull_lbl.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
-	hull_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-	hull_row.add_child(hull_lbl)
-	_preview_labels.append(hull_lbl)
-	_body_glow_labels.append(hull_lbl)
-	ThemeManager.apply_text_glow(hull_lbl, "body")
-
-	var hull_bar := ProgressBar.new()
-	hull_bar.custom_minimum_size = Vector2(150, 14)
-	hull_bar.max_value = 100.0
-	hull_bar.value = 45.0
-	hull_bar.show_percentage = false
-	ThemeManager.apply_led_bar(hull_bar, ThemeManager.get_color("warning"), 0.45)
-	hull_row.add_child(hull_bar)
-	_preview_bars.append(hull_bar)
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size = Vector2(150, 14)
+		bar.max_value = 100.0
+		bar.value = val
+		bar.show_percentage = false
+		ThemeManager.apply_led_bar(bar, color, val / 100.0)
+		bar_row.add_child(bar)
+		_preview_bars.append(bar)
 
 	# Weapon slots
 	var wep_row := HBoxContainer.new()
@@ -1022,7 +1091,7 @@ func _on_delete_preset() -> void:
 
 func _on_back() -> void:
 	ThemeManager.save_settings()
-	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
 
 
 func _on_theme_changed() -> void:
@@ -1089,11 +1158,11 @@ func _refresh_all_from_theme() -> void:
 
 	_updating_from_theme = false
 
-	# Rebuild preview panel and buttons/panels content (deferred, after sliders done)
-	_rebuild_preview_and_buttons.call_deferred()
+	# Rebuild preview panel and dynamic content (deferred, after sliders done)
+	_rebuild_preview_and_dynamic.call_deferred()
 
 
-func _rebuild_preview_and_buttons() -> void:
+func _rebuild_preview_and_dynamic() -> void:
 	# Clear tracked arrays
 	_preview_labels.clear()
 	_preview_buttons.clear()
@@ -1106,8 +1175,12 @@ func _rebuild_preview_and_buttons() -> void:
 	for child in _preview_panel.get_children():
 		child.queue_free()
 
-	# Clear buttons/panels sample content (not the LED sliders)
-	for child in _bp_samples_vbox.get_children():
+	# Clear panels sample content
+	for child in _panels_samples_vbox.get_children():
+		child.queue_free()
+
+	# Clear bars preview content
+	for child in _bars_preview_vbox.get_children():
 		child.queue_free()
 
 	# Clear button preview
@@ -1120,7 +1193,8 @@ func _rebuild_preview_and_buttons() -> void:
 
 func _do_rebuild() -> void:
 	_build_preview_panel()
-	_populate_bp_samples(_bp_samples_vbox)
+	_populate_panels_samples(_panels_samples_vbox)
+	_populate_bars_preview(_bars_preview_vbox)
 	_populate_btn_preview()
 
 

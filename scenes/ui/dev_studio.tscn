@@ -39,7 +39,7 @@ layout_mode = 2
 
 [node name="Title" type="Label" parent="VBoxContainer/Header"]
 layout_mode = 2
-text = "DEV STUDIO"
+text = "COMPONENTS"
 
 [node name="TabContainer" type="TabContainer" parent="VBoxContainer"]
 layout_mode = 2

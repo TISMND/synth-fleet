@@ -2,11 +2,21 @@ class_name EffectLayerRenderer
 extends RefCounted
 ## Static utility class for composable effect layer rendering.
 ## Centralizes all HDR draw helpers and layer resolution logic.
-## Used by Projectile (game) and WeaponPreview (editor) to eliminate duplication.
+## Used by Projectile, HardpointController, and all preview contexts.
 ## With Forward+ renderer and bloom, shapes use HDR colors (values > 1.0) instead of
 ## multi-layer alpha tricks — the engine bloom creates real soft glow halos.
 
 const MAX_LAYERS_PER_SLOT: int = 4
+
+
+## Extract color from effect layer dict, with fallback.
+static func get_layer_color(layer_dict: Dictionary, fallback: Color) -> Color:
+	if layer_dict.has("color"):
+		var c: Array = layer_dict["color"] as Array
+		if c.size() >= 3:
+			var a: float = float(c[3]) if c.size() >= 4 else 1.0
+			return Color(float(c[0]), float(c[1]), float(c[2]), a)
+	return fallback
 
 # Shape types that use shaders instead of draw_* calls
 const SHADER_SHAPES: PackedStringArray = ["energy", "plasma", "beam_shader"]

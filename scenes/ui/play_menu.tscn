@@ -1,9 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://main_menu"]
+[gd_scene load_steps=3 format=3 uid="uid://play_menu"]
 
-[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/play_menu.gd" id="1"]
 [ext_resource type="Texture2D" path="res://assets/Syntherion_bg_titled.png" id="2"]
 
-[node name="MainMenu" type="Control"]
+[node name="PlayMenu" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -35,18 +35,14 @@ offset_bottom = 150.0
 grow_vertical = 2
 theme_override_constants/separation = 20
 
-[node name="PlayButton" type="Button" parent="VBoxContainer"]
+[node name="HangarButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-text = "PLAY"
+text = "HANGAR"
 
-[node name="OptionsButton" type="Button" parent="VBoxContainer"]
+[node name="BeginButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-text = "OPTIONS"
+text = "BEGIN"
 
-[node name="QuitButton" type="Button" parent="VBoxContainer"]
+[node name="BackButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-text = "QUIT"
-
-[node name="DevStudioButton" type="Button" parent="VBoxContainer"]
-layout_mode = 2
-text = "DEV STUDIO"
+text = "BACK"

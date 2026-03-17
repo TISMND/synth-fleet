@@ -24,7 +24,7 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - Weapons Tab with subtabs (Timing / Movement / Effects / Stats), time-based waveform editor, loop browser, fire trigger editor with Free/snap modes
 - Movement system: aim modes (fixed/sweep/track), mirror modes (none/mirror/alternate), direction control
 - Effect system: muzzle/trail/impact slots with per-layer color, per-trigger overrides
-- EffectLayerRenderer: centralized rendering utility used by Projectile, WeaponPreview, and ShipFiringPreview
+- EffectLayerRenderer: centralized rendering utility used by Projectile and HardpointController
 - ThemeManager for visual theming across all screens — every screen fully themed with grid bg, button styles, text glow, LED bars, VHS/CRT overlay, and `theme_changed` reactivity
 
 **What's next (rough priority):**

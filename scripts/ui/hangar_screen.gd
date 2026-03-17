@@ -308,6 +308,9 @@ func _build_ui() -> void:
 	_sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport_container.add_child(_sub_viewport)
 
+	# Bloom for projectile glow
+	VFXFactory.add_bloom_to_viewport(_sub_viewport)
+
 	# Dark background for the viewport
 	var vp_bg := ColorRect.new()
 	vp_bg.color = Color(0.05, 0.06, 0.1)
@@ -454,7 +457,7 @@ func _on_change_ship() -> void:
 
 func _on_back() -> void:
 	_cleanup_preview()
-	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/play_menu.tscn")
 
 
 func _sync_preview() -> void:

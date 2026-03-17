@@ -67,7 +67,9 @@ var _save_button: Button
 var _delete_button: Button
 var _new_button: Button
 var _status_label: Label
-var _preview_node: WeaponPreview
+var _preview_controller: HardpointController
+var _preview_proj_container: Node2D
+var _preview_fire_point: Node2D
 var _tab_container: TabContainer
 
 # Timing subtab
@@ -132,15 +134,22 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	if _preview_node:
-		_preview_node.stop()
+	_stop_preview()
 
 
 func _start_preview() -> void:
-	if _preview_node:
-		_preview_node.set_loop_id("loop_browser_audition")
-		_preview_node.start()
-		_update_preview()
+	if _preview_controller:
+		_preview_controller.setup_from_dict(_collect_weapon_data(), _preview_proj_container, "loop_browser_audition")
+		_preview_controller.activate()
+
+
+func _stop_preview() -> void:
+	if _preview_controller:
+		_preview_controller.deactivate()
+		_preview_controller.cleanup()
+	if _preview_proj_container:
+		for child in _preview_proj_container.get_children():
+			child.queue_free()
 
 
 func _build_ui() -> void:
@@ -253,8 +262,24 @@ func _build_left_panel() -> Control:
 	# Add bloom to preview viewport
 	VFXFactory.add_bloom_to_viewport(viewport)
 
-	_preview_node = WeaponPreview.new()
-	viewport.add_child(_preview_node)
+	# Dark background
+	var bg := ColorRect.new()
+	bg.color = Color(0.02, 0.02, 0.05, 1.0)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	viewport.add_child(bg)
+
+	# Fire point positioned at bottom-center
+	_preview_fire_point = Node2D.new()
+	_preview_fire_point.position = Vector2(200, 310)
+	viewport.add_child(_preview_fire_point)
+
+	# Projectile container
+	_preview_proj_container = Node2D.new()
+	viewport.add_child(_preview_proj_container)
+
+	# HardpointController (setup deferred until weapon data available)
+	_preview_controller = HardpointController.new()
+	_preview_fire_point.add_child(_preview_controller)
 
 	return panel
 
@@ -848,10 +873,9 @@ func _generate_id(display_name: String) -> String:
 # ── Preview ─────────────────────────────────────────────────
 
 func _update_preview() -> void:
-	if not _ui_ready or not _preview_node:
+	if not _ui_ready or not _preview_controller:
 		return
-	var data: Dictionary = _collect_weapon_data()
-	_preview_node.update_weapon(data)
+	_preview_controller.update_from_dict(_collect_weapon_data())
 
 
 # ── Loop Browser Events ────────────────────────────────────

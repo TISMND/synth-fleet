@@ -21,6 +21,7 @@ var _style_loaded: bool = false
 var _sweep_time: float = 0.0
 var _alternate_flip: bool = false
 var _enemies_group: String = "enemies"
+var _external_loop: bool = false  # if true, skip loop add/remove
 
 
 func setup(weapon: WeaponData, dir_deg: float, proj_container: Node2D, hp_index: int = 0) -> void:
@@ -35,15 +36,49 @@ func setup(weapon: WeaponData, dir_deg: float, proj_container: Node2D, hp_index:
 	# Build unique loop ID for this hardpoint
 	_loop_id = weapon.id + "_hp_" + str(hp_index)
 
-	# Sort fire triggers but keep original indices for per-trigger overrides
-	_fire_triggers_sorted = []
-	for i in weapon.fire_triggers.size():
-		_fire_triggers_sorted.append([float(weapon.fire_triggers[i]), i])
-	_fire_triggers_sorted.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	_rebuild_triggers()
 
 	# Register loop with LoopMixer (muted by default)
 	if weapon.loop_file_path != "" and not LoopMixer.has_loop(_loop_id):
 		LoopMixer.add_loop(_loop_id, weapon.loop_file_path, "Master", 0.0, true)
+
+
+## Setup from a raw Dictionary (e.g. from weapons_tab editor).
+## Uses an externally-managed loop_id — does NOT register/remove loops.
+func setup_from_dict(data: Dictionary, proj_container: Node2D, loop_id: String) -> void:
+	var w: WeaponData = WeaponData.from_dict(data)
+	_external_loop = true
+	_loop_id = loop_id
+	weapon_data = w
+	direction_deg = w.direction_deg
+	aim_mode = w.aim_mode
+	sweep_arc_deg = w.sweep_arc_deg
+	sweep_duration = w.sweep_duration
+	mirror_mode = w.mirror_mode
+	_projectiles_container = proj_container
+	_rebuild_triggers()
+
+
+## Hot-update weapon params without tearing down the loop.
+func update_from_dict(data: Dictionary) -> void:
+	var w: WeaponData = WeaponData.from_dict(data)
+	weapon_data = w
+	direction_deg = w.direction_deg
+	aim_mode = w.aim_mode
+	sweep_arc_deg = w.sweep_arc_deg
+	sweep_duration = w.sweep_duration
+	mirror_mode = w.mirror_mode
+	_rebuild_triggers()
+	_prev_loop_pos = -1.0
+	_style_loaded = false
+	_cached_style = null
+
+
+func _rebuild_triggers() -> void:
+	_fire_triggers_sorted = []
+	for i in weapon_data.fire_triggers.size():
+		_fire_triggers_sorted.append([float(weapon_data.fire_triggers[i]), i])
+	_fire_triggers_sorted.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
 
 
 func activate() -> void:
@@ -73,7 +108,8 @@ func is_active() -> bool:
 
 
 func cleanup() -> void:
-	LoopMixer.remove_loop(_loop_id)
+	if not _external_loop:
+		LoopMixer.remove_loop(_loop_id)
 
 
 func _process(delta: float) -> void:
@@ -278,16 +314,9 @@ func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:
 		if mtype == "none":
 			continue
 		# Use per-layer color if present, otherwise fallback
-		var layer_color: Color = _get_layer_color(layer_dict, color)
+		var layer_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, color)
 		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, layer_color)
 		emitter.position = origin
 		_projectiles_container.add_child(emitter)
 
 
-func _get_layer_color(layer_dict: Dictionary, fallback: Color) -> Color:
-	if layer_dict.has("color"):
-		var c: Array = layer_dict["color"] as Array
-		if c.size() >= 3:
-			var a: float = float(c[3]) if c.size() >= 4 else 1.0
-			return Color(float(c[0]), float(c[1]), float(c[2]), a)
-	return fallback

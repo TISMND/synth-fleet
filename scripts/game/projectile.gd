@@ -78,7 +78,7 @@ func _setup_gpu_trails() -> void:
 		var ttype: String = str(layer_dict.get("type", "none"))
 		# GPU particles for particle/sparkle/afterimage trails
 		if ttype == "particle" or ttype == "sparkle" or ttype == "afterimage":
-			var trail_color: Color = _get_layer_color(layer_dict, weapon_color)
+			var trail_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, weapon_color)
 			var emitter: GPUParticles2D = VFXFactory.create_trail_emitter(layer_dict, trail_color)
 			add_child(emitter)
 			_gpu_trail_emitters.append(emitter)
@@ -219,19 +219,10 @@ func _spawn_impact_effect() -> void:
 		var itype: String = str(layer_dict.get("type", "none"))
 		if itype == "none":
 			continue
-		var impact_color: Color = _get_layer_color(layer_dict, weapon_color)
+		var impact_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, weapon_color)
 		var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer_dict, impact_color)
 		emitter.position = global_position
 		container.add_child(emitter)
-
-
-func _get_layer_color(layer_dict: Dictionary, fallback: Color) -> Color:
-	if layer_dict.has("color"):
-		var c: Array = layer_dict["color"] as Array
-		if c.size() >= 3:
-			var a: float = float(c[3]) if c.size() >= 4 else 1.0
-			return Color(float(c[0]), float(c[1]), float(c[2]), a)
-	return fallback
 
 
 func _on_area_entered(area: Area2D) -> void:

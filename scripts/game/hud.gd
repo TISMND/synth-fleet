@@ -217,14 +217,14 @@ func update_health(current_shield: float, max_shield: int, current_hull: int, ma
 	shield_bar.max_value = max_shield
 	shield_bar.value = current_shield
 	var shield_ratio: float = current_shield / maxf(float(max_shield), 1.0)
-	ThemeManager.apply_led_bar(shield_bar, ThemeManager.get_color("accent"), shield_ratio)
+	ThemeManager.apply_led_bar(shield_bar, ThemeManager.get_color("bar_shield"), shield_ratio)
 
 	var hull_entry: Dictionary = _bars["HULL"]
 	var hull_bar: ProgressBar = hull_entry["bar"]
 	hull_bar.max_value = max_hull
 	hull_bar.value = current_hull
 	var hull_ratio: float = float(current_hull) / maxf(float(max_hull), 1.0)
-	ThemeManager.apply_led_bar(hull_bar, ThemeManager.get_color("warning"), hull_ratio)
+	ThemeManager.apply_led_bar(hull_bar, ThemeManager.get_color("bar_hull"), hull_ratio)
 
 
 func update_credits(amount: int) -> void:

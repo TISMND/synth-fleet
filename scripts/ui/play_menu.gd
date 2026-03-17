@@ -1,5 +1,5 @@
 extends Control
-## Main menu with navigation to Play sub-menu, Options, Quit, and Dev Studio sub-menu.
+## Play sub-menu: Hangar, Begin, Back.
 
 var _vhs_overlay: ColorRect
 
@@ -8,28 +8,23 @@ func _ready() -> void:
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
-	$VBoxContainer/PlayButton.pressed.connect(_on_play)
-	$VBoxContainer/OptionsButton.pressed.connect(_on_options)
-	$VBoxContainer/QuitButton.pressed.connect(_on_quit)
-	$VBoxContainer/DevStudioButton.pressed.connect(_on_dev_studio)
+	$VBoxContainer/HangarButton.pressed.connect(_on_hangar)
+	$VBoxContainer/BeginButton.pressed.connect(_on_begin)
+	$VBoxContainer/BackButton.pressed.connect(_on_back)
 
 	_apply_styles()
 
 
-func _on_play() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/play_menu.tscn")
+func _on_hangar() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
 
 
-func _on_options() -> void:
-	pass
+func _on_begin() -> void:
+	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
 
 
-func _on_quit() -> void:
-	get_tree().quit()
-
-
-func _on_dev_studio() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
+func _on_back() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 
 func _apply_styles() -> void:
@@ -56,4 +51,4 @@ func _on_theme_changed() -> void:
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		get_tree().quit()
+		_on_back()
