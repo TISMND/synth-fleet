@@ -53,6 +53,8 @@ var _parallax_bg: ParallaxBackground = null
 
 
 func _ready() -> void:
+	_setup_world_environment()
+
 	# Load ship + hardpoint config from GameState
 	var ship_id: String = GameState.current_ship_id
 	if ship_id == "":
@@ -235,7 +237,7 @@ func _show_victory() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("return_to_menu"):
+	if event.is_action_pressed("ui_cancel"):
 		_return_to_menu()
 		return
 	if (_phase == GamePhase.GAME_OVER or _phase == GamePhase.VICTORY) and event is InputEventKey and event.pressed:
@@ -267,6 +269,23 @@ func _show_error(msg: String) -> void:
 	)
 	add_child(timer)
 	timer.start()
+
+
+func _setup_world_environment() -> void:
+	var world_env := WorldEnvironment.new()
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CANVAS
+	env.glow_enabled = true
+	env.glow_intensity = 0.8
+	env.glow_bloom = 0.1
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	env.glow_hdr_threshold = 0.8
+	env.set_glow_level(0, true)
+	env.set_glow_level(1, true)
+	env.set_glow_level(2, true)
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	world_env.environment = env
+	add_child(world_env)
 
 
 func _setup_parallax() -> void:

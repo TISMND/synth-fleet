@@ -120,6 +120,9 @@ func _build_ui() -> void:
 	svp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	svpc.add_child(svp)
 
+	# Add bloom to preview viewport
+	VFXFactory.add_bloom_to_viewport(svp)
+
 	_firing_preview = ShipFiringPreview.new()
 	svp.add_child(_firing_preview)
 
@@ -346,5 +349,5 @@ func _on_back() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("return_to_menu"):
+	if event.is_action_pressed("ui_cancel"):
 		_on_back()

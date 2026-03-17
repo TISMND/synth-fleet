@@ -152,7 +152,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("return_to_menu"):
+	if event.is_action_pressed("ui_cancel"):
 		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton

@@ -23,7 +23,7 @@ const EFFECT_SLOTS: Array[String] = ["shape", "motion", "muzzle", "trail", "impa
 const EFFECT_TYPES: Dictionary = {
 	"motion": ["none", "sine_wave", "corkscrew", "wobble"],
 	"muzzle": ["none", "radial_burst", "directional_flash", "ring_pulse", "spiral_burst"],
-	"shape": ["rect", "streak", "orb", "diamond", "arrow", "pulse_orb"],
+	"shape": ["rect", "streak", "orb", "diamond", "arrow", "pulse_orb", "energy", "plasma", "beam_shader"],
 	"trail": ["none", "particle", "ribbon", "afterimage", "sparkle", "sine_ribbon"],
 	"impact": ["none", "burst", "ring_expand", "shatter_lines", "nova_flash", "ripple"],
 	"beat_fx": ["none", "color_pulse", "scale_pulse", "sparkle_burst", "glow_flash", "ring_ping"],
@@ -50,6 +50,9 @@ const EFFECT_PARAM_DEFS: Dictionary = {
 		"diamond": {"width": [4.0, 24.0, 8.0, 1.0], "height": [6.0, 30.0, 14.0, 1.0], "glow_width": [0.0, 10.0, 3.0, 0.5], "glow_intensity": [0.0, 2.0, 0.8, 0.1], "core_brightness": [0.0, 2.0, 1.0, 0.1]},
 		"arrow": {"width": [4.0, 20.0, 8.0, 1.0], "height": [6.0, 30.0, 16.0, 1.0], "glow_width": [0.0, 8.0, 2.0, 0.5], "glow_intensity": [0.0, 2.0, 0.8, 0.1], "core_brightness": [0.0, 2.0, 1.0, 0.1]},
 		"pulse_orb": {"radius": [2.0, 15.0, 5.0, 0.5], "glow_width": [0.0, 12.0, 4.0, 0.5], "glow_intensity": [0.0, 2.5, 1.0, 0.1], "core_brightness": [0.0, 2.5, 1.2, 0.1]},
+		"energy": {"width": [8.0, 48.0, 24.0, 2.0], "height": [12.0, 64.0, 32.0, 2.0], "glow_intensity": [0.5, 3.0, 1.5, 0.1]},
+		"plasma": {"width": [8.0, 40.0, 20.0, 2.0], "height": [8.0, 40.0, 20.0, 2.0], "glow_intensity": [0.5, 3.0, 1.5, 0.1]},
+		"beam_shader": {"width": [6.0, 32.0, 12.0, 2.0], "height": [16.0, 80.0, 40.0, 2.0], "glow_intensity": [0.5, 3.0, 1.5, 0.1]},
 	},
 	"trail": {
 		"none": {},
@@ -128,6 +131,8 @@ func _ready() -> void:
 	_build_ui()
 	_ui_ready = true
 	_refresh_load_list()
+	# Apply default snap mode (1/16)
+	_waveform_editor.set_snap_mode(16)
 	call_deferred("_start_preview")
 	ThemeManager.theme_changed.connect(_apply_theme)
 
@@ -247,6 +252,9 @@ func _build_left_panel() -> Control:
 	viewport.transparent_bg = false
 	viewport_container.add_child(viewport)
 
+	# Add bloom to preview viewport
+	VFXFactory.add_bloom_to_viewport(viewport)
+
 	_preview_node = WeaponPreview.new()
 	viewport.add_child(_preview_node)
 
@@ -297,7 +305,7 @@ func _build_timing_tab() -> Control:
 	_snap_button = OptionButton.new()
 	for sm in SNAP_MODES:
 		_snap_button.add_item(str(sm["label"]))
-	_snap_button.selected = 0
+	_snap_button.selected = 3  # 1/16
 	_snap_button.item_selected.connect(_on_snap_changed)
 	control_row.add_child(_snap_button)
 

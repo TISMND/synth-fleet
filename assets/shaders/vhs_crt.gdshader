@@ -83,10 +83,12 @@ void fragment() {
 			col *= 1.0 - scanline_strength * (1.0 - scanline);
 		}
 
-		// Noise / grain
+		// Noise / grain — scale relative to scene brightness so it stays subtle in HDR
 		if (noise_intensity > 0.001) {
 			float n = hash(FRAGCOORD.xy + fract(TIME * 43.0)) * 2.0 - 1.0;
-			col += vec3(n) * noise_intensity;
+			float luma = dot(col, vec3(0.299, 0.587, 0.114));
+			float noise_scale = noise_intensity * max(luma, 0.15);
+			col += vec3(n) * noise_scale;
 		}
 
 		// Vignette
@@ -97,6 +99,7 @@ void fragment() {
 			col *= mix(1.0, vig, vignette_strength);
 		}
 
-		COLOR = vec4(clamp(col, vec3(0.0), vec3(1.0)), 1.0);
+		// Preserve HDR range — don't clamp to 1.0 so bloom still works
+		COLOR = vec4(max(col, vec3(0.0)), 1.0);
 	}
 }

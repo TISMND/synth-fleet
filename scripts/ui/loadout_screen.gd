@@ -509,7 +509,7 @@ func _on_back() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("return_to_menu"):
+	if event.is_action_pressed("ui_cancel"):
 		_on_back()
 
 

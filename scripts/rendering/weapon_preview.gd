@@ -2,6 +2,7 @@ class_name WeaponPreview
 extends Node2D
 ## Live weapon preview — renders projectiles with full effect stack inside a SubViewport.
 ## Synced to LoopMixer playback. Uses EffectLayerRenderer for composable layers.
+## Uses HDR colors for bloom and GPU particles for muzzle/impact.
 
 var weapon_color: Color = Color.CYAN
 var projectile_speed: float = 600.0
@@ -23,6 +24,7 @@ var _prev_loop_pos: float = -1.0
 var _fire_triggers_sorted: Array = []  # Array of [trigger_value, original_index]
 var _loop_id: String = ""
 var _resolved_defaults: Dictionary = {}  # Pre-resolved default layers
+var _shader_sprites: Dictionary = {}  # proj_id -> Sprite2D
 
 
 func _ready() -> void:
@@ -39,6 +41,10 @@ func stop() -> void:
 	_preview_active = false
 	_projectiles.clear()
 	_particles.clear()
+	for sprite in _shader_sprites.values():
+		if is_instance_valid(sprite):
+			sprite.queue_free()
+	_shader_sprites.clear()
 	queue_redraw()
 
 
@@ -109,6 +115,10 @@ func _fire_projectiles(trigger_idx: int = -1) -> void:
 	# Resolve layers for this trigger
 	var resolved: Dictionary = EffectLayerRenderer.resolve_layers(effect_profile, trigger_idx)
 
+	# Check if shape layers include shader types
+	var shape_layers: Array = resolved.get("shape", []) as Array
+	var uses_shader: bool = EffectLayerRenderer.has_shader_shape(shape_layers)
+
 	for i in spawn_points.size():
 		var proj: Dictionary = {
 			"id": _next_id,
@@ -123,23 +133,47 @@ func _fire_projectiles(trigger_idx: int = -1) -> void:
 			"trigger_index": trigger_idx,
 		}
 		_projectiles.append(proj)
+
+		# Create shader sprite for shader-based shapes
+		if uses_shader:
+			for layer in shape_layers:
+				var layer_dict: Dictionary = layer as Dictionary
+				var stype: String = str(layer_dict.get("type", "rect"))
+				if stype in EffectLayerRenderer.SHADER_SHAPES:
+					var params: Dictionary = layer_dict.get("params", {}) as Dictionary
+					var w: float = float(params.get("width", 24.0))
+					var h: float = float(params.get("height", 32.0))
+					var sprite: Sprite2D = VFXFactory.create_shader_sprite(stype, weapon_color, w, h)
+					if sprite:
+						sprite.position = proj["pos"] as Vector2
+						add_child(sprite)
+						_shader_sprites[_next_id] = sprite
+					break
+
 		_next_id += 1
 
-	# Spawn muzzle from all muzzle layers
+	# Spawn GPU muzzle emitters
 	var muzzle_layers: Array = resolved.get("muzzle", []) as Array
-	if not muzzle_layers.is_empty():
-		var muzzle_particles: Array = EffectLayerRenderer.spawn_muzzle_stack(muzzle_layers, _fire_point, weapon_color)
-		_particles.append_array(muzzle_particles)
+	for layer in muzzle_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var mtype: String = str(layer_dict.get("type", "none"))
+		if mtype == "none":
+			continue
+		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, weapon_color)
+		emitter.position = _fire_point
+		add_child(emitter)
 
 
-func _spawn_impact_particles(origin: Vector2, resolved: Dictionary) -> void:
+func _spawn_impact(origin: Vector2, resolved: Dictionary) -> void:
 	var impact_layers: Array = resolved.get("impact", []) as Array
-	if impact_layers.is_empty():
-		return
-	var impact_particles: Array = EffectLayerRenderer.spawn_impact_stack(impact_layers, weapon_color)
-	for p in impact_particles:
-		p["pos"] = (p["pos"] as Vector2) + origin
-	_particles.append_array(impact_particles)
+	for layer in impact_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var itype: String = str(layer_dict.get("type", "none"))
+		if itype == "none":
+			continue
+		var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer_dict, weapon_color)
+		emitter.position = origin
+		add_child(emitter)
 
 
 func _process(delta: float) -> void:
@@ -182,10 +216,12 @@ func _process(delta: float) -> void:
 		var current_pos: Vector2 = proj["pos"]
 		proj["pos"] = Vector2(float(proj["base_x"]) + x_offset + vel.x * age, current_pos.y + vel.y * delta)
 
-		# Spawn trail particles (from all trail layers)
-		var trail_layers: Array = resolved.get("trail", []) as Array
-		var trail_particles: Array = proj["trail_particles"]
-		EffectLayerRenderer.spawn_trail_particles(trail_layers, proj["pos"] as Vector2, weapon_color, trail_particles)
+		# Update shader sprite position
+		var proj_id: int = int(proj["id"])
+		if _shader_sprites.has(proj_id):
+			var sprite: Sprite2D = _shader_sprites[proj_id]
+			if is_instance_valid(sprite):
+				sprite.position = proj["pos"] as Vector2
 
 		# Store trail point for ribbon trails
 		var trail_pts: Array = proj["trail_points"]
@@ -205,20 +241,25 @@ func _process(delta: float) -> void:
 				s["pos"] = (s["pos"] as Vector2) + (proj["pos"] as Vector2)
 				beat_fx_particles.append(s)
 
-		# Age trail & beat_fx particles
-		_age_particle_list(trail_particles, delta)
+		# Age beat_fx particles
 		_age_particle_list(proj["beat_fx_particles"] as Array, delta)
 
 		# Check if off screen (any edge)
 		var pos: Vector2 = proj["pos"]
 		if pos.y < _impact_y or pos.y > _viewport_size.y + 10.0 or pos.x < -10.0 or pos.x > _viewport_size.x + 10.0:
-			_spawn_impact_particles(pos, resolved)
+			_spawn_impact(pos, resolved)
 			to_remove.append(proj)
 
 	for proj in to_remove:
+		var proj_id: int = int(proj["id"])
+		if _shader_sprites.has(proj_id):
+			var sprite: Sprite2D = _shader_sprites[proj_id]
+			if is_instance_valid(sprite):
+				sprite.queue_free()
+			_shader_sprites.erase(proj_id)
 		_projectiles.erase(proj)
 
-	# Update loose particles (muzzle + impact)
+	# Update loose particles (legacy, for beat_fx sparkles)
 	_age_particle_list(_particles, delta)
 
 	queue_redraw()
@@ -253,9 +294,9 @@ func _draw() -> void:
 	for proj in _projectiles:
 		_draw_projectile(proj)
 
-	# Draw loose particles (muzzle + impact)
+	# Draw loose particles (beat_fx sparkles)
 	for p in _particles:
-		_draw_particle_glow(p)
+		_draw_particle_hdr(p)
 
 
 func _draw_projectile(proj: Dictionary) -> void:
@@ -263,15 +304,10 @@ func _draw_projectile(proj: Dictionary) -> void:
 	var age: float = float(proj["age"])
 	var resolved: Dictionary = proj["resolved_layers"] as Dictionary
 
-	# Draw per-projectile trail particles
-	var trail_particles: Array = proj["trail_particles"]
-	for p in trail_particles:
-		_draw_particle_glow(p)
-
 	# Draw beat fx particles
 	var beat_fx_particles: Array = proj["beat_fx_particles"]
 	for p in beat_fx_particles:
-		_draw_particle_glow(p)
+		_draw_particle_hdr(p)
 
 	# Draw ribbon trails
 	var trail_layers: Array = resolved.get("trail", []) as Array
@@ -304,7 +340,7 @@ func _draw_projectile(proj: Dictionary) -> void:
 		)
 
 
-func _draw_particle_glow(p: Dictionary) -> void:
+func _draw_particle_hdr(p: Dictionary) -> void:
 	var age: float = float(p["age"])
 	var lifetime: float = float(p["lifetime"])
 	var t: float = clampf(age / lifetime, 0.0, 1.0)
@@ -312,8 +348,7 @@ func _draw_particle_glow(p: Dictionary) -> void:
 	var sz: float = float(p["size"]) * (1.0 - t * 0.5)
 	var pos: Vector2 = p["pos"]
 	var col: Color = p["color"]
-
-	# Glow
-	draw_circle(pos, sz * 2.0, Color(col, alpha * 0.2))
-	draw_circle(pos, sz, Color(col, alpha))
-	draw_circle(pos, sz * 0.4, Color(1, 1, 1, alpha * 0.6))
+	# HDR glow
+	draw_circle(pos, sz * 2.0, Color(col.r * 1.5, col.g * 1.5, col.b * 1.5, alpha * 0.3))
+	draw_circle(pos, sz, Color(col.r * 2.0, col.g * 2.0, col.b * 2.0, alpha))
+	draw_circle(pos, sz * 0.4, Color(2.0, 2.0, 2.0, alpha * 0.6))

@@ -1,6 +1,7 @@
 class_name Projectile
 extends Area2D
 ## Projectile fired by hardpoints. Uses EffectLayerRenderer for composable effect layers.
+## GPU particles for trails, shader sprites for energy/plasma shapes, HDR bloom for glow.
 
 var direction: Vector2 = Vector2.UP
 var speed: float = 600.0
@@ -17,6 +18,9 @@ var _trail_particles: Array = []
 # Resolved once at spawn — layer arrays per slot
 var _resolved_layers: Dictionary = {}
 var _beat_fx_particles: Array = []
+var _has_shader_shape: bool = false
+var _shader_sprite: Sprite2D = null
+var _gpu_trail_emitters: Array = []
 
 
 func _ready() -> void:
@@ -32,6 +36,41 @@ func _ready() -> void:
 	# Resolve layers once at spawn
 	_resolved_layers = EffectLayerRenderer.resolve_layers(effect_profile, trigger_index)
 
+	# Setup shader sprite for shader-based shapes
+	var shape_layers: Array = _resolved_layers.get("shape", []) as Array
+	_has_shader_shape = EffectLayerRenderer.has_shader_shape(shape_layers)
+	if _has_shader_shape:
+		_setup_shader_sprite(shape_layers)
+
+	# Setup GPU trail emitters
+	_setup_gpu_trails()
+
+
+func _setup_shader_sprite(shape_layers: Array) -> void:
+	for layer in shape_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var stype: String = str(layer_dict.get("type", "rect"))
+		if stype in EffectLayerRenderer.SHADER_SHAPES:
+			var params: Dictionary = layer_dict.get("params", {}) as Dictionary
+			var w: float = float(params.get("width", 24.0))
+			var h: float = float(params.get("height", 32.0))
+			_shader_sprite = VFXFactory.create_shader_sprite(stype, weapon_color, w, h)
+			if _shader_sprite:
+				add_child(_shader_sprite)
+			break  # only one shader shape
+
+
+func _setup_gpu_trails() -> void:
+	var trail_layers: Array = _resolved_layers.get("trail", []) as Array
+	for layer in trail_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var ttype: String = str(layer_dict.get("type", "none"))
+		# GPU particles for particle/sparkle/afterimage trails
+		if ttype == "particle" or ttype == "sparkle" or ttype == "afterimage":
+			var emitter: GPUParticles2D = VFXFactory.create_trail_emitter(layer_dict, weapon_color)
+			add_child(emitter)
+			_gpu_trail_emitters.append(emitter)
+
 
 func _process(delta: float) -> void:
 	_age += delta
@@ -44,12 +83,6 @@ func _process(delta: float) -> void:
 	position.y += direction.y * speed * delta
 	_base_x += direction.x * speed * delta
 	position.x = _base_x + x_offset
-
-	# --- Trail particles (from all trail layers) ---
-	EffectLayerRenderer.spawn_trail_particles(
-		_resolved_layers.get("trail", []) as Array,
-		global_position, weapon_color, _trail_particles
-	)
 
 	# --- Trail points (for ribbon trails) ---
 	_trail_points.append(global_position)
@@ -69,8 +102,7 @@ func _process(delta: float) -> void:
 			s["pos"] = (s["pos"] as Vector2) + global_position
 			_beat_fx_particles.append(s)
 
-	# --- Age trail particles ---
-	_age_particles(_trail_particles, delta)
+	# --- Age beat_fx particles ---
 	_age_particles(_beat_fx_particles, delta)
 
 	# --- Off-screen check ---
@@ -82,10 +114,6 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# --- Draw trail particles ---
-	for p in _trail_particles:
-		EffectLayerRenderer.draw_particle(self, p, global_position)
-
 	# --- Draw beat fx particles ---
 	for p in _beat_fx_particles:
 		EffectLayerRenderer.draw_particle(self, p, global_position)
@@ -96,27 +124,36 @@ func _draw() -> void:
 		_trail_points, weapon_color, global_position
 	)
 
-	# --- Draw shape stack ---
-	# Apply beat fx scale modifier
-	var beat_fx_layers: Array = _resolved_layers.get("beat_fx", []) as Array
-	var scale_mult: float = 1.0
-	if not beat_fx_layers.is_empty():
-		var fx_result: Dictionary = EffectLayerRenderer.evaluate_beat_fx(
-			beat_fx_layers, weapon_color, _age, 0.0
+	# --- Draw shape stack (skip if shader sprite handles it) ---
+	if not _has_shader_shape:
+		var beat_fx_layers: Array = _resolved_layers.get("beat_fx", []) as Array
+		var scale_mult: float = 1.0
+		if not beat_fx_layers.is_empty():
+			var fx_result: Dictionary = EffectLayerRenderer.evaluate_beat_fx(
+				beat_fx_layers, weapon_color, _age, 0.0
+			)
+			scale_mult = float(fx_result.get("scale_mult", 1.0))
+
+		if scale_mult != 1.0:
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2(scale_mult, scale_mult))
+
+		EffectLayerRenderer.draw_shape_stack(
+			self, Vector2.ZERO,
+			_resolved_layers.get("shape", []) as Array,
+			weapon_color, _age
 		)
-		scale_mult = float(fx_result.get("scale_mult", 1.0))
 
-	if scale_mult != 1.0:
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2(scale_mult, scale_mult))
-
-	EffectLayerRenderer.draw_shape_stack(
-		self, Vector2.ZERO,
-		_resolved_layers.get("shape", []) as Array,
-		weapon_color, _age
-	)
-
-	if scale_mult != 1.0:
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		if scale_mult != 1.0:
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	else:
+		# Apply beat fx scale to shader sprite
+		var beat_fx_layers: Array = _resolved_layers.get("beat_fx", []) as Array
+		if not beat_fx_layers.is_empty() and _shader_sprite:
+			var fx_result: Dictionary = EffectLayerRenderer.evaluate_beat_fx(
+				beat_fx_layers, weapon_color, _age, 0.0
+			)
+			var scale_mult: float = float(fx_result.get("scale_mult", 1.0))
+			_shader_sprite.scale = Vector2(scale_mult, scale_mult)
 
 
 func _age_particles(particles: Array, delta: float) -> void:
@@ -133,6 +170,25 @@ func _age_particles(particles: Array, delta: float) -> void:
 # --- Death / Impact ---
 
 func _die() -> void:
+	# Stop GPU trail emitters before freeing so particles finish naturally
+	for emitter in _gpu_trail_emitters:
+		if is_instance_valid(emitter):
+			emitter.emitting = false
+			# Reparent to projectile container so it outlives this node
+			var parent: Node = get_parent()
+			if parent:
+				remove_child(emitter)
+				emitter.position = global_position
+				parent.add_child(emitter)
+				# Auto-free after particles expire
+				var timer := Timer.new()
+				timer.one_shot = true
+				timer.wait_time = emitter.lifetime + 0.1
+				timer.timeout.connect(emitter.queue_free)
+				emitter.add_child(timer)
+				timer.start()
+	_gpu_trail_emitters.clear()
+
 	_spawn_impact_effect()
 	queue_free()
 
@@ -141,15 +197,19 @@ func _spawn_impact_effect() -> void:
 	var impact_layers: Array = _resolved_layers.get("impact", []) as Array
 	if impact_layers.is_empty():
 		return
-	var particles: Array = EffectLayerRenderer.spawn_impact_stack(impact_layers, weapon_color)
-	if particles.is_empty():
-		return
 	var container: Node2D = get_parent()
-	if container:
-		var fx: EffectParticles = EffectParticles.new()
-		fx.position = global_position
-		fx.setup(particles, weapon_color)
-		container.add_child(fx)
+	if not container:
+		return
+
+	# Spawn GPU particle impact emitters
+	for layer in impact_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var itype: String = str(layer_dict.get("type", "none"))
+		if itype == "none":
+			continue
+		var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer_dict, weapon_color)
+		emitter.position = global_position
+		container.add_child(emitter)
 
 
 func _on_area_entered(area: Area2D) -> void:

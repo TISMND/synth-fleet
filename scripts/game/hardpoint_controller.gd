@@ -150,10 +150,13 @@ func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:
 	if muzzle_layers.is_empty():
 		return
 	var color: Color = Color(weapon_data.color)
-	var particles: Array = EffectLayerRenderer.spawn_muzzle_stack(muzzle_layers, Vector2.ZERO, color)
-	if particles.is_empty():
-		return
-	var fx: EffectParticles = EffectParticles.new()
-	fx.position = origin
-	fx.setup(particles, color)
-	_projectiles_container.add_child(fx)
+
+	# Spawn GPU particle muzzle emitters
+	for layer in muzzle_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var mtype: String = str(layer_dict.get("type", "none"))
+		if mtype == "none":
+			continue
+		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, color)
+		emitter.position = origin
+		_projectiles_container.add_child(emitter)

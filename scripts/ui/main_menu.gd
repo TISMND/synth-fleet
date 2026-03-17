@@ -50,15 +50,6 @@ func _on_dev_studio() -> void:
 
 
 func _apply_styles() -> void:
-	# Title
-	var title: Label = $VBoxContainer/Title
-	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	var header_font: Font = ThemeManager.get_font("font_header")
-	if header_font:
-		title.add_theme_font_override("font", header_font)
-	ThemeManager.apply_header_chrome(title)
-
 	# Buttons
 	for btn_node in $VBoxContainer.get_children():
 		if btn_node is Button:
@@ -82,5 +73,5 @@ func _on_theme_changed() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("quit_game"):
+	if event.is_action_pressed("ui_cancel"):
 		get_tree().quit()

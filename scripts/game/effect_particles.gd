@@ -1,6 +1,6 @@
 class_name EffectParticles
 extends Node2D
-## Fire-and-forget particle cloud. Draws glow particles and queue_free()s when all expire.
+## Fire-and-forget particle cloud. Draws HDR glow particles and queue_free()s when all expire.
 
 var _particles: Array = []
 var _color: Color = Color.CYAN
@@ -35,7 +35,7 @@ func _draw() -> void:
 		var sz: float = float(p["size"]) * (1.0 - t * 0.5)
 		var pos: Vector2 = p["pos"]
 		var col: Color = p.get("color", _color) as Color
-		# 3-layer glow
-		draw_circle(pos, sz * 2.0, Color(col, alpha * 0.2))
-		draw_circle(pos, sz, Color(col, alpha))
-		draw_circle(pos, sz * 0.4, Color(1, 1, 1, alpha * 0.6))
+		# HDR glow — bloom picks up values > 1.0
+		draw_circle(pos, sz * 2.0, Color(col.r * 1.5, col.g * 1.5, col.b * 1.5, alpha * 0.3))
+		draw_circle(pos, sz, Color(col.r * 2.0, col.g * 2.0, col.b * 2.0, alpha))
+		draw_circle(pos, sz * 0.4, Color(2.0, 2.0, 2.0, alpha * 0.6))

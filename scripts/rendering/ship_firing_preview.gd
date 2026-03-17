@@ -2,7 +2,7 @@ class_name ShipFiringPreview
 extends Node2D
 ## Live ship + weapon firing preview. Renders ship neon lines centered in a viewport
 ## with projectile simulation from the active hardpoint.
-## Uses EffectLayerRenderer for composable effect layers.
+## Uses EffectLayerRenderer for composable effect layers with HDR bloom + GPU particles.
 
 var _ship: ShipData = null
 var _weapon: WeaponData = null
@@ -26,6 +26,7 @@ var _impact_y: float = 20.0
 var _fire_pattern: String = "single"
 var _weapon_color: Color = Color.CYAN
 var _resolved_layers: Dictionary = {}
+var _shader_sprites: Dictionary = {}  # proj_id -> Sprite2D
 
 
 func set_ship(ship: ShipData) -> void:
@@ -73,6 +74,10 @@ func stop() -> void:
 	_preview_active = false
 	_projectiles.clear()
 	_particles.clear()
+	for sprite in _shader_sprites.values():
+		if is_instance_valid(sprite):
+			sprite.queue_free()
+	_shader_sprites.clear()
 	queue_redraw()
 
 
@@ -101,11 +106,14 @@ func _process(delta: float) -> void:
 		var base_pos: Vector2 = proj["base_pos"]
 		proj["pos"] = base_pos + vel * age + _fire_direction.orthogonal() * x_offset
 
-		# Trail particles (from all trail layers)
-		var trail_layers: Array = proj_resolved.get("trail", []) as Array
-		var trail_particles: Array = proj["trail_particles"]
-		EffectLayerRenderer.spawn_trail_particles(trail_layers, proj["pos"] as Vector2, _weapon_color, trail_particles)
+		# Update shader sprite position
+		var proj_id: int = int(proj["id"])
+		if _shader_sprites.has(proj_id):
+			var sprite: Sprite2D = _shader_sprites[proj_id]
+			if is_instance_valid(sprite):
+				sprite.position = proj["pos"] as Vector2
 
+		# Trail points for ribbon
 		var trail_pts: Array = proj["trail_points"]
 		var trail_pos: Vector2 = proj["pos"]
 		trail_pts.append(trail_pos)
@@ -124,21 +132,29 @@ func _process(delta: float) -> void:
 				beat_fx_particles.append(s)
 
 		# Age particles
-		_age_particle_list(trail_particles, delta)
 		_age_particle_list(proj["beat_fx_particles"] as Array, delta)
 
 		var pos: Vector2 = proj["pos"]
 		if pos.y < _impact_y or pos.y > _viewport_size.y or pos.x < 0 or pos.x > _viewport_size.x:
-			# Impact
+			# Impact — GPU particles
 			var impact_layers: Array = proj_resolved.get("impact", []) as Array
-			if not impact_layers.is_empty():
-				var impact_particles: Array = EffectLayerRenderer.spawn_impact_stack(impact_layers, _weapon_color)
-				for p in impact_particles:
-					p["pos"] = (p["pos"] as Vector2) + pos
-				_particles.append_array(impact_particles)
+			for layer in impact_layers:
+				var layer_dict: Dictionary = layer as Dictionary
+				var itype: String = str(layer_dict.get("type", "none"))
+				if itype == "none":
+					continue
+				var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer_dict, _weapon_color)
+				emitter.position = pos
+				add_child(emitter)
 			to_remove.append(proj)
 
 	for proj in to_remove:
+		var proj_id: int = int(proj["id"])
+		if _shader_sprites.has(proj_id):
+			var sprite: Sprite2D = _shader_sprites[proj_id]
+			if is_instance_valid(sprite):
+				sprite.queue_free()
+			_shader_sprites.erase(proj_id)
 		_projectiles.erase(proj)
 
 	# Update loose particles
@@ -198,6 +214,10 @@ func _fire_projectiles() -> void:
 			spawn_points.append(_fire_point)
 			directions.append(_fire_direction)
 
+	# Check for shader shapes
+	var shape_layers: Array = _resolved_layers.get("shape", []) as Array
+	var uses_shader: bool = EffectLayerRenderer.has_shader_shape(shape_layers)
+
 	for i in spawn_points.size():
 		var sp: Vector2 = spawn_points[i]
 		var dir: Vector2 = directions[i]
@@ -213,13 +233,35 @@ func _fire_projectiles() -> void:
 			"resolved_layers": _resolved_layers,
 		}
 		_projectiles.append(proj)
+
+		# Create shader sprite for shader-based shapes
+		if uses_shader:
+			for layer in shape_layers:
+				var layer_dict: Dictionary = layer as Dictionary
+				var stype: String = str(layer_dict.get("type", "rect"))
+				if stype in EffectLayerRenderer.SHADER_SHAPES:
+					var params: Dictionary = layer_dict.get("params", {}) as Dictionary
+					var w: float = float(params.get("width", 24.0))
+					var h: float = float(params.get("height", 32.0))
+					var sprite: Sprite2D = VFXFactory.create_shader_sprite(stype, _weapon_color, w, h)
+					if sprite:
+						sprite.position = sp
+						add_child(sprite)
+						_shader_sprites[_next_id] = sprite
+					break
+
 		_next_id += 1
 
-	# Muzzle from all muzzle layers
+	# GPU muzzle emitters
 	var muzzle_layers: Array = _resolved_layers.get("muzzle", []) as Array
-	if not muzzle_layers.is_empty():
-		var muzzle_particles: Array = EffectLayerRenderer.spawn_muzzle_stack(muzzle_layers, _fire_point, _weapon_color)
-		_particles.append_array(muzzle_particles)
+	for layer in muzzle_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var mtype: String = str(layer_dict.get("type", "none"))
+		if mtype == "none":
+			continue
+		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, _weapon_color)
+		emitter.position = _fire_point
+		add_child(emitter)
 
 
 # ── Drawing ──────────────────────────────────────────────────
@@ -235,7 +277,7 @@ func _draw() -> void:
 	for y in range(0, int(_viewport_size.y), 40):
 		draw_line(Vector2(0, y), Vector2(_viewport_size.x, y), grid_color, 1.0)
 
-	# 2. Ship neon lines
+	# 2. Ship neon lines (HDR for bloom)
 	if _ship:
 		for line_data in _ship.lines:
 			var from_arr: Array = line_data["from"]
@@ -252,8 +294,8 @@ func _draw() -> void:
 			var gp: Array = hp.get("grid_pos", [0, 0])
 			var pos: Vector2 = _ship_offset + (Vector2(float(gp[0]), float(gp[1])) - _grid_center) * _cell_size
 			if i == _hp_index:
-				draw_circle(pos, 5.0, Color(1.0, 0.9, 0.3, 0.6))
-				draw_circle(pos, 3.0, Color(1.0, 0.7, 0.2, 1.0))
+				draw_circle(pos, 5.0, Color(2.0, 1.8, 0.6, 0.6))
+				draw_circle(pos, 3.0, Color(2.0, 1.4, 0.4, 1.0))
 			else:
 				draw_circle(pos, 3.0, Color(1.0, 0.7, 0.2, 0.4))
 
@@ -261,19 +303,17 @@ func _draw() -> void:
 	for proj in _projectiles:
 		_draw_projectile(proj)
 
-	# 5. Particles
+	# 5. Particles (beat_fx sparkles)
 	for p in _particles:
-		_draw_particle_glow(p)
+		_draw_particle_hdr(p)
 
 
 func _draw_neon_line(a: Vector2, b: Vector2, col: Color) -> void:
-	for i in range(3, 0, -1):
-		var t: float = float(i) / 3.0
-		var w: float = 2.0 + 6.0 * t
-		var alpha: float = (1.0 - t) * 0.3
-		draw_line(a, b, Color(col, alpha), w)
-	draw_line(a, b, col, 2.0)
-	draw_line(a, b, Color(1, 1, 1, 0.6), 1.0)
+	# HDR neon: outer glow + core + white highlight
+	var hdr_col := Color(col.r * 1.8, col.g * 1.8, col.b * 1.8, 0.3)
+	draw_line(a, b, hdr_col, 6.0)
+	draw_line(a, b, Color(col.r * 2.0, col.g * 2.0, col.b * 2.0, 1.0), 2.0)
+	draw_line(a, b, Color(2.0, 2.0, 2.0, 0.5), 1.0)
 
 
 func _draw_projectile(proj: Dictionary) -> void:
@@ -281,15 +321,10 @@ func _draw_projectile(proj: Dictionary) -> void:
 	var age: float = float(proj["age"])
 	var proj_resolved: Dictionary = proj.get("resolved_layers", _resolved_layers) as Dictionary
 
-	# Draw per-projectile trail particles
-	var trail_particles: Array = proj["trail_particles"]
-	for p in trail_particles:
-		_draw_particle_glow(p)
-
 	# Draw beat fx particles
 	var beat_fx_particles: Array = proj["beat_fx_particles"]
 	for p in beat_fx_particles:
-		_draw_particle_glow(p)
+		_draw_particle_hdr(p)
 
 	# Draw ribbon trails
 	var trail_layers: Array = proj_resolved.get("trail", []) as Array
@@ -314,7 +349,7 @@ func _draw_projectile(proj: Dictionary) -> void:
 		EffectLayerRenderer.draw_shape_stack(self, pos, shape_layers, _weapon_color, age)
 
 
-func _draw_particle_glow(p: Dictionary) -> void:
+func _draw_particle_hdr(p: Dictionary) -> void:
 	var age: float = float(p["age"])
 	var lifetime: float = float(p["lifetime"])
 	var t: float = clampf(age / lifetime, 0.0, 1.0)
@@ -322,6 +357,6 @@ func _draw_particle_glow(p: Dictionary) -> void:
 	var sz: float = float(p["size"]) * (1.0 - t * 0.5)
 	var pos: Vector2 = p["pos"]
 	var col: Color = p["color"]
-	draw_circle(pos, sz * 2.0, Color(col, alpha * 0.2))
-	draw_circle(pos, sz, Color(col, alpha))
-	draw_circle(pos, sz * 0.4, Color(1, 1, 1, alpha * 0.6))
+	draw_circle(pos, sz * 2.0, Color(col.r * 1.5, col.g * 1.5, col.b * 1.5, alpha * 0.3))
+	draw_circle(pos, sz, Color(col.r * 2.0, col.g * 2.0, col.b * 2.0, alpha))
+	draw_circle(pos, sz * 0.4, Color(2.0, 2.0, 2.0, alpha * 0.6))
