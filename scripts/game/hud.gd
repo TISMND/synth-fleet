@@ -1,16 +1,12 @@
 extends CanvasLayer
-## In-game HUD — health bars, beat indicator, credits, game-over overlay.
+## In-game HUD — health bars, beat indicator, credits, hardpoint display.
 ## Fully themed via ThemeManager with theme_changed reactivity.
 
 var _shield_bar: ProgressBar = null
 var _hull_bar: ProgressBar = null
 var _credits_label: Label = null
 var _beat_indicators: Array = []  # Array of ColorRect
-var _game_over_label: Label = null
 var _menu_hint: Label = null
-var _wave_label: Label = null
-var _level_label: Label = null
-var _intro_label: Label = null
 var _hardpoint_hbox: HBoxContainer = null
 var _hardpoint_labels: Array = []
 var _shield_text: Label = null
@@ -76,36 +72,8 @@ func _build_ui() -> void:
 	# Menu hint
 	_menu_hint = Label.new()
 	_menu_hint.position = Vector2(1780, 50)
-	_menu_hint.text = "M: Menu"
+	_menu_hint.text = "ESC: Menu"
 	add_child(_menu_hint)
-
-	# Wave counter — top-right area
-	_wave_label = Label.new()
-	_wave_label.position = Vector2(1500, 20)
-	_wave_label.text = ""
-	add_child(_wave_label)
-
-	# Level name — center-left
-	_level_label = Label.new()
-	_level_label.position = Vector2(300, 20)
-	_level_label.text = ""
-	add_child(_level_label)
-
-	# Intro/complete/victory overlay label (centered, large)
-	_intro_label = Label.new()
-	_intro_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_intro_label.position = Vector2(600, 400)
-	_intro_label.custom_minimum_size = Vector2(720, 0)
-	_intro_label.visible = false
-	add_child(_intro_label)
-
-	# Game over label (hidden)
-	_game_over_label = Label.new()
-	_game_over_label.text = "GAME OVER\nPress any key to return to menu"
-	_game_over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_game_over_label.position = Vector2(700, 450)
-	_game_over_label.visible = false
-	add_child(_game_over_label)
 
 	# Hardpoint stage indicators — bottom-left
 	_hardpoint_hbox = HBoxContainer.new()
@@ -128,9 +96,7 @@ func _setup_vhs_overlay() -> void:
 func _apply_theme() -> void:
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 	var body_font: Font = ThemeManager.get_font("font_body")
-	var header_font: Font = ThemeManager.get_font("font_header")
 	var body_size: int = ThemeManager.get_font_size("font_size_body")
-	var header_size: int = ThemeManager.get_font_size("font_size_header")
 
 	# Shield label
 	_shield_text.add_theme_font_size_override("font_size", body_size)
@@ -153,7 +119,7 @@ func _apply_theme() -> void:
 	ThemeManager.apply_led_bar(_hull_bar, ThemeManager.get_color("warning"), hull_ratio)
 
 	# Credits
-	_credits_label.add_theme_font_size_override("font_size", header_size)
+	_credits_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	_credits_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
 	if body_font:
 		_credits_label.add_theme_font_override("font", body_font)
@@ -164,32 +130,6 @@ func _apply_theme() -> void:
 	_menu_hint.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 	if body_font:
 		_menu_hint.add_theme_font_override("font", body_font)
-
-	# Wave label
-	_wave_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
-	_wave_label.add_theme_color_override("font_color", ThemeManager.get_color("text"))
-	if body_font:
-		_wave_label.add_theme_font_override("font", body_font)
-	ThemeManager.apply_text_glow(_wave_label, "body")
-
-	# Level label
-	_level_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	_level_label.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
-	if body_font:
-		_level_label.add_theme_font_override("font", body_font)
-
-	# Intro label
-	_intro_label.add_theme_font_size_override("font_size", header_size * 3)
-	if header_font:
-		_intro_label.add_theme_font_override("font", header_font)
-	ThemeManager.apply_header_chrome(_intro_label)
-
-	# Game over label
-	_game_over_label.add_theme_font_size_override("font_size", header_size * 2)
-	_game_over_label.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
-	if header_font:
-		_game_over_label.add_theme_font_override("font", header_font)
-	ThemeManager.apply_header_chrome(_game_over_label)
 
 	# Beat indicators
 	for i in _beat_indicators.size():
@@ -209,7 +149,6 @@ func update_health(current_shield: float, max_shield: int, current_hull: int, ma
 	_shield_bar.value = current_shield
 	_hull_bar.max_value = max_hull
 	_hull_bar.value = current_hull
-	# Update LED bars with new ratios
 	var shield_ratio: float = current_shield / maxf(float(max_shield), 1.0)
 	ThemeManager.apply_led_bar(_shield_bar, ThemeManager.get_color("accent"), shield_ratio)
 	var hull_ratio: float = float(current_hull) / maxf(float(max_hull), 1.0)
@@ -218,40 +157,6 @@ func update_health(current_shield: float, max_shield: int, current_hull: int, ma
 
 func update_credits(amount: int) -> void:
 	_credits_label.text = "CR: " + str(amount)
-
-
-func update_wave(current: int, total: int) -> void:
-	_wave_label.text = "WAVE " + str(current) + "/" + str(total)
-
-
-func update_level(level_name: String, level_number: int) -> void:
-	_level_label.text = "LVL " + str(level_number) + " — " + level_name
-
-
-func show_level_intro(level_name: String, level_number: int) -> void:
-	_intro_label.text = "LVL " + str(level_number) + "\n" + level_name
-	_intro_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_intro_label.visible = true
-
-
-func hide_level_intro() -> void:
-	_intro_label.visible = false
-
-
-func show_level_complete(bonus: int) -> void:
-	_intro_label.text = "LEVEL COMPLETE\n+" + str(bonus) + " CR"
-	_intro_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
-	_intro_label.visible = true
-
-
-func show_victory() -> void:
-	_intro_label.text = "VICTORY\nPress any key"
-	_intro_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	_intro_label.visible = true
-
-
-func show_game_over() -> void:
-	_game_over_label.visible = true
 
 
 func update_hardpoints(data: Array) -> void:

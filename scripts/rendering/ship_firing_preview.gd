@@ -152,7 +152,8 @@ func _process(delta: float) -> void:
 				var itype: String = str(layer_dict.get("type", "none"))
 				if itype == "none":
 					continue
-				var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer_dict, _weapon_color)
+				var impact_color: Color = _get_layer_color(layer_dict, _weapon_color)
+				var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer_dict, impact_color)
 				emitter.position = pos
 				add_child(emitter)
 			to_remove.append(proj)
@@ -275,7 +276,8 @@ func _fire_projectiles() -> void:
 		var mtype: String = str(layer_dict.get("type", "none"))
 		if mtype == "none":
 			continue
-		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, _weapon_color)
+		var muzzle_color: Color = _get_layer_color(layer_dict, _weapon_color)
+		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, muzzle_color)
 		emitter.position = _fire_point
 		add_child(emitter)
 
@@ -376,3 +378,12 @@ func _draw_particle_hdr(p: Dictionary) -> void:
 	draw_circle(pos, sz * 2.0, Color(col.r * 1.5, col.g * 1.5, col.b * 1.5, alpha * 0.3))
 	draw_circle(pos, sz, Color(col.r * 2.0, col.g * 2.0, col.b * 2.0, alpha))
 	draw_circle(pos, sz * 0.4, Color(2.0, 2.0, 2.0, alpha * 0.6))
+
+
+func _get_layer_color(layer_dict: Dictionary, fallback: Color) -> Color:
+	if layer_dict.has("color"):
+		var c: Array = layer_dict["color"] as Array
+		if c.size() >= 3:
+			var a: float = float(c[3]) if c.size() >= 4 else 1.0
+			return Color(float(c[0]), float(c[1]), float(c[2]), a)
+	return fallback
