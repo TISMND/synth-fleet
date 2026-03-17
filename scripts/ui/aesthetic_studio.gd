@@ -464,7 +464,7 @@ func _build_buttons_tab() -> void:
 	root.add_theme_constant_override("separation", 10)
 	scroll.add_child(root)
 
-	# ── Button color pickers ──
+	# ── Button Colors ──
 	var colors_header := Label.new()
 	colors_header.text = "Button Colors"
 	colors_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
@@ -474,12 +474,11 @@ func _build_buttons_tab() -> void:
 	_add_color_picker_row(root, "accent", "Accent")
 	_add_color_picker_row(root, "positive", "Positive")
 
-	var color_sep := HSeparator.new()
-	root.add_child(color_sep)
+	root.add_child(HSeparator.new())
 
-	# ── Style presets (audition buttons) ──
+	# ── Style Presets ──
 	var presets_header := Label.new()
-	presets_header.text = "Button Style Presets"
+	presets_header.text = "Style Presets"
 	presets_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	presets_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
 	root.add_child(presets_header)
@@ -504,10 +503,9 @@ func _build_buttons_tab() -> void:
 		)
 		presets_row.add_child(style_btn)
 
-	# ── Live preview ──
-	var preview_sep := HSeparator.new()
-	root.add_child(preview_sep)
+	root.add_child(HSeparator.new())
 
+	# ── Preview ──
 	var preview_header := Label.new()
 	preview_header.text = "Preview"
 	preview_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
@@ -519,28 +517,94 @@ func _build_buttons_tab() -> void:
 	root.add_child(_btn_preview_container)
 	_populate_btn_preview()
 
-	# ── Sliders ──
-	var slider_sep := HSeparator.new()
-	root.add_child(slider_sep)
+	root.add_child(HSeparator.new())
 
-	var slider_header := Label.new()
-	slider_header.text = "Fine Tuning"
-	slider_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	slider_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	root.add_child(slider_header)
+	# ── Font ──
+	var font_header := Label.new()
+	font_header.text = "Font"
+	font_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	font_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(font_header)
 
-	var btn_params: Dictionary = {
+	_add_int_slider(root, "font_size_button", 8, 24, ThemeManager.get_font_size("font_size_button"))
+
+	root.add_child(HSeparator.new())
+
+	# ── Text Glow ──
+	var glow_header := Label.new()
+	glow_header.text = "Text Glow"
+	glow_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	glow_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(glow_header)
+
+	var glow_params: Dictionary = {
+		"btn_text_glow_size": {"min": 0.0, "max": 8.0},
+		"btn_text_glow_alpha": {"min": 0.0, "max": 1.0},
+		"btn_hover_glow_boost": {"min": 0.0, "max": 0.5},
+		"btn_pressed_glow_boost": {"min": 0.0, "max": 1.0},
+	}
+	for key in glow_params:
+		var params: Dictionary = glow_params[key]
+		var min_val: float = float(params["min"])
+		var max_val: float = float(params["max"])
+		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
+
+	root.add_child(HSeparator.new())
+
+	# ── Border & Fill ──
+	var border_header := Label.new()
+	border_header.text = "Border & Fill"
+	border_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	border_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(border_header)
+
+	var border_params: Dictionary = {
 		"btn_border_width": {"min": 0.0, "max": 4.0},
+		"btn_border_bottom_only": {"min": 0.0, "max": 1.0},
 		"btn_corner_radius": {"min": 0.0, "max": 20.0},
 		"btn_border_alpha": {"min": 0.0, "max": 1.0},
 		"btn_bg_alpha": {"min": 0.0, "max": 0.6},
+	}
+	for key in border_params:
+		var params: Dictionary = border_params[key]
+		var min_val: float = float(params["min"])
+		var max_val: float = float(params["max"])
+		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
+
+	root.add_child(HSeparator.new())
+
+	# ── Hover & Press ──
+	var hover_header := Label.new()
+	hover_header.text = "Hover & Press"
+	hover_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	hover_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(hover_header)
+
+	var hover_params: Dictionary = {
 		"btn_hover_brighten": {"min": 0.0, "max": 0.5},
 		"btn_pressed_darken": {"min": 0.0, "max": 0.4},
+	}
+	for key in hover_params:
+		var params: Dictionary = hover_params[key]
+		var min_val: float = float(params["min"])
+		var max_val: float = float(params["max"])
+		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
+
+	root.add_child(HSeparator.new())
+
+	# ── Shadow ──
+	var shadow_header := Label.new()
+	shadow_header.text = "Shadow"
+	shadow_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	shadow_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(shadow_header)
+
+	var shadow_params: Dictionary = {
 		"btn_shadow_size": {"min": 0.0, "max": 12.0},
 		"btn_shadow_alpha": {"min": 0.0, "max": 1.0},
 	}
-	for key in btn_params:
-		var params: Dictionary = btn_params[key]
+	for key in shadow_params:
+		var params: Dictionary = shadow_params[key]
 		var min_val: float = float(params["min"])
 		var max_val: float = float(params["max"])
 		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
@@ -831,15 +895,21 @@ func _build_hud_tab() -> void:
 
 
 func _populate_btn_preview() -> void:
-	var btn_names: Array[String] = ["PLAY", "HANGAR", "WEAPONS", "DISABLED"]
-	for i in btn_names.size():
+	# Show all 4 states locked in place + 1 interactive button
+	var states: Array[String] = ["NORMAL", "HOVER", "PRESSED", "DISABLED", "INTERACTIVE"]
+	var lock_states: Array[String] = ["", "hover", "pressed", "disabled", ""]
+	for i in states.size():
 		var btn := Button.new()
-		btn.text = btn_names[i]
-		btn.custom_minimum_size = Vector2(110, 38)
+		btn.text = states[i]
+		btn.custom_minimum_size = Vector2(130, 42)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		if i == 3:
-			btn.disabled = true
 		ThemeManager.apply_button_style(btn)
+		var lock: String = lock_states[i]
+		if lock != "":
+			ThemeManager.lock_button_state(btn, lock)
+		elif i == 0:
+			# Normal state: just block mouse so it stays in normal look
+			btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_btn_preview_container.add_child(btn)
 		_preview_buttons.append(btn)
 
