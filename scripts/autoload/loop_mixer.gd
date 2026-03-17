@@ -101,6 +101,32 @@ func start_all() -> void:
 		player.play(0.0)
 
 
+func stop_all() -> void:
+	for loop_id in _loops:
+		var entry: Dictionary = _loops[loop_id]
+		var player: AudioStreamPlayer = entry["player"]
+		player.stop()
+
+
+func is_playing() -> bool:
+	for loop_id in _loops:
+		var entry: Dictionary = _loops[loop_id]
+		var player: AudioStreamPlayer = entry["player"]
+		if player.playing:
+			return true
+	return false
+
+
+func mute_all() -> void:
+	for loop_id in _loops:
+		mute(loop_id)
+
+
+func unmute_all() -> void:
+	for loop_id in _loops:
+		unmute(loop_id)
+
+
 func has_loop(loop_id: String) -> bool:
 	return _loops.has(loop_id)
 

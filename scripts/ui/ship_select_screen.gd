@@ -1,27 +1,28 @@
 extends MarginContainer
-## Ship Select Screen — pick a ship, see its stats, then return to hangar.
+## Ship Select Screen — grid of 9 ship thumbnails with stats panel.
 
-var _ship_list: ItemList
-var _canvas: ShipCanvas
+var _title: Label
+var _ship_name_label: Label
 var _hull_label: Label
 var _shield_label: Label
 var _speed_label: Label
 var _generator_label: Label
-var _hp_count_label: Label
-var _ship_name_label: Label
-var _title: Label
-var _back_btn: Button
-var _select_btn: Button
+var _slots_label: Label
 var _stat_labels: Array[Label] = []
+var _select_btn: Button
+var _back_btn: Button
+var _ship_panels: Array = []  # Array[PanelContainer]
+var _ship_thumbnails: Array = []  # Array[ShipThumbnails]
 var _vhs_overlay: ColorRect = null
 
-var _ship_ids: Array[String] = []
-var _ships: Dictionary = {}  # id -> ShipData
+var _selected_index: int = -1
 
 
 func _ready() -> void:
+	_selected_index = GameState.current_ship_index
 	_build_ui()
-	_load_ships()
+	_show_ship(_selected_index)
+	_update_selection_highlight()
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_apply_theme)
 	call_deferred("_apply_theme")
@@ -46,29 +47,26 @@ func _apply_theme() -> void:
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var header_font: Font = ThemeManager.get_font("font_header")
 
-	# Title
 	_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	if header_font:
 		_title.add_theme_font_override("font", header_font)
 	ThemeManager.apply_header_chrome(_title)
 
-	# Ship name
 	_ship_name_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 	_ship_name_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_title"))
 	if body_font:
 		_ship_name_label.add_theme_font_override("font", body_font)
 
-	# Stat labels
 	for lbl in _stat_labels:
 		lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
 		lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
 		if body_font:
 			lbl.add_theme_font_override("font", body_font)
 
-	# Buttons
 	ThemeManager.apply_button_style(_back_btn)
 	ThemeManager.apply_button_style(_select_btn)
+	_update_selection_highlight()
 
 
 func _apply_grid_bg() -> void:
@@ -79,76 +77,89 @@ func _apply_grid_bg() -> void:
 			ThemeManager.apply_grid_background(bg)
 
 
-func _load_ships() -> void:
-	_ship_ids = ShipDataManager.list_ids()
-	_ship_list.clear()
-	for sid in _ship_ids:
-		var s: ShipData = ShipDataManager.load_by_id(sid)
-		if s:
-			_ships[sid] = s
-			_ship_list.add_item(s.display_name if s.display_name != "" else sid)
-
-	# Highlight current ship
-	if GameState.current_ship_id != "":
-		for i in _ship_ids.size():
-			if _ship_ids[i] == GameState.current_ship_id:
-				_ship_list.select(i)
-				_show_ship(GameState.current_ship_id)
-				break
-
-
 func _build_ui() -> void:
 	var root := HBoxContainer.new()
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(root)
 
-	# LEFT — ship list
+	# LEFT — ship grid
 	var left_vbox := VBoxContainer.new()
-	left_vbox.custom_minimum_size.x = 280
+	left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left_vbox.size_flags_stretch_ratio = 0.6
 	root.add_child(left_vbox)
 
 	_title = Label.new()
 	_title.text = "SELECT SHIP"
 	left_vbox.add_child(_title)
 
-	_ship_list = ItemList.new()
-	_ship_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_ship_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_ship_list.item_selected.connect(_on_ship_selected)
-	_ship_list.item_activated.connect(_on_ship_activated)
-	left_vbox.add_child(_ship_list)
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 12)
+	left_vbox.add_child(grid)
 
-	_back_btn = Button.new()
-	_back_btn.text = "BACK"
-	_back_btn.pressed.connect(_on_back)
-	left_vbox.add_child(_back_btn)
+	for i in ShipRegistry.get_count():
+		var panel := PanelContainer.new()
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		panel.custom_minimum_size = Vector2(160, 120)
+		grid.add_child(panel)
 
-	# RIGHT — preview + stats
+		var vbox := VBoxContainer.new()
+		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		panel.add_child(vbox)
+
+		# Thumbnail
+		var thumb := ShipThumbnails.new()
+		thumb.ship_index = i
+		thumb.render_mode = ShipThumbnails.RenderMode.CHROME
+		thumb.custom_minimum_size = Vector2(140, 80)
+		thumb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		thumb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		vbox.add_child(thumb)
+		_ship_thumbnails.append(thumb)
+
+		# Name label
+		var name_lbl := Label.new()
+		name_lbl.text = ShipRegistry.get_ship_name(i)
+		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_lbl.add_theme_font_size_override("font_size", 14)
+		vbox.add_child(name_lbl)
+
+		# Click handler via invisible button overlay
+		var click_btn := Button.new()
+		click_btn.flat = true
+		click_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+		click_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		click_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		var bound_idx: int = i
+		click_btn.pressed.connect(func() -> void:
+			_on_ship_clicked(bound_idx)
+		)
+		panel.add_child(click_btn)
+
+		_ship_panels.append(panel)
+
+	# Position thumbnails after layout
+	call_deferred("_position_thumbnails")
+
+	# RIGHT — stats + buttons
 	var right_vbox := VBoxContainer.new()
 	right_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_vbox.size_flags_stretch_ratio = 0.4
+	right_vbox.custom_minimum_size.x = 280
 	root.add_child(right_vbox)
 
 	_ship_name_label = Label.new()
 	_ship_name_label.text = ""
 	right_vbox.add_child(_ship_name_label)
 
-	# Ship canvas preview
-	var canvas_panel := PanelContainer.new()
-	canvas_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	canvas_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_vbox.add_child(canvas_panel)
-
-	_canvas = ShipCanvas.new()
-	_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_canvas.display_only = true
-	canvas_panel.add_child(_canvas)
-
-	# Stats
 	var stats_box := VBoxContainer.new()
 	right_vbox.add_child(stats_box)
 
@@ -172,62 +183,75 @@ func _build_ui() -> void:
 	stats_box.add_child(_generator_label)
 	_stat_labels.append(_generator_label)
 
-	_hp_count_label = Label.new()
-	_hp_count_label.text = "Hardpoints: —"
-	stats_box.add_child(_hp_count_label)
-	_stat_labels.append(_hp_count_label)
+	_slots_label = Label.new()
+	_slots_label.text = "3 External / 3 Internal"
+	stats_box.add_child(_slots_label)
+	_stat_labels.append(_slots_label)
+
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_vbox.add_child(spacer)
 
 	_select_btn = Button.new()
 	_select_btn.text = "SELECT SHIP"
-	_select_btn.custom_minimum_size.y = 40
+	_select_btn.custom_minimum_size.y = 50
 	_select_btn.pressed.connect(_on_select_pressed)
 	right_vbox.add_child(_select_btn)
 
-
-func _on_ship_selected(idx: int) -> void:
-	if idx < 0 or idx >= _ship_ids.size():
-		return
-	_show_ship(_ship_ids[idx])
-
-
-func _on_ship_activated(idx: int) -> void:
-	# Double-click selects and navigates
-	if idx < 0 or idx >= _ship_ids.size():
-		return
-	_select_and_navigate(_ship_ids[idx])
+	_back_btn = Button.new()
+	_back_btn.text = "BACK"
+	_back_btn.custom_minimum_size.y = 40
+	_back_btn.pressed.connect(_on_back)
+	right_vbox.add_child(_back_btn)
 
 
-func _show_ship(id: String) -> void:
-	var ship: ShipData = _ships.get(id)
-	if not ship:
-		return
-	_ship_name_label.text = ship.display_name if ship.display_name != "" else ship.id
-	_canvas.set_grid_size(ship.grid_size)
-	_canvas.set_lines(ship.lines.duplicate(true))
-	_canvas.set_hardpoints(ship.hardpoints.duplicate(true))
+func _position_thumbnails() -> void:
+	for thumb in _ship_thumbnails:
+		var node: ShipThumbnails = thumb as ShipThumbnails
+		node.origin = node.size * 0.5
+		node.queue_redraw()
 
-	var stats: Dictionary = ship.stats
-	_hull_label.text = "Hull: " + str(int(stats.get("hull_max", 100)))
-	_shield_label.text = "Shield: " + str(int(stats.get("shield_max", 50)))
-	_speed_label.text = "Speed: " + str(int(stats.get("speed", 400)))
-	_generator_label.text = "Generator: " + str(int(stats.get("generator_power", 10)))
-	_hp_count_label.text = "Hardpoints: " + str(ship.hardpoints.size())
+
+func _on_ship_clicked(index: int) -> void:
+	_selected_index = index
+	_show_ship(index)
+	_update_selection_highlight()
+
+
+func _show_ship(index: int) -> void:
+	var info: Dictionary = ShipRegistry.get_ship(index)
+	_ship_name_label.text = str(info["name"])
+	var s: Dictionary = info["stats"]
+	_hull_label.text = "Hull: " + str(int(s.get("hull_max", 100)))
+	_shield_label.text = "Shield: " + str(int(s.get("shield_max", 50)))
+	_speed_label.text = "Speed: " + str(int(s.get("speed", 400)))
+	_generator_label.text = "Generator: " + str(int(s.get("generator_power", 10)))
+	_slots_label.text = "3 External / 3 Internal"
+
+
+func _update_selection_highlight() -> void:
+	var accent: Color = ThemeManager.get_color("accent")
+	var dimmed: Color = ThemeManager.get_color("dimmed")
+	for i in _ship_panels.size():
+		var panel: PanelContainer = _ship_panels[i]
+		var sb := StyleBoxFlat.new()
+		if i == _selected_index:
+			sb.bg_color = Color(accent.r, accent.g, accent.b, 0.15)
+			sb.border_color = accent
+			sb.set_border_width_all(2)
+		else:
+			sb.bg_color = Color(0.05, 0.05, 0.1, 0.6)
+			sb.border_color = Color(dimmed.r, dimmed.g, dimmed.b, 0.3)
+			sb.set_border_width_all(1)
+		sb.set_corner_radius_all(4)
+		panel.add_theme_stylebox_override("panel", sb)
 
 
 func _on_select_pressed() -> void:
-	var selected: PackedInt32Array = _ship_list.get_selected_items()
-	if selected.size() == 0:
+	if _selected_index < 0 or _selected_index >= ShipRegistry.get_count():
 		return
-	var idx: int = selected[0]
-	if idx < 0 or idx >= _ship_ids.size():
-		return
-	_select_and_navigate(_ship_ids[idx])
-
-
-func _select_and_navigate(id: String) -> void:
-	# Only reset config if changing ships
-	if GameState.current_ship_id != id:
-		GameState.set_ship(id)
+	if GameState.current_ship_index != _selected_index:
+		GameState.set_ship_index(_selected_index)
 	get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
 
 

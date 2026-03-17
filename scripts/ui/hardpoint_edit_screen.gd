@@ -1,6 +1,6 @@
 extends MarginContainer
-## Hardpoint Edit Screen — weapon selection for a single hardpoint.
-## Simplified for loop-based audio: no piano roll, no stages. Just pick a weapon.
+## Hardpoint Edit Screen — weapon selection for an external slot.
+## Reads GameState._editing_slot_key (ext_0, ext_1, ext_2).
 
 # UI refs
 var _firing_preview: ShipFiringPreview
@@ -15,20 +15,21 @@ var _bg_rect: ColorRect = null
 var _vhs_overlay: ColorRect = null
 
 # State
-var _ship: ShipData = null
-var _hp_id: String = ""
+var _slot_key: String = ""
 var _hp_index: int = -1
-var _hp_data: Dictionary = {}
+var _ship: ShipData = null
 var _weapon_ids: Array[String] = []
 var _weapon_cache: Dictionary = {}
 var _selected_weapon_id: String = ""
 
 
 func _ready() -> void:
-	_hp_id = GameState._editing_hp_id
-	if _hp_id == "":
+	_slot_key = GameState._editing_slot_key
+	if _slot_key == "":
 		get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
 		return
+	# Map slot key to hp_index: ext_0→0, ext_1→1, ext_2→2
+	_hp_index = int(_slot_key.replace("ext_", ""))
 	_cache_weapons()
 	_build_ui()
 	_load_data()
@@ -46,29 +47,21 @@ func _cache_weapons() -> void:
 
 
 func _load_data() -> void:
-	_ship = ShipDataManager.load_by_id(GameState.current_ship_id)
+	_ship = ShipRegistry.build_ship_data(GameState.current_ship_index)
 	if not _ship:
 		get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
 		return
 
-	# Find hardpoint index
-	for i in _ship.hardpoints.size():
-		if str(_ship.hardpoints[i].get("id", "")) == _hp_id:
-			_hp_index = i
-			_hp_data = _ship.hardpoints[i]
-			break
-
-	# Title
-	var hp_label: String = str(_hp_data.get("label", _hp_id))
-	var dir_deg: float = float(_hp_data.get("direction_deg", 0.0))
-	_hp_title.text = hp_label + " (" + str(int(dir_deg)) + "°)"
+	# Title from slot key
+	var slot_num: int = _hp_index + 1
+	_hp_title.text = "EXTERNAL SLOT " + str(slot_num)
 
 	# Setup firing preview with ship
 	_firing_preview.set_ship(_ship)
 
 	# Load existing config
-	var config: Dictionary = GameState.hardpoint_config.get(_hp_id, {})
-	_selected_weapon_id = str(config.get("weapon_id", ""))
+	var slot_data: Dictionary = GameState.slot_config.get(_slot_key, {})
+	_selected_weapon_id = str(slot_data.get("weapon_id", ""))
 
 	# Build weapon list buttons
 	_rebuild_weapon_list()
@@ -270,11 +263,9 @@ func _rebuild_weapon_list() -> void:
 
 func _on_weapon_button_pressed(weapon_id: String) -> void:
 	_selected_weapon_id = weapon_id
-	if weapon_id == "":
-		GameState.set_hardpoint_weapon(_hp_id, "")
-	else:
+	GameState.set_slot_weapon(_slot_key, weapon_id)
+	if weapon_id != "":
 		_apply_weapon(weapon_id)
-		GameState.set_hardpoint_weapon(_hp_id, weapon_id)
 	_update_weapon_highlights()
 	_update_power_budget()
 
@@ -301,21 +292,14 @@ func _update_power_budget() -> void:
 	var total_power: int = 0
 	var max_power: int = 0
 
-	if _ship:
-		max_power = int(_ship.stats.get("generator_power", 10))
+	var ship_info: Dictionary = ShipRegistry.get_ship(GameState.current_ship_index)
+	max_power = int(ship_info["stats"].get("generator_power", 10))
 
-	# Add device bonuses to max_power
-	for slot_key in GameState.device_config:
-		var did: String = str(GameState.device_config[slot_key])
-		if did == "":
-			continue
-		var dev: DeviceData = DeviceDataManager.load_by_id(did)
-		if dev:
-			max_power += int(dev.stats_modifiers.get("generator_power", 0))
-
-	for hp_id in GameState.hardpoint_config:
-		var config: Dictionary = GameState.hardpoint_config[hp_id]
-		var weapon_id: String = str(config.get("weapon_id", ""))
+	# Sum power cost from all external slots
+	for i in 3:
+		var key: String = "ext_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(key, {})
+		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		if weapon_id != "":
 			var w: WeaponData = _weapon_cache.get(weapon_id)
 			if w:

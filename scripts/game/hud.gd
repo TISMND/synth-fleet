@@ -18,14 +18,7 @@ var _weapons_hbox: HBoxContainer = null
 var _weapon_icons: Array = []  # Array of dicts: {container, bg_rect, number_label, active, color}
 var _beat_indicators: Array = []  # Array of ColorRect
 var _bars_grid: GridContainer = null
-var _shield_bar: ProgressBar = null
-var _hull_bar: ProgressBar = null
-var _thermal_bar: ProgressBar = null
-var _electric_bar: ProgressBar = null
-var _shield_text: Label = null
-var _hull_text: Label = null
-var _thermal_text: Label = null
-var _electric_text: Label = null
+var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
 var _vhs_overlay: ColorRect = null
 
 
@@ -100,27 +93,18 @@ func _build_ui() -> void:
 	_bars_grid.custom_minimum_size.x = 640
 	_dashboard_hbox.add_child(_bars_grid)
 
-	# Row 1: Shield, Thermal
-	var shield_cell: Dictionary = _create_bar_cell("SHIELD", ThemeManager.get_color("accent"), 100, 100)
-	_shield_text = shield_cell["label"]
-	_shield_bar = shield_cell["bar"]
-	_bars_grid.add_child(shield_cell["vbox"])
-
-	var thermal_cell: Dictionary = _create_bar_cell("THERMAL", Color(1.0, 0.6, 0.1), 30, 100)
-	_thermal_text = thermal_cell["label"]
-	_thermal_bar = thermal_cell["bar"]
-	_bars_grid.add_child(thermal_cell["vbox"])
-
-	# Row 2: Hull, Electric
-	var hull_cell: Dictionary = _create_bar_cell("HULL", ThemeManager.get_color("warning"), 100, 100)
-	_hull_text = hull_cell["label"]
-	_hull_bar = hull_cell["bar"]
-	_bars_grid.add_child(hull_cell["vbox"])
-
-	var electric_cell: Dictionary = _create_bar_cell("ELECTRIC", Color(1.0, 0.9, 0.2), 70, 100)
-	_electric_text = electric_cell["label"]
-	_electric_bar = electric_cell["bar"]
-	_bars_grid.add_child(electric_cell["vbox"])
+	# Build bars from shared specs — layout order: [0] Shield, [2] Thermal, [1] Hull, [3] Electric
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	var layout_order: Array[int] = [0, 2, 1, 3]  # Row1: Shield, Thermal — Row2: Hull, Electric
+	var initial_values: Dictionary = {"SHIELD": 100, "HULL": 100, "THERMAL": 30, "ELECTRIC": 70}
+	for idx in layout_order:
+		var spec: Dictionary = specs[idx]
+		var bar_name: String = str(spec["name"])
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		var init_val: int = int(initial_values.get(bar_name, 100))
+		var cell: Dictionary = _create_bar_cell(bar_name, color, init_val, 100)
+		_bars_grid.add_child(cell["vbox"])
+		_bars[bar_name] = {"bar": cell["bar"], "label": cell["label"]}
 
 
 func _create_bar_cell(text: String, color: Color, initial: int, max_val: int) -> Dictionary:
@@ -183,21 +167,19 @@ func _apply_theme() -> void:
 	if body_font:
 		_menu_hint.add_theme_font_override("font", body_font)
 
-	# Bar labels
-	_apply_bar_label_theme(_shield_text, ThemeManager.get_color("accent"), body_font, body_size)
-	_apply_bar_label_theme(_hull_text, ThemeManager.get_color("warning"), body_font, body_size)
-	_apply_bar_label_theme(_thermal_text, Color(1.0, 0.6, 0.1), body_font, body_size)
-	_apply_bar_label_theme(_electric_text, Color(1.0, 0.9, 0.2), body_font, body_size)
-
-	# LED bars
-	var shield_ratio: float = _shield_bar.value / maxf(_shield_bar.max_value, 1.0)
-	ThemeManager.apply_led_bar(_shield_bar, ThemeManager.get_color("accent"), shield_ratio)
-	var hull_ratio: float = _hull_bar.value / maxf(_hull_bar.max_value, 1.0)
-	ThemeManager.apply_led_bar(_hull_bar, ThemeManager.get_color("warning"), hull_ratio)
-	var thermal_ratio: float = _thermal_bar.value / maxf(_thermal_bar.max_value, 1.0)
-	ThemeManager.apply_led_bar(_thermal_bar, Color(1.0, 0.6, 0.1), thermal_ratio)
-	var electric_ratio: float = _electric_bar.value / maxf(_electric_bar.max_value, 1.0)
-	ThemeManager.apply_led_bar(_electric_bar, Color(1.0, 0.9, 0.2), electric_ratio)
+	# Bar labels + LED bars from shared specs
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		if not _bars.has(bar_name):
+			continue
+		var entry: Dictionary = _bars[bar_name]
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		var lbl: Label = entry["label"]
+		_apply_bar_label_theme(lbl, color, body_font, body_size)
+		var bar: ProgressBar = entry["bar"]
+		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
+		ThemeManager.apply_led_bar(bar, color, ratio)
 
 	# Beat indicators
 	for i in _beat_indicators.size():
@@ -230,14 +212,19 @@ func _apply_weapon_icon_theme(icon: Dictionary) -> void:
 
 
 func update_health(current_shield: float, max_shield: int, current_hull: int, max_hull: int) -> void:
-	_shield_bar.max_value = max_shield
-	_shield_bar.value = current_shield
-	_hull_bar.max_value = max_hull
-	_hull_bar.value = current_hull
+	var shield_entry: Dictionary = _bars["SHIELD"]
+	var shield_bar: ProgressBar = shield_entry["bar"]
+	shield_bar.max_value = max_shield
+	shield_bar.value = current_shield
 	var shield_ratio: float = current_shield / maxf(float(max_shield), 1.0)
-	ThemeManager.apply_led_bar(_shield_bar, ThemeManager.get_color("accent"), shield_ratio)
+	ThemeManager.apply_led_bar(shield_bar, ThemeManager.get_color("accent"), shield_ratio)
+
+	var hull_entry: Dictionary = _bars["HULL"]
+	var hull_bar: ProgressBar = hull_entry["bar"]
+	hull_bar.max_value = max_hull
+	hull_bar.value = current_hull
 	var hull_ratio: float = float(current_hull) / maxf(float(max_hull), 1.0)
-	ThemeManager.apply_led_bar(_hull_bar, ThemeManager.get_color("warning"), hull_ratio)
+	ThemeManager.apply_led_bar(hull_bar, ThemeManager.get_color("warning"), hull_ratio)
 
 
 func update_credits(amount: int) -> void:

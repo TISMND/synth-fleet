@@ -1,35 +1,39 @@
 extends MarginContainer
-## Hangar Screen — unified ship preview + grouped weapon/device buttons.
-## Replaces the old ship_select → hardpoint_overview flow.
+## Hangar Screen — ship thumbnail + stats on left, 3 EXT / 3 INT slots on right.
 
-var _canvas: ShipCanvas
-var _hull_label: Label
-var _shield_label: Label
-var _speed_label: Label
-var _generator_label: Label
-var _hp_count_label: Label
-var _device_slots_label: Label
+var _ship_thumb: ShipThumbnails
 var _ship_name_label: Label
 var _right_vbox: VBoxContainer
-var _weapon_section: VBoxContainer
-var _device_section: VBoxContainer
+var _ext_section: VBoxContainer
+var _int_section: VBoxContainer
 var _title: Label
-var _weapons_header: Label
-var _devices_header: Label
+var _ext_header: Label
+var _int_header: Label
 var _change_ship_btn: Button
 var _back_btn: Button
-var _stat_labels: Array[Label] = []
 var _vhs_overlay: ColorRect = null
+var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
+var _play_btn: Button
+var _mute_btn: Button
+var _is_playing: bool = false
+var _is_muted: bool = false
 
-var _ship: ShipData = null
 var _weapon_cache: Dictionary = {}
-var _device_cache: Dictionary = {}
+var _expanded_slot: String = ""
+var _ext_headers: Dictionary = {}
+var _ext_lists: Dictionary = {}
+
+# Live weapon preview
+var _viewport_container: SubViewportContainer
+var _sub_viewport: SubViewport
+var _preview_node: Node2D  # positioned at ship center, parent of controllers
+var _proj_container: Node2D  # projectiles land here
+var _preview_controllers: Array = []  # HardpointController instances
 
 
 func _ready() -> void:
-	_cache_data()
+	_cache_weapons()
 	_build_ui()
-	_auto_select_ship()
 	_load_ship()
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_apply_theme)
@@ -68,33 +72,50 @@ func _apply_theme() -> void:
 	if body_font:
 		_ship_name_label.add_theme_font_override("font", body_font)
 
-	# Stat labels
-	for lbl in _stat_labels:
-		lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	# Section headers
+	_ext_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_ext_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if body_font:
+		_ext_header.add_theme_font_override("font", body_font)
+
+	_int_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_int_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if body_font:
+		_int_header.add_theme_font_override("font", body_font)
+
+	# Status bars
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		if not _bars.has(bar_name):
+			continue
+		var entry: Dictionary = _bars[bar_name]
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		var lbl: Label = entry["label"]
 		lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		lbl.add_theme_color_override("font_color", color)
 		if body_font:
 			lbl.add_theme_font_override("font", body_font)
-
-	# Section headers
-	_weapons_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_weapons_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	if body_font:
-		_weapons_header.add_theme_font_override("font", body_font)
-
-	_devices_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_devices_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	if body_font:
-		_devices_header.add_theme_font_override("font", body_font)
+		ThemeManager.apply_text_glow(lbl, "body")
+		var bar: ProgressBar = entry["bar"]
+		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
+		ThemeManager.apply_led_bar(bar, color, ratio)
 
 	# Buttons
+	ThemeManager.apply_button_style(_play_btn)
+	ThemeManager.apply_button_style(_mute_btn)
 	ThemeManager.apply_button_style(_change_ship_btn)
 	ThemeManager.apply_button_style(_back_btn)
 
-	# Weapon/device buttons
-	for child in _weapon_section.get_children():
+	# Slot buttons — headers and weapon list items
+	for child in _ext_section.get_children():
 		if child is Button:
 			ThemeManager.apply_button_style(child as Button)
-	for child in _device_section.get_children():
+		elif child is VBoxContainer:
+			for sub in child.get_children():
+				if sub is Button:
+					ThemeManager.apply_button_style(sub as Button)
+	for child in _int_section.get_children():
 		if child is Button:
 			ThemeManager.apply_button_style(child as Button)
 
@@ -107,69 +128,72 @@ func _apply_grid_bg() -> void:
 			ThemeManager.apply_grid_background(bg)
 
 
-func _cache_data() -> void:
+func _cache_weapons() -> void:
 	var wids: Array[String] = WeaponDataManager.list_ids()
 	for wid in wids:
 		var w: WeaponData = WeaponDataManager.load_by_id(wid)
 		if w:
 			_weapon_cache[wid] = w
-	var dids: Array[String] = DeviceDataManager.list_ids()
-	for did in dids:
-		var d: DeviceData = DeviceDataManager.load_by_id(did)
-		if d:
-			_device_cache[did] = d
-
-
-func _auto_select_ship() -> void:
-	if GameState.current_ship_id == "":
-		var ids: Array[String] = ShipDataManager.list_ids()
-		if ids.size() > 0:
-			GameState.set_ship(ids[0])
 
 
 func _load_ship() -> void:
-	if GameState.current_ship_id == "":
-		return
-	_ship = ShipDataManager.load_by_id(GameState.current_ship_id)
-	if not _ship:
-		return
-	_ship_name_label.text = _ship.display_name if _ship.display_name != "" else _ship.id
-	_canvas.set_grid_size(_ship.grid_size)
-	_canvas.set_lines(_ship.lines.duplicate(true))
-	_canvas.set_hardpoints(_ship.hardpoints.duplicate(true))
-	_update_stats()
+	var idx: int = GameState.current_ship_index
+	var info: Dictionary = ShipRegistry.get_ship(idx)
+	_ship_name_label.text = str(info["name"])
+	_ship_thumb.ship_index = idx
+	call_deferred("_position_hangar_thumb")
+	_update_stats(info["stats"])
 	_rebuild_buttons()
+	_sync_preview()
 
 
-func _update_stats() -> void:
-	if not _ship:
+func _position_hangar_thumb() -> void:
+	var panel_size: Vector2 = _ship_thumb.size
+	var center := Vector2(panel_size.x / 2.0, panel_size.y * 0.75)
+	_ship_thumb.origin = center
+	_ship_thumb.queue_redraw()
+	_preview_node.position = center
+
+
+func _update_stats(s: Dictionary) -> void:
+	var hull_max: int = int(s.get("hull_max", 100))
+	var shield_max: int = int(s.get("shield_max", 50))
+	_set_bar("SHIELD", shield_max, shield_max)
+	_set_bar("HULL", hull_max, hull_max)
+	_set_bar("THERMAL", 30, 100)
+	_set_bar("ELECTRIC", 70, 100)
+
+
+func _set_bar(bar_name: String, value: int, max_val: int) -> void:
+	if not _bars.has(bar_name):
 		return
-	var s: Dictionary = _ship.stats
-	_hull_label.text = "Hull: " + str(int(s.get("hull_max", 100)))
-	_shield_label.text = "Shield: " + str(int(s.get("shield_max", 50)))
-	_speed_label.text = "Speed: " + str(int(s.get("speed", 400)))
-	_generator_label.text = "Generator: " + str(int(s.get("generator_power", 10)))
-	_hp_count_label.text = "Hardpoints: " + str(_ship.hardpoints.size())
-	_device_slots_label.text = "Device Slots: " + str(int(s.get("device_slots", 2)))
+	var entry: Dictionary = _bars[bar_name]
+	var bar: ProgressBar = entry["bar"]
+	bar.max_value = max_val
+	bar.value = value
+	# Re-apply LED with correct ratio
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for spec in specs:
+		if str(spec["name"]) == bar_name:
+			var color: Color = ThemeManager.resolve_bar_color(spec)
+			ThemeManager.apply_led_bar(bar, color, float(value) / maxf(float(max_val), 1.0))
+			break
 
 
 func _rebuild_buttons() -> void:
-	# Clear weapon section
-	for child in _weapon_section.get_children():
+	# Clear sections
+	for child in _ext_section.get_children():
 		child.queue_free()
-	# Clear device section
-	for child in _device_section.get_children():
+	for child in _int_section.get_children():
 		child.queue_free()
+	_ext_headers.clear()
+	_ext_lists.clear()
 
-	if not _ship:
-		return
-
-	# Weapon buttons (one per hardpoint)
-	for hp in _ship.hardpoints:
-		var hp_id: String = str(hp.get("id", ""))
-		var hp_label: String = str(hp.get("label", hp_id))
-		var config: Dictionary = GameState.hardpoint_config.get(hp_id, {})
-		var weapon_id: String = str(config.get("weapon_id", ""))
+	# External weapon slots (3) — inline expandable pickers
+	for i in 3:
+		var slot_key: String = "ext_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		var weapon_name: String = "empty"
 		if weapon_id != "":
 			var w: WeaponData = _weapon_cache.get(weapon_id)
@@ -178,42 +202,78 @@ func _rebuild_buttons() -> void:
 			else:
 				weapon_name = weapon_id
 
-		var btn := Button.new()
-		btn.text = hp_label + "  —  " + weapon_name
-		btn.custom_minimum_size.y = 55
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		ThemeManager.apply_button_style(btn)
-		var bound_hp_id: String = hp_id
-		btn.pressed.connect(func() -> void:
-			GameState._editing_hp_id = bound_hp_id
-			get_tree().change_scene_to_file("res://scenes/ui/hardpoint_edit_screen.tscn")
-		)
-		_weapon_section.add_child(btn)
+		# Header button
+		var header := Button.new()
+		header.text = "WEAPON " + str(i + 1) + "  —  " + weapon_name
+		header.custom_minimum_size.y = 55
+		header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		ThemeManager.apply_button_style(header)
+		var bound_key: String = slot_key
+		header.pressed.connect(func() -> void: _toggle_weapon_list(bound_key))
+		_ext_section.add_child(header)
+		_ext_headers[slot_key] = header
 
-	# Device buttons
-	var device_slots: int = int(_ship.stats.get("device_slots", 2))
-	for i in device_slots:
-		var slot_key: String = "slot_" + str(i)
-		var device_id: String = str(GameState.device_config.get(slot_key, ""))
-		var device_name: String = "empty"
-		if device_id != "":
-			var d: DeviceData = _device_cache.get(device_id)
-			if d:
-				device_name = d.display_name if d.display_name != "" else d.id
-			else:
-				device_name = device_id
+		# Weapon list (hidden by default)
+		var wlist := VBoxContainer.new()
+		wlist.visible = (_expanded_slot == slot_key)
+		wlist.add_theme_constant_override("separation", 2)
+		_ext_section.add_child(wlist)
+		_ext_lists[slot_key] = wlist
+
+		# "(none)" option
+		var none_btn := Button.new()
+		none_btn.text = "    (none)"
+		none_btn.custom_minimum_size.y = 38
+		none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		ThemeManager.apply_button_style(none_btn)
+		var bound_key2: String = slot_key
+		none_btn.pressed.connect(func() -> void: _select_weapon(bound_key2, ""))
+		wlist.add_child(none_btn)
+
+		# One button per cached weapon
+		for wid in _weapon_cache:
+			var w: WeaponData = _weapon_cache[wid]
+			var label: String = w.display_name if w.display_name != "" else w.id
+			var wbtn := Button.new()
+			wbtn.text = "    " + label
+			wbtn.custom_minimum_size.y = 38
+			wbtn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			ThemeManager.apply_button_style(wbtn)
+			var bound_key3: String = slot_key
+			var bound_wid: String = wid
+			wbtn.pressed.connect(func() -> void: _select_weapon(bound_key3, bound_wid))
+			wlist.add_child(wbtn)
+
+	# Internal slot buttons (3)
+	for i in 3:
+		var slot_key: String = "int_" + str(i)
+		var device_name: String = "(coming soon)"
 
 		var btn := Button.new()
-		btn.text = "SLOT " + str(i + 1) + "  —  " + device_name
+		btn.text = "INT " + str(i + 1) + "  —  " + device_name
 		btn.custom_minimum_size.y = 50
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.disabled = true
 		ThemeManager.apply_button_style(btn)
-		var bound_slot: int = i
-		btn.pressed.connect(func() -> void:
-			GameState._editing_device_slot = bound_slot
-			get_tree().change_scene_to_file("res://scenes/ui/device_edit_screen.tscn")
-		)
-		_device_section.add_child(btn)
+		_int_section.add_child(btn)
+
+
+func _toggle_weapon_list(slot_key: String) -> void:
+	if _expanded_slot == slot_key:
+		_expanded_slot = ""
+	else:
+		_expanded_slot = slot_key
+	# Show/hide all weapon lists
+	for key in _ext_lists:
+		var wlist: VBoxContainer = _ext_lists[key]
+		wlist.visible = (_expanded_slot == key)
+
+
+func _select_weapon(slot_key: String, weapon_id: String) -> void:
+	GameState.set_slot_weapon(slot_key, weapon_id)
+	_expanded_slot = ""
+	_rebuild_buttons()
+	_sync_preview()
 
 
 func _build_ui() -> void:
@@ -236,71 +296,87 @@ func _build_ui() -> void:
 	_ship_name_label.text = ""
 	left_vbox.add_child(_ship_name_label)
 
-	var canvas_panel := PanelContainer.new()
-	canvas_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	canvas_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_vbox.add_child(canvas_panel)
+	# Ship thumbnail display — SubViewport for live weapon preview
+	_viewport_container = SubViewportContainer.new()
+	_viewport_container.stretch = true
+	_viewport_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_viewport_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_vbox.add_child(_viewport_container)
 
-	_canvas = ShipCanvas.new()
-	_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_canvas.display_only = true
-	canvas_panel.add_child(_canvas)
+	_sub_viewport = SubViewport.new()
+	_sub_viewport.transparent_bg = false
+	_sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_viewport_container.add_child(_sub_viewport)
 
-	# Stats
-	var stats_box := VBoxContainer.new()
-	left_vbox.add_child(stats_box)
+	# Dark background for the viewport
+	var vp_bg := ColorRect.new()
+	vp_bg.color = Color(0.05, 0.06, 0.1)
+	vp_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sub_viewport.add_child(vp_bg)
 
-	_hull_label = Label.new()
-	_hull_label.text = "Hull: —"
-	stats_box.add_child(_hull_label)
-	_stat_labels.append(_hull_label)
+	_ship_thumb = ShipThumbnails.new()
+	_ship_thumb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ship_thumb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_ship_thumb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_ship_thumb.render_mode = ShipThumbnails.RenderMode.CHROME
+	_ship_thumb.draw_scale = 3.0
+	_sub_viewport.add_child(_ship_thumb)
 
-	_shield_label = Label.new()
-	_shield_label.text = "Shield: —"
-	stats_box.add_child(_shield_label)
-	_stat_labels.append(_shield_label)
+	_preview_node = Node2D.new()
+	_sub_viewport.add_child(_preview_node)
 
-	_speed_label = Label.new()
-	_speed_label.text = "Speed: —"
-	stats_box.add_child(_speed_label)
-	_stat_labels.append(_speed_label)
+	_proj_container = Node2D.new()
+	_sub_viewport.add_child(_proj_container)
 
-	_generator_label = Label.new()
-	_generator_label.text = "Generator: —"
-	stats_box.add_child(_generator_label)
-	_stat_labels.append(_generator_label)
+	# Status bars — vertical stack
+	var bars_vbox := VBoxContainer.new()
+	bars_vbox.add_theme_constant_override("separation", 6)
+	left_vbox.add_child(bars_vbox)
 
-	_hp_count_label = Label.new()
-	_hp_count_label.text = "Hardpoints: —"
-	stats_box.add_child(_hp_count_label)
-	_stat_labels.append(_hp_count_label)
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		var cell: Dictionary = _create_bar_cell(bar_name, color)
+		bars_vbox.add_child(cell["hbox"])
+		_bars[bar_name] = {"bar": cell["bar"], "label": cell["label"]}
 
-	_device_slots_label = Label.new()
-	_device_slots_label.text = "Device Slots: —"
-	stats_box.add_child(_device_slots_label)
-	_stat_labels.append(_device_slots_label)
+	# Playback controls
+	var controls_hbox := HBoxContainer.new()
+	controls_hbox.add_theme_constant_override("separation", 10)
+	left_vbox.add_child(controls_hbox)
 
-	# RIGHT — grouped buttons
+	_play_btn = Button.new()
+	_play_btn.text = "PLAY"
+	_play_btn.custom_minimum_size = Vector2(80, 34)
+	_play_btn.pressed.connect(_on_play_toggle)
+	controls_hbox.add_child(_play_btn)
+
+	_mute_btn = Button.new()
+	_mute_btn.text = "MUTE"
+	_mute_btn.custom_minimum_size = Vector2(80, 34)
+	_mute_btn.pressed.connect(_on_mute_toggle)
+	controls_hbox.add_child(_mute_btn)
+
+	# RIGHT — grouped slot buttons
 	_right_vbox = VBoxContainer.new()
 	_right_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_right_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(_right_vbox)
 
-	_weapons_header = Label.new()
-	_weapons_header.text = "━━ WEAPONS ━━━━━━━━"
-	_right_vbox.add_child(_weapons_header)
+	_ext_header = Label.new()
+	_ext_header.text = "━━ EXTERNAL ━━━━━━━━"
+	_right_vbox.add_child(_ext_header)
 
-	_weapon_section = VBoxContainer.new()
-	_right_vbox.add_child(_weapon_section)
+	_ext_section = VBoxContainer.new()
+	_right_vbox.add_child(_ext_section)
 
-	_devices_header = Label.new()
-	_devices_header.text = "━━ DEVICES ━━━━━━━━"
-	_right_vbox.add_child(_devices_header)
+	_int_header = Label.new()
+	_int_header.text = "━━ INTERNAL ━━━━━━━━"
+	_right_vbox.add_child(_int_header)
 
-	_device_section = VBoxContainer.new()
-	_right_vbox.add_child(_device_section)
+	_int_section = VBoxContainer.new()
+	_right_vbox.add_child(_int_section)
 
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -319,12 +395,117 @@ func _build_ui() -> void:
 	_right_vbox.add_child(_back_btn)
 
 
+func _create_bar_cell(text: String, color: Color) -> Dictionary:
+	var hbox := HBoxContainer.new()
+	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_theme_constant_override("separation", 6)
+
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.custom_minimum_size.x = 70
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hbox.add_child(lbl)
+
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(100, 20)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.max_value = 100
+	bar.value = 0
+	bar.show_percentage = false
+	hbox.add_child(bar)
+
+	ThemeManager.apply_led_bar(bar, color, 0.0)
+
+	return {"hbox": hbox, "label": lbl, "bar": bar}
+
+
+func _on_play_toggle() -> void:
+	if _is_playing:
+		for c in _preview_controllers:
+			c.deactivate()
+		LoopMixer.stop_all()
+		_clear_projectiles()
+		_is_playing = false
+		_play_btn.text = "PLAY"
+	else:
+		LoopMixer.start_all()
+		for c in _preview_controllers:
+			c.activate()
+		_is_playing = true
+		_play_btn.text = "PAUSE"
+
+
+func _on_mute_toggle() -> void:
+	if _is_muted:
+		LoopMixer.unmute_all()
+		_is_muted = false
+		_mute_btn.text = "MUTE"
+	else:
+		LoopMixer.mute_all()
+		_is_muted = true
+		_mute_btn.text = "UNMUTE"
+
+
 func _on_change_ship() -> void:
+	_cleanup_preview()
 	get_tree().change_scene_to_file("res://scenes/ui/ship_select_screen.tscn")
 
 
 func _on_back() -> void:
+	_cleanup_preview()
 	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+
+
+func _sync_preview() -> void:
+	# Cleanup old controllers
+	for c in _preview_controllers:
+		c.deactivate()
+		c.cleanup()
+		c.queue_free()
+	_preview_controllers.clear()
+	_clear_projectiles()
+
+	# Create new controllers for each equipped ext slot
+	for i in 3:
+		var slot_key: String = "ext_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var weapon_id: String = str(slot_data.get("weapon_id", ""))
+		if weapon_id == "":
+			continue
+		var weapon: WeaponData = _weapon_cache.get(weapon_id)
+		if not weapon:
+			continue
+		var controller: Node2D = HardpointController.new()
+		_preview_node.add_child(controller)
+		controller.setup(weapon, weapon.direction_deg, _proj_container, i)
+		_preview_controllers.append(controller)
+
+	# If already playing, activate new controllers immediately
+	if _is_playing:
+		for c in _preview_controllers:
+			c.activate()
+
+
+func _cleanup_preview() -> void:
+	for c in _preview_controllers:
+		c.deactivate()
+		c.cleanup()
+	_preview_controllers.clear()
+	_clear_projectiles()
+	if _is_playing:
+		LoopMixer.stop_all()
+		_is_playing = false
+		_play_btn.text = "PLAY"
+
+
+func _clear_projectiles() -> void:
+	for child in _proj_container.get_children():
+		child.queue_free()
+
+
+func _exit_tree() -> void:
+	_cleanup_preview()
 
 
 func _input(event: InputEvent) -> void:

@@ -21,14 +21,25 @@ var _detected_duration_sec: float = 0.0  # From raw WAV parsing (for bar auto-de
 var _audition_loop_id: String = ""
 var _show_beat_grid: bool = true
 
+# Zoom/scroll state
+var _zoom_level: float = 1.0       # 1.0 = full view, higher = zoomed in
+var _scroll_offset: float = 0.0    # Normalized left edge of visible area (0.0–1.0)
+const ZOOM_STEP: float = 1.3
+const ZOOM_MAX: float = 16.0
+const SCROLL_STEP: float = 0.05    # Fraction of view range per scroll tick
+const VIEWPORT_BAR_HEIGHT: float = 4.0
+
 # Marker interaction state
 enum MarkerState { IDLE, HOVERING, DRAGGING }
 var _marker_state: int = MarkerState.IDLE
-var _selected_idx: int = -1        # Index into _fire_triggers, -1 = none
+var _selected_indices: Array[int] = []         # Sorted indices of selected markers
+var _drag_original_times: Array[float] = []    # Original times of ALL selected during drag
+var _drag_anchor_idx: int = -1                 # Which selected marker the user grabbed
+var _clipboard: Array[float] = []              # Copied trigger offsets (relative to leftmost)
 var _hovered_idx: int = -1         # Index of marker mouse is near
 var _mouse_down: bool = false
 var _drag_start_pos: Vector2 = Vector2.ZERO
-var _drag_original_time: float = 0.0
+var _ctrl_click_pending_idx: int = -1  # For Ctrl+click toggle on mouse-up
 const DRAG_THRESHOLD_PX: float = 5.0
 const MARKER_HIT_PX: float = 10.0
 
@@ -207,7 +218,7 @@ func set_snap_mode(mode: int) -> void:
 
 func set_triggers(triggers: Array) -> void:
 	_fire_triggers = triggers.duplicate()
-	_selected_idx = -1
+	_selected_indices.clear()
 	_hovered_idx = -1
 	_marker_state = MarkerState.IDLE
 	_mouse_down = false
@@ -230,6 +241,29 @@ func set_show_beat_grid(show: bool) -> void:
 
 func set_audition_loop_id(id: String) -> void:
 	_audition_loop_id = id
+
+
+# --- Multi-selection helpers ---
+
+func _is_selected(idx: int) -> bool:
+	return idx in _selected_indices
+
+
+func _clear_selection() -> void:
+	_selected_indices.clear()
+
+
+func _select_only(idx: int) -> void:
+	_selected_indices = [idx]
+
+
+func _toggle_selection(idx: int) -> void:
+	var pos: int = _selected_indices.find(idx)
+	if pos >= 0:
+		_selected_indices.remove_at(pos)
+	else:
+		_selected_indices.append(idx)
+		_selected_indices.sort()
 
 
 func _process(_delta: float) -> void:
@@ -318,11 +352,46 @@ func _gui_input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
+				if mb.double_click:
+					# Double-click on empty space resets zoom
+					var hit_idx: int = _find_nearest_trigger_px(mb.position)
+					if hit_idx < 0:
+						_zoom_level = 1.0
+						_scroll_offset = 0.0
+						queue_redraw()
+						accept_event()
+						return
 				_handle_left_down(mb.position)
 			else:
 				_handle_left_up(mb.position)
 		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
 			_handle_right_click(mb.position)
+		elif mb.pressed and (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+			if mb.ctrl_pressed:
+				# Ctrl + wheel = zoom centered on cursor
+				var time_at_cursor: float = _pos_to_time(mb.position)
+				var new_zoom: float = _zoom_level
+				if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+					new_zoom = minf(_zoom_level * ZOOM_STEP, ZOOM_MAX)
+				else:
+					new_zoom = maxf(_zoom_level / ZOOM_STEP, 1.0)
+				_zoom_level = new_zoom
+				# Keep the point under cursor stationary
+				var view_range: float = 1.0 / _zoom_level
+				var cursor_frac: float = mb.position.x / size.x
+				_scroll_offset = clampf(time_at_cursor - cursor_frac * view_range, 0.0, maxf(0.0, 1.0 - view_range))
+				queue_redraw()
+				accept_event()
+			elif _zoom_level > 1.0:
+				# Wheel without Ctrl (when zoomed) = horizontal scroll
+				var view_range: float = 1.0 / _zoom_level
+				var scroll_amount: float = SCROLL_STEP * view_range
+				if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+					_scroll_offset = maxf(_scroll_offset - scroll_amount, 0.0)
+				else:
+					_scroll_offset = minf(_scroll_offset + scroll_amount, maxf(0.0, 1.0 - view_range))
+				queue_redraw()
+				accept_event()
 
 	elif event is InputEventMouseMotion:
 		_handle_mouse_motion(event.position)
@@ -331,49 +400,160 @@ func _gui_input(event: InputEvent) -> void:
 		var key: InputEventKey = event
 		if key.pressed and not key.echo:
 			if key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE:
-				if _selected_idx >= 0 and _selected_idx < _fire_triggers.size():
-					_fire_triggers.remove_at(_selected_idx)
-					_selected_idx = -1
+				if not _selected_indices.is_empty():
+					# Remove in reverse order to preserve indices
+					var sorted_desc: Array[int] = _selected_indices.duplicate()
+					sorted_desc.sort()
+					sorted_desc.reverse()
+					for idx in sorted_desc:
+						if idx >= 0 and idx < _fire_triggers.size():
+							_fire_triggers.remove_at(idx)
+					_selected_indices.clear()
 					_marker_state = MarkerState.IDLE
 					triggers_changed.emit(_fire_triggers.duplicate())
 					queue_redraw()
 					accept_event()
+			elif key.keycode == KEY_HOME:
+				_zoom_level = 1.0
+				_scroll_offset = 0.0
+				queue_redraw()
+				accept_event()
+			elif key.keycode == KEY_A and key.ctrl_pressed:
+				# Ctrl+A — select all
+				_selected_indices.clear()
+				for i in _fire_triggers.size():
+					_selected_indices.append(i)
+				queue_redraw()
+				accept_event()
+			elif key.keycode == KEY_C and key.ctrl_pressed:
+				# Ctrl+C — copy selected triggers as relative offsets
+				if not _selected_indices.is_empty():
+					var times: Array[float] = []
+					for idx in _selected_indices:
+						if idx >= 0 and idx < _fire_triggers.size():
+							times.append(float(_fire_triggers[idx]))
+					times.sort()
+					var base: float = times[0]
+					_clipboard.clear()
+					for t in times:
+						_clipboard.append(t - base)
+				accept_event()
+			elif key.keycode == KEY_V and key.ctrl_pressed:
+				# Ctrl+V — paste clipboard at hover position
+				if not _clipboard.is_empty() and _hovered_time >= 0.0:
+					var paste_base: float = _snap_time(_hovered_time)
+					var snap_threshold: float = _get_snap_threshold()
+					var pasted_times: Array[float] = []
+					for offset in _clipboard:
+						var t: float = paste_base + offset
+						if t < 0.0 or t > 1.0:
+							continue
+						# Skip if too close to existing trigger
+						var too_close: bool = false
+						for existing in _fire_triggers:
+							if absf(float(existing) - t) < snap_threshold:
+								too_close = true
+								break
+						# Also check against already-pasted triggers
+						if not too_close:
+							for pt in pasted_times:
+								if absf(pt - t) < snap_threshold:
+									too_close = true
+									break
+						if not too_close:
+							pasted_times.append(t)
+					if not pasted_times.is_empty():
+						for t in pasted_times:
+							_fire_triggers.append(t)
+						_fire_triggers.sort()
+						# Select the newly pasted markers
+						_selected_indices.clear()
+						for t in pasted_times:
+							for i in _fire_triggers.size():
+								if absf(float(_fire_triggers[i]) - t) < 0.0001 and not _is_selected(i):
+									_selected_indices.append(i)
+									break
+						_selected_indices.sort()
+						triggers_changed.emit(_fire_triggers.duplicate())
+						queue_redraw()
+				accept_event()
+			elif key.keycode == KEY_ESCAPE:
+				_clear_selection()
+				_marker_state = MarkerState.IDLE
+				queue_redraw()
+				accept_event()
 
 
 func _handle_left_down(pos: Vector2) -> void:
 	grab_focus()
+	var ctrl: bool = Input.is_key_pressed(KEY_CTRL)
 	var hit_idx: int = _find_nearest_trigger_px(pos)
+	_ctrl_click_pending_idx = -1
 	if hit_idx >= 0:
 		# Near a marker — prepare for potential drag
 		_mouse_down = true
 		_drag_start_pos = pos
-		_drag_original_time = float(_fire_triggers[hit_idx])
 		_hovered_idx = hit_idx
+		if ctrl:
+			if _is_selected(hit_idx):
+				# Ctrl+click on selected: defer toggle to mouse-up (might drag)
+				_ctrl_click_pending_idx = hit_idx
+			else:
+				# Ctrl+click on unselected: add to selection
+				_toggle_selection(hit_idx)
+		else:
+			if not _is_selected(hit_idx):
+				# Click on unselected without Ctrl: select only this one
+				_select_only(hit_idx)
+			# else: already selected, keep group (might drag)
+		# Store original times for all selected markers
+		_drag_original_times.clear()
+		for idx in _selected_indices:
+			_drag_original_times.append(float(_fire_triggers[idx]))
+		_drag_anchor_idx = hit_idx
+		queue_redraw()
 	else:
-		# Empty space — deselect and place new trigger
-		_selected_idx = -1
-		_marker_state = MarkerState.IDLE
-		_place_new_trigger(pos)
+		if not ctrl:
+			# Empty space — deselect and place new trigger
+			_clear_selection()
+			_marker_state = MarkerState.IDLE
+			_place_new_trigger(pos)
+		else:
+			# Ctrl+click empty space — just deselect
+			_clear_selection()
+			queue_redraw()
 
 
 func _handle_left_up(pos: Vector2) -> void:
 	if _marker_state == MarkerState.DRAGGING:
-		# Finalize drag: sort and re-find selected by time value
-		var dragged_time: float = float(_fire_triggers[_selected_idx])
+		# Finalize drag: collect current times of selected, sort triggers, rebuild selection
+		var selected_times: Array[float] = []
+		for idx in _selected_indices:
+			if idx >= 0 and idx < _fire_triggers.size():
+				selected_times.append(float(_fire_triggers[idx]))
 		_fire_triggers.sort()
-		# Find the index of the dragged trigger after sorting
-		_selected_idx = -1
-		for i in _fire_triggers.size():
-			if absf(float(_fire_triggers[i]) - dragged_time) < 0.0001:
-				_selected_idx = i
-				break
+		# Rebuild selected indices by matching time values
+		_selected_indices.clear()
+		for st in selected_times:
+			for i in _fire_triggers.size():
+				if absf(float(_fire_triggers[i]) - st) < 0.0001 and not _is_selected(i):
+					_selected_indices.append(i)
+					break
+		_selected_indices.sort()
 		_marker_state = MarkerState.IDLE
 		_mouse_down = false
 		triggers_changed.emit(_fire_triggers.duplicate())
 		queue_redraw()
 	elif _mouse_down:
-		# Was a click (no drag) — select the marker
-		_selected_idx = _hovered_idx
+		# Was a click (no drag)
+		var ctrl: bool = Input.is_key_pressed(KEY_CTRL)
+		if _ctrl_click_pending_idx >= 0:
+			# Ctrl+click on already-selected: toggle off now
+			_toggle_selection(_ctrl_click_pending_idx)
+		elif not ctrl:
+			# Plain click: select only the clicked marker
+			_select_only(_hovered_idx)
+		_ctrl_click_pending_idx = -1
 		_marker_state = MarkerState.IDLE
 		_mouse_down = false
 		queue_redraw()
@@ -388,16 +568,32 @@ func _handle_mouse_motion(pos: Vector2) -> void:
 		# Check if we should start dragging
 		if pos.distance_to(_drag_start_pos) > DRAG_THRESHOLD_PX:
 			_marker_state = MarkerState.DRAGGING
-			_selected_idx = _hovered_idx
+			# Cancel any pending Ctrl toggle since we're dragging
+			_ctrl_click_pending_idx = -1
 			queue_redraw()
 			return
 
 	if _marker_state == MarkerState.DRAGGING:
-		# Update trigger position during drag
-		if _selected_idx >= 0 and _selected_idx < _fire_triggers.size():
-			var new_time: float = _snap_time(_pos_to_time(pos))
-			_fire_triggers[_selected_idx] = new_time
-			queue_redraw()
+		# Group drag: move all selected by the same delta
+		if not _selected_indices.is_empty() and _drag_anchor_idx >= 0:
+			var anchor_pos_in_sel: int = _selected_indices.find(_drag_anchor_idx)
+			if anchor_pos_in_sel >= 0 and anchor_pos_in_sel < _drag_original_times.size():
+				var anchor_original: float = _drag_original_times[anchor_pos_in_sel]
+				var current_mouse_time: float = _snap_time(_pos_to_time(pos))
+				var delta: float = current_mouse_time - _snap_time(anchor_original)
+				# Clamp delta so no marker leaves 0.0–1.0
+				var min_orig: float = 1.0
+				var max_orig: float = 0.0
+				for ot in _drag_original_times:
+					min_orig = minf(min_orig, ot)
+					max_orig = maxf(max_orig, ot)
+				delta = clampf(delta, -min_orig, 1.0 - max_orig)
+				# Apply delta to all selected
+				for si in _selected_indices.size():
+					var idx: int = _selected_indices[si]
+					if idx >= 0 and idx < _fire_triggers.size() and si < _drag_original_times.size():
+						_fire_triggers[idx] = clampf(_drag_original_times[si] + delta, 0.0, 1.0)
+				queue_redraw()
 		return
 
 	# Not dragging — update hover state
@@ -413,11 +609,16 @@ func _handle_right_click(pos: Vector2) -> void:
 	# Remove nearest trigger within hit range
 	var hit_idx: int = _find_nearest_trigger_px(pos)
 	if hit_idx >= 0:
-		# Clear selection if deleting the selected marker
-		if hit_idx == _selected_idx:
-			_selected_idx = -1
-		elif _selected_idx > hit_idx:
-			_selected_idx -= 1
+		# Update selection: remove if selected, adjust indices > deleted
+		var new_selected: Array[int] = []
+		for si in _selected_indices:
+			if si == hit_idx:
+				continue  # Remove from selection
+			elif si > hit_idx:
+				new_selected.append(si - 1)  # Shift down
+			else:
+				new_selected.append(si)
+		_selected_indices = new_selected
 		_fire_triggers.remove_at(hit_idx)
 		_hovered_idx = -1
 		_marker_state = MarkerState.IDLE
@@ -426,13 +627,15 @@ func _handle_right_click(pos: Vector2) -> void:
 
 
 func _pos_to_time(pos: Vector2) -> float:
-	## Convert pixel position to normalized time (0.0–1.0)
-	return clampf(pos.x / size.x, 0.0, 1.0)
+	## Convert pixel position to normalized time (0.0–1.0), accounting for zoom/scroll
+	var view_range: float = 1.0 / _zoom_level
+	return clampf(_scroll_offset + (pos.x / size.x) * view_range, 0.0, 1.0)
 
 
 func _time_to_x(t: float) -> float:
-	## Convert normalized time (0.0–1.0) to pixel X
-	return t * size.x
+	## Convert normalized time (0.0–1.0) to pixel X, accounting for zoom/scroll
+	var view_range: float = 1.0 / _zoom_level
+	return (t - _scroll_offset) / view_range * size.x
 
 
 func _snap_time(t: float) -> float:
@@ -449,9 +652,9 @@ func _snap_time(t: float) -> float:
 func _get_snap_threshold() -> float:
 	## Minimum distance in normalized time to distinguish triggers
 	if _snap_mode == 0:
-		# Free mode: use a small pixel-based threshold
+		# Free mode: use a small pixel-based threshold (account for zoom)
 		if size.x > 0.0:
-			return 8.0 / size.x
+			return 8.0 / (size.x * _zoom_level)
 		return 0.02
 	var total_beats: float = float(_loop_length_bars * _beats_per_bar)
 	if total_beats <= 0.0:
@@ -477,9 +680,13 @@ func _draw() -> void:
 		var hx: float = _time_to_x(snapped)
 		draw_line(Vector2(hx, 0), Vector2(hx, size.y), _hover_color, 2.0)
 
-	# Fire trigger markers
+	# Fire trigger markers (skip off-screen)
+	var view_range: float = 1.0 / _zoom_level
+	var view_end: float = _scroll_offset + view_range
 	for i in _fire_triggers.size():
 		var trigger_time: float = float(_fire_triggers[i])
+		if trigger_time < _scroll_offset - 0.01 or trigger_time > view_end + 0.01:
+			continue
 		var tx: float = _time_to_x(trigger_time)
 
 		# Determine color and style based on state
@@ -487,7 +694,7 @@ func _draw() -> void:
 		var line_width: float = 3.0
 		var tri_size: float = 6.0
 
-		if i == _selected_idx:
+		if _is_selected(i):
 			color = _selected_color
 			line_width = 4.0
 			tri_size = 8.0
@@ -505,25 +712,36 @@ func _draw() -> void:
 		])
 		draw_colored_polygon(tri, color)
 
-		# Glow circle for selected marker
-		if i == _selected_idx:
+		# Glow circle for selected markers
+		if _is_selected(i):
 			draw_circle(Vector2(tx, tri_size * 1.667 + 4.0), 4.0, Color(_selected_color, 0.4))
 
 	# Playback cursor
 	if _show_cursor and _cursor_progress >= 0.0:
 		var cx: float = _time_to_x(_cursor_progress)
-		draw_line(Vector2(cx, 0), Vector2(cx, size.y), _cursor_color, 2.0)
+		if cx >= -2.0 and cx <= size.x + 2.0:
+			draw_line(Vector2(cx, 0), Vector2(cx, size.y), _cursor_color, 2.0)
+
+	# Viewport indicator bar (only when zoomed)
+	if _zoom_level > 1.0:
+		_draw_viewport_bar()
 
 
 func _draw_beat_grid() -> void:
 	var total_beats: float = float(_loop_length_bars * _beats_per_bar)
 	if total_beats <= 0.0:
 		return
-	# Draw grid lines at beat subdivisions
+	var view_range: float = 1.0 / _zoom_level
+	var view_end: float = _scroll_offset + view_range
+	# Draw grid lines at beat subdivisions — only visible ones
 	var snap_beats: float = 4.0 / float(maxi(_snap_mode, 4))
-	var beat: float = 0.0
+	# Start from the first beat at or before the visible range
+	var first_beat: float = floorf(_scroll_offset * total_beats / snap_beats) * snap_beats
+	var beat: float = maxf(first_beat, 0.0)
 	while beat < total_beats:
 		var t: float = beat / total_beats
+		if t > view_end:
+			break
 		var x: float = _time_to_x(t)
 		var is_bar: bool = fmod(beat, float(_beats_per_bar)) < 0.01
 		var is_beat: bool = fmod(beat, 1.0) < 0.01
@@ -542,14 +760,31 @@ func _draw_waveform() -> void:
 	var mid_y: float = size.y * 0.5
 	var amp: float = size.y * 0.45
 	var sample_count: int = _waveform_data.size()
-	# Draw as mirrored filled bars for a bold waveform display
-	for i in sample_count:
-		var x: float = (float(i) / float(sample_count)) * size.x
-		var bar_w: float = maxf(size.x / float(sample_count), 1.0)
+	var view_range: float = 1.0 / _zoom_level
+	# Only draw bins that fall within the visible range
+	var first_bin: int = maxi(int(_scroll_offset * sample_count) - 1, 0)
+	var last_bin: int = mini(int((_scroll_offset + view_range) * sample_count) + 1, sample_count - 1)
+	for i in range(first_bin, last_bin + 1):
+		var t: float = float(i) / float(sample_count)
+		var x: float = _time_to_x(t)
+		var next_t: float = float(i + 1) / float(sample_count)
+		var bar_w: float = maxf(_time_to_x(next_t) - x, 1.0)
 		var h: float = _waveform_data[i] * amp
 		var top: float = mid_y - h
 		var bottom: float = mid_y + h
 		draw_rect(Rect2(x, top, bar_w, bottom - top), _waveform_color)
+
+
+func _draw_viewport_bar() -> void:
+	## Draw a small indicator bar at the bottom showing current viewport within the full loop.
+	var bar_y: float = size.y - VIEWPORT_BAR_HEIGHT
+	# Track background
+	draw_rect(Rect2(0, bar_y, size.x, VIEWPORT_BAR_HEIGHT), Color(0.15, 0.15, 0.25, 0.8))
+	# Viewport thumb
+	var view_range: float = 1.0 / _zoom_level
+	var thumb_x: float = _scroll_offset * size.x
+	var thumb_w: float = view_range * size.x
+	draw_rect(Rect2(thumb_x, bar_y, thumb_w, VIEWPORT_BAR_HEIGHT), Color(0.5, 0.7, 1.0, 0.6))
 
 
 func _notification(what: int) -> void:
@@ -557,9 +792,11 @@ func _notification(what: int) -> void:
 		_hovered_time = -1.0
 		_hovered_idx = -1
 		if _marker_state == MarkerState.DRAGGING:
-			# Cancel drag — restore original time
-			if _selected_idx >= 0 and _selected_idx < _fire_triggers.size():
-				_fire_triggers[_selected_idx] = _drag_original_time
+			# Cancel drag — restore all original times
+			for si in _selected_indices.size():
+				var idx: int = _selected_indices[si]
+				if idx >= 0 and idx < _fire_triggers.size() and si < _drag_original_times.size():
+					_fire_triggers[idx] = _drag_original_times[si]
 			_mouse_down = false
 			_marker_state = MarkerState.IDLE
 		elif _marker_state == MarkerState.HOVERING:

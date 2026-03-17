@@ -10,12 +10,11 @@ var shield: float = 50.0
 var shield_max: int = 50
 var shield_regen: float = 5.0
 var speed: float = 400.0
-var _cell_size: float = 3.0
 var _hardpoint_controllers: Array = []
 var _player_area: Area2D = null
 var _hud: CanvasLayer = null
 var _weapon_data_per_hp: Array = []
-var _space_state: int = 0  # 0=all off, 1=bolt only, 2=blue_drop only, 3=both
+var _space_state: int = 0  # 0=all off, 1=all on
 
 # Chrome Stiletto drawing
 var _bank: float = 0.0
@@ -60,17 +59,11 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	shield = float(shield_max)
 	hull = hull_max
 
-	# Compute grid center for offset
-	var grid_center: Vector2 = Vector2(ship_data.grid_size.x / 2.0, ship_data.grid_size.y / 2.0)
-
-	# Create hardpoint controllers from loadout assignments
+	# Create hardpoint controllers from loadout assignments — all fire from center
 	var assignments: Dictionary = loadout.hardpoint_assignments
 	var hp_index: int = 0
 	for hp in ship_data.hardpoints:
 		var hp_id: String = str(hp.get("id", ""))
-		var gp: Array = hp.get("grid_pos", [0, 0])
-		var dir_deg: float = float(hp.get("direction_deg", 0.0))
-		var hp_pos: Vector2 = (Vector2(float(gp[0]), float(gp[1])) - grid_center) * _cell_size
 		var hp_label: String = str(hp.get("label", hp_id))
 
 		var assignment: Dictionary = assignments.get(hp_id, {})
@@ -84,9 +77,9 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 			continue
 		var controller := Node2D.new()
 		controller.set_script(load("res://scripts/game/hardpoint_controller.gd"))
-		controller.position = hp_pos
+		controller.position = Vector2.ZERO
 		add_child(controller)
-		controller.setup(weapon, dir_deg, proj_container, hp_index)
+		controller.setup(weapon, weapon.direction_deg, proj_container, hp_index)
 		# Hardpoints start deactivated
 		_hardpoint_controllers.append(controller)
 		_weapon_data_per_hp.append({
@@ -116,7 +109,7 @@ func _process(delta: float) -> void:
 	position += input_dir * speed * delta
 	# Clamp to screen
 	position.x = clampf(position.x, 50.0, 1870.0)
-	position.y = clampf(position.y, 50.0, 1030.0)
+	position.y = clampf(position.y, 50.0, 936.0)
 	# Shield regen
 	shield = minf(shield + shield_regen * delta, float(shield_max))
 
@@ -138,24 +131,14 @@ func _input(event: InputEvent) -> void:
 			_update_hud_hardpoints()
 			return
 
-	# Space: cycle through weapon states (bolt / blue_drop / both / off)
+	# Space: toggle all on/off
 	if event.is_action_pressed("hardpoints_max"):
-		_space_state = (_space_state + 1) % 4
-		match _space_state:
-			1:  # bolt only
-				_hardpoint_controllers[0].activate()
-				if _hardpoint_controllers.size() > 1:
-					_hardpoint_controllers[1].deactivate()
-			2:  # blue_drop only
-				_hardpoint_controllers[0].deactivate()
-				if _hardpoint_controllers.size() > 1:
-					_hardpoint_controllers[1].activate()
-			3:  # both
-				for c in _hardpoint_controllers:
-					c.activate()
-			0:  # all off
-				for c in _hardpoint_controllers:
-					c.deactivate()
+		_space_state = 1 - _space_state
+		for c in _hardpoint_controllers:
+			if _space_state == 1:
+				c.activate()
+			else:
+				c.deactivate()
 		_update_hud_hardpoints()
 		return
 
@@ -225,13 +208,6 @@ func _side_color(base: Color, side: float) -> Color:
 
 func _draw() -> void:
 	_draw_stiletto()
-	# Draw hardpoint markers
-	if ship_data:
-		var grid_center: Vector2 = Vector2(ship_data.grid_size.x / 2.0, ship_data.grid_size.y / 2.0)
-		for hp in ship_data.hardpoints:
-			var gp: Array = hp.get("grid_pos", [0, 0])
-			var pos: Vector2 = (Vector2(float(gp[0]), float(gp[1])) - grid_center) * _cell_size
-			draw_circle(pos, 3.0, Color(1.0, 0.7, 0.2, 0.6))
 
 
 func _draw_stiletto() -> void:

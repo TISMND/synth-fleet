@@ -1,3 +1,4 @@
+class_name HardpointController
 extends Node2D
 ## Per-hardpoint controller. Fires projectiles at normalized time positions (0.0–1.0)
 ## synced to LoopMixer playback. Audio is handled by LoopMixer (mute/unmute).

@@ -1,5 +1,5 @@
 extends Node2D
-## Game orchestrator — continuous playtest mode with chrome Stiletto + auto-equipped bolt.
+## Game orchestrator — loads ship + weapons from ShipRegistry + GameState slot_config.
 
 const WAVE_CONFIG: Array[Dictionary] = [
 	{"count": 6, "health": 30, "speed_min": 80.0, "speed_max": 140.0, "spawn_interval": 1.2, "delay_after": 3.0},
@@ -18,29 +18,8 @@ var _parallax_bg: ParallaxBackground = null
 func _ready() -> void:
 	_setup_world_environment()
 
-	# Create Stiletto ShipData programmatically
-	var ship := ShipData.new()
-	ship.id = "stiletto"
-	ship.display_name = "Stiletto"
-	ship.grid_size = Vector2i(32, 32)
-	ship.lines = []
-	ship.hardpoints = [
-		{"id": "hp_0", "label": "BOLT", "grid_pos": [16, 10], "direction_deg": 0.0},
-		{"id": "hp_1", "label": "DROP", "grid_pos": [16, 14], "direction_deg": 0.0},
-	]
-	ship.stats = {"hull_max": 9999, "shield_max": 9999, "speed": 400}
-
-	# Auto-equip weapons to hardpoints
-	GameState.current_ship_id = "stiletto"
-	GameState.set_hardpoint_weapon("hp_0", "bolt")
-	GameState.set_hardpoint_weapon("hp_1", "blue_drop")
-
-	# Fix rect_lightning style archetype if set to pulse_wave (should be bullet)
-	var bolt_style: ProjectileStyle = ProjectileStyleManager.load_by_id("rect_lightning")
-	if bolt_style and bolt_style.archetype == "pulse_wave":
-		bolt_style.archetype = "bullet"
-		ProjectileStyleManager.save(bolt_style.id, bolt_style.to_dict())
-
+	# Build ShipData from registry using player's selected ship
+	var ship: ShipData = ShipRegistry.build_ship_data(GameState.current_ship_index)
 	var loadout: LoadoutData = GameState.get_loadout_data()
 
 	# Set BPM

@@ -409,6 +409,24 @@ func set_float(key: String, value: float) -> void:
 	theme_changed.emit()
 
 
+# ── Status Bar Specs (shared between HUD and Hangar) ─────────
+
+static func get_status_bar_specs() -> Array:
+	return [
+		{"name": "SHIELD", "color_key": "accent", "color_fallback": Color(0, 0, 0, 0)},
+		{"name": "HULL", "color_key": "warning", "color_fallback": Color(0, 0, 0, 0)},
+		{"name": "THERMAL", "color_key": "", "color_fallback": Color(1.0, 0.6, 0.1)},
+		{"name": "ELECTRIC", "color_key": "", "color_fallback": Color(1.0, 0.9, 0.2)},
+	]
+
+
+func resolve_bar_color(spec: Dictionary) -> Color:
+	var key: String = str(spec.get("color_key", ""))
+	if key != "":
+		return get_color(key)
+	return spec.get("color_fallback", Color.WHITE) as Color
+
+
 # ── Grid Background Helper ────────────────────────────────────
 
 func apply_grid_background(color_rect: ColorRect) -> void:
