@@ -25,6 +25,8 @@ var _panels_samples_vbox: VBoxContainer
 var _supercharged_preview_bar: ProgressBar
 # Buttons tab: preview container (rebuilt on theme change)
 var _btn_preview_container: HBoxContainer
+# Per-state preview buttons in buttons tab (rebuilt on theme change)
+var _btn_state_containers: Array[HBoxContainer] = []
 
 # Typography tab inline preview labels keyed by size key
 var _typo_preview_labels: Dictionary = {}
@@ -461,56 +463,15 @@ func _build_buttons_tab() -> void:
 
 	var root := VBoxContainer.new()
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	root.add_theme_constant_override("separation", 10)
+	root.add_theme_constant_override("separation", 8)
 	scroll.add_child(root)
 
-	# ── Button Colors ──
-	var colors_header := Label.new()
-	colors_header.text = "Button Colors"
-	colors_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	colors_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	root.add_child(colors_header)
-
-	_add_color_picker_row(root, "accent", "Accent")
-	_add_color_picker_row(root, "positive", "Positive")
-
-	root.add_child(HSeparator.new())
-
-	# ── Style Presets ──
-	var presets_header := Label.new()
-	presets_header.text = "Style Presets"
-	presets_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	presets_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	root.add_child(presets_header)
-
-	var presets_row := HBoxContainer.new()
-	presets_row.add_theme_constant_override("separation", 6)
-	root.add_child(presets_row)
-
-	var style_names: Array[String] = []
-	for key in ThemeManager.BUTTON_STYLE_PRESETS:
-		style_names.append(str(key))
-	style_names.sort()
-
-	for style_name in style_names:
-		var style_btn := Button.new()
-		style_btn.text = style_name
-		style_btn.custom_minimum_size = Vector2(0, 32)
-		style_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var bound_name: String = style_name
-		style_btn.pressed.connect(func() -> void:
-			ThemeManager.apply_button_style_preset(bound_name)
-		)
-		presets_row.add_child(style_btn)
-
-	root.add_child(HSeparator.new())
-
-	# ── Preview ──
-	var preview_header := Label.new()
-	preview_header.text = "Preview"
-	preview_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	preview_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	root.add_child(preview_header)
+	# ── Interactive Preview ──
+	var interact_lbl := Label.new()
+	interact_lbl.text = "Interactive Preview"
+	interact_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	interact_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(interact_lbl)
 
 	_btn_preview_container = HBoxContainer.new()
 	_btn_preview_container.add_theme_constant_override("separation", 10)
@@ -519,95 +480,40 @@ func _build_buttons_tab() -> void:
 
 	root.add_child(HSeparator.new())
 
-	# ── Font ──
-	var font_header := Label.new()
-	font_header.text = "Font"
-	font_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	font_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	root.add_child(font_header)
+	# ── Button Colors ──
+	var colors_header := Label.new()
+	colors_header.text = "Colors"
+	colors_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	colors_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(colors_header)
 
-	_add_int_slider(root, "font_size_button", 8, 24, ThemeManager.get_font_size("font_size_button"))
-
-	root.add_child(HSeparator.new())
-
-	# ── Text Glow ──
-	var glow_header := Label.new()
-	glow_header.text = "Text Glow"
-	glow_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	glow_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	root.add_child(glow_header)
-
-	var glow_params: Dictionary = {
-		"btn_text_glow_size": {"min": 0.0, "max": 8.0},
-		"btn_text_glow_alpha": {"min": 0.0, "max": 1.0},
-		"btn_hover_glow_boost": {"min": 0.0, "max": 0.5},
-		"btn_pressed_glow_boost": {"min": 0.0, "max": 1.0},
-	}
-	for key in glow_params:
-		var params: Dictionary = glow_params[key]
-		var min_val: float = float(params["min"])
-		var max_val: float = float(params["max"])
-		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
+	_add_color_picker_row(root, "accent", "Accent")
+	_add_toggle(root, "btn_use_chrome", "Use Chrome Tint", ThemeManager.get_float("btn_use_chrome"))
 
 	root.add_child(HSeparator.new())
 
-	# ── Border & Fill ──
-	var border_header := Label.new()
-	border_header.text = "Border & Fill"
-	border_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	border_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	root.add_child(border_header)
-
-	var border_params: Dictionary = {
-		"btn_border_width": {"min": 0.0, "max": 4.0},
-		"btn_border_bottom_only": {"min": 0.0, "max": 1.0},
-		"btn_corner_radius": {"min": 0.0, "max": 20.0},
-		"btn_border_alpha": {"min": 0.0, "max": 1.0},
-		"btn_bg_alpha": {"min": 0.0, "max": 0.6},
-	}
-	for key in border_params:
-		var params: Dictionary = border_params[key]
-		var min_val: float = float(params["min"])
-		var max_val: float = float(params["max"])
-		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
+	# ── Global Shape ──
+	_add_section_header(root, "Shape")
+	_add_compact_float(root, "border_width", "btn_border_width", 0.0, 4.0)
+	_add_compact_float(root, "corner_radius", "btn_corner_radius", 0.0, 20.0)
+	_add_toggle(root, "btn_border_bottom_only", "Bottom Border Only", ThemeManager.get_float("btn_border_bottom_only"))
+	_add_compact_int(root, "font_size", "font_size_button", 8, 24)
 
 	root.add_child(HSeparator.new())
 
-	# ── Hover & Press ──
-	var hover_header := Label.new()
-	hover_header.text = "Hover & Press"
-	hover_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	hover_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	root.add_child(hover_header)
-
-	var hover_params: Dictionary = {
-		"btn_hover_brighten": {"min": 0.0, "max": 0.5},
-		"btn_pressed_darken": {"min": 0.0, "max": 0.4},
-	}
-	for key in hover_params:
-		var params: Dictionary = hover_params[key]
-		var min_val: float = float(params["min"])
-		var max_val: float = float(params["max"])
-		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
-
-	root.add_child(HSeparator.new())
-
-	# ── Shadow ──
-	var shadow_header := Label.new()
-	shadow_header.text = "Shadow"
-	shadow_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	shadow_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	root.add_child(shadow_header)
-
-	var shadow_params: Dictionary = {
-		"btn_shadow_size": {"min": 0.0, "max": 12.0},
-		"btn_shadow_alpha": {"min": 0.0, "max": 1.0},
-	}
-	for key in shadow_params:
-		var params: Dictionary = shadow_params[key]
-		var min_val: float = float(params["min"])
-		var max_val: float = float(params["max"])
-		_add_float_slider(root, key, min_val, max_val, ThemeManager.get_float(key))
+	# ── Per-State Sections ──
+	var state_defs: Array[Dictionary] = [
+		{"label": "Normal", "prefix": "btn_normal", "lock": ""},
+		{"label": "Hover", "prefix": "btn_hover", "lock": "hover"},
+		{"label": "Pressed", "prefix": "btn_pressed", "lock": "pressed"},
+		{"label": "Disabled", "prefix": "btn_disabled", "lock": "disabled"},
+	]
+	for def in state_defs:
+		var state_label: String = str(def["label"])
+		var prefix: String = str(def["prefix"])
+		var lock: String = str(def["lock"])
+		_build_btn_state_section(root, state_label, prefix, lock)
+		root.add_child(HSeparator.new())
 
 
 func _build_panels_tab() -> void:
@@ -895,23 +801,189 @@ func _build_hud_tab() -> void:
 
 
 func _populate_btn_preview() -> void:
-	# Show all 4 states locked in place + 1 interactive button
-	var states: Array[String] = ["NORMAL", "HOVER", "PRESSED", "DISABLED", "INTERACTIVE"]
-	var lock_states: Array[String] = ["", "hover", "pressed", "disabled", ""]
-	for i in states.size():
-		var btn := Button.new()
-		btn.text = states[i]
-		btn.custom_minimum_size = Vector2(130, 42)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		ThemeManager.apply_button_style(btn)
-		var lock: String = lock_states[i]
-		if lock != "":
-			ThemeManager.lock_button_state(btn, lock)
-		elif i == 0:
-			# Normal state: just block mouse so it stays in normal look
-			btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_btn_preview_container.add_child(btn)
-		_preview_buttons.append(btn)
+	# Single interactive button at top — natural text width
+	var btn := Button.new()
+	btn.text = "INTERACTIVE"
+	btn.custom_minimum_size = Vector2(140, 38)
+	ThemeManager.apply_button_style(btn)
+	_btn_preview_container.add_child(btn)
+	_preview_buttons.append(btn)
+
+
+func _build_btn_state_section(parent: VBoxContainer, state_label: String,
+		prefix: String, lock_state: String) -> void:
+	# Header row: section label + container for locked preview button
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 12)
+	parent.add_child(header_row)
+
+	var lbl := Label.new()
+	lbl.text = state_label
+	lbl.custom_minimum_size.x = 70
+	lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	header_row.add_child(lbl)
+
+	# Preview button in its own container so we can rebuild it on theme change
+	var btn_container := HBoxContainer.new()
+	header_row.add_child(btn_container)
+	btn_container.set_meta("_state_label", state_label)
+	btn_container.set_meta("_lock_state", lock_state)
+	_btn_state_containers.append(btn_container)
+	_rebuild_state_preview_btn(btn_container, state_label, lock_state)
+
+	# 6 sliders in 2-column grid (3 rows × 2 cols)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 2)
+	parent.add_child(grid)
+
+	_add_compact_float_to(grid, "border_alpha", prefix + "_border_alpha", 0.0, 1.0)
+	_add_compact_float_to(grid, "bg_alpha", prefix + "_bg_alpha", 0.0, 1.0)
+	_add_compact_float_to(grid, "glow_size", prefix + "_glow_size", 0.0, 10.0)
+	_add_compact_float_to(grid, "glow_alpha", prefix + "_glow_alpha", 0.0, 1.0)
+	_add_compact_float_to(grid, "font_opacity", prefix + "_font_opacity", 0.0, 1.0)
+	_add_compact_float_to(grid, "font_whiten", prefix + "_font_whiten", 0.0, 1.0)
+
+
+func _rebuild_state_preview_btn(container: HBoxContainer, state_label: String, lock_state: String) -> void:
+	for child in container.get_children():
+		child.queue_free()
+	var preview_btn := Button.new()
+	preview_btn.text = state_label.to_upper()
+	preview_btn.custom_minimum_size = Vector2(120, 34)
+	ThemeManager.apply_button_style(preview_btn)
+	if lock_state != "":
+		ThemeManager.lock_button_state(preview_btn, lock_state)
+	else:
+		preview_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(preview_btn)
+	_preview_buttons.append(preview_btn)
+
+
+func _add_section_header(parent: Control, text: String) -> void:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	parent.add_child(lbl)
+
+
+func _add_compact_float(parent: Control, display_name: String, key: String,
+		min_val: float, max_val: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	parent.add_child(row)
+
+	var lbl := Label.new()
+	lbl.text = display_name
+	lbl.custom_minimum_size.x = 110
+	lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	row.add_child(lbl)
+
+	var slider := HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.step = (max_val - min_val) / 200.0
+	slider.value = ThemeManager.get_float(key)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 80
+	row.add_child(slider)
+
+	var val_lbl := Label.new()
+	val_lbl.text = "%.2f" % slider.value
+	val_lbl.custom_minimum_size.x = 38
+	val_lbl.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+	val_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	row.add_child(val_lbl)
+
+	var bound_key: String = key
+	slider.value_changed.connect(func(val: float) -> void:
+		val_lbl.text = "%.2f" % val
+		if not _updating_from_theme:
+			ThemeManager.set_float(bound_key, val)
+	)
+	_float_sliders[key] = slider
+
+
+func _add_compact_float_to(parent: Control, display_name: String, key: String,
+		min_val: float, max_val: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(row)
+
+	var lbl := Label.new()
+	lbl.text = display_name
+	lbl.custom_minimum_size.x = 90
+	lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	row.add_child(lbl)
+
+	var slider := HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.step = (max_val - min_val) / 200.0
+	slider.value = ThemeManager.get_float(key)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 60
+	row.add_child(slider)
+
+	var val_lbl := Label.new()
+	val_lbl.text = "%.2f" % slider.value
+	val_lbl.custom_minimum_size.x = 34
+	val_lbl.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+	val_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	row.add_child(val_lbl)
+
+	var bound_key: String = key
+	slider.value_changed.connect(func(val: float) -> void:
+		val_lbl.text = "%.2f" % val
+		if not _updating_from_theme:
+			ThemeManager.set_float(bound_key, val)
+	)
+	_float_sliders[key] = slider
+
+
+func _add_compact_int(parent: Control, display_name: String, key: String,
+		min_val: int, max_val: int) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	parent.add_child(row)
+
+	var lbl := Label.new()
+	lbl.text = display_name
+	lbl.custom_minimum_size.x = 110
+	lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	row.add_child(lbl)
+
+	var slider := HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.step = 1
+	slider.value = ThemeManager.get_font_size(key)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 80
+	row.add_child(slider)
+
+	var val_lbl := Label.new()
+	val_lbl.text = str(int(slider.value))
+	val_lbl.custom_minimum_size.x = 38
+	val_lbl.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+	val_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	row.add_child(val_lbl)
+
+	var bound_key: String = key
+	slider.value_changed.connect(func(val: float) -> void:
+		val_lbl.text = str(int(val))
+		if not _updating_from_theme:
+			ThemeManager.set_font_size(bound_key, int(val))
+	)
+	_int_sliders[key] = slider
 
 
 func _populate_panels_samples(vbox: VBoxContainer) -> void:
@@ -1439,6 +1511,12 @@ func _do_rebuild() -> void:
 	_build_hud_tab_content(_hud_tab_vbox)
 	_populate_panels_samples(_panels_samples_vbox)
 	_populate_btn_preview()
+	# Rebuild per-state locked preview buttons
+	for container in _btn_state_containers:
+		if is_instance_valid(container):
+			var sl: String = str(container.get_meta("_state_label"))
+			var ls: String = str(container.get_meta("_lock_state"))
+			_rebuild_state_preview_btn(container, sl, ls)
 
 
 func _refresh_preset_list() -> void:

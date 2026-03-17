@@ -76,21 +76,39 @@ var _floats: Dictionary = {
 	"led_bloom_falloff": 1.0,
 	"led_smudge_blur": 0.008,
 	"led_segment_width_px": 10.0,
+	# Button globals
 	"btn_border_width": 1.0,
-	"btn_corner_radius": 2.0,
-	"btn_border_alpha": 0.8,
-	"btn_bg_alpha": 0.15,
-	"btn_hover_brighten": 0.12,
-	"btn_pressed_darken": 0.1,
-	"btn_shadow_size": 0.0,
-	"btn_shadow_alpha": 0.0,
-	"btn_text_glow_size": 3.0,
-	"btn_text_glow_alpha": 0.7,
-	"btn_hover_glow_boost": 0.3,
-	"btn_pressed_glow_boost": 0.5,
+	"btn_corner_radius": 1.0,
 	"btn_border_bottom_only": 0.0,
 	"btn_use_chrome": 0.0,
-	"btn_text_dim": 0.0,
+	# Button per-state: normal (6 keys)
+	"btn_normal_border_alpha": 0.3,
+	"btn_normal_bg_alpha": 0.0,
+	"btn_normal_glow_size": 2.0,
+	"btn_normal_glow_alpha": 0.12,
+	"btn_normal_font_opacity": 0.45,
+	"btn_normal_font_whiten": 0.0,
+	# Button per-state: hover (6 keys)
+	"btn_hover_border_alpha": 0.8,
+	"btn_hover_bg_alpha": 0.04,
+	"btn_hover_glow_size": 5.0,
+	"btn_hover_glow_alpha": 0.85,
+	"btn_hover_font_opacity": 1.0,
+	"btn_hover_font_whiten": 0.15,
+	# Button per-state: pressed (6 keys)
+	"btn_pressed_border_alpha": 1.0,
+	"btn_pressed_bg_alpha": 0.08,
+	"btn_pressed_glow_size": 7.0,
+	"btn_pressed_glow_alpha": 1.0,
+	"btn_pressed_font_opacity": 1.0,
+	"btn_pressed_font_whiten": 0.85,
+	# Button per-state: disabled (6 keys)
+	"btn_disabled_border_alpha": 0.12,
+	"btn_disabled_bg_alpha": 0.0,
+	"btn_disabled_glow_size": 0.0,
+	"btn_disabled_glow_alpha": 0.0,
+	"btn_disabled_font_opacity": 0.2,
+	"btn_disabled_font_whiten": 0.0,
 	"header_chrome_enabled": 0.0,
 	"header_chrome_highlight_pos": 0.25,
 	"header_chrome_highlight_width": 0.12,
@@ -187,20 +205,33 @@ const BUILTIN_PRESETS: Dictionary = {
 			"led_smudge_blur": 1.0,
 			"led_segment_width_px": 10.0,
 			"btn_border_width": 1.0,
-			"btn_corner_radius": 2.0,
-			"btn_border_alpha": 0.8,
-			"btn_bg_alpha": 0.15,
-			"btn_hover_brighten": 0.12,
-			"btn_pressed_darken": 0.1,
-			"btn_shadow_size": 0.0,
-			"btn_shadow_alpha": 0.0,
-			"btn_text_glow_size": 3.0,
-			"btn_text_glow_alpha": 0.7,
-			"btn_hover_glow_boost": 0.3,
-			"btn_pressed_glow_boost": 0.5,
+			"btn_corner_radius": 1.0,
 			"btn_border_bottom_only": 0.0,
 			"btn_use_chrome": 0.0,
-			"btn_text_dim": 0.0,
+			"btn_normal_border_alpha": 0.3,
+			"btn_normal_bg_alpha": 0.0,
+			"btn_normal_glow_size": 2.0,
+			"btn_normal_glow_alpha": 0.12,
+			"btn_normal_font_opacity": 0.45,
+			"btn_normal_font_whiten": 0.0,
+			"btn_hover_border_alpha": 0.8,
+			"btn_hover_bg_alpha": 0.04,
+			"btn_hover_glow_size": 5.0,
+			"btn_hover_glow_alpha": 0.85,
+			"btn_hover_font_opacity": 1.0,
+			"btn_hover_font_whiten": 0.15,
+			"btn_pressed_border_alpha": 1.0,
+			"btn_pressed_bg_alpha": 0.08,
+			"btn_pressed_glow_size": 7.0,
+			"btn_pressed_glow_alpha": 1.0,
+			"btn_pressed_font_opacity": 1.0,
+			"btn_pressed_font_whiten": 0.85,
+			"btn_disabled_border_alpha": 0.12,
+			"btn_disabled_bg_alpha": 0.0,
+			"btn_disabled_glow_size": 0.0,
+			"btn_disabled_glow_alpha": 0.0,
+			"btn_disabled_font_opacity": 0.2,
+			"btn_disabled_font_whiten": 0.0,
 			"supercharged_speed": 1.5,
 			"supercharged_intensity": 1.0,
 			"supercharged_distortion": 0.15,
@@ -279,20 +310,33 @@ const BUILTIN_PRESETS: Dictionary = {
 			"led_smudge_blur": 1.0,
 			"led_segment_width_px": 10.0,
 			"btn_border_width": 1.0,
-			"btn_corner_radius": 2.0,
-			"btn_border_alpha": 0.8,
-			"btn_bg_alpha": 0.15,
-			"btn_hover_brighten": 0.12,
-			"btn_pressed_darken": 0.1,
-			"btn_shadow_size": 0.0,
-			"btn_shadow_alpha": 0.0,
-			"btn_text_glow_size": 3.0,
-			"btn_text_glow_alpha": 0.7,
-			"btn_hover_glow_boost": 0.3,
-			"btn_pressed_glow_boost": 0.5,
+			"btn_corner_radius": 1.0,
 			"btn_border_bottom_only": 0.0,
 			"btn_use_chrome": 0.0,
-			"btn_text_dim": 0.0,
+			"btn_normal_border_alpha": 0.3,
+			"btn_normal_bg_alpha": 0.0,
+			"btn_normal_glow_size": 2.0,
+			"btn_normal_glow_alpha": 0.12,
+			"btn_normal_font_opacity": 0.45,
+			"btn_normal_font_whiten": 0.0,
+			"btn_hover_border_alpha": 0.8,
+			"btn_hover_bg_alpha": 0.04,
+			"btn_hover_glow_size": 5.0,
+			"btn_hover_glow_alpha": 0.85,
+			"btn_hover_font_opacity": 1.0,
+			"btn_hover_font_whiten": 0.15,
+			"btn_pressed_border_alpha": 1.0,
+			"btn_pressed_bg_alpha": 0.08,
+			"btn_pressed_glow_size": 7.0,
+			"btn_pressed_glow_alpha": 1.0,
+			"btn_pressed_font_opacity": 1.0,
+			"btn_pressed_font_whiten": 0.85,
+			"btn_disabled_border_alpha": 0.12,
+			"btn_disabled_bg_alpha": 0.0,
+			"btn_disabled_glow_size": 0.0,
+			"btn_disabled_glow_alpha": 0.0,
+			"btn_disabled_font_opacity": 0.2,
+			"btn_disabled_font_whiten": 0.0,
 			"supercharged_speed": 1.5,
 			"supercharged_intensity": 1.0,
 			"supercharged_distortion": 0.15,
@@ -371,20 +415,33 @@ const BUILTIN_PRESETS: Dictionary = {
 			"led_smudge_blur": 1.0,
 			"led_segment_width_px": 10.0,
 			"btn_border_width": 1.0,
-			"btn_corner_radius": 2.0,
-			"btn_border_alpha": 0.8,
-			"btn_bg_alpha": 0.15,
-			"btn_hover_brighten": 0.12,
-			"btn_pressed_darken": 0.1,
-			"btn_shadow_size": 0.0,
-			"btn_shadow_alpha": 0.0,
-			"btn_text_glow_size": 3.0,
-			"btn_text_glow_alpha": 0.7,
-			"btn_hover_glow_boost": 0.3,
-			"btn_pressed_glow_boost": 0.5,
+			"btn_corner_radius": 1.0,
 			"btn_border_bottom_only": 0.0,
 			"btn_use_chrome": 0.0,
-			"btn_text_dim": 0.0,
+			"btn_normal_border_alpha": 0.3,
+			"btn_normal_bg_alpha": 0.0,
+			"btn_normal_glow_size": 2.0,
+			"btn_normal_glow_alpha": 0.12,
+			"btn_normal_font_opacity": 0.45,
+			"btn_normal_font_whiten": 0.0,
+			"btn_hover_border_alpha": 0.8,
+			"btn_hover_bg_alpha": 0.04,
+			"btn_hover_glow_size": 5.0,
+			"btn_hover_glow_alpha": 0.85,
+			"btn_hover_font_opacity": 1.0,
+			"btn_hover_font_whiten": 0.15,
+			"btn_pressed_border_alpha": 1.0,
+			"btn_pressed_bg_alpha": 0.08,
+			"btn_pressed_glow_size": 7.0,
+			"btn_pressed_glow_alpha": 1.0,
+			"btn_pressed_font_opacity": 1.0,
+			"btn_pressed_font_whiten": 0.85,
+			"btn_disabled_border_alpha": 0.12,
+			"btn_disabled_bg_alpha": 0.0,
+			"btn_disabled_glow_size": 0.0,
+			"btn_disabled_glow_alpha": 0.0,
+			"btn_disabled_font_opacity": 0.2,
+			"btn_disabled_font_whiten": 0.0,
 			"supercharged_speed": 2.0,
 			"supercharged_intensity": 1.2,
 			"supercharged_distortion": 0.2,
@@ -839,136 +896,94 @@ func apply_header_chrome(label: Label) -> void:
 
 # ── Button Style Helper ──────────────────────────────────────
 
-const BUTTON_STYLE_PRESETS: Dictionary = {
-	"Neon Wire": {
-		"btn_border_width": 1.0, "btn_corner_radius": 1.0, "btn_border_alpha": 0.9, "btn_bg_alpha": 0.0,
-		"btn_hover_brighten": 0.2, "btn_pressed_darken": 0.1, "btn_shadow_size": 0.0, "btn_shadow_alpha": 0.0,
-		"btn_text_glow_size": 4.0, "btn_text_glow_alpha": 0.8, "btn_hover_glow_boost": 0.2, "btn_pressed_glow_boost": 0.4,
-		"btn_border_bottom_only": 0.0, "btn_use_chrome": 0.0, "btn_text_dim": 0.0,
-	},
-	"Chrome Wire": {
-		"btn_border_width": 1.0, "btn_corner_radius": 1.0, "btn_border_alpha": 1.0, "btn_bg_alpha": 0.06,
-		"btn_hover_brighten": 0.25, "btn_pressed_darken": 0.0, "btn_shadow_size": 2.0, "btn_shadow_alpha": 0.3,
-		"btn_text_glow_size": 3.0, "btn_text_glow_alpha": 0.6, "btn_hover_glow_boost": 0.25, "btn_pressed_glow_boost": 0.4,
-		"btn_border_bottom_only": 0.0, "btn_use_chrome": 1.0, "btn_text_dim": 0.0,
-	},
-	"Neon Bulb": {
-		"btn_border_width": 1.0, "btn_corner_radius": 1.0, "btn_border_alpha": 0.4, "btn_bg_alpha": 0.0,
-		"btn_hover_brighten": 0.3, "btn_pressed_darken": 0.0, "btn_shadow_size": 0.0, "btn_shadow_alpha": 0.0,
-		"btn_text_glow_size": 5.0, "btn_text_glow_alpha": 0.08, "btn_hover_glow_boost": 0.7, "btn_pressed_glow_boost": 0.92,
-		"btn_border_bottom_only": 0.0, "btn_use_chrome": 0.0, "btn_text_dim": 0.55,
-	},
-	"Chrome Bulb": {
-		"btn_border_width": 1.0, "btn_corner_radius": 0.0, "btn_border_alpha": 0.6, "btn_bg_alpha": 0.04,
-		"btn_hover_brighten": 0.3, "btn_pressed_darken": 0.0, "btn_shadow_size": 2.0, "btn_shadow_alpha": 0.2,
-		"btn_text_glow_size": 5.0, "btn_text_glow_alpha": 0.05, "btn_hover_glow_boost": 0.65, "btn_pressed_glow_boost": 0.95,
-		"btn_border_bottom_only": 0.0, "btn_use_chrome": 1.0, "btn_text_dim": 0.5,
-	},
-	"Ghost Neon": {
-		"btn_border_width": 1.0, "btn_corner_radius": 0.0, "btn_border_alpha": 0.2, "btn_bg_alpha": 0.0,
-		"btn_hover_brighten": 0.35, "btn_pressed_darken": 0.0, "btn_shadow_size": 0.0, "btn_shadow_alpha": 0.0,
-		"btn_text_glow_size": 6.0, "btn_text_glow_alpha": 0.0, "btn_hover_glow_boost": 0.8, "btn_pressed_glow_boost": 1.0,
-		"btn_border_bottom_only": 0.0, "btn_use_chrome": 0.0, "btn_text_dim": 0.7,
-	},
-}
+func _btn_font_color(base: Color, opacity: float, whiten: float) -> Color:
+	var c: Color = base.lerp(Color.WHITE, whiten)
+	c.a = opacity
+	return c
+
+
+func _btn_make_stylebox(col: Color, border_a: float, bg_a: float,
+		border_w: int, corner_r: int, bottom_only: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(col.r, col.g, col.b, bg_a)
+	sb.border_color = Color(col.r, col.g, col.b, border_a)
+	sb.set_border_width_all(border_w)
+	if bottom_only:
+		sb.set_border_width_all(0)
+		sb.border_width_bottom = border_w
+	sb.set_corner_radius_all(corner_r)
+	sb.set_content_margin_all(8)
+	return sb
+
 
 func apply_button_style(btn: Button) -> void:
+	# Global params
 	var border_w: int = int(get_float("btn_border_width"))
 	var corner_r: int = int(get_float("btn_corner_radius"))
-	var border_a: float = get_float("btn_border_alpha")
-	var bg_a: float = get_float("btn_bg_alpha")
-	var hover_b: float = get_float("btn_hover_brighten")
-	var press_d: float = get_float("btn_pressed_darken")
-	var shadow_s: int = int(get_float("btn_shadow_size"))
-	var shadow_a: float = get_float("btn_shadow_alpha")
 	var bottom_only: bool = get_float("btn_border_bottom_only") > 0.5
 	var use_chrome: bool = get_float("btn_use_chrome") > 0.5
-	var text_dim: float = get_float("btn_text_dim")
 
 	var accent: Color = get_color("accent")
 	var text_col: Color = get_color("text")
-
-	# Chrome mode: derive colors from chrome_tint instead of accent
-	var base_col: Color = accent
-	if use_chrome:
-		base_col = get_color("chrome_tint")
-
-	var hover_col: Color = base_col.lightened(hover_b)
-	var press_col: Color
-	if press_d > 0.01:
-		press_col = base_col.darkened(press_d)
-	else:
-		# For chrome/neon press: go brighter instead of darker
-		press_col = base_col.lightened(hover_b + 0.15)
-
-	# Normal state
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(base_col.r, base_col.g, base_col.b, bg_a)
-	normal.border_color = Color(base_col.r, base_col.g, base_col.b, border_a)
-	normal.set_border_width_all(border_w)
-	if bottom_only:
-		normal.set_border_width_all(0)
-		normal.border_width_bottom = border_w
-	normal.set_corner_radius_all(corner_r)
-	normal.set_content_margin_all(8)
-	if shadow_s > 0 and shadow_a > 0.0:
-		normal.shadow_color = Color(base_col.r, base_col.g, base_col.b, shadow_a * 0.5)
-		normal.shadow_size = shadow_s
-	btn.add_theme_stylebox_override("normal", normal)
-
-	# Hover state
-	var hover := StyleBoxFlat.new()
-	hover.bg_color = Color(hover_col.r, hover_col.g, hover_col.b, bg_a + 0.1)
-	hover.border_color = Color(hover_col.r, hover_col.g, hover_col.b, min(border_a + 0.15, 1.0))
-	hover.set_border_width_all(border_w)
-	if bottom_only:
-		hover.set_border_width_all(0)
-		hover.border_width_bottom = border_w
-	hover.set_corner_radius_all(corner_r)
-	hover.set_content_margin_all(8)
-	if shadow_s > 0 and shadow_a > 0.0:
-		hover.shadow_color = Color(base_col.r, base_col.g, base_col.b, shadow_a)
-		hover.shadow_size = shadow_s + 2
-	btn.add_theme_stylebox_override("hover", hover)
-
-	# Pressed state
-	var pressed := StyleBoxFlat.new()
-	pressed.bg_color = Color(press_col.r, press_col.g, press_col.b, bg_a + 0.2)
-	pressed.border_color = Color(press_col.r, press_col.g, press_col.b, border_a)
-	pressed.set_border_width_all(border_w)
-	if bottom_only:
-		pressed.set_border_width_all(0)
-		pressed.border_width_bottom = border_w
-	pressed.set_corner_radius_all(corner_r)
-	pressed.set_content_margin_all(8)
-	btn.add_theme_stylebox_override("pressed", pressed)
-
-	# Disabled state
-	var disabled := StyleBoxFlat.new()
+	var base_col: Color = get_color("chrome_tint") if use_chrome else accent
 	var dim_col: Color = get_color("disabled")
-	disabled.bg_color = Color(dim_col.r, dim_col.g, dim_col.b, bg_a * 0.5)
-	disabled.border_color = Color(dim_col.r, dim_col.g, dim_col.b, border_a * 0.4)
-	disabled.set_border_width_all(border_w)
-	if bottom_only:
-		disabled.set_border_width_all(0)
-		disabled.border_width_bottom = border_w
-	disabled.set_corner_radius_all(corner_r)
-	disabled.set_content_margin_all(8)
-	btn.add_theme_stylebox_override("disabled", disabled)
 
-	# Focus (same as hover)
-	btn.add_theme_stylebox_override("focus", hover.duplicate())
+	# Per-state params (6 each)
+	var n_border_a: float = get_float("btn_normal_border_alpha")
+	var n_bg_a: float = get_float("btn_normal_bg_alpha")
+	var n_glow_sz: int = int(get_float("btn_normal_glow_size"))
+	var n_glow_a: float = get_float("btn_normal_glow_alpha")
+	var n_font_op: float = get_float("btn_normal_font_opacity")
+	var n_font_wh: float = get_float("btn_normal_font_whiten")
 
-	# Font colors — dim normal text for neon-bulb effect
-	var normal_text: Color = text_col
-	if text_dim > 0.0:
-		normal_text = text_col.darkened(text_dim)
-	btn.add_theme_color_override("font_color", normal_text)
-	btn.add_theme_color_override("font_hover_color", hover_col.lightened(0.2))
-	btn.add_theme_color_override("font_pressed_color", Color(1.0, 1.0, 1.0) if press_d <= 0.01 else press_col)
-	btn.add_theme_color_override("font_disabled_color", dim_col)
+	var h_border_a: float = get_float("btn_hover_border_alpha")
+	var h_bg_a: float = get_float("btn_hover_bg_alpha")
+	var h_glow_sz: int = int(get_float("btn_hover_glow_size"))
+	var h_glow_a: float = get_float("btn_hover_glow_alpha")
+	var h_font_op: float = get_float("btn_hover_font_opacity")
+	var h_font_wh: float = get_float("btn_hover_font_whiten")
 
-	# Font — prefer font_button, fall back to font_body
+	var p_border_a: float = get_float("btn_pressed_border_alpha")
+	var p_bg_a: float = get_float("btn_pressed_bg_alpha")
+	var p_glow_sz: int = int(get_float("btn_pressed_glow_size"))
+	var p_glow_a: float = get_float("btn_pressed_glow_alpha")
+	var p_font_op: float = get_float("btn_pressed_font_opacity")
+	var p_font_wh: float = get_float("btn_pressed_font_whiten")
+
+	var d_border_a: float = get_float("btn_disabled_border_alpha")
+	var d_bg_a: float = get_float("btn_disabled_bg_alpha")
+	var d_glow_sz: int = int(get_float("btn_disabled_glow_size"))
+	var d_glow_a: float = get_float("btn_disabled_glow_alpha")
+	var d_font_op: float = get_float("btn_disabled_font_opacity")
+	var d_font_wh: float = get_float("btn_disabled_font_whiten")
+
+	# StyleBoxes
+	var normal_sb: StyleBoxFlat = _btn_make_stylebox(base_col, n_border_a, n_bg_a,
+		border_w, corner_r, bottom_only)
+	var hover_sb: StyleBoxFlat = _btn_make_stylebox(base_col, h_border_a, h_bg_a,
+		border_w, corner_r, bottom_only)
+	var pressed_sb: StyleBoxFlat = _btn_make_stylebox(base_col, p_border_a, p_bg_a,
+		border_w, corner_r, bottom_only)
+	var disabled_sb: StyleBoxFlat = _btn_make_stylebox(dim_col, d_border_a, d_bg_a,
+		border_w, corner_r, bottom_only)
+
+	btn.add_theme_stylebox_override("normal", normal_sb)
+	btn.add_theme_stylebox_override("hover", hover_sb)
+	btn.add_theme_stylebox_override("pressed", pressed_sb)
+	btn.add_theme_stylebox_override("disabled", disabled_sb)
+	btn.add_theme_stylebox_override("focus", hover_sb.duplicate())
+
+	# Font colors via opacity + whiten
+	var n_font: Color = _btn_font_color(text_col, n_font_op, n_font_wh)
+	var h_font: Color = _btn_font_color(text_col, h_font_op, h_font_wh)
+	var p_font: Color = _btn_font_color(text_col, p_font_op, p_font_wh)
+	var d_font: Color = _btn_font_color(dim_col, d_font_op, d_font_wh)
+	btn.add_theme_color_override("font_color", n_font)
+	btn.add_theme_color_override("font_hover_color", h_font)
+	btn.add_theme_color_override("font_pressed_color", p_font)
+	btn.add_theme_color_override("font_disabled_color", d_font)
+
+	# Font
 	var btn_font: Font = get_font("font_button")
 	if not btn_font:
 		btn_font = get_font("font_body")
@@ -976,48 +991,49 @@ func apply_button_style(btn: Button) -> void:
 		btn.add_theme_font_override("font", btn_font)
 	btn.add_theme_font_size_override("font_size", get_font_size("font_size_button"))
 
-	# Text glow (outline) — per-state via signal connections
-	var glow_size: int = int(get_float("btn_text_glow_size"))
-	var glow_alpha: float = get_float("btn_text_glow_alpha")
-	var hover_glow_b: float = get_float("btn_hover_glow_boost")
-	var press_glow_b: float = get_float("btn_pressed_glow_boost")
-
-	# Clear old glow signal connections via metadata tagging
+	# Outline glow — per-state size + alpha via signal lambdas
 	_disconnect_btn_glow(btn)
 
-	if glow_size > 0:
-		btn.add_theme_constant_override("outline_size", glow_size)
-		var outline_base: Color = base_col
-		var normal_outline: Color = Color(outline_base.r, outline_base.g, outline_base.b, glow_alpha)
-		var hover_outline: Color = Color(hover_col.r, hover_col.g, hover_col.b, minf(glow_alpha + hover_glow_b, 1.0))
-		var press_outline: Color = Color(1.0, 1.0, 1.0, minf(glow_alpha + press_glow_b, 1.0))
-		btn.add_theme_color_override("font_outline_color", normal_outline)
+	var n_outline: Color = Color(base_col.r, base_col.g, base_col.b, n_glow_a)
+	var h_outline: Color = Color(base_col.r, base_col.g, base_col.b, h_glow_a)
+	var p_outline: Color = Color(1.0, 1.0, 1.0, p_glow_a)
+	var d_outline: Color = Color(dim_col.r, dim_col.g, dim_col.b, d_glow_a)
 
-		# Store computed outline colors as metadata for locked-state preview
-		btn.set_meta("_outline_normal", normal_outline)
-		btn.set_meta("_outline_hover", hover_outline)
-		btn.set_meta("_outline_press", press_outline)
+	# Store for lock_button_state
+	btn.set_meta("_outline_normal", n_outline)
+	btn.set_meta("_outline_hover", h_outline)
+	btn.set_meta("_outline_press", p_outline)
+	btn.set_meta("_outline_disabled", d_outline)
+	btn.set_meta("_glow_sz_normal", n_glow_sz)
+	btn.set_meta("_glow_sz_hover", h_glow_sz)
+	btn.set_meta("_glow_sz_press", p_glow_sz)
+	btn.set_meta("_glow_sz_disabled", d_glow_sz)
 
-		var enter_fn: Callable = func() -> void:
-			btn.add_theme_color_override("font_outline_color", hover_outline)
-		var exit_fn: Callable = func() -> void:
-			btn.add_theme_color_override("font_outline_color", normal_outline)
-		var down_fn: Callable = func() -> void:
-			btn.add_theme_color_override("font_outline_color", press_outline)
-		var up_fn: Callable = func() -> void:
-			btn.add_theme_color_override("font_outline_color", hover_outline)
+	# Set initial normal state
+	btn.add_theme_constant_override("outline_size", n_glow_sz)
+	btn.add_theme_color_override("font_outline_color", n_outline)
 
-		btn.mouse_entered.connect(enter_fn)
-		btn.mouse_exited.connect(exit_fn)
-		btn.button_down.connect(down_fn)
-		btn.button_up.connect(up_fn)
-		btn.set_meta("_glow_enter", enter_fn)
-		btn.set_meta("_glow_exit", exit_fn)
-		btn.set_meta("_glow_down", down_fn)
-		btn.set_meta("_glow_up", up_fn)
-	else:
-		btn.add_theme_constant_override("outline_size", 0)
-		btn.remove_theme_color_override("font_outline_color")
+	var enter_fn: Callable = func() -> void:
+		btn.add_theme_constant_override("outline_size", h_glow_sz)
+		btn.add_theme_color_override("font_outline_color", h_outline)
+	var exit_fn: Callable = func() -> void:
+		btn.add_theme_constant_override("outline_size", n_glow_sz)
+		btn.add_theme_color_override("font_outline_color", n_outline)
+	var down_fn: Callable = func() -> void:
+		btn.add_theme_constant_override("outline_size", p_glow_sz)
+		btn.add_theme_color_override("font_outline_color", p_outline)
+	var up_fn: Callable = func() -> void:
+		btn.add_theme_constant_override("outline_size", h_glow_sz)
+		btn.add_theme_color_override("font_outline_color", h_outline)
+
+	btn.mouse_entered.connect(enter_fn)
+	btn.mouse_exited.connect(exit_fn)
+	btn.button_down.connect(down_fn)
+	btn.button_up.connect(up_fn)
+	btn.set_meta("_glow_enter", enter_fn)
+	btn.set_meta("_glow_exit", exit_fn)
+	btn.set_meta("_glow_down", down_fn)
+	btn.set_meta("_glow_up", up_fn)
 
 
 func _disconnect_btn_glow(btn: Button) -> void:
@@ -1051,26 +1067,23 @@ func lock_button_state(btn: Button, state: String) -> void:
 		btn.add_theme_color_override("font_color", btn.get_theme_color("font_hover_color"))
 		if btn.has_meta("_outline_hover"):
 			btn.add_theme_color_override("font_outline_color", btn.get_meta("_outline_hover") as Color)
+		if btn.has_meta("_glow_sz_hover"):
+			btn.add_theme_constant_override("outline_size", int(btn.get_meta("_glow_sz_hover")))
 	elif state == "pressed":
 		var pressed_sb: StyleBox = btn.get_theme_stylebox("pressed")
 		btn.add_theme_stylebox_override("normal", pressed_sb)
 		btn.add_theme_color_override("font_color", btn.get_theme_color("font_pressed_color"))
 		if btn.has_meta("_outline_press"):
 			btn.add_theme_color_override("font_outline_color", btn.get_meta("_outline_press") as Color)
+		if btn.has_meta("_glow_sz_press"):
+			btn.add_theme_constant_override("outline_size", int(btn.get_meta("_glow_sz_press")))
 	elif state == "disabled":
 		btn.disabled = true
+		if btn.has_meta("_outline_disabled"):
+			btn.add_theme_color_override("font_outline_color", btn.get_meta("_outline_disabled") as Color)
+		if btn.has_meta("_glow_sz_disabled"):
+			btn.add_theme_constant_override("outline_size", int(btn.get_meta("_glow_sz_disabled")))
 	btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-
-func apply_button_style_preset(preset_name: String) -> void:
-	if preset_name not in BUTTON_STYLE_PRESETS:
-		return
-	var preset: Dictionary = BUTTON_STYLE_PRESETS[preset_name]
-	for key in preset:
-		var val: float = float(preset[key])
-		_floats[key] = val
-	_preset_dirty = true
-	theme_changed.emit()
 
 
 # ── Persistence ───────────────────────────────────────────────
