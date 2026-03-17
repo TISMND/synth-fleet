@@ -9,6 +9,7 @@ var damage: int = 10
 var weapon_color: Color = Color.CYAN
 var effect_profile: Dictionary = {}
 var trigger_index: int = -1
+var projectile_style: ProjectileStyle = null
 
 var _age: float = 0.0
 var _base_x: float = 0.0
@@ -36,14 +37,24 @@ func _ready() -> void:
 	# Resolve layers once at spawn
 	_resolved_layers = EffectLayerRenderer.resolve_layers(effect_profile, trigger_index)
 
-	# Setup shader sprite for shader-based shapes
-	var shape_layers: Array = _resolved_layers.get("shape", []) as Array
-	_has_shader_shape = EffectLayerRenderer.has_shader_shape(shape_layers)
-	if _has_shader_shape:
-		_setup_shader_sprite(shape_layers)
+	# Setup styled sprite (ProjectileStyle takes priority over shape layers)
+	if projectile_style:
+		_setup_styled_sprite()
+	else:
+		var shape_layers: Array = _resolved_layers.get("shape", []) as Array
+		_has_shader_shape = EffectLayerRenderer.has_shader_shape(shape_layers)
+		if _has_shader_shape:
+			_setup_shader_sprite(shape_layers)
 
 	# Setup GPU trail emitters
 	_setup_gpu_trails()
+
+
+func _setup_styled_sprite() -> void:
+	_has_shader_shape = true
+	_shader_sprite = VFXFactory.create_styled_sprite(projectile_style, weapon_color)
+	if _shader_sprite:
+		add_child(_shader_sprite)
 
 
 func _setup_shader_sprite(shape_layers: Array) -> void:

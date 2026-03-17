@@ -4,6 +4,8 @@ uniform vec4 weapon_color : source_color = vec4(0.0, 1.0, 1.0, 1.0);
 uniform float scroll_speed : hint_range(0.5, 5.0) = 2.0;
 uniform float distortion : hint_range(0.0, 0.5) = 0.15;
 uniform float edge_glow : hint_range(0.5, 3.0) = 1.5;
+uniform sampler2D mask_texture : hint_default_white;
+uniform bool use_mask = false;
 
 // Simple hash-based noise (no texture needed)
 float hash(vec2 p) {
@@ -65,6 +67,11 @@ void fragment() {
 
 	// Alpha: circular mask with soft edge
 	float alpha = smoothstep(1.0, 0.7, dist) * weapon_color.a;
+
+	if (use_mask) {
+		float mask_alpha = texture(mask_texture, UV).a;
+		alpha *= mask_alpha;
+	}
 
 	COLOR = vec4(col, alpha);
 }

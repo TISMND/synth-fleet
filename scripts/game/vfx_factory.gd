@@ -14,6 +14,12 @@ static var _smoke: Texture2D = null
 static var _energy_shader: Shader = null
 static var _plasma_shader: Shader = null
 static var _beam_shader: Shader = null
+static var _fire_shader: Shader = null
+static var _electric_shader: Shader = null
+static var _void_shader: Shader = null
+
+# Valid fill shader names for validation
+const FILL_SHADERS: PackedStringArray = ["energy", "plasma", "beam", "fire", "electric", "void"]
 
 
 # ── Texture Generation ──────────────────────────────────────
@@ -379,6 +385,24 @@ static func _load_beam_shader() -> Shader:
 	return _beam_shader
 
 
+static func _load_fire_shader() -> Shader:
+	if _fire_shader == null:
+		_fire_shader = load("res://assets/shaders/projectile_fire.gdshader") as Shader
+	return _fire_shader
+
+
+static func _load_electric_shader() -> Shader:
+	if _electric_shader == null:
+		_electric_shader = load("res://assets/shaders/projectile_electric.gdshader") as Shader
+	return _electric_shader
+
+
+static func _load_void_shader() -> Shader:
+	if _void_shader == null:
+		_void_shader = load("res://assets/shaders/projectile_void.gdshader") as Shader
+	return _void_shader
+
+
 ## Create a Sprite2D with a shader material for shader-based shape types.
 ## Returns null if the shape type is not shader-based.
 static func create_shader_sprite(shape_type: String, color: Color, width: float, height: float) -> Sprite2D:
@@ -412,6 +436,59 @@ static func create_shader_sprite(shape_type: String, color: Color, width: float,
 	# Note: material is already ShaderMaterial, so we set the CanvasItem light mode instead
 	# Actually for canvas_item shaders, the blend comes from the material blend mode
 	# We'll handle this by making the shader output HDR values that bloom picks up
+
+	return sprite
+
+
+## Get a fill shader by name (for ProjectileStyle system).
+static func get_fill_shader(shader_name: String) -> Shader:
+	match shader_name:
+		"energy":
+			return _load_energy_shader()
+		"plasma":
+			return _load_plasma_shader()
+		"beam":
+			return _load_beam_shader()
+		"fire":
+			return _load_fire_shader()
+		"electric":
+			return _load_electric_shader()
+		"void":
+			return _load_void_shader()
+	return _load_energy_shader()
+
+
+## Create a Sprite2D from a ProjectileStyle (mask + fill shader + color).
+## Masks in user:// are loaded via Image (not engine import).
+static func create_styled_sprite(style: ProjectileStyle, color: Color) -> Sprite2D:
+	var shader: Shader = get_fill_shader(style.fill_shader)
+	if shader == null:
+		return null
+
+	var sprite := Sprite2D.new()
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("weapon_color", color)
+
+	# Apply shader params from style
+	for param_name in style.shader_params:
+		mat.set_shader_parameter(param_name, float(style.shader_params[param_name]))
+
+	# Load mask if specified (user:// path — must use Image, not load())
+	if style.mask_path != "":
+		var img := Image.new()
+		var err: Error = img.load(style.mask_path)
+		if err == OK:
+			var mask_tex: ImageTexture = ImageTexture.create_from_image(img)
+			mat.set_shader_parameter("mask_texture", mask_tex)
+			mat.set_shader_parameter("use_mask", true)
+
+	sprite.material = mat
+
+	# White rect texture sized to base_scale
+	var w: int = int(ceilf(style.base_scale.x))
+	var h: int = int(ceilf(style.base_scale.y))
+	sprite.texture = _generate_white_rect(w, h)
 
 	return sprite
 

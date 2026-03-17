@@ -17,6 +17,7 @@ extends Resource
 @export var effect_profile: Dictionary = {}
 @export var special_effect: String = "none"
 @export var direction_deg: float = 0.0
+@export var projectile_style_id: String = ""
 
 
 static func from_dict(data: Dictionary) -> WeaponData:
@@ -49,6 +50,7 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.effect_profile = _migrate_effect_profile(data.get("effect_profile", {}))
 	w.special_effect = data.get("special_effect", "none")
 	w.direction_deg = float(data.get("direction_deg", 0.0))
+	w.projectile_style_id = str(data.get("projectile_style_id", ""))
 	return w
 
 
@@ -94,4 +96,5 @@ func to_dict() -> Dictionary:
 		"effect_profile": effect_profile,
 		"special_effect": special_effect,
 		"direction_deg": direction_deg,
+		"projectile_style_id": projectile_style_id,
 	}

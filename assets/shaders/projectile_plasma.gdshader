@@ -3,6 +3,8 @@ shader_type canvas_item;
 uniform vec4 weapon_color : source_color = vec4(0.0, 1.0, 1.0, 1.0);
 uniform float turbulence_speed : hint_range(0.5, 5.0) = 2.0;
 uniform float pulse_rate : hint_range(0.5, 4.0) = 1.5;
+uniform sampler2D mask_texture : hint_default_white;
+uniform bool use_mask = false;
 
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -47,6 +49,11 @@ void fragment() {
 	col += vec3(1.0, 0.95, 0.9) * core * plasma * 0.5; // hot white center
 
 	float alpha = smoothstep(1.0, 0.75, dist) * weapon_color.a;
+
+	if (use_mask) {
+		float mask_alpha = texture(mask_texture, UV).a;
+		alpha *= mask_alpha;
+	}
 
 	COLOR = vec4(col, alpha);
 }

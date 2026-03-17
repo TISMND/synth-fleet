@@ -4,6 +4,8 @@ uniform vec4 weapon_color : source_color = vec4(0.0, 1.0, 1.0, 1.0);
 uniform float beam_speed : hint_range(0.5, 5.0) = 3.0;
 uniform float beam_width : hint_range(0.1, 0.8) = 0.3;
 uniform float flicker_rate : hint_range(0.0, 10.0) = 4.0;
+uniform sampler2D mask_texture : hint_default_white;
+uniform bool use_mask = false;
 
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -51,6 +53,11 @@ void fragment() {
 	col += vec3(1.0) * core * 0.4 * flicker; // white hot core
 
 	float alpha = max(beam, wisps * 0.8) * weapon_color.a;
+
+	if (use_mask) {
+		float mask_alpha = texture(mask_texture, UV).a;
+		alpha *= mask_alpha;
+	}
 
 	COLOR = vec4(col, alpha);
 }

@@ -12,6 +12,8 @@ var direction_deg: float = 0.0
 var loop_file_path: String = ""
 var loop_length_bars: int = 2
 var fire_triggers: Array = []
+var projectile_style_id: String = ""
+var _cached_style: ProjectileStyle = null
 
 var _projectiles: Array = []
 var _particles: Array = []
@@ -61,6 +63,13 @@ func update_weapon(data: Dictionary) -> void:
 	loop_file_path = str(data.get("loop_file_path", ""))
 	loop_length_bars = int(data.get("loop_length_bars", 2))
 	fire_triggers = data.get("fire_triggers", [])
+	var new_style_id: String = str(data.get("projectile_style_id", ""))
+	if new_style_id != projectile_style_id:
+		projectile_style_id = new_style_id
+		if projectile_style_id != "":
+			_cached_style = ProjectileStyleManager.load_by_id(projectile_style_id)
+		else:
+			_cached_style = null
 	# Sort triggers preserving original indices
 	_fire_triggers_sorted = []
 	for i in fire_triggers.size():
@@ -115,9 +124,10 @@ func _fire_projectiles(trigger_idx: int = -1) -> void:
 	# Resolve layers for this trigger
 	var resolved: Dictionary = EffectLayerRenderer.resolve_layers(effect_profile, trigger_idx)
 
-	# Check if shape layers include shader types
+	# Check if using ProjectileStyle or shader shapes
 	var shape_layers: Array = resolved.get("shape", []) as Array
-	var uses_shader: bool = EffectLayerRenderer.has_shader_shape(shape_layers)
+	var uses_style: bool = _cached_style != null
+	var uses_shader: bool = not uses_style and EffectLayerRenderer.has_shader_shape(shape_layers)
 
 	for i in spawn_points.size():
 		var proj: Dictionary = {
@@ -134,8 +144,14 @@ func _fire_projectiles(trigger_idx: int = -1) -> void:
 		}
 		_projectiles.append(proj)
 
-		# Create shader sprite for shader-based shapes
-		if uses_shader:
+		# Create styled sprite or shader sprite
+		if uses_style:
+			var sprite: Sprite2D = VFXFactory.create_styled_sprite(_cached_style, weapon_color)
+			if sprite:
+				sprite.position = proj["pos"] as Vector2
+				add_child(sprite)
+				_shader_sprites[_next_id] = sprite
+		elif uses_shader:
 			for layer in shape_layers:
 				var layer_dict: Dictionary = layer as Dictionary
 				var stype: String = str(layer_dict.get("type", "rect"))

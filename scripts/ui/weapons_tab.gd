@@ -120,6 +120,10 @@ var _slot_add_buttons: Dictionary = {}  # slot -> Button
 var _trigger_override_selector: OptionButton
 var _editing_trigger_index: int = -1  # -1 = editing defaults
 
+# Projectile style selector
+var _style_selector: OptionButton
+var _style_ids: Array[String] = []
+
 # State
 var _current_id: String = ""
 var _section_headers: Array[Label] = []
@@ -349,6 +353,20 @@ func _build_effects_tab() -> Control:
 	_effects_form = VBoxContainer.new()
 	_effects_form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_effects_form)
+
+	# Projectile Style selector
+	var style_row := HBoxContainer.new()
+	_effects_form.add_child(style_row)
+	var style_label := Label.new()
+	style_label.text = "Projectile Style:"
+	style_row.add_child(style_label)
+	_style_selector = OptionButton.new()
+	_style_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_selector.item_selected.connect(_on_style_selected)
+	style_row.add_child(_style_selector)
+	_refresh_style_list()
+
+	_add_separator(_effects_form)
 
 	# Per-trigger override selector
 	var override_row := HBoxContainer.new()
@@ -709,6 +727,38 @@ func _get_current_profile() -> Dictionary:
 	return _collect_effect_profile()
 
 
+# ── Projectile Style ────────────────────────────────────────
+
+func _refresh_style_list() -> void:
+	if not _style_selector:
+		return
+	var prev_text: String = ""
+	if _style_selector.selected >= 0:
+		prev_text = _style_selector.get_item_text(_style_selector.selected)
+	_style_selector.clear()
+	_style_selector.add_item("None (use shape layers)")
+	_style_ids = ProjectileStyleManager.list_ids()
+	for id in _style_ids:
+		_style_selector.add_item(id)
+	# Restore selection
+	if prev_text != "" and prev_text != "None (use shape layers)":
+		for i in _style_selector.item_count:
+			if _style_selector.get_item_text(i) == prev_text:
+				_style_selector.selected = i
+				return
+	_style_selector.selected = 0
+
+
+func _on_style_selected(_idx: int) -> void:
+	_update_preview()
+
+
+func _get_selected_style_id() -> String:
+	if not _style_selector or _style_selector.selected <= 0:
+		return ""
+	return _style_selector.get_item_text(_style_selector.selected)
+
+
 # ── UI Helpers ──────────────────────────────────────────────
 
 func _add_section_header(parent: Control, text: String) -> Label:
@@ -795,6 +845,7 @@ func _collect_weapon_data() -> Dictionary:
 		"effect_profile": _collect_effect_profile(),
 		"special_effect": "none",
 		"direction_deg": _direction_slider.value,
+		"projectile_style_id": _get_selected_style_id(),
 	}
 
 
@@ -974,6 +1025,7 @@ func _on_new() -> void:
 	if _trigger_override_selector:
 		_trigger_override_selector.selected = 0
 	_current_profile_cache = {"version": 2, "defaults": {}, "trigger_overrides": {}}
+	_refresh_style_list()
 
 	# Reset all slots to single layer with first type
 	for slot in EFFECT_SLOTS:
@@ -1017,6 +1069,16 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	# Fire pattern
 	var pat_idx: int = FIRE_PATTERNS.find(weapon.fire_pattern)
 	_pattern_button.selected = pat_idx if pat_idx >= 0 else 0
+
+	# Projectile style selector
+	_refresh_style_list()
+	if weapon.projectile_style_id != "":
+		for i in _style_selector.item_count:
+			if _style_selector.get_item_text(i) == weapon.projectile_style_id:
+				_style_selector.selected = i
+				break
+	else:
+		_style_selector.selected = 0
 
 	# Effect profile (v2 format — WeaponData.from_dict auto-migrates)
 	_current_profile_cache = weapon.effect_profile.duplicate(true)

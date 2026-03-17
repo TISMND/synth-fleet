@@ -7,6 +7,7 @@ extends Node2D
 var _ship: ShipData = null
 var _weapon: WeaponData = null
 var _hp_index: int = 0
+var _cached_style: ProjectileStyle = null
 var _cell_size: float = 4.0
 var _viewport_size: Vector2 = Vector2(500, 600)
 var _fire_point: Vector2 = Vector2(250, 300)
@@ -44,10 +45,15 @@ func set_weapon(weapon: WeaponData, hp_index: int) -> void:
 		_weapon_color = Color(_weapon.color)
 		_fire_pattern = _weapon.fire_pattern
 		_resolved_layers = EffectLayerRenderer.resolve_layers(_weapon.effect_profile, -1)
+		if _weapon.projectile_style_id != "":
+			_cached_style = ProjectileStyleManager.load_by_id(_weapon.projectile_style_id)
+		else:
+			_cached_style = null
 	else:
 		_weapon_color = Color.CYAN
 		_fire_pattern = "single"
 		_resolved_layers = {}
+		_cached_style = null
 	_update_fire_point()
 	queue_redraw()
 
@@ -214,9 +220,10 @@ func _fire_projectiles() -> void:
 			spawn_points.append(_fire_point)
 			directions.append(_fire_direction)
 
-	# Check for shader shapes
+	# Check for styled or shader shapes
 	var shape_layers: Array = _resolved_layers.get("shape", []) as Array
-	var uses_shader: bool = EffectLayerRenderer.has_shader_shape(shape_layers)
+	var uses_style: bool = _cached_style != null
+	var uses_shader: bool = not uses_style and EffectLayerRenderer.has_shader_shape(shape_layers)
 
 	for i in spawn_points.size():
 		var sp: Vector2 = spawn_points[i]
@@ -234,8 +241,14 @@ func _fire_projectiles() -> void:
 		}
 		_projectiles.append(proj)
 
-		# Create shader sprite for shader-based shapes
-		if uses_shader:
+		# Create styled sprite or shader sprite
+		if uses_style:
+			var sprite: Sprite2D = VFXFactory.create_styled_sprite(_cached_style, _weapon_color)
+			if sprite:
+				sprite.position = sp
+				add_child(sprite)
+				_shader_sprites[_next_id] = sprite
+		elif uses_shader:
 			for layer in shape_layers:
 				var layer_dict: Dictionary = layer as Dictionary
 				var stype: String = str(layer_dict.get("type", "rect"))

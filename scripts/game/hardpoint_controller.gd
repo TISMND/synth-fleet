@@ -9,6 +9,8 @@ var _active: bool = false
 var _loop_id: String = ""
 var _fire_triggers_sorted: Array = []  # Array of [trigger_value, original_index]
 var _prev_loop_pos: float = -1.0
+var _cached_style: ProjectileStyle = null
+var _style_loaded: bool = false
 
 
 func setup(weapon: WeaponData, dir_deg: float, proj_container: Node2D, hp_index: int = 0) -> void:
@@ -130,7 +132,26 @@ func _fire(trigger_idx: int = -1) -> void:
 	_spawn_muzzle_effect(base_pos, trigger_idx)
 
 
+func _get_style() -> ProjectileStyle:
+	if not _style_loaded:
+		_style_loaded = true
+		if weapon_data.projectile_style_id != "":
+			_cached_style = ProjectileStyleManager.load_by_id(weapon_data.projectile_style_id)
+	return _cached_style
+
+
 func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trigger_idx: int = -1) -> void:
+	var style: ProjectileStyle = _get_style()
+
+	# Branch on archetype
+	if style and style.archetype == "beam":
+		_spawn_beam(pos, style)
+		return
+	elif style and style.archetype == "pulse_wave":
+		_spawn_pulse_wave(pos, style)
+		return
+
+	# Standard bullet (with or without style)
 	var proj := Projectile.new()
 	proj.position = pos
 	proj.direction = dir
@@ -139,7 +160,36 @@ func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trig
 	proj.weapon_color = Color(weapon_data.color)
 	proj.effect_profile = weapon_data.effect_profile
 	proj.trigger_index = trigger_idx
+	if style:
+		proj.projectile_style = style
 	_projectiles_container.add_child(proj)
+
+
+func _spawn_beam(pos: Vector2, style: ProjectileStyle) -> void:
+	var beam := BeamProjectile.new()
+	beam.position = pos
+	beam.weapon_color = Color(weapon_data.color)
+	beam.damage_per_tick = float(weapon_data.damage)
+	beam.projectile_style = style
+	var ap: Dictionary = style.archetype_params
+	beam.beam_duration = float(ap.get("beam_duration", 0.3))
+	beam.max_length = float(ap.get("max_length", 400.0))
+	beam.beam_width = float(ap.get("width", 16.0))
+	_projectiles_container.add_child(beam)
+
+
+func _spawn_pulse_wave(pos: Vector2, style: ProjectileStyle) -> void:
+	var pulse := PulseWaveProjectile.new()
+	pulse.position = pos
+	pulse.weapon_color = Color(weapon_data.color)
+	pulse.damage = weapon_data.damage
+	pulse.projectile_style = style
+	var ap: Dictionary = style.archetype_params
+	pulse.expansion_rate = float(ap.get("expansion_rate", 200.0))
+	pulse.max_radius = float(ap.get("max_radius", 300.0))
+	pulse.lifetime = float(ap.get("lifetime", 1.0))
+	pulse.ring_width = float(ap.get("ring_width", 8.0))
+	_projectiles_container.add_child(pulse)
 
 
 func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:
