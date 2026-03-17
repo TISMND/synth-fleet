@@ -125,6 +125,7 @@ var _stats_bar_base_colors: Array[Color] = []
 var _stats_bar_brightness: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _stats_bar_values: Array[float] = [50.0, 50.0, 50.0, 50.0]
 var _reset_bars_button: Button
+var _stats_bar_names: Array[String] = []
 var _bar_effect_sliders: Dictionary = {}   # "shield" -> HSlider
 var _bar_effect_labels: Dictionary = {}    # "shield" -> Label
 var _stats_prev_loop_progress: float = -1.0
@@ -324,6 +325,8 @@ func _build_timing_tab() -> Control:
 	_waveform_editor = WaveformEditor.new()
 	_waveform_editor.custom_minimum_size = Vector2(400, 140)
 	_waveform_editor.triggers_changed.connect(_on_triggers_changed)
+	_waveform_editor.play_pause_requested.connect(_on_play_pause)
+	_waveform_editor.seek_requested.connect(_on_seek)
 	_waveform_editor.set_audition_loop_id("loop_browser_audition")
 	vbox.add_child(_waveform_editor)
 
@@ -527,15 +530,17 @@ func _build_stats_tab() -> Control:
 		bar_hbox.add_child(bar_label)
 
 		var bar := ProgressBar.new()
-		bar.custom_minimum_size = Vector2(200, 22)
+		bar.custom_minimum_size = Vector2(200, 20)
 		bar.max_value = 100.0
 		bar.value = 50.0
 		bar.show_percentage = false
-		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bar_hbox.add_child(bar)
-		ThemeManager.apply_led_bar(bar, color, 0.5)
+		var bar_name: String = str(spec["name"])
+		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, -1))
+		ThemeManager.apply_led_bar(bar, color, 0.5, seg)
 		_stats_preview_bars.append(bar)
 		_stats_bar_base_colors.append(color)
+		_stats_bar_names.append(bar_name)
 
 	_reset_bars_button = Button.new()
 	_reset_bars_button.text = "RESET BARS"
@@ -1020,6 +1025,17 @@ func _on_mute_toggle() -> void:
 		_mute_button.text = "UNMUTE"
 
 
+func _on_play_pause() -> void:
+	_on_mute_toggle()
+
+
+func _on_seek(time_normalized: float) -> void:
+	var loop_id: String = "loop_browser_audition"
+	var duration: float = LoopMixer.get_stream_duration(loop_id)
+	if duration > 0.0:
+		LoopMixer.seek(loop_id, time_normalized * duration)
+
+
 # ── Save / Load / Delete ───────────────────────────────────
 
 func _on_save() -> void:
@@ -1313,7 +1329,10 @@ func _apply_stats_bar_glow(bar_idx: int) -> void:
 	var base_color: Color = _stats_bar_base_colors[bar_idx]
 
 	# Update LED bar fill
-	ThemeManager.apply_led_bar(bar, base_color, ratio)
+	var seg: int = -1
+	if bar_idx < _stats_bar_names.size():
+		seg = int(ShipData.DEFAULT_SEGMENTS.get(_stats_bar_names[bar_idx], -1))
+	ThemeManager.apply_led_bar(bar, base_color, ratio, seg)
 
 	# Apply glow pulse on the overlay
 	var glow: float = _stats_bar_brightness[bar_idx] * 0.5
@@ -1338,7 +1357,10 @@ func _refresh_stats_bars() -> void:
 		var bar: ProgressBar = _stats_preview_bars[i]
 		bar.value = _stats_bar_values[i]
 		var color: Color = _stats_bar_base_colors[i]
-		ThemeManager.apply_led_bar(bar, color, _stats_bar_values[i] / 100.0)
+		var seg: int = -1
+		if i < _stats_bar_names.size():
+			seg = int(ShipData.DEFAULT_SEGMENTS.get(_stats_bar_names[i], -1))
+		ThemeManager.apply_led_bar(bar, color, _stats_bar_values[i] / 100.0, seg)
 
 
 func _collect_bar_effects() -> Dictionary:

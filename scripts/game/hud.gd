@@ -103,12 +103,13 @@ func _build_ui() -> void:
 		var bar_name: String = str(spec["name"])
 		var color: Color = ThemeManager.resolve_bar_color(spec)
 		var init_val: int = int(initial_values.get(bar_name, 100))
-		var cell: Dictionary = _create_bar_cell(bar_name, color, init_val, 100)
+		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, -1))
+		var cell: Dictionary = _create_bar_cell(bar_name, color, init_val, 100, seg)
 		_bars_grid.add_child(cell["vbox"])
 		_bars[bar_name] = {"bar": cell["bar"], "label": cell["label"]}
 
 
-func _create_bar_cell(text: String, color: Color, initial: int, max_val: int) -> Dictionary:
+func _create_bar_cell(text: String, color: Color, initial: int, max_val: int, seg_count: int = -1) -> Dictionary:
 	var hbox := HBoxContainer.new()
 	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_theme_constant_override("separation", 6)
@@ -129,7 +130,7 @@ func _create_bar_cell(text: String, color: Color, initial: int, max_val: int) ->
 	bar.show_percentage = false
 	hbox.add_child(bar)
 
-	ThemeManager.apply_led_bar(bar, color, float(initial) / maxf(float(max_val), 1.0))
+	ThemeManager.apply_led_bar(bar, color, float(initial) / maxf(float(max_val), 1.0), seg_count)
 
 	return {"vbox": hbox, "label": lbl, "bar": bar}
 

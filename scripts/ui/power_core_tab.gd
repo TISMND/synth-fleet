@@ -45,6 +45,11 @@ var _preview_bar_base_colors: Array[Color] = []  # Base colors per bar (from the
 var _preview_bar_brightness: Array[float] = [0.0, 0.0, 0.0, 0.0]  # 0.0=idle, 1.0=full pulse
 var _component_display: Control = null  # Ship component shapes display
 
+# Mechanics subtab
+var _power_cost_slider: HSlider
+var _mechanics_bar_effect_sliders: Dictionary = {}  # bar_type -> HSlider
+var _passive_effect_sliders: Dictionary = {}  # bar_type -> HSlider
+
 # Pulse subtab
 var _global_brightness_slider: HSlider
 var _global_brighten_slider: HSlider
@@ -133,7 +138,7 @@ func _build_ui() -> void:
 	pulse_tab.name = "Pulse"
 	_tab_container.add_child(pulse_tab)
 
-	var mechanics_tab := _build_placeholder_tab("Mechanics — Coming soon")
+	var mechanics_tab := _build_mechanics_tab()
 	mechanics_tab.name = "Mechanics"
 	_tab_container.add_child(mechanics_tab)
 
@@ -182,14 +187,14 @@ func _build_preview_panel() -> Control:
 		vbox.add_child(bar_label)
 
 		var bar := ProgressBar.new()
-		bar.custom_minimum_size = Vector2(250, 24)
+		bar.custom_minimum_size.y = 20
 		bar.max_value = 1.0
-		bar.value = 0.7
+		bar.value = 0.5
 		bar.show_percentage = false
 		vbox.add_child(bar)
 
 		var color: Color = ThemeManager.resolve_bar_color(spec)
-		ThemeManager.apply_led_bar(bar, color, 0.7)
+		ThemeManager.apply_led_bar(bar, color, 0.5, 20)
 		_preview_bars.append(bar)
 		_preview_bar_base_colors.append(color)
 
@@ -268,6 +273,8 @@ func _build_timing_tab() -> Control:
 	_waveform_editor = WaveformEditor.new()
 	_waveform_editor.custom_minimum_size = Vector2(400, 140)
 	_waveform_editor.triggers_changed.connect(_on_triggers_changed)
+	_waveform_editor.play_pause_requested.connect(_on_play_pause)
+	_waveform_editor.seek_requested.connect(_on_seek)
 	_waveform_editor.set_audition_loop_id("loop_browser_audition")
 	_waveform_editor.set_marker_color_callback(_get_trigger_color)
 	vbox.add_child(_waveform_editor)
@@ -393,6 +400,102 @@ func _build_pulse_tab() -> Control:
 	return scroll
 
 
+func _build_mechanics_tab() -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+
+	var form := VBoxContainer.new()
+	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(form)
+
+	# Power Cost
+	_add_section_header(form, "POWER COST")
+	var cost_row := _add_slider_row(form, "Power Cost:", 1.0, 30.0, 5.0, 1.0)
+	_power_cost_slider = cost_row[0]
+
+	_add_separator(form)
+
+	# Bar Effects (per trigger hit)
+	_add_section_header(form, "BAR EFFECTS (per trigger hit)")
+	for i in BAR_TYPES.size():
+		var bar_type: String = BAR_TYPES[i]
+		var color_key: String = BAR_TYPE_COLOR_KEYS[i]
+		var bar_color: Color = ThemeManager.get_color(color_key)
+
+		var row := HBoxContainer.new()
+		form.add_child(row)
+
+		var lbl := Label.new()
+		lbl.text = BAR_TYPE_LABELS[i] + ":"
+		lbl.custom_minimum_size.x = 50
+		lbl.add_theme_color_override("font_color", bar_color)
+		row.add_child(lbl)
+
+		var slider := HSlider.new()
+		slider.min_value = -5.0
+		slider.max_value = 5.0
+		slider.value = 0.0
+		slider.step = 0.1
+		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slider.custom_minimum_size.x = 150
+		row.add_child(slider)
+
+		var val_label := Label.new()
+		val_label.text = "0.00"
+		val_label.custom_minimum_size.x = 60
+		val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(val_label)
+
+		slider.value_changed.connect(func(val: float) -> void:
+			val_label.text = "%.2f" % val
+		)
+
+		_mechanics_bar_effect_sliders[bar_type] = slider
+
+	_add_separator(form)
+
+	# Passive Effects (per second)
+	_add_section_header(form, "PASSIVE EFFECTS (per second, while active)")
+	for i in BAR_TYPES.size():
+		var bar_type: String = BAR_TYPES[i]
+		var color_key: String = BAR_TYPE_COLOR_KEYS[i]
+		var bar_color: Color = ThemeManager.get_color(color_key)
+
+		var row := HBoxContainer.new()
+		form.add_child(row)
+
+		var lbl := Label.new()
+		lbl.text = BAR_TYPE_LABELS[i] + ":"
+		lbl.custom_minimum_size.x = 50
+		lbl.add_theme_color_override("font_color", bar_color)
+		row.add_child(lbl)
+
+		var slider := HSlider.new()
+		slider.min_value = -5.0
+		slider.max_value = 5.0
+		slider.value = 0.0
+		slider.step = 0.1
+		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slider.custom_minimum_size.x = 150
+		row.add_child(slider)
+
+		var val_label := Label.new()
+		val_label.text = "0.00"
+		val_label.custom_minimum_size.x = 60
+		val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(val_label)
+
+		slider.value_changed.connect(func(val: float) -> void:
+			val_label.text = "%.2f" % val
+		)
+
+		_passive_effect_sliders[bar_type] = slider
+
+	return scroll
+
+
 func _build_placeholder_tab(text: String) -> Control:
 	var container := MarginContainer.new()
 	container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -474,6 +577,14 @@ func _update_preview_bars(delta: float) -> void:
 
 		# Modulate bar fill_color brightness via shader parameter
 		_apply_bar_glow(i, _preview_bar_brightness[i] * pulse_strength)
+
+	# Passive effects: apply per-second deltas continuously
+	for i in BAR_TYPES.size():
+		var bar_type: String = BAR_TYPES[i]
+		var slider: HSlider = _passive_effect_sliders.get(bar_type) as HSlider
+		if slider and slider.value != 0.0 and i < _preview_bars.size():
+			var bar: ProgressBar = _preview_bars[i]
+			bar.value = clampf(bar.value + slider.value * delta / 100.0, 0.0, 1.0)
 
 	# Update component shapes display
 	if _component_display and _component_display is ComponentShapeDisplay:
@@ -652,6 +763,17 @@ func _on_mute_toggle() -> void:
 		_mute_button.text = "UNMUTE"
 
 
+func _on_play_pause() -> void:
+	_on_mute_toggle()
+
+
+func _on_seek(time_normalized: float) -> void:
+	var loop_id: String = "loop_browser_audition"
+	var duration: float = LoopMixer.get_stream_duration(loop_id)
+	if duration > 0.0:
+		LoopMixer.seek(loop_id, time_normalized * duration)
+
+
 # ── Data Collection ────────────────────────────────────────
 
 func _collect_power_core_data() -> Dictionary:
@@ -672,7 +794,9 @@ func _collect_power_core_data() -> Dictionary:
 			"dim_duration": _global_dim_slider.value,
 		},
 		"pulse_settings": _collect_pulse_overrides(),
-		"power_cost": 5,
+		"bar_effects": _collect_bar_effects(),
+		"passive_effects": _collect_passive_effects(),
+		"power_cost": int(_power_cost_slider.value),
 	}
 
 
@@ -693,6 +817,24 @@ func _collect_pulse_overrides() -> Dictionary:
 			if disable_cb and disable_cb.button_pressed:
 				entry["disabled"] = true
 			result[bar_type] = entry
+	return result
+
+
+func _collect_bar_effects() -> Dictionary:
+	var result: Dictionary = {}
+	for bar_type in BAR_TYPES:
+		var slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
+		if slider and slider.value != 0.0:
+			result[bar_type] = slider.value
+	return result
+
+
+func _collect_passive_effects() -> Dictionary:
+	var result: Dictionary = {}
+	for bar_type in BAR_TYPES:
+		var slider: HSlider = _passive_effect_sliders.get(bar_type) as HSlider
+		if slider and slider.value != 0.0:
+			result[bar_type] = slider.value
 	return result
 
 
@@ -763,9 +905,20 @@ func _on_new() -> void:
 			(data["brighten"] as HSlider).value = 0.05
 			(data["dim"] as HSlider).value = 0.3
 			(data["container"] as VBoxContainer).visible = false
-	# Reset preview brightness
+	# Reset mechanics sliders
+	_power_cost_slider.value = 5.0
+	for bar_type in BAR_TYPES:
+		var be_slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
+		if be_slider:
+			be_slider.value = 0.0
+		var pe_slider: HSlider = _passive_effect_sliders.get(bar_type) as HSlider
+		if pe_slider:
+			pe_slider.value = 0.0
+	# Reset preview bars
 	for i in _preview_bar_brightness.size():
 		_preview_bar_brightness[i] = 0.0
+	for bar in _preview_bars:
+		bar.value = 0.5
 	if _component_display and _component_display is ComponentShapeDisplay:
 		(_component_display as ComponentShapeDisplay).update_glow([0.0, 0.0, 0.0, 0.0])
 	_status_label.text = "New power core — ready to edit."
@@ -820,6 +973,16 @@ func _populate_from_power_core(data: PowerCoreData) -> void:
 		else:
 			checkbox.button_pressed = false
 			(override_data["container"] as VBoxContainer).visible = false
+
+	# Mechanics — power cost, bar effects, passive effects
+	_power_cost_slider.value = float(data.power_cost)
+	for bar_type in BAR_TYPES:
+		var be_slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
+		if be_slider:
+			be_slider.value = float(data.bar_effects.get(bar_type, 0.0))
+		var pe_slider: HSlider = _passive_effect_sliders.get(bar_type) as HSlider
+		if pe_slider:
+			pe_slider.value = float(data.passive_effects.get(bar_type, 0.0))
 
 
 func _generate_id(display_name: String) -> String:

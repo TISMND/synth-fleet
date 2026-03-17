@@ -6,6 +6,8 @@ extends Control
 ## Supports select, drag, and delete of markers.
 
 signal triggers_changed(triggers: Array)
+signal play_pause_requested
+signal seek_requested(time_normalized: float)
 
 var _stream: AudioStream = null
 var _waveform_data: PackedFloat32Array = PackedFloat32Array()
@@ -28,6 +30,7 @@ const ZOOM_STEP: float = 1.3
 const ZOOM_MAX: float = 16.0
 const SCROLL_STEP: float = 0.05    # Fraction of view range per scroll tick
 const VIEWPORT_BAR_HEIGHT: float = 4.0
+const RULER_HEIGHT: float = 22.0
 
 # Marker interaction state
 enum MarkerState { IDLE, HOVERING, DRAGGING }
@@ -40,6 +43,7 @@ var _hovered_idx: int = -1         # Index of marker mouse is near
 var _mouse_down: bool = false
 var _drag_start_pos: Vector2 = Vector2.ZERO
 var _ctrl_click_pending_idx: int = -1  # For Ctrl+click toggle on mouse-up
+var _ruler_dragging: bool = false
 const DRAG_THRESHOLD_PX: float = 5.0
 const MARKER_HIT_PX: float = 10.0
 
@@ -65,7 +69,7 @@ func set_marker_color_callback(cb: Callable) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	custom_minimum_size = Vector2(0, 120)
+	custom_minimum_size = Vector2(0, 142)
 	focus_mode = Control.FOCUS_ALL
 
 
@@ -360,6 +364,13 @@ func _gui_input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
+				if mb.position.y < RULER_HEIGHT:
+					# Ruler click → seek, don't place marker
+					_ruler_dragging = true
+					var seek_time: float = _pos_to_time(mb.position)
+					seek_requested.emit(seek_time)
+					accept_event()
+					return
 				if mb.double_click:
 					# Double-click on empty space resets zoom
 					var hit_idx: int = _find_nearest_trigger_px(mb.position)
@@ -371,6 +382,10 @@ func _gui_input(event: InputEvent) -> void:
 						return
 				_handle_left_down(mb.position)
 			else:
+				if _ruler_dragging:
+					_ruler_dragging = false
+					accept_event()
+					return
 				_handle_left_up(mb.position)
 		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
 			_handle_right_click(mb.position)
@@ -402,12 +417,21 @@ func _gui_input(event: InputEvent) -> void:
 				accept_event()
 
 	elif event is InputEventMouseMotion:
+		if _ruler_dragging:
+			var seek_time: float = _pos_to_time(event.position)
+			seek_requested.emit(seek_time)
+			accept_event()
+			return
 		_handle_mouse_motion(event.position)
 
 	elif event is InputEventKey:
 		var key: InputEventKey = event
 		if key.pressed and not key.echo:
-			if key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE:
+			if key.keycode == KEY_SPACE:
+				play_pause_requested.emit()
+				accept_event()
+				return
+			elif key.keycode == KEY_DELETE or key.keycode == KEY_BACKSPACE:
 				if not _selected_indices.is_empty():
 					# Remove in reverse order to preserve indices
 					var sorted_desc: Array[int] = _selected_indices.duplicate()
@@ -675,6 +699,9 @@ func _draw() -> void:
 	# Background
 	draw_rect(Rect2(Vector2.ZERO, size), _bg_color)
 
+	# Ruler bar at top
+	_draw_ruler()
+
 	# Waveform
 	_draw_waveform()
 
@@ -686,7 +713,7 @@ func _draw() -> void:
 	if _hovered_time >= 0.0 and _marker_state != MarkerState.DRAGGING:
 		var snapped: float = _snap_time(_hovered_time)
 		var hx: float = _time_to_x(snapped)
-		draw_line(Vector2(hx, 0), Vector2(hx, size.y), _hover_color, 2.0)
+		draw_line(Vector2(hx, RULER_HEIGHT), Vector2(hx, size.y), _hover_color, 2.0)
 
 	# Fire trigger markers (skip off-screen)
 	var view_range: float = 1.0 / _zoom_level
@@ -712,25 +739,25 @@ func _draw() -> void:
 			color = _hovered_marker_color
 
 		# Vertical line
-		draw_line(Vector2(tx, 0), Vector2(tx, size.y), color, line_width)
+		draw_line(Vector2(tx, RULER_HEIGHT), Vector2(tx, size.y), color, line_width)
 
 		# Triangle marker at top
 		var tri: PackedVector2Array = PackedVector2Array([
-			Vector2(tx - tri_size, 0),
-			Vector2(tx + tri_size, 0),
-			Vector2(tx, tri_size * 1.667),
+			Vector2(tx - tri_size, RULER_HEIGHT),
+			Vector2(tx + tri_size, RULER_HEIGHT),
+			Vector2(tx, RULER_HEIGHT + tri_size * 1.667),
 		])
 		draw_colored_polygon(tri, color)
 
 		# Glow circle for selected markers
 		if _is_selected(i):
-			draw_circle(Vector2(tx, tri_size * 1.667 + 4.0), 4.0, Color(_selected_color, 0.4))
+			draw_circle(Vector2(tx, RULER_HEIGHT + tri_size * 1.667 + 4.0), 4.0, Color(_selected_color, 0.4))
 
 	# Playback cursor
 	if _show_cursor and _cursor_progress >= 0.0:
 		var cx: float = _time_to_x(_cursor_progress)
 		if cx >= -2.0 and cx <= size.x + 2.0:
-			draw_line(Vector2(cx, 0), Vector2(cx, size.y), _cursor_color, 2.0)
+			draw_line(Vector2(cx, RULER_HEIGHT), Vector2(cx, size.y), _cursor_color, 2.0)
 
 	# Viewport indicator bar (only when zoomed)
 	if _zoom_level > 1.0:
@@ -756,19 +783,20 @@ func _draw_beat_grid() -> void:
 		var is_bar: bool = fmod(beat, float(_beats_per_bar)) < 0.01
 		var is_beat: bool = fmod(beat, 1.0) < 0.01
 		if is_bar:
-			draw_line(Vector2(x, 0), Vector2(x, size.y), _bar_line_color, 2.0)
+			draw_line(Vector2(x, RULER_HEIGHT), Vector2(x, size.y), _bar_line_color, 2.0)
 		elif is_beat:
-			draw_line(Vector2(x, 0), Vector2(x, size.y), _grid_color, 1.0)
+			draw_line(Vector2(x, RULER_HEIGHT), Vector2(x, size.y), _grid_color, 1.0)
 		else:
-			draw_line(Vector2(x, 0), Vector2(x, size.y), Color(_grid_color, 0.3), 1.0)
+			draw_line(Vector2(x, RULER_HEIGHT), Vector2(x, size.y), Color(_grid_color, 0.3), 1.0)
 		beat += snap_beats
 
 
 func _draw_waveform() -> void:
 	if _waveform_data.is_empty():
 		return
-	var mid_y: float = size.y * 0.5
-	var amp: float = size.y * 0.45
+	var waveform_height: float = size.y - RULER_HEIGHT
+	var mid_y: float = RULER_HEIGHT + waveform_height * 0.5
+	var amp: float = waveform_height * 0.45
 	var sample_count: int = _waveform_data.size()
 	var view_range: float = 1.0 / _zoom_level
 	# Only draw bins that fall within the visible range
@@ -783,6 +811,56 @@ func _draw_waveform() -> void:
 		var top: float = mid_y - h
 		var bottom: float = mid_y + h
 		draw_rect(Rect2(x, top, bar_w, bottom - top), _waveform_color)
+
+
+func _draw_ruler() -> void:
+	# Ruler background (slightly lighter than waveform bg)
+	draw_rect(Rect2(0, 0, size.x, RULER_HEIGHT), Color(0.08, 0.08, 0.14))
+	# Bottom edge line
+	draw_line(Vector2(0, RULER_HEIGHT), Vector2(size.x, RULER_HEIGHT), Color(0.25, 0.25, 0.4), 1.0)
+
+	# Beat tick marks and bar numbers
+	var total_beats: float = float(_loop_length_bars * _beats_per_bar)
+	if total_beats <= 0.0:
+		return
+	var view_range: float = 1.0 / _zoom_level
+	var view_end: float = _scroll_offset + view_range
+
+	# Draw ticks at beat level (or finer if zoomed enough)
+	var tick_beats: float = 1.0
+	if _zoom_level >= 4.0:
+		tick_beats = 0.5
+
+	var first_beat: float = floorf(_scroll_offset * total_beats / tick_beats) * tick_beats
+	var beat: float = maxf(first_beat, 0.0)
+	while beat < total_beats:
+		var t: float = beat / total_beats
+		if t > view_end:
+			break
+		var x: float = _time_to_x(t)
+		var is_bar: bool = fmod(beat, float(_beats_per_bar)) < 0.01
+		var is_beat: bool = fmod(beat, 1.0) < 0.01
+
+		if is_bar:
+			draw_line(Vector2(x, 4), Vector2(x, RULER_HEIGHT - 2), Color(0.5, 0.5, 0.7), 2.0)
+			var bar_num: int = int(beat / float(_beats_per_bar)) + 1
+			draw_string(ThemeManager.get_font("body"), Vector2(x + 3, 13), str(bar_num), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.6, 0.6, 0.8))
+		elif is_beat:
+			draw_line(Vector2(x, 8), Vector2(x, RULER_HEIGHT - 2), Color(0.3, 0.3, 0.5), 1.0)
+		else:
+			draw_line(Vector2(x, 12), Vector2(x, RULER_HEIGHT - 2), Color(0.2, 0.2, 0.35), 1.0)
+		beat += tick_beats
+
+	# Playhead indicator in ruler
+	if _show_cursor and _cursor_progress >= 0.0:
+		var cx: float = _time_to_x(_cursor_progress)
+		if cx >= -2.0 and cx <= size.x + 2.0:
+			var tri: PackedVector2Array = PackedVector2Array([
+				Vector2(cx - 5, 0),
+				Vector2(cx + 5, 0),
+				Vector2(cx, 8),
+			])
+			draw_colored_polygon(tri, _cursor_color)
 
 
 func _draw_viewport_bar() -> void:

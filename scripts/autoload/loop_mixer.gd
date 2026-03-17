@@ -142,6 +142,15 @@ func get_playback_position(loop_id: String) -> float:
 	return player.get_playback_position()
 
 
+func seek(loop_id: String, position_sec: float) -> void:
+	if not _loops.has(loop_id):
+		return
+	var entry: Dictionary = _loops[loop_id]
+	var player: AudioStreamPlayer = entry["player"]
+	if player.playing:
+		player.seek(position_sec)
+
+
 func get_stream_duration(loop_id: String) -> float:
 	## Returns the cached pre-loop-mode duration in seconds, or -1.0 if not found.
 	## Same source of truth as loop_end — guaranteed consistent.
