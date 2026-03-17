@@ -49,6 +49,36 @@ float is_lit(float bx) {
 	return seg_mid <= fill_ratio ? 1.0 : 0.0;
 }
 
+// Per-segment radial distance: 0.0 at center, 1.0 at edge, -1.0 if not in a lit segment.
+// Used for inner intensity so the whitening stays strictly within segment rectangles.
+float segment_center_dist(vec2 bar_uv) {
+	if (bar_uv.x < 0.0 || bar_uv.x > 1.0 || bar_uv.y < 0.0 || bar_uv.y > 1.0) return -1.0;
+	float seg_width = 1.0 / float(segment_count);
+	float half_gap = segment_gap * 0.5;
+
+	int seg_index = int(floor(bar_uv.x / seg_width));
+	if (seg_index < 0 || seg_index >= segment_count) return -1.0;
+
+	float seg_start = float(seg_index) * seg_width;
+	float seg_end = seg_start + seg_width;
+
+	// In gap?
+	if (bar_uv.x - seg_start < half_gap || seg_end - bar_uv.x < half_gap) return -1.0;
+
+	// Is this segment lit?
+	float seg_mid_x = (float(seg_index) + 0.5) / float(segment_count);
+	if (seg_mid_x > fill_ratio) return -1.0;
+
+	// Normalized position within segment: 0 at center, 1 at edge
+	float inner_start = seg_start + half_gap;
+	float inner_end = seg_end - half_gap;
+	float inner_width = inner_end - inner_start;
+	float nx = abs(bar_uv.x - (inner_start + inner_width * 0.5)) / (inner_width * 0.5);
+	float ny = abs(bar_uv.y - 0.5) * 2.0;
+
+	return clamp(sqrt(nx * nx + ny * ny), 0.0, 1.0);
+}
+
 // Signed distance to nearest lit segment surface (negative = inside, positive = outside).
 // Works in bar UV space for x, and bar UV space for y.
 float sdf_lit(vec2 bar_uv) {
@@ -103,11 +133,14 @@ void fragment() {
 	// SDF distance for glow (works both inside and outside bar rect)
 	float d = sdf_lit(bar_uv);
 
-	// Inner intensity: blow out center of lit segments toward white
+	// Inner intensity: per-segment radial white gradient (stays within segment rects)
 	float inner = 0.0;
-	if (base > 0.5 && inner_intensity > 0.0 && inside) {
-		float vert_center = 1.0 - abs(bar_uv.y - 0.5) * 2.0;
-		inner = base * vert_center * inner_intensity;
+	if (inner_intensity > 0.0 && inside) {
+		float seg_dist = segment_center_dist(bar_uv);
+		if (seg_dist >= 0.0) {
+			float radial = 1.0 - seg_dist;
+			inner = radial * inner_intensity;
+		}
 	}
 
 	// Aura: tight glow around lit segments

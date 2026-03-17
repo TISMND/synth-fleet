@@ -94,7 +94,7 @@ func _build_ui() -> void:
 	root_vbox.add_child(_tab_container)
 
 	_build_typography_tab()
-	_build_glow_grid_tab()
+	_build_grid_tab()
 	_build_buttons_tab()
 	_build_vhs_tab()
 	_build_panels_tab()
@@ -261,56 +261,6 @@ func _build_typography_tab() -> void:
 		_preview_labels.append(sample)
 		_typo_preview_labels[size_keys[i]] = sample
 
-
-
-func _build_glow_grid_tab() -> void:
-	var scroll := ScrollContainer.new()
-	scroll.name = "Glow"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tab_container.add_child(scroll)
-
-	var vbox := VBoxContainer.new()
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 6)
-	scroll.add_child(vbox)
-
-	# ── Grid color pickers ──
-	var grid_colors_header := Label.new()
-	grid_colors_header.text = "Grid Colors"
-	grid_colors_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	grid_colors_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	vbox.add_child(grid_colors_header)
-
-	_add_color_picker_row(vbox, "grid_line_color", "Grid Lines")
-	_add_color_picker_row(vbox, "background", "Background")
-
-	var color_sep := HSeparator.new()
-	vbox.add_child(color_sep)
-
-	# ── Grid Glow section ──
-	var grid_header := Label.new()
-	grid_header.text = "Grid Glow"
-	grid_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	grid_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	vbox.add_child(grid_header)
-
-	var grid_floats: Dictionary = {
-		"grid_spacing": {"min": 16.0, "max": 256.0},
-		"grid_scroll_speed": {"min": 0.0, "max": 100.0},
-		"grid_line_width": {"min": 0.5, "max": 4.0},
-		"grid_inner_intensity": {"min": 0.0, "max": 1.0},
-		"grid_aura_size": {"min": 0.0, "max": 8.0},
-		"grid_aura_intensity": {"min": 0.0, "max": 2.0},
-		"grid_bloom_size": {"min": 0.0, "max": 20.0},
-		"grid_bloom_intensity": {"min": 0.0, "max": 1.5},
-		"grid_smudge_blur": {"min": 0.0, "max": 4.0},
-	}
-	for key in grid_floats:
-		var params: Dictionary = grid_floats[key]
-		var min_val: float = float(params["min"])
-		var max_val: float = float(params["max"])
-		_add_float_slider(vbox, key, min_val, max_val, ThemeManager.get_float(key))
-
 	# ── Header Style section (mode selector: Neon Glow / Chrome Metal) ──
 	var header_sep := HSeparator.new()
 	vbox.add_child(header_sep)
@@ -419,6 +369,55 @@ func _build_glow_grid_tab() -> void:
 	}
 	for key in body_glow_params:
 		var params: Dictionary = body_glow_params[key]
+		var min_val: float = float(params["min"])
+		var max_val: float = float(params["max"])
+		_add_float_slider(vbox, key, min_val, max_val, ThemeManager.get_float(key))
+
+
+func _build_grid_tab() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.name = "Grid"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_tab_container.add_child(scroll)
+
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 6)
+	scroll.add_child(vbox)
+
+	# ── Grid color pickers ──
+	var grid_colors_header := Label.new()
+	grid_colors_header.text = "Grid Colors"
+	grid_colors_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	grid_colors_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	vbox.add_child(grid_colors_header)
+
+	_add_color_picker_row(vbox, "grid_line_color", "Grid Lines")
+	_add_color_picker_row(vbox, "background", "Background")
+
+	var color_sep := HSeparator.new()
+	vbox.add_child(color_sep)
+
+	# ── Grid Glow section ──
+	var grid_header := Label.new()
+	grid_header.text = "Grid Glow"
+	grid_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	grid_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	vbox.add_child(grid_header)
+
+	var grid_floats: Dictionary = {
+		"grid_spacing": {"min": 16.0, "max": 256.0},
+		"grid_scroll_speed": {"min": 0.0, "max": 100.0},
+		"grid_line_width": {"min": 0.5, "max": 4.0},
+		"grid_inner_intensity": {"min": 0.0, "max": 1.0},
+		"grid_aura_size": {"min": 0.0, "max": 8.0},
+		"grid_aura_intensity": {"min": 0.0, "max": 2.0},
+		"grid_bloom_size": {"min": 0.0, "max": 20.0},
+		"grid_bloom_intensity": {"min": 0.0, "max": 1.5},
+		"grid_smudge_blur": {"min": 0.0, "max": 4.0},
+	}
+	for key in grid_floats:
+		var params: Dictionary = grid_floats[key]
 		var min_val: float = float(params["min"])
 		var max_val: float = float(params["max"])
 		_add_float_slider(vbox, key, min_val, max_val, ThemeManager.get_float(key))
@@ -777,7 +776,6 @@ func _build_bars_tab() -> void:
 	root.add_child(led_header)
 
 	_add_float_slider(root, "led_segment_width_px", 4.0, 20.0, ThemeManager.get_float("led_segment_width_px"))
-	_add_float_slider(root, "led_segment_count", 4.0, 40.0, ThemeManager.get_float("led_segment_count"))
 	_add_float_slider(root, "led_segment_gap", 0.005, 0.04, ThemeManager.get_float("led_segment_gap"))
 	_add_float_slider(root, "led_inner_intensity", 0.0, 1.0, ThemeManager.get_float("led_inner_intensity"))
 	_add_float_slider(root, "led_aura_size", 0.0, 0.06, ThemeManager.get_float("led_aura_size"))

@@ -47,6 +47,32 @@ float is_lit(float bx) {
 	return seg_mid <= fill_ratio ? 1.0 : 0.0;
 }
 
+// Per-segment radial distance: 0.0 at center, 1.0 at edge, -1.0 if not in a lit segment.
+float segment_center_dist(vec2 bar_uv) {
+	if (bar_uv.x < 0.0 || bar_uv.x > 1.0 || bar_uv.y < 0.0 || bar_uv.y > 1.0) return -1.0;
+	float seg_width = 1.0 / float(segment_count);
+	float half_gap = segment_gap * 0.5;
+
+	int seg_index = int(floor(bar_uv.x / seg_width));
+	if (seg_index < 0 || seg_index >= segment_count) return -1.0;
+
+	float seg_start = float(seg_index) * seg_width;
+	float seg_end = seg_start + seg_width;
+
+	if (bar_uv.x - seg_start < half_gap || seg_end - bar_uv.x < half_gap) return -1.0;
+
+	float seg_mid_x = (float(seg_index) + 0.5) / float(segment_count);
+	if (seg_mid_x > fill_ratio) return -1.0;
+
+	float inner_start = seg_start + half_gap;
+	float inner_end = seg_end - half_gap;
+	float inner_width = inner_end - inner_start;
+	float nx = abs(bar_uv.x - (inner_start + inner_width * 0.5)) / (inner_width * 0.5);
+	float ny = abs(bar_uv.y - 0.5) * 2.0;
+
+	return clamp(sqrt(nx * nx + ny * ny), 0.0, 1.0);
+}
+
 float sdf_lit(vec2 bar_uv) {
 	float seg_width = 1.0 / float(segment_count);
 	float half_gap = segment_gap * 0.5;
@@ -125,12 +151,15 @@ void fragment() {
 	// SDF distance for glow
 	float d = sdf_lit(bar_uv);
 
-	// Inner intensity with sweep boost
+	// Inner intensity: per-segment radial white gradient with sweep boost
 	float inner = 0.0;
-	if (base > 0.5 && inner_intensity > 0.0 && inside) {
-		float vert_center = 1.0 - abs(bar_uv.y - 0.5) * 2.0;
-		float sweep_boost = 1.0 + (sweep + sweep2) * pulse_intensity;
-		inner = base * vert_center * inner_intensity * sweep_boost;
+	if (inner_intensity > 0.0 && inside) {
+		float seg_dist = segment_center_dist(bar_uv);
+		if (seg_dist >= 0.0) {
+			float radial = 1.0 - seg_dist;
+			float sweep_boost = 1.0 + (sweep + sweep2) * pulse_intensity;
+			inner = radial * inner_intensity * sweep_boost;
+		}
 	}
 
 	// Aura with glow pulse
