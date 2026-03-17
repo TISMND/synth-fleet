@@ -65,12 +65,15 @@ var _floats: Dictionary = {
 	"vhs_roll_strength": 0.0,
 	"vhs_roll_period": 4.0,
 	"led_segment_count": 20.0,
-	"led_segment_gap": 0.015,
+	"led_segment_gap_px": 3.0,
 	"led_inner_intensity": 0.3,
+	"led_inner_softness": 1.0,
 	"led_aura_size": 0.02,
 	"led_aura_intensity": 0.8,
+	"led_aura_falloff": 1.0,
 	"led_bloom_size": 0.05,
 	"led_bloom_intensity": 0.4,
+	"led_bloom_falloff": 1.0,
 	"led_smudge_blur": 0.008,
 	"led_segment_width_px": 10.0,
 	"btn_border_width": 1.0,
@@ -170,7 +173,7 @@ const BUILTIN_PRESETS: Dictionary = {
 			"vhs_roll_strength": 0.0,
 			"vhs_roll_period": 4.0,
 			"led_segment_count": 20.0,
-			"led_segment_gap": 0.04,
+			"led_segment_gap_px": 3.0,
 			"led_glow_size": 3.0,
 			"led_glow_strength": 1.5,
 			"led_smudge_blur": 1.0,
@@ -254,7 +257,7 @@ const BUILTIN_PRESETS: Dictionary = {
 			"vhs_roll_strength": 0.0,
 			"vhs_roll_period": 4.0,
 			"led_segment_count": 20.0,
-			"led_segment_gap": 0.04,
+			"led_segment_gap_px": 3.0,
 			"led_glow_size": 3.0,
 			"led_glow_strength": 1.5,
 			"led_smudge_blur": 1.0,
@@ -338,7 +341,7 @@ const BUILTIN_PRESETS: Dictionary = {
 			"vhs_roll_strength": 0.0,
 			"vhs_roll_period": 4.0,
 			"led_segment_count": 20.0,
-			"led_segment_gap": 0.04,
+			"led_segment_gap_px": 3.0,
 			"led_glow_size": 3.0,
 			"led_glow_strength": 1.5,
 			"led_smudge_blur": 1.0,
@@ -542,11 +545,12 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 		return
 
 	var seg_count: int = segment_count if segment_count > 0 else int(get_float("led_segment_count"))
+	var seg_px: float = get_float("led_segment_width_px")
+	var gap_px: float = get_float("led_segment_gap_px")
 
-	# When an explicit segment count is given, set fixed bar width
+	# Bar width = segments at full width + gaps between them
 	if segment_count > 0:
-		var seg_px: float = get_float("led_segment_width_px")
-		bar.custom_minimum_size.x = float(seg_count) * seg_px
+		bar.custom_minimum_size.x = float(seg_count) * seg_px + float(seg_count - 1) * gap_px
 		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
 	# Hide bar's own rendering — transparent styleboxes
@@ -562,12 +566,18 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 	if bar_parent:
 		bar_parent.clip_contents = false
 
-	# Compute padding from glow settings — enough room for bloom falloff
+	# Compute padding from glow settings — enough room for bloom falloff in all directions
 	var max_glow: float = maxf(get_float("led_bloom_size"), get_float("led_aura_size"))
 	var min_fallback: float = 20.0 if segment_count > 0 else 100.0
 	var bar_w: float = maxf(bar.custom_minimum_size.x, min_fallback)
 	var bar_h: float = maxf(bar.custom_minimum_size.y, 14.0)
-	var pad_px: float = clampf(max_glow * bar_w * 2.5 + 4.0, 4.0, 50.0)
+	var aspect: float = bar_w / maxf(bar_h, 1.0)
+	# Vertical glow extends aspect-ratio times further in pixels, so pad generously
+	var glow_px: float = max_glow * bar_w * 2.5 + 4.0
+	var pad_px: float = clampf(glow_px, 4.0, 100.0)
+
+	# Convert pixel gap to bar-UV fraction for the shader
+	var gap_uv: float = gap_px / maxf(bar_w, 1.0)
 
 	# Create or reuse overlay ColorRect
 	var overlay: ColorRect
@@ -603,13 +613,17 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 		overlay.material = mat
 	mat.set_shader_parameter("pad_x", pad_x)
 	mat.set_shader_parameter("pad_y", pad_y)
+	mat.set_shader_parameter("bar_aspect", aspect)
 	mat.set_shader_parameter("segment_count", seg_count)
-	mat.set_shader_parameter("segment_gap", get_float("led_segment_gap"))
+	mat.set_shader_parameter("segment_gap", gap_uv)
 	mat.set_shader_parameter("inner_intensity", get_float("led_inner_intensity"))
+	mat.set_shader_parameter("inner_softness", get_float("led_inner_softness"))
 	mat.set_shader_parameter("aura_size", get_float("led_aura_size"))
 	mat.set_shader_parameter("aura_intensity", get_float("led_aura_intensity"))
+	mat.set_shader_parameter("aura_falloff", get_float("led_aura_falloff"))
 	mat.set_shader_parameter("bloom_size", get_float("led_bloom_size"))
 	mat.set_shader_parameter("bloom_intensity", get_float("led_bloom_intensity"))
+	mat.set_shader_parameter("bloom_falloff", get_float("led_bloom_falloff"))
 	mat.set_shader_parameter("smudge_blur", get_float("led_smudge_blur"))
 	mat.set_shader_parameter("fill_color", fill_color)
 	mat.set_shader_parameter("bg_color", get_color("panel"))
@@ -630,11 +644,12 @@ func apply_supercharged_bar(bar: ProgressBar, fill_color: Color, value_ratio: fl
 		return
 
 	var seg_count: int = segment_count if segment_count > 0 else int(get_float("led_segment_count"))
+	var seg_px: float = get_float("led_segment_width_px")
+	var gap_px: float = get_float("led_segment_gap_px")
 
-	# When an explicit segment count is given, set fixed bar width
+	# Bar width = segments at full width + gaps between them
 	if segment_count > 0:
-		var seg_px: float = get_float("led_segment_width_px")
-		bar.custom_minimum_size.x = float(seg_count) * seg_px
+		bar.custom_minimum_size.x = float(seg_count) * seg_px + float(seg_count - 1) * gap_px
 		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
 	# Hide bar's own rendering
@@ -653,7 +668,12 @@ func apply_supercharged_bar(bar: ProgressBar, fill_color: Color, value_ratio: fl
 	var min_fallback: float = 20.0 if segment_count > 0 else 100.0
 	var bar_w: float = maxf(bar.custom_minimum_size.x, min_fallback)
 	var bar_h: float = maxf(bar.custom_minimum_size.y, 14.0)
-	var pad_px: float = clampf(max_glow * bar_w * 2.5 + 4.0, 4.0, 50.0)
+	var aspect: float = bar_w / maxf(bar_h, 1.0)
+	var glow_px: float = max_glow * bar_w * 2.5 + 4.0
+	var pad_px: float = clampf(glow_px, 4.0, 100.0)
+
+	# Convert pixel gap to bar-UV fraction for the shader
+	var gap_uv: float = gap_px / maxf(bar_w, 1.0)
 
 	var overlay: ColorRect
 	if existing:
@@ -685,13 +705,17 @@ func apply_supercharged_bar(bar: ProgressBar, fill_color: Color, value_ratio: fl
 		overlay.material = mat
 	mat.set_shader_parameter("pad_x", pad_x)
 	mat.set_shader_parameter("pad_y", pad_y)
+	mat.set_shader_parameter("bar_aspect", aspect)
 	mat.set_shader_parameter("segment_count", seg_count)
-	mat.set_shader_parameter("segment_gap", get_float("led_segment_gap"))
+	mat.set_shader_parameter("segment_gap", gap_uv)
 	mat.set_shader_parameter("inner_intensity", get_float("led_inner_intensity"))
+	mat.set_shader_parameter("inner_softness", get_float("led_inner_softness"))
 	mat.set_shader_parameter("aura_size", get_float("led_aura_size"))
 	mat.set_shader_parameter("aura_intensity", get_float("led_aura_intensity"))
+	mat.set_shader_parameter("aura_falloff", get_float("led_aura_falloff"))
 	mat.set_shader_parameter("bloom_size", get_float("led_bloom_size"))
 	mat.set_shader_parameter("bloom_intensity", get_float("led_bloom_intensity"))
+	mat.set_shader_parameter("bloom_falloff", get_float("led_bloom_falloff"))
 	mat.set_shader_parameter("smudge_blur", get_float("led_smudge_blur"))
 	mat.set_shader_parameter("fill_color", fill_color)
 	mat.set_shader_parameter("bg_color", get_color("panel"))

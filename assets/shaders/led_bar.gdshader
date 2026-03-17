@@ -1,19 +1,29 @@
 shader_type canvas_item;
 
 uniform int segment_count : hint_range(4, 40) = 20;
-uniform float segment_gap : hint_range(0.005, 0.04) = 0.015;
-uniform float inner_intensity : hint_range(0.0, 1.0) = 0.3;
-uniform float aura_size : hint_range(0.0, 0.06) = 0.02;
-uniform float aura_intensity : hint_range(0.0, 2.0) = 0.8;
-uniform float bloom_size : hint_range(0.0, 0.15) = 0.05;
-uniform float bloom_intensity : hint_range(0.0, 1.5) = 0.4;
+uniform float segment_gap : hint_range(0.0, 0.12) = 0.04;
+// Inner glow
+uniform float inner_intensity : hint_range(0.0, 2.0) = 0.3;
+uniform float inner_softness : hint_range(0.1, 3.0) = 1.0;
+// Aura (tight glow around segments)
+uniform float aura_size : hint_range(0.0, 0.15) = 0.02;
+uniform float aura_intensity : hint_range(0.0, 3.0) = 0.8;
+uniform float aura_falloff : hint_range(0.1, 4.0) = 1.0;
+// Bloom (wide soft glow)
+uniform float bloom_size : hint_range(0.0, 0.3) = 0.05;
+uniform float bloom_intensity : hint_range(0.0, 2.0) = 0.4;
+uniform float bloom_falloff : hint_range(0.1, 4.0) = 1.0;
+// Smudge
 uniform float smudge_blur : hint_range(0.0, 0.03) = 0.008;
+// Core
 uniform vec4 fill_color : source_color = vec4(0.15, 0.7, 0.3, 1.0);
 uniform vec4 bg_color : source_color = vec4(0.05, 0.05, 0.08, 1.0);
 uniform float fill_ratio : hint_range(0.0, 1.0) = 0.75;
 // Padding: fraction of total overlay rect that is glow margin
 uniform float pad_x : hint_range(0.0, 0.5) = 0.05;
 uniform float pad_y : hint_range(0.0, 0.5) = 0.2;
+// Aspect ratio (bar_width / bar_height) for isotropic glow
+uniform float bar_aspect : hint_range(1.0, 30.0) = 5.0;
 
 // Remap UV from overlay space to bar space.
 // Bar occupies [pad_x, 1-pad_x] x [pad_y, 1-pad_y] in overlay UV.
@@ -29,7 +39,6 @@ bool in_bar(vec2 bar_uv) {
 }
 
 // Returns 1.0 if bar_uv_x is inside a lit segment, 0.0 otherwise.
-// gap is in absolute bar-UV space.
 float is_lit(float bx) {
 	if (bx < 0.0 || bx > 1.0) return 0.0;
 	float seg_width = 1.0 / float(segment_count);
@@ -50,7 +59,7 @@ float is_lit(float bx) {
 }
 
 // Per-segment radial distance: 0.0 at center, 1.0 at edge, -1.0 if not in a lit segment.
-// Used for inner intensity so the whitening stays strictly within segment rectangles.
+// Uses aspect ratio so the gradient is circular in pixel space.
 float segment_center_dist(vec2 bar_uv) {
 	if (bar_uv.x < 0.0 || bar_uv.x > 1.0 || bar_uv.y < 0.0 || bar_uv.y > 1.0) return -1.0;
 	float seg_width = 1.0 / float(segment_count);
@@ -62,25 +71,23 @@ float segment_center_dist(vec2 bar_uv) {
 	float seg_start = float(seg_index) * seg_width;
 	float seg_end = seg_start + seg_width;
 
-	// In gap?
 	if (bar_uv.x - seg_start < half_gap || seg_end - bar_uv.x < half_gap) return -1.0;
 
-	// Is this segment lit?
 	float seg_mid_x = (float(seg_index) + 0.5) / float(segment_count);
 	if (seg_mid_x > fill_ratio) return -1.0;
 
-	// Normalized position within segment: 0 at center, 1 at edge
 	float inner_start = seg_start + half_gap;
 	float inner_end = seg_end - half_gap;
 	float inner_width = inner_end - inner_start;
 	float nx = abs(bar_uv.x - (inner_start + inner_width * 0.5)) / (inner_width * 0.5);
-	float ny = abs(bar_uv.y - 0.5) * 2.0;
+	// Normalize y by aspect so the gradient is circular in pixel space
+	float ny = abs(bar_uv.y - 0.5) * 2.0 / bar_aspect;
 
 	return clamp(sqrt(nx * nx + ny * ny), 0.0, 1.0);
 }
 
-// Signed distance to nearest lit segment surface (negative = inside, positive = outside).
-// Works in bar UV space for x, and bar UV space for y.
+// Pixel-isotropic SDF to nearest lit segment surface.
+// dy is scaled by 1/aspect so vertical and horizontal distances match in pixels.
 float sdf_lit(vec2 bar_uv) {
 	float seg_width = 1.0 / float(segment_count);
 	float half_gap = segment_gap * 0.5;
@@ -98,9 +105,9 @@ float sdf_lit(vec2 bar_uv) {
 		float sx0 = float(si) * seg_width + half_gap;
 		float sx1 = float(si + 1) * seg_width - half_gap;
 
-		// Box SDF (2D distance to rectangle)
+		// Box SDF — normalize dy by aspect for isotropic pixel distance
 		float dx = max(max(sx0 - bar_uv.x, bar_uv.x - sx1), 0.0);
-		float dy = max(max(0.0 - bar_uv.y, bar_uv.y - 1.0), 0.0);
+		float dy = max(max(0.0 - bar_uv.y, bar_uv.y - 1.0), 0.0) / bar_aspect;
 		float d = sqrt(dx * dx + dy * dy);
 		min_dist = min(min_dist, d);
 	}
@@ -138,7 +145,7 @@ void fragment() {
 	if (inner_intensity > 0.0 && inside) {
 		float seg_dist = segment_center_dist(bar_uv);
 		if (seg_dist >= 0.0) {
-			float radial = 1.0 - seg_dist;
+			float radial = pow(1.0 - seg_dist, inner_softness);
 			inner = radial * inner_intensity;
 		}
 	}
@@ -146,7 +153,7 @@ void fragment() {
 	// Aura: tight glow around lit segments
 	float aura = 0.0;
 	if (aura_size > 0.0001 && d > 0.0) {
-		aura = exp(-d * d / (aura_size * aura_size * 0.5)) * aura_intensity;
+		aura = exp(-d * d / (aura_size * aura_size * aura_falloff)) * aura_intensity;
 	}
 	// Also add aura contribution for pixels inside lit segments (edge bloom inward)
 	if (base > 0.5 && aura_intensity > 0.0) {
@@ -156,7 +163,7 @@ void fragment() {
 	// Bloom: wide soft glow extending further
 	float bloom = 0.0;
 	if (bloom_size > 0.0001 && d > 0.0) {
-		bloom = exp(-d * d / (bloom_size * bloom_size * 0.5)) * bloom_intensity;
+		bloom = exp(-d * d / (bloom_size * bloom_size * bloom_falloff)) * bloom_intensity;
 	}
 
 	// Vertical softness (only for the bar body, not the glow)

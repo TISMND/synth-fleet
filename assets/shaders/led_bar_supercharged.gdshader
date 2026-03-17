@@ -1,18 +1,28 @@
 shader_type canvas_item;
 
 uniform int segment_count : hint_range(4, 40) = 20;
-uniform float segment_gap : hint_range(0.005, 0.04) = 0.015;
-uniform float inner_intensity : hint_range(0.0, 1.0) = 0.3;
-uniform float aura_size : hint_range(0.0, 0.06) = 0.02;
-uniform float aura_intensity : hint_range(0.0, 2.0) = 0.8;
-uniform float bloom_size : hint_range(0.0, 0.15) = 0.05;
-uniform float bloom_intensity : hint_range(0.0, 1.5) = 0.4;
+uniform float segment_gap : hint_range(0.0, 0.12) = 0.04;
+// Inner glow
+uniform float inner_intensity : hint_range(0.0, 2.0) = 0.3;
+uniform float inner_softness : hint_range(0.1, 3.0) = 1.0;
+// Aura (tight glow around segments)
+uniform float aura_size : hint_range(0.0, 0.15) = 0.02;
+uniform float aura_intensity : hint_range(0.0, 3.0) = 0.8;
+uniform float aura_falloff : hint_range(0.1, 4.0) = 1.0;
+// Bloom (wide soft glow)
+uniform float bloom_size : hint_range(0.0, 0.3) = 0.05;
+uniform float bloom_intensity : hint_range(0.0, 2.0) = 0.4;
+uniform float bloom_falloff : hint_range(0.1, 4.0) = 1.0;
+// Smudge
 uniform float smudge_blur : hint_range(0.0, 0.03) = 0.008;
+// Core
 uniform vec4 fill_color : source_color = vec4(0.3, 0.8, 1.0, 1.0);
 uniform vec4 bg_color : source_color = vec4(0.05, 0.05, 0.08, 1.0);
 uniform float fill_ratio : hint_range(0.0, 1.0) = 0.75;
 uniform float pad_x : hint_range(0.0, 0.5) = 0.05;
 uniform float pad_y : hint_range(0.0, 0.5) = 0.2;
+// Aspect ratio (bar_width / bar_height) for isotropic glow
+uniform float bar_aspect : hint_range(1.0, 30.0) = 5.0;
 
 // Supercharged animation uniforms
 uniform float animation_speed : hint_range(0.1, 5.0) = 1.5;
@@ -68,11 +78,12 @@ float segment_center_dist(vec2 bar_uv) {
 	float inner_end = seg_end - half_gap;
 	float inner_width = inner_end - inner_start;
 	float nx = abs(bar_uv.x - (inner_start + inner_width * 0.5)) / (inner_width * 0.5);
-	float ny = abs(bar_uv.y - 0.5) * 2.0;
+	float ny = abs(bar_uv.y - 0.5) * 2.0 / bar_aspect;
 
 	return clamp(sqrt(nx * nx + ny * ny), 0.0, 1.0);
 }
 
+// Pixel-isotropic SDF to nearest lit segment surface.
 float sdf_lit(vec2 bar_uv) {
 	float seg_width = 1.0 / float(segment_count);
 	float half_gap = segment_gap * 0.5;
@@ -90,7 +101,7 @@ float sdf_lit(vec2 bar_uv) {
 		float sx1 = float(si + 1) * seg_width - half_gap;
 
 		float dx = max(max(sx0 - bar_uv.x, bar_uv.x - sx1), 0.0);
-		float dy = max(max(0.0 - bar_uv.y, bar_uv.y - 1.0), 0.0);
+		float dy = max(max(0.0 - bar_uv.y, bar_uv.y - 1.0), 0.0) / bar_aspect;
 		float d = sqrt(dx * dx + dy * dy);
 		min_dist = min(min_dist, d);
 	}
@@ -156,7 +167,7 @@ void fragment() {
 	if (inner_intensity > 0.0 && inside) {
 		float seg_dist = segment_center_dist(bar_uv);
 		if (seg_dist >= 0.0) {
-			float radial = 1.0 - seg_dist;
+			float radial = pow(1.0 - seg_dist, inner_softness);
 			float sweep_boost = 1.0 + (sweep + sweep2) * pulse_intensity;
 			inner = radial * inner_intensity * sweep_boost;
 		}
@@ -166,7 +177,7 @@ void fragment() {
 	float aura = 0.0;
 	float effective_aura_intensity = aura_intensity * glow_pulse;
 	if (aura_size > 0.0001 && d > 0.0) {
-		aura = exp(-d * d / (aura_size * aura_size * 0.5)) * effective_aura_intensity;
+		aura = exp(-d * d / (aura_size * aura_size * aura_falloff)) * effective_aura_intensity;
 	}
 	if (base > 0.5 && aura_intensity > 0.0) {
 		aura = max(aura, effective_aura_intensity * 0.3);
@@ -175,7 +186,7 @@ void fragment() {
 	// Bloom with glow pulse
 	float bloom = 0.0;
 	if (bloom_size > 0.0001 && d > 0.0) {
-		bloom = exp(-d * d / (bloom_size * bloom_size * 0.5)) * bloom_intensity * glow_pulse;
+		bloom = exp(-d * d / (bloom_size * bloom_size * bloom_falloff)) * bloom_intensity * glow_pulse;
 	}
 
 	// Vertical softness
