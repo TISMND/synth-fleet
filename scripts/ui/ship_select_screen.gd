@@ -222,8 +222,8 @@ func _show_ship(index: int) -> void:
 	var info: Dictionary = ShipRegistry.get_ship(index)
 	_ship_name_label.text = str(info["name"])
 	var s: Dictionary = info["stats"]
-	_hull_label.text = "Hull: " + str(int(s.get("hull_max", 100)))
-	_shield_label.text = "Shield: " + str(int(s.get("shield_max", 50)))
+	_hull_label.text = "Hull: " + str(int(s.get("hull_segments", 8))) + " seg"
+	_shield_label.text = "Shield: " + str(int(s.get("shield_segments", 10))) + " seg"
 	_speed_label.text = "Speed: " + str(int(s.get("speed", 400)))
 	_generator_label.text = "Generator: " + str(int(s.get("generator_power", 10)))
 	_slots_label.text = "3 External / 3 Internal"

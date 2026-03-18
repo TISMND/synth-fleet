@@ -1,12 +1,16 @@
 extends Control
-## Visual showcase screen: a hand-drawn synthwave ship with neon glow.
-## Tab toggles between NEON and CHROME rendering modes.
+## Ship viewer / configuration screen.
+## Left panel: ship selection. Center: ship preview (WASD movement).
+## Right panel: attribute sliders + skin dropdown + save. Bottom: HUD replica.
 
-const MOVE_ACCEL := 1200.0
 const MOVE_DECEL := 800.0
-const MAX_SPEED := 400.0
 const BANK_LERP := 6.0
+const LEFT_PANEL_W := 200.0
+const RIGHT_PANEL_W := 280.0
+const HUD_HEIGHT := 110.0
 
+var _accel := 1200.0
+var _top_speed := 400.0
 var _velocity := 0.0
 var _velocity_y := 0.0
 var _bank := 0.0
@@ -17,6 +21,14 @@ var _exhaust_timer := 0.0
 var _ship_selector: Node2D
 var _selected_ship := 0
 var _vhs_overlay: ColorRect
+var _hud_replica: CanvasLayer = null
+var _right_panel: PanelContainer = null
+var _sliders: Dictionary = {}  # key -> HSlider
+var _slider_labels: Dictionary = {}  # key -> Label
+var _working_stats: Dictionary = {}
+var _updating_sliders := false
+var _skin_dropdown: OptionButton = null
+var _working_render_mode: String = "chrome"
 
 
 func _ready() -> void:
@@ -36,8 +48,15 @@ func _ready() -> void:
 	_ship_selector.viewer = self
 	add_child(_ship_selector)
 
+	# Center ship in preview area (between left panel, right panel, above HUD)
 	var vp_size: Vector2 = get_viewport_rect().size
-	_ship_draw.position = Vector2(vp_size.x * 0.5, vp_size.y * 0.5)
+	var cx: float = LEFT_PANEL_W + (vp_size.x - LEFT_PANEL_W - RIGHT_PANEL_W) * 0.5
+	var cy: float = (vp_size.y - HUD_HEIGHT) * 0.5
+	_ship_draw.position = Vector2(cx, cy)
+
+	_build_right_panel()
+	_build_hud_replica()
+	_select_ship(0)
 
 
 func _process(delta: float) -> void:
@@ -54,22 +73,22 @@ func _process(delta: float) -> void:
 		input_dir_y += 1.0
 
 	if input_dir != 0.0:
-		_velocity = move_toward(_velocity, input_dir * MAX_SPEED, MOVE_ACCEL * delta)
+		_velocity = move_toward(_velocity, input_dir * _top_speed, _accel * delta)
 	else:
 		_velocity = move_toward(_velocity, 0.0, MOVE_DECEL * delta)
 
 	if input_dir_y != 0.0:
-		_velocity_y = move_toward(_velocity_y, input_dir_y * MAX_SPEED, MOVE_ACCEL * delta)
+		_velocity_y = move_toward(_velocity_y, input_dir_y * _top_speed, _accel * delta)
 	else:
 		_velocity_y = move_toward(_velocity_y, 0.0, MOVE_DECEL * delta)
 
 	_ship_draw.position.x += _velocity * delta
 	_ship_draw.position.y += _velocity_y * delta
 	var vp_size: Vector2 = get_viewport_rect().size
-	_ship_draw.position.x = clampf(_ship_draw.position.x, 60.0, vp_size.x - 60.0)
-	_ship_draw.position.y = clampf(_ship_draw.position.y, 60.0, vp_size.y - 60.0)
+	_ship_draw.position.x = clampf(_ship_draw.position.x, LEFT_PANEL_W + 60.0, vp_size.x - RIGHT_PANEL_W - 60.0)
+	_ship_draw.position.y = clampf(_ship_draw.position.y, 60.0, vp_size.y - HUD_HEIGHT - 60.0)
 
-	var target_bank: float = -_velocity / MAX_SPEED
+	var target_bank: float = -_velocity / maxf(_top_speed, 1.0)
 	_bank = lerpf(_bank, target_bank, BANK_LERP * delta)
 	_ship_draw.bank = _bank
 	_ship_draw.ship_id = _selected_ship
@@ -136,20 +155,8 @@ func _setup_vhs_overlay() -> void:
 func _on_theme_changed() -> void:
 	ThemeManager.apply_grid_background($Background)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+	_apply_right_panel_theme()
 
-
-func _unhandled_key_input(event: InputEvent) -> void:
-	if event is InputEventKey:
-		var ke: InputEventKey = event as InputEventKey
-		if ke.pressed and not ke.echo and ke.keycode == KEY_TAB:
-			if _ship_draw.render_mode == _ShipDraw.RenderMode.NEON:
-				_ship_draw.render_mode = _ShipDraw.RenderMode.CHROME
-			else:
-				_ship_draw.render_mode = _ShipDraw.RenderMode.NEON
-			_ship_selector.render_mode = _ship_draw.render_mode
-			_ship_draw.queue_redraw()
-			_ship_selector.queue_redraw()
-			get_viewport().set_input_as_handled()
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -158,13 +165,294 @@ func _input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 			var vp_size: Vector2 = get_viewport_rect().size
-			var bar_y: float = vp_size.y - _ShipSelector.BAR_HEIGHT
-			if mb.position.y >= bar_y:
-				var slot: int = _ship_selector.get_slot_at(mb.position.x, vp_size.x)
+			if mb.position.x <= LEFT_PANEL_W and mb.position.y < vp_size.y - HUD_HEIGHT:
+				var slot: int = _ship_selector.get_slot_at(mb.position.y)
 				if slot >= 0 and slot < _ShipSelector.SHIP_COUNT:
-					_selected_ship = slot
-					_exhaust_particles.clear()
-					_ship_selector.queue_redraw()
+					_select_ship(slot)
+
+
+# ── Ship selection wiring ─────────────────────────────────────
+
+func _select_ship(index: int) -> void:
+	_selected_ship = index
+	_exhaust_particles.clear()
+
+	# Load stats: check for user override first, then registry defaults
+	var ship_id: String = ShipRegistry.get_ship_name(index).to_lower()
+	var override: ShipData = ShipDataManager.load_by_id(ship_id)
+	var stats: Dictionary
+	if override:
+		stats = override.stats.duplicate()
+		_working_render_mode = override.render_mode
+	else:
+		stats = ShipRegistry.SHIP_STATS[index].duplicate()
+		_working_render_mode = "chrome"
+
+	_working_stats = stats
+	_accel = float(stats.get("acceleration", 1200))
+	_top_speed = float(stats.get("speed", 400))
+
+	# Update sliders without triggering save
+	_updating_sliders = true
+	for key in _sliders:
+		var slider: HSlider = _sliders[key]
+		slider.value = float(stats.get(key, slider.value))
+		_slider_labels[key].text = str(int(slider.value))
+	# Update skin dropdown
+	if _skin_dropdown:
+		_skin_dropdown.selected = 0 if _working_render_mode == "chrome" else 1
+	_updating_sliders = false
+
+	# Apply render mode to preview
+	_apply_render_mode()
+	_update_hud_from_stats()
+	_ship_selector.queue_redraw()
+
+
+func _apply_render_mode() -> void:
+	var mode: int = _ShipDraw.RenderMode.CHROME if _working_render_mode == "chrome" else _ShipDraw.RenderMode.NEON
+	_ship_draw.render_mode = mode
+	_ship_selector.render_mode = mode
+	_ship_draw.queue_redraw()
+	_ship_selector.queue_redraw()
+
+
+func _update_hud_from_stats() -> void:
+	if not _hud_replica:
+		return
+	_hud_replica.set_bar_segments(_working_stats)
+	var s: float = float(_working_stats.get("shield_segments", 10))
+	var h: float = float(_working_stats.get("hull_segments", 8))
+	var t: float = float(_working_stats.get("thermal_segments", 6))
+	var e: float = float(_working_stats.get("electric_segments", 8))
+	_hud_replica.update_all_bars(s, s, h, h, t, t, e, e)
+
+
+# ── Right attribute panel ─────────────────────────────────────
+
+func _build_right_panel() -> void:
+	_right_panel = PanelContainer.new()
+	_right_panel.position = Vector2(1920.0 - RIGHT_PANEL_W, 0)
+	_right_panel.size = Vector2(RIGHT_PANEL_W, 1080.0 - HUD_HEIGHT)
+	add_child(_right_panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	_right_panel.add_child(vbox)
+
+	# Header
+	var header := Label.new()
+	header.text = "ATTRIBUTES"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(header)
+
+	# Spacer
+	var spacer1 := Control.new()
+	spacer1.custom_minimum_size.y = 8
+	vbox.add_child(spacer1)
+
+	# Section: Bar Segments
+	var seg_label := Label.new()
+	seg_label.text = "BAR SEGMENTS"
+	seg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(seg_label)
+
+	_add_slider_row(vbox, "shield_segments", "SHD", 4, 24, 1)
+	_add_slider_row(vbox, "hull_segments", "HUL", 4, 24, 1)
+	_add_slider_row(vbox, "thermal_segments", "THR", 2, 12, 1)
+	_add_slider_row(vbox, "electric_segments", "ELC", 2, 12, 1)
+
+	# Spacer
+	var spacer2 := Control.new()
+	spacer2.custom_minimum_size.y = 12
+	vbox.add_child(spacer2)
+
+	# Section: Propulsion
+	var prop_label := Label.new()
+	prop_label.text = "PROPULSION"
+	prop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(prop_label)
+
+	_add_slider_row(vbox, "acceleration", "ACCEL", 400, 2400, 50)
+	_add_slider_row(vbox, "speed", "SPEED", 200, 600, 10)
+
+	# Spacer
+	var spacer3 := Control.new()
+	spacer3.custom_minimum_size.y = 12
+	vbox.add_child(spacer3)
+
+	# Section: Skin
+	var skin_label := Label.new()
+	skin_label.text = "SKIN"
+	skin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(skin_label)
+
+	_skin_dropdown = OptionButton.new()
+	_skin_dropdown.add_item("CHROME", 0)
+	_skin_dropdown.add_item("NEON", 1)
+	_skin_dropdown.selected = 0
+	_skin_dropdown.item_selected.connect(_on_skin_changed)
+	vbox.add_child(_skin_dropdown)
+
+	# Spacer to push buttons down
+	var spacer4 := Control.new()
+	spacer4.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(spacer4)
+
+	# Save button
+	var save_btn := Button.new()
+	save_btn.text = "SAVE CHANGES"
+	save_btn.pressed.connect(_on_save_pressed)
+	vbox.add_child(save_btn)
+	ThemeManager.apply_button_style(save_btn)
+
+	# Reset button
+	var reset_btn := Button.new()
+	reset_btn.text = "RESET DEFAULT"
+	reset_btn.pressed.connect(_on_reset_default)
+	vbox.add_child(reset_btn)
+	ThemeManager.apply_button_style(reset_btn)
+
+	_apply_right_panel_theme()
+
+
+func _add_slider_row(parent: VBoxContainer, key: String, label_text: String, min_val: float, max_val: float, step: float) -> void:
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 6)
+	parent.add_child(hbox)
+
+	var lbl := Label.new()
+	lbl.text = label_text
+	lbl.custom_minimum_size.x = 56
+	hbox.add_child(lbl)
+
+	var slider := HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.step = step
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 120
+	hbox.add_child(slider)
+
+	var val_label := Label.new()
+	val_label.custom_minimum_size.x = 44
+	val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	val_label.text = str(int(min_val))
+	hbox.add_child(val_label)
+
+	_sliders[key] = slider
+	_slider_labels[key] = val_label
+	slider.value_changed.connect(_on_attr_changed.bind(key))
+
+
+func _on_attr_changed(value: float, key: String) -> void:
+	if _updating_sliders:
+		return
+	_working_stats[key] = value
+	_slider_labels[key].text = str(int(value))
+
+	if key == "speed":
+		_top_speed = value
+	elif key == "acceleration":
+		_accel = value
+
+	_update_hud_from_stats()
+
+
+func _on_skin_changed(index: int) -> void:
+	if _updating_sliders:
+		return
+	_working_render_mode = "chrome" if index == 0 else "neon"
+	_apply_render_mode()
+
+
+func _on_save_pressed() -> void:
+	var ship_id: String = ShipRegistry.get_ship_name(_selected_ship).to_lower()
+	var data: Dictionary = {
+		"id": ship_id,
+		"display_name": ShipRegistry.get_ship_name(_selected_ship),
+		"render_mode": _working_render_mode,
+		"stats": _working_stats.duplicate(),
+	}
+	ShipDataManager.save(ship_id, data)
+
+
+func _on_reset_default() -> void:
+	var ship_id: String = ShipRegistry.get_ship_name(_selected_ship).to_lower()
+	ShipDataManager.delete(ship_id)
+	_select_ship(_selected_ship)
+
+
+func _apply_right_panel_theme() -> void:
+	if not _right_panel:
+		return
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = ThemeManager.get_color("panel")
+	panel_style.content_margin_left = 10
+	panel_style.content_margin_right = 10
+	panel_style.content_margin_top = 14
+	panel_style.content_margin_bottom = 10
+	_right_panel.add_theme_stylebox_override("panel", panel_style)
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var body_size: int = ThemeManager.get_font_size("font_size_body")
+	var header_size: int = ThemeManager.get_font_size("font_size_header")
+	var accent: Color = ThemeManager.get_color("accent")
+	var text_color: Color = ThemeManager.get_color("text")
+
+	# Theme all labels in the panel
+	var vbox: VBoxContainer = _right_panel.get_child(0) as VBoxContainer
+	if not vbox:
+		return
+	var section_names: Array[String] = ["ATTRIBUTES", "BAR SEGMENTS", "PROPULSION", "SKIN"]
+	for child in vbox.get_children():
+		if child is Label:
+			var lbl: Label = child as Label
+			if lbl.text in section_names:
+				lbl.add_theme_font_size_override("font_size", header_size if lbl.text == "ATTRIBUTES" else body_size)
+				lbl.add_theme_color_override("font_color", accent)
+				if body_font:
+					lbl.add_theme_font_override("font", body_font)
+				ThemeManager.apply_text_glow(lbl, "header" if lbl.text == "ATTRIBUTES" else "body")
+		elif child is HBoxContainer:
+			for sub in child.get_children():
+				if sub is Label:
+					var slbl: Label = sub as Label
+					slbl.add_theme_font_size_override("font_size", body_size)
+					slbl.add_theme_color_override("font_color", text_color)
+					if body_font:
+						slbl.add_theme_font_override("font", body_font)
+		elif child is Button:
+			ThemeManager.apply_button_style(child as Button)
+		elif child is OptionButton:
+			var ob: OptionButton = child as OptionButton
+			ob.add_theme_font_size_override("font_size", body_size)
+			ob.add_theme_color_override("font_color", text_color)
+			if body_font:
+				ob.add_theme_font_override("font", body_font)
+
+
+# ── HUD replica ───────────────────────────────────────────────
+
+func _build_hud_replica() -> void:
+	var HudScript: GDScript = load("res://scripts/game/hud.gd") as GDScript
+	_hud_replica = HudScript.new()
+	add_child(_hud_replica)
+
+	# Hide irrelevant elements
+	if _hud_replica._credits_label:
+		_hud_replica._credits_label.visible = false
+	if _hud_replica._menu_hint:
+		_hud_replica._menu_hint.visible = false
+
+	# Remove the HUD's own VHS overlay (ship viewer already has one).
+	# Null out the reference so _apply_theme doesn't crash on freed object.
+	for child in _hud_replica.get_children():
+		if child is CanvasLayer:
+			if child.layer == 10:
+				_hud_replica._vhs_overlay = null
+				child.queue_free()
+				break
 
 
 # ── Ship Drawing (inner class) ───────────────────────────────
@@ -1240,9 +1528,11 @@ class _ExhaustDraw extends Node2D:
 # ── Ship Selector Bar (inner class) ─────────────────────────
 
 class _ShipSelector extends Node2D:
-	const BAR_HEIGHT := 130.0
-	const SLOT_WIDTH := 80.0
+	const PANEL_WIDTH := 200.0
+	const SLOT_HEIGHT := 100.0
 	const SHIP_COUNT := 9
+	const HEADER_HEIGHT := 40.0
+	const HUD_H := 110.0
 	const SHIP_NAMES: Array[String] = [
 		"Switchblade", "Phantom", "Mantis", "Corsair", "Stiletto",
 		"Trident", "Orrery", "Dreadnought", "Bastion",
@@ -1257,38 +1547,45 @@ class _ShipSelector extends Node2D:
 	var purple := Color(0.4, 0.2, 1.0)
 	var teal := Color(0.0, 1.0, 0.7)
 
-	func get_slot_at(mouse_x: float, vp_w: float) -> int:
-		var total_w: float = SLOT_WIDTH * SHIP_COUNT
-		var start_x: float = (vp_w - total_w) * 0.5
-		if mouse_x < start_x or mouse_x > start_x + total_w:
+	func get_slot_at(mouse_y: float) -> int:
+		var y_offset: float = mouse_y - HEADER_HEIGHT
+		if y_offset < 0:
 			return -1
-		return int((mouse_x - start_x) / SLOT_WIDTH)
+		var idx: int = int(y_offset / SLOT_HEIGHT)
+		if idx < 0 or idx >= SHIP_COUNT:
+			return -1
+		return idx
 
 	func _draw() -> void:
 		if not viewer:
 			return
 		var vp_size: Vector2 = viewer.get_viewport_rect().size
-		var bar_y: float = vp_size.y - BAR_HEIGHT
+		var panel_h: float = vp_size.y - HUD_H
 
+		# Panel background
 		var bg := Color(0.0, 0.0, 0.05, 0.85)
-		draw_rect(Rect2(0, bar_y, vp_size.x, BAR_HEIGHT), bg)
-		draw_line(Vector2(0, bar_y), Vector2(vp_size.x, bar_y), cyan * Color(1, 1, 1, 0.3), 1.0)
+		draw_rect(Rect2(0, 0, PANEL_WIDTH, panel_h), bg)
+		# Right edge separator
+		draw_line(Vector2(PANEL_WIDTH, 0), Vector2(PANEL_WIDTH, panel_h), cyan * Color(1, 1, 1, 0.3), 1.0)
 
-		var total_w: float = SLOT_WIDTH * SHIP_COUNT
-		var start_x: float = (vp_size.x - total_w) * 0.5
-		var center_y: float = bar_y + 48.0
+		# Header
+		var header_font: Font = ThemeDB.fallback_font
+		var header_text := "SHIPS"
+		var hw: float = header_font.get_string_size(header_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
+		draw_string(header_font, Vector2((PANEL_WIDTH - hw) * 0.5, 28), header_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, cyan)
 
 		for i in range(SHIP_COUNT):
-			var cx: float = start_x + SLOT_WIDTH * i + SLOT_WIDTH * 0.5
+			var slot_y: float = HEADER_HEIGHT + SLOT_HEIGHT * i
+			var cy: float = slot_y + SLOT_HEIGHT * 0.4
 			var selected: bool = (i == viewer._selected_ship)
 
 			if selected:
 				var hl := cyan
 				hl.a = 0.12
-				draw_rect(Rect2(cx - SLOT_WIDTH * 0.5 + 2, bar_y + 2, SLOT_WIDTH - 4, BAR_HEIGHT - 4), hl)
-				draw_rect(Rect2(cx - SLOT_WIDTH * 0.5 + 2, bar_y + 2, SLOT_WIDTH - 4, BAR_HEIGHT - 4), Color(cyan.r, cyan.g, cyan.b, 0.4), false, 1.0)
+				draw_rect(Rect2(2, slot_y + 2, PANEL_WIDTH - 4, SLOT_HEIGHT - 4), hl)
+				draw_rect(Rect2(2, slot_y + 2, PANEL_WIDTH - 4, SLOT_HEIGHT - 4), Color(cyan.r, cyan.g, cyan.b, 0.4), false, 1.0)
 
-			var origin := Vector2(cx, center_y)
+			var origin := Vector2(PANEL_WIDTH * 0.5, cy)
 			match i:
 				0: _draw_switchblade(origin)
 				1: _draw_phantom(origin)
@@ -1300,16 +1597,13 @@ class _ShipSelector extends Node2D:
 				7: _draw_dreadnought(origin)
 				8: _draw_bastion(origin)
 
-			var label_pos := Vector2(cx - 3, bar_y + BAR_HEIGHT - 26)
-			var label_col: Color = cyan if selected else Color(0.5, 0.5, 0.6)
-			_draw_number(label_pos, i + 1, label_col)
-
-			# Ship name below number
+			# Ship name below thumbnail
 			var font: Font = ThemeDB.fallback_font
 			var name_text: String = SHIP_NAMES[i] if i < SHIP_NAMES.size() else ""
 			var font_size: int = 12
+			var label_col: Color = cyan if selected else Color(0.5, 0.5, 0.6)
 			var text_width: float = font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x
-			var name_pos := Vector2(cx - text_width * 0.5, bar_y + BAR_HEIGHT - 6)
+			var name_pos := Vector2((PANEL_WIDTH - text_width) * 0.5, slot_y + SLOT_HEIGHT - 10)
 			draw_string(font, name_pos, name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, label_col)
 
 	# ── Thumbnail dispatch helpers ──

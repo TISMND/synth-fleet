@@ -16,10 +16,13 @@ var _border_line: ColorRect = null
 var _dashboard_hbox: HBoxContainer = null
 var _weapons_hbox: HBoxContainer = null
 var _weapon_icons: Array = []  # Array of dicts: {container, bg_rect, number_label, active, color}
+var _core_icons: Array = []    # Array of dicts: same shape as weapon_icons
 var _beat_indicators: Array = []  # Array of ColorRect
 var _bars_grid: GridContainer = null
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
 var _bar_segments: Dictionary = {}  # bar_name -> int segment count
+var _bar_pulse_brightness: Dictionary = {}  # bar_name -> float (0.0 = idle, 1.0 = full pulse)
+var _bar_base_colors: Dictionary = {}  # bar_name -> Color
 var _vhs_overlay: ColorRect = null
 
 
@@ -97,16 +100,18 @@ func _build_ui() -> void:
 	# Build bars from shared specs — layout order: [0] Shield, [2] Thermal, [1] Hull, [3] Electric
 	var specs: Array = ThemeManager.get_status_bar_specs()
 	var layout_order: Array[int] = [0, 2, 1, 3]  # Row1: Shield, Thermal — Row2: Hull, Electric
-	var initial_values: Dictionary = {"SHIELD": 100, "HULL": 100, "THERMAL": 30, "ELECTRIC": 70}
+	var initial_values: Dictionary = {"SHIELD": 10, "HULL": 8, "THERMAL": 6, "ELECTRIC": 8}
 	for idx in layout_order:
 		var spec: Dictionary = specs[idx]
 		var bar_name: String = str(spec["name"])
 		var color: Color = ThemeManager.resolve_bar_color(spec)
-		var init_val: int = int(initial_values.get(bar_name, 100))
-		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, -1))
-		var cell: Dictionary = _create_bar_cell(bar_name, color, init_val, 100, seg)
+		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
+		var init_val: int = int(initial_values.get(bar_name, seg))
+		var cell: Dictionary = _create_bar_cell(bar_name, color, init_val, seg, seg)
 		_bars_grid.add_child(cell["vbox"])
 		_bars[bar_name] = {"bar": cell["bar"], "label": cell["label"]}
+		_bar_pulse_brightness[bar_name] = 0.0
+		_bar_base_colors[bar_name] = color
 
 
 func _create_bar_cell(text: String, color: Color, initial: int, max_val: int, seg_count: int = -1) -> Dictionary:
@@ -157,7 +162,8 @@ func set_bar_segments(stats: Dictionary) -> void:
 
 
 func _apply_theme() -> void:
-	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+	if _vhs_overlay:
+		ThemeManager.apply_vhs_overlay(_vhs_overlay)
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var body_size: int = ThemeManager.get_font_size("font_size_body")
 
@@ -193,6 +199,7 @@ func _apply_theme() -> void:
 		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
 		var seg: int = int(_bar_segments.get(bar_name, -1))
 		ThemeManager.apply_led_bar(bar, color, ratio, seg)
+		_bar_base_colors[bar_name] = color
 
 	# Beat indicators
 	for i in _beat_indicators.size():
@@ -224,14 +231,14 @@ func _apply_weapon_icon_theme(icon: Dictionary) -> void:
 		icon["number_label"].add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 
 
-func update_health(current_shield: float, max_shield: int, current_hull: int, max_hull: int) -> void:
-	_update_bar("SHIELD", current_shield, float(max_shield), "bar_shield")
-	_update_bar("HULL", float(current_hull), float(max_hull), "bar_hull")
+func update_health(current_shield: float, max_shield: float, current_hull: float, max_hull: float) -> void:
+	_update_bar("SHIELD", current_shield, max_shield, "bar_shield")
+	_update_bar("HULL", current_hull, max_hull, "bar_hull")
 
 
-func update_all_bars(current_shield: float, max_shield: int, current_hull: int, max_hull: int, current_thermal: float, max_thermal: float, current_electric: float, max_electric: float) -> void:
-	_update_bar("SHIELD", current_shield, float(max_shield), "bar_shield")
-	_update_bar("HULL", float(current_hull), float(max_hull), "bar_hull")
+func update_all_bars(current_shield: float, max_shield: float, current_hull: float, max_hull: float, current_thermal: float, max_thermal: float, current_electric: float, max_electric: float) -> void:
+	_update_bar("SHIELD", current_shield, max_shield, "bar_shield")
+	_update_bar("HULL", current_hull, max_hull, "bar_hull")
 	_update_bar("THERMAL", current_thermal, max_thermal, "bar_thermal")
 	_update_bar("ELECTRIC", current_electric, max_electric, "bar_electric")
 
@@ -244,8 +251,52 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 	bar.max_value = max_val
 	bar.value = current
 	var ratio: float = current / maxf(max_val, 1.0)
-	var seg: int = int(_bar_segments.get(bar_name, -1))
-	ThemeManager.apply_led_bar(bar, ThemeManager.get_color(color_key), ratio, seg)
+	# Only update fill_ratio on existing shader — don't rebuild the entire LED bar
+	var overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
+	if overlay and overlay.material is ShaderMaterial:
+		var mat: ShaderMaterial = overlay.material as ShaderMaterial
+		mat.set_shader_parameter("fill_ratio", ratio)
+	else:
+		# First time or after theme change — full rebuild
+		var seg: int = int(_bar_segments.get(bar_name, -1))
+		ThemeManager.apply_led_bar(bar, ThemeManager.get_color(color_key), ratio, seg)
+
+
+func pulse_bar(bar_name: String) -> void:
+	## Trigger a glow pulse on a status bar (called when a power core trigger fires).
+	_bar_pulse_brightness[bar_name] = 1.0
+
+
+func update_bar_pulses(delta: float) -> void:
+	## Decay pulse brightness and modulate LED shader glow. Called every frame from game.
+	for bar_name in _bar_pulse_brightness:
+		var brightness: float = float(_bar_pulse_brightness[bar_name])
+		if brightness <= 0.0:
+			continue
+		brightness = maxf(0.0, brightness - delta / 0.3)
+		_bar_pulse_brightness[bar_name] = brightness
+		_apply_bar_pulse_glow(bar_name, brightness)
+
+
+func _apply_bar_pulse_glow(bar_name: String, glow: float) -> void:
+	if not _bars.has(bar_name):
+		return
+	var entry: Dictionary = _bars[bar_name]
+	var bar: ProgressBar = entry["bar"]
+	var overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
+	if not overlay or not overlay.material is ShaderMaterial:
+		return
+	var mat: ShaderMaterial = overlay.material as ShaderMaterial
+	var base_color: Color = _bar_base_colors.get(bar_name, Color.CYAN)
+	var bright: Color = base_color.lightened(0.6)
+	var modulated: Color = base_color.lerp(bright, clampf(glow, 0.0, 1.0))
+	mat.set_shader_parameter("fill_color", modulated)
+	var base_inner: float = ThemeManager.get_float("led_inner_intensity")
+	var base_bloom: float = ThemeManager.get_float("led_bloom_intensity")
+	var base_aura: float = ThemeManager.get_float("led_aura_intensity")
+	mat.set_shader_parameter("inner_intensity", base_inner + glow * 1.5)
+	mat.set_shader_parameter("bloom_intensity", base_bloom + glow * 0.8)
+	mat.set_shader_parameter("aura_intensity", base_aura + glow * 0.6)
 
 
 func update_credits(amount: int) -> void:
@@ -299,6 +350,64 @@ func update_hardpoints(data: Array) -> void:
 			"color": color,
 		}
 		_weapon_icons.append(icon_data)
+		_apply_weapon_icon_theme(icon_data)
+
+
+func update_cores(data: Array) -> void:
+	# Clear existing core icons
+	for icon in _core_icons:
+		if is_instance_valid(icon["container"]):
+			icon["container"].queue_free()
+	_core_icons.clear()
+
+	if data.is_empty():
+		return
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+
+	# Separator between weapons and cores
+	var sep := ColorRect.new()
+	sep.custom_minimum_size = Vector2(2, WEAPON_ICON_SIZE)
+	sep.color = ThemeManager.get_color("disabled")
+	_weapons_hbox.add_child(sep)
+	# Track separator for cleanup
+	_core_icons.append({"container": sep, "bg_rect": sep, "number_label": null, "active": false, "color": Color.WHITE})
+
+	for i in data.size():
+		var entry: Dictionary = data[i]
+		var active: bool = entry.get("active", false) as bool
+		var color: Color = entry.get("color", Color(0.6, 0.4, 1.0)) as Color
+		var key_label: String = str(entry.get("key", str(i + 1)))
+
+		var container := Control.new()
+		container.custom_minimum_size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
+
+		var bg_rect := ColorRect.new()
+		bg_rect.position = Vector2.ZERO
+		bg_rect.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
+		container.add_child(bg_rect)
+
+		var number_label := Label.new()
+		number_label.text = key_label
+		number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		number_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		number_label.position = Vector2.ZERO
+		number_label.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
+		number_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+		if body_font:
+			number_label.add_theme_font_override("font", body_font)
+		container.add_child(number_label)
+
+		_weapons_hbox.add_child(container)
+
+		var icon_data: Dictionary = {
+			"container": container,
+			"bg_rect": bg_rect,
+			"number_label": number_label,
+			"active": active,
+			"color": color,
+		}
+		_core_icons.append(icon_data)
 		_apply_weapon_icon_theme(icon_data)
 
 

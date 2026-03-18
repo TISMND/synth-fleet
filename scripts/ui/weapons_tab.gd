@@ -612,22 +612,22 @@ func _build_stats_tab() -> Control:
 		row.add_child(lbl)
 
 		var slider := HSlider.new()
-		slider.min_value = -5.0
-		slider.max_value = 5.0
+		slider.min_value = -10.0
+		slider.max_value = 10.0
 		slider.value = 0.0
-		slider.step = 0.1
+		slider.step = 0.05
 		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slider.custom_minimum_size.x = 150
 		row.add_child(slider)
 
 		var val_label := Label.new()
-		val_label.text = "0.0"
+		val_label.text = "0.00"
 		val_label.custom_minimum_size.x = 50
 		val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		row.add_child(val_label)
 
 		slider.value_changed.connect(func(val: float) -> void:
-			val_label.text = "%.1f" % val
+			val_label.text = "%.2f" % val
 			_mark_dirty()
 			_update_preview()
 		)
@@ -1231,7 +1231,7 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 			var val: float = float(weapon.bar_effects.get(bar_type, 0.0))
 			slider.value = val
 			if val_label:
-				val_label.text = "%.1f" % val
+				val_label.text = "%.2f" % val
 	_stats_prev_loop_progress = -1.0
 
 	_update_preview()

@@ -4,18 +4,19 @@ extends Node2D
 signal died
 
 var ship_data: ShipData = null
-var hull: int = 100
-var hull_max: int = 100
-var shield: float = 50.0
-var shield_max: int = 50
-var shield_regen: float = 5.0
+var hull: float = 8.0
+var hull_max: float = 8.0
+var shield: float = 10.0
+var shield_max: float = 10.0
+var shield_regen: float = 1.0
 var thermal: float = 0.0
-var thermal_max: float = 100.0
-var electric: float = 100.0
-var electric_max: float = 100.0
-var _hull_accumulator: float = 0.0
+var thermal_max: float = 6.0
+var electric: float = 8.0
+var electric_max: float = 8.0
 var speed: float = 400.0
 var _hardpoint_controllers: Array = []
+var _core_controllers: Array = []  # PowerCoreController instances
+var _core_data_per_slot: Array = []  # [{label, pc}]
 var _player_area: Area2D = null
 var _hud: CanvasLayer = null
 var _weapon_data_per_hp: Array = []
@@ -43,12 +44,14 @@ var detail_color := Color(0.0, 1.0, 0.7)
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
 	ship_data = ship
 	var stats: Dictionary = ship_data.stats
-	hull_max = int(stats.get("hull_max", 100))
+	hull_max = float(stats.get("hull_segments", 8))
 	hull = hull_max
-	shield_max = int(stats.get("shield_max", 50))
-	shield = float(shield_max)
+	shield_max = float(stats.get("shield_segments", 10))
+	shield = shield_max
+	thermal_max = float(stats.get("thermal_segments", 6))
+	electric_max = float(stats.get("electric_segments", 8))
 	speed = float(stats.get("speed", 400))
-	shield_regen = float(stats.get("shield_regen", 5.0))
+	shield_regen = float(stats.get("shield_regen", 1.0))
 
 	# Apply device modifiers
 	for slot_key in GameState.device_config:
@@ -58,10 +61,10 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 		var dev: DeviceData = DeviceDataManager.load_by_id(device_id)
 		if dev:
 			var mods: Dictionary = dev.stats_modifiers
-			shield_max += int(mods.get("shield_max", 0))
-			hull_max += int(mods.get("hull_max", 0))
+			shield_max += float(mods.get("shield_segments", 0))
+			hull_max += float(mods.get("hull_segments", 0))
 			speed += float(mods.get("speed", 0))
-	shield = float(shield_max)
+	shield = shield_max
 	hull = hull_max
 
 	# Create hardpoint controllers from loadout assignments — all fire from center
@@ -108,6 +111,27 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 
 	_prev_x = position.x
 
+	# Create power core controllers from GameState internal slots
+	for i in 3:
+		var slot_key: String = "int_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id == "":
+			continue
+		var pc: PowerCoreData = PowerCoreDataManager.load_by_id(device_id)
+		if not pc or pc.loop_file_path == "":
+			continue
+		var controller := PowerCoreController.new()
+		add_child(controller)
+		controller.setup(pc, i)
+		controller.bar_effect_fired.connect(apply_bar_effects)
+		controller.pulse_triggered.connect(_on_core_pulse)
+		_core_controllers.append(controller)
+		_core_data_per_slot.append({
+			"label": "CORE " + str(i + 1),
+			"pc": pc,
+		})
+
 
 func _process(delta: float) -> void:
 	# Input movement
@@ -117,7 +141,7 @@ func _process(delta: float) -> void:
 	position.x = clampf(position.x, 50.0, 1870.0)
 	position.y = clampf(position.y, 50.0, 936.0)
 	# Shield regen
-	shield = minf(shield + shield_regen * delta, float(shield_max))
+	shield = minf(shield + shield_regen * delta, shield_max)
 
 	# Banking animation from horizontal velocity
 	var velocity_x: float = (position.x - _prev_x) / maxf(delta, 0.001)
@@ -137,7 +161,15 @@ func _input(event: InputEvent) -> void:
 			_update_hud_hardpoints()
 			return
 
-	# Space: toggle all on/off
+	# Power core toggles (E=core_1, R=core_2, F=core_3)
+	for i in mini(_core_controllers.size(), 3):
+		var action: String = "core_" + str(i + 1)
+		if event.is_action_pressed(action):
+			_core_controllers[i].toggle()
+			_update_hud_cores()
+			return
+
+	# Space: toggle all on/off (weapons + cores)
 	if event.is_action_pressed("hardpoints_max"):
 		_space_state = 1 - _space_state
 		for c in _hardpoint_controllers:
@@ -145,14 +177,23 @@ func _input(event: InputEvent) -> void:
 				c.activate()
 			else:
 				c.deactivate()
+		for c in _core_controllers:
+			if _space_state == 1:
+				c.activate()
+			else:
+				c.deactivate()
 		_update_hud_hardpoints()
+		_update_hud_cores()
 		return
 
 	# Deactivate all (C)
 	if event.is_action_pressed("hardpoints_off"):
 		for c in _hardpoint_controllers:
 			c.deactivate()
+		for c in _core_controllers:
+			c.deactivate()
 		_update_hud_hardpoints()
+		_update_hud_cores()
 		return
 
 
@@ -173,16 +214,42 @@ func _update_hud_hardpoints() -> void:
 	_hud.update_hardpoints(data)
 
 
-func take_damage(amount: int) -> void:
-	var remaining: int = amount
+func take_damage(amount: float) -> void:
+	var remaining: float = amount
 	if shield > 0.0:
-		var absorbed: int = mini(remaining, int(shield))
-		shield -= float(absorbed)
+		var absorbed: float = minf(remaining, shield)
+		shield -= absorbed
 		remaining -= absorbed
-	hull -= remaining
-	if hull <= 0:
-		hull = 0
+	hull = maxf(hull - remaining, 0.0)
+	if hull <= 0.0:
 		died.emit()
+
+
+func _update_hud_cores() -> void:
+	if not _hud or not _hud.has_method("update_cores"):
+		return
+	var data: Array = []
+	for i in _core_controllers.size():
+		var controller: PowerCoreController = _core_controllers[i]
+		var core_info: Dictionary = _core_data_per_slot[i]
+		var pc: PowerCoreData = core_info["pc"]
+		var keys: Array[String] = ["E", "R", "F"]
+		var key_label: String = keys[i] if i < keys.size() else str(i + 1)
+		data.append({
+			"label": core_info["label"],
+			"core_name": pc.display_name if pc.display_name != "" else pc.id,
+			"color": Color(0.6, 0.4, 1.0),
+			"active": controller.is_active(),
+			"key": key_label,
+		})
+	_hud.update_cores(data)
+
+
+func _on_core_pulse(bar_types: Array) -> void:
+	if not _hud or not _hud.has_method("pulse_bar"):
+		return
+	for bar_type in bar_types:
+		_hud.pulse_bar(str(bar_type).to_upper())
 
 
 func stop_all() -> void:
@@ -191,28 +258,29 @@ func stop_all() -> void:
 			c.deactivate()
 		if c.has_method("cleanup"):
 			c.cleanup()
+	for c in _core_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+		if c.has_method("cleanup"):
+			c.cleanup()
 
 
 func apply_bar_effects(effects: Dictionary) -> void:
 	for bar_type in effects:
-		var delta: float = float(effects[bar_type])
+		var delta_val: float = float(effects[bar_type])
 		match str(bar_type):
 			"shield":
-				shield = clampf(shield + delta, 0.0, float(shield_max))
+				shield = clampf(shield + delta_val, 0.0, shield_max)
 			"hull":
-				_hull_accumulator += delta
-				if absf(_hull_accumulator) >= 1.0:
-					var int_part: int = int(_hull_accumulator)
-					hull = clampi(hull + int_part, 0, hull_max)
-					_hull_accumulator -= float(int_part)
+				hull = clampf(hull + delta_val, 0.0, hull_max)
 			"thermal":
-				thermal = clampf(thermal + delta, 0.0, thermal_max)
+				thermal = clampf(thermal + delta_val, 0.0, thermal_max)
 			"electric":
-				electric = clampf(electric + delta, 0.0, electric_max)
+				electric = clampf(electric + delta_val, 0.0, electric_max)
 
 
 func _on_contact(area: Area2D) -> void:
-	take_damage(15)
+	take_damage(1.5)
 
 
 # ── Chrome Stiletto Drawing ──────────────────────────────────────

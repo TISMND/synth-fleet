@@ -182,17 +182,19 @@ func _position_hangar_thumb() -> void:
 
 
 func _update_stats(s: Dictionary) -> void:
-	var hull_max: int = int(s.get("hull_max", 100))
-	var shield_max: int = int(s.get("shield_max", 50))
 	var eff: Dictionary = ShipData.get_effective_segments(s)
-	_bar_segments["SHIELD"] = int(eff.get("shield_segments", 10))
-	_bar_segments["HULL"] = int(eff.get("hull_segments", 8))
-	_bar_segments["THERMAL"] = int(eff.get("thermal_segments", 6))
-	_bar_segments["ELECTRIC"] = int(eff.get("electric_segments", 8))
-	_set_bar("SHIELD", shield_max, shield_max)
-	_set_bar("HULL", hull_max, hull_max)
-	_set_bar("THERMAL", 30, 100)
-	_set_bar("ELECTRIC", 70, 100)
+	var hull_seg: int = int(eff.get("hull_segments", 8))
+	var shield_seg: int = int(eff.get("shield_segments", 10))
+	var thermal_seg: int = int(eff.get("thermal_segments", 6))
+	var electric_seg: int = int(eff.get("electric_segments", 8))
+	_bar_segments["SHIELD"] = shield_seg
+	_bar_segments["HULL"] = hull_seg
+	_bar_segments["THERMAL"] = thermal_seg
+	_bar_segments["ELECTRIC"] = electric_seg
+	_set_bar("SHIELD", shield_seg, shield_seg)
+	_set_bar("HULL", hull_seg, hull_seg)
+	_set_bar("THERMAL", thermal_seg, thermal_seg)
+	_set_bar("ELECTRIC", electric_seg, electric_seg)
 
 
 func _set_bar(bar_name: String, value: int, max_val: int) -> void:

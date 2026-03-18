@@ -130,13 +130,13 @@ func _update_stats() -> void:
 			continue
 		var dev: DeviceData = DeviceDataManager.load_by_id(did)
 		if dev:
-			hull_mod += int(dev.stats_modifiers.get("hull_max", 0))
-			shield_mod += int(dev.stats_modifiers.get("shield_max", 0))
+			hull_mod += int(dev.stats_modifiers.get("hull_segments", 0))
+			shield_mod += int(dev.stats_modifiers.get("shield_segments", 0))
 			speed_mod += int(dev.stats_modifiers.get("speed", 0))
 			gen_mod += int(dev.stats_modifiers.get("generator_power", 0))
 
-	var base_hull: int = int(s.get("hull_max", 100))
-	var base_shield: int = int(s.get("shield_max", 50))
+	var base_hull: int = int(s.get("hull_segments", 8))
+	var base_shield: int = int(s.get("shield_segments", 10))
 	var base_speed: int = int(s.get("speed", 400))
 	var base_gen: int = int(s.get("generator_power", 10))
 

@@ -194,15 +194,16 @@ func _build_preview_panel() -> Control:
 		bar_label.text = str(spec["name"])
 		vbox.add_child(bar_label)
 
+		var seg_count: int = int(ShipData.DEFAULT_SEGMENTS.get(str(spec["name"]), 8))
 		var bar := ProgressBar.new()
 		bar.custom_minimum_size.y = 20
-		bar.max_value = 1.0
-		bar.value = 0.5
+		bar.max_value = float(seg_count)
+		bar.value = float(seg_count) * 0.5
 		bar.show_percentage = false
 		vbox.add_child(bar)
 
 		var color: Color = ThemeManager.resolve_bar_color(spec)
-		ThemeManager.apply_led_bar(bar, color, 0.5, 20)
+		ThemeManager.apply_led_bar(bar, color, 0.5, seg_count)
 		_preview_bars.append(bar)
 		_preview_bar_base_colors.append(color)
 
@@ -450,10 +451,10 @@ func _build_mechanics_tab() -> Control:
 		row.add_child(lbl)
 
 		var slider := HSlider.new()
-		slider.min_value = -5.0
-		slider.max_value = 5.0
+		slider.min_value = -10.0
+		slider.max_value = 10.0
 		slider.value = 0.0
-		slider.step = 0.1
+		slider.step = 0.05
 		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slider.custom_minimum_size.x = 150
 		row.add_child(slider)
@@ -490,10 +491,10 @@ func _build_mechanics_tab() -> Control:
 		row.add_child(lbl)
 
 		var slider := HSlider.new()
-		slider.min_value = -5.0
-		slider.max_value = 5.0
+		slider.min_value = -10.0
+		slider.max_value = 10.0
 		slider.value = 0.0
-		slider.step = 0.1
+		slider.step = 0.05
 		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slider.custom_minimum_size.x = 150
 		row.add_child(slider)
@@ -602,7 +603,7 @@ func _update_preview_bars(delta: float) -> void:
 		var slider: HSlider = _passive_effect_sliders.get(bar_type) as HSlider
 		if slider and slider.value != 0.0 and i < _preview_bars.size():
 			var bar: ProgressBar = _preview_bars[i]
-			bar.value = clampf(bar.value + slider.value * delta / 100.0, 0.0, 1.0)
+			bar.value = clampf(bar.value + slider.value * delta, 0.0, bar.max_value)
 
 	# Update component shapes display
 	if _component_display and _component_display is ComponentShapeDisplay:
@@ -868,9 +869,7 @@ func _on_save() -> void:
 
 	var data: Dictionary = _collect_power_core_data()
 	if _current_id == "":
-		_current_id = _generate_id("")
-		data["id"] = _current_id
-		data["display_name"] = _current_id
+		_current_id = str(data["id"])
 	var id: String = str(data["id"])
 	PowerCoreDataManager.save(id, data)
 	_status_label.text = "Saved: " + id

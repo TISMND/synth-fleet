@@ -18,8 +18,12 @@ var _parallax_bg: ParallaxBackground = null
 func _ready() -> void:
 	_setup_world_environment()
 
-	# Build ShipData from registry using player's selected ship
+	# Build ShipData — start from registry, then apply user overrides for stats/render
 	var ship: ShipData = ShipRegistry.build_ship_data(GameState.current_ship_index)
+	var ship_override: ShipData = ShipDataManager.load_by_id(ship.id)
+	if ship_override:
+		ship.stats = ship_override.stats
+		ship.render_mode = ship_override.render_mode
 	var loadout: LoadoutData = GameState.get_loadout_data()
 
 	# Set BPM
@@ -59,9 +63,10 @@ func _ready() -> void:
 	# Pass ship segment counts to HUD (with device modifiers applied)
 	_hud.set_bar_segments(ShipData.get_effective_segments(ship.stats))
 
-	# Wire HUD to player for hardpoint display
+	# Wire HUD to player for hardpoint + core display
 	_player._hud = _hud
 	_player._update_hud_hardpoints()
+	_player._update_hud_cores()
 
 	# Start immediately
 	BeatClock.start(110.0)
@@ -74,6 +79,7 @@ func _process(delta: float) -> void:
 		_parallax_bg.scroll_offset.y += 80.0 * delta
 	if _hud and _player:
 		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
+		_hud.update_bar_pulses(delta)
 		_hud.update_credits(GameState.credits)
 
 

@@ -278,8 +278,8 @@ func _update_stats_display() -> void:
 		_generator_label.text = "Generator: —"
 		return
 	var stats: Dictionary = _current_ship.stats
-	_hull_label.text = "Hull: " + str(int(stats.get("hull_max", 100)))
-	_shield_label.text = "Shield: " + str(int(stats.get("shield_max", 50)))
+	_hull_label.text = "Hull: " + str(int(stats.get("hull_segments", 8))) + " seg"
+	_shield_label.text = "Shield: " + str(int(stats.get("shield_segments", 10))) + " seg"
 	_speed_label.text = "Speed: " + str(int(stats.get("speed", 400)))
 	_generator_label.text = "Generator: " + str(int(stats.get("generator_power", 10)))
 

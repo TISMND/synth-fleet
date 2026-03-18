@@ -11,23 +11,23 @@ const SHIP_NAMES: Array[String] = [
 # Per-ship stats for gameplay variety
 const SHIP_STATS: Array[Dictionary] = [
 	# 0 Switchblade — fast, fragile interceptor
-	{"hull_max": 80, "shield_max": 40, "speed": 520, "generator_power": 12, "shield_regen": 6.0},
+	{"hull_segments": 6, "shield_segments": 8, "thermal_segments": 6, "electric_segments": 8, "speed": 520, "acceleration": 1800, "generator_power": 12, "shield_regen": 1.2},
 	# 1 Phantom — stealth, balanced
-	{"hull_max": 90, "shield_max": 60, "speed": 460, "generator_power": 14, "shield_regen": 7.0},
+	{"hull_segments": 7, "shield_segments": 12, "thermal_segments": 6, "electric_segments": 8, "speed": 460, "acceleration": 1400, "generator_power": 14, "shield_regen": 1.4},
 	# 2 Mantis — wide wings, good shields
-	{"hull_max": 100, "shield_max": 70, "speed": 400, "generator_power": 16, "shield_regen": 5.0},
+	{"hull_segments": 8, "shield_segments": 14, "thermal_segments": 6, "electric_segments": 8, "speed": 400, "acceleration": 1200, "generator_power": 16, "shield_regen": 1.0},
 	# 3 Corsair — asymmetric, high power
-	{"hull_max": 110, "shield_max": 50, "speed": 440, "generator_power": 18, "shield_regen": 4.0},
+	{"hull_segments": 9, "shield_segments": 10, "thermal_segments": 6, "electric_segments": 8, "speed": 440, "acceleration": 1600, "generator_power": 18, "shield_regen": 0.8},
 	# 4 Stiletto — default all-rounder
-	{"hull_max": 100, "shield_max": 50, "speed": 400, "generator_power": 15, "shield_regen": 5.0},
+	{"hull_segments": 8, "shield_segments": 10, "thermal_segments": 6, "electric_segments": 8, "speed": 400, "acceleration": 1200, "generator_power": 15, "shield_regen": 1.0},
 	# 5 Trident — 3-prong, good hardpoints
-	{"hull_max": 120, "shield_max": 55, "speed": 380, "generator_power": 20, "shield_regen": 4.5},
+	{"hull_segments": 10, "shield_segments": 11, "thermal_segments": 6, "electric_segments": 8, "speed": 380, "acceleration": 1000, "generator_power": 20, "shield_regen": 0.9},
 	# 6 Orrery — exotic, high shields
-	{"hull_max": 85, "shield_max": 90, "speed": 360, "generator_power": 22, "shield_regen": 8.0},
+	{"hull_segments": 7, "shield_segments": 18, "thermal_segments": 6, "electric_segments": 8, "speed": 360, "acceleration": 900, "generator_power": 22, "shield_regen": 1.6},
 	# 7 Dreadnought — heavy capital, slow
-	{"hull_max": 200, "shield_max": 80, "speed": 280, "generator_power": 25, "shield_regen": 3.0},
+	{"hull_segments": 16, "shield_segments": 16, "thermal_segments": 6, "electric_segments": 8, "speed": 280, "acceleration": 600, "generator_power": 25, "shield_regen": 0.6},
 	# 8 Bastion — fortress, max hull
-	{"hull_max": 250, "shield_max": 60, "speed": 240, "generator_power": 22, "shield_regen": 2.5},
+	{"hull_segments": 20, "shield_segments": 12, "thermal_segments": 6, "electric_segments": 8, "speed": 240, "acceleration": 500, "generator_power": 22, "shield_regen": 0.5},
 ]
 
 const SHIP_SCALES: Array[float] = [

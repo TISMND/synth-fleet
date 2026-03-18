@@ -94,16 +94,16 @@ static func ensure_starter_devices() -> void:
 		{
 			"id": "shield_boost_i",
 			"display_name": "Shield Boost I",
-			"description": "Basic shield capacitor. +25 max shield.",
+			"description": "Basic shield capacitor. +2 shield segments.",
 			"type": "shield",
-			"stats_modifiers": {"shield_max": 25},
+			"stats_modifiers": {"shield_segments": 2},
 		},
 		{
 			"id": "shield_boost_ii",
 			"display_name": "Shield Boost II",
-			"description": "Advanced shield capacitor. +50 max shield.",
+			"description": "Advanced shield capacitor. +4 shield segments.",
 			"type": "shield",
-			"stats_modifiers": {"shield_max": 50},
+			"stats_modifiers": {"shield_segments": 4},
 		},
 	]
 	for starter in starters:
