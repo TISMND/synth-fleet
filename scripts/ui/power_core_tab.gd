@@ -60,6 +60,14 @@ var _per_bar_overrides: Dictionary = {}  # bar_type -> {checkbox, brightness, br
 var _merged_triggers: Array = []       # Array[float] — sorted normalized times
 var _trigger_types: Array = []         # Array[String] — bar type per trigger index
 
+# Component name
+var _name_input: LineEdit
+var _name_header_label: Label
+
+# Dirty tracking
+var _dirty: bool = false
+var _populating: bool = false
+
 # State
 var _current_id: String = ""
 var _section_headers: Array[Label] = []
@@ -235,11 +243,15 @@ func _build_timing_tab() -> Control:
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(vbox)
 
-	# Loop Browser
-	_add_section_header(vbox, "LOOP BROWSER")
-	_loop_browser = LoopBrowser.new()
-	_loop_browser.loop_selected.connect(_on_loop_selected)
-	vbox.add_child(_loop_browser)
+	# Component Name
+	_name_header_label = _add_section_header(vbox, "COMPONENT NAME")
+	_name_input = LineEdit.new()
+	_name_input.placeholder_text = "Enter power core name..."
+	_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_name_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	_name_input.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_name_input.text_changed.connect(func(_t: String) -> void: _mark_dirty())
+	vbox.add_child(_name_input)
 
 	_add_separator(vbox)
 
@@ -266,8 +278,6 @@ func _build_timing_tab() -> Control:
 		type_row.add_child(btn)
 		_bar_type_buttons.append(btn)
 
-	_add_separator(vbox)
-
 	# Waveform Editor
 	_add_section_header(vbox, "WAVEFORM / TRIGGERS")
 	_waveform_editor = WaveformEditor.new()
@@ -279,7 +289,7 @@ func _build_timing_tab() -> Control:
 	_waveform_editor.set_marker_color_callback(_get_trigger_color)
 	vbox.add_child(_waveform_editor)
 
-	# Control row: Mute + Snap + Grid toggle
+	# Control row: Mute + Snap + Grid toggle + Bars
 	var control_row := HBoxContainer.new()
 	vbox.add_child(control_row)
 
@@ -314,20 +324,24 @@ func _build_timing_tab() -> Control:
 	ThemeManager.apply_button_style(_grid_toggle)
 	control_row.add_child(_grid_toggle)
 
-	# Bars override row
-	var bars_row := HBoxContainer.new()
-	vbox.add_child(bars_row)
-
 	var bars_label := Label.new()
-	bars_label.text = "Bars:"
-	bars_row.add_child(bars_label)
+	bars_label.text = "  Bars:"
+	control_row.add_child(bars_label)
 
 	_bars_button = OptionButton.new()
 	for bo in BARS_OPTIONS:
 		_bars_button.add_item(str(bo["label"]))
 	_bars_button.selected = 0  # Auto
 	_bars_button.item_selected.connect(_on_bars_changed)
-	bars_row.add_child(_bars_button)
+	control_row.add_child(_bars_button)
+
+	_add_separator(vbox)
+
+	# Loop Browser
+	_add_section_header(vbox, "LOOP BROWSER")
+	_loop_browser = LoopBrowser.new()
+	_loop_browser.loop_selected.connect(_on_loop_selected)
+	vbox.add_child(_loop_browser)
 
 	return scroll
 
@@ -375,6 +389,7 @@ func _build_pulse_tab() -> Control:
 		var disable_checkbox := CheckBox.new()
 		disable_checkbox.text = "Disable pulsing"
 		disable_checkbox.button_pressed = false
+		disable_checkbox.toggled.connect(func(_p: bool) -> void: _mark_dirty())
 		override_container.add_child(disable_checkbox)
 
 		var b_row := _add_slider_row(override_container, "Brightness:", 0.0, 1.0, 0.5, 0.01)
@@ -383,6 +398,7 @@ func _build_pulse_tab() -> Control:
 
 		checkbox.toggled.connect(func(pressed: bool) -> void:
 			override_container.visible = pressed
+			_mark_dirty()
 		)
 
 		_per_bar_overrides[bar_type] = {
@@ -450,6 +466,7 @@ func _build_mechanics_tab() -> Control:
 
 		slider.value_changed.connect(func(val: float) -> void:
 			val_label.text = "%.2f" % val
+			_mark_dirty()
 		)
 
 		_mechanics_bar_effect_sliders[bar_type] = slider
@@ -489,6 +506,7 @@ func _build_mechanics_tab() -> Control:
 
 		slider.value_changed.connect(func(val: float) -> void:
 			val_label.text = "%.2f" % val
+			_mark_dirty()
 		)
 
 		_passive_effect_sliders[bar_type] = slider
@@ -663,6 +681,7 @@ func _is_pulsing_disabled(bar_type: String) -> bool:
 # ── Trigger Management ─────────────────────────────────────
 
 func _on_triggers_changed(new_triggers: Array) -> void:
+	_mark_dirty()
 	# Diff old vs new by time proximity to preserve type assignments
 	var old_triggers: Array = _merged_triggers.duplicate()
 	var old_types: Array = _trigger_types.duplicate()
@@ -731,6 +750,7 @@ func _on_loop_selected(path: String, _category: String) -> void:
 	_waveform_editor.set_stream_from_path(path)
 	_bars_button.selected = 0
 	_prev_loop_progress = -1.0
+	_mark_dirty()
 
 
 func _on_snap_changed(idx: int) -> void:
@@ -779,11 +799,12 @@ func _on_seek(time_normalized: float) -> void:
 func _collect_power_core_data() -> Dictionary:
 	var loop_path: String = _loop_browser.get_selected_path()
 	var loop_bars: int = _waveform_editor.get_detected_bars()
-	var name_text: String = _current_id if _current_id != "" else "power_core_" + str(randi() % 10000)
+	var name_text: String = _name_input.text.strip_edges()
+	var id_text: String = _current_id if _current_id != "" else _generate_id(name_text)
 
 	return {
-		"id": name_text,
-		"display_name": name_text,
+		"id": id_text,
+		"display_name": name_text if name_text != "" else id_text,
 		"description": "",
 		"loop_file_path": loop_path,
 		"loop_length_bars": loop_bars,
@@ -854,6 +875,7 @@ func _on_save() -> void:
 	PowerCoreDataManager.save(id, data)
 	_status_label.text = "Saved: " + id
 	_refresh_load_list()
+	_mark_clean()
 
 
 func _on_load_selected(idx: int) -> void:
@@ -880,7 +902,9 @@ func _on_delete() -> void:
 
 
 func _on_new() -> void:
+	_populating = true
 	_current_id = ""
+	_name_input.text = ""
 	_merged_triggers.clear()
 	_trigger_types.clear()
 	_waveform_editor.set_stream_from_path("")
@@ -921,6 +945,8 @@ func _on_new() -> void:
 		bar.value = 0.5
 	if _component_display and _component_display is ComponentShapeDisplay:
 		(_component_display as ComponentShapeDisplay).update_glow([0.0, 0.0, 0.0, 0.0])
+	_populating = false
+	_mark_clean()
 	_status_label.text = "New power core — ready to edit."
 
 
@@ -933,7 +959,9 @@ func _refresh_load_list() -> void:
 
 
 func _populate_from_power_core(data: PowerCoreData) -> void:
+	_populating = true
 	_current_id = data.id
+	_name_input.text = data.display_name
 
 	# Load loop
 	if data.loop_file_path != "":
@@ -983,6 +1011,9 @@ func _populate_from_power_core(data: PowerCoreData) -> void:
 		var pe_slider: HSlider = _passive_effect_sliders.get(bar_type) as HSlider
 		if pe_slider:
 			pe_slider.value = float(data.passive_effects.get(bar_type, 0.0))
+
+	_populating = false
+	_mark_clean()
 
 
 func _generate_id(display_name: String) -> String:
@@ -1047,9 +1078,32 @@ func _add_slider_row(parent: Control, label_text: String, min_val: float, max_va
 			value_label.text = str(int(val))
 		else:
 			value_label.text = "%.2f" % val
+		_mark_dirty()
 	)
 
 	return [slider, value_label]
+
+
+# ── Dirty Tracking ─────────────────────────────────────────
+
+func _mark_dirty() -> void:
+	if not _ui_ready or _populating:
+		return
+	if not _dirty:
+		_dirty = true
+		_update_dirty_display()
+
+
+func _mark_clean() -> void:
+	_dirty = false
+	_update_dirty_display()
+
+
+func _update_dirty_display() -> void:
+	if _name_header_label:
+		_name_header_label.text = "COMPONENT NAME *" if _dirty else "COMPONENT NAME"
+	if _dirty and _status_label:
+		_status_label.text = "* Unsaved changes"
 
 
 # ── Theme ──────────────────────────────────────────────────
@@ -1080,6 +1134,9 @@ func _apply_theme() -> void:
 			_bar_type_buttons[i].add_theme_color_override("font_pressed_color", bar_color)
 			_bar_type_buttons[i].add_theme_color_override("font_hover_color", bar_color)
 			_bar_type_buttons[i].add_theme_color_override("font_hover_pressed_color", bar_color)
+	if _name_input:
+		_name_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+		_name_input.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	# Update preview bar base colors
 	var specs: Array = ThemeManager.get_status_bar_specs()
 	for i in _preview_bars.size():

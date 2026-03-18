@@ -36,22 +36,19 @@ func _exit_tree() -> void:
 
 
 func _build_ui() -> void:
-	# Category row
-	var cat_row := HBoxContainer.new()
-	add_child(cat_row)
+	# Song name display (top)
+	_song_label = Label.new()
+	_song_label.text = "(no loop selected)"
+	_song_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_song_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	add_child(_song_label)
 
-	var cat_label := Label.new()
-	cat_label.text = "Category:"
-	cat_label.custom_minimum_size.x = 80
-	cat_row.add_child(cat_label)
-
-	_category_button = OptionButton.new()
-	_category_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_category_button.add_item("ALL")
-	for cat in _categories:
-		_category_button.add_item(cat.to_upper())
-	_category_button.item_selected.connect(_on_category_changed)
-	cat_row.add_child(_category_button)
+	# File info (smaller)
+	_file_label = Label.new()
+	_file_label.text = ""
+	_file_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_file_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	add_child(_file_label)
 
 	# Nav row
 	var nav_row := HBoxContainer.new()
@@ -76,19 +73,22 @@ func _build_ui() -> void:
 	_next_button.pressed.connect(_on_next)
 	nav_row.add_child(_next_button)
 
-	# Song name display
-	_song_label = Label.new()
-	_song_label.text = "(no loop selected)"
-	_song_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_song_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	add_child(_song_label)
+	# Category row
+	var cat_row := HBoxContainer.new()
+	add_child(cat_row)
 
-	# File info (smaller)
-	_file_label = Label.new()
-	_file_label.text = ""
-	_file_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_file_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
-	add_child(_file_label)
+	var cat_label := Label.new()
+	cat_label.text = "Category:"
+	cat_label.custom_minimum_size.x = 80
+	cat_row.add_child(cat_label)
+
+	_category_button = OptionButton.new()
+	_category_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_category_button.add_item("ALL")
+	for cat in _categories:
+		_category_button.add_item(cat.to_upper())
+	_category_button.item_selected.connect(_on_category_changed)
+	cat_row.add_child(_category_button)
 
 	# Set initial list
 	_on_category_changed(0)

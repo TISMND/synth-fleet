@@ -130,6 +130,11 @@ var _bar_effect_sliders: Dictionary = {}   # "shield" -> HSlider
 var _bar_effect_labels: Dictionary = {}    # "shield" -> Label
 var _stats_prev_loop_progress: float = -1.0
 
+# Dirty tracking
+var _dirty: bool = false
+var _populating: bool = false
+var _name_header_label: Label
+
 # State
 var _current_id: String = ""
 var _section_headers: Array[Label] = []
@@ -312,11 +317,18 @@ func _build_timing_tab() -> Control:
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(vbox)
 
-	# Loop Browser
-	_add_section_header(vbox, "LOOP BROWSER")
-	_loop_browser = LoopBrowser.new()
-	_loop_browser.loop_selected.connect(_on_loop_selected)
-	vbox.add_child(_loop_browser)
+	# Component Name
+	_name_header_label = _add_section_header(vbox, "COMPONENT NAME")
+	_name_input = LineEdit.new()
+	_name_input.placeholder_text = "Enter weapon name..."
+	_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_name_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	_name_input.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_name_input.text_changed.connect(func(_t: String) -> void:
+		_mark_dirty()
+		_update_preview()
+	)
+	vbox.add_child(_name_input)
 
 	_add_separator(vbox)
 
@@ -330,7 +342,7 @@ func _build_timing_tab() -> Control:
 	_waveform_editor.set_audition_loop_id("loop_browser_audition")
 	vbox.add_child(_waveform_editor)
 
-	# Control row: Mute + Snap + Grid toggle
+	# Control row: Mute + Snap + Grid toggle + Bars
 	var control_row := HBoxContainer.new()
 	vbox.add_child(control_row)
 
@@ -365,20 +377,24 @@ func _build_timing_tab() -> Control:
 	ThemeManager.apply_button_style(_grid_toggle)
 	control_row.add_child(_grid_toggle)
 
-	# Bars override row
-	var bars_row := HBoxContainer.new()
-	vbox.add_child(bars_row)
-
 	var bars_label := Label.new()
-	bars_label.text = "Bars:"
-	bars_row.add_child(bars_label)
+	bars_label.text = "  Bars:"
+	control_row.add_child(bars_label)
 
 	_bars_button = OptionButton.new()
 	for bo in BARS_OPTIONS:
 		_bars_button.add_item(str(bo["label"]))
 	_bars_button.selected = 0  # Auto
 	_bars_button.item_selected.connect(_on_bars_changed)
-	bars_row.add_child(_bars_button)
+	control_row.add_child(_bars_button)
+
+	_add_separator(vbox)
+
+	# Loop Browser
+	_add_section_header(vbox, "LOOP BROWSER")
+	_loop_browser = LoopBrowser.new()
+	_loop_browser.loop_selected.connect(_on_loop_selected)
+	vbox.add_child(_loop_browser)
 
 	return scroll
 
@@ -396,7 +412,10 @@ func _build_movement_tab() -> Control:
 	# Fire Pattern
 	_add_section_header(form, "FIRE PATTERN")
 	_pattern_button = _add_option_button(form, FIRE_PATTERNS)
-	_pattern_button.item_selected.connect(func(_i: int) -> void: _update_preview())
+	_pattern_button.item_selected.connect(func(_i: int) -> void:
+		_mark_dirty()
+		_update_preview()
+	)
 
 	_add_separator(form)
 
@@ -449,7 +468,10 @@ func _build_movement_tab() -> Control:
 	form.add_child(_mirror_section)
 	_add_section_header(_mirror_section, "MIRROR MODE")
 	_mirror_mode_button = _add_option_button(_mirror_section, MIRROR_MODES)
-	_mirror_mode_button.item_selected.connect(func(_i: int) -> void: _update_preview())
+	_mirror_mode_button.item_selected.connect(func(_i: int) -> void:
+		_mark_dirty()
+		_update_preview()
+	)
 
 	return scroll
 
@@ -551,16 +573,6 @@ func _build_stats_tab() -> Control:
 
 	_add_separator(form)
 
-	# Weapon Name
-	_add_section_header(form, "WEAPON NAME")
-	_name_input = LineEdit.new()
-	_name_input.placeholder_text = "Enter weapon name..."
-	_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_name_input.text_changed.connect(func(_t: String) -> void: _update_preview())
-	form.add_child(_name_input)
-
-	_add_separator(form)
-
 	# Combat Stats
 	_add_section_header(form, "COMBAT STATS")
 	var damage_row := _add_slider_row(form, "Damage:", 1, 100, 10, 1)
@@ -576,7 +588,10 @@ func _build_stats_tab() -> Control:
 	# Special Effect
 	_add_section_header(form, "SPECIAL EFFECT")
 	_special_effect_button = _add_option_button(form, SPECIAL_EFFECTS)
-	_special_effect_button.item_selected.connect(func(_i: int) -> void: _update_preview())
+	_special_effect_button.item_selected.connect(func(_i: int) -> void:
+		_mark_dirty()
+		_update_preview()
+	)
 
 	_add_separator(form)
 
@@ -613,6 +628,7 @@ func _build_stats_tab() -> Control:
 
 		slider.value_changed.connect(func(val: float) -> void:
 			val_label.text = "%.1f" % val
+			_mark_dirty()
 			_update_preview()
 		)
 
@@ -657,7 +673,10 @@ func _build_effect_slot_section(parent: Control, slot: String) -> void:
 	var color_picker := ColorPickerButton.new()
 	color_picker.color = Color.WHITE
 	color_picker.custom_minimum_size = Vector2(80, 30)
-	color_picker.color_changed.connect(func(_c: Color) -> void: _update_preview())
+	color_picker.color_changed.connect(func(_c: Color) -> void:
+		_mark_dirty()
+		_update_preview()
+	)
 	color_row.add_child(color_picker)
 
 	# Param container
@@ -679,6 +698,7 @@ func _build_effect_slot_section(parent: Control, slot: String) -> void:
 	type_btn.item_selected.connect(func(idx: int) -> void:
 		var new_type: String = type_btn.get_item_text(idx)
 		_rebuild_slot_params(slot, new_type)
+		_mark_dirty()
 		_update_preview()
 	)
 
@@ -732,6 +752,7 @@ func _on_aim_mode_changed(idx: int) -> void:
 			_direction_section.visible = false
 			_sweep_section.visible = false
 			_mirror_section.visible = false
+	_mark_dirty()
 	_update_preview()
 
 
@@ -800,6 +821,7 @@ func _refresh_style_list() -> void:
 
 
 func _on_style_selected(_idx: int) -> void:
+	_mark_dirty()
 	_update_preview()
 
 
@@ -856,6 +878,7 @@ func _add_slider_row(parent: Control, label_text: String, min_val: float, max_va
 			value_label.text = str(int(val))
 		else:
 			value_label.text = "%.2f" % val
+		_mark_dirty()
 		_update_preview()
 	)
 
@@ -985,6 +1008,7 @@ func _on_loop_selected(path: String, _category: String) -> void:
 	_waveform_editor.set_stream_from_path(path)
 	# Reset bars override to Auto when a new loop is selected
 	_bars_button.selected = 0
+	_mark_dirty()
 	_update_preview()
 
 
@@ -1010,6 +1034,7 @@ func _on_bars_changed(idx: int) -> void:
 
 func _on_triggers_changed(_triggers: Array) -> void:
 	_refresh_trigger_override_selector()
+	_mark_dirty()
 	_update_preview()
 
 
@@ -1050,6 +1075,7 @@ func _on_save() -> void:
 	WeaponDataManager.save(id, data)
 	_status_label.text = "Saved: " + id
 	_refresh_load_list()
+	_mark_clean()
 
 
 func _on_load_selected(idx: int) -> void:
@@ -1076,6 +1102,7 @@ func _on_delete() -> void:
 
 
 func _on_new() -> void:
+	_populating = true
 	_current_id = ""
 	_name_input.text = ""
 	_damage_slider.value = 10
@@ -1122,6 +1149,8 @@ func _on_new() -> void:
 			color_picker.color = Color.WHITE
 
 	_update_preview()
+	_populating = false
+	_mark_clean()
 	_status_label.text = "New weapon — ready to edit."
 
 
@@ -1134,6 +1163,7 @@ func _refresh_load_list() -> void:
 
 
 func _populate_from_weapon(weapon: WeaponData) -> void:
+	_populating = true
 	_current_id = weapon.id
 	_name_input.text = weapon.display_name
 	_damage_slider.value = weapon.damage
@@ -1205,6 +1235,8 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_stats_prev_loop_progress = -1.0
 
 	_update_preview()
+	_populating = false
+	_mark_clean()
 
 
 func _rebuild_effects_from_profile(profile: Dictionary) -> void:
@@ -1372,6 +1404,26 @@ func _collect_bar_effects() -> Dictionary:
 	return result
 
 
+func _mark_dirty() -> void:
+	if not _ui_ready or _populating:
+		return
+	if not _dirty:
+		_dirty = true
+		_update_dirty_display()
+
+
+func _mark_clean() -> void:
+	_dirty = false
+	_update_dirty_display()
+
+
+func _update_dirty_display() -> void:
+	if _name_header_label:
+		_name_header_label.text = "COMPONENT NAME *" if _dirty else "COMPONENT NAME"
+	if _dirty and _status_label:
+		_status_label.text = "* Unsaved changes"
+
+
 func _apply_theme() -> void:
 	for label in _section_headers:
 		if is_instance_valid(label):
@@ -1389,6 +1441,9 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_new_button)
 	if _reset_bars_button:
 		ThemeManager.apply_button_style(_reset_bars_button)
+	if _name_input:
+		_name_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+		_name_input.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	# Update stats preview bar base colors
 	var specs: Array = ThemeManager.get_status_bar_specs()
 	for i in _stats_preview_bars.size():
