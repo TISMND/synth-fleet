@@ -22,13 +22,21 @@ var _ship_selector: Node2D
 var _selected_ship := 0
 var _vhs_overlay: ColorRect
 var _hud_replica: CanvasLayer = null
-var _right_panel: PanelContainer = null
+var _right_panel: Panel = null
 var _sliders: Dictionary = {}  # key -> HSlider
 var _slider_labels: Dictionary = {}  # key -> Label
 var _working_stats: Dictionary = {}
 var _updating_sliders := false
 var _skin_dropdown: OptionButton = null
 var _working_render_mode: String = "chrome"
+
+# Category system
+var _category: String = "PLAYER"  # "PLAYER", "ENEMIES", "BOSSES"
+var _category_dropdown: OptionButton = null
+var _enemy_ships: Array[ShipData] = []
+var _selected_enemy_index: int = -1
+var _working_enemy: ShipData = null
+var _enemy_idle_time: float = 0.0
 
 
 func _ready() -> void:
@@ -48,6 +56,22 @@ func _ready() -> void:
 	_ship_selector.viewer = self
 	add_child(_ship_selector)
 
+	# Category dropdown on left panel
+	_category_dropdown = OptionButton.new()
+	_category_dropdown.add_item("PLAYER", 0)
+	_category_dropdown.add_item("ENEMIES", 1)
+	_category_dropdown.add_item("BOSSES", 2)
+	_category_dropdown.selected = 0
+	_category_dropdown.set_item_disabled(2, true)
+	_category_dropdown.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_category_dropdown.offset_left = 4
+	_category_dropdown.offset_top = 6
+	_category_dropdown.offset_right = LEFT_PANEL_W - 4
+	_category_dropdown.offset_bottom = 40
+	_category_dropdown.item_selected.connect(_on_category_changed)
+	add_child(_category_dropdown)
+	ThemeManager.apply_button_style(_category_dropdown)
+
 	# Center ship in preview area (between left panel, right panel, above HUD)
 	var vp_size: Vector2 = get_viewport_rect().size
 	var cx: float = LEFT_PANEL_W + (vp_size.x - LEFT_PANEL_W - RIGHT_PANEL_W) * 0.5
@@ -56,10 +80,15 @@ func _ready() -> void:
 
 	_build_right_panel()
 	_build_hud_replica()
+	_load_enemy_ships()
 	_select_ship(0)
 
 
 func _process(delta: float) -> void:
+	if _category == "ENEMIES":
+		_process_enemy(delta)
+		return
+
 	var input_dir := 0.0
 	if Input.is_action_pressed("move_left"):
 		input_dir -= 1.0
@@ -100,6 +129,20 @@ func _process(delta: float) -> void:
 		_exhaust_timer = 0.0
 		_spawn_exhaust()
 	_update_exhaust(delta)
+	_exhaust_draw.queue_redraw()
+
+
+func _process_enemy(delta: float) -> void:
+	_enemy_idle_time += delta
+	var vp_size: Vector2 = get_viewport_rect().size
+	var cx: float = LEFT_PANEL_W + (vp_size.x - LEFT_PANEL_W - RIGHT_PANEL_W) * 0.5
+	var cy: float = (vp_size.y - HUD_HEIGHT) * 0.5
+	_ship_draw.position = Vector2(cx, cy + sin(_enemy_idle_time * 1.5) * 3.0)
+	_ship_draw.bank = 0.0
+	_ship_draw.ship_id = -1  # Signal enemy drawing mode
+	_ship_draw._time += delta
+	_ship_draw.queue_redraw()
+	_exhaust_particles.clear()
 	_exhaust_draw.queue_redraw()
 
 
@@ -156,6 +199,8 @@ func _on_theme_changed() -> void:
 	ThemeManager.apply_grid_background($Background)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 	_apply_right_panel_theme()
+	if _category_dropdown:
+		ThemeManager.apply_button_style(_category_dropdown)
 
 
 func _input(event: InputEvent) -> void:
@@ -163,12 +208,25 @@ func _input(event: InputEvent) -> void:
 		get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
+		# Scroll wheel on left panel
+		if mb.position.x <= LEFT_PANEL_W:
+			if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				_ship_selector.scroll_by(_ShipSelector.SCROLL_SPEED)
+			elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				_ship_selector.scroll_by(-_ShipSelector.SCROLL_SPEED)
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 			var vp_size: Vector2 = get_viewport_rect().size
-			if mb.position.x <= LEFT_PANEL_W and mb.position.y < vp_size.y - HUD_HEIGHT:
+			if mb.position.x <= LEFT_PANEL_W and mb.position.y < vp_size.y - HUD_HEIGHT and mb.position.y >= _ShipSelector.HEADER_HEIGHT:
 				var slot: int = _ship_selector.get_slot_at(mb.position.y)
-				if slot >= 0 and slot < _ShipSelector.SHIP_COUNT:
-					_select_ship(slot)
+				if _category == "PLAYER":
+					if slot >= 0 and slot < _ShipSelector.SHIP_COUNT:
+						_select_ship(slot)
+				elif _category == "ENEMIES":
+					# +1 because slot 0 is the "+ NEW" button
+					if slot == 0:
+						_create_new_enemy()
+					elif slot >= 1 and slot <= _enemy_ships.size():
+						_select_enemy(slot - 1)
 
 
 # ── Ship selection wiring ─────────────────────────────────────
@@ -217,6 +275,136 @@ func _apply_render_mode() -> void:
 	_ship_selector.queue_redraw()
 
 
+# ── Enemy ship management ─────────────────────────────────────
+
+func _load_enemy_ships() -> void:
+	_enemy_ships = ShipDataManager.load_all_by_type("enemy")
+
+
+func _create_new_enemy() -> void:
+	var new_id: String = ShipDataManager.generate_id("enemy")
+	var data: Dictionary = {
+		"id": new_id,
+		"display_name": "New Enemy",
+		"type": "enemy",
+		"render_mode": "neon",
+		"visual_id": "sentinel",
+		"fire_pattern": "straight",
+		"burst_directions": 4,
+		"fire_rate": 1.5,
+		"enemy_damage": 10,
+		"projectile_speed": 300.0,
+		"weapon_id": "",
+		"stats": {
+			"hull_hp": 50,
+			"shield_hp": 0,
+			"speed": 150,
+			"acceleration": 600,
+		},
+	}
+	ShipDataManager.save(new_id, data)
+	_load_enemy_ships()
+	# Select the newly created enemy
+	for i in range(_enemy_ships.size()):
+		if _enemy_ships[i].id == new_id:
+			_select_enemy(i)
+			break
+	_ship_selector.queue_redraw()
+
+
+func _select_enemy(index: int) -> void:
+	if index < 0 or index >= _enemy_ships.size():
+		return
+	_selected_enemy_index = index
+	_working_enemy = _enemy_ships[index]
+	_working_render_mode = _working_enemy.render_mode
+	_exhaust_particles.clear()
+	_velocity = 0.0
+	_velocity_y = 0.0
+	_bank = 0.0
+	_enemy_idle_time = 0.0
+
+	_ship_draw.enemy_visual_id = _working_enemy.visual_id
+	_ship_draw.render_mode = _ShipDraw.RenderMode.CHROME if _working_render_mode == "chrome" else _ShipDraw.RenderMode.NEON
+
+	_rebuild_right_panel()
+	_update_enemy_hud()
+	_ship_selector.queue_redraw()
+
+
+func _on_category_changed(index: int) -> void:
+	match index:
+		0: _category = "PLAYER"
+		1: _category = "ENEMIES"
+		2: _category = "BOSSES"
+
+	_ship_selector.category = _category
+	_ship_selector.enemy_ships = _enemy_ships
+	_ship_selector.scroll_offset = 0.0
+
+	if _category == "PLAYER":
+		_selected_enemy_index = -1
+		_working_enemy = null
+		_rebuild_right_panel()
+		_select_ship(_selected_ship)
+		if _hud_replica:
+			_hud_replica.visible = true
+	elif _category == "ENEMIES":
+		if _hud_replica:
+			_hud_replica.visible = false
+		_ship_selector.enemy_ships = _enemy_ships
+		if _enemy_ships.size() > 0:
+			_select_enemy(0)
+		else:
+			_selected_enemy_index = -1
+			_working_enemy = null
+			_rebuild_right_panel()
+	elif _category == "BOSSES":
+		if _hud_replica:
+			_hud_replica.visible = false
+		_selected_enemy_index = -1
+		_working_enemy = null
+		_rebuild_right_panel()
+
+	_ship_selector.queue_redraw()
+	_ship_draw.queue_redraw()
+
+
+func _save_enemy() -> void:
+	if not _working_enemy:
+		return
+	ShipDataManager.save(_working_enemy.id, _working_enemy.to_dict())
+	_load_enemy_ships()
+	# Re-select to refresh
+	for i in range(_enemy_ships.size()):
+		if _enemy_ships[i].id == _working_enemy.id:
+			_selected_enemy_index = i
+			_working_enemy = _enemy_ships[i]
+			break
+	_ship_selector.enemy_ships = _enemy_ships
+	_ship_selector.queue_redraw()
+
+
+func _delete_enemy() -> void:
+	if not _working_enemy:
+		return
+	ShipDataManager.delete(_working_enemy.id)
+	_load_enemy_ships()
+	_ship_selector.enemy_ships = _enemy_ships
+	if _enemy_ships.size() > 0:
+		_select_enemy(clampi(_selected_enemy_index, 0, _enemy_ships.size() - 1))
+	else:
+		_selected_enemy_index = -1
+		_working_enemy = null
+		_rebuild_right_panel()
+	_ship_selector.queue_redraw()
+
+
+func _update_enemy_hud() -> void:
+	# Enemy HUD is hidden; nothing to update for now
+	pass
+
+
 func _update_hud_from_stats() -> void:
 	if not _hud_replica:
 		return
@@ -230,13 +418,69 @@ func _update_hud_from_stats() -> void:
 
 # ── Right attribute panel ─────────────────────────────────────
 
-func _build_right_panel() -> void:
-	_right_panel = PanelContainer.new()
-	_right_panel.position = Vector2(1920.0 - RIGHT_PANEL_W, 0)
-	_right_panel.size = Vector2(RIGHT_PANEL_W, 1080.0 - HUD_HEIGHT)
-	add_child(_right_panel)
+func _auto_size_right_panel() -> void:
+	# Wait one frame so Godot computes minimum sizes from the content tree
+	await get_tree().process_frame
+	if not _right_panel or _right_panel.get_child_count() == 0:
+		return
+	# Measure what the content actually needs
+	var content_min_w: float = 0.0
+	for child in _right_panel.get_children():
+		var cw: float = child.get_combined_minimum_size().x
+		content_min_w = maxf(content_min_w, cw)
+	# Add padding for the ScrollContainer/VBox offsets (10px each side)
+	var panel_w: float = maxf(RIGHT_PANEL_W, content_min_w + 24.0)
+	var vp_size: Vector2 = get_viewport_rect().size
+	var panel_h: float = vp_size.y - HUD_HEIGHT
+	_right_panel.position = Vector2(vp_size.x - panel_w, 0)
+	_right_panel.size = Vector2(panel_w, panel_h)
 
+func _build_right_panel() -> void:
+	_right_panel = Panel.new()
+	_right_panel.clip_contents = true
+	add_child(_right_panel)
+	# Set initial size so content has something to anchor to
+	var vp_size: Vector2 = get_viewport_rect().size
+	_right_panel.position = Vector2(vp_size.x - RIGHT_PANEL_W, 0)
+	_right_panel.size = Vector2(RIGHT_PANEL_W, vp_size.y - HUD_HEIGHT)
+	_rebuild_right_panel_contents()
+
+
+func _rebuild_right_panel() -> void:
+	if not _right_panel:
+		return
+	for child in _right_panel.get_children():
+		_right_panel.remove_child(child)
+		child.queue_free()
+	_sliders.clear()
+	_slider_labels.clear()
+	_skin_dropdown = null
+	_rebuild_right_panel_contents()
+
+
+func _rebuild_right_panel_contents() -> void:
+	_sliders.clear()
+	_slider_labels.clear()
+	_skin_dropdown = null
+
+	if _category == "ENEMIES":
+		_build_enemy_right_panel()
+	elif _category == "BOSSES":
+		_build_bosses_right_panel()
+	else:
+		_build_player_right_panel()
+	_apply_right_panel_theme()
+	# Auto-size after content is built — defers to next frame to measure
+	_auto_size_right_panel()
+
+
+func _build_player_right_panel() -> void:
 	var vbox := VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.offset_left = 10
+	vbox.offset_right = -10
+	vbox.offset_top = 14
+	vbox.offset_bottom = -10
 	vbox.add_theme_constant_override("separation", 6)
 	_right_panel.add_child(vbox)
 
@@ -313,7 +557,254 @@ func _build_right_panel() -> void:
 	vbox.add_child(reset_btn)
 	ThemeManager.apply_button_style(reset_btn)
 
-	_apply_right_panel_theme()
+
+func _build_enemy_right_panel() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.offset_left = 10
+	scroll.offset_right = -10
+	scroll.offset_top = 14
+	scroll.offset_bottom = -10
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_right_panel.add_child(scroll)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 5)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+
+	# Header
+	var header := Label.new()
+	header.text = "ENEMY ATTRIBUTES"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(header)
+
+	if not _working_enemy:
+		var hint := Label.new()
+		hint.text = "Select or create an enemy"
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		vbox.add_child(hint)
+		return
+
+	# ── IDENTITY ──
+	var id_label := Label.new()
+	id_label.text = "IDENTITY"
+	id_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(id_label)
+
+	var name_hbox := HBoxContainer.new()
+	name_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(name_hbox)
+	var name_lbl := Label.new()
+	name_lbl.text = "NAME"
+	name_lbl.custom_minimum_size.x = 40
+	name_hbox.add_child(name_lbl)
+	var name_edit := LineEdit.new()
+	name_edit.text = _working_enemy.display_name
+	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_edit.text_changed.connect(_on_enemy_name_changed)
+	name_hbox.add_child(name_edit)
+
+	var vis_hbox := HBoxContainer.new()
+	vis_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(vis_hbox)
+	var vis_lbl := Label.new()
+	vis_lbl.text = "VISUAL"
+	vis_lbl.custom_minimum_size.x = 40
+	vis_hbox.add_child(vis_lbl)
+	var vis_dd := OptionButton.new()
+	vis_dd.clip_text = true
+	vis_dd.add_item("Sentinel", 0)
+	vis_dd.selected = 0  # Only one template for now
+	vis_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vis_dd.item_selected.connect(_on_enemy_visual_changed)
+	vis_hbox.add_child(vis_dd)
+
+	_add_section_spacer(vbox)
+
+	# ── HEALTH ──
+	var health_label := Label.new()
+	health_label.text = "HEALTH"
+	health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(health_label)
+
+	var shield_hp: int = int(_working_enemy.stats.get("shield_hp", 0))
+	var hull_hp: int = int(_working_enemy.stats.get("hull_hp", 50))
+	_add_slider_row(vbox, "shield_hp", "SHD", 0, 200, 5)
+	_add_slider_row(vbox, "hull_hp", "HULL", 10, 500, 5)
+
+	_add_section_spacer(vbox)
+
+	# ── PROPULSION ──
+	var prop_label := Label.new()
+	prop_label.text = "PROPULSION"
+	prop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(prop_label)
+
+	_add_slider_row(vbox, "speed", "SPEED", 50, 400, 10)
+	_add_slider_row(vbox, "acceleration", "ACCEL", 200, 1600, 50)
+
+	_add_section_spacer(vbox)
+
+	# ── WEAPONS ──
+	var weap_label := Label.new()
+	weap_label.text = "WEAPONS"
+	weap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(weap_label)
+
+	# Fire Pattern dropdown
+	var fp_hbox := HBoxContainer.new()
+	fp_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(fp_hbox)
+	var fp_lbl := Label.new()
+	fp_lbl.text = "FIRE"
+	fp_lbl.custom_minimum_size.x = 40
+	fp_hbox.add_child(fp_lbl)
+	var fp_dd := OptionButton.new()
+	fp_dd.clip_text = true
+	fp_dd.add_item("Straight", 0)
+	fp_dd.add_item("Turret", 1)
+	fp_dd.add_item("Burst", 2)
+	match _working_enemy.fire_pattern:
+		"turret": fp_dd.selected = 1
+		"burst": fp_dd.selected = 2
+		_: fp_dd.selected = 0
+	fp_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fp_dd.item_selected.connect(_on_enemy_fire_pattern_changed)
+	fp_hbox.add_child(fp_dd)
+
+	# Burst directions (only visible for burst)
+	if _working_enemy.fire_pattern == "burst":
+		var bd_hbox := HBoxContainer.new()
+		bd_hbox.add_theme_constant_override("separation", 6)
+		vbox.add_child(bd_hbox)
+		var bd_lbl := Label.new()
+		bd_lbl.text = "DIRS"
+		bd_lbl.custom_minimum_size.x = 40
+		bd_hbox.add_child(bd_lbl)
+		var bd_spin := SpinBox.new()
+		bd_spin.min_value = 2
+		bd_spin.max_value = 16
+		bd_spin.step = 1
+		bd_spin.value = _working_enemy.burst_directions
+		bd_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bd_spin.value_changed.connect(_on_enemy_burst_dirs_changed)
+		bd_hbox.add_child(bd_spin)
+
+	_add_slider_row(vbox, "fire_rate", "RATE", 0.3, 5.0, 0.1)
+	_add_slider_row(vbox, "enemy_damage", "DMG", 5, 50, 1)
+	_add_slider_row(vbox, "projectile_speed", "PROJ", 100, 600, 10)
+
+	# Weapon dropdown (placeholder)
+	var wd_hbox := HBoxContainer.new()
+	wd_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(wd_hbox)
+	var wd_lbl := Label.new()
+	wd_lbl.text = "WPN"
+	wd_lbl.custom_minimum_size.x = 40
+	wd_hbox.add_child(wd_lbl)
+	var wd_dd := OptionButton.new()
+	wd_dd.clip_text = true
+	wd_dd.add_item("None (built-in)", 0)
+	wd_dd.selected = 0
+	wd_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wd_hbox.add_child(wd_dd)
+
+	_add_section_spacer(vbox)
+
+	# ── SKIN ──
+	var skin_label := Label.new()
+	skin_label.text = "SKIN"
+	skin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(skin_label)
+
+	_skin_dropdown = OptionButton.new()
+	_skin_dropdown.clip_text = true
+	_skin_dropdown.add_item("CHROME", 0)
+	_skin_dropdown.add_item("NEON", 1)
+	_skin_dropdown.selected = 0 if _working_render_mode == "chrome" else 1
+	_skin_dropdown.item_selected.connect(_on_skin_changed)
+	vbox.add_child(_skin_dropdown)
+
+	# ── HP readout ──
+	_add_section_spacer(vbox)
+	var hp_readout := Label.new()
+	hp_readout.name = "HPReadout"
+	var shp: int = int(_working_enemy.stats.get("shield_hp", 0))
+	var hhp: int = int(_working_enemy.stats.get("hull_hp", 50))
+	hp_readout.text = "HULL: %d HP | SHIELD: %d HP" % [hhp, shp]
+	hp_readout.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(hp_readout)
+
+	# Spacer to push buttons down
+	var spacer_bottom := Control.new()
+	spacer_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(spacer_bottom)
+
+	# Buttons
+	var save_btn := Button.new()
+	save_btn.text = "SAVE"
+	save_btn.pressed.connect(_save_enemy)
+	vbox.add_child(save_btn)
+	ThemeManager.apply_button_style(save_btn)
+
+	var del_btn := Button.new()
+	del_btn.text = "DELETE"
+	del_btn.pressed.connect(_delete_enemy)
+	vbox.add_child(del_btn)
+	ThemeManager.apply_button_style(del_btn)
+
+	var new_btn := Button.new()
+	new_btn.text = "NEW ENEMY"
+	new_btn.pressed.connect(_create_new_enemy)
+	vbox.add_child(new_btn)
+	ThemeManager.apply_button_style(new_btn)
+
+	# Set slider values from working enemy
+	_updating_sliders = true
+	for key in _sliders:
+		var slider: HSlider = _sliders[key]
+		var val: float = 0.0
+		if key in ["fire_rate", "enemy_damage", "projectile_speed"]:
+			val = float(_working_enemy.get(key))
+		else:
+			val = float(_working_enemy.stats.get(key, slider.min_value))
+		slider.value = val
+		_slider_labels[key].text = str(int(val)) if slider.step >= 1.0 else str(snapped(val, 0.1))
+	_updating_sliders = false
+
+
+func _build_bosses_right_panel() -> void:
+	var vbox := VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.offset_left = 10
+	vbox.offset_right = -10
+	vbox.offset_top = 14
+	vbox.offset_bottom = -10
+	vbox.add_theme_constant_override("separation", 6)
+	_right_panel.add_child(vbox)
+
+	var header := Label.new()
+	header.text = "BOSSES"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(header)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 40
+	vbox.add_child(spacer)
+
+	var coming := Label.new()
+	coming.text = "COMING SOON"
+	coming.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	coming.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	vbox.add_child(coming)
+
+
+func _add_section_spacer(parent: VBoxContainer) -> void:
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 8
+	parent.add_child(spacer)
 
 
 func _add_slider_row(parent: VBoxContainer, key: String, label_text: String, min_val: float, max_val: float, step: float) -> void:
@@ -323,7 +814,7 @@ func _add_slider_row(parent: VBoxContainer, key: String, label_text: String, min
 
 	var lbl := Label.new()
 	lbl.text = label_text
-	lbl.custom_minimum_size.x = 56
+	lbl.custom_minimum_size.x = 40
 	hbox.add_child(lbl)
 
 	var slider := HSlider.new()
@@ -331,11 +822,10 @@ func _add_slider_row(parent: VBoxContainer, key: String, label_text: String, min
 	slider.max_value = max_val
 	slider.step = step
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.custom_minimum_size.x = 120
 	hbox.add_child(slider)
 
 	var val_label := Label.new()
-	val_label.custom_minimum_size.x = 44
+	val_label.custom_minimum_size.x = 36
 	val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	val_label.text = str(int(min_val))
 	hbox.add_child(val_label)
@@ -348,8 +838,30 @@ func _add_slider_row(parent: VBoxContainer, key: String, label_text: String, min
 func _on_attr_changed(value: float, key: String) -> void:
 	if _updating_sliders:
 		return
+
+	var slider: HSlider = _sliders.get(key)
+	if slider and slider.step < 1.0:
+		_slider_labels[key].text = str(snapped(value, 0.1))
+	else:
+		_slider_labels[key].text = str(int(value))
+
+	if _category == "ENEMIES" and _working_enemy:
+		if key in ["fire_rate", "enemy_damage", "projectile_speed"]:
+			if key == "enemy_damage":
+				_working_enemy.set(key, int(value))
+			else:
+				_working_enemy.set(key, value)
+		else:
+			_working_enemy.stats[key] = value
+		# Update HP readout
+		var readout: Label = _right_panel.find_child("HPReadout", true, false) as Label
+		if readout:
+			var shp: int = int(_working_enemy.stats.get("shield_hp", 0))
+			var hhp: int = int(_working_enemy.stats.get("hull_hp", 50))
+			readout.text = "HULL: %d HP | SHIELD: %d HP" % [hhp, shp]
+		return
+
 	_working_stats[key] = value
-	_slider_labels[key].text = str(int(value))
 
 	if key == "speed":
 		_top_speed = value
@@ -363,7 +875,43 @@ func _on_skin_changed(index: int) -> void:
 	if _updating_sliders:
 		return
 	_working_render_mode = "chrome" if index == 0 else "neon"
+	if _category == "ENEMIES" and _working_enemy:
+		_working_enemy.render_mode = _working_render_mode
 	_apply_render_mode()
+
+
+# ── Enemy attribute handlers ─────────────────────────────────
+
+func _on_enemy_name_changed(new_name: String) -> void:
+	if _working_enemy:
+		_working_enemy.display_name = new_name
+		_ship_selector.queue_redraw()
+
+
+func _on_enemy_visual_changed(index: int) -> void:
+	if not _working_enemy:
+		return
+	match index:
+		_: _working_enemy.visual_id = "sentinel"
+	_ship_draw.enemy_visual_id = _working_enemy.visual_id
+	_ship_draw.queue_redraw()
+	_ship_selector.queue_redraw()
+
+
+func _on_enemy_fire_pattern_changed(index: int) -> void:
+	if not _working_enemy:
+		return
+	match index:
+		0: _working_enemy.fire_pattern = "straight"
+		1: _working_enemy.fire_pattern = "turret"
+		2: _working_enemy.fire_pattern = "burst"
+	# Rebuild to show/hide burst directions
+	_rebuild_right_panel()
+
+
+func _on_enemy_burst_dirs_changed(value: float) -> void:
+	if _working_enemy:
+		_working_enemy.burst_directions = int(value)
 
 
 func _on_save_pressed() -> void:
@@ -400,20 +948,31 @@ func _apply_right_panel_theme() -> void:
 	var accent: Color = ThemeManager.get_color("accent")
 	var text_color: Color = ThemeManager.get_color("text")
 
-	# Theme all labels in the panel
-	var vbox: VBoxContainer = _right_panel.get_child(0) as VBoxContainer
+	# Theme all labels in the panel — VBox may be direct child or inside ScrollContainer
+	var first_child: Node = _right_panel.get_child(0) if _right_panel.get_child_count() > 0 else null
+	if not first_child:
+		return
+	var vbox: VBoxContainer = null
+	if first_child is VBoxContainer:
+		vbox = first_child as VBoxContainer
+	elif first_child is ScrollContainer:
+		var sc: ScrollContainer = first_child as ScrollContainer
+		if sc.get_child_count() > 0:
+			vbox = sc.get_child(0) as VBoxContainer
 	if not vbox:
 		return
-	var section_names: Array[String] = ["ATTRIBUTES", "BAR SEGMENTS", "PROPULSION", "SKIN"]
+	var section_names: Array[String] = ["ATTRIBUTES", "BAR SEGMENTS", "PROPULSION", "SKIN",
+		"ENEMY ATTRIBUTES", "IDENTITY", "HEALTH", "WEAPONS", "BOSSES"]
 	for child in vbox.get_children():
 		if child is Label:
 			var lbl: Label = child as Label
 			if lbl.text in section_names:
-				lbl.add_theme_font_size_override("font_size", header_size if lbl.text == "ATTRIBUTES" else body_size)
+				var is_header: bool = lbl.text in ["ATTRIBUTES", "ENEMY ATTRIBUTES", "BOSSES"]
+				lbl.add_theme_font_size_override("font_size", header_size if is_header else body_size)
 				lbl.add_theme_color_override("font_color", accent)
 				if body_font:
 					lbl.add_theme_font_override("font", body_font)
-				ThemeManager.apply_text_glow(lbl, "header" if lbl.text == "ATTRIBUTES" else "body")
+				ThemeManager.apply_text_glow(lbl, "header" if is_header else "body")
 		elif child is HBoxContainer:
 			for sub in child.get_children():
 				if sub is Label:
@@ -422,6 +981,23 @@ func _apply_right_panel_theme() -> void:
 					slbl.add_theme_color_override("font_color", text_color)
 					if body_font:
 						slbl.add_theme_font_override("font", body_font)
+				elif sub is LineEdit:
+					var sle: LineEdit = sub as LineEdit
+					sle.add_theme_font_size_override("font_size", body_size)
+					sle.add_theme_color_override("font_color", text_color)
+					if body_font:
+						sle.add_theme_font_override("font", body_font)
+				elif sub is OptionButton:
+					var sob: OptionButton = sub as OptionButton
+					sob.add_theme_font_size_override("font_size", body_size)
+					sob.add_theme_color_override("font_color", text_color)
+					if body_font:
+						sob.add_theme_font_override("font", body_font)
+				elif sub is SpinBox:
+					var ssb: SpinBox = sub as SpinBox
+					ssb.add_theme_font_size_override("font_size", body_size)
+					if body_font:
+						ssb.add_theme_font_override("font", body_font)
 		elif child is Button:
 			ThemeManager.apply_button_style(child as Button)
 		elif child is OptionButton:
@@ -475,6 +1051,7 @@ class _ShipDraw extends Node2D:
 	var ship_id := 0
 	var render_mode: int = RenderMode.NEON
 	var _time := 0.0
+	var enemy_visual_id: String = ""
 
 	func _bx(x: float, s: float, intensity: float) -> float:
 		var sf: float = signf(x) if x != 0.0 else 0.0
@@ -540,6 +1117,10 @@ class _ShipDraw extends Node2D:
 			_draw_neon_line(a, b, exhaust, width)
 
 	func _draw() -> void:
+		if ship_id == -1:
+			# Enemy drawing mode
+			_draw_enemy_ship()
+			return
 		match ship_id:
 			0: _draw_switchblade()
 			1: _draw_phantom()
@@ -550,6 +1131,60 @@ class _ShipDraw extends Node2D:
 			6: _draw_orrery()
 			7: _draw_dreadnought()
 			8: _draw_bastion()
+
+	# ── Enemy ship drawing ──
+
+	func _draw_enemy_ship() -> void:
+		match enemy_visual_id:
+			"sentinel": _draw_sentinel()
+			_: _draw_sentinel()  # Default fallback
+
+	func _draw_sentinel() -> void:
+		var s := 1.6
+		var r: float = 20.0 * s
+		var glow_col := hull_color
+		var inner_col := accent_color
+		var detail := detail_color
+
+		# Outer circle body — drawn as polygon approximation
+		var circle_pts := PackedVector2Array()
+		var seg_count := 24
+		for i in range(seg_count):
+			var angle: float = TAU * float(i) / float(seg_count)
+			circle_pts.append(Vector2(cos(angle) * r, sin(angle) * r))
+		_poly(circle_pts, glow_col, 1.8 * s)
+
+		# Inner spinning hexagon
+		var hex_pts := PackedVector2Array()
+		var hex_r: float = 12.0 * s
+		var spin: float = _time * 0.8
+		for i in range(6):
+			var angle: float = TAU * float(i) / 6.0 + spin
+			hex_pts.append(Vector2(cos(angle) * hex_r, sin(angle) * hex_r))
+		_poly(hex_pts, inner_col, 1.2 * s)
+
+		# Inner spinning triangle (counter-rotation)
+		var tri_pts := PackedVector2Array()
+		var tri_r: float = 8.0 * s
+		var tri_spin: float = -_time * 1.2
+		for i in range(3):
+			var angle: float = TAU * float(i) / 3.0 + tri_spin
+			tri_pts.append(Vector2(cos(angle) * tri_r, sin(angle) * tri_r))
+		_poly(tri_pts, detail, 1.0 * s)
+
+		# Cross-hairs / sensor lines
+		var line_len: float = r * 1.15
+		_line(Vector2(0, -line_len), Vector2(0, -r * 0.6), glow_col, 0.8 * s)
+		_line(Vector2(0, r * 0.6), Vector2(0, line_len), glow_col, 0.8 * s)
+		_line(Vector2(-line_len, 0), Vector2(-r * 0.6, 0), glow_col, 0.8 * s)
+		_line(Vector2(r * 0.6, 0), Vector2(line_len, 0), glow_col, 0.8 * s)
+
+		# Pulsing center core
+		var pulse: float = 0.6 + sin(_time * 3.0) * 0.4
+		var core_r: float = 3.0 * s * pulse
+		var core_col := Color(1.0, 1.0, 1.0, 0.8 * pulse)
+		draw_circle(Vector2.ZERO, core_r + 2.0, Color(glow_col.r, glow_col.g, glow_col.b, 0.3 * pulse))
+		draw_circle(Vector2.ZERO, core_r, core_col)
 
 	# ── Chrome drawing helpers ──
 
@@ -1531,8 +2166,9 @@ class _ShipSelector extends Node2D:
 	const PANEL_WIDTH := 200.0
 	const SLOT_HEIGHT := 100.0
 	const SHIP_COUNT := 9
-	const HEADER_HEIGHT := 40.0
+	const HEADER_HEIGHT := 60.0
 	const HUD_H := 110.0
+	const SCROLL_SPEED := 30.0
 	const SHIP_NAMES: Array[String] = [
 		"Switchblade", "Phantom", "Mantis", "Corsair", "Stiletto",
 		"Trident", "Orrery", "Dreadnought", "Bastion",
@@ -1540,6 +2176,9 @@ class _ShipSelector extends Node2D:
 
 	var viewer: Control
 	var render_mode: int = _ShipDraw.RenderMode.NEON
+	var category: String = "PLAYER"
+	var enemy_ships: Array[ShipData] = []
+	var scroll_offset: float = 0.0
 
 	var cyan := Color(0.0, 0.9, 1.0)
 	var magenta := Color(1.0, 0.2, 0.6)
@@ -1548,13 +2187,27 @@ class _ShipSelector extends Node2D:
 	var teal := Color(0.0, 1.0, 0.7)
 
 	func get_slot_at(mouse_y: float) -> int:
-		var y_offset: float = mouse_y - HEADER_HEIGHT
+		var y_offset: float = mouse_y - HEADER_HEIGHT + scroll_offset
 		if y_offset < 0:
 			return -1
+		var slot_count: int = _get_slot_count()
 		var idx: int = int(y_offset / SLOT_HEIGHT)
-		if idx < 0 or idx >= SHIP_COUNT:
+		if idx < 0 or idx >= slot_count:
 			return -1
 		return idx
+
+	func scroll_by(amount: float) -> void:
+		var vp_h: float = viewer.get_viewport_rect().size.y if viewer else 1080.0
+		var visible_h: float = vp_h - HUD_H - HEADER_HEIGHT
+		var total_h: float = _get_slot_count() * SLOT_HEIGHT
+		var max_scroll: float = maxf(total_h - visible_h, 0.0)
+		scroll_offset = clampf(scroll_offset + amount, 0.0, max_scroll)
+		queue_redraw()
+
+	func _get_slot_count() -> int:
+		if category == "ENEMIES":
+			return enemy_ships.size() + 1  # +1 for "+ NEW" slot
+		return SHIP_COUNT
 
 	func _draw() -> void:
 		if not viewer:
@@ -1568,12 +2221,32 @@ class _ShipSelector extends Node2D:
 		# Right edge separator
 		draw_line(Vector2(PANEL_WIDTH, 0), Vector2(PANEL_WIDTH, panel_h), cyan * Color(1, 1, 1, 0.3), 1.0)
 
-		# Header
-		var header_font: Font = ThemeDB.fallback_font
-		var header_text := "SHIPS"
-		var hw: float = header_font.get_string_size(header_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
-		draw_string(header_font, Vector2((PANEL_WIDTH - hw) * 0.5, 28), header_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, cyan)
+		# Clip list drawing to the area below the header and above the HUD
+		var clip_rect := Rect2(0, HEADER_HEIGHT, PANEL_WIDTH, panel_h - HEADER_HEIGHT)
+		draw_set_transform(Vector2(0, -scroll_offset), 0.0, Vector2.ONE)
 
+		# Header area is covered by the category OptionButton
+		match category:
+			"PLAYER": _draw_player_list()
+			"ENEMIES": _draw_enemy_list()
+			"BOSSES": _draw_bosses_placeholder()
+
+		# Reset transform
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+		# Draw solid rects over the header area and below HUD to mask overflow
+		draw_rect(Rect2(0, 0, PANEL_WIDTH, HEADER_HEIGHT), Color(0.0, 0.0, 0.05, 1.0))
+		draw_rect(Rect2(0, panel_h, PANEL_WIDTH, HUD_H + 10), Color(0.0, 0.0, 0.05, 1.0))
+
+		# Scroll indicator
+		var total_h: float = _get_slot_count() * SLOT_HEIGHT
+		var visible_h: float = panel_h - HEADER_HEIGHT
+		if total_h > visible_h and total_h > 0.0:
+			var bar_h: float = maxf(visible_h * (visible_h / total_h), 20.0)
+			var bar_y: float = HEADER_HEIGHT + (visible_h - bar_h) * (scroll_offset / maxf(total_h - visible_h, 1.0))
+			draw_rect(Rect2(PANEL_WIDTH - 4, bar_y, 3, bar_h), Color(cyan.r, cyan.g, cyan.b, 0.3))
+
+	func _draw_player_list() -> void:
 		for i in range(SHIP_COUNT):
 			var slot_y: float = HEADER_HEIGHT + SLOT_HEIGHT * i
 			var cy: float = slot_y + SLOT_HEIGHT * 0.4
@@ -1605,6 +2278,68 @@ class _ShipSelector extends Node2D:
 			var text_width: float = font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x
 			var name_pos := Vector2((PANEL_WIDTH - text_width) * 0.5, slot_y + SLOT_HEIGHT - 10)
 			draw_string(font, name_pos, name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, label_col)
+
+	func _draw_enemy_list() -> void:
+		var font: Font = ThemeDB.fallback_font
+
+		# Slot 0: "+ NEW" button
+		var new_slot_y: float = HEADER_HEIGHT
+		var new_cy: float = new_slot_y + SLOT_HEIGHT * 0.5
+		draw_rect(Rect2(4, new_slot_y + 4, PANEL_WIDTH - 8, SLOT_HEIGHT - 8), Color(cyan.r, cyan.g, cyan.b, 0.06))
+		draw_rect(Rect2(4, new_slot_y + 4, PANEL_WIDTH - 8, SLOT_HEIGHT - 8), Color(cyan.r, cyan.g, cyan.b, 0.2), false, 1.0)
+		var plus_text := "+ NEW ENEMY"
+		var pw: float = font.get_string_size(plus_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 14).x
+		draw_string(font, Vector2((PANEL_WIDTH - pw) * 0.5, new_cy + 5), plus_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, cyan)
+
+		# Enemy ship slots
+		for i in range(enemy_ships.size()):
+			var slot_y: float = HEADER_HEIGHT + SLOT_HEIGHT * (i + 1)
+			var cy: float = slot_y + SLOT_HEIGHT * 0.4
+			var selected: bool = (i == viewer._selected_enemy_index)
+
+			if selected:
+				var hl := cyan
+				hl.a = 0.12
+				draw_rect(Rect2(2, slot_y + 2, PANEL_WIDTH - 4, SLOT_HEIGHT - 4), hl)
+				draw_rect(Rect2(2, slot_y + 2, PANEL_WIDTH - 4, SLOT_HEIGHT - 4), Color(cyan.r, cyan.g, cyan.b, 0.4), false, 1.0)
+
+			# Draw sentinel thumbnail
+			var origin := Vector2(PANEL_WIDTH * 0.5, cy)
+			_draw_sentinel_thumb(origin)
+
+			# Enemy name
+			var ship: ShipData = enemy_ships[i]
+			var name_text: String = ship.display_name
+			var font_size: int = 12
+			var label_col: Color = cyan if selected else Color(0.5, 0.5, 0.6)
+			var text_width: float = font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x
+			var name_pos := Vector2((PANEL_WIDTH - text_width) * 0.5, slot_y + SLOT_HEIGHT - 10)
+			draw_string(font, name_pos, name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, label_col)
+
+	func _draw_bosses_placeholder() -> void:
+		var font: Font = ThemeDB.fallback_font
+		var text := "COMING SOON"
+		var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 16).x
+		draw_string(font, Vector2((PANEL_WIDTH - tw) * 0.5, HEADER_HEIGHT + 60), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.5, 0.5, 0.6))
+
+	func _draw_sentinel_thumb(o: Vector2) -> void:
+		var s := 0.5
+		var r: float = 16.0 * s
+		# Circle body
+		var circle_pts := PackedVector2Array()
+		for i in range(16):
+			var angle: float = TAU * float(i) / 16.0
+			circle_pts.append(o + Vector2(cos(angle) * r, sin(angle) * r))
+		_mp(circle_pts, cyan, 0.8)
+		# Inner hexagon
+		var hex_pts := PackedVector2Array()
+		var hex_r: float = 9.0 * s
+		for i in range(6):
+			var angle: float = TAU * float(i) / 6.0
+			hex_pts.append(o + Vector2(cos(angle) * hex_r, sin(angle) * hex_r))
+		_mp(hex_pts, magenta, 0.6)
+		# Center dot
+		draw_circle(o, 2.0, cyan)
 
 	# ── Thumbnail dispatch helpers ──
 

@@ -49,6 +49,26 @@ static func load_all() -> Array[ShipData]:
 	return ships
 
 
+static func load_all_by_type(ship_type: String) -> Array[ShipData]:
+	var all: Array[ShipData] = load_all()
+	var filtered: Array[ShipData] = []
+	for s in all:
+		if s.type == ship_type:
+			filtered.append(s)
+	return filtered
+
+
+static func generate_id(prefix: String) -> String:
+	var existing: Array[String] = list_ids()
+	var idx := 1
+	while true:
+		var candidate: String = prefix + "_" + str(idx)
+		if candidate not in existing:
+			return candidate
+		idx += 1
+	return prefix + "_1"
+
+
 static func delete(id: String) -> void:
 	var path: String = DIR_PATH + id + ".json"
 	if FileAccess.file_exists(path):

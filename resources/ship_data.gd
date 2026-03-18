@@ -25,6 +25,15 @@ const DEFAULT_SEGMENTS: Dictionary = {
 	"shield_regen": 1.0,
 }
 
+# Enemy-specific fields (inert for player ships)
+@export var visual_id: String = ""          # Drawing template: "sentinel"
+@export var fire_pattern: String = "straight"  # "straight", "turret", "burst"
+@export var burst_directions: int = 4       # Only used when fire_pattern == "burst"
+@export var fire_rate: float = 1.5          # Seconds between shots
+@export var enemy_damage: int = 10          # Damage per enemy projectile
+@export var projectile_speed: float = 300.0
+@export var weapon_id: String = ""          # Future: enemy weapon definitions
+
 
 static func from_dict(data: Dictionary) -> ShipData:
 	var s := ShipData.new()
@@ -52,6 +61,15 @@ static func from_dict(data: Dictionary) -> ShipData:
 	for k in default_stats:
 		if not s.stats.has(k):
 			s.stats[k] = default_stats[k]
+
+	# Enemy-specific fields
+	s.visual_id = data.get("visual_id", "")
+	s.fire_pattern = data.get("fire_pattern", "straight")
+	s.burst_directions = int(data.get("burst_directions", 4))
+	s.fire_rate = float(data.get("fire_rate", 1.5))
+	s.enemy_damage = int(data.get("enemy_damage", 10))
+	s.projectile_speed = float(data.get("projectile_speed", 300.0))
+	s.weapon_id = data.get("weapon_id", "")
 	return s
 
 
@@ -74,7 +92,7 @@ static func get_effective_segments(ship_stats: Dictionary) -> Dictionary:
 
 
 func to_dict() -> Dictionary:
-	return {
+	var d: Dictionary = {
 		"id": id,
 		"display_name": display_name,
 		"type": type,
@@ -84,3 +102,12 @@ func to_dict() -> Dictionary:
 		"hardpoints": hardpoints,
 		"stats": stats,
 	}
+	if type == "enemy":
+		d["visual_id"] = visual_id
+		d["fire_pattern"] = fire_pattern
+		d["burst_directions"] = burst_directions
+		d["fire_rate"] = fire_rate
+		d["enemy_damage"] = enemy_damage
+		d["projectile_speed"] = projectile_speed
+		d["weapon_id"] = weapon_id
+	return d

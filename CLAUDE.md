@@ -59,6 +59,7 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
   5. **Any property access on a base-class-typed variable** when the property only exists on a subclass
 
   **Always use explicit type annotations instead:** `var x: float = dict["key"]`, `var pos: Vector2 = parent.global_position`, `var res: PackedScene = load(path)`. Wrapping in `int()` / `float()` also works since those return concrete types.
+- **Programmatic Panel sizing vs content width:** Setting `position`/`size` on a Panel directly does NOT prevent content from overflowing if children's combined minimum size exceeds the Panel width. `clip_contents = true` will crop visually but not fix the layout. Manual `set_deferred()`, anchors, and `grow_horizontal` all fail to override this. **Fix:** build content first, then `await get_tree().process_frame` and read `get_combined_minimum_size()` on children to measure actual needed width. Set the Panel size to fit, and position it accordingly (e.g. right-align by setting `position.x = viewport_width - measured_width`). This lets the panel auto-adjust to any content without hardcoded widths.
 
 ### Key design rules
 - Weapons fire at specific beat positions defined by `fire_triggers` (Array[float])
