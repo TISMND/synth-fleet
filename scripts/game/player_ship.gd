@@ -28,6 +28,8 @@ var _time: float = 0.0
 var _prev_x: float = 0.0
 
 # Chrome palette
+const THERMAL_COOLING_RATE: float = 1.0  # segments/sec passive cooling
+
 const CHROME_DARK := Color(0.12, 0.13, 0.18)
 const CHROME_MID := Color(0.35, 0.38, 0.45)
 const CHROME_LIGHT := Color(0.65, 0.70, 0.80)
@@ -142,6 +144,8 @@ func _process(delta: float) -> void:
 	position.y = clampf(position.y, 50.0, 936.0)
 	# Shield regen
 	shield = minf(shield + shield_regen * delta, shield_max)
+	# Passive thermal cooling
+	thermal = maxf(thermal - THERMAL_COOLING_RATE * delta, 0.0)
 
 	# Banking animation from horizontal velocity
 	var velocity_x: float = (position.x - _prev_x) / maxf(delta, 0.001)

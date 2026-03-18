@@ -4,8 +4,6 @@ extends MarginContainer
 
 # UI refs
 var _firing_preview: ShipFiringPreview
-var _power_budget_label: Label
-var _power_bar: ProgressBar
 var _hp_title: Label
 var _weapon_container: VBoxContainer
 var _weapon_buttons: Array = []  # Array[Dictionary] {button, weapon_id}
@@ -69,8 +67,6 @@ func _load_data() -> void:
 	# Apply weapon to preview
 	if _selected_weapon_id != "":
 		_apply_weapon(_selected_weapon_id)
-
-	_update_power_budget()
 
 
 # ── UI Construction ──────────────────────────────────────────
@@ -144,18 +140,6 @@ func _build_ui() -> void:
 	_weapon_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	weapon_scroll.add_child(_weapon_container)
 
-	# Power budget
-	_power_budget_label = Label.new()
-	_power_budget_label.text = "POWER: 0 / 0"
-	right_vbox.add_child(_power_budget_label)
-
-	_power_bar = ProgressBar.new()
-	_power_bar.custom_minimum_size = Vector2(180, 16)
-	_power_bar.max_value = 1
-	_power_bar.value = 0
-	_power_bar.show_percentage = false
-	right_vbox.add_child(_power_bar)
-
 	# Bottom — back button
 	var bottom_hbox := HBoxContainer.new()
 	root.add_child(bottom_hbox)
@@ -204,11 +188,6 @@ func _apply_theme() -> void:
 	if body_font:
 		_select_label.add_theme_font_override("font", body_font)
 
-	# Power label
-	_power_budget_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-	if body_font:
-		_power_budget_label.add_theme_font_override("font", body_font)
-
 	# Back button
 	ThemeManager.apply_button_style(_back_btn)
 
@@ -217,9 +196,6 @@ func _apply_theme() -> void:
 		var btn: Button = entry["button"]
 		ThemeManager.apply_button_style(btn)
 	_update_weapon_highlights()
-
-	# LED bar on power
-	_update_power_budget()
 
 
 # ── Weapon List ──────────────────────────────────────────────
@@ -267,7 +243,6 @@ func _on_weapon_button_pressed(weapon_id: String) -> void:
 	if weapon_id != "":
 		_apply_weapon(weapon_id)
 	_update_weapon_highlights()
-	_update_power_budget()
 
 
 func _apply_weapon(wid: String) -> void:
@@ -284,46 +259,6 @@ func _update_weapon_highlights() -> void:
 			btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		else:
 			btn.remove_theme_color_override("font_color")
-
-
-# ── Power Budget ─────────────────────────────────────────────
-
-func _update_power_budget() -> void:
-	var total_power: int = 0
-	var max_power: int = 0
-
-	var ship_info: Dictionary = ShipRegistry.get_ship(GameState.current_ship_index)
-	max_power = int(ship_info["stats"].get("generator_power", 10))
-
-	# Sum power cost from all external slots
-	for i in 3:
-		var key: String = "ext_" + str(i)
-		var slot_data: Dictionary = GameState.slot_config.get(key, {})
-		var weapon_id: String = str(slot_data.get("weapon_id", ""))
-		if weapon_id != "":
-			var w: WeaponData = _weapon_cache.get(weapon_id)
-			if w:
-				total_power += w.power_cost
-
-	_power_budget_label.text = "POWER: " + str(total_power) + " / " + str(max_power)
-
-	if max_power > 0:
-		_power_bar.max_value = max_power
-		_power_bar.value = total_power
-	else:
-		_power_bar.max_value = 1
-		_power_bar.value = 0
-
-	var bar_color: Color
-	if total_power > max_power:
-		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
-		bar_color = ThemeManager.get_color("bar_negative")
-	else:
-		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
-		bar_color = ThemeManager.get_color("bar_positive")
-
-	var ratio: float = float(total_power) / maxf(float(max_power), 1.0)
-	ThemeManager.apply_led_bar(_power_bar, bar_color, ratio)
 
 
 # ── Navigation ───────────────────────────────────────────────

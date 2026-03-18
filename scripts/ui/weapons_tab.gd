@@ -6,8 +6,6 @@ extends MarginContainer
 const FIRE_PATTERNS: Array[String] = ["single", "burst", "dual", "wave", "spread", "beam", "scatter"]
 const AIM_MODES: Array[String] = ["fixed", "sweep", "track"]
 const MIRROR_MODES: Array[String] = ["none", "mirror", "alternate"]
-const SPECIAL_EFFECTS: Array[String] = ["none", "disable_shields", "disable_weapons", "drain_shields_for_power"]
-
 const SNAP_MODES: Array[Dictionary] = [
 	{"label": "Free", "value": 0},
 	{"label": "1/4", "value": 4},
@@ -112,10 +110,6 @@ var _style_ids: Array[String] = []
 var _name_input: LineEdit
 var _damage_slider: HSlider
 var _damage_label: Label
-var _power_slider: HSlider
-var _power_label: Label
-var _special_effect_button: OptionButton
-
 # Bar effects (Stats subtab)
 const BAR_TYPES: Array[String] = ["shield", "hull", "thermal", "electric"]
 const BAR_TYPE_LABELS: Array[String] = ["SHD", "HUL", "THR", "ELC"]
@@ -579,20 +573,6 @@ func _build_stats_tab() -> Control:
 	_damage_slider = damage_row[0]
 	_damage_label = damage_row[1]
 
-	var power_row := _add_slider_row(form, "Power Cost:", 1, 30, 5, 1)
-	_power_slider = power_row[0]
-	_power_label = power_row[1]
-
-	_add_separator(form)
-
-	# Special Effect
-	_add_section_header(form, "SPECIAL EFFECT")
-	_special_effect_button = _add_option_button(form, SPECIAL_EFFECTS)
-	_special_effect_button.item_selected.connect(func(_i: int) -> void:
-		_mark_dirty()
-		_update_preview()
-	)
-
 	_add_separator(form)
 
 	# Bar Effects (per trigger hit)
@@ -909,13 +889,11 @@ func _collect_weapon_data() -> Dictionary:
 		"description": "",
 		"damage": int(_damage_slider.value),
 		"projectile_speed": _speed_slider.value,
-		"power_cost": int(_power_slider.value),
 		"loop_file_path": loop_path,
 		"loop_length_bars": loop_bars,
 		"fire_triggers": triggers,
 		"fire_pattern": _pattern_button.get_item_text(_pattern_button.selected),
 		"effect_profile": _collect_effect_profile(),
-		"special_effect": SPECIAL_EFFECTS[_special_effect_button.selected],
 		"direction_deg": _direction_slider.value,
 		"projectile_style_id": _get_selected_style_id(),
 		"aim_mode": AIM_MODES[_aim_mode_button.selected],
@@ -1107,14 +1085,12 @@ func _on_new() -> void:
 	_name_input.text = ""
 	_damage_slider.value = 10
 	_speed_slider.value = 600
-	_power_slider.value = 5
 	_direction_slider.value = 0
 	_pattern_button.selected = 0
 	_aim_mode_button.selected = 0  # fixed
 	_sweep_arc_slider.value = 60
 	_sweep_duration_slider.value = 1.0
 	_mirror_mode_button.selected = 0  # none
-	_special_effect_button.selected = 0  # none
 	_direction_section.visible = true
 	_sweep_section.visible = false
 	_mirror_section.visible = false
@@ -1168,7 +1144,6 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_name_input.text = weapon.display_name
 	_damage_slider.value = weapon.damage
 	_speed_slider.value = weapon.projectile_speed
-	_power_slider.value = weapon.power_cost
 	_direction_slider.value = weapon.direction_deg
 
 	# Select loop in browser
@@ -1200,10 +1175,6 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	# Mirror mode
 	var mirror_idx: int = MIRROR_MODES.find(weapon.mirror_mode)
 	_mirror_mode_button.selected = mirror_idx if mirror_idx >= 0 else 0
-
-	# Special effect
-	var special_idx: int = SPECIAL_EFFECTS.find(weapon.special_effect)
-	_special_effect_button.selected = special_idx if special_idx >= 0 else 0
 
 	# Projectile style selector
 	_refresh_style_list()

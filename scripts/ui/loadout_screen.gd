@@ -10,8 +10,6 @@ var _hull_label: Label
 var _shield_label: Label
 var _speed_label: Label
 var _generator_label: Label
-var _power_budget_label: Label
-var _power_bar: ProgressBar
 var _hardpoint_container: VBoxContainer
 var _status_label: Label
 var _save_button: Button
@@ -168,20 +166,6 @@ func _build_ui() -> void:
 	left_vbox.add_child(_generator_label)
 	_stat_labels.append(_generator_label)
 
-	_add_separator(left_vbox)
-
-	# Power budget
-	_power_budget_label = Label.new()
-	_power_budget_label.text = "POWER: 0 / 0"
-	left_vbox.add_child(_power_budget_label)
-
-	_power_bar = ProgressBar.new()
-	_power_bar.custom_minimum_size = Vector2(180, 16)
-	_power_bar.max_value = 1
-	_power_bar.value = 0
-	_power_bar.show_percentage = false
-	left_vbox.add_child(_power_bar)
-
 	# RIGHT panel — scrollable weapon assignment area
 	var right_scroll := ScrollContainer.new()
 	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -248,7 +232,6 @@ func _on_ship_selected(idx: int) -> void:
 		_canvas.set_hardpoints([])
 		_update_stats_display()
 		_rebuild_hardpoint_panel()
-		_update_power_budget()
 		return
 	var id: String = _ship_selector.get_item_text(idx)
 	var ship: ShipData = ShipDataManager.load_by_id(id)
@@ -259,7 +242,6 @@ func _on_ship_selected(idx: int) -> void:
 	_update_ship_preview()
 	_update_stats_display()
 	_rebuild_hardpoint_panel()
-	_update_power_budget()
 
 
 func _update_ship_preview() -> void:
@@ -330,10 +312,6 @@ func _rebuild_hardpoint_panel() -> void:
 				selector.add_item(display)
 			else:
 				selector.add_item(wid)
-		var bound_hp_id: String = hp_id
-		selector.item_selected.connect(func(_sel_idx: int) -> void:
-			_update_power_budget()
-		)
 		weapon_row.add_child(selector)
 		_hp_weapon_selectors[hp_id] = selector
 
@@ -346,44 +324,6 @@ func _get_weapon_id_from_selector(selector: OptionButton) -> String:
 	if idx >= 0 and idx < _weapon_ids.size():
 		return _weapon_ids[idx]
 	return ""
-
-
-# ── Power Budget ─────────────────────────────────────────────
-
-func _update_power_budget() -> void:
-	var total_power: int = 0
-	var max_power: int = 0
-
-	if _current_ship:
-		max_power = int(_current_ship.stats.get("generator_power", 10))
-
-	for hp_id in _hp_weapon_selectors:
-		var selector: OptionButton = _hp_weapon_selectors[hp_id]
-		var wid: String = _get_weapon_id_from_selector(selector)
-		if wid != "":
-			var w: WeaponData = _weapon_cache.get(wid)
-			if w:
-				total_power += w.power_cost
-
-	_power_budget_label.text = "POWER: " + str(total_power) + " / " + str(max_power)
-
-	if max_power > 0:
-		_power_bar.max_value = max_power
-		_power_bar.value = total_power
-	else:
-		_power_bar.max_value = 1
-		_power_bar.value = 0
-
-	var bar_color: Color
-	if total_power > max_power:
-		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
-		bar_color = ThemeManager.get_color("bar_negative")
-	else:
-		_power_budget_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
-		bar_color = ThemeManager.get_color("bar_positive")
-
-	var ratio: float = float(total_power) / maxf(float(max_power), 1.0)
-	ThemeManager.apply_led_bar(_power_bar, bar_color, ratio)
 
 
 # ── Save / Load / Delete ────────────────────────────────────
@@ -469,8 +409,6 @@ func _populate_from_loadout(loadout: LoadoutData) -> void:
 					selector.selected = i + 1  # +1 for "(none)" item
 					break
 
-	_update_power_budget()
-
 
 func _on_delete() -> void:
 	if _current_id == "":
@@ -492,7 +430,6 @@ func _on_new() -> void:
 	_canvas.set_grid_size(Vector2i(32, 32))
 	_update_stats_display()
 	_rebuild_hardpoint_panel()
-	_update_power_budget()
 	_status_label.text = "New loadout — select a ship."
 
 
@@ -566,16 +503,9 @@ func _apply_theme() -> void:
 	if body_font:
 		_status_label.add_theme_font_override("font", body_font)
 
-	_power_budget_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-	if body_font:
-		_power_budget_label.add_theme_font_override("font", body_font)
-
 	# Buttons
 	for btn in _all_buttons:
 		ThemeManager.apply_button_style(btn)
-
-	# LED bar on power
-	_update_power_budget()
 
 
 func _add_section_header(parent: Control, text: String) -> Label:

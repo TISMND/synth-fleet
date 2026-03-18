@@ -65,7 +65,7 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - Each weapon has an audio loop that plays/mutes in sync via LoopMixer
 - Player toggles weapons ON/OFF (1-9 keys, Space = all on, C = all off)
 - 3 long levels, fixed BPM each. No dynamic tempo.
-- Health = shields (regen) + hull (doesn't). Generator = simple power budget limiting equipped weapons.
+- Health = shields (regen) + hull (doesn't). Generator power is a ship stat (displayed but not enforced).
 - Shop between levels/deaths for weapons, upgrades, ships
 
 ### Screen theming pattern
@@ -83,14 +83,13 @@ Every UI screen must follow this pattern for full theme consistency:
 - `loop_file_path` — path to Splice WAV (e.g. `res://assets/audio/loops/bass_4bar.wav`)
 - `loop_length_bars` — 1, 2, 4, or 8
 - `fire_triggers` — Array[float] normalized time positions (0.0–1.0) where shots fire
-- `damage`, `projectile_speed`, `power_cost` — combat stats
+- `damage`, `projectile_speed` — combat stats
 - `fire_pattern` — single/dual/spread/burst/scatter/wave/beam
 - `direction_deg` — firing direction in degrees (0 = up)
 - `aim_mode` — fixed/sweep/track
 - `sweep_arc_deg`, `sweep_duration` — sweep parameters (arc width, seconds per cycle)
 - `mirror_mode` — none/mirror/alternate
 - `effect_profile` — v2 composable effect layers (see below), only muzzle/trail/impact slots
-- `special_effect` — none/disable_shields/disable_weapons/drain_shields_for_power
 - `projectile_style_id` — links to ProjectileStyle for visual design (color comes from style)
 
 ### Effect Profile (v2)
