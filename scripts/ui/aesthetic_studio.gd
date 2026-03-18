@@ -4,7 +4,6 @@ extends Control
 
 var _vhs_overlay: ColorRect
 var _background: ColorRect
-var _preset_selector: OptionButton
 var _tab_container: TabContainer
 var _hud_tab_vbox: VBoxContainer
 
@@ -104,10 +103,6 @@ func _build_ui() -> void:
 	_build_hud_tab()
 
 
-var _save_btn: Button
-var _save_as_btn: Button
-var _delete_btn: Button
-
 func _build_top_bar(parent: VBoxContainer) -> void:
 	var bar := HBoxContainer.new()
 	bar.add_theme_constant_override("separation", 12)
@@ -124,33 +119,10 @@ func _build_top_bar(parent: VBoxContainer) -> void:
 	bar.add_child(title)
 	_preview_labels.append(title)
 
-	_preset_selector = OptionButton.new()
-	_preset_selector.custom_minimum_size.x = 220
-	_refresh_preset_list()
-	_preset_selector.item_selected.connect(_on_preset_selected)
-	bar.add_child(_preset_selector)
-
-	_save_btn = Button.new()
-	_save_btn.text = "SAVE"
-	_save_btn.pressed.connect(_on_save_preset)
-	bar.add_child(_save_btn)
-
-	_save_as_btn = Button.new()
-	_save_as_btn.text = "SAVE AS..."
-	_save_as_btn.pressed.connect(_on_save_as_preset)
-	bar.add_child(_save_as_btn)
-
-	_delete_btn = Button.new()
-	_delete_btn.text = "DELETE"
-	_delete_btn.pressed.connect(_on_delete_preset)
-	bar.add_child(_delete_btn)
-
 	var back_btn := Button.new()
 	back_btn.text = "BACK"
 	back_btn.pressed.connect(_on_back)
 	bar.add_child(back_btn)
-
-	_update_preset_buttons()
 
 
 # ── Reusable color picker row helper ─────────────────────────
@@ -1353,58 +1325,6 @@ func _on_color_changed(key: String, color: Color) -> void:
 	ThemeManager.set_color(key, color)
 
 
-func _on_preset_selected(idx: int) -> void:
-	var preset_name: String = _preset_selector.get_item_text(idx)
-	# Strip " *" modified indicator if present
-	if preset_name.ends_with(" *"):
-		preset_name = preset_name.substr(0, preset_name.length() - 2)
-	ThemeManager.apply_preset(preset_name)
-
-
-func _on_save_preset() -> void:
-	var active: String = ThemeManager.get_active_preset()
-	if active == "" or ThemeManager.is_builtin_preset(active):
-		# No active custom preset — redirect to Save As
-		_on_save_as_preset()
-		return
-	ThemeManager.save_custom_preset(active)
-	_refresh_preset_list()
-	_update_preset_buttons()
-
-
-func _on_save_as_preset() -> void:
-	var dialog := AcceptDialog.new()
-	dialog.title = "Save Preset As"
-	var line_edit := LineEdit.new()
-	line_edit.placeholder_text = "Preset name..."
-	line_edit.custom_minimum_size.x = 250
-	var active: String = ThemeManager.get_active_preset()
-	if active != "" and not ThemeManager.is_builtin_preset(active):
-		line_edit.text = active
-	dialog.add_child(line_edit)
-	dialog.confirmed.connect(func() -> void:
-		var preset_name: String = line_edit.text.strip_edges()
-		if preset_name != "" and not ThemeManager.is_builtin_preset(preset_name):
-			ThemeManager.save_custom_preset(preset_name)
-			_refresh_preset_list()
-			_update_preset_buttons()
-		dialog.queue_free()
-	)
-	dialog.canceled.connect(func() -> void: dialog.queue_free())
-	add_child(dialog)
-	dialog.popup_centered()
-	line_edit.grab_focus()
-
-
-func _on_delete_preset() -> void:
-	var active: String = ThemeManager.get_active_preset()
-	if active == "" or ThemeManager.is_builtin_preset(active):
-		return
-	ThemeManager.delete_custom_preset(active)
-	_refresh_preset_list()
-	_update_preset_buttons()
-
-
 func _on_back() -> void:
 	ThemeManager.save_settings()
 	get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
@@ -1468,10 +1388,6 @@ func _refresh_all_from_theme() -> void:
 	# Update VHS overlay
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
-	# Refresh preset list and button states
-	_refresh_preset_list()
-	_update_preset_buttons()
-
 	_updating_from_theme = false
 
 	# Rebuild preview panel and dynamic content (deferred, after sliders done)
@@ -1519,30 +1435,3 @@ func _do_rebuild() -> void:
 			_rebuild_state_preview_btn(container, sl, ls)
 
 
-func _refresh_preset_list() -> void:
-	var names: Array[String] = ThemeManager.list_preset_names()
-	var active: String = ThemeManager.get_active_preset()
-	var dirty: bool = ThemeManager.is_preset_dirty()
-	_preset_selector.clear()
-	var selected_idx: int = -1
-	for i in names.size():
-		var display: String = names[i]
-		if names[i] == active and dirty:
-			display = names[i] + " *"
-		_preset_selector.add_item(display)
-		if names[i] == active:
-			selected_idx = i
-	if active == "" or selected_idx < 0:
-		# No active preset — add an "Unsaved" entry at the top
-		_preset_selector.add_item("(unsaved)")
-		selected_idx = _preset_selector.item_count - 1
-	_preset_selector.selected = selected_idx
-
-
-func _update_preset_buttons() -> void:
-	var active: String = ThemeManager.get_active_preset()
-	var is_custom: bool = active != "" and not ThemeManager.is_builtin_preset(active)
-	# SAVE: enabled when a custom preset is active and dirty
-	_save_btn.disabled = not is_custom or not ThemeManager.is_preset_dirty()
-	# DELETE: enabled only for custom presets
-	_delete_btn.disabled = not is_custom

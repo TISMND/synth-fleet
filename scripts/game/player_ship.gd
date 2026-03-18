@@ -55,20 +55,6 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	speed = float(stats.get("speed", 400))
 	shield_regen = float(stats.get("shield_regen", 1.0))
 
-	# Apply device modifiers
-	for slot_key in GameState.device_config:
-		var device_id: String = str(GameState.device_config[slot_key])
-		if device_id == "":
-			continue
-		var dev: DeviceData = DeviceDataManager.load_by_id(device_id)
-		if dev:
-			var mods: Dictionary = dev.stats_modifiers
-			shield_max += float(mods.get("shield_segments", 0))
-			hull_max += float(mods.get("hull_segments", 0))
-			speed += float(mods.get("speed", 0))
-	shield = shield_max
-	hull = hull_max
-
 	# Create hardpoint controllers from loadout assignments — all fire from center
 	var assignments: Dictionary = loadout.hardpoint_assignments
 	var hp_index: int = 0

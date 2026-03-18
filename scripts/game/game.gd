@@ -60,8 +60,8 @@ func _ready() -> void:
 	_hud.name = "HUD"
 	add_child(_hud)
 
-	# Pass ship segment counts to HUD (with device modifiers applied)
-	_hud.set_bar_segments(ShipData.get_effective_segments(ship.stats))
+	# Pass ship segment counts to HUD
+	_hud.set_bar_segments(ship.stats)
 
 	# Wire HUD to player for hardpoint + core display
 	_player._hud = _hud

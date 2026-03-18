@@ -7,11 +7,10 @@ const SAVE_PATH := "user://save_data.json"
 var credits: int = 0
 var owned_weapon_ids: Array[String] = []
 var owned_ship_ids: Array[String] = []
-var current_loadout_id: String = ""  # kept for backward compat, unused in main flow
 var current_level: int = 0
 var stats: Dictionary = {}
 
-# New ship/slot system
+# Ship/slot system
 var current_ship_index: int = 4  # default Stiletto
 var slot_config: Dictionary = {}
 # slot_config structure:
@@ -24,19 +23,12 @@ var slot_config: Dictionary = {}
 #   "int_2": {"device_id": ""},
 # }
 
-# Backward compat — old fields, only used for save loading migration
-var current_ship_id: String = ""
-var hardpoint_config: Dictionary = {}
-var device_config: Dictionary = {}
-
 # Transient — not saved. Used to pass context between screens.
 var _editing_slot_key: String = ""
-var _editing_hp_id: String = ""  # kept for backward compat
 var _editing_device_slot: int = -1
 
 
 func _ready() -> void:
-	DeviceDataManager.ensure_starter_devices()
 	load_game()
 
 
@@ -56,15 +48,10 @@ func save_game() -> void:
 		"credits": credits,
 		"owned_weapon_ids": owned_weapon_ids,
 		"owned_ship_ids": owned_ship_ids,
-		"current_loadout_id": current_loadout_id,
 		"current_ship_index": current_ship_index,
 		"slot_config": slot_config,
 		"current_level": current_level,
 		"stats": stats,
-		# Keep old fields for backward compat
-		"current_ship_id": current_ship_id,
-		"hardpoint_config": hardpoint_config,
-		"device_config": device_config,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -93,11 +80,9 @@ func load_game() -> void:
 	owned_ship_ids.clear()
 	for sid in sids:
 		owned_ship_ids.append(str(sid))
-	current_loadout_id = str(data.get("current_loadout_id", ""))
 	current_level = int(data.get("current_level", 0))
 	stats = data.get("stats", {})
 
-	# New fields
 	current_ship_index = int(data.get("current_ship_index", 4))
 	var saved_slots: Dictionary = data.get("slot_config", {})
 	if saved_slots.size() > 0:
@@ -105,22 +90,13 @@ func load_game() -> void:
 	else:
 		_init_slot_config()
 
-	# Old fields for backward compat
-	current_ship_id = str(data.get("current_ship_id", ""))
-	hardpoint_config = data.get("hardpoint_config", {})
-	device_config = data.get("device_config", {})
-
 
 func _set_defaults() -> void:
 	credits = 0
 	owned_weapon_ids = []
 	owned_ship_ids = []
-	current_loadout_id = ""
 	current_ship_index = 4
 	_init_slot_config()
-	current_ship_id = ""
-	hardpoint_config = {}
-	device_config = {}
 	current_level = 0
 	stats = {}
 
@@ -162,27 +138,6 @@ func set_slot_device(slot_key: String, device_id: String) -> void:
 	if not slot_config.has(slot_key):
 		slot_config[slot_key] = {"device_id": ""}
 	slot_config[slot_key]["device_id"] = device_id
-	save_game()
-
-
-# ── Old helpers (kept for backward compat) ───────────────────
-
-func set_ship(id: String) -> void:
-	current_ship_id = id
-	hardpoint_config = {}
-	device_config = {}
-	save_game()
-
-
-func set_hardpoint_weapon(hp_id: String, weapon_id: String) -> void:
-	if not hardpoint_config.has(hp_id):
-		hardpoint_config[hp_id] = {"weapon_id": ""}
-	hardpoint_config[hp_id]["weapon_id"] = weapon_id
-	save_game()
-
-
-func set_device(slot: int, device_id: String) -> void:
-	device_config["slot_" + str(slot)] = device_id
 	save_game()
 
 

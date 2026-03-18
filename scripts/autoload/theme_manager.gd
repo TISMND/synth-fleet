@@ -1,12 +1,11 @@
 extends Node
-## ThemeManager — centralized aesthetic theme with persistence + presets.
+## ThemeManager — centralized aesthetic theme with persistence.
 ## All semantic colors, font sizes, glow/grid params in one place.
 ## Emits theme_changed when any value is modified.
 
 signal theme_changed
 
 const SETTINGS_PATH := "user://settings/aesthetic.json"
-const PRESETS_PATH := "user://settings/aesthetic_presets.json"
 
 # ── Color keys ──
 var _colors: Dictionary = {
@@ -143,335 +142,12 @@ var _font_cache: Dictionary = {}
 # ── Grid line color (separate since it's used in shader) ──
 var _grid_line_color: Color = Color(0.15, 0.35, 0.6, 0.4)
 
-# ── Built-in presets ──
-const BUILTIN_PRESETS: Dictionary = {
-	"Classic Synthwave": {
-		"colors": {
-			"header": "#66CCFF",
-			"accent": "#4DFFCC",
-			"positive": "#4DFF80",
-			"warning": "#FF4D4D",
-			"dimmed": "#808099",
-			"disabled": "#808080",
-			"text": "#D9D9E6",
-			"background": "#050510",
-			"panel": "#14141F",
-			"bar_positive": "#26B34D",
-			"bar_negative": "#CC2626",
-			"bar_shield": "#4DFFCC",
-			"bar_hull": "#FF4D4D",
-			"bar_thermal": "#FF9933",
-			"bar_electric": "#FFE633",
-			"bar_warning": "#FF9933",
-			"bar_disabled": "#666666",
-			"bar_supercharged": "#66CCFF",
-		},
-		"floats": {
-			"grid_spacing": 64.0,
-			"grid_scroll_speed": 20.0,
-			"grid_line_width": 1.0,
-			"grid_inner_intensity": 0.0,
-			"grid_aura_size": 4.0,
-			"grid_aura_intensity": 0.6,
-			"grid_bloom_size": 12.0,
-			"grid_bloom_intensity": 0.2,
-			"grid_smudge_blur": 0.0,
-			"header_inner_intensity": 0.0,
-			"header_aura_size": 0.0,
-			"header_aura_intensity": 0.0,
-			"header_bloom_size": 0.0,
-			"header_bloom_intensity": 0.0,
-			"header_smudge_blur": 0.0,
-			"body_inner_intensity": 0.0,
-			"body_aura_size": 0.0,
-			"body_aura_intensity": 0.0,
-			"body_bloom_size": 0.0,
-			"body_bloom_intensity": 0.0,
-			"body_smudge_blur": 0.0,
-			"vhs_scanline_strength": 0.0,
-			"vhs_scanline_spacing": 2.0,
-			"vhs_chromatic_aberration": 0.0,
-			"vhs_barrel_distortion": 0.0,
-			"vhs_vignette_strength": 0.0,
-			"vhs_noise_intensity": 0.0,
-			"vhs_color_bleed": 0.0,
-			"vhs_roll_speed": 0.0,
-			"vhs_roll_strength": 0.0,
-			"vhs_roll_period": 4.0,
-			"led_segment_count": 20.0,
-			"led_segment_gap_px": 3.0,
-			"led_glow_size": 3.0,
-			"led_glow_strength": 1.5,
-			"led_smudge_blur": 1.0,
-			"led_segment_width_px": 10.0,
-			"btn_border_width": 1.0,
-			"btn_corner_radius": 1.0,
-			"btn_border_bottom_only": 0.0,
-			"btn_use_chrome": 0.0,
-			"btn_normal_border_alpha": 0.3,
-			"btn_normal_bg_alpha": 0.0,
-			"btn_normal_glow_size": 2.0,
-			"btn_normal_glow_alpha": 0.12,
-			"btn_normal_font_opacity": 0.45,
-			"btn_normal_font_whiten": 0.0,
-			"btn_hover_border_alpha": 0.8,
-			"btn_hover_bg_alpha": 0.04,
-			"btn_hover_glow_size": 5.0,
-			"btn_hover_glow_alpha": 0.85,
-			"btn_hover_font_opacity": 1.0,
-			"btn_hover_font_whiten": 0.15,
-			"btn_pressed_border_alpha": 1.0,
-			"btn_pressed_bg_alpha": 0.08,
-			"btn_pressed_glow_size": 7.0,
-			"btn_pressed_glow_alpha": 1.0,
-			"btn_pressed_font_opacity": 1.0,
-			"btn_pressed_font_whiten": 0.85,
-			"btn_disabled_border_alpha": 0.12,
-			"btn_disabled_bg_alpha": 0.0,
-			"btn_disabled_glow_size": 0.0,
-			"btn_disabled_glow_alpha": 0.0,
-			"btn_disabled_font_opacity": 0.2,
-			"btn_disabled_font_whiten": 0.0,
-			"supercharged_speed": 1.5,
-			"supercharged_intensity": 1.0,
-			"supercharged_distortion": 0.15,
-		},
-		"ints": {
-			"font_size_header": 20,
-			"font_size_title": 16,
-			"font_size_section": 14,
-			"font_size_body": 13,
-			"font_size_button": 14,
-		},
-		"grid_line_color": "#265999",
-		"font_paths": {
-			"font_header": "res://assets/fonts/Bungee-Regular.ttf",
-			"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
-			"font_button": "res://assets/fonts/Audiowide-Regular.ttf",
-		},
-	},
-	"Neon Frost": {
-		"colors": {
-			"header": "#80FFFF",
-			"accent": "#B3FFE6",
-			"positive": "#80FFB3",
-			"warning": "#FF6680",
-			"dimmed": "#6699AA",
-			"disabled": "#668899",
-			"text": "#E6F2FF",
-			"background": "#000A14",
-			"panel": "#0A1A2A",
-			"bar_positive": "#339966",
-			"bar_negative": "#CC3355",
-			"bar_shield": "#B3FFE6",
-			"bar_hull": "#FF6680",
-			"bar_thermal": "#FFB366",
-			"bar_electric": "#FFE680",
-			"bar_warning": "#FFB366",
-			"bar_disabled": "#668899",
-			"bar_supercharged": "#80FFFF",
-		},
-		"floats": {
-			"grid_spacing": 48.0,
-			"grid_scroll_speed": 15.0,
-			"grid_line_width": 1.5,
-			"grid_inner_intensity": 0.0,
-			"grid_aura_size": 5.0,
-			"grid_aura_intensity": 0.9,
-			"grid_bloom_size": 14.0,
-			"grid_bloom_intensity": 0.3,
-			"grid_smudge_blur": 0.0,
-			"header_inner_intensity": 0.0,
-			"header_aura_size": 0.0,
-			"header_aura_intensity": 0.0,
-			"header_bloom_size": 0.0,
-			"header_bloom_intensity": 0.0,
-			"header_smudge_blur": 0.0,
-			"body_inner_intensity": 0.0,
-			"body_aura_size": 0.0,
-			"body_aura_intensity": 0.0,
-			"body_bloom_size": 0.0,
-			"body_bloom_intensity": 0.0,
-			"body_smudge_blur": 0.0,
-			"vhs_scanline_strength": 0.1,
-			"vhs_scanline_spacing": 2.0,
-			"vhs_chromatic_aberration": 0.5,
-			"vhs_barrel_distortion": 0.0,
-			"vhs_vignette_strength": 0.2,
-			"vhs_noise_intensity": 0.0,
-			"vhs_color_bleed": 0.0,
-			"vhs_roll_speed": 0.0,
-			"vhs_roll_strength": 0.0,
-			"vhs_roll_period": 4.0,
-			"led_segment_count": 20.0,
-			"led_segment_gap_px": 3.0,
-			"led_glow_size": 3.0,
-			"led_glow_strength": 1.5,
-			"led_smudge_blur": 1.0,
-			"led_segment_width_px": 10.0,
-			"btn_border_width": 1.0,
-			"btn_corner_radius": 1.0,
-			"btn_border_bottom_only": 0.0,
-			"btn_use_chrome": 0.0,
-			"btn_normal_border_alpha": 0.3,
-			"btn_normal_bg_alpha": 0.0,
-			"btn_normal_glow_size": 2.0,
-			"btn_normal_glow_alpha": 0.12,
-			"btn_normal_font_opacity": 0.45,
-			"btn_normal_font_whiten": 0.0,
-			"btn_hover_border_alpha": 0.8,
-			"btn_hover_bg_alpha": 0.04,
-			"btn_hover_glow_size": 5.0,
-			"btn_hover_glow_alpha": 0.85,
-			"btn_hover_font_opacity": 1.0,
-			"btn_hover_font_whiten": 0.15,
-			"btn_pressed_border_alpha": 1.0,
-			"btn_pressed_bg_alpha": 0.08,
-			"btn_pressed_glow_size": 7.0,
-			"btn_pressed_glow_alpha": 1.0,
-			"btn_pressed_font_opacity": 1.0,
-			"btn_pressed_font_whiten": 0.85,
-			"btn_disabled_border_alpha": 0.12,
-			"btn_disabled_bg_alpha": 0.0,
-			"btn_disabled_glow_size": 0.0,
-			"btn_disabled_glow_alpha": 0.0,
-			"btn_disabled_font_opacity": 0.2,
-			"btn_disabled_font_whiten": 0.0,
-			"supercharged_speed": 1.5,
-			"supercharged_intensity": 1.0,
-			"supercharged_distortion": 0.15,
-		},
-		"ints": {
-			"font_size_header": 20,
-			"font_size_title": 16,
-			"font_size_section": 14,
-			"font_size_body": 13,
-			"font_size_button": 14,
-		},
-		"grid_line_color": "#338899",
-		"font_paths": {
-			"font_header": "res://assets/fonts/Bungee-Regular.ttf",
-			"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
-			"font_button": "res://assets/fonts/Audiowide-Regular.ttf",
-		},
-	},
-	"Void Purple": {
-		"colors": {
-			"header": "#CC80FF",
-			"accent": "#FF80CC",
-			"positive": "#80FF80",
-			"warning": "#FF6633",
-			"dimmed": "#666680",
-			"disabled": "#555566",
-			"text": "#D9CCE6",
-			"background": "#0A0510",
-			"panel": "#1A0F26",
-			"bar_positive": "#339933",
-			"bar_negative": "#993333",
-			"bar_shield": "#FF80CC",
-			"bar_hull": "#FF6633",
-			"bar_thermal": "#FF9933",
-			"bar_electric": "#FFE633",
-			"bar_warning": "#FF9933",
-			"bar_disabled": "#555566",
-			"bar_supercharged": "#CC80FF",
-		},
-		"floats": {
-			"grid_spacing": 72.0,
-			"grid_scroll_speed": 12.0,
-			"grid_line_width": 1.2,
-			"grid_inner_intensity": 0.0,
-			"grid_aura_size": 4.5,
-			"grid_aura_intensity": 0.7,
-			"grid_bloom_size": 14.0,
-			"grid_bloom_intensity": 0.25,
-			"grid_smudge_blur": 0.0,
-			"header_inner_intensity": 0.0,
-			"header_aura_size": 0.0,
-			"header_aura_intensity": 0.0,
-			"header_bloom_size": 0.0,
-			"header_bloom_intensity": 0.0,
-			"header_smudge_blur": 0.0,
-			"body_inner_intensity": 0.0,
-			"body_aura_size": 0.0,
-			"body_aura_intensity": 0.0,
-			"body_bloom_size": 0.0,
-			"body_bloom_intensity": 0.0,
-			"body_smudge_blur": 0.0,
-			"vhs_scanline_strength": 0.15,
-			"vhs_scanline_spacing": 3.0,
-			"vhs_chromatic_aberration": 1.0,
-			"vhs_barrel_distortion": 0.05,
-			"vhs_vignette_strength": 0.4,
-			"vhs_noise_intensity": 0.03,
-			"vhs_color_bleed": 0.5,
-			"vhs_roll_speed": 0.0,
-			"vhs_roll_strength": 0.0,
-			"vhs_roll_period": 4.0,
-			"led_segment_count": 20.0,
-			"led_segment_gap_px": 3.0,
-			"led_glow_size": 3.0,
-			"led_glow_strength": 1.5,
-			"led_smudge_blur": 1.0,
-			"led_segment_width_px": 10.0,
-			"btn_border_width": 1.0,
-			"btn_corner_radius": 1.0,
-			"btn_border_bottom_only": 0.0,
-			"btn_use_chrome": 0.0,
-			"btn_normal_border_alpha": 0.3,
-			"btn_normal_bg_alpha": 0.0,
-			"btn_normal_glow_size": 2.0,
-			"btn_normal_glow_alpha": 0.12,
-			"btn_normal_font_opacity": 0.45,
-			"btn_normal_font_whiten": 0.0,
-			"btn_hover_border_alpha": 0.8,
-			"btn_hover_bg_alpha": 0.04,
-			"btn_hover_glow_size": 5.0,
-			"btn_hover_glow_alpha": 0.85,
-			"btn_hover_font_opacity": 1.0,
-			"btn_hover_font_whiten": 0.15,
-			"btn_pressed_border_alpha": 1.0,
-			"btn_pressed_bg_alpha": 0.08,
-			"btn_pressed_glow_size": 7.0,
-			"btn_pressed_glow_alpha": 1.0,
-			"btn_pressed_font_opacity": 1.0,
-			"btn_pressed_font_whiten": 0.85,
-			"btn_disabled_border_alpha": 0.12,
-			"btn_disabled_bg_alpha": 0.0,
-			"btn_disabled_glow_size": 0.0,
-			"btn_disabled_glow_alpha": 0.0,
-			"btn_disabled_font_opacity": 0.2,
-			"btn_disabled_font_whiten": 0.0,
-			"supercharged_speed": 2.0,
-			"supercharged_intensity": 1.2,
-			"supercharged_distortion": 0.2,
-		},
-		"ints": {
-			"font_size_header": 20,
-			"font_size_title": 16,
-			"font_size_section": 14,
-			"font_size_body": 13,
-			"font_size_button": 14,
-		},
-		"grid_line_color": "#442266",
-		"font_paths": {
-			"font_header": "res://assets/fonts/Bungee-Regular.ttf",
-			"font_body": "res://assets/fonts/ShareTechMono-Regular.ttf",
-			"font_button": "res://assets/fonts/Audiowide-Regular.ttf",
-		},
-	},
-}
-
-var _custom_presets: Dictionary = {}
 var _grid_shader: Shader = null
-var _active_preset: String = ""
-var _preset_dirty: bool = false
 
 
 func _ready() -> void:
 	_grid_shader = load("res://assets/shaders/grid_background.gdshader") as Shader
 	load_settings()
-	_load_custom_presets()
 
 
 # ── Typed getters (no Variant leaks) ──────────────────────────
@@ -514,7 +190,6 @@ func get_font_path(key: String) -> String:
 func set_font_path(key: String, path: String) -> void:
 	_font_paths[key] = path
 	_font_cache.erase(path)
-	_preset_dirty = true
 	theme_changed.emit()
 
 
@@ -525,19 +200,16 @@ func set_color(key: String, value: Color) -> void:
 		_grid_line_color = value
 	else:
 		_colors[key] = value
-	_preset_dirty = true
 	theme_changed.emit()
 
 
 func set_font_size(key: String, value: int) -> void:
 	_ints[key] = value
-	_preset_dirty = true
 	theme_changed.emit()
 
 
 func set_float(key: String, value: float) -> void:
 	_floats[key] = value
-	_preset_dirty = true
 	theme_changed.emit()
 
 
@@ -1124,7 +796,6 @@ func _serialize() -> Dictionary:
 		"ints": _ints.duplicate(),
 		"grid_line_color": "#" + _grid_line_color.to_html(false),
 		"font_paths": _font_paths.duplicate(),
-		"active_preset": _active_preset,
 	}
 
 
@@ -1148,83 +819,3 @@ func _deserialize(data: Dictionary) -> void:
 	for key in font_data:
 		_font_paths[key] = str(font_data[key])
 	_font_cache.clear()
-	var ap: String = str(data.get("active_preset", ""))
-	if ap != "":
-		_active_preset = ap
-
-
-# ── Presets ───────────────────────────────────────────────────
-
-func list_preset_names() -> Array[String]:
-	var names: Array[String] = []
-	for key in BUILTIN_PRESETS:
-		names.append(str(key))
-	for key in _custom_presets:
-		if not names.has(str(key)):
-			names.append(str(key))
-	names.sort()
-	return names
-
-
-func get_active_preset() -> String:
-	return _active_preset
-
-
-func is_preset_dirty() -> bool:
-	return _preset_dirty
-
-
-func apply_preset(preset_name: String) -> void:
-	var data: Dictionary = {}
-	if preset_name in BUILTIN_PRESETS:
-		data = BUILTIN_PRESETS[preset_name]
-	elif preset_name in _custom_presets:
-		data = _custom_presets[preset_name]
-	else:
-		return
-	_deserialize(data)
-	_active_preset = preset_name
-	_preset_dirty = false
-	theme_changed.emit()
-	save_settings()
-
-
-func save_custom_preset(preset_name: String) -> void:
-	_custom_presets[preset_name] = _serialize()
-	_active_preset = preset_name
-	_preset_dirty = false
-	_save_custom_presets()
-	save_settings()
-
-
-func delete_custom_preset(preset_name: String) -> void:
-	if preset_name in _custom_presets:
-		_custom_presets.erase(preset_name)
-		_save_custom_presets()
-
-
-func is_builtin_preset(preset_name: String) -> bool:
-	return preset_name in BUILTIN_PRESETS
-
-
-func _save_custom_presets() -> void:
-	DirAccess.make_dir_recursive_absolute("user://settings")
-	var json_str: String = JSON.stringify(_custom_presets, "\t")
-	var file: FileAccess = FileAccess.open(PRESETS_PATH, FileAccess.WRITE)
-	if file:
-		file.store_string(json_str)
-		file.close()
-
-
-func _load_custom_presets() -> void:
-	if not FileAccess.file_exists(PRESETS_PATH):
-		return
-	var file: FileAccess = FileAccess.open(PRESETS_PATH, FileAccess.READ)
-	if not file:
-		return
-	var json_str: String = file.get_as_text()
-	file.close()
-	var json := JSON.new()
-	if json.parse(json_str) != OK:
-		return
-	_custom_presets = json.data

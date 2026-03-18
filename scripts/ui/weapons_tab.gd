@@ -6,19 +6,8 @@ extends MarginContainer
 const FIRE_PATTERNS: Array[String] = ["single", "burst", "dual", "wave", "spread", "beam", "scatter"]
 const AIM_MODES: Array[String] = ["fixed", "sweep", "track"]
 const MIRROR_MODES: Array[String] = ["none", "mirror", "alternate"]
-const SNAP_MODES: Array[Dictionary] = [
-	{"label": "Free", "value": 0},
-	{"label": "1/4", "value": 4},
-	{"label": "1/8", "value": 8},
-	{"label": "1/16", "value": 16},
-]
-const BARS_OPTIONS: Array[Dictionary] = [
-	{"label": "Auto", "value": 0},
-	{"label": "1", "value": 1},
-	{"label": "2", "value": 2},
-	{"label": "4", "value": 4},
-	{"label": "8", "value": 8},
-]
+const SNAP_MODES: Array[Dictionary] = EditorConstants.SNAP_MODES
+const BARS_OPTIONS: Array[Dictionary] = EditorConstants.BARS_OPTIONS
 
 const EFFECT_SLOTS: Array[String] = ["muzzle", "trail", "impact"]
 const EFFECT_SLOT_LABELS: Dictionary = {

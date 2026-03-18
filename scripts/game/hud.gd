@@ -100,13 +100,12 @@ func _build_ui() -> void:
 	# Build bars from shared specs — layout order: [0] Shield, [2] Thermal, [1] Hull, [3] Electric
 	var specs: Array = ThemeManager.get_status_bar_specs()
 	var layout_order: Array[int] = [0, 2, 1, 3]  # Row1: Shield, Thermal — Row2: Hull, Electric
-	var initial_values: Dictionary = {"SHIELD": 10, "HULL": 8, "THERMAL": 6, "ELECTRIC": 8}
 	for idx in layout_order:
 		var spec: Dictionary = specs[idx]
 		var bar_name: String = str(spec["name"])
 		var color: Color = ThemeManager.resolve_bar_color(spec)
 		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
-		var init_val: int = int(initial_values.get(bar_name, seg))
+		var init_val: int = seg
 		var cell: Dictionary = _create_bar_cell(bar_name, color, init_val, seg, seg)
 		_bars_grid.add_child(cell["vbox"])
 		_bars[bar_name] = {"bar": cell["bar"], "label": cell["label"]}

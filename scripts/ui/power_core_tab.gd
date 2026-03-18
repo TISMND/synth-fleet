@@ -7,19 +7,8 @@ const BAR_TYPES: Array[String] = ["shield", "hull", "thermal", "electric"]
 const BAR_TYPE_LABELS: Array[String] = ["SHD", "HUL", "THR", "ELC"]
 const BAR_TYPE_COLOR_KEYS: Array[String] = ["bar_shield", "bar_hull", "bar_thermal", "bar_electric"]
 
-const SNAP_MODES: Array[Dictionary] = [
-	{"label": "Free", "value": 0},
-	{"label": "1/4", "value": 4},
-	{"label": "1/8", "value": 8},
-	{"label": "1/16", "value": 16},
-]
-const BARS_OPTIONS: Array[Dictionary] = [
-	{"label": "Auto", "value": 0},
-	{"label": "1", "value": 1},
-	{"label": "2", "value": 2},
-	{"label": "4", "value": 4},
-	{"label": "8", "value": 8},
-]
+const SNAP_MODES: Array[Dictionary] = EditorConstants.SNAP_MODES
+const BARS_OPTIONS: Array[Dictionary] = EditorConstants.BARS_OPTIONS
 
 # UI references — shared
 var _load_button: OptionButton

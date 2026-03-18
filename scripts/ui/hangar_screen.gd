@@ -182,11 +182,10 @@ func _position_hangar_thumb() -> void:
 
 
 func _update_stats(s: Dictionary) -> void:
-	var eff: Dictionary = ShipData.get_effective_segments(s)
-	var hull_seg: int = int(eff.get("hull_segments", 8))
-	var shield_seg: int = int(eff.get("shield_segments", 10))
-	var thermal_seg: int = int(eff.get("thermal_segments", 6))
-	var electric_seg: int = int(eff.get("electric_segments", 8))
+	var hull_seg: int = int(s.get("hull_segments", 8))
+	var shield_seg: int = int(s.get("shield_segments", 10))
+	var thermal_seg: int = int(s.get("thermal_segments", 6))
+	var electric_seg: int = int(s.get("electric_segments", 8))
 	_bar_segments["SHIELD"] = shield_seg
 	_bar_segments["HULL"] = hull_seg
 	_bar_segments["THERMAL"] = thermal_seg

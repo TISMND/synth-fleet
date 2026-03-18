@@ -1,9 +1,11 @@
 extends Node
 ## LoopMixer — manages N AudioStreamPlayers, one per loop.
-## All play from bar 1 simultaneously. Mute = volume_db = -80.0, unmute = restore volume.
+## All play from bar 1 simultaneously. Mute = volume_db = MUTE_DB, unmute = restore volume.
 ## Never use stream_paused (causes desync).
 
 signal loop_state_changed(loop_id: String, muted: bool)
+
+const MUTE_DB := -80.0
 
 var _loops: Dictionary = {}
 # Each entry: {player: AudioStreamPlayer, target_volume: float, muted: bool, duration: float}
@@ -42,7 +44,7 @@ func add_loop(loop_id: String, stream_path: String, bus: String = "Master", volu
 	var player := AudioStreamPlayer.new()
 	player.stream = stream
 	player.bus = bus
-	player.volume_db = -80.0 if start_muted else volume_db
+	player.volume_db = MUTE_DB if start_muted else volume_db
 	add_child(player)
 	_loops[loop_id] = {
 		"player": player,
@@ -73,7 +75,7 @@ func mute(loop_id: String) -> void:
 	var entry: Dictionary = _loops[loop_id]
 	entry["muted"] = true
 	var player: AudioStreamPlayer = entry["player"]
-	player.volume_db = -80.0
+	player.volume_db = MUTE_DB
 	loop_state_changed.emit(loop_id, true)
 
 

@@ -45,22 +45,12 @@ static func from_dict(data: Dictionary) -> ShipData:
 	s.grid_size = Vector2i(int(gs[0]), int(gs[1]))
 	s.lines = data.get("lines", [])
 	s.hardpoints = data.get("hardpoints", [])
-	var default_stats: Dictionary = {
-		"hull_segments": 8,
-		"shield_segments": 10,
-		"thermal_segments": 6,
-		"electric_segments": 8,
-		"speed": 400,
-		"acceleration": 1200,
-		"generator_power": 10,
-		"device_slots": 2,
-		"shield_regen": 1.0,
-	}
-	s.stats = data.get("stats", default_stats)
-	# Fill missing segment keys with defaults
-	for k in default_stats:
+	var base_stats: Dictionary = ShipData.new().stats
+	s.stats = data.get("stats", base_stats)
+	# Fill missing keys with defaults
+	for k in base_stats:
 		if not s.stats.has(k):
-			s.stats[k] = default_stats[k]
+			s.stats[k] = base_stats[k]
 
 	# Enemy-specific fields
 	s.visual_id = data.get("visual_id", "")
@@ -71,24 +61,6 @@ static func from_dict(data: Dictionary) -> ShipData:
 	s.projectile_speed = float(data.get("projectile_speed", 300.0))
 	s.weapon_id = data.get("weapon_id", "")
 	return s
-
-
-static func get_effective_segments(ship_stats: Dictionary) -> Dictionary:
-	var result: Dictionary = {
-		"shield_segments": int(ship_stats.get("shield_segments", 10)),
-		"hull_segments": int(ship_stats.get("hull_segments", 8)),
-		"thermal_segments": int(ship_stats.get("thermal_segments", 6)),
-		"electric_segments": int(ship_stats.get("electric_segments", 8)),
-	}
-	for slot_key in GameState.device_config:
-		var device_id: String = str(GameState.device_config[slot_key])
-		if device_id == "":
-			continue
-		var dev: DeviceData = DeviceDataManager.load_by_id(device_id)
-		if dev:
-			for seg_key in ["shield_segments", "hull_segments", "thermal_segments", "electric_segments"]:
-				result[seg_key] += int(dev.stats_modifiers.get(seg_key, 0))
-	return result
 
 
 func to_dict() -> Dictionary:
