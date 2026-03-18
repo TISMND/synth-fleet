@@ -17,11 +17,11 @@ func _ready() -> void:
 
 
 func _on_ships() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/ship_viewer.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/ships_screen.tscn")
 
 
 func _on_style() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/aesthetic_studio.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/style_editor.tscn")
 
 
 func _on_components() -> void:

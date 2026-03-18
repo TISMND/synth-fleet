@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://ship_viewer"]
 
-[ext_resource type="Script" path="res://scripts/ui/ship_viewer.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/ships_screen.gd" id="1"]
 
 [node name="ShipViewer" type="Control"]
 layout_mode = 3
@@ -30,5 +30,5 @@ offset_top = 30.0
 offset_right = 200.0
 offset_bottom = 60.0
 grow_horizontal = 2
-text = "SHIP VIEWER"
+text = "SHIPS"
 horizontal_alignment = 1

@@ -1,5 +1,5 @@
 extends Control
-## Aesthetic Studio — real-time theme editor with live preview.
+## Style Editor — real-time theme editor with live preview.
 ## Standalone screen for auditioning colors, typography, glow/grid, and VHS/CRT effects.
 
 var _vhs_overlay: ColorRect

@@ -6,7 +6,6 @@ var _ship_name_label: Label
 var _hull_label: Label
 var _shield_label: Label
 var _speed_label: Label
-var _generator_label: Label
 var _slots_label: Label
 var _stat_labels: Array[Label] = []
 var _select_btn: Button
@@ -178,11 +177,6 @@ func _build_ui() -> void:
 	stats_box.add_child(_speed_label)
 	_stat_labels.append(_speed_label)
 
-	_generator_label = Label.new()
-	_generator_label.text = "Generator: —"
-	stats_box.add_child(_generator_label)
-	_stat_labels.append(_generator_label)
-
 	_slots_label = Label.new()
 	_slots_label.text = "3 External / 3 Internal"
 	stats_box.add_child(_slots_label)
@@ -222,10 +216,9 @@ func _show_ship(index: int) -> void:
 	var info: Dictionary = ShipRegistry.get_ship(index)
 	_ship_name_label.text = str(info["name"])
 	var s: Dictionary = info["stats"]
-	_hull_label.text = "Hull: " + str(int(s.get("hull_segments", 8))) + " seg"
-	_shield_label.text = "Shield: " + str(int(s.get("shield_segments", 10))) + " seg"
+	_hull_label.text = "Hull: " + str(int(s.get("hull_segments", 8))) + " segments"
+	_shield_label.text = "Shield: " + str(int(s.get("shield_segments", 10))) + " segments"
 	_speed_label.text = "Speed: " + str(int(s.get("speed", 400)))
-	_generator_label.text = "Generator: " + str(int(s.get("generator_power", 10)))
 	_slots_label.text = "3 External / 3 Internal"
 
 

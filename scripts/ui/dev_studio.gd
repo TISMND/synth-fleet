@@ -1,5 +1,5 @@
 extends Control
-## Dev Studio — tabbed container for Weapon Builder, Ship Builder, Aesthetic Workshop.
+## Dev Studio — tabbed container for Weapon Builder, Ship Builder, Style Editor.
 
 var _vhs_overlay: ColorRect
 

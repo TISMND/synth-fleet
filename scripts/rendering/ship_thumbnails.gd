@@ -1,7 +1,7 @@
 class_name ShipThumbnails
 extends Control
 ## Standalone ship thumbnail renderer. Draws any of the 9 ships at a given origin.
-## Extracted from ship_viewer.gd _ShipSelector for reuse in hangar/ship select.
+## Extracted from ships_screen.gd _ShipSelector for reuse in hangar/ship select.
 
 enum RenderMode { NEON, CHROME }
 

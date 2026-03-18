@@ -20,7 +20,6 @@ const DEFAULT_SEGMENTS: Dictionary = {
 	"electric_segments": 8,
 	"speed": 400,
 	"acceleration": 1200,
-	"generator_power": 10,
 	"device_slots": 2,
 	"shield_regen": 1.0,
 }

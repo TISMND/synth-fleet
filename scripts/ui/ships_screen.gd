@@ -1,5 +1,5 @@
 extends Control
-## Ship viewer / configuration screen.
+## Ships screen — configuration and preview.
 ## Left panel: ship selection. Center: ship preview (WASD movement).
 ## Right panel: attribute sliders + skin dropdown + save. Bottom: HUD replica.
 
