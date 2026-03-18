@@ -11,6 +11,7 @@ func _ready() -> void:
 	$VBoxContainer/ShipsButton.pressed.connect(_on_ships)
 	$VBoxContainer/StyleButton.pressed.connect(_on_style)
 	$VBoxContainer/ComponentsButton.pressed.connect(_on_components)
+	$VBoxContainer/EncountersButton.pressed.connect(_on_encounters)
 	$VBoxContainer/BackButton.pressed.connect(_on_back)
 
 	_apply_styles()
@@ -26,6 +27,10 @@ func _on_style() -> void:
 
 func _on_components() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/dev_studio.tscn")
+
+
+func _on_encounters() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/encounters_screen.tscn")
 
 
 func _on_back() -> void:

@@ -47,6 +47,10 @@ text = "STYLE"
 layout_mode = 2
 text = "COMPONENTS"
 
+[node name="EncountersButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "ENCOUNTERS"
+
 [node name="BackButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "BACK"
