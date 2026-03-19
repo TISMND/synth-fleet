@@ -30,8 +30,12 @@ var _anim_speed_slider: HSlider
 var _anim_speed_label: Label
 var _pulse_brightness_slider: HSlider
 var _pulse_brightness_label: Label
-var _pulse_duration_slider: HSlider
-var _pulse_duration_label: Label
+var _pulse_total_dur_slider: HSlider
+var _pulse_total_dur_label: Label
+var _pulse_fade_up_slider: HSlider
+var _pulse_fade_up_label: Label
+var _pulse_fade_out_slider: HSlider
+var _pulse_fade_out_label: Label
 
 # Dynamic shader params
 var _shader_params_container: VBoxContainer
@@ -41,6 +45,8 @@ var _shader_param_sliders: Dictionary = {}
 var _preview_sprite: Sprite2D = null
 var _preview_material: ShaderMaterial = null
 var _auto_pulse_timer: float = 0.0
+var _pulse_elapsed: float = 0.0
+var _pulse_active: bool = false
 
 # State
 var _current_id: String = ""
@@ -63,15 +69,28 @@ func _process(delta: float) -> void:
 	_auto_pulse_timer += delta
 	if _auto_pulse_timer >= 1.5:
 		_auto_pulse_timer = 0.0
-		if _preview_material:
-			_preview_material.set_shader_parameter("pulse_intensity", 1.0)
-	# Decay pulse
-	if _preview_material:
-		var current: float = float(_preview_material.get_shader_parameter("pulse_intensity"))
-		if current > 0.0:
-			var dur: float = _pulse_duration_slider.value if _pulse_duration_slider else 0.3
-			current = maxf(0.0, current - delta / maxf(dur, 0.01))
-			_preview_material.set_shader_parameter("pulse_intensity", current)
+		_pulse_elapsed = 0.0
+		_pulse_active = true
+	# Three-phase pulse envelope: fade up → sustain → fade out
+	if _pulse_active and _preview_material:
+		var total_dur: float = _pulse_total_dur_slider.value if _pulse_total_dur_slider else 0.5
+		var fade_up: float = _pulse_fade_up_slider.value if _pulse_fade_up_slider else 0.05
+		var fade_out: float = _pulse_fade_out_slider.value if _pulse_fade_out_slider else 0.4
+		_pulse_elapsed += delta
+		if _pulse_elapsed >= total_dur:
+			_pulse_active = false
+			_preview_material.set_shader_parameter("pulse_intensity", 0.0)
+		else:
+			var fade_out_start: float = total_dur - fade_out
+			var intensity: float
+			if _pulse_elapsed < fade_up:
+				intensity = _pulse_elapsed / maxf(fade_up, 0.001)
+			elif _pulse_elapsed < fade_out_start:
+				intensity = 1.0
+			else:
+				var remaining: float = total_dur - _pulse_elapsed
+				intensity = remaining / maxf(fade_out, 0.001)
+			_preview_material.set_shader_parameter("pulse_intensity", clampf(intensity, 0.0, 1.0))
 
 
 func _build_ui() -> void:
@@ -184,12 +203,12 @@ func _build_left_panel() -> Control:
 	var ship_dot := ColorRect.new()
 	ship_dot.color = Color(0.3, 0.3, 0.4)
 	ship_dot.size = Vector2(20, 30)
-	ship_dot.position = Vector2(190, 185)
+	ship_dot.position = Vector2(190, 245)
 	viewport.add_child(ship_dot)
 
 	# Field preview sprite
 	var preview_node := Node2D.new()
-	preview_node.position = Vector2(200, 200)
+	preview_node.position = Vector2(200, 260)
 	viewport.add_child(preview_node)
 
 	_preview_sprite = Sprite2D.new()
@@ -197,7 +216,7 @@ func _build_left_panel() -> Control:
 	var img := Image.create(tex_size, tex_size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.WHITE)
 	_preview_sprite.texture = ImageTexture.create_from_image(img)
-	_preview_sprite.z_index = -1
+	_preview_sprite.z_index = 1
 	preview_node.add_child(_preview_sprite)
 
 	return panel
@@ -271,9 +290,17 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_pulse_brightness_slider = pb_row[0]
 	_pulse_brightness_label = pb_row[1]
 
-	var pd_row: Array = _add_slider_row(parent, "Pulse Dur:", 0.05, 1.0, 0.3, 0.05)
-	_pulse_duration_slider = pd_row[0]
-	_pulse_duration_label = pd_row[1]
+	var ptd_row: Array = _add_slider_row(parent, "Total Dur:", 0.1, 2.0, 0.5, 0.05)
+	_pulse_total_dur_slider = ptd_row[0]
+	_pulse_total_dur_label = ptd_row[1]
+
+	var pfu_row: Array = _add_slider_row(parent, "Fade Up:", 0.01, 1.0, 0.05, 0.01)
+	_pulse_fade_up_slider = pfu_row[0]
+	_pulse_fade_up_label = pfu_row[1]
+
+	var pfo_row: Array = _add_slider_row(parent, "Fade Out:", 0.01, 2.0, 0.4, 0.01)
+	_pulse_fade_out_slider = pfo_row[0]
+	_pulse_fade_out_label = pfo_row[1]
 
 
 func _rebuild_shader_params(shader_name: String) -> void:
@@ -316,7 +343,9 @@ func _collect_style_data() -> Dictionary:
 		"color": [_color_picker.color.r, _color_picker.color.g, _color_picker.color.b, _color_picker.color.a],
 		"glow_intensity": _glow_slider.value,
 		"pulse_brightness": _pulse_brightness_slider.value,
-		"pulse_duration": _pulse_duration_slider.value,
+		"pulse_total_duration": _pulse_total_dur_slider.value,
+		"pulse_fade_up": _pulse_fade_up_slider.value,
+		"pulse_fade_out": _pulse_fade_out_slider.value,
 	}
 
 
@@ -389,7 +418,9 @@ func _on_new() -> void:
 	_brightness_slider.value = 1.0
 	_anim_speed_slider.value = 1.0
 	_pulse_brightness_slider.value = 2.0
-	_pulse_duration_slider.value = 0.3
+	_pulse_total_dur_slider.value = 0.5
+	_pulse_fade_up_slider.value = 0.05
+	_pulse_fade_out_slider.value = 0.4
 	_color_picker.color = Color(0.0, 1.0, 1.0, 1.0)
 	_rebuild_shader_params("force_bubble")
 	_update_preview()
@@ -421,7 +452,9 @@ func _populate_from_style(style: FieldStyle) -> void:
 	_color_picker.color = style.color
 	_glow_slider.value = style.glow_intensity
 	_pulse_brightness_slider.value = style.pulse_brightness
-	_pulse_duration_slider.value = style.pulse_duration
+	_pulse_total_dur_slider.value = style.pulse_total_duration
+	_pulse_fade_up_slider.value = style.pulse_fade_up
+	_pulse_fade_out_slider.value = style.pulse_fade_out
 
 	_update_preview()
 

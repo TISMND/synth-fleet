@@ -10,7 +10,9 @@ extends Resource
 @export var color: Color = Color(0.0, 1.0, 1.0, 1.0)
 @export var glow_intensity: float = 1.5
 @export var pulse_brightness: float = 2.0
-@export var pulse_duration: float = 0.3
+@export var pulse_total_duration: float = 0.5
+@export var pulse_fade_up: float = 0.05
+@export var pulse_fade_out: float = 0.4
 
 
 static func from_dict(data: Dictionary) -> FieldStyle:
@@ -21,7 +23,9 @@ static func from_dict(data: Dictionary) -> FieldStyle:
 	s.shader_params = data.get("shader_params", {}) as Dictionary
 	s.glow_intensity = float(data.get("glow_intensity", 1.5))
 	s.pulse_brightness = float(data.get("pulse_brightness", 2.0))
-	s.pulse_duration = float(data.get("pulse_duration", 0.3))
+	s.pulse_total_duration = float(data.get("pulse_total_duration", data.get("pulse_duration", 0.5)))
+	s.pulse_fade_up = float(data.get("pulse_fade_up", 0.05))
+	s.pulse_fade_out = float(data.get("pulse_fade_out", data.get("pulse_duration", 0.4)))
 	var color_data: Array = data.get("color", []) as Array
 	if color_data.size() >= 4:
 		s.color = Color(float(color_data[0]), float(color_data[1]), float(color_data[2]), float(color_data[3]))
@@ -39,5 +43,7 @@ func to_dict() -> Dictionary:
 		"color": [color.r, color.g, color.b, color.a],
 		"glow_intensity": glow_intensity,
 		"pulse_brightness": pulse_brightness,
-		"pulse_duration": pulse_duration,
+		"pulse_total_duration": pulse_total_duration,
+		"pulse_fade_up": pulse_fade_up,
+		"pulse_fade_out": pulse_fade_out,
 	}

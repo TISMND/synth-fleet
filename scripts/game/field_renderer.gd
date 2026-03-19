@@ -5,13 +5,18 @@ extends Node2D
 
 var _sprite: Sprite2D = null
 var _material: ShaderMaterial = null
-var _pulse_timer: float = 0.0
-var _pulse_duration: float = 0.3
+var _pulse_elapsed: float = 0.0
+var _pulse_total_duration: float = 0.5
+var _pulse_fade_up: float = 0.05
+var _pulse_fade_out: float = 0.4
 var _pulse_brightness: float = 2.0
+var _pulse_active: bool = false
 
 
 func setup(style: FieldStyle, radius: float, anim_speed: float) -> void:
-	_pulse_duration = style.pulse_duration
+	_pulse_total_duration = style.pulse_total_duration
+	_pulse_fade_up = style.pulse_fade_up
+	_pulse_fade_out = style.pulse_fade_out
 	_pulse_brightness = style.pulse_brightness
 
 	# Create shader material
@@ -36,9 +41,10 @@ func setup(style: FieldStyle, radius: float, anim_speed: float) -> void:
 
 
 func pulse() -> void:
-	_pulse_timer = _pulse_duration
+	_pulse_elapsed = 0.0
+	_pulse_active = true
 	if _material:
-		_material.set_shader_parameter("pulse_intensity", 1.0)
+		_material.set_shader_parameter("pulse_intensity", 0.0)
 
 
 func set_opacity(val: float) -> void:
@@ -47,8 +53,23 @@ func set_opacity(val: float) -> void:
 
 
 func _process(delta: float) -> void:
-	if _pulse_timer > 0.0:
-		_pulse_timer = maxf(0.0, _pulse_timer - delta)
-		var ratio: float = _pulse_timer / maxf(_pulse_duration, 0.001)
-		if _material:
-			_material.set_shader_parameter("pulse_intensity", ratio)
+	if _pulse_active:
+		_pulse_elapsed += delta
+		if _pulse_elapsed >= _pulse_total_duration:
+			_pulse_active = false
+			if _material:
+				_material.set_shader_parameter("pulse_intensity", 0.0)
+		elif _material:
+			var fade_out_start: float = _pulse_total_duration - _pulse_fade_out
+			var intensity: float
+			if _pulse_elapsed < _pulse_fade_up:
+				# Fade up phase
+				intensity = _pulse_elapsed / maxf(_pulse_fade_up, 0.001)
+			elif _pulse_elapsed < fade_out_start:
+				# Sustain phase (full brightness)
+				intensity = 1.0
+			else:
+				# Fade out phase
+				var remaining: float = _pulse_total_duration - _pulse_elapsed
+				intensity = remaining / maxf(_pulse_fade_out, 0.001)
+			_material.set_shader_parameter("pulse_intensity", clampf(intensity, 0.0, 1.0))
