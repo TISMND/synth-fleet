@@ -1,6 +1,6 @@
 extends MarginContainer
 ## Projectile Animator Tab — design animated projectiles with mask + fill shader.
-## Styles are saved to user://projectile_styles/ and referenced by weapons.
+## Styles are saved to res://data/projectile_styles/ and referenced by weapons.
 
 const ARCHETYPES: Array[String] = ["bullet", "beam", "pulse_wave"]
 const FILL_SHADERS: Array[String] = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke"]
@@ -392,7 +392,7 @@ func _create_mask_thumbnail(mask_name: String) -> TextureRect:
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 
-	# Load thumbnail from user:// using Image (not load())
+	# Load thumbnail from res://data/ using Image (not load())
 	var img := Image.new()
 	var path: String = ProjectileStyleManager.MASKS_DIR + mask_name
 	var err: Error = img.load(path)

@@ -1,6 +1,7 @@
 class_name WaveManager
 extends Node
 ## Scripted wave sequencer — spawns enemies in waves with configurable counts/stats.
+## Also supports LevelData-driven spawning via setup_level().
 
 signal wave_started(wave_index: int, total_waves: int)
 signal wave_cleared(wave_index: int, total_waves: int)
@@ -15,6 +16,14 @@ var _enemies_alive: int = 0
 var _spawn_timer: Timer = null
 var _delay_timer: Timer = null
 
+# Level-data mode
+var _level_data: LevelData = null
+var _level_mode: bool = false
+var _sorted_encounters: Array[Dictionary] = []
+var _next_encounter_idx: int = 0
+var _scroll_distance: float = 0.0
+var _stagger_queue: Array[Dictionary] = []  # Pending staggered spawns
+
 const ENEMY_COLORS: Array[Color] = [
 	Color(1.0, 0.3, 0.5),
 	Color(0.5, 1.0, 0.3),
@@ -28,6 +37,147 @@ const ENEMY_COLORS: Array[Color] = [
 func setup(waves: Array, enemies_container: Node2D) -> void:
 	_waves = waves
 	_enemies_container = enemies_container
+	_level_mode = false
+
+
+func setup_level(level: LevelData, enemies_container: Node2D) -> void:
+	_level_data = level
+	_enemies_container = enemies_container
+	_level_mode = true
+	_scroll_distance = 0.0
+	_next_encounter_idx = 0
+	_stagger_queue.clear()
+
+	# Sort encounters by trigger_y
+	_sorted_encounters.clear()
+	for enc in level.encounters:
+		_sorted_encounters.append(enc.duplicate())
+	_sorted_encounters.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["trigger_y"]) < float(b["trigger_y"])
+	)
+
+
+func advance_scroll(distance: float) -> void:
+	if not _level_mode:
+		return
+	_scroll_distance = distance
+	_check_encounter_triggers()
+
+
+func _check_encounter_triggers() -> void:
+	while _next_encounter_idx < _sorted_encounters.size():
+		var enc: Dictionary = _sorted_encounters[_next_encounter_idx]
+		var trigger_y: float = float(enc["trigger_y"])
+		if _scroll_distance >= trigger_y:
+			_spawn_encounter(enc)
+			_next_encounter_idx += 1
+		else:
+			break
+
+
+func _spawn_encounter(enc: Dictionary) -> void:
+	if not _enemies_container:
+		return
+
+	var path_id: String = str(enc.get("path_id", ""))
+	var formation_id: String = str(enc.get("formation_id", ""))
+	var ship_id: String = str(enc.get("ship_id", "enemy_1"))
+	var speed: float = float(enc.get("speed", 200.0))
+	var count: int = int(enc.get("count", 1))
+	var spacing: float = float(enc.get("spacing", 200.0))
+	var x_offset: float = float(enc.get("x_offset", 0.0))
+
+	# Load path
+	var curve: Curve2D = null
+	if path_id != "":
+		var fp: FlightPathData = FlightPathDataManager.load_by_id(path_id)
+		if fp:
+			curve = fp.to_curve2d()
+
+	# Build slot list: either from formation or single ship
+	var slots: Array[Dictionary] = []
+	if formation_id != "":
+		var fm: FormationData = FormationDataManager.load_by_id(formation_id)
+		if fm:
+			for slot in fm.slots:
+				var off: Array = slot.get("offset", [0, 0])
+				slots.append({
+					"offset": Vector2(float(off[0]), float(off[1])),
+					"ship_id": str(slot.get("ship_id", ship_id)),
+				})
+	if slots.size() == 0:
+		# Single ship mode
+		slots.append({"offset": Vector2.ZERO, "ship_id": ship_id})
+
+	# Spawn count copies, staggered by spacing (converted to time delay)
+	for copy_idx in range(count):
+		var delay: float = float(copy_idx) * spacing / maxf(speed, 1.0)
+		for slot in slots:
+			var spawn_data: Dictionary = {
+				"curve": curve,
+				"speed": speed,
+				"offset": slot["offset"],
+				"origin": Vector2(x_offset, 0),
+				"ship_id": str(slot["ship_id"]),
+				"delay": delay,
+			}
+			if delay <= 0.0:
+				_do_spawn_enemy(spawn_data)
+			else:
+				_stagger_queue.append(spawn_data)
+				_start_stagger_timer(delay, spawn_data)
+
+
+func _start_stagger_timer(delay: float, spawn_data: Dictionary) -> void:
+	var timer := Timer.new()
+	timer.one_shot = true
+	timer.wait_time = delay
+	timer.timeout.connect(func() -> void:
+		_do_spawn_enemy(spawn_data)
+		_stagger_queue.erase(spawn_data)
+		timer.queue_free()
+	)
+	add_child(timer)
+	timer.start()
+
+
+func _do_spawn_enemy(spawn_data: Dictionary) -> void:
+	if not _enemies_container:
+		return
+	var enemy := Enemy.new()
+	var curve_val: Variant = spawn_data.get("curve")
+	if curve_val is Curve2D:
+		enemy.path_curve = curve_val as Curve2D
+	enemy.path_speed = float(spawn_data.get("speed", 200.0))
+	var offset_val: Variant = spawn_data.get("offset")
+	if offset_val is Vector2:
+		enemy.path_offset = offset_val as Vector2
+	var origin_val: Variant = spawn_data.get("origin")
+	if origin_val is Vector2:
+		enemy.path_origin = origin_val as Vector2
+	var sid: String = str(spawn_data.get("ship_id", ""))
+	if sid != "":
+		var ship: ShipData = ShipDataManager.load_by_id(sid)
+		if ship:
+			enemy.health = int(ship.stats.get("hull_hp", 30))
+			enemy.enemy_color = ENEMY_COLORS[sid.hash() % ENEMY_COLORS.size()]
+		else:
+			enemy.health = 30
+			enemy.enemy_color = ENEMY_COLORS[sid.hash() % ENEMY_COLORS.size()]
+	else:
+		enemy.health = 30
+		enemy.enemy_color = ENEMY_COLORS[randi() % ENEMY_COLORS.size()]
+
+	# Position at start of curve if path-following, otherwise off-screen top
+	if enemy.path_curve != null and enemy.path_curve.point_count >= 2:
+		var start_pos: Vector2 = enemy.path_curve.sample_baked(0.0)
+		enemy.position = start_pos + enemy.path_offset + enemy.path_origin
+	else:
+		enemy.position = Vector2(randf_range(100.0, 1820.0), -30.0)
+		enemy.drift_speed = float(spawn_data.get("speed", 100.0))
+
+	enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
+	_enemies_container.add_child(enemy)
 
 
 func start() -> void:
@@ -92,6 +242,8 @@ func _on_spawn() -> void:
 
 
 func _on_enemy_exited() -> void:
+	if _level_mode:
+		return  # Level mode doesn't track wave completion via enemy counts
 	_enemies_alive -= 1
 	if _enemies_alive <= 0 and _enemies_spawned >= _enemies_to_spawn:
 		_on_wave_complete()

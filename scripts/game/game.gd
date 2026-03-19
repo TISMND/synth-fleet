@@ -13,6 +13,12 @@ var _hud: CanvasLayer = null
 var _projectiles: Node2D = null
 var _enemies: Node2D = null
 var _parallax_bg: ParallaxBackground = null
+var _level_data: LevelData = null
+var _scroll_distance: float = 0.0
+var _scroll_speed: float = 80.0
+
+## Set this before adding to the scene tree to use a specific level.
+var level_id: String = ""
 
 
 func _ready() -> void:
@@ -26,8 +32,18 @@ func _ready() -> void:
 		ship.render_mode = ship_override.render_mode
 	var loadout: LoadoutData = GameState.get_loadout_data()
 
-	# Set BPM
-	BeatClock.bpm = 110.0
+	# Load level data if available
+	if level_id == "" and GameState.current_level_id != "":
+		level_id = GameState.current_level_id
+		GameState.current_level_id = ""
+	if level_id != "":
+		_level_data = LevelDataManager.load_by_id(level_id)
+
+	# Set BPM (from level or default)
+	var bpm: float = _level_data.bpm if _level_data else 110.0
+	BeatClock.bpm = bpm
+	if _level_data:
+		_scroll_speed = _level_data.scroll_speed
 
 	# Build scene tree
 	_setup_parallax()
@@ -69,14 +85,17 @@ func _ready() -> void:
 	_player._update_hud_cores()
 
 	# Start immediately
-	BeatClock.start(110.0)
+	BeatClock.start(bpm)
 	LoopMixer.start_all()
 	_start_waves()
 
 
 func _process(delta: float) -> void:
 	if _parallax_bg:
-		_parallax_bg.scroll_offset.y += 80.0 * delta
+		_parallax_bg.scroll_offset.y += _scroll_speed * delta
+	_scroll_distance += _scroll_speed * delta
+	if _wave_manager:
+		_wave_manager.advance_scroll(_scroll_distance)
 	if _hud and _player:
 		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
 		_hud.update_bar_pulses(delta)
@@ -84,11 +103,15 @@ func _process(delta: float) -> void:
 
 
 func _start_waves() -> void:
-	var waves: Array = []
-	for w in WAVE_CONFIG:
-		waves.append(w)
-	_wave_manager.setup(waves, _enemies)
-	_wave_manager.start()
+	if _level_data:
+		_scroll_distance = 0.0
+		_wave_manager.setup_level(_level_data, _enemies)
+	else:
+		var waves: Array = []
+		for w in WAVE_CONFIG:
+			waves.append(w)
+		_wave_manager.setup(waves, _enemies)
+		_wave_manager.start()
 
 
 func _on_all_waves_cleared() -> void:
@@ -108,7 +131,12 @@ func _return_to_menu() -> void:
 		_wave_manager.stop()
 	if _player:
 		_player.stop_all()
-	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	var dest: String = GameState.return_scene
+	GameState.return_scene = ""
+	if dest != "":
+		get_tree().change_scene_to_file(dest)
+	else:
+		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 
 func _setup_world_environment() -> void:

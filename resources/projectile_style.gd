@@ -6,7 +6,7 @@ extends Resource
 @export var id: String = ""
 @export var display_name: String = ""
 @export var archetype: String = "bullet"  # "bullet" | "beam" | "pulse_wave"
-@export var mask_path: String = ""  # path to PNG in user://projectile_masks/
+@export var mask_path: String = ""  # path to PNG in res://data/projectile_masks/
 @export var fill_shader: String = "energy"  # "energy" | "plasma" | "beam" | "fire" | "electric" | "void"
 @export var shader_params: Dictionary = {}
 @export var glow_intensity: float = 1.5

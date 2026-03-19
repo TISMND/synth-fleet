@@ -1,9 +1,0 @@
-{
-	"description": "Advanced shield capacitor. +50 max shield.",
-	"display_name": "Shield Boost II",
-	"id": "shield_boost_ii",
-	"stats_modifiers": {
-		"shield_max": 50
-	},
-	"type": "shield"
-}

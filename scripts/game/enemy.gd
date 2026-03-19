@@ -1,10 +1,18 @@
 class_name Enemy
 extends Area2D
-## Enemy that drifts down the screen. Takes damage from projectiles, awards credits on death.
+## Enemy that drifts down the screen or follows a flight path curve.
+## Takes damage from projectiles, awards credits on death.
 
 var health: int = 30
 var drift_speed: float = 100.0
 var enemy_color: Color = Color(1.0, 0.3, 0.5)
+
+# Path-following mode (set externally; null = drift mode)
+var path_curve: Curve2D = null
+var path_speed: float = 200.0
+var path_progress: float = 0.0  # distance traveled along curve
+var path_offset: Vector2 = Vector2.ZERO  # formation slot offset
+var path_origin: Vector2 = Vector2.ZERO  # x_offset from level encounter
 
 
 func _ready() -> void:
@@ -18,9 +26,23 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	position.y += drift_speed * delta
-	if position.y > 1130:
-		queue_free()
+	if path_curve != null and path_curve.point_count >= 2:
+		# Path-following mode
+		path_progress += path_speed * delta
+		var total_len: float = path_curve.get_baked_length()
+		if path_progress >= total_len:
+			queue_free()
+			return
+		var curve_pos: Vector2 = path_curve.sample_baked(path_progress)
+		position = curve_pos + path_offset + path_origin
+		# Despawn if off screen
+		if position.y > 1200 or position.y < -200 or position.x < -200 or position.x > 2120:
+			queue_free()
+	else:
+		# Drift mode (legacy)
+		position.y += drift_speed * delta
+		if position.y > 1130:
+			queue_free()
 
 
 func take_damage(amount: int) -> void:

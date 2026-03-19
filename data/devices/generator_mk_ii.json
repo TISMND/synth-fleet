@@ -1,9 +1,0 @@
-{
-	"description": "Improved power generator. +10 generator power.",
-	"display_name": "Generator Mk II",
-	"id": "generator_mk_ii",
-	"stats_modifiers": {
-		"generator_power": 10
-	},
-	"type": "generator"
-}

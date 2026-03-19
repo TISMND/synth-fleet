@@ -1,0 +1,29 @@
+{
+	"bpm": 110.0,
+	"display_name": "New Level",
+	"encounters": [
+		{
+			"count": 15,
+			"formation_id": "",
+			"path_id": "path_1",
+			"ship_id": "enemy_1",
+			"spacing": 100.0,
+			"speed": 1000.0,
+			"trigger_y": 817.901234567902,
+			"x_offset": 50.2486552011513
+		},
+		{
+			"count": 20,
+			"formation_id": "",
+			"path_id": "path_1",
+			"ship_id": "enemy_1",
+			"spacing": 50.0,
+			"speed": 1000.0,
+			"trigger_y": 11864.1975308642,
+			"x_offset": 31.0181074323814
+		}
+	],
+	"id": "level_1",
+	"level_length": 10000.0,
+	"scroll_speed": 80.0
+}

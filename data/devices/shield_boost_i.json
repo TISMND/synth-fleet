@@ -1,9 +1,0 @@
-{
-	"description": "Basic shield capacitor. +25 max shield.",
-	"display_name": "Shield Boost I",
-	"id": "shield_boost_i",
-	"stats_modifiers": {
-		"shield_max": 25
-	},
-	"type": "shield"
-}

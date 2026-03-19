@@ -51,6 +51,10 @@ text = "COMPONENTS"
 layout_mode = 2
 text = "ENCOUNTERS"
 
+[node name="LevelsButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "LEVELS"
+
 [node name="BackButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "BACK"

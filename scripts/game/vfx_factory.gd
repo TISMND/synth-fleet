@@ -513,7 +513,7 @@ static func get_fill_shader(shader_name: String) -> Shader:
 
 
 ## Create a Sprite2D from a ProjectileStyle (mask + fill shader + color).
-## Masks in user:// are loaded via Image (not engine import).
+## Masks in res://data/ are loaded via Image (not engine import).
 static func create_styled_sprite(style: ProjectileStyle, color: Color) -> Sprite2D:
 	var shader: Shader = get_fill_shader(style.fill_shader)
 	if shader == null:
@@ -528,7 +528,7 @@ static func create_styled_sprite(style: ProjectileStyle, color: Color) -> Sprite
 	for param_name in style.shader_params:
 		mat.set_shader_parameter(param_name, float(style.shader_params[param_name]))
 
-	# Load mask if specified (user:// path — must use Image, not load())
+	# Load mask if specified (res://data/ path — must use Image, not load())
 	if style.mask_path != "":
 		var img := Image.new()
 		var err: Error = img.load(style.mask_path)
