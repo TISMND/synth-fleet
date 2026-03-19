@@ -1,0 +1,29 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+		"expansion_rate": 160.0,
+		"lifetime": 1.2,
+		"max_radius": 300.0,
+		"ring_width": 8.0
+	},
+	"base_scale": [
+		12.0,
+		46.0
+	],
+	"color": [
+		0.0,
+		1.0,
+		1.0,
+		1.0
+	],
+	"display_name": "Rect Lightning",
+	"fill_shader": "electric",
+	"glow_intensity": 0.9,
+	"id": "rect_lightning",
+	"mask_path": "",
+	"shader_params": {
+		"arc_width": 0.2,
+		"branch_density": 8.0,
+		"flicker_speed": 16.0
+	}
+}

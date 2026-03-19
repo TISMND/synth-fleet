@@ -1,0 +1,31 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		36.0,
+		36.0
+	],
+	"color": [
+		0.0,
+		0.501960813999176,
+		0.062745101749897,
+		1.0
+	],
+	"display_name": "green_beam",
+	"fill_shader": "pulse",
+	"glow_intensity": 0.9,
+	"id": "green_bloop",
+	"mask_path": "",
+	"shader_params": {
+		"animation_speed": 0.8,
+		"brightness": 1.5,
+		"color_mix": 0.0,
+		"edge_softness": 0.65,
+		"fade_rate": 1.5,
+		"ring_count": 5.0,
+		"ring_speed": 2.5,
+		"ring_width": 0.07
+	}
+}

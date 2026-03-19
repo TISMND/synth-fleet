@@ -1,0 +1,32 @@
+{
+	"burst_directions": 4,
+	"display_name": "Roundy",
+	"enemy_damage": 10,
+	"fire_pattern": "straight",
+	"fire_rate": 1.5,
+	"grid_size": [
+		32,
+		32
+	],
+	"hardpoints": [],
+	"id": "enemy_1",
+	"lines": [],
+	"projectile_speed": 300.0,
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 600.0,
+		"device_slots": 2.0,
+		"electric_segments": 8.0,
+		"generator_power": 10.0,
+		"hull_hp": 50.0,
+		"hull_segments": 8.0,
+		"shield_hp": 0.0,
+		"shield_regen": 1.0,
+		"shield_segments": 10.0,
+		"speed": 150.0,
+		"thermal_segments": 6.0
+	},
+	"type": "enemy",
+	"visual_id": "sentinel",
+	"weapon_id": ""
+}

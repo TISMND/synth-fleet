@@ -42,10 +42,13 @@ var _canvas: Control
 var _canvas_rect: Rect2  # The scaled screen-boundary rect within the canvas area
 
 # Interaction state
-var _selected_wp_index: int = -1
+var _selected_wps: Array[int] = []  # Multi-select: list of selected waypoint indices
 var _dragging: bool = false
-var _drag_type: String = ""  # "waypoint", "ctrl_in", "ctrl_out"
-var _drag_index: int = -1
+var _drag_type: String = ""  # "group", "ctrl_in", "ctrl_out"
+var _drag_index: int = -1  # For handle drags, which wp index
+var _drag_start_canvas: Vector2 = Vector2.ZERO  # Mouse pos at drag start (canvas coords)
+var _drag_wp_origins: Array[Vector2] = []  # Screen-space positions of all selected wps at drag start
+const NUDGE_AMOUNT := 10.0  # Pixels per arrow/WASD press in screen space
 
 # Properties panel
 var _right_panel: Panel
@@ -117,7 +120,10 @@ func _input(event: InputEvent) -> void:
 			# CTRL+Z undo
 			if ke.keycode == KEY_Z and ke.ctrl_pressed:
 				_undo()
-			# Tool shortcuts (only when not typing in a LineEdit/SpinBox)
+			# CTRL+A select all waypoints
+			elif ke.keycode == KEY_A and ke.ctrl_pressed:
+				_select_all_wps()
+			# Tool shortcuts and nudge (only when not typing in a LineEdit/SpinBox)
 			elif not _is_text_input_focused():
 				if ke.keycode == KEY_1:
 					_set_tool(Tool.DRAW)
@@ -127,6 +133,18 @@ func _input(event: InputEvent) -> void:
 					_set_tool(Tool.CURVE)
 				elif ke.keycode == KEY_4:
 					_set_tool(Tool.ARC)
+				# Arrow keys / WASD nudge selected waypoints
+				elif _selected_wps.size() > 0 and _selected_path:
+					var nudge := Vector2.ZERO
+					match ke.keycode:
+						KEY_UP, KEY_W: nudge = Vector2(0, -NUDGE_AMOUNT)
+						KEY_DOWN, KEY_S: nudge = Vector2(0, NUDGE_AMOUNT)
+						KEY_LEFT, KEY_A: nudge = Vector2(-NUDGE_AMOUNT, 0)
+						KEY_RIGHT, KEY_D: nudge = Vector2(NUDGE_AMOUNT, 0)
+					if nudge != Vector2.ZERO:
+						if ke.shift_pressed:
+							nudge *= 5.0
+						_nudge_selected(nudge)
 
 
 func _is_text_input_focused() -> bool:
@@ -198,7 +216,7 @@ func _undo() -> void:
 	var snapshot: Dictionary = _undo_stack.pop_back()
 	_selected_path.waypoints = snapshot["waypoints"]
 	_selected_path.segment_speeds = snapshot["segment_speeds"]
-	_selected_wp_index = -1
+	_selected_wps.clear()
 	_dragging = false
 	_save_current()
 	_rebuild_right_panel()
@@ -565,7 +583,7 @@ func _load_all_paths() -> void:
 
 func _select_path(fp: FlightPathData) -> void:
 	_selected_path = fp
-	_selected_wp_index = -1
+	_selected_wps.clear()
 	_previewing = false
 	_preview_progress = 0.0
 	_preview_time = 0.0
@@ -655,7 +673,7 @@ func _on_clear_path() -> void:
 	_push_undo()
 	_selected_path.waypoints.clear()
 	_selected_path.segment_speeds.clear()
-	_selected_wp_index = -1
+	_selected_wps.clear()
 	_save_current()
 	_rebuild_right_panel()
 	_canvas.queue_redraw()
@@ -675,7 +693,7 @@ func _handle_canvas_input(event: InputEvent) -> void:
 					Tool.DRAW:
 						_tool_draw_click(mb.position, mb.shift_pressed)
 					Tool.SELECT:
-						_tool_select_click(mb.position)
+						_tool_select_click(mb.position, mb.shift_pressed)
 					Tool.CURVE:
 						_tool_curve_click(mb.position)
 					Tool.ARC:
@@ -718,10 +736,10 @@ func _tool_draw_click(pos: Vector2, prepend: bool = false) -> void:
 			for key in _selected_path.segment_speeds:
 				new_speeds[str(int(key) + 1)] = _selected_path.segment_speeds[key]
 			_selected_path.segment_speeds = new_speeds
-			_selected_wp_index = 0
+			_selected_wps = [0]
 		else:
 			_selected_path.add_waypoint(screen_pos)
-			_selected_wp_index = _selected_path.waypoints.size() - 1
+			_selected_wps = [_selected_path.waypoints.size() - 1]
 		_save_current()
 		_rebuild_right_panel()
 		_canvas.queue_redraw()
@@ -729,21 +747,37 @@ func _tool_draw_click(pos: Vector2, prepend: bool = false) -> void:
 
 # ── SELECT tool: drag waypoints ───────────────────────────────
 
-func _tool_select_click(pos: Vector2) -> void:
-	# Check waypoint hit → select + start drag
+func _tool_select_click(pos: Vector2, shift_held: bool = false) -> void:
+	# Check waypoint hit
 	for i in range(_selected_path.waypoints.size()):
 		var wp_canvas: Vector2 = _screen_to_canvas(_selected_path.get_waypoint_pos(i))
 		if pos.distance_to(wp_canvas) < HIT_RADIUS:
-			_push_undo()
-			_selected_wp_index = i
-			_dragging = true
-			_drag_type = "waypoint"
-			_drag_index = i
+			if shift_held:
+				# Shift+click: toggle waypoint in/out of selection
+				if i in _selected_wps:
+					_selected_wps.erase(i)
+				else:
+					_selected_wps.append(i)
+			else:
+				# Plain click on unselected wp: select only it
+				# Plain click on already-selected wp: keep group (start drag)
+				if i not in _selected_wps:
+					_selected_wps = [i]
+			# Start group drag
+			if i in _selected_wps:
+				_push_undo()
+				_dragging = true
+				_drag_type = "group"
+				_drag_start_canvas = pos
+				_drag_wp_origins.clear()
+				for idx in _selected_wps:
+					_drag_wp_origins.append(_selected_path.get_waypoint_pos(idx))
 			_canvas.queue_redraw()
 			return
 
-	# Click empty space → deselect
-	_selected_wp_index = -1
+	# Click empty space → deselect all (unless shift held)
+	if not shift_held:
+		_selected_wps.clear()
 	_canvas.queue_redraw()
 
 
@@ -759,7 +793,7 @@ func _tool_curve_click(pos: Vector2) -> void:
 		var co_canvas: Vector2 = _screen_to_canvas(wp_pos + co)
 		if pos.distance_to(co_canvas) < HANDLE_HIT_RADIUS:
 			_push_undo()
-			_selected_wp_index = i
+			_selected_wps = [i]
 			_dragging = true
 			_drag_type = "ctrl_out"
 			_drag_index = i
@@ -769,7 +803,7 @@ func _tool_curve_click(pos: Vector2) -> void:
 		var ci_canvas: Vector2 = _screen_to_canvas(wp_pos + ci)
 		if pos.distance_to(ci_canvas) < HANDLE_HIT_RADIUS:
 			_push_undo()
-			_selected_wp_index = i
+			_selected_wps = [i]
 			_dragging = true
 			_drag_type = "ctrl_in"
 			_drag_index = i
@@ -780,7 +814,7 @@ func _tool_curve_click(pos: Vector2) -> void:
 	for i in range(_selected_path.waypoints.size()):
 		var wp_canvas: Vector2 = _screen_to_canvas(_selected_path.get_waypoint_pos(i))
 		if pos.distance_to(wp_canvas) < HIT_RADIUS:
-			_selected_wp_index = i
+			_selected_wps = [i]
 			_canvas.queue_redraw()
 			return
 
@@ -822,7 +856,7 @@ func _tool_arc_click(pos: Vector2) -> void:
 			"ctrl_out": [ctrl_out.x, ctrl_out.y],
 		})
 
-	_selected_wp_index = -1
+	_selected_wps.clear()
 	_save_current()
 	_rebuild_right_panel()
 	_canvas.queue_redraw()
@@ -879,10 +913,14 @@ func _on_canvas_right_click(pos: Vector2) -> void:
 		if pos.distance_to(wp_canvas) < HIT_RADIUS:
 			_push_undo()
 			_selected_path.remove_waypoint(i)
-			if _selected_wp_index == i:
-				_selected_wp_index = -1
-			elif _selected_wp_index > i:
-				_selected_wp_index -= 1
+			# Update selection indices after removal
+			var new_sel: Array[int] = []
+			for idx in _selected_wps:
+				if idx < i:
+					new_sel.append(idx)
+				elif idx > i:
+					new_sel.append(idx - 1)
+			_selected_wps = new_sel
 			_save_current()
 			_rebuild_right_panel()
 			_canvas.queue_redraw()
@@ -890,19 +928,49 @@ func _on_canvas_right_click(pos: Vector2) -> void:
 
 
 func _on_canvas_drag(pos: Vector2) -> void:
-	if _drag_index < 0 or _drag_index >= _selected_path.waypoints.size():
-		return
-	var screen_pos: Vector2 = _canvas_to_screen(pos)
-	if _drag_type == "waypoint":
-		screen_pos.x = clampf(screen_pos.x, 0, SCREEN_W)
-		screen_pos.y = clampf(screen_pos.y, 0, SCREEN_H)
-		_selected_path.set_waypoint_pos(_drag_index, screen_pos)
+	if _drag_type == "group":
+		# Move all selected waypoints by the same delta
+		var delta_screen: Vector2 = _canvas_to_screen(pos) - _canvas_to_screen(_drag_start_canvas)
+		for j in range(_selected_wps.size()):
+			var idx: int = _selected_wps[j]
+			if idx < _selected_path.waypoints.size():
+				var new_pos: Vector2 = _drag_wp_origins[j] + delta_screen
+				new_pos.x = clampf(new_pos.x, 0, SCREEN_W)
+				new_pos.y = clampf(new_pos.y, 0, SCREEN_H)
+				_selected_path.set_waypoint_pos(idx, new_pos)
 	elif _drag_type == "ctrl_in":
-		var wp_pos: Vector2 = _selected_path.get_waypoint_pos(_drag_index)
-		_selected_path.set_waypoint_ctrl_in(_drag_index, screen_pos - wp_pos)
+		if _drag_index >= 0 and _drag_index < _selected_path.waypoints.size():
+			var screen_pos: Vector2 = _canvas_to_screen(pos)
+			var wp_pos: Vector2 = _selected_path.get_waypoint_pos(_drag_index)
+			_selected_path.set_waypoint_ctrl_in(_drag_index, screen_pos - wp_pos)
 	elif _drag_type == "ctrl_out":
-		var wp_pos: Vector2 = _selected_path.get_waypoint_pos(_drag_index)
-		_selected_path.set_waypoint_ctrl_out(_drag_index, screen_pos - wp_pos)
+		if _drag_index >= 0 and _drag_index < _selected_path.waypoints.size():
+			var screen_pos: Vector2 = _canvas_to_screen(pos)
+			var wp_pos: Vector2 = _selected_path.get_waypoint_pos(_drag_index)
+			_selected_path.set_waypoint_ctrl_out(_drag_index, screen_pos - wp_pos)
+	_canvas.queue_redraw()
+
+
+func _select_all_wps() -> void:
+	if not _selected_path:
+		return
+	_selected_wps.clear()
+	for i in range(_selected_path.waypoints.size()):
+		_selected_wps.append(i)
+	_canvas.queue_redraw()
+
+
+func _nudge_selected(delta: Vector2) -> void:
+	if not _selected_path or _selected_wps.size() == 0:
+		return
+	_push_undo()
+	for idx in _selected_wps:
+		if idx < _selected_path.waypoints.size():
+			var pos: Vector2 = _selected_path.get_waypoint_pos(idx)
+			pos.x = clampf(pos.x + delta.x, 0, SCREEN_W)
+			pos.y = clampf(pos.y + delta.y, 0, SCREEN_H)
+			_selected_path.set_waypoint_pos(idx, pos)
+	_save_current()
 	_canvas.queue_redraw()
 
 
@@ -970,18 +1038,18 @@ class _CanvasDraw extends Control:
 
 		# Draw control handles
 		# In CURVE mode: show handles on ALL waypoints so you can see the full picture.
-		# In SELECT mode: show handles on selected waypoint only.
+		# In SELECT mode: show handles on selected waypoints only.
 		var show_all_handles: bool = (s._active_tool == 2)  # Tool.CURVE
 		for i in range(wp_count):
-			var show: bool = show_all_handles or i == s._selected_wp_index
+			var is_selected: bool = (i in s._selected_wps)
+			var show: bool = show_all_handles or is_selected
 			if not show:
 				continue
 			var wp_pos: Vector2 = path.get_waypoint_pos(i)
 			var wp_canvas: Vector2 = s._screen_to_canvas(wp_pos)
 			var ci: Vector2 = path.get_waypoint_ctrl_in(i)
 			var co: Vector2 = path.get_waypoint_ctrl_out(i)
-			var is_active: bool = (i == s._selected_wp_index)
-			var alpha: float = 1.0 if is_active else 0.4
+			var alpha: float = 1.0 if is_selected else 0.4
 
 			var ci_canvas: Vector2 = s._screen_to_canvas(wp_pos + ci)
 			draw_line(wp_canvas, ci_canvas, Color(1.0, 0.4, 0.4, 0.7 * alpha), 1.0)
@@ -995,7 +1063,7 @@ class _CanvasDraw extends Control:
 		for i in range(wp_count):
 			var wp_canvas: Vector2 = s._screen_to_canvas(path.get_waypoint_pos(i))
 			var color := Color(0.4, 0.85, 1.0)
-			if i == s._selected_wp_index:
+			if i in s._selected_wps:
 				color = Color(1.0, 1.0, 0.3)
 			draw_circle(wp_canvas, _WP_RADIUS, color)
 			# Index label

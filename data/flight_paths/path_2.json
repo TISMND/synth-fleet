@@ -1,0 +1,10 @@
+{
+	"default_speed": 200.0,
+	"display_name": "New Path",
+	"enemy_ship_id": "",
+	"id": "path_2",
+	"segment_speeds": {
+
+	},
+	"waypoints": []
+}

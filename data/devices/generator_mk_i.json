@@ -1,0 +1,9 @@
+{
+	"description": "Basic power generator. +5 generator power.",
+	"display_name": "Generator Mk I",
+	"id": "generator_mk_i",
+	"stats_modifiers": {
+		"generator_power": 5
+	},
+	"type": "generator"
+}

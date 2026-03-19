@@ -1,0 +1,30 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		30.0,
+		40.0
+	],
+	"color": [
+		0.0,
+		0.291534423828125,
+		0.91015625,
+		1.0
+	],
+	"display_name": "Square Drop",
+	"fill_shader": "fire",
+	"glow_intensity": 0.5,
+	"id": "square_drop",
+	"mask_path": "",
+	"shader_params": {
+		"animation_speed": 2.6,
+		"brightness": 2.7,
+		"color_mix": 0.0,
+		"edge_softness": 0.26,
+		"flame_detail": 1.5,
+		"heat_distortion": 0.14,
+		"scroll_speed": 4.6
+	}
+}

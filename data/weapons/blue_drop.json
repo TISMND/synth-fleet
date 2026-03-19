@@ -1,0 +1,77 @@
+{
+	"aim_mode": "fixed",
+	"bar_effects": {
+		"electric": -0.6
+	},
+	"damage": 20,
+	"description": "",
+	"direction_deg": 0.0,
+	"display_name": "Blue Drop",
+	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"params": {
+						"lifetime": 0.55,
+						"particle_count": 12.0,
+						"radius": 40.0
+					},
+					"type": "shatter_lines"
+				}
+			],
+			"muzzle": [
+				{
+					"params": {
+						"lifetime": 0.1,
+						"particle_count": 8.0,
+						"spread_angle": 360.0
+					},
+					"type": "spiral_burst"
+				}
+			],
+			"trail": [
+				{
+					"params": {
+						"lifetime": 0.1,
+						"width_end": 0.5,
+						"width_start": 4.0
+					},
+					"type": "ribbon"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fire_pattern": "single",
+	"fire_triggers": [
+		0.0303867403314917,
+		0.0911602209944751,
+		0.152624309392265,
+		0.214779005524862,
+		0.278314917127072,
+		0.340469613259669,
+		0.404005524861878,
+		0.465469613259669,
+		0.526933701657459,
+		0.590469613259669,
+		0.653314917127072,
+		0.716160220994475,
+		0.778314917127072,
+		0.840469613259669,
+		0.903314917127072,
+		0.964779005524862
+	],
+	"id": "blue_drop",
+	"loop_file_path": "res://loop_zips/sorted/keys/Oscillating Spoons - 120 BPM - 7 - Keys - FRANCMOODY_115_sh101_loop_pulse_F#maj.wav",
+	"loop_length_bars": 8,
+	"mirror_mode": "none",
+	"power_cost": 5,
+	"projectile_speed": 600.0,
+	"projectile_style_id": "square_drop",
+	"special_effect": "none",
+	"sweep_arc_deg": 60.0,
+	"sweep_duration": 1.2
+}

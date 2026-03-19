@@ -1,0 +1,31 @@
+{
+	"aim_mode": "fixed",
+	"bar_effects": {
+		"electric": 0.5
+	},
+	"damage": 10,
+	"description": "",
+	"direction_deg": 0.0,
+	"display_name": "ignored_bubbles",
+	"effect_profile": {
+		"defaults": {
+
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fire_pattern": "single",
+	"fire_triggers": [],
+	"id": "ignored_bubbles",
+	"loop_file_path": "res://loop_zips/sorted/synth/Thinking About Reaction - 120 BPM - 3 - Synth - sp_ins120_plans1_Fm.wav",
+	"loop_length_bars": 8,
+	"mirror_mode": "none",
+	"power_cost": 5,
+	"projectile_speed": 600.0,
+	"projectile_style_id": "rect_lightning",
+	"special_effect": "none",
+	"sweep_arc_deg": 60.0,
+	"sweep_duration": 1.2
+}

@@ -1,0 +1,182 @@
+{
+	"display_name": "First",
+	"grid_size": [
+		32,
+		32
+	],
+	"hardpoints": [
+		{
+			"direction_deg": 0.0,
+			"grid_pos": [
+				16,
+				13
+			],
+			"id": "hp_2",
+			"label": "HP2"
+		}
+	],
+	"id": "ship_first",
+	"lines": [
+		{
+			"color": "#00FFFF",
+			"from": [
+				16,
+				10
+			],
+			"to": [
+				20,
+				11
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				16,
+				10
+			],
+			"to": [
+				12,
+				11
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				20,
+				11
+			],
+			"to": [
+				24,
+				16
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				12,
+				11
+			],
+			"to": [
+				8,
+				16
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				24,
+				16
+			],
+			"to": [
+				25,
+				21
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				8,
+				16
+			],
+			"to": [
+				7,
+				21
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				25,
+				21
+			],
+			"to": [
+				23,
+				25
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				7,
+				21
+			],
+			"to": [
+				9,
+				25
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				23,
+				25
+			],
+			"to": [
+				22,
+				22
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				9,
+				25
+			],
+			"to": [
+				10,
+				22
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				22,
+				22
+			],
+			"to": [
+				19,
+				27
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				10,
+				22
+			],
+			"to": [
+				13,
+				27
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				19,
+				27
+			],
+			"to": [
+				16,
+				29
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				13,
+				27
+			],
+			"to": [
+				16,
+				29
+			]
+		}
+	],
+	"stats": {
+		"generator_power": 10,
+		"hull_max": 100,
+		"shield_max": 50,
+		"speed": 400
+	},
+	"type": "player"
+}

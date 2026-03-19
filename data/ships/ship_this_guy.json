@@ -1,0 +1,244 @@
+{
+	"display_name": "This Guy",
+	"grid_size": [
+		32,
+		32
+	],
+	"hardpoints": [
+		{
+			"direction_deg": 0.0,
+			"grid_pos": [
+				23,
+				13
+			],
+			"id": "hp_0",
+			"label": "HP0"
+		},
+		{
+			"direction_deg": 0.0,
+			"grid_pos": [
+				9,
+				13
+			],
+			"id": "hp_1",
+			"label": "HP1"
+		},
+		{
+			"direction_deg": 0.0,
+			"grid_pos": [
+				16,
+				8
+			],
+			"id": "hp_2",
+			"label": "HP2"
+		}
+	],
+	"id": "ship_this_guy",
+	"lines": [
+		{
+			"color": "#00FFFF",
+			"from": [
+				16,
+				8
+			],
+			"to": [
+				18,
+				16
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				16,
+				8
+			],
+			"to": [
+				14,
+				16
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				18,
+				16
+			],
+			"to": [
+				24,
+				19
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				14,
+				16
+			],
+			"to": [
+				8,
+				19
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				24,
+				19
+			],
+			"to": [
+				29,
+				22
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				8,
+				19
+			],
+			"to": [
+				3,
+				22
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				29,
+				22
+			],
+			"to": [
+				28,
+				23
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				3,
+				22
+			],
+			"to": [
+				4,
+				23
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				28,
+				23
+			],
+			"to": [
+				20,
+				23
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				4,
+				23
+			],
+			"to": [
+				12,
+				23
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				20,
+				23
+			],
+			"to": [
+				17,
+				25
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				12,
+				23
+			],
+			"to": [
+				15,
+				25
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				17,
+				25
+			],
+			"to": [
+				15,
+				25
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				15,
+				25
+			],
+			"to": [
+				17,
+				25
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				18,
+				16
+			],
+			"to": [
+				23,
+				13
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				14,
+				16
+			],
+			"to": [
+				9,
+				13
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				23,
+				13
+			],
+			"to": [
+				26,
+				20
+			]
+		},
+		{
+			"color": "#00FFFF",
+			"from": [
+				9,
+				13
+			],
+			"to": [
+				6,
+				20
+			]
+		}
+	],
+	"stats": {
+		"generator_power": 10,
+		"hull_max": 100,
+		"shield_max": 50,
+		"speed": 400
+	},
+	"type": "player"
+}

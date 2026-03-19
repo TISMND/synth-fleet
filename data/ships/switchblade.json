@@ -1,0 +1,16 @@
+{
+	"display_name": "Switchblade",
+	"id": "switchblade",
+	"render_mode": "chrome",
+	"stats": {
+		"acceleration": 2000.0,
+		"device_slots": 2,
+		"electric_segments": 8.0,
+		"generator_power": 12.0,
+		"hull_segments": 6.0,
+		"shield_regen": 1.2,
+		"shield_segments": 12.0,
+		"speed": 520.0,
+		"thermal_segments": 6.0
+	}
+}
