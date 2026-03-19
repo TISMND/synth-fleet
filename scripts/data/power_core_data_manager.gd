@@ -1,8 +1,8 @@
 class_name PowerCoreDataManager
 extends RefCounted
-## Reads/writes power core JSON files in user://power_cores/
+## Reads/writes power core JSON files in res://data/power_cores/
 
-const DIR_PATH := "user://power_cores/"
+const DIR_PATH := "res://data/power_cores/"
 
 
 static func _ensure_dir() -> void:

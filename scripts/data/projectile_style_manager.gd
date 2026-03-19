@@ -1,10 +1,10 @@
 class_name ProjectileStyleManager
 extends RefCounted
-## Reads/writes projectile style JSON files in user://projectile_styles/
-## Also manages mask PNGs in user://projectile_masks/
+## Reads/writes projectile style JSON files in res://data/projectile_styles/
+## Also manages mask PNGs in res://data/projectile_masks/
 
-const DIR_PATH := "user://projectile_styles/"
-const MASKS_DIR := "user://projectile_masks/"
+const DIR_PATH := "res://data/projectile_styles/"
+const MASKS_DIR := "res://data/projectile_masks/"
 
 
 static func _ensure_dir() -> void:

@@ -1,8 +1,8 @@
 class_name WeaponDataManager
 extends RefCounted
-## Reads/writes weapon JSON files in user://weapons/
+## Reads/writes weapon JSON files in res://data/weapons/
 
-const DIR_PATH := "user://weapons/"
+const DIR_PATH := "res://data/weapons/"
 
 
 static func _ensure_dir() -> void:

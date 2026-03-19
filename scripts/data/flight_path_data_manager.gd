@@ -1,8 +1,8 @@
 class_name FlightPathDataManager
 extends RefCounted
-## Reads/writes flight path JSON files in user://flight_paths/
+## Reads/writes flight path JSON files in res://data/flight_paths/
 
-const DIR_PATH := "user://flight_paths/"
+const DIR_PATH := "res://data/flight_paths/"
 
 
 static func _ensure_dir() -> void:

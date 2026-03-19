@@ -1,8 +1,8 @@
 class_name ShipDataManager
 extends RefCounted
-## Reads/writes ship JSON files in user://ships/
+## Reads/writes ship JSON files in res://data/ships/
 
-const DIR_PATH := "user://ships/"
+const DIR_PATH := "res://data/ships/"
 
 
 static func _ensure_dir() -> void:

@@ -124,19 +124,26 @@ scripts/
   game/          Game logic (game, player_ship, hardpoint_controller, enemy, effect_layer_renderer, etc.)
   ui/            UI scripts (main_menu, dev_studio, weapons_tab, waveform_editor, loop_browser, etc.)
 resources/       Resource class definitions (.gd) — populated from JSON at runtime
+data/            Dev-authored JSON content (weapons, ships, styles, etc.) — git-tracked
 assets/
   audio/loops/       Weapon audio loops (Splice WAVs)
   audio/atmosphere/  Level/boss atmospheric loops (Splice WAVs)
 ```
 
 ### Data storage
-All dev-created content is JSON in `user://`:
+Dev-created content is JSON in `res://data/` (git-tracked):
 ```
-user://weapons/       Weapon definition JSON files
-user://ships/         Ship definition JSON files
-user://loadouts/      Player loadout JSON files
-user://settings/      Global settings (BPM, aesthetics)
+res://data/weapons/           Weapon definition JSON files
+res://data/ships/             Ship definition JSON files
+res://data/power_cores/       Power core definition JSON files
+res://data/flight_paths/      Flight path definition JSON files
+res://data/projectile_styles/ Projectile style JSON files
+res://data/projectile_masks/  Projectile mask PNGs
+```
+Player runtime state stays in `user://` (not tracked):
+```
 user://save_data.json GameState persistence
+user://settings/      Global settings (BPM, aesthetics)
 ```
 
 ### Collision layers
