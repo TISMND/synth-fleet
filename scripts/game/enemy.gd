@@ -18,6 +18,13 @@ var path_offset: Vector2 = Vector2.ZERO  # formation slot offset
 var path_origin: Vector2 = Vector2.ZERO  # x_offset from level encounter
 var rotate_with_path: bool = false
 
+# Melee chase mode
+var is_melee: bool = false
+var melee_speed: float = 200.0
+var melee_turn_speed: float = 90.0  # degrees per second
+var _melee_heading: float = PI / 2.0  # radians, starts pointing down
+var _melee_target: Node2D = null
+
 var _renderer: ShipRenderer = null
 var _shield_bubble: ShieldBubbleEffect = null
 
@@ -54,8 +61,23 @@ func _ready() -> void:
 	add_child(_shield_bubble)
 
 
+func set_melee_target(target: Node2D) -> void:
+	_melee_target = target
+
+
 func _process(delta: float) -> void:
-	if path_curve != null and path_curve.point_count >= 2:
+	if is_melee:
+		# Melee chase mode — turn-rate-limited steering toward player
+		if is_instance_valid(_melee_target):
+			var desired_angle: float = (_melee_target.global_position - global_position).angle()
+			var max_turn: float = deg_to_rad(melee_turn_speed) * delta
+			_melee_heading = rotate_toward(_melee_heading, desired_angle, max_turn)
+		position += Vector2(cos(_melee_heading), sin(_melee_heading)) * melee_speed * delta
+		rotation = _melee_heading - PI / 2.0
+		# Wider despawn bounds so chasers can loop back
+		if position.y > 2420 or position.y < -500 or position.x < -500 or position.x > 2420:
+			queue_free()
+	elif path_curve != null and path_curve.point_count >= 2:
 		# Path-following mode
 		path_progress += path_speed * delta
 		var total_len: float = path_curve.get_baked_length()

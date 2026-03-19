@@ -105,7 +105,7 @@ func _process(delta: float) -> void:
 func _start_waves() -> void:
 	if _level_data:
 		_scroll_distance = 0.0
-		_wave_manager.setup_level(_level_data, _enemies)
+		_wave_manager.setup_level(_level_data, _enemies, _player)
 	else:
 		var waves: Array = []
 		for w in WAVE_CONFIG:

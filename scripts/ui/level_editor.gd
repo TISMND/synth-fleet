@@ -50,6 +50,9 @@ var _enc_speed_spin: SpinBox
 var _enc_count_spin: SpinBox
 var _enc_spacing_spin: SpinBox
 var _enc_rotate_check: CheckButton
+var _enc_melee_check: CheckButton
+var _enc_turn_speed_label: Label
+var _enc_turn_speed_spin: SpinBox
 var _enc_center_btn: Button
 var _enc_delete_btn: Button
 
@@ -505,6 +508,8 @@ func _map_left_click(pos: Vector2) -> void:
 				"trigger_y": trigger_y,
 				"x_offset": x_offset,
 				"rotate_with_path": false,
+			"is_melee": false,
+			"turn_speed": 90.0,
 			}
 			_selected_level.encounters.append(enc)
 			_selected_encounter_idx = _selected_level.encounters.size() - 1
@@ -723,6 +728,39 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	)
 	_enc_content.add_child(_enc_rotate_check)
 
+	# Melee mode
+	_enc_melee_check = CheckButton.new()
+	_enc_melee_check.text = "MELEE"
+	_enc_melee_check.toggled.connect(func(pressed: bool) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["is_melee"] = pressed
+			_save_current_level()
+			_update_melee_ui_state()
+			_map_canvas.queue_redraw()
+	)
+	_enc_content.add_child(_enc_melee_check)
+
+	_enc_turn_speed_label = Label.new()
+	_enc_turn_speed_label.text = "TURN SPEED (deg/s)"
+	ThemeManager.apply_text_glow(_enc_turn_speed_label, "body")
+	_enc_content.add_child(_enc_turn_speed_label)
+
+	_enc_turn_speed_spin = SpinBox.new()
+	_enc_turn_speed_spin.min_value = 10
+	_enc_turn_speed_spin.max_value = 720
+	_enc_turn_speed_spin.step = 10
+	_enc_turn_speed_spin.value = 90
+	_enc_turn_speed_spin.value_changed.connect(func(v: float) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["turn_speed"] = v
+			_save_current_level()
+	)
+	_enc_content.add_child(_enc_turn_speed_spin)
+
 	# Action buttons
 	var sep3 := HSeparator.new()
 	_enc_content.add_child(sep3)
@@ -773,6 +811,8 @@ func _update_right_panel() -> void:
 	_enc_count_spin.editable = not disabled
 	_enc_spacing_spin.editable = not disabled
 	_enc_rotate_check.disabled = disabled
+	_enc_melee_check.disabled = disabled
+	_enc_turn_speed_spin.editable = not disabled
 	_enc_center_btn.disabled = disabled
 	_enc_delete_btn.disabled = disabled
 
@@ -815,6 +855,22 @@ func _update_right_panel() -> void:
 	_enc_count_spin.value = int(enc.get("count", 1))
 	_enc_spacing_spin.value = float(enc.get("spacing", 200.0))
 	_enc_rotate_check.button_pressed = bool(enc.get("rotate_with_path", false))
+	_enc_melee_check.button_pressed = bool(enc.get("is_melee", false))
+	_enc_turn_speed_spin.value = float(enc.get("turn_speed", 90.0))
+	_update_melee_ui_state()
+
+
+func _update_melee_ui_state() -> void:
+	var melee_on: bool = _enc_melee_check.button_pressed
+	var has_enc: bool = _selected_level != null and _selected_encounter_idx >= 0
+	# When melee is on, path and rotate_with_path are irrelevant
+	if melee_on:
+		_enc_path_dropdown.disabled = true
+		_enc_rotate_check.disabled = true
+	# Turn speed only editable when melee is on and encounter is selected
+	_enc_turn_speed_spin.editable = melee_on and has_enc
+	_enc_turn_speed_label.modulate = Color.WHITE if melee_on else Color(1, 1, 1, 0.3)
+	_enc_turn_speed_spin.modulate = Color.WHITE if melee_on else Color(1, 1, 1, 0.3)
 
 
 # ── Data operations ────────────────────────────────────────────
@@ -946,10 +1002,11 @@ class _MapCanvasDraw extends Control:
 				continue
 
 			var is_selected: bool = (i == s._selected_encounter_idx)
-			var color := Color(1.0, 0.5, 0.2) if is_selected else Color(0.4, 0.8, 1.0)
+			var enc_is_melee: bool = bool(enc.get("is_melee", false))
+			var color := Color(1.0, 0.5, 0.2) if is_selected else (Color(1.0, 0.3, 0.3) if enc_is_melee else Color(0.4, 0.8, 1.0))
 
-			# Path curve preview (draw behind marker when selected)
-			if is_selected:
+			# Path curve preview (draw behind marker when selected, skip for melee)
+			if is_selected and not enc_is_melee:
 				var path_id: String = str(enc.get("path_id", ""))
 				if s._path_id_to_curve.has(path_id):
 					_draw_path_preview(s._path_id_to_curve[path_id], cx, cy, color)
@@ -995,11 +1052,16 @@ class _MapCanvasDraw extends Control:
 				var fm_color := Color(0.6, 1.0, 0.5, 0.8) if is_selected else Color(0.5, 0.9, 0.4, 0.7)
 				draw_string(font3, Vector2(label_x, cy + label_y_offset), fm_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, fm_color)
 				label_y_offset += 12.0
-			var enc_path_id: String = str(enc.get("path_id", ""))
-			if enc_path_id != "":
-				var path_name: String = s._path_id_to_name.get(enc_path_id, enc_path_id) as String
-				var path_color := Color(0.5, 0.9, 1.0, 0.7) if is_selected else Color(0.4, 0.7, 0.9, 0.5)
-				draw_string(font3, Vector2(label_x, cy + label_y_offset), path_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, path_color)
+			if enc_is_melee:
+				var melee_color := Color(1.0, 0.4, 0.4, 0.9) if is_selected else Color(1.0, 0.3, 0.3, 0.7)
+				draw_string(font3, Vector2(label_x, cy + label_y_offset), "MELEE", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, melee_color)
+				label_y_offset += 12.0
+			else:
+				var enc_path_id: String = str(enc.get("path_id", ""))
+				if enc_path_id != "":
+					var path_name: String = s._path_id_to_name.get(enc_path_id, enc_path_id) as String
+					var path_color := Color(0.5, 0.9, 1.0, 0.7) if is_selected else Color(0.4, 0.7, 0.9, 0.5)
+					draw_string(font3, Vector2(label_x, cy + label_y_offset), path_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, path_color)
 
 
 	func _draw_path_preview(curve: Curve2D, cx: float, cy: float, color: Color) -> void:

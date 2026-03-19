@@ -16,6 +16,9 @@ var _enemies_alive: int = 0
 var _spawn_timer: Timer = null
 var _delay_timer: Timer = null
 
+# Player reference for melee enemies
+var _player_ref: Node2D = null
+
 # Level-data mode
 var _level_data: LevelData = null
 var _level_mode: bool = false
@@ -40,7 +43,8 @@ func setup(waves: Array, enemies_container: Node2D) -> void:
 	_level_mode = false
 
 
-func setup_level(level: LevelData, enemies_container: Node2D) -> void:
+func setup_level(level: LevelData, enemies_container: Node2D, player: Node2D = null) -> void:
+	_player_ref = player
 	_level_data = level
 	_enemies_container = enemies_container
 	_level_mode = true
@@ -86,10 +90,12 @@ func _spawn_encounter(enc: Dictionary) -> void:
 	var count: int = int(enc.get("count", 1))
 	var spacing: float = float(enc.get("spacing", 200.0))
 	var x_offset: float = float(enc.get("x_offset", 0.0))
+	var enc_is_melee: bool = bool(enc.get("is_melee", false))
+	var enc_turn_speed: float = float(enc.get("turn_speed", 90.0))
 
-	# Load path
+	# Load path (skip for melee encounters)
 	var curve: Curve2D = null
-	if path_id != "":
+	if not enc_is_melee and path_id != "":
 		var fp: FlightPathData = FlightPathDataManager.load_by_id(path_id)
 		if fp:
 			curve = fp.to_curve2d()
@@ -121,6 +127,8 @@ func _spawn_encounter(enc: Dictionary) -> void:
 				"ship_id": str(slot["ship_id"]),
 				"delay": delay,
 				"rotate_with_path": bool(enc.get("rotate_with_path", false)),
+				"is_melee": enc_is_melee,
+				"turn_speed": enc_turn_speed,
 			}
 			if delay <= 0.0:
 				_do_spawn_enemy(spawn_data)
@@ -174,8 +182,21 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 
 	enemy.rotate_with_path = bool(spawn_data.get("rotate_with_path", false))
 
-	# Position at start of curve if path-following, otherwise off-screen top
-	if enemy.path_curve != null and enemy.path_curve.point_count >= 2:
+	# Melee mode
+	var spawn_is_melee: bool = bool(spawn_data.get("is_melee", false))
+	if spawn_is_melee:
+		enemy.is_melee = true
+		enemy.melee_speed = float(spawn_data.get("speed", 200.0))
+		enemy.melee_turn_speed = float(spawn_data.get("turn_speed", 90.0))
+		if is_instance_valid(_player_ref):
+			enemy.set_melee_target(_player_ref)
+
+	# Position at start of curve if path-following, melee at top with offset, otherwise random drift
+	if spawn_is_melee:
+		var melee_off: Vector2 = enemy.path_offset
+		var melee_orig: Vector2 = enemy.path_origin
+		enemy.position = Vector2(960.0 + melee_orig.x + melee_off.x, -30.0 + melee_off.y)
+	elif enemy.path_curve != null and enemy.path_curve.point_count >= 2:
 		var start_pos: Vector2 = enemy.path_curve.sample_baked(0.0)
 		enemy.position = start_pos + enemy.path_offset + enemy.path_origin
 	else:
