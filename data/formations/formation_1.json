@@ -1,34 +1,48 @@
 {
-	"display_name": "New Formation",
+	"display_name": "Line",
 	"id": "formation_1",
 	"slots": [
 		{
 			"offset": [
-				-40.0,
-				-40.0
-			],
-			"ship_id": ""
-		},
-		{
-			"offset": [
 				0.0,
-				-40.0
-			],
-			"ship_id": ""
-		},
-		{
-			"offset": [
-				40.0,
-				-40.0
-			],
-			"ship_id": ""
+				0.0
+			]
 		},
 		{
 			"offset": [
 				80.0,
-				-40.0
-			],
-			"ship_id": ""
+				0.0
+			]
+		},
+		{
+			"offset": [
+				-80.0,
+				0.0
+			]
+		},
+		{
+			"offset": [
+				160.0,
+				0.0
+			]
+		},
+		{
+			"offset": [
+				-160.0,
+				0.0
+			]
+		},
+		{
+			"offset": [
+				240.0,
+				0.0
+			]
+		},
+		{
+			"offset": [
+				-240.0,
+				0.0
+			]
 		}
 	]
 }

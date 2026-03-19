@@ -73,14 +73,39 @@ class _DrawCtx:
 	func _init(canvas_item: CanvasItem, render_mode: int) -> void:
 		ci = canvas_item
 		mode = render_mode
+		# Apply palette overrides for neon variants
+		match mode:
+			ShipRenderer.RenderMode.EMBER:
+				cyan = ShipRenderer.EMBER_HULL
+				magenta = ShipRenderer.EMBER_ACCENT
+				orange = ShipRenderer.EMBER_ENGINE
+				purple = ShipRenderer.EMBER_CANOPY
+				teal = ShipRenderer.EMBER_DETAIL
+			ShipRenderer.RenderMode.FROST:
+				cyan = ShipRenderer.FROST_HULL
+				magenta = ShipRenderer.FROST_ACCENT
+				orange = ShipRenderer.FROST_ENGINE
+				purple = ShipRenderer.FROST_CANOPY
+				teal = ShipRenderer.FROST_DETAIL
+			ShipRenderer.RenderMode.SOLAR:
+				cyan = ShipRenderer.SOLAR_HULL
+				magenta = ShipRenderer.SOLAR_ACCENT
+				orange = ShipRenderer.SOLAR_ENGINE
+				purple = ShipRenderer.SOLAR_CANOPY
+				teal = ShipRenderer.SOLAR_DETAIL
+			ShipRenderer.RenderMode.SPORT:
+				# Static thumbnail uses a vivid green/magenta combo
+				cyan = Color(0.0, 1.0, 0.5)
+				magenta = Color(1.0, 0.0, 0.8)
+				orange = Color(1.0, 0.8, 0.0)
+				purple = Color(0.5, 0.0, 1.0)
+				teal = Color(0.0, 0.8, 1.0)
 
 	func mp(points: PackedVector2Array, color: Color, w: float) -> void:
 		match mode:
 			ShipRenderer.RenderMode.CHROME: mp_chrome(points, w)
 			ShipRenderer.RenderMode.VOID: mp_void(points, w)
 			ShipRenderer.RenderMode.HIVEMIND: mp_hivemind(points, w)
-			ShipRenderer.RenderMode.PHASE: mp_phase(points, color, w)
-			ShipRenderer.RenderMode.RIFT: mp_rift(points, w)
 			ShipRenderer.RenderMode.SPORE: mp_spore(points, w)
 			_: mp_neon(points, color, w)
 
@@ -89,8 +114,6 @@ class _DrawCtx:
 			ShipRenderer.RenderMode.CHROME: ml_chrome(a, b, w)
 			ShipRenderer.RenderMode.VOID: ml_void(a, b, w)
 			ShipRenderer.RenderMode.HIVEMIND: ml_hivemind(a, b, w)
-			ShipRenderer.RenderMode.PHASE: ml_phase(a, b, color, w)
-			ShipRenderer.RenderMode.RIFT: ml_rift(a, b, w)
 			ShipRenderer.RenderMode.SPORE: ml_spore(a, b, w)
 			_: ml_neon(a, b, color, w)
 
@@ -174,45 +197,6 @@ class _DrawCtx:
 		ci.draw_line(a, b, ShipRenderer.HIVE_VEIN, w, true)
 		ci.draw_circle(a, w * 0.8, ShipRenderer.HIVE_VEIN)
 		ci.draw_circle(b, w * 0.8, ShipRenderer.HIVE_VEIN)
-
-	# ── Phase thumbnail helpers ──
-
-	func mp_phase(points: PackedVector2Array, color: Color, w: float) -> void:
-		ci.draw_colored_polygon(points, Color(1, 0, 0, 0.08))
-		ci.draw_colored_polygon(points, Color(0, 1, 0, 0.08))
-		ci.draw_colored_polygon(points, Color(0, 0, 1, 0.08))
-		for j in range(points.size()):
-			var nj: int = (j + 1) % points.size()
-			ci.draw_line(points[j], points[nj], color, w, true)
-		for j in range(points.size()):
-			var nj: int = (j + 1) % points.size()
-			ci.draw_line(points[j], points[nj], Color(1, 1, 1, 0.3), w * 0.4, true)
-
-	func ml_phase(a: Vector2, b: Vector2, color: Color, w: float) -> void:
-		ci.draw_line(a, b, Color(1, 0.2, 0.2, 0.3), w, true)
-		ci.draw_line(a, b, Color(0.2, 0.2, 1, 0.3), w, true)
-		ci.draw_line(a, b, color, w * 0.6, true)
-
-	# ── Rift thumbnail helpers ──
-
-	func mp_rift(points: PackedVector2Array, w: float) -> void:
-		ci.draw_colored_polygon(points, Color(ShipRenderer.RIFT_GLOW.r, ShipRenderer.RIFT_GLOW.g, ShipRenderer.RIFT_GLOW.b, 0.2))
-		if points.size() >= 3:
-			var centroid := Vector2.ZERO
-			for pt in points:
-				centroid += pt
-			centroid /= float(points.size())
-			var inset := PackedVector2Array()
-			for pt in points:
-				inset.append(pt.lerp(centroid, 0.08))
-			ci.draw_colored_polygon(inset, ShipRenderer.RIFT_DARK)
-		for j in range(points.size()):
-			var nj: int = (j + 1) % points.size()
-			ci.draw_line(points[j], points[nj], ShipRenderer.RIFT_GLOW, w, true)
-
-	func ml_rift(a: Vector2, b: Vector2, w: float) -> void:
-		ci.draw_line(a, b, Color(ShipRenderer.RIFT_GLOW.r, ShipRenderer.RIFT_GLOW.g, ShipRenderer.RIFT_GLOW.b, 0.4), w * 1.5, true)
-		ci.draw_line(a, b, ShipRenderer.RIFT_GLOW, w, true)
 
 	# ── Spore thumbnail helpers ──
 

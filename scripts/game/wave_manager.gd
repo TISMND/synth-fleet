@@ -103,7 +103,7 @@ func _spawn_encounter(enc: Dictionary) -> void:
 				var off: Array = slot.get("offset", [0, 0])
 				slots.append({
 					"offset": Vector2(float(off[0]), float(off[1])),
-					"ship_id": str(slot.get("ship_id", ship_id)),
+					"ship_id": ship_id,
 				})
 	if slots.size() == 0:
 		# Single ship mode

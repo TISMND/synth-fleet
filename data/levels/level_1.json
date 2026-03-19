@@ -144,6 +144,17 @@
 			"speed": 200.0,
 			"trigger_y": 2432.0987654321,
 			"x_offset": 672.48730964467
+		},
+		{
+			"count": 1,
+			"formation_id": "formation_1",
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_scythe",
+			"spacing": 200.0,
+			"speed": 210.0,
+			"trigger_y": 1953.7037037037,
+			"x_offset": 4.87309644670051
 		}
 	],
 	"id": "level_1",

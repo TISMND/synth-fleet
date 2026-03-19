@@ -4,7 +4,7 @@ extends Resource
 
 @export var id: String = ""
 @export var display_name: String = ""
-@export var slots: Array = []  # Array of { "offset": [x, y], "ship_id": "enemy_1" }
+@export var slots: Array = []  # Array of { "offset": [x, y] }
 
 
 static func from_dict(data: Dictionary) -> FormationData:
@@ -17,7 +17,6 @@ static func from_dict(data: Dictionary) -> FormationData:
 		var off: Array = slot.get("offset", [0, 0])
 		f.slots.append({
 			"offset": [float(off[0]), float(off[1])],
-			"ship_id": str(slot.get("ship_id", "")),
 		})
 	return f
 
@@ -36,6 +35,3 @@ func get_slot_offset(index: int) -> Vector2:
 	return Vector2(float(off[0]), float(off[1]))
 
 
-func get_slot_ship_id(index: int) -> String:
-	var slot: Dictionary = slots[index]
-	return str(slot.get("ship_id", ""))

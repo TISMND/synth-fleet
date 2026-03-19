@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://dev_studio"]
+[gd_scene load_steps=8 format=3 uid="uid://dev_studio"]
 
 [ext_resource type="Script" path="res://scripts/ui/dev_studio.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ui/weapons_tab.gd" id="3"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/ui/power_core_tab.gd" id="5"]
 [ext_resource type="Script" path="res://scripts/ui/devices_tab.gd" id="6"]
 [ext_resource type="Script" path="res://scripts/ui/fields_tab.gd" id="7"]
+[ext_resource type="Script" path="res://scripts/ui/orbiters_tab.gd" id="8"]
 
 [node name="DevStudio" type="Control"]
 layout_mode = 3
@@ -67,6 +68,10 @@ script = ExtResource("6")
 [node name="Fields" type="MarginContainer" parent="VBoxContainer/TabContainer"]
 layout_mode = 2
 script = ExtResource("7")
+
+[node name="Orbiters" type="MarginContainer" parent="VBoxContainer/TabContainer"]
+layout_mode = 2
+script = ExtResource("8")
 
 [node name="BackButton" type="Button" parent="."]
 layout_mode = 1

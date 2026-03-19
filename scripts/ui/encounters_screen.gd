@@ -92,7 +92,6 @@ var _fm_selected_slots: Array[int] = []
 var _fm_dragging: bool = false
 var _fm_drag_start: Vector2 = Vector2.ZERO
 var _fm_drag_origins: Array[Vector2] = []
-var _fm_ship_dropdown: OptionButton
 
 
 func _ready() -> void:
@@ -1247,7 +1246,6 @@ func _rebuild_fm_right_panel() -> void:
 		_fm_right_panel.remove_child(child)
 		child.queue_free()
 	_fm_name_edit = null
-	_fm_ship_dropdown = null
 
 	var vbox := VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1319,31 +1317,6 @@ func _rebuild_fm_right_panel() -> void:
 			btn.modulate = Color(0.6, 0.6, 0.7)
 		grid_box.add_child(btn)
 
-	# Selected slot ship_id
-	if _fm_selected_slots.size() > 0:
-		var sep3 := HSeparator.new()
-		vbox.add_child(sep3)
-
-		var ship_label := Label.new()
-		ship_label.text = "SLOT SHIP"
-		ThemeManager.apply_text_glow(ship_label, "body")
-		vbox.add_child(ship_label)
-
-		_fm_ship_dropdown = OptionButton.new()
-		var enemy_ships: Array[ShipData] = ShipDataManager.load_all_by_type("enemy")
-		var current_ship_id: String = _selected_formation.get_slot_ship_id(_fm_selected_slots[0])
-		var select_idx := 0
-		for i in range(enemy_ships.size()):
-			var ship: ShipData = enemy_ships[i]
-			var label: String = ship.display_name if ship.display_name != "" else ship.id
-			_fm_ship_dropdown.add_item(label, i)
-			_fm_ship_dropdown.set_item_metadata(i, ship.id)
-			if ship.id == current_ship_id:
-				select_idx = i
-		if enemy_ships.size() > 0:
-			_fm_ship_dropdown.select(select_idx)
-		_fm_ship_dropdown.item_selected.connect(_on_fm_ship_selected)
-		vbox.add_child(_fm_ship_dropdown)
 
 
 # ── Formation data operations ─────────────────────────────────
@@ -1444,16 +1417,6 @@ func _on_fm_name_changed(new_text: String) -> void:
 		_rebuild_fm_list()
 
 
-func _on_fm_ship_selected(index: int) -> void:
-	if not _selected_formation or not _fm_ship_dropdown:
-		return
-	var ship_id: String = str(_fm_ship_dropdown.get_item_metadata(index))
-	for slot_idx in _fm_selected_slots:
-		if slot_idx < _selected_formation.slots.size():
-			_selected_formation.slots[slot_idx]["ship_id"] = ship_id
-	_save_current_formation()
-	_fm_canvas.queue_redraw()
-
 
 # ── Formation canvas input ────────────────────────────────────
 
@@ -1515,7 +1478,6 @@ func _fm_canvas_left_click(pos: Vector2, shift_held: bool) -> void:
 		offset = _fm_snap_offset(offset)
 		_selected_formation.slots.append({
 			"offset": [offset.x, offset.y],
-			"ship_id": "",
 		})
 		_fm_selected_slots = [_selected_formation.slots.size() - 1]
 		_save_current_formation()

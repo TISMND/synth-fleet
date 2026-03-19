@@ -3,8 +3,8 @@ extends Control
 ## Left panel: ship selection. Center: ship preview (WASD movement).
 ## Right panel: attribute sliders + skin dropdown + save. Bottom: HUD replica.
 
-const SKIN_NAMES: Array[String] = ["CHROME", "NEON", "VOID", "HIVEMIND", "PHASE", "RIFT", "SPORE"]
-const SKIN_KEYS: Array[String] = ["chrome", "neon", "void", "hivemind", "phase", "rift", "spore"]
+const SKIN_NAMES: Array[String] = ["CHROME", "NEON", "VOID", "HIVEMIND", "SPORE", "EMBER", "FROST", "SOLAR", "SPORT"]
+const SKIN_KEYS: Array[String] = ["chrome", "neon", "void", "hivemind", "spore", "ember", "frost", "solar", "sport"]
 
 const MOVE_DECEL := 800.0
 const BANK_LERP := 6.0
@@ -274,9 +274,11 @@ func _apply_render_mode() -> void:
 		"neon": mode = ShipRenderer.RenderMode.NEON
 		"void": mode = ShipRenderer.RenderMode.VOID
 		"hivemind": mode = ShipRenderer.RenderMode.HIVEMIND
-		"phase": mode = ShipRenderer.RenderMode.PHASE
-		"rift": mode = ShipRenderer.RenderMode.RIFT
 		"spore": mode = ShipRenderer.RenderMode.SPORE
+		"ember": mode = ShipRenderer.RenderMode.EMBER
+		"frost": mode = ShipRenderer.RenderMode.FROST
+		"solar": mode = ShipRenderer.RenderMode.SOLAR
+		"sport": mode = ShipRenderer.RenderMode.SPORT
 	_ship_draw.render_mode = mode
 	_ship_selector.render_mode = mode
 	_ship_draw.queue_redraw()
