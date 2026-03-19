@@ -1,71 +1,37 @@
 class_name DeviceDataManager
 extends RefCounted
-## Reads/writes device JSON files in res://data/devices/
-
-const DIR_PATH := "res://data/devices/"
-
-
-static func _ensure_dir() -> void:
-	DirAccess.make_dir_recursive_absolute(DIR_PATH)
-
-
-static func save(id: String, data: Dictionary) -> void:
-	_ensure_dir()
-	data["id"] = id
-	var file := FileAccess.open(DIR_PATH + id + ".json", FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(data, "\t"))
+## Read-only facade that searches both field_emitters/ and orbital_generators/
+## for device loading. Editing is done through type-specific managers.
 
 
 static func load_by_id(id: String) -> DeviceData:
-	var path: String = DIR_PATH + id + ".json"
-	if not FileAccess.file_exists(path):
-		return null
-	var file := FileAccess.open(path, FileAccess.READ)
-	if not file:
-		return null
-	var json := JSON.new()
-	if json.parse(file.get_as_text()) != OK:
-		return null
-	var data: Dictionary = json.data
-	return DeviceData.from_dict(data)
+	var device: DeviceData = FieldEmitterDataManager.load_by_id(id)
+	if device:
+		return device
+	device = OrbitalGeneratorDataManager.load_by_id(id)
+	if device:
+		return device
+	# Fallback: check legacy res://data/devices/ for migration
+	var legacy_path: String = "res://data/devices/" + id + ".json"
+	if FileAccess.file_exists(legacy_path):
+		var file := FileAccess.open(legacy_path, FileAccess.READ)
+		if file:
+			var json := JSON.new()
+			if json.parse(file.get_as_text()) == OK:
+				var data: Dictionary = json.data
+				return DeviceData.from_dict(data)
+	return null
 
 
 static func load_all() -> Array[DeviceData]:
-	_ensure_dir()
 	var devices: Array[DeviceData] = []
-	var dir := DirAccess.open(DIR_PATH)
-	if not dir:
-		return devices
-	dir.list_dir_begin()
-	var fname: String = dir.get_next()
-	while fname != "":
-		if fname.ends_with(".json"):
-			var d: DeviceData = load_by_id(fname.get_basename())
-			if d:
-				devices.append(d)
-		fname = dir.get_next()
-	dir.list_dir_end()
+	devices.append_array(FieldEmitterDataManager.load_all())
+	devices.append_array(OrbitalGeneratorDataManager.load_all())
 	return devices
 
 
-static func delete(id: String) -> void:
-	var path: String = DIR_PATH + id + ".json"
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
-
-
 static func list_ids() -> Array[String]:
-	_ensure_dir()
 	var ids: Array[String] = []
-	var dir := DirAccess.open(DIR_PATH)
-	if not dir:
-		return ids
-	dir.list_dir_begin()
-	var fname: String = dir.get_next()
-	while fname != "":
-		if fname.ends_with(".json"):
-			ids.append(fname.get_basename())
-		fname = dir.get_next()
-	dir.list_dir_end()
+	ids.append_array(FieldEmitterDataManager.list_ids())
+	ids.append_array(OrbitalGeneratorDataManager.list_ids())
 	return ids

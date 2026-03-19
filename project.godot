@@ -23,6 +23,7 @@ ThemeManager="*res://scripts/autoload/theme_manager.gd"
 LoopMixer="*res://scripts/autoload/loop_mixer.gd"
 ShipRegistry="*res://scripts/autoload/ship_registry.gd"
 SfxPlayer="*res://scripts/autoload/sfx_player.gd"
+KeyBindingManager="*res://scripts/autoload/key_binding_manager.gd"
 
 [display]
 

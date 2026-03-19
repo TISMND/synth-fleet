@@ -1,7 +1,7 @@
+class_name DeviceTabBase
 extends MarginContainer
-## Devices Tab — editor for devices that produce field effects around the player ship.
-## Subtabs: Timing (loop + waveform + triggers), Field (radius, style, fade, anim),
-## Mechanics (device type, params, bar/passive effects), Effects (color override).
+## Base class for device editor tabs (Field Emitters, Orbital Generators).
+## Subclasses override virtual methods to customize visual mode, preview, and data.
 
 const BAR_TYPES: Array[String] = ["shield", "hull", "thermal", "electric"]
 const BAR_TYPE_LABELS: Array[String] = ["SHD", "HUL", "THR", "ELC"]
@@ -42,29 +42,7 @@ var _bars_button: OptionButton
 var _preview_bars: Array[ProgressBar] = []
 var _preview_bar_base_colors: Array[Color] = []
 var _preview_bar_brightness: Array[float] = [0.0, 0.0, 0.0, 0.0]
-var _preview_field_sprite: Sprite2D = null
-var _preview_field_material: ShaderMaterial = null
-var _preview_orbiter_renderer: OrbiterRenderer = null
 var _preview_viewport: SubViewport = null
-
-# Field subtab
-var _visual_mode_button: OptionButton
-var _radius_slider: HSlider
-var _radius_label: Label
-var _field_style_button: OptionButton
-var _orbiter_style_button: OptionButton
-var _field_style_row: Control  # container to show/hide
-var _orbiter_style_row: Control  # container to show/hide
-var _orbiter_lifetime_slider: HSlider
-var _orbiter_lifetime_label: Label
-var _orbiter_lifetime_row: Control  # container to show/hide
-var _fade_in_slider: HSlider
-var _fade_in_label: Label
-var _fade_out_slider: HSlider
-var _fade_out_label: Label
-var _anim_speed_row: Control  # container to show/hide
-var _anim_speed_slider: HSlider
-var _anim_speed_label: Label
 
 # Mechanics subtab
 var _device_type_button: OptionButton
@@ -90,6 +68,62 @@ var _ui_ready: bool = false
 var _prev_loop_progress: float = -1.0
 var _auto_pulse_timer: float = 0.0
 
+
+# ── Virtual methods (override in subclasses) ───────────────
+
+func _get_visual_mode() -> String:
+	return "field"
+
+func _get_type_label() -> String:
+	return "DEVICE"
+
+func _get_id_prefix() -> String:
+	return "dev_"
+
+func _get_save_label() -> String:
+	return "SAVE " + _get_type_label()
+
+func _build_visual_tab() -> Control:
+	return Control.new()
+
+func _collect_visual_data(data: Dictionary) -> void:
+	pass
+
+func _populate_visual_fields(_device: DeviceData) -> void:
+	pass
+
+func _reset_visual_defaults() -> void:
+	pass
+
+func _setup_visual_preview(_viewport: SubViewport) -> void:
+	pass
+
+func _update_visual_preview() -> void:
+	pass
+
+func _on_trigger_crossed() -> void:
+	pass
+
+func _on_auto_pulse() -> void:
+	pass
+
+func _update_visual_preview_frame(_delta: float) -> void:
+	pass
+
+func _save_data(id: String, data: Dictionary) -> void:
+	pass
+
+func _delete_data(id: String) -> void:
+	pass
+
+func _list_ids() -> Array[String]:
+	return []
+
+func _load_data(id: String) -> DeviceData:
+	return null
+
+
+# ── Lifecycle ──────────────────────────────────────────────
 
 func _ready() -> void:
 	_build_ui()
@@ -158,9 +192,9 @@ func _build_ui() -> void:
 	timing_tab.name = "Timing"
 	_tab_container.add_child(timing_tab)
 
-	var field_tab := _build_field_tab()
-	field_tab.name = "Field"
-	_tab_container.add_child(field_tab)
+	var visual_tab := _build_visual_tab()
+	visual_tab.name = "Visual"
+	_tab_container.add_child(visual_tab)
 
 	var mechanics_tab := _build_mechanics_tab()
 	mechanics_tab.name = "Mechanics"
@@ -175,7 +209,7 @@ func _build_ui() -> void:
 	root.add_child(bottom_bar)
 
 	_save_button = Button.new()
-	_save_button.text = "SAVE DEVICE"
+	_save_button.text = _get_save_label()
 	_save_button.custom_minimum_size.x = 200
 	_save_button.pressed.connect(_on_save)
 	bottom_bar.add_child(_save_button)
@@ -195,12 +229,12 @@ func _build_preview_panel() -> Control:
 	panel.add_child(vbox)
 
 	var preview_label := Label.new()
-	preview_label.text = "FIELD PREVIEW"
+	preview_label.text = _get_type_label() + " PREVIEW"
 	preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(preview_label)
 	_section_headers.append(preview_label)
 
-	# SubViewport for field preview
+	# SubViewport for preview
 	var viewport_container := SubViewportContainer.new()
 	viewport_container.custom_minimum_size = Vector2(300, 300)
 	viewport_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -227,23 +261,8 @@ func _build_preview_panel() -> Control:
 	ship_dot.position = Vector2(142, 138)
 	_preview_viewport.add_child(ship_dot)
 
-	# Field sprite
-	var field_node := Node2D.new()
-	field_node.position = Vector2(150, 150)
-	_preview_viewport.add_child(field_node)
-
-	_preview_field_sprite = Sprite2D.new()
-	_preview_field_sprite.z_index = -1
-	var img := Image.create(200, 200, false, Image.FORMAT_RGBA8)
-	img.fill(Color.WHITE)
-	_preview_field_sprite.texture = ImageTexture.create_from_image(img)
-	field_node.add_child(_preview_field_sprite)
-
-	# Orbiter preview renderer (centered on ship, hidden by default)
-	_preview_orbiter_renderer = OrbiterRenderer.new()
-	_preview_orbiter_renderer.position = Vector2(150, 150)
-	_preview_orbiter_renderer.visible = false
-	_preview_viewport.add_child(_preview_orbiter_renderer)
+	# Let subclass add its preview nodes
+	_setup_visual_preview(_preview_viewport)
 
 	_add_separator(vbox)
 
@@ -286,9 +305,9 @@ func _build_timing_tab() -> Control:
 	scroll.add_child(vbox)
 
 	# Name
-	_add_section_header(vbox, "DEVICE NAME")
+	_add_section_header(vbox, _get_type_label() + " NAME")
 	_name_input = LineEdit.new()
-	_name_input.placeholder_text = "Enter device name..."
+	_name_input.placeholder_text = "Enter name..."
 	_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_name_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	_name_input.add_theme_color_override("font_color", ThemeManager.get_color("header"))
@@ -360,112 +379,6 @@ func _build_timing_tab() -> Control:
 	_loop_browser = LoopBrowser.new()
 	_loop_browser.loop_selected.connect(_on_loop_selected)
 	vbox.add_child(_loop_browser)
-
-	return scroll
-
-
-func _build_field_tab() -> Control:
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-
-	var form := VBoxContainer.new()
-	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(form)
-
-	# Visual Mode
-	_add_section_header(form, "VISUAL MODE")
-	_visual_mode_button = OptionButton.new()
-	_visual_mode_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_visual_mode_button.add_item("Field")
-	_visual_mode_button.add_item("Orbiter")
-	_visual_mode_button.item_selected.connect(_on_visual_mode_changed)
-	form.add_child(_visual_mode_button)
-
-	_add_separator(form)
-
-	# Radius (field mode)
-	_add_section_header(form, "RADIUS")
-	var radius_row: Array = _add_slider_row(form, "Radius:", 20.0, 300.0, 100.0, 5.0)
-	_radius_slider = radius_row[0]
-	_radius_label = radius_row[1]
-
-	_add_separator(form)
-
-	# Field Style selector
-	_field_style_row = VBoxContainer.new()
-	_field_style_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	form.add_child(_field_style_row)
-	_add_section_header(_field_style_row, "FIELD STYLE")
-	_field_style_button = OptionButton.new()
-	_field_style_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_field_style_button.add_item("(none)")
-	_refresh_field_style_list()
-	_field_style_button.item_selected.connect(func(_idx: int) -> void:
-		_mark_dirty()
-		_update_field_preview()
-	)
-	_field_style_row.add_child(_field_style_button)
-
-	# Orbiter Style selector
-	_orbiter_style_row = VBoxContainer.new()
-	_orbiter_style_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_orbiter_style_row.visible = false
-	form.add_child(_orbiter_style_row)
-	_add_section_header(_orbiter_style_row, "ORBITER STYLE")
-	_orbiter_style_button = OptionButton.new()
-	_orbiter_style_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_orbiter_style_button.add_item("(none)")
-	_refresh_orbiter_style_list()
-	_orbiter_style_button.item_selected.connect(func(_idx: int) -> void:
-		_mark_dirty()
-		_update_field_preview()
-	)
-	_orbiter_style_row.add_child(_orbiter_style_button)
-
-	# Orbiter Lifetime (only visible in orbiter mode)
-	_orbiter_lifetime_row = VBoxContainer.new()
-	_orbiter_lifetime_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_orbiter_lifetime_row.visible = false
-	form.add_child(_orbiter_lifetime_row)
-	_add_section_header(_orbiter_lifetime_row, "ORBITER LIFETIME")
-	var lt_row: Array = _add_slider_row(_orbiter_lifetime_row, "Lifetime (s):", 0.5, 20.0, 4.0, 0.5)
-	_orbiter_lifetime_slider = lt_row[0]
-	_orbiter_lifetime_label = lt_row[1]
-
-	_add_separator(form)
-
-	# Fade durations
-	_add_section_header(form, "FADE")
-	var fi_row: Array = _add_slider_row(form, "Fade In (s):", 0.0, 2.0, 0.3, 0.05)
-	_fade_in_slider = fi_row[0]
-	_fade_in_label = fi_row[1]
-
-	var fo_row: Array = _add_slider_row(form, "Fade Out (s):", 0.0, 2.0, 0.3, 0.05)
-	_fade_out_slider = fo_row[0]
-	_fade_out_label = fo_row[1]
-
-	# Update orbiter preview fade durations when sliders change
-	_fade_in_slider.value_changed.connect(func(_v: float) -> void:
-		if _preview_orbiter_renderer:
-			_preview_orbiter_renderer.set_fade_durations(_fade_in_slider.value, _fade_out_slider.value)
-	)
-	_fade_out_slider.value_changed.connect(func(_v: float) -> void:
-		if _preview_orbiter_renderer:
-			_preview_orbiter_renderer.set_fade_durations(_fade_in_slider.value, _fade_out_slider.value)
-	)
-
-	_add_separator(form)
-
-	# Animation speed (field mode only)
-	_anim_speed_row = VBoxContainer.new()
-	_anim_speed_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	form.add_child(_anim_speed_row)
-	_add_section_header(_anim_speed_row, "ANIMATION")
-	var anim_row: Array = _add_slider_row(_anim_speed_row, "Anim Speed:", 0.1, 3.0, 1.0, 0.1)
-	_anim_speed_slider = anim_row[0]
-	_anim_speed_label = anim_row[1]
 
 	return scroll
 
@@ -638,115 +551,22 @@ func _on_device_type_changed(_idx: int) -> void:
 	_mark_dirty()
 
 
-func _on_visual_mode_changed(_idx: int) -> void:
-	var is_orbiter: bool = _visual_mode_button.selected == 1
-	_field_style_row.visible = not is_orbiter
-	_orbiter_style_row.visible = is_orbiter
-	_orbiter_lifetime_row.visible = is_orbiter
-	_anim_speed_row.visible = not is_orbiter
-	_mark_dirty()
-	_update_field_preview()
-
-
-func _refresh_field_style_list() -> void:
-	var current_sel: int = _field_style_button.selected if _field_style_button.get_item_count() > 0 else 0
-	_field_style_button.clear()
-	_field_style_button.add_item("(none)")
-	var ids: Array[String] = FieldStyleManager.list_ids()
-	for id in ids:
-		_field_style_button.add_item(id)
-	if current_sel < _field_style_button.get_item_count():
-		_field_style_button.selected = current_sel
-
-
-func _refresh_orbiter_style_list() -> void:
-	var current_sel: int = _orbiter_style_button.selected if _orbiter_style_button.get_item_count() > 0 else 0
-	_orbiter_style_button.clear()
-	_orbiter_style_button.add_item("(none)")
-	var ids: Array[String] = OrbiterStyleManager.list_ids()
-	for id in ids:
-		_orbiter_style_button.add_item(id)
-	if current_sel < _orbiter_style_button.get_item_count():
-		_orbiter_style_button.selected = current_sel
-
-
-func _update_field_preview() -> void:
-	if not _ui_ready:
-		return
-
-	var is_orbiter: bool = _visual_mode_button.selected == 1
-
-	# Toggle visibility between field and orbiter preview
-	if _preview_field_sprite:
-		_preview_field_sprite.visible = not is_orbiter
-	if _preview_orbiter_renderer:
-		_preview_orbiter_renderer.visible = is_orbiter
-
-	if is_orbiter:
-		# Orbiter preview — setup style only, orbiters spawn from triggers
-		if not _preview_orbiter_renderer:
-			return
-		_preview_orbiter_renderer.remove_all()
-		var orb_idx: int = _orbiter_style_button.selected
-		if orb_idx <= 0:
-			return
-		var orb_id: String = _orbiter_style_button.get_item_text(orb_idx)
-		var orb_style: OrbiterStyle = OrbiterStyleManager.load_by_id(orb_id)
-		if not orb_style:
-			return
-		_preview_orbiter_renderer.setup(orb_style)
-		_preview_orbiter_renderer.set_orbit_radius(_radius_slider.value)
-		_preview_orbiter_renderer.set_lifetime(_orbiter_lifetime_slider.value)
-		_preview_orbiter_renderer.set_fade_durations(_fade_in_slider.value, _fade_out_slider.value)
-		return
-
-	# Field preview
-	if not _preview_field_sprite:
-		return
-	var style_idx: int = _field_style_button.selected
-	if style_idx <= 0:
-		var shader: Shader = VFXFactory.get_field_shader("force_bubble")
-		if shader:
-			_preview_field_material = ShaderMaterial.new()
-			_preview_field_material.shader = shader
-			_preview_field_material.set_shader_parameter("field_color", _color_override_picker.color)
-			_preview_field_material.set_shader_parameter("brightness", 1.0)
-			_preview_field_material.set_shader_parameter("opacity", 1.0)
-			_preview_field_material.set_shader_parameter("pulse_intensity", 0.0)
-			_preview_field_sprite.material = _preview_field_material
-		return
-
-	var style_id: String = _field_style_button.get_item_text(style_idx)
-	var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
-	if not style:
-		return
-
-	_preview_field_material = VFXFactory.create_field_material(style, 100.0)
-	_preview_field_material.set_shader_parameter("animation_speed", _anim_speed_slider.value)
-	_preview_field_sprite.material = _preview_field_material
-
-
 # ── Preview Update (called every frame) ───────────────────
 
 func _update_preview(delta: float) -> void:
 	if not _ui_ready:
 		return
 
-	# Auto-pulse field preview only (orbiters spawn from triggers, not auto-pulse)
+	# Auto-pulse preview (cosmetic only — bars + subclass visual, NOT trigger spawns)
 	_auto_pulse_timer += delta
 	if _auto_pulse_timer >= 1.5:
 		_auto_pulse_timer = 0.0
-		if _preview_field_material:
-			_preview_field_material.set_shader_parameter("pulse_intensity", 1.0)
+		_on_auto_pulse()
 		for i in _preview_bar_brightness.size():
 			_preview_bar_brightness[i] = 1.0
 
-	# Decay field pulse
-	if _preview_field_material:
-		var current: float = float(_preview_field_material.get_shader_parameter("pulse_intensity"))
-		if current > 0.0:
-			current = maxf(0.0, current - delta / 0.3)
-			_preview_field_material.set_shader_parameter("pulse_intensity", current)
+	# Subclass frame update
+	_update_visual_preview_frame(delta)
 
 	# Trigger crossing detection from loop
 	var audition_id: String = "loop_browser_audition"
@@ -766,10 +586,7 @@ func _update_preview(delta: float) -> void:
 					else:
 						crossed = tval > prev and tval <= progress
 					if crossed:
-						if _preview_field_material:
-							_preview_field_material.set_shader_parameter("pulse_intensity", 1.0)
-						if _preview_orbiter_renderer:
-							_preview_orbiter_renderer.spawn_batch()
+						_on_trigger_crossed()
 						for i in _preview_bar_brightness.size():
 							_preview_bar_brightness[i] = 1.0
 			_prev_loop_progress = progress
@@ -826,33 +643,20 @@ func _collect_device_data() -> Dictionary:
 		var slider: HSlider = _mechanic_param_sliders[param_name]
 		mechanic_params[param_name] = slider.value
 
-	var visual_mode: String = "orbiter" if _visual_mode_button.selected == 1 else "field"
-
-	var field_style_id: String = ""
-	if _field_style_button.selected > 0:
-		field_style_id = _field_style_button.get_item_text(_field_style_button.selected)
-
-	var orbiter_style_id: String = ""
-	if _orbiter_style_button.selected > 0:
-		orbiter_style_id = _orbiter_style_button.get_item_text(_orbiter_style_button.selected)
-
 	var color: Color = _color_override_picker.color
 
-	return {
+	var data: Dictionary = {
 		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
 		"display_name": _name_input.text,
 		"description": "",
 		"loop_file_path": _loop_browser.get_selected_path() if _loop_browser else "",
 		"loop_length_bars": _waveform_editor.get_detected_bars() if _waveform_editor else 2,
 		"pulse_triggers": triggers,
-		"visual_mode": visual_mode,
-		"field_style_id": field_style_id,
-		"orbiter_style_id": orbiter_style_id,
-		"orbiter_lifetime": _orbiter_lifetime_slider.value,
-		"radius": _radius_slider.value,
-		"fade_in_duration": _fade_in_slider.value,
-		"fade_out_duration": _fade_out_slider.value,
-		"animation_speed": _anim_speed_slider.value,
+		"visual_mode": _get_visual_mode(),
+		"radius": 100.0,
+		"fade_in_duration": 0.3,
+		"fade_out_duration": 0.3,
+		"animation_speed": 1.0,
 		"device_type": _device_type_button.get_item_text(_device_type_button.selected),
 		"mechanic_params": mechanic_params,
 		"bar_effects": bar_effects,
@@ -860,18 +664,23 @@ func _collect_device_data() -> Dictionary:
 		"color_override": [color.r, color.g, color.b, color.a],
 	}
 
+	# Let subclass add its visual-mode-specific fields
+	_collect_visual_data(data)
+
+	return data
+
 
 # ── Save / Load / Delete ──────────────────────────────────
 
 func _on_save() -> void:
 	var name_text: String = _name_input.text.strip_edges()
 	if name_text == "":
-		_status_label.text = "Enter a device name first!"
+		_status_label.text = "Enter a name first!"
 		return
 	var data: Dictionary = _collect_device_data()
 	var id: String = str(data["id"])
 	_current_id = id
-	DeviceDataManager.save(id, data)
+	_save_data(id, data)
 	_status_label.text = "Saved: " + id
 	_refresh_load_list()
 	_dirty = false
@@ -881,7 +690,7 @@ func _on_load_selected(idx: int) -> void:
 	if idx <= 0:
 		return
 	var id: String = _load_button.get_item_text(idx)
-	var device: DeviceData = DeviceDataManager.load_by_id(id)
+	var device: DeviceData = _load_data(id)
 	if not device:
 		_status_label.text = "Failed to load: " + id
 		return
@@ -891,9 +700,9 @@ func _on_load_selected(idx: int) -> void:
 
 func _on_delete() -> void:
 	if _current_id == "":
-		_status_label.text = "No device loaded to delete."
+		_status_label.text = "Nothing loaded to delete."
 		return
-	DeviceDataManager.delete(_current_id)
+	_delete_data(_current_id)
 	_status_label.text = "Deleted: " + _current_id
 	_current_id = ""
 	_on_new()
@@ -904,21 +713,9 @@ func _on_new() -> void:
 	_current_id = ""
 	_populating = true
 	_name_input.text = ""
-	_radius_slider.value = 100.0
-	_fade_in_slider.value = 0.3
-	_fade_out_slider.value = 0.3
-	_anim_speed_slider.value = 1.0
 	_device_type_button.selected = 0
 	_rebuild_mechanic_params("shield_aura")
 	_color_override_picker.color = Color.WHITE
-	_visual_mode_button.selected = 0
-	_field_style_button.selected = 0
-	_orbiter_style_button.selected = 0
-	_orbiter_lifetime_slider.value = 4.0
-	_field_style_row.visible = true
-	_orbiter_style_row.visible = false
-	_orbiter_lifetime_row.visible = false
-	_anim_speed_row.visible = true
 	for bar_type in _bar_effect_sliders:
 		var slider: HSlider = _bar_effect_sliders[bar_type]
 		slider.value = 0.0
@@ -927,16 +724,17 @@ func _on_new() -> void:
 		slider.value = 0.0
 	if _waveform_editor:
 		_waveform_editor.set_triggers([])
+	_reset_visual_defaults()
 	_populating = false
 	_dirty = false
-	_update_field_preview()
-	_status_label.text = "New device — ready to edit."
+	_update_visual_preview()
+	_status_label.text = "New " + _get_type_label().to_lower() + " — ready to edit."
 
 
 func _refresh_load_list() -> void:
 	_load_button.clear()
-	_load_button.add_item("(select device)")
-	var ids: Array[String] = DeviceDataManager.list_ids()
+	_load_button.add_item("(select " + _get_type_label().to_lower() + ")")
+	var ids: Array[String] = _list_ids()
 	for id in ids:
 		_load_button.add_item(id)
 
@@ -958,37 +756,6 @@ func _populate_from_device(device: DeviceData) -> void:
 		triggers.append(float(t))
 	_waveform_editor.set_triggers(triggers)
 
-	# Field subtab
-	_radius_slider.value = device.radius
-	_fade_in_slider.value = device.fade_in_duration
-	_fade_out_slider.value = device.fade_out_duration
-	_anim_speed_slider.value = device.animation_speed
-
-	# Visual mode
-	var is_orbiter: bool = device.visual_mode == "orbiter"
-	_visual_mode_button.selected = 1 if is_orbiter else 0
-	_field_style_row.visible = not is_orbiter
-	_orbiter_style_row.visible = is_orbiter
-	_orbiter_lifetime_row.visible = is_orbiter
-	_anim_speed_row.visible = not is_orbiter
-	_orbiter_lifetime_slider.value = device.orbiter_lifetime
-
-	# Field style
-	_refresh_field_style_list()
-	if device.field_style_id != "":
-		for i in _field_style_button.get_item_count():
-			if _field_style_button.get_item_text(i) == device.field_style_id:
-				_field_style_button.selected = i
-				break
-
-	# Orbiter style
-	_refresh_orbiter_style_list()
-	if device.orbiter_style_id != "":
-		for i in _orbiter_style_button.get_item_count():
-			if _orbiter_style_button.get_item_text(i) == device.orbiter_style_id:
-				_orbiter_style_button.selected = i
-				break
-
 	# Mechanics
 	var type_idx: int = DEVICE_TYPES.find(device.device_type)
 	_device_type_button.selected = type_idx if type_idx >= 0 else 0
@@ -1009,14 +776,18 @@ func _populate_from_device(device: DeviceData) -> void:
 	# Effects
 	_color_override_picker.color = device.color_override
 
+	# Let subclass populate its visual fields
+	_populate_visual_fields(device)
+
 	_populating = false
 	_dirty = false
-	_update_field_preview()
+	_update_visual_preview()
 
 
 func _generate_id(display_name: String) -> String:
+	var prefix: String = _get_id_prefix()
 	if display_name.strip_edges() == "":
-		return "device_" + str(randi() % 10000)
+		return prefix + str(randi() % 10000)
 	var id: String = display_name.strip_edges().to_lower().replace(" ", "_")
 	var valid_chars: String = "abcdefghijklmnopqrstuvwxyz0123456789_"
 	var clean: String = ""
@@ -1024,13 +795,15 @@ func _generate_id(display_name: String) -> String:
 		if valid_chars.contains(c):
 			clean += c
 	if clean == "":
-		clean = "device_" + str(randi() % 10000)
+		clean = prefix + str(randi() % 10000)
+	else:
+		clean = prefix + clean
 	return clean
 
 
 # ── Waveform / Loop Callbacks ─────────────────────────────
 
-func _on_triggers_changed(triggers: Array) -> void:
+func _on_triggers_changed(_triggers: Array) -> void:
 	_mark_dirty()
 
 
@@ -1048,7 +821,7 @@ func _on_play_pause() -> void:
 			LoopMixer.mute(audition_id)
 
 
-func _on_seek(position: float) -> void:
+func _on_seek(_position: float) -> void:
 	pass  # Seek not directly supported on LoopMixer audition
 
 

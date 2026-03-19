@@ -232,6 +232,68 @@ func _input(event: InputEvent) -> void:
 		_update_hud_devices()
 		return
 
+	# Combo presets
+	var presets: Array = KeyBindingManager.get_combo_presets()
+	for pi in presets.size():
+		var action: String = "combo_preset_" + str(pi)
+		if InputMap.has_action(action) and event.is_action_pressed(action):
+			_apply_combo_pattern(presets[pi].get("pattern", {}) as Dictionary)
+			return
+
+
+func _apply_combo_pattern(pattern: Dictionary) -> void:
+	# Apply ext slots to hardpoint controllers
+	var hp_idx: int = 0
+	for i in 3:
+		var slot_key: String = "ext_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var weapon_id: String = str(slot_data.get("weapon_id", ""))
+		if weapon_id == "":
+			continue
+		if hp_idx < _hardpoint_controllers.size():
+			var on: bool = pattern.get(slot_key, false)
+			if on:
+				_hardpoint_controllers[hp_idx].activate()
+			else:
+				_hardpoint_controllers[hp_idx].deactivate()
+		hp_idx += 1
+
+	# Apply int slots to core controllers
+	var core_idx: int = 0
+	for i in 3:
+		var slot_key: String = "int_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id == "":
+			continue
+		if core_idx < _core_controllers.size():
+			var on: bool = pattern.get(slot_key, false)
+			if on:
+				_core_controllers[core_idx].activate()
+			else:
+				_core_controllers[core_idx].deactivate()
+		core_idx += 1
+
+	# Apply dev slots to device controllers
+	var dev_idx: int = 0
+	for i in 2:
+		var slot_key: String = "dev_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id == "":
+			continue
+		if dev_idx < _device_controllers.size():
+			var on: bool = pattern.get(slot_key, false)
+			if on:
+				_device_controllers[dev_idx].activate()
+			else:
+				_device_controllers[dev_idx].deactivate()
+		dev_idx += 1
+
+	_update_hud_hardpoints()
+	_update_hud_cores()
+	_update_hud_devices()
+
 
 func _update_hud_hardpoints() -> void:
 	if not _hud or not _hud.has_method("update_hardpoints"):
@@ -277,8 +339,7 @@ func _update_hud_cores() -> void:
 		var controller: PowerCoreController = _core_controllers[i]
 		var core_info: Dictionary = _core_data_per_slot[i]
 		var pc: PowerCoreData = core_info["pc"]
-		var keys: Array[String] = ["E", "R", "F"]
-		var key_label: String = keys[i] if i < keys.size() else str(i + 1)
+		var key_label: String = KeyBindingManager.get_key_label_for_slot("int_" + str(i))
 		data.append({
 			"label": core_info["label"],
 			"core_name": pc.display_name if pc.display_name != "" else pc.id,
@@ -304,8 +365,7 @@ func _update_hud_devices() -> void:
 		var controller: DeviceController = _device_controllers[i]
 		var dev_info: Dictionary = _device_data_per_slot[i]
 		var device: DeviceData = dev_info["device"]
-		var keys: Array[String] = ["T", "G"]
-		var key_label: String = keys[i] if i < keys.size() else str(i + 1)
+		var key_label: String = KeyBindingManager.get_key_label_for_slot("dev_" + str(i))
 		data.append({
 			"label": dev_info["label"],
 			"device_name": device.display_name if device.display_name != "" else device.id,
