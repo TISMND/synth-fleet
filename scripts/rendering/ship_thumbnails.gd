@@ -38,28 +38,24 @@ static func draw_ship_on(ci: CanvasItem, index: int, at_origin: Vector2,
 		8: ctx.draw_bastion(o)
 
 
+## Draw any enemy thumbnail on any CanvasItem, dispatched by visual_id.
+static func draw_enemy_on(ci: CanvasItem, visual_id: String, at_origin: Vector2, mode: int) -> void:
+	var ctx := _DrawCtx.new(ci, mode)
+	match visual_id:
+		"sentinel": ctx.draw_sentinel(at_origin)
+		"dart": ctx.draw_dart(at_origin)
+		"crucible": ctx.draw_crucible(at_origin)
+		"prism": ctx.draw_prism(at_origin)
+		"scythe": ctx.draw_scythe(at_origin)
+		"tesseract": ctx.draw_tesseract(at_origin)
+		"talon": ctx.draw_talon(at_origin)
+		"obelisk": ctx.draw_obelisk(at_origin)
+		_: ctx.draw_sentinel(at_origin)
+
 ## Draw a sentinel enemy thumbnail on any CanvasItem.
 static func draw_sentinel_on(ci: CanvasItem, at_origin: Vector2, mode: int) -> void:
 	var ctx := _DrawCtx.new(ci, mode)
-	var s := 0.5
-	var r: float = 16.0 * s
-	var cyan_col := Color(0.0, 0.9, 1.0)
-	var magenta_col := Color(1.0, 0.2, 0.6)
-	# Circle body
-	var circle_pts := PackedVector2Array()
-	for i in range(16):
-		var angle: float = TAU * float(i) / 16.0
-		circle_pts.append(at_origin + Vector2(cos(angle) * r, sin(angle) * r))
-	ctx.mp(circle_pts, cyan_col, 0.8)
-	# Inner hexagon
-	var hex_pts := PackedVector2Array()
-	var hex_r: float = 9.0 * s
-	for i in range(6):
-		var angle: float = TAU * float(i) / 6.0
-		hex_pts.append(at_origin + Vector2(cos(angle) * hex_r, sin(angle) * hex_r))
-	ctx.mp(hex_pts, magenta_col, 0.6)
-	# Center dot
-	ci.draw_circle(at_origin, 2.0, cyan_col)
+	ctx.draw_sentinel(at_origin)
 
 
 # ── Internal draw context — holds CanvasItem ref + render mode for static calls ──
@@ -435,3 +431,172 @@ class _DrawCtx:
 		ml(o + Vector2(4, 44) * s, o + Vector2(4, 52) * s, orange, 0.8)
 		ml(o + Vector2(12, 44) * s, o + Vector2(12, 52) * s, orange, 0.8)
 		ml(o + Vector2(20, 44) * s, o + Vector2(20, 52) * s, orange, 0.8)
+
+	# ── Enemy ship thumbnails ──
+
+	func draw_sentinel(o: Vector2) -> void:
+		var s := 0.5
+		var r: float = 16.0 * s
+		# Circle body
+		var circle_pts := PackedVector2Array()
+		for i in range(16):
+			var angle: float = TAU * float(i) / 16.0
+			circle_pts.append(o + Vector2(cos(angle) * r, sin(angle) * r))
+		mp(circle_pts, cyan, 0.8)
+		# Inner hexagon
+		var hex_pts := PackedVector2Array()
+		var hex_r: float = 9.0 * s
+		for i in range(6):
+			var angle: float = TAU * float(i) / 6.0
+			hex_pts.append(o + Vector2(cos(angle) * hex_r, sin(angle) * hex_r))
+		mp(hex_pts, magenta, 0.6)
+		# Center dot
+		ci.draw_circle(o, 2.0, cyan)
+
+	func draw_dart(o: Vector2) -> void:
+		var s := 0.5
+		# Narrow arrowhead facing down
+		var body := PackedVector2Array([
+			o + Vector2(0, 18) * s,
+			o + Vector2(8, -4) * s,
+			o + Vector2(5, -16) * s,
+			o + Vector2(0, -12) * s,
+			o + Vector2(-5, -16) * s,
+			o + Vector2(-8, -4) * s,
+		])
+		mp(body, cyan, 0.7)
+		ml(o + Vector2(8, -4) * s, o + Vector2(12, 2) * s, magenta, 0.5)
+		ml(o + Vector2(-8, -4) * s, o + Vector2(-12, 2) * s, magenta, 0.5)
+		ml(o + Vector2(0, 14) * s, o + Vector2(0, -10) * s, teal, 0.4)
+		ci.draw_circle(o + Vector2(0, -14) * s, 1.5, orange)
+
+	func draw_crucible(o: Vector2) -> void:
+		var s := 0.4
+		# Wide hexagon
+		var hex := PackedVector2Array([
+			o + Vector2(0, -16) * s, o + Vector2(14, -8) * s,
+			o + Vector2(14, 8) * s, o + Vector2(0, 16) * s,
+			o + Vector2(-14, 8) * s, o + Vector2(-14, -8) * s,
+		])
+		mp(hex, cyan, 0.8)
+		# Side nacelles
+		var rn := PackedVector2Array([
+			o + Vector2(14, -4) * s, o + Vector2(20, -6) * s,
+			o + Vector2(20, 10) * s, o + Vector2(14, 8) * s,
+		])
+		mp(rn, cyan, 0.6)
+		var ln := PackedVector2Array([
+			o + Vector2(-14, -4) * s, o + Vector2(-20, -6) * s,
+			o + Vector2(-20, 10) * s, o + Vector2(-14, 8) * s,
+		])
+		mp(ln, cyan, 0.6)
+		# Forward pylons
+		ml(o + Vector2(4, -16) * s, o + Vector2(3, -24) * s, magenta, 0.6)
+		ml(o + Vector2(-4, -16) * s, o + Vector2(-3, -24) * s, magenta, 0.6)
+		ci.draw_circle(o, 2.0, teal)
+
+	func draw_prism(o: Vector2) -> void:
+		var s := 0.45
+		# 3 static triangles at different angles
+		var radii: Array[float] = [14.0, 10.0, 6.0]
+		var offsets: Array[float] = [0.0, 0.5, 1.2]
+		var cols: Array[Color] = [cyan, magenta, teal]
+		var wids: Array[float] = [0.8, 0.6, 0.5]
+		for t_idx in range(3):
+			var tri := PackedVector2Array()
+			var r: float = radii[t_idx] * s
+			for i in range(3):
+				var angle: float = TAU * float(i) / 3.0 + offsets[t_idx]
+				tri.append(o + Vector2(cos(angle) * r, sin(angle) * r))
+			mp(tri, cols[t_idx], wids[t_idx])
+		ci.draw_circle(o, 2.0, Color(1.0, 1.0, 1.0, 0.7))
+
+	func draw_scythe(o: Vector2) -> void:
+		var s := 0.45
+		# Crescent blade — U opens downward
+		var blade := PackedVector2Array()
+		var rot: float = -PI * 0.5
+		var pts := 8
+		for i in range(pts):
+			var t: float = float(i) / float(pts - 1)
+			var angle: float = -PI * 0.6 + t * PI * 1.2 + rot
+			var r: float = 16.0 * s
+			blade.append(o + Vector2(cos(angle) * r, sin(angle) * r))
+		for i in range(pts - 1, -1, -1):
+			var t: float = float(i) / float(pts - 1)
+			var angle: float = -PI * 0.6 + t * PI * 1.2 + rot
+			var r: float = 9.0 * s
+			blade.append(o + Vector2(cos(angle) * r, sin(angle) * r))
+		mp(blade, cyan, 0.7)
+		# Cockpit
+		var cp := PackedVector2Array([
+			o + Vector2(3, -2) * s, o + Vector2(3, 2) * s,
+			o + Vector2(-2, 3) * s, o + Vector2(-2, -3) * s,
+		])
+		mp(cp, magenta, 0.5)
+
+	func draw_tesseract(o: Vector2) -> void:
+		var s := 0.45
+		# 3 nested squares
+		var sizes: Array[float] = [14.0, 10.0, 5.5]
+		var cols: Array[Color] = [cyan, magenta, teal]
+		var wids: Array[float] = [0.8, 0.6, 0.5]
+		for sq_idx in range(3):
+			var h: float = sizes[sq_idx] * s
+			var sq := PackedVector2Array([
+				o + Vector2(-h, -h), o + Vector2(h, -h),
+				o + Vector2(h, h), o + Vector2(-h, h),
+			])
+			mp(sq, cols[sq_idx], wids[sq_idx])
+		# Corner wireframe lines
+		var oh: float = sizes[0] * s
+		var ih: float = sizes[2] * s
+		ml(o + Vector2(-oh, -oh), o + Vector2(-ih, -ih), teal, 0.3)
+		ml(o + Vector2(oh, -oh), o + Vector2(ih, -ih), teal, 0.3)
+		ml(o + Vector2(oh, oh), o + Vector2(ih, ih), teal, 0.3)
+		ml(o + Vector2(-oh, oh), o + Vector2(-ih, ih), teal, 0.3)
+		ci.draw_circle(o, 1.5, Color(1.0, 1.0, 1.0, 0.7))
+
+	func draw_talon(o: Vector2) -> void:
+		var s := 0.45
+		# Twin booms facing down
+		var rb := PackedVector2Array([
+			o + Vector2(6, 18) * s, o + Vector2(10, 18) * s,
+			o + Vector2(11, -12) * s, o + Vector2(5, -12) * s,
+		])
+		mp(rb, cyan, 0.7)
+		var lb := PackedVector2Array([
+			o + Vector2(-6, 18) * s, o + Vector2(-10, 18) * s,
+			o + Vector2(-11, -12) * s, o + Vector2(-5, -12) * s,
+		])
+		mp(lb, cyan, 0.7)
+		# Crossbar wing
+		var wing := PackedVector2Array([
+			o + Vector2(-12, 2) * s, o + Vector2(12, 2) * s,
+			o + Vector2(13, -2) * s, o + Vector2(-13, -2) * s,
+		])
+		mp(wing, cyan, 0.6)
+		# Weapon pod diamond
+		var pod := PackedVector2Array([
+			o + Vector2(0, 24) * s, o + Vector2(3, 18) * s,
+			o + Vector2(0, 12) * s, o + Vector2(-3, 18) * s,
+		])
+		mp(pod, magenta, 0.5)
+		ci.draw_circle(o + Vector2(8, -12) * s, 1.5, orange)
+		ci.draw_circle(o + Vector2(-8, -12) * s, 1.5, orange)
+
+	func draw_obelisk(o: Vector2) -> void:
+		var s := 0.45
+		# Tall narrow rectangle (static, no rotation in thumbnail)
+		var hw: float = 5.0 * s
+		var hh: float = 16.0 * s
+		var rect := PackedVector2Array([
+			o + Vector2(-hw, -hh), o + Vector2(hw, -hh),
+			o + Vector2(hw, hh), o + Vector2(-hw, hh),
+		])
+		mp(rect, cyan, 0.8)
+		# Scan line
+		ml(o + Vector2(-hw * 0.7, 0), o + Vector2(hw * 0.7, 0), magenta, 0.5)
+		# Corner dots
+		for corner in [Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, hh), Vector2(-hw, hh)]:
+			ci.draw_circle(o + corner, 1.5, teal)

@@ -1154,13 +1154,13 @@ class _ShipSelector extends Node2D:
 				draw_rect(Rect2(2, slot_y + 2, PANEL_WIDTH - 4, SLOT_HEIGHT - 4), hl)
 				draw_rect(Rect2(2, slot_y + 2, PANEL_WIDTH - 4, SLOT_HEIGHT - 4), Color(cyan.r, cyan.g, cyan.b, 0.4), false, 1.0)
 
-			# Draw sentinel thumbnail
+			# Draw enemy thumbnail based on visual_id
 			var origin := Vector2(PANEL_WIDTH * 0.5, cy)
-			ShipThumbnails.draw_sentinel_on(self, origin, render_mode)
+			var ship_data: ShipData = enemy_ships[i]
+			ShipThumbnails.draw_enemy_on(self, ship_data.visual_id, origin, render_mode)
 
 			# Enemy name
-			var ship: ShipData = enemy_ships[i]
-			var name_text: String = ship.display_name
+			var name_text: String = ship_data.display_name
 			var font_size: int = 12
 			var label_col: Color = cyan if selected else Color(0.5, 0.5, 0.6)
 			var text_width: float = font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x

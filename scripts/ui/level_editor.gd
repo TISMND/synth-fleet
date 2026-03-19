@@ -40,6 +40,8 @@ var _encounter_drag_origin_x: float = 0.0
 
 # Right panel
 var _right_panel: PanelContainer
+var _right_panel_vbox: VBoxContainer  # Persistent outer container — never rebuilt
+var _right_content: VBoxContainer     # Inner content — rebuilt on selection change
 
 # Cached data for dropdowns
 var _cached_path_ids: Array[String] = []
@@ -532,33 +534,42 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	style.content_margin_bottom = 10
 	_right_panel.add_theme_stylebox_override("panel", style)
 	parent.add_child(_right_panel)
-	_rebuild_right_panel_content()
 
-
-func _rebuild_right_panel_content() -> void:
-	for child in _right_panel.get_children():
-		_right_panel.remove_child(child)
-		child.queue_free()
-
-	var vbox := VBoxContainer.new()
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.custom_minimum_size.x = RIGHT_PANEL_W - 16  # Prevent panel from shrinking when content hidden
-	vbox.add_theme_constant_override("separation", 6)
-	_right_panel.add_child(vbox)
+	# Persistent outer vbox — never destroyed, anchors the panel width
+	_right_panel_vbox = VBoxContainer.new()
+	_right_panel_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_panel_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_right_panel_vbox.custom_minimum_size.x = RIGHT_PANEL_W - 16
+	_right_panel_vbox.add_theme_constant_override("separation", 6)
+	_right_panel.add_child(_right_panel_vbox)
 
 	var header := Label.new()
 	header.text = "ENCOUNTER"
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.custom_minimum_size.x = RIGHT_PANEL_W - 16
 	ThemeManager.apply_text_glow(header, "header")
-	vbox.add_child(header)
+	_right_panel_vbox.add_child(header)
+
+	_right_content = VBoxContainer.new()
+	_right_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_right_content.add_theme_constant_override("separation", 6)
+	_right_panel_vbox.add_child(_right_content)
+
+	_rebuild_right_panel_content()
+
+
+func _rebuild_right_panel_content() -> void:
+	for child in _right_content.get_children():
+		_right_content.remove_child(child)
+		child.queue_free()
 
 	if not _selected_level or _selected_encounter_idx < 0 or _selected_encounter_idx >= _selected_level.encounters.size():
 		var hint := Label.new()
 		hint.text = "Click map to place"
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
-		vbox.add_child(hint)
+		_right_content.add_child(hint)
 		return
 
 	var enc: Dictionary = _selected_level.encounters[_selected_encounter_idx]
@@ -568,7 +579,7 @@ func _rebuild_right_panel_content() -> void:
 	var path_label := Label.new()
 	path_label.text = "PATH"
 	ThemeManager.apply_text_glow(path_label, "body")
-	vbox.add_child(path_label)
+	_right_content.add_child(path_label)
 
 	var path_dropdown := OptionButton.new()
 	var current_path_id: String = str(enc.get("path_id", ""))
@@ -586,16 +597,16 @@ func _rebuild_right_panel_content() -> void:
 			_save_current_level()
 			_map_canvas.queue_redraw()
 	)
-	vbox.add_child(path_dropdown)
+	_right_content.add_child(path_dropdown)
 
 	# Formation dropdown
 	var sep1 := HSeparator.new()
-	vbox.add_child(sep1)
+	_right_content.add_child(sep1)
 
 	var fm_label := Label.new()
 	fm_label.text = "FORMATION"
 	ThemeManager.apply_text_glow(fm_label, "body")
-	vbox.add_child(fm_label)
+	_right_content.add_child(fm_label)
 
 	var fm_dropdown := OptionButton.new()
 	fm_dropdown.add_item("(none - single ship)", 0)
@@ -614,13 +625,13 @@ func _rebuild_right_panel_content() -> void:
 			_save_current_level()
 			_map_canvas.queue_redraw()
 	)
-	vbox.add_child(fm_dropdown)
+	_right_content.add_child(fm_dropdown)
 
 	# Ship dropdown (for single-ship mode)
 	var ship_label := Label.new()
 	ship_label.text = "SHIP (single)"
 	ThemeManager.apply_text_glow(ship_label, "body")
-	vbox.add_child(ship_label)
+	_right_content.add_child(ship_label)
 
 	var ship_dropdown := OptionButton.new()
 	var current_ship_id: String = str(enc.get("ship_id", ""))
@@ -637,16 +648,16 @@ func _rebuild_right_panel_content() -> void:
 			_selected_level.encounters[enc_idx]["ship_id"] = str(ship_dropdown.get_item_metadata(idx))
 			_save_current_level()
 	)
-	vbox.add_child(ship_dropdown)
+	_right_content.add_child(ship_dropdown)
 
 	# Speed
 	var sep2 := HSeparator.new()
-	vbox.add_child(sep2)
+	_right_content.add_child(sep2)
 
 	var speed_label := Label.new()
 	speed_label.text = "SPEED"
 	ThemeManager.apply_text_glow(speed_label, "body")
-	vbox.add_child(speed_label)
+	_right_content.add_child(speed_label)
 	var speed_spin := SpinBox.new()
 	speed_spin.min_value = 50
 	speed_spin.max_value = 1000
@@ -657,13 +668,13 @@ func _rebuild_right_panel_content() -> void:
 			_selected_level.encounters[enc_idx]["speed"] = v
 			_save_current_level()
 	)
-	vbox.add_child(speed_spin)
+	_right_content.add_child(speed_spin)
 
 	# Count
 	var count_label := Label.new()
 	count_label.text = "COUNT"
 	ThemeManager.apply_text_glow(count_label, "body")
-	vbox.add_child(count_label)
+	_right_content.add_child(count_label)
 	var count_spin := SpinBox.new()
 	count_spin.min_value = 1
 	count_spin.max_value = 20
@@ -675,13 +686,13 @@ func _rebuild_right_panel_content() -> void:
 			_save_current_level()
 			_map_canvas.queue_redraw()
 	)
-	vbox.add_child(count_spin)
+	_right_content.add_child(count_spin)
 
 	# Spacing
 	var spacing_label := Label.new()
 	spacing_label.text = "SPACING"
 	ThemeManager.apply_text_glow(spacing_label, "body")
-	vbox.add_child(spacing_label)
+	_right_content.add_child(spacing_label)
 	var spacing_spin := SpinBox.new()
 	spacing_spin.min_value = 50
 	spacing_spin.max_value = 2000
@@ -692,11 +703,11 @@ func _rebuild_right_panel_content() -> void:
 			_selected_level.encounters[enc_idx]["spacing"] = v
 			_save_current_level()
 	)
-	vbox.add_child(spacing_spin)
+	_right_content.add_child(spacing_spin)
 
 	# Action buttons
 	var sep3 := HSeparator.new()
-	vbox.add_child(sep3)
+	_right_content.add_child(sep3)
 
 	var center_btn := Button.new()
 	center_btn.text = "CENTER"
@@ -708,7 +719,7 @@ func _rebuild_right_panel_content() -> void:
 			_map_canvas.queue_redraw()
 	)
 	ThemeManager.apply_button_style(center_btn)
-	vbox.add_child(center_btn)
+	_right_content.add_child(center_btn)
 
 	var del_btn := Button.new()
 	del_btn.text = "DELETE ENCOUNTER"
@@ -721,7 +732,7 @@ func _rebuild_right_panel_content() -> void:
 			_map_canvas.queue_redraw()
 	)
 	ThemeManager.apply_button_style(del_btn)
-	vbox.add_child(del_btn)
+	_right_content.add_child(del_btn)
 
 
 # ── Data operations ────────────────────────────────────────────

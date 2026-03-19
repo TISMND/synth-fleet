@@ -69,8 +69,8 @@
 			"ship_id": "enemy_1",
 			"spacing": 200.0,
 			"speed": 700.0,
-			"trigger_y": 1682.0987654321,
-			"x_offset": 70.8624708624709
+			"trigger_y": 1651.23456790124,
+			"x_offset": 69.2381053802374
 		},
 		{
 			"count": 7,

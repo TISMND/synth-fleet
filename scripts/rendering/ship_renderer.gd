@@ -193,14 +193,14 @@ func _draw_sentinel() -> void:
 
 func _draw_dart() -> void:
 	var s := 1.0
-	# Narrow downward-pointing arrowhead
+	# Narrow arrowhead facing downward (+Y = forward)
 	var body := PackedVector2Array([
-		Vector2(0 * s, -18 * s),
-		Vector2(8 * s, 4 * s),
-		Vector2(5 * s, 16 * s),
-		Vector2(0 * s, 12 * s),
-		Vector2(-5 * s, 16 * s),
-		Vector2(-8 * s, 4 * s),
+		Vector2(0 * s, 18 * s),
+		Vector2(8 * s, -4 * s),
+		Vector2(5 * s, -16 * s),
+		Vector2(0 * s, -12 * s),
+		Vector2(-5 * s, -16 * s),
+		Vector2(-8 * s, -4 * s),
 	])
 	_poly(body, hull_color, 1.4 * s)
 
@@ -208,17 +208,17 @@ func _draw_dart() -> void:
 	var pulse: float = 0.5 + sin(time * 4.0) * 0.5
 	var tip_col := accent_color
 	tip_col.a = pulse
-	_line(Vector2(8 * s, 4 * s), Vector2(12 * s, -2 * s), tip_col, 1.0 * s)
-	_line(Vector2(-8 * s, 4 * s), Vector2(-12 * s, -2 * s), tip_col, 1.0 * s)
+	_line(Vector2(8 * s, -4 * s), Vector2(12 * s, 2 * s), tip_col, 1.0 * s)
+	_line(Vector2(-8 * s, -4 * s), Vector2(-12 * s, 2 * s), tip_col, 1.0 * s)
 
 	# Spine detail
-	_line(Vector2(0 * s, -14 * s), Vector2(0 * s, 10 * s), detail_color, 0.7 * s)
+	_line(Vector2(0 * s, 14 * s), Vector2(0 * s, -10 * s), detail_color, 0.7 * s)
 
-	# Single engine glow at rear
+	# Single engine glow at rear (top of screen)
 	var eng_pulse: float = 0.7 + sin(time * 6.0) * 0.3
 	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
-	draw_circle(Vector2(0, 14 * s), 3.0 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
-	draw_circle(Vector2(0, 14 * s), 1.8 * s, eng_col)
+	draw_circle(Vector2(0, -14 * s), 3.0 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
+	draw_circle(Vector2(0, -14 * s), 1.8 * s, eng_col)
 
 func _draw_crucible() -> void:
 	var s := 1.8
@@ -290,20 +290,21 @@ func _draw_prism() -> void:
 
 func _draw_scythe() -> void:
 	var s := 1.3
-	# Curved crescent blade — arc of ~10 points
+	# Curved crescent blade — rotated 90° CCW so blade sweeps horizontally
 	var blade := PackedVector2Array()
 	var arc_points := 10
 	var breath: float = sin(time * 1.5) * 2.0
+	var rot: float = -PI * 0.5  # Rotate so U-shape opens downward
 	# Outer arc (wider)
 	for i in range(arc_points):
 		var t: float = float(i) / float(arc_points - 1)
-		var angle: float = -PI * 0.6 + t * PI * 1.2
+		var angle: float = -PI * 0.6 + t * PI * 1.2 + rot
 		var r: float = (18.0 + breath * (1.0 - abs(t - 0.5) * 2.0)) * s
 		blade.append(Vector2(cos(angle) * r, sin(angle) * r))
 	# Inner arc (return path, narrower)
 	for i in range(arc_points - 1, -1, -1):
 		var t: float = float(i) / float(arc_points - 1)
-		var angle: float = -PI * 0.6 + t * PI * 1.2
+		var angle: float = -PI * 0.6 + t * PI * 1.2 + rot
 		var r: float = 10.0 * s
 		blade.append(Vector2(cos(angle) * r, sin(angle) * r))
 	_poly(blade, hull_color, 1.6 * s)
@@ -312,12 +313,12 @@ func _draw_scythe() -> void:
 	for i in range(arc_points - 1):
 		var t0: float = float(i) / float(arc_points - 1)
 		var t1: float = float(i + 1) / float(arc_points - 1)
-		var a0: float = -PI * 0.6 + t0 * PI * 1.2
-		var a1: float = -PI * 0.6 + t1 * PI * 1.2
+		var a0: float = -PI * 0.6 + t0 * PI * 1.2 + rot
+		var a1: float = -PI * 0.6 + t1 * PI * 1.2 + rot
 		var r: float = 11.0 * s
 		_line(Vector2(cos(a0) * r, sin(a0) * r), Vector2(cos(a1) * r, sin(a1) * r), detail_color, 0.8 * s)
 
-	# Cockpit pod at curve center
+	# Cockpit pod near top of curve
 	var cockpit := PackedVector2Array([
 		Vector2(-3 * s, -4 * s),
 		Vector2(3 * s, -4 * s),
@@ -326,7 +327,7 @@ func _draw_scythe() -> void:
 	])
 	_poly(cockpit, accent_color, 1.2 * s)
 
-	# Engine glow
+	# Engine glow behind cockpit
 	draw_circle(Vector2(0, 5 * s), 2.0 * s, Color(engine_color.r, engine_color.g, engine_color.b, 0.6 + sin(time * 4.0) * 0.3))
 
 func _draw_tesseract() -> void:
@@ -370,52 +371,52 @@ func _draw_tesseract() -> void:
 
 func _draw_talon() -> void:
 	var s := 1.3
-	# Twin parallel boom polygons (P-38 style)
+	# Twin parallel boom polygons (P-38 style, facing down)
 	var r_boom := PackedVector2Array([
-		Vector2(6 * s, -20 * s),
-		Vector2(10 * s, -20 * s),
-		Vector2(11 * s, 14 * s),
-		Vector2(5 * s, 14 * s),
+		Vector2(6 * s, 20 * s),
+		Vector2(10 * s, 20 * s),
+		Vector2(11 * s, -14 * s),
+		Vector2(5 * s, -14 * s),
 	])
 	_poly(r_boom, hull_color, 1.6 * s)
 	var l_boom := PackedVector2Array([
-		Vector2(-6 * s, -20 * s),
-		Vector2(-10 * s, -20 * s),
-		Vector2(-11 * s, 14 * s),
-		Vector2(-5 * s, 14 * s),
+		Vector2(-6 * s, 20 * s),
+		Vector2(-10 * s, 20 * s),
+		Vector2(-11 * s, -14 * s),
+		Vector2(-5 * s, -14 * s),
 	])
 	_poly(l_boom, hull_color, 1.6 * s)
 
 	# Connecting crossbar wing
 	var wing := PackedVector2Array([
-		Vector2(-12 * s, -2 * s),
-		Vector2(12 * s, -2 * s),
-		Vector2(14 * s, 2 * s),
-		Vector2(-14 * s, 2 * s),
+		Vector2(-12 * s, 2 * s),
+		Vector2(12 * s, 2 * s),
+		Vector2(14 * s, -2 * s),
+		Vector2(-14 * s, -2 * s),
 	])
 	_poly(wing, hull_color, 1.4 * s)
 
-	# Forward weapon pod diamond between boom noses
+	# Forward weapon pod diamond between boom noses (now at bottom)
 	var pod := PackedVector2Array([
-		Vector2(0 * s, -26 * s),
-		Vector2(4 * s, -20 * s),
-		Vector2(0 * s, -14 * s),
-		Vector2(-4 * s, -20 * s),
+		Vector2(0 * s, 26 * s),
+		Vector2(4 * s, 20 * s),
+		Vector2(0 * s, 14 * s),
+		Vector2(-4 * s, 20 * s),
 	])
 	_poly(pod, accent_color, 1.2 * s)
 
 	# Panel seam lines on booms
-	_line(Vector2(8 * s, -16 * s), Vector2(8 * s, 10 * s), detail_color, 0.6 * s)
-	_line(Vector2(-8 * s, -16 * s), Vector2(-8 * s, 10 * s), detail_color, 0.6 * s)
+	_line(Vector2(8 * s, 16 * s), Vector2(8 * s, -10 * s), detail_color, 0.6 * s)
+	_line(Vector2(-8 * s, 16 * s), Vector2(-8 * s, -10 * s), detail_color, 0.6 * s)
 	# Cross seams
-	_line(Vector2(5 * s, -4 * s), Vector2(11 * s, -4 * s), detail_color, 0.5 * s)
-	_line(Vector2(-5 * s, -4 * s), Vector2(-11 * s, -4 * s), detail_color, 0.5 * s)
+	_line(Vector2(5 * s, 4 * s), Vector2(11 * s, 4 * s), detail_color, 0.5 * s)
+	_line(Vector2(-5 * s, 4 * s), Vector2(-11 * s, 4 * s), detail_color, 0.5 * s)
 
-	# Engine flicker
+	# Engine flicker (now at top = rear)
 	var flicker: float = 0.5 + sin(time * 5.0) * 0.3 + sin(time * 7.3) * 0.2
 	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, flicker)
-	draw_circle(Vector2(8 * s, 14 * s), 2.5 * s, eng_col)
-	draw_circle(Vector2(-8 * s, 14 * s), 2.5 * s, eng_col)
+	draw_circle(Vector2(8 * s, -14 * s), 2.5 * s, eng_col)
+	draw_circle(Vector2(-8 * s, -14 * s), 2.5 * s, eng_col)
 
 func _draw_obelisk() -> void:
 	var s := 1.7
