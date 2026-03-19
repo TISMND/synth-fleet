@@ -363,13 +363,15 @@ func _get_map_rect() -> Rect2:
 
 
 func _level_y_to_canvas_y(level_y: float) -> float:
-	# Convert level-space Y (trigger_y) to canvas Y, accounting for scroll
+	# Convert level-space Y (trigger_y) to canvas Y, accounting for scroll.
+	# Flipped: high trigger_y (late encounters) at top, low trigger_y (early) at bottom,
+	# matching the player's bottom-to-top travel direction.
 	if not _selected_level:
 		return 0.0
 	var canvas_h: float = _map_canvas.size.y
 	var level_len: float = _selected_level.level_length
 	var scale: float = canvas_h / maxf(level_len, 1.0) * 3.0  # Show ~1/3 of level at a time
-	return (level_y - _scroll_offset) * scale
+	return canvas_h - (level_y - _scroll_offset) * scale
 
 
 func _canvas_y_to_level_y(canvas_y: float) -> float:
@@ -378,7 +380,7 @@ func _canvas_y_to_level_y(canvas_y: float) -> float:
 	var canvas_h: float = _map_canvas.size.y
 	var level_len: float = _selected_level.level_length
 	var scale: float = canvas_h / maxf(level_len, 1.0) * 3.0
-	return canvas_y / scale + _scroll_offset
+	return (canvas_h - canvas_y) / scale + _scroll_offset
 
 
 func _level_x_to_canvas_x(x_offset: float) -> float:
@@ -409,11 +411,11 @@ func _handle_map_input(event: InputEvent) -> void:
 				_map_right_click(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
 				var step: float = 2500.0 if mb.shift_pressed else 500.0
-				_scroll_offset = maxf(_scroll_offset - step, 0.0)
+				_scroll_offset = minf(_scroll_offset + step, maxf(_selected_level.level_length - 500.0, 0.0))
 				_map_canvas.queue_redraw()
 			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 				var step: float = 2500.0 if mb.shift_pressed else 500.0
-				_scroll_offset = minf(_scroll_offset + step, maxf(_selected_level.level_length - 500.0, 0.0))
+				_scroll_offset = maxf(_scroll_offset - step, 0.0)
 				_map_canvas.queue_redraw()
 		else:
 			if mb.button_index == MOUSE_BUTTON_LEFT:
@@ -438,7 +440,7 @@ func _handle_map_input(event: InputEvent) -> void:
 			var canvas_h: float = _map_canvas.size.y
 			var level_len: float = _selected_level.level_length
 			var scale: float = canvas_h / maxf(level_len, 1.0) * 3.0
-			_scroll_offset = clampf(_map_drag_scroll_start - delta / scale, 0.0, maxf(level_len - 500.0, 0.0))
+			_scroll_offset = clampf(_map_drag_scroll_start + delta / scale, 0.0, maxf(level_len - 500.0, 0.0))
 			_map_canvas.queue_redraw()
 
 
@@ -691,11 +693,9 @@ func _rebuild_right_panel_content() -> void:
 	center_btn.text = "CENTER"
 	center_btn.pressed.connect(func() -> void:
 		if _selected_level and enc_idx < _selected_level.encounters.size():
-			var enc_y: float = float(_selected_level.encounters[enc_idx]["trigger_y"])
-			var canvas_h: float = _map_canvas.size.y
-			var level_len: float = _selected_level.level_length
-			var scale: float = canvas_h / maxf(level_len, 1.0) * 3.0
-			_scroll_offset = clampf(enc_y - (canvas_h * 0.5 / scale), 0.0, maxf(level_len - 500.0, 0.0))
+			_selected_level.encounters[enc_idx]["x_offset"] = 0.0
+			_save_current_level()
+			_rebuild_right_panel_content()
 			_map_canvas.queue_redraw()
 	)
 	ThemeManager.apply_button_style(center_btn)
@@ -827,7 +827,7 @@ class _MapCanvasDraw extends Control:
 		var view_ratio: float = clampf(1.0 / 3.0, 0.05, 1.0)
 		var bar_x: float = map_rect.position.x - 8
 		var bar_h: float = canvas_h * view_ratio
-		var bar_y: float = scroll_ratio * (canvas_h - bar_h)
+		var bar_y: float = (1.0 - scroll_ratio) * (canvas_h - bar_h)
 		draw_rect(Rect2(bar_x, bar_y, 4, bar_h), Color(0.4, 0.8, 1.0, 0.5), true)
 
 		# Y position readout
