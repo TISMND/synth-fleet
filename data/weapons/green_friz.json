@@ -1,0 +1,109 @@
+{
+	"aim_mode": "fixed",
+	"bar_effects": {
+		"electric": -0.5
+	},
+	"damage": 10,
+	"description": "",
+	"direction_deg": 0.0,
+	"display_name": "Green Friz",
+	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"params": {
+						"lifetime": 0.25,
+						"particle_count": 8.0,
+						"radius": 20.0
+					},
+					"type": "burst"
+				}
+			],
+			"muzzle": [
+				{
+					"params": {
+						"lifetime": 0.1,
+						"particle_count": 6.0,
+						"spread_angle": 210.0
+					},
+					"type": "ring_pulse"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fire_pattern": "single",
+	"fire_triggers": [
+		0.0,
+		0.0078125,
+		0.015625,
+		0.046875,
+		0.0546875,
+		0.0625,
+		0.09375,
+		0.1015625,
+		0.109375,
+		0.140625,
+		0.1484375,
+		0.15625,
+		0.1875,
+		0.1953125,
+		0.203125,
+		0.25,
+		0.2578125,
+		0.265625,
+		0.296875,
+		0.3046875,
+		0.3125,
+		0.34375,
+		0.3515625,
+		0.359375,
+		0.390625,
+		0.3984375,
+		0.40625,
+		0.4375,
+		0.4453125,
+		0.453125,
+		0.5,
+		0.5078125,
+		0.515625,
+		0.546875,
+		0.5546875,
+		0.5625,
+		0.59375,
+		0.6015625,
+		0.609375,
+		0.640625,
+		0.6484375,
+		0.65625,
+		0.6875,
+		0.6953125,
+		0.703125,
+		0.75,
+		0.7578125,
+		0.765625,
+		0.796875,
+		0.8046875,
+		0.8125,
+		0.84375,
+		0.8515625,
+		0.859375,
+		0.890625,
+		0.8984375,
+		0.90625,
+		0.9375,
+		0.9453125,
+		0.953125
+	],
+	"id": "green_friz",
+	"loop_file_path": "res://loop_zips/sorted/leads/Tired Robot - 120 BPM - 5 - Leads - NW_SFST_128_synth_small_Emin.wav",
+	"loop_length_bars": 8,
+	"mirror_mode": "none",
+	"projectile_speed": 1050.0,
+	"projectile_style_id": "green_bloop",
+	"sweep_arc_deg": 60.0,
+	"sweep_duration": 1.2
+}

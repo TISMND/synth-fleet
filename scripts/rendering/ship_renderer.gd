@@ -126,7 +126,7 @@ func _draw_sentinel() -> void:
 
 	# Outer circle body — drawn as polygon approximation
 	var circle_pts := PackedVector2Array()
-	var seg_count := 24
+	var seg_count := 12
 	for i in range(seg_count):
 		var angle: float = TAU * float(i) / float(seg_count)
 		circle_pts.append(Vector2(cos(angle) * r, sin(angle) * r))
@@ -1064,19 +1064,11 @@ func _draw_neon_line(a: Vector2, b: Vector2, color: Color, width: float) -> void
 	var gc := color
 	gc.a = 0.25
 	draw_line(a, b, gc, width * 3.0, true)
-	draw_circle(a, width * 1.5, gc)
-	draw_circle(b, width * 1.5, gc)
 	gc.a = 0.5
 	draw_line(a, b, gc, width * 1.8, true)
-	draw_circle(a, width * 0.9, gc)
-	draw_circle(b, width * 0.9, gc)
 	draw_line(a, b, color, width, true)
-	draw_circle(a, width * 0.5, color)
-	draw_circle(b, width * 0.5, color)
 	var w := Color(1, 1, 1, 0.6)
 	draw_line(a, b, w, width * 0.4, true)
-	draw_circle(a, width * 0.2, w)
-	draw_circle(b, width * 0.2, w)
 
 func _draw_neon_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
 	var glow := color
@@ -1093,25 +1085,17 @@ func _draw_neon_lines(points: PackedVector2Array, color: Color, width: float) ->
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
 		draw_line(points[i], points[ni], gc, width * 3.0, true)
-	for pt in points:
-		draw_circle(pt, width * 1.5, gc)
 	# Mid glow
 	gc.a = 0.5
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
 		draw_line(points[i], points[ni], gc, width * 1.8, true)
-	for pt in points:
-		draw_circle(pt, width * 0.9, gc)
 	# Bright core
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
 		draw_line(points[i], points[ni], color, width, true)
-	for pt in points:
-		draw_circle(pt, width * 0.5, color)
 	# White-hot center
 	var white := Color(1, 1, 1, 0.6)
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
 		draw_line(points[i], points[ni], white, width * 0.4, true)
-	for pt in points:
-		draw_circle(pt, width * 0.2, white)

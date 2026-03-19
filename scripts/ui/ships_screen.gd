@@ -602,21 +602,6 @@ func _build_enemy_right_panel() -> void:
 	name_edit.text_changed.connect(_on_enemy_name_changed)
 	name_hbox.add_child(name_edit)
 
-	var vis_hbox := HBoxContainer.new()
-	vis_hbox.add_theme_constant_override("separation", 6)
-	vbox.add_child(vis_hbox)
-	var vis_lbl := Label.new()
-	vis_lbl.text = "VISUAL"
-	vis_lbl.custom_minimum_size.x = 40
-	vis_hbox.add_child(vis_lbl)
-	var vis_dd := OptionButton.new()
-	vis_dd.clip_text = true
-	vis_dd.add_item("Sentinel", 0)
-	vis_dd.selected = 0  # Only one template for now
-	vis_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vis_dd.item_selected.connect(_on_enemy_visual_changed)
-	vis_hbox.add_child(vis_dd)
-
 	_add_section_spacer(vbox)
 
 	# ── HEALTH ──
@@ -882,16 +867,6 @@ func _on_enemy_name_changed(new_name: String) -> void:
 	if _working_enemy:
 		_working_enemy.display_name = new_name
 		_ship_selector.queue_redraw()
-
-
-func _on_enemy_visual_changed(index: int) -> void:
-	if not _working_enemy:
-		return
-	match index:
-		_: _working_enemy.visual_id = "sentinel"
-	_ship_draw.enemy_visual_id = _working_enemy.visual_id
-	_ship_draw.queue_redraw()
-	_ship_selector.queue_redraw()
 
 
 func _on_enemy_fire_pattern_changed(index: int) -> void:

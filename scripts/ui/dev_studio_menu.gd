@@ -13,6 +13,7 @@ func _ready() -> void:
 	$VBoxContainer/ComponentsButton.pressed.connect(_on_components)
 	$VBoxContainer/EncountersButton.pressed.connect(_on_encounters)
 	$VBoxContainer/LevelsButton.pressed.connect(_on_levels)
+	$VBoxContainer/SFXButton.pressed.connect(_on_sfx)
 	$VBoxContainer/BackButton.pressed.connect(_on_back)
 
 	_apply_styles()
@@ -36,6 +37,10 @@ func _on_encounters() -> void:
 
 func _on_levels() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/level_editor.tscn")
+
+
+func _on_sfx() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/sfx_editor.tscn")
 
 
 func _on_back() -> void:

@@ -203,7 +203,10 @@ func take_damage(amount: float) -> void:
 		var absorbed: float = minf(remaining, shield)
 		shield -= absorbed
 		remaining -= absorbed
-	hull = maxf(hull - remaining, 0.0)
+		SfxPlayer.play("player_shield_hit")
+	if remaining > 0.0:
+		hull = maxf(hull - remaining, 0.0)
+		SfxPlayer.play("player_hull_hit")
 	if hull <= 0.0:
 		died.emit()
 

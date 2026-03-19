@@ -48,6 +48,7 @@ var _cached_formation_ids: Array[String] = []
 var _cached_formation_names: Array[String] = []
 var _cached_ship_ids: Array[String] = []
 var _cached_ship_names: Array[String] = []
+var _ship_id_to_name: Dictionary = {}
 
 
 func _ready() -> void:
@@ -97,10 +98,13 @@ func _cache_dropdown_data() -> void:
 
 	_cached_ship_ids.clear()
 	_cached_ship_names.clear()
+	_ship_id_to_name.clear()
 	var ships: Array[ShipData] = ShipDataManager.load_all_by_type("enemy")
 	for s in ships:
 		_cached_ship_ids.append(s.id)
-		_cached_ship_names.append(s.display_name if s.display_name != "" else s.id)
+		var name: String = s.display_name if s.display_name != "" else s.id
+		_cached_ship_names.append(name)
+		_ship_id_to_name[s.id] = name
 
 
 func _input(event: InputEvent) -> void:
@@ -870,7 +874,8 @@ class _MapCanvasDraw extends Control:
 			# Label
 			var fm_id: String = str(enc.get("formation_id", ""))
 			var ship_id: String = str(enc.get("ship_id", ""))
-			var label_text: String = fm_id if fm_id != "" else ship_id
+			var ship_name: String = s._ship_id_to_name.get(ship_id, ship_id)
+			var label_text: String = fm_id if fm_id != "" else ship_name
 			if label_text == "":
 				label_text = "?"
 			var count_val: int = int(enc.get("count", 1))

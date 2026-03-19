@@ -55,6 +55,10 @@ text = "ENCOUNTERS"
 layout_mode = 2
 text = "LEVELS"
 
+[node name="SFXButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "SFX"
+
 [node name="BackButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "BACK"

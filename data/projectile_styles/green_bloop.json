@@ -4,13 +4,13 @@
 
 	},
 	"base_scale": [
-		36.0,
+		78.0,
 		36.0
 	],
 	"color": [
-		0.0,
-		0.501960813999176,
-		0.062745101749897,
+		0.146614149212837,
+		0.85546875,
+		0.123641967773438,
 		1.0
 	],
 	"display_name": "green_beam",
@@ -19,13 +19,13 @@
 	"id": "green_bloop",
 	"mask_path": "",
 	"shader_params": {
-		"animation_speed": 0.8,
-		"brightness": 1.5,
+		"animation_speed": 2.1,
+		"brightness": 1.8,
 		"color_mix": 0.0,
-		"edge_softness": 0.65,
+		"edge_softness": 0.62,
 		"fade_rate": 1.5,
 		"ring_count": 5.0,
 		"ring_speed": 2.5,
-		"ring_width": 0.07
+		"ring_width": 0.11
 	}
 }
