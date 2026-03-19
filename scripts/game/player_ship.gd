@@ -17,6 +17,8 @@ var speed: float = 400.0
 var _hardpoint_controllers: Array = []
 var _core_controllers: Array = []  # PowerCoreController instances
 var _core_data_per_slot: Array = []  # [{label, pc}]
+var _device_controllers: Array = []  # DeviceController instances
+var _device_data_per_slot: Array = []  # [{label, device}]
 var _player_area: Area2D = null
 var _hud: CanvasLayer = null
 var _weapon_data_per_hp: Array = []
@@ -127,6 +129,26 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 			"pc": pc,
 		})
 
+	# Create device controllers from GameState dev slots
+	for i in 2:
+		var slot_key: String = "dev_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id == "":
+			continue
+		var device: DeviceData = DeviceDataManager.load_by_id(device_id)
+		if not device or device.loop_file_path == "":
+			continue
+		var controller := DeviceController.new()
+		add_child(controller)
+		controller.setup(device, i, self)
+		controller.bar_effect_fired.connect(apply_bar_effects)
+		_device_controllers.append(controller)
+		_device_data_per_slot.append({
+			"label": "DEV " + str(i + 1),
+			"device": device,
+		})
+
 
 func _process(delta: float) -> void:
 	# Input movement
@@ -166,6 +188,14 @@ func _input(event: InputEvent) -> void:
 			_update_hud_cores()
 			return
 
+	# Device toggles (T=device_1, G=device_2)
+	for i in mini(_device_controllers.size(), 2):
+		var action: String = "device_" + str(i + 1)
+		if event.is_action_pressed(action):
+			_device_controllers[i].toggle()
+			_update_hud_devices()
+			return
+
 	# Space: toggle all on/off (weapons + cores)
 	if event.is_action_pressed("hardpoints_max"):
 		_space_state = 1 - _space_state
@@ -179,8 +209,14 @@ func _input(event: InputEvent) -> void:
 				c.activate()
 			else:
 				c.deactivate()
+		for c in _device_controllers:
+			if _space_state == 1:
+				c.activate()
+			else:
+				c.deactivate()
 		_update_hud_hardpoints()
 		_update_hud_cores()
+		_update_hud_devices()
 		return
 
 	# Deactivate all (C)
@@ -189,8 +225,11 @@ func _input(event: InputEvent) -> void:
 			c.deactivate()
 		for c in _core_controllers:
 			c.deactivate()
+		for c in _device_controllers:
+			c.deactivate()
 		_update_hud_hardpoints()
 		_update_hud_cores()
+		_update_hud_devices()
 		return
 
 
@@ -257,6 +296,26 @@ func _on_core_pulse(bar_types: Array) -> void:
 		_hud.pulse_bar(str(bar_type).to_upper())
 
 
+func _update_hud_devices() -> void:
+	if not _hud or not _hud.has_method("update_devices"):
+		return
+	var data: Array = []
+	for i in _device_controllers.size():
+		var controller: DeviceController = _device_controllers[i]
+		var dev_info: Dictionary = _device_data_per_slot[i]
+		var device: DeviceData = dev_info["device"]
+		var keys: Array[String] = ["T", "G"]
+		var key_label: String = keys[i] if i < keys.size() else str(i + 1)
+		data.append({
+			"label": dev_info["label"],
+			"device_name": device.display_name if device.display_name != "" else device.id,
+			"color": device.color_override if device.color_override != Color.WHITE else Color(0.0, 0.8, 1.0),
+			"active": controller.is_active(),
+			"key": key_label,
+		})
+	_hud.update_devices(data)
+
+
 func stop_all() -> void:
 	for c in _hardpoint_controllers:
 		if c.has_method("deactivate"):
@@ -264,6 +323,11 @@ func stop_all() -> void:
 		if c.has_method("cleanup"):
 			c.cleanup()
 	for c in _core_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+		if c.has_method("cleanup"):
+			c.cleanup()
+	for c in _device_controllers:
 		if c.has_method("deactivate"):
 			c.deactivate()
 		if c.has_method("cleanup"):

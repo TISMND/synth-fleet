@@ -43,14 +43,14 @@
 			"x_offset": 404.467005076142
 		},
 		{
-			"count": 1,
+			"count": 5,
 			"formation_id": "",
-			"path_id": "path_1",
-			"ship_id": "enemy_1",
-			"spacing": 200.0,
+			"path_id": "path_2",
+			"ship_id": "enemy_obelisk",
+			"spacing": 100.0,
 			"speed": 200.0,
-			"trigger_y": 2407.40740740741,
-			"x_offset": 41.025641025641
+			"trigger_y": 2817.9012345679,
+			"x_offset": 18.284524274372
 		},
 		{
 			"count": 10,
@@ -81,9 +81,59 @@
 			"speed": 700.0,
 			"trigger_y": 1734.56790123456,
 			"x_offset": 3.248730964467
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"path_id": "path_2",
+			"ship_id": "enemy_talon",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 2435.18518518518,
+			"x_offset": -633.502538071066
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"path_id": "path_2",
+			"ship_id": "enemy_talon",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 2444.44444444444,
+			"x_offset": -365.482233502538
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"path_id": "path_2",
+			"ship_id": "enemy_talon",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 2435.18518518519,
+			"x_offset": -82.8426395939086
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"path_id": "path_2",
+			"ship_id": "enemy_talon",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 2419.75308641975,
+			"x_offset": 324.873096446701
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"path_id": "path_2",
+			"ship_id": "enemy_talon",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 2432.0987654321,
+			"x_offset": 672.48730964467
 		}
 	],
 	"id": "level_1",
 	"level_length": 10000.0,
-	"scroll_speed": 80.0
+	"scroll_speed": 140.0
 }

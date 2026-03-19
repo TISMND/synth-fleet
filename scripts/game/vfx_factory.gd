@@ -27,6 +27,10 @@ static var _smoke_shader: Shader = null
 # Valid fill shader names for validation
 const FILL_SHADERS: PackedStringArray = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke"]
 
+# Field shader cache + names
+static var _field_shaders: Dictionary = {}  # name -> Shader
+const FIELD_SHADERS: PackedStringArray = ["force_bubble", "hex_grid", "energy_ripple", "plasma_shield", "particle_ring", "pulse_barrier"]
+
 
 # ── Texture Generation ──────────────────────────────────────
 
@@ -571,3 +575,33 @@ static func add_bloom_to_viewport(viewport: SubViewport) -> void:
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	world_env.environment = env
 	viewport.add_child(world_env)
+
+
+# ── Field Shader Helpers ──────────────────────────────────
+
+## Get a field shader by name (lazy-load cached).
+static func get_field_shader(shader_name: String) -> Shader:
+	if _field_shaders.has(shader_name):
+		return _field_shaders[shader_name] as Shader
+	var path: String = "res://assets/shaders/field_" + shader_name + ".gdshader"
+	var shader: Shader = load(path) as Shader
+	if shader:
+		_field_shaders[shader_name] = shader
+	return shader
+
+
+## Create a ShaderMaterial configured for a FieldStyle at a given radius.
+static func create_field_material(style: FieldStyle, radius: float) -> ShaderMaterial:
+	var shader: Shader = get_field_shader(style.field_shader)
+	if not shader:
+		shader = get_field_shader("force_bubble")
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("field_color", style.color)
+	mat.set_shader_parameter("brightness", style.glow_intensity)
+	mat.set_shader_parameter("pulse_intensity", 0.0)
+	mat.set_shader_parameter("opacity", 1.0)
+	# Apply per-shader params
+	for param_name in style.shader_params:
+		mat.set_shader_parameter(param_name, float(style.shader_params[param_name]))
+	return mat

@@ -120,6 +120,7 @@ func _spawn_encounter(enc: Dictionary) -> void:
 				"origin": Vector2(x_offset, 0),
 				"ship_id": str(slot["ship_id"]),
 				"delay": delay,
+				"rotate_with_path": bool(enc.get("rotate_with_path", false)),
 			}
 			if delay <= 0.0:
 				_do_spawn_enemy(spawn_data)
@@ -170,6 +171,8 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 	else:
 		enemy.health = 30
 		enemy.enemy_color = ENEMY_COLORS[randi() % ENEMY_COLORS.size()]
+
+	enemy.rotate_with_path = bool(spawn_data.get("rotate_with_path", false))
 
 	# Position at start of curve if path-following, otherwise off-screen top
 	if enemy.path_curve != null and enemy.path_curve.point_count >= 2:

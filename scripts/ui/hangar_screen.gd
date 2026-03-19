@@ -26,9 +26,13 @@ var _is_muted: bool = false
 
 var _weapon_cache: Dictionary = {}
 var _power_core_cache: Dictionary = {}
+var _device_cache: Dictionary = {}
 var _expanded_slot: String = ""
 var _ext_headers: Dictionary = {}
 var _int_headers: Dictionary = {}
+var _dev_headers: Dictionary = {}
+var _dev_section: VBoxContainer
+var _dev_header: Label
 
 # Live weapon preview
 var _viewport_container: SubViewportContainer
@@ -133,6 +137,16 @@ func _apply_theme() -> void:
 	for child in _int_section.get_children():
 		if child is Button:
 			ThemeManager.apply_button_style(child as Button)
+	for child in _dev_section.get_children():
+		if child is Button:
+			ThemeManager.apply_button_style(child as Button)
+
+	# Device section header
+	if _dev_header:
+		_dev_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+		_dev_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+		if body_font:
+			_dev_header.add_theme_font_override("font", body_font)
 
 	# Right panel weapon list buttons
 	for child in _right_panel_list.get_children():
@@ -160,6 +174,12 @@ func _cache_weapons() -> void:
 		var pc: PowerCoreData = PowerCoreDataManager.load_by_id(pcid)
 		if pc:
 			_power_core_cache[pcid] = pc
+
+	var dids: Array[String] = DeviceDataManager.list_ids()
+	for did in dids:
+		var d: DeviceData = DeviceDataManager.load_by_id(did)
+		if d:
+			_device_cache[did] = d
 
 
 func _load_ship() -> void:
@@ -219,8 +239,11 @@ func _rebuild_buttons() -> void:
 		child.queue_free()
 	for child in _int_section.get_children():
 		child.queue_free()
+	for child in _dev_section.get_children():
+		child.queue_free()
 	_ext_headers.clear()
 	_int_headers.clear()
+	_dev_headers.clear()
 	_clear_right_panel()
 
 	# External weapon slots (3) — header buttons only
@@ -279,6 +302,34 @@ func _rebuild_buttons() -> void:
 		_int_section.add_child(header)
 		_int_headers[slot_key] = header
 
+	# Device slots (2)
+	for i in 2:
+		var slot_key: String = "dev_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var device_id: String = str(slot_data.get("device_id", ""))
+		var device_name: String = "empty"
+		var bar_effect_text: String = ""
+		if device_id != "":
+			var d: DeviceData = _device_cache.get(device_id)
+			if d:
+				device_name = d.display_name if d.display_name != "" else d.id
+				bar_effect_text = _format_bar_effects(d.bar_effects)
+			else:
+				device_name = device_id
+
+		var header := Button.new()
+		var header_text: String = "DEVICE " + str(i + 1) + "  —  " + device_name
+		if bar_effect_text != "":
+			header_text += "  " + bar_effect_text
+		header.text = header_text
+		header.custom_minimum_size.y = 50
+		header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		ThemeManager.apply_button_style(header)
+		var bound_key: String = slot_key
+		header.pressed.connect(func() -> void: _toggle_slot_list(bound_key))
+		_dev_section.add_child(header)
+		_dev_headers[slot_key] = header
+
 
 func _toggle_slot_list(slot_key: String) -> void:
 	if _expanded_slot == slot_key:
@@ -287,7 +338,7 @@ func _toggle_slot_list(slot_key: String) -> void:
 	else:
 		_expanded_slot = slot_key
 		_populate_right_panel(slot_key)
-	# Highlight the active slot header across both sections
+	# Highlight the active slot header across all sections
 	for key in _ext_headers:
 		var btn: Button = _ext_headers[key]
 		if key == _expanded_slot:
@@ -302,12 +353,25 @@ func _toggle_slot_list(slot_key: String) -> void:
 		else:
 			btn.remove_theme_color_override("font_color")
 		ThemeManager.apply_button_style(btn)
+	for key in _dev_headers:
+		var btn: Button = _dev_headers[key]
+		if key == _expanded_slot:
+			btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+		else:
+			btn.remove_theme_color_override("font_color")
+		ThemeManager.apply_button_style(btn)
 
 
 func _populate_right_panel(slot_key: String) -> void:
 	_clear_right_panel()
 	var is_int: bool = slot_key.begins_with("int_")
-	_right_panel_header.text = "SELECT POWER CORE" if is_int else "SELECT WEAPON"
+	var is_dev: bool = slot_key.begins_with("dev_")
+	if is_dev:
+		_right_panel_header.text = "SELECT DEVICE"
+	elif is_int:
+		_right_panel_header.text = "SELECT POWER CORE"
+	else:
+		_right_panel_header.text = "SELECT WEAPON"
 	_right_panel_header.visible = true
 
 	# "(none)" option
@@ -320,7 +384,24 @@ func _populate_right_panel(slot_key: String) -> void:
 	none_btn.pressed.connect(func() -> void: _select_item(bound_key, ""))
 	_right_panel_list.add_child(none_btn)
 
-	if is_int:
+	if is_dev:
+		# Device choices
+		for did in _device_cache:
+			var d: DeviceData = _device_cache[did]
+			var label: String = d.display_name if d.display_name != "" else d.id
+			var effect_text: String = _format_bar_effects(d.bar_effects)
+			if effect_text != "":
+				label += "  " + effect_text
+			var btn := Button.new()
+			btn.text = label
+			btn.custom_minimum_size.y = 38
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			ThemeManager.apply_button_style(btn)
+			var bound_key2: String = slot_key
+			var bound_id: String = did
+			btn.pressed.connect(func() -> void: _select_item(bound_key2, bound_id))
+			_right_panel_list.add_child(btn)
+	elif is_int:
 		# Power core choices
 		for pcid in _power_core_cache:
 			var pc: PowerCoreData = _power_core_cache[pcid]
@@ -360,7 +441,7 @@ func _clear_right_panel() -> void:
 
 
 func _select_item(slot_key: String, item_id: String) -> void:
-	if slot_key.begins_with("int_"):
+	if slot_key.begins_with("dev_") or slot_key.begins_with("int_"):
 		GameState.set_slot_device(slot_key, item_id)
 	else:
 		GameState.set_slot_weapon(slot_key, item_id)
@@ -491,6 +572,13 @@ func _build_ui() -> void:
 
 	_int_section = VBoxContainer.new()
 	_center_vbox.add_child(_int_section)
+
+	_dev_header = Label.new()
+	_dev_header.text = "━━ DEVICES ━━━━━━━━━"
+	_center_vbox.add_child(_dev_header)
+
+	_dev_section = VBoxContainer.new()
+	_center_vbox.add_child(_dev_section)
 
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL

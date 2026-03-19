@@ -17,6 +17,7 @@ var _dashboard_hbox: HBoxContainer = null
 var _weapons_hbox: HBoxContainer = null
 var _weapon_icons: Array = []  # Array of dicts: {container, bg_rect, number_label, active, color}
 var _core_icons: Array = []    # Array of dicts: same shape as weapon_icons
+var _device_icons: Array = []  # Array of dicts: same shape as weapon_icons
 var _beat_indicators: Array = []  # Array of ColorRect
 var _bars_grid: GridContainer = null
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
@@ -407,6 +408,63 @@ func update_cores(data: Array) -> void:
 			"color": color,
 		}
 		_core_icons.append(icon_data)
+		_apply_weapon_icon_theme(icon_data)
+
+
+func update_devices(data: Array) -> void:
+	# Clear existing device icons
+	for icon in _device_icons:
+		if is_instance_valid(icon["container"]):
+			icon["container"].queue_free()
+	_device_icons.clear()
+
+	if data.is_empty():
+		return
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+
+	# Separator between cores/weapons and devices
+	var sep := ColorRect.new()
+	sep.custom_minimum_size = Vector2(2, WEAPON_ICON_SIZE)
+	sep.color = ThemeManager.get_color("disabled")
+	_weapons_hbox.add_child(sep)
+	_device_icons.append({"container": sep, "bg_rect": sep, "number_label": null, "active": false, "color": Color.WHITE})
+
+	for i in data.size():
+		var entry: Dictionary = data[i]
+		var active: bool = entry.get("active", false) as bool
+		var color: Color = entry.get("color", Color(0.0, 0.8, 1.0)) as Color
+		var key_label: String = str(entry.get("key", str(i + 1)))
+
+		var container := Control.new()
+		container.custom_minimum_size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
+
+		var bg_rect := ColorRect.new()
+		bg_rect.position = Vector2.ZERO
+		bg_rect.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
+		container.add_child(bg_rect)
+
+		var number_label := Label.new()
+		number_label.text = key_label
+		number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		number_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		number_label.position = Vector2.ZERO
+		number_label.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
+		number_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+		if body_font:
+			number_label.add_theme_font_override("font", body_font)
+		container.add_child(number_label)
+
+		_weapons_hbox.add_child(container)
+
+		var icon_data: Dictionary = {
+			"container": container,
+			"bg_rect": bg_rect,
+			"number_label": number_label,
+			"active": active,
+			"color": color,
+		}
+		_device_icons.append(icon_data)
 		_apply_weapon_icon_theme(icon_data)
 
 

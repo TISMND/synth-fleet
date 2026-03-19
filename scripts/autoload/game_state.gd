@@ -7,6 +7,7 @@ const SAVE_PATH := "user://save_data.json"
 var credits: int = 0
 var owned_weapon_ids: Array[String] = []
 var owned_ship_ids: Array[String] = []
+var owned_device_ids: Array[String] = []
 var current_level: int = 0
 var stats: Dictionary = {}
 
@@ -21,6 +22,8 @@ var slot_config: Dictionary = {}
 #   "int_0": {"device_id": ""},
 #   "int_1": {"device_id": ""},
 #   "int_2": {"device_id": ""},
+#   "dev_0": {"device_id": ""},
+#   "dev_1": {"device_id": ""},
 # }
 
 # Transient — not saved. Used to pass context between screens.
@@ -42,6 +45,8 @@ func _init_slot_config() -> void:
 		"int_0": {"device_id": ""},
 		"int_1": {"device_id": ""},
 		"int_2": {"device_id": ""},
+		"dev_0": {"device_id": ""},
+		"dev_1": {"device_id": ""},
 	}
 
 
@@ -50,6 +55,7 @@ func save_game() -> void:
 		"credits": credits,
 		"owned_weapon_ids": owned_weapon_ids,
 		"owned_ship_ids": owned_ship_ids,
+		"owned_device_ids": owned_device_ids,
 		"current_ship_index": current_ship_index,
 		"slot_config": slot_config,
 		"current_level": current_level,
@@ -82,6 +88,10 @@ func load_game() -> void:
 	owned_ship_ids.clear()
 	for sid in sids:
 		owned_ship_ids.append(str(sid))
+	var dids: Array = data.get("owned_device_ids", [])
+	owned_device_ids.clear()
+	for did in dids:
+		owned_device_ids.append(str(did))
 	current_level = int(data.get("current_level", 0))
 	stats = data.get("stats", {})
 
@@ -97,6 +107,7 @@ func _set_defaults() -> void:
 	credits = 0
 	owned_weapon_ids = []
 	owned_ship_ids = []
+	owned_device_ids = []
 	current_ship_index = 4
 	_init_slot_config()
 	current_level = 0

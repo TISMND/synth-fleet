@@ -49,6 +49,7 @@ var _enc_ship_dropdown: OptionButton
 var _enc_speed_spin: SpinBox
 var _enc_count_spin: SpinBox
 var _enc_spacing_spin: SpinBox
+var _enc_rotate_check: CheckButton
 var _enc_center_btn: Button
 var _enc_delete_btn: Button
 
@@ -503,6 +504,7 @@ func _map_left_click(pos: Vector2) -> void:
 				"spacing": 200.0,
 				"trigger_y": trigger_y,
 				"x_offset": x_offset,
+				"rotate_with_path": false,
 			}
 			_selected_level.encounters.append(enc)
 			_selected_encounter_idx = _selected_level.encounters.size() - 1
@@ -706,6 +708,22 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	)
 	_enc_content.add_child(_enc_spacing_spin)
 
+	# Rotate with path
+	var sep_rotate := HSeparator.new()
+	_enc_content.add_child(sep_rotate)
+
+	_enc_rotate_check = CheckButton.new()
+	_enc_rotate_check.text = "ROTATE WITH PATH"
+	_enc_rotate_check.toggled.connect(func(pressed: bool) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["rotate_with_path"] = pressed
+			_save_current_level()
+	)
+	ThemeManager.apply_text_glow(_enc_rotate_check, "body")
+	_enc_content.add_child(_enc_rotate_check)
+
 	# Action buttons
 	var sep3 := HSeparator.new()
 	_enc_content.add_child(sep3)
@@ -755,6 +773,7 @@ func _update_right_panel() -> void:
 	_enc_speed_spin.editable = not disabled
 	_enc_count_spin.editable = not disabled
 	_enc_spacing_spin.editable = not disabled
+	_enc_rotate_check.disabled = disabled
 	_enc_center_btn.disabled = disabled
 	_enc_delete_btn.disabled = disabled
 
@@ -796,6 +815,7 @@ func _update_right_panel() -> void:
 	_enc_speed_spin.value = float(enc.get("speed", 200.0))
 	_enc_count_spin.value = int(enc.get("count", 1))
 	_enc_spacing_spin.value = float(enc.get("spacing", 200.0))
+	_enc_rotate_check.button_pressed = bool(enc.get("rotate_with_path", false))
 
 
 # ── Data operations ────────────────────────────────────────────
