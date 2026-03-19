@@ -1,11 +1,10 @@
 extends CanvasLayer
-## In-game HUD — bottom dashboard with health bars, beat indicator, credits, weapon icons.
+## In-game HUD — bottom dashboard with health bars, credits, weapon icons.
 ## Fully themed via ThemeManager with theme_changed reactivity.
 
 const PANEL_HEIGHT: int = 110
 const PANEL_PADDING: int = 12
 const WEAPON_ICON_SIZE: int = 40
-const BEAT_SQUARE_SIZE: int = 18
 const BAR_HEIGHT: int = 28
 const BAR_LABEL_WIDTH: int = 80
 
@@ -18,7 +17,6 @@ var _weapons_hbox: HBoxContainer = null
 var _weapon_icons: Array = []  # Array of dicts: {container, bg_rect, number_label, active, color}
 var _core_icons: Array = []    # Array of dicts: same shape as weapon_icons
 var _device_icons: Array = []  # Array of dicts: same shape as weapon_icons
-var _beat_indicators: Array = []  # Array of ColorRect
 var _bars_grid: GridContainer = null
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
 var _bar_segments: Dictionary = {}  # bar_name -> int segment count
@@ -31,7 +29,6 @@ func _ready() -> void:
 	_build_ui()
 	_setup_vhs_overlay()
 	_apply_theme()
-	BeatClock.beat_hit.connect(_on_beat)
 	ThemeManager.theme_changed.connect(_apply_theme)
 
 
@@ -73,21 +70,6 @@ func _build_ui() -> void:
 	_weapons_hbox.add_theme_constant_override("separation", 8)
 	_weapons_hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_dashboard_hbox.add_child(_weapons_hbox)
-
-	# Center — Beat metronome (4 squares)
-	var beat_center := CenterContainer.new()
-	beat_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_dashboard_hbox.add_child(beat_center)
-
-	var _beat_hbox := HBoxContainer.new()
-	_beat_hbox.add_theme_constant_override("separation", 6)
-	beat_center.add_child(_beat_hbox)
-
-	for i in 4:
-		var rect := ColorRect.new()
-		rect.custom_minimum_size = Vector2(BEAT_SQUARE_SIZE, BEAT_SQUARE_SIZE)
-		_beat_hbox.add_child(rect)
-		_beat_indicators.append(rect)
 
 	# Right — Status bars 2x2 grid (right third of HUD)
 	_bars_grid = GridContainer.new()
@@ -200,11 +182,6 @@ func _apply_theme() -> void:
 		var seg: int = int(_bar_segments.get(bar_name, -1))
 		ThemeManager.apply_led_bar(bar, color, ratio, seg)
 		_bar_base_colors[bar_name] = color
-
-	# Beat indicators
-	for i in _beat_indicators.size():
-		var rect: ColorRect = _beat_indicators[i]
-		rect.color = ThemeManager.get_color("panel")
 
 	# Weapon icons
 	for icon in _weapon_icons:
@@ -468,10 +445,3 @@ func update_devices(data: Array) -> void:
 		_apply_weapon_icon_theme(icon_data)
 
 
-func _on_beat(beat_index: int) -> void:
-	var active: int = beat_index % 4
-	for i in 4:
-		if i == active:
-			_beat_indicators[i].color = ThemeManager.get_color("accent")
-		else:
-			_beat_indicators[i].color = ThemeManager.get_color("panel")

@@ -13,7 +13,6 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 
 **What works:**
 - Player movement (WASD / arrows), clamped to screen
-- BeatClock running at level BPM with beat position tracking
 - LoopMixer: all loops play simultaneously, mute/unmute for perfect sync
 - HardpointController fires projectiles at normalized time positions via LoopMixer (fire_triggers)
 - Enemies spawn, drift down, can be hit by projectiles
@@ -41,7 +40,6 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 All audio loops play simultaneously from level start and are muted/unmuted — never started/stopped — so they stay perfectly in sync. Player creativity = choosing which weapons (= which audio loops) to equip and when to activate/deactivate them during gameplay.
 
 ### Autoloads (singletons, always available)
-- **BeatClock** — Musical clock with `beat_hit`/`measure_hit` signals, plus continuous `beat_position`/`total_beat_position` tracking. `get_loop_beat_position(loop_length_beats)` for varied-length loops.
 - **GameState** — Persistent player data (credits, loadout, owned items). Saves to `user://save_data.json`.
 - **AudioManager** — Pooled audio playback for non-loop SFX (impacts, UI clicks).
 - **LoopMixer** — Manages N AudioStreamPlayers for loops. All play from bar 1 simultaneously. Mute = `volume_db = -80.0`, unmute = restore volume. API: `add_loop()`, `remove_loop()`, `mute()`, `unmute()`, `start_all()`.
@@ -73,7 +71,6 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - Weapons fire at specific beat positions defined by `fire_triggers` (Array[float])
 - Each weapon has an audio loop that plays/mutes in sync via LoopMixer
 - Player toggles weapons ON/OFF (1-9 keys, Space = all on, C = all off)
-- 3 long levels, fixed BPM each. No dynamic tempo.
 - Health = shields (regen) + hull (doesn't). Generator power is a ship stat (displayed but not enforced).
 - Shop between levels/deaths for weapons, upgrades, ships
 
@@ -110,7 +107,7 @@ Format: `{ "version": 2, "defaults": { slot: [layers...] }, "trigger_overrides":
 - **impact** — explosion on hit. Types: burst, ring_expand, shatter_lines, nova_flash, ripple
 
 Each layer dict may include `"color": [r, g, b, a]` for per-effect color (default white if absent).
-Shape, motion, and beat_fx are handled by ProjectileStyle / Projectile Animator, not the weapon effect profile.
+Shape and motion are handled by ProjectileStyle / Projectile Animator, not the weapon effect profile.
 
 `trigger_overrides` keyed by trigger index (string). Missing slots inherit from defaults.
 v1 profiles (flat `{slot: {type, params}}`) auto-migrate on load via `WeaponData._migrate_effect_profile()`.
@@ -121,7 +118,7 @@ v1 profiles (flat `{slot: {type, params}}`) auto-migrate on load via `WeaponData
 scenes/
   ui/            Menus, dev studio, hangar, shop
 scripts/
-  autoload/      Singletons (BeatClock, GameState, AudioManager, LoopMixer, ThemeManager)
+  autoload/      Singletons (GameState, AudioManager, LoopMixer, ThemeManager)
   data/          DataManagers (WeaponDataManager, ShipDataManager, LoadoutDataManager)
   game/          Game logic (game, player_ship, hardpoint_controller, enemy, effect_layer_renderer, etc.)
   ui/            UI scripts (main_menu, dev_studio, weapons_tab, waveform_editor, loop_browser, etc.)
@@ -175,4 +172,3 @@ Frame-based trigger checking using LoopMixer as the single clock source:
 - Each frame: get `LoopMixer.get_playback_position() / get_stream_duration()` for normalized time (0.0–1.0), check if any fire trigger was crossed since last frame
 - Wrap-around detection: if `curr < prev`, trigger fires if `> prev OR <= curr`
 - `activate()` / `deactivate()` / `toggle()` — unmute/mute via LoopMixer
-- BeatClock is NOT used for trigger checking — only LoopMixer provides the clock

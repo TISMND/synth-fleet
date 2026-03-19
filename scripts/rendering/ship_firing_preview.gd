@@ -129,20 +129,6 @@ func _process(delta: float) -> void:
 		if trail_pts.size() > 20:
 			trail_pts.pop_front()
 
-		# Beat FX
-		var beat_fx_layers: Array = proj_resolved.get("beat_fx", []) as Array
-		if not beat_fx_layers.is_empty():
-			var fx_result: Dictionary = EffectLayerRenderer.evaluate_beat_fx(beat_fx_layers, _weapon_color, age, delta)
-			var sparkles: Array = fx_result.get("sparkle_particles", []) as Array
-			var beat_fx_particles: Array = proj["beat_fx_particles"]
-			for sparkle in sparkles:
-				var s: Dictionary = sparkle as Dictionary
-				s["pos"] = (s["pos"] as Vector2) + (proj["pos"] as Vector2)
-				beat_fx_particles.append(s)
-
-		# Age particles
-		_age_particle_list(proj["beat_fx_particles"] as Array, delta)
-
 		var pos: Vector2 = proj["pos"]
 		if pos.y < _impact_y or pos.y > _viewport_size.y or pos.x < 0 or pos.x > _viewport_size.x:
 			# Impact — GPU particles
@@ -240,7 +226,6 @@ func _fire_projectiles() -> void:
 			"age": 0.0,
 			"trail_points": [],
 			"trail_particles": [],
-			"beat_fx_particles": [],
 			"resolved_layers": _resolved_layers,
 		}
 		_projectiles.append(proj)
@@ -321,7 +306,7 @@ func _draw() -> void:
 	for proj in _projectiles:
 		_draw_projectile(proj)
 
-	# 5. Particles (beat_fx sparkles)
+	# 5. Loose particles
 	for p in _particles:
 		_draw_particle_hdr(p)
 
@@ -339,32 +324,15 @@ func _draw_projectile(proj: Dictionary) -> void:
 	var age: float = float(proj["age"])
 	var proj_resolved: Dictionary = proj.get("resolved_layers", _resolved_layers) as Dictionary
 
-	# Draw beat fx particles
-	var beat_fx_particles: Array = proj["beat_fx_particles"]
-	for p in beat_fx_particles:
-		_draw_particle_hdr(p)
-
 	# Draw ribbon trails
 	var trail_layers: Array = proj_resolved.get("trail", []) as Array
 	var trail_pts: Array = proj["trail_points"]
 	if trail_pts.size() >= 2:
 		EffectLayerRenderer.draw_ribbon_trails(self, trail_layers, trail_pts, _weapon_color, Vector2.ZERO)
 
-	# Beat FX scale
-	var beat_fx_layers: Array = proj_resolved.get("beat_fx", []) as Array
-	var scale_mult: float = 1.0
-	if not beat_fx_layers.is_empty():
-		var fx_result: Dictionary = EffectLayerRenderer.evaluate_beat_fx(beat_fx_layers, _weapon_color, age, 0.0)
-		scale_mult = float(fx_result.get("scale_mult", 1.0))
-
 	# Draw shape stack
 	var shape_layers: Array = proj_resolved.get("shape", []) as Array
-	if scale_mult != 1.0:
-		draw_set_transform(pos, 0.0, Vector2(scale_mult, scale_mult))
-		EffectLayerRenderer.draw_shape_stack(self, Vector2.ZERO, shape_layers, _weapon_color, age)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	else:
-		EffectLayerRenderer.draw_shape_stack(self, pos, shape_layers, _weapon_color, age)
+	EffectLayerRenderer.draw_shape_stack(self, pos, shape_layers, _weapon_color, age)
 
 
 func _draw_particle_hdr(p: Dictionary) -> void:

@@ -54,9 +54,6 @@ func _ready() -> void:
 	if level_id != "":
 		_level_data = LevelDataManager.load_by_id(level_id)
 
-	# Set BPM (from level or default)
-	var bpm: float = _level_data.bpm if _level_data else 110.0
-	BeatClock.bpm = bpm
 	if _level_data:
 		_scroll_speed = _level_data.scroll_speed
 
@@ -101,7 +98,6 @@ func _ready() -> void:
 	_player._update_hud_cores()
 
 	# Start immediately
-	BeatClock.start(bpm)
 	LoopMixer.start_all()
 	_start_waves()
 
@@ -143,7 +139,6 @@ func _input(event: InputEvent) -> void:
 
 
 func _return_to_menu() -> void:
-	BeatClock.stop()
 	LoopMixer.remove_all_loops()
 	if _wave_manager:
 		_wave_manager.stop()

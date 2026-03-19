@@ -37,12 +37,11 @@ static func resolve_layers(profile: Dictionary, trigger_index: int = -1) -> Dict
 				result[slot] = []
 			else:
 				result[slot] = [layer_data]
-		result["beat_fx"] = []
 		return result
 
 	# v2 profile
 	var defaults: Dictionary = profile.get("defaults", {}) as Dictionary
-	for slot in ["shape", "motion", "muzzle", "trail", "impact", "beat_fx"]:
+	for slot in ["shape", "motion", "muzzle", "trail", "impact"]:
 		var slot_layers: Array = defaults.get(slot, []) as Array
 		result[slot] = slot_layers.duplicate()
 
@@ -145,7 +144,7 @@ static func draw_shape_stack(canvas: CanvasItem, center: Vector2, layers: Array,
 				_draw_hdr_rect(canvas, center, 6.0, 12.0, intensity, color)
 
 
-# ── Muzzle Spawning (legacy dict particles — kept for beat_fx sparkles) ──
+# ── Muzzle Spawning (legacy dict particles) ──
 
 ## Generate muzzle particles from all muzzle layers. Returns flat Array of particle dicts.
 ## Note: For actual GPU muzzle effects, use VFXFactory.create_muzzle_emitter() instead.
@@ -310,84 +309,6 @@ static func spawn_impact_stack(layers: Array, color: Color) -> Array:
 				"color": color,
 			})
 	return all_particles
-
-
-# ── Beat FX Evaluation ──────────────────────────────────────
-
-## Evaluate beat-synced sub-effects. Returns transient modifiers for the current frame.
-## Result dict: { "color_shift": Color, "scale_mult": float, "sparkle_particles": Array }
-static func evaluate_beat_fx(layers: Array, color: Color, _age: float, _delta: float) -> Dictionary:
-	var result: Dictionary = {
-		"color_shift": Color.TRANSPARENT,
-		"scale_mult": 1.0,
-		"sparkle_particles": [],
-	}
-	if layers.is_empty() or not BeatClock._running:
-		return result
-
-	for layer in layers:
-		var layer_dict: Dictionary = layer as Dictionary
-		var fx_type: String = str(layer_dict.get("type", "none"))
-		if fx_type == "none":
-			continue
-		var params: Dictionary = layer_dict.get("params", {}) as Dictionary
-		var subdivision: int = int(params.get("subdivision", 16))
-		var intensity: float = float(params.get("intensity", 0.6))
-
-		# Check if we're near a subdivision beat
-		var sub_pos: float = fmod(BeatClock.beat_position * float(subdivision), 1.0)
-		# "near" = within 15% of a subdivision tick
-		var proximity: float = 1.0 - minf(sub_pos, 1.0 - sub_pos) * 2.0
-		proximity = clampf(proximity * 3.0 - 2.0, 0.0, 1.0)  # sharpen to pulse shape
-
-		if proximity <= 0.0:
-			continue
-
-		var strength: float = proximity * intensity
-
-		match fx_type:
-			"color_pulse":
-				var shift_color: Color = Color(
-					float(params.get("r", 1.0)),
-					float(params.get("g", 1.0)),
-					float(params.get("b", 1.0)),
-					strength * 0.5
-				)
-				result["color_shift"] = (result["color_shift"] as Color).blend(shift_color)
-			"scale_pulse":
-				var max_scale: float = float(params.get("max_scale", 1.5))
-				var scale_add: float = (max_scale - 1.0) * strength
-				result["scale_mult"] = float(result["scale_mult"]) + scale_add
-			"sparkle_burst":
-				if strength > 0.8 and randf() < 0.4:
-					var sparkle_particles: Array = result["sparkle_particles"]
-					sparkle_particles.append({
-						"pos": Vector2(randf_range(-6, 6), randf_range(-6, 6)),
-						"vel": Vector2(randf_range(-50, 50), randf_range(-50, 50)),
-						"age": 0.0,
-						"lifetime": 0.15,
-						"size": randf_range(1.0, 2.5),
-						"color": color,
-					})
-			"glow_flash":
-				# Increase glow intensity transiently
-				result["scale_mult"] = float(result["scale_mult"]) + strength * 0.3
-			"ring_ping":
-				if strength > 0.9 and randf() < 0.3:
-					var ring_count: int = 6
-					var sparkle_particles: Array = result["sparkle_particles"]
-					for i in ring_count:
-						var angle: float = TAU * float(i) / float(ring_count)
-						sparkle_particles.append({
-							"pos": Vector2.ZERO,
-							"vel": Vector2(cos(angle), sin(angle)) * 80.0,
-							"age": 0.0,
-							"lifetime": 0.12,
-							"size": 1.5,
-							"color": color,
-						})
-
-	return result
 
 
 # ── Trail Particle Drawing (shared helper) ──────────────────

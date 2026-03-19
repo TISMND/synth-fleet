@@ -18,7 +18,6 @@ var _trail_particles: Array = []
 
 # Resolved once at spawn — layer arrays per slot
 var _resolved_layers: Dictionary = {}
-var _beat_fx_particles: Array = []
 var _has_shader_shape: bool = false
 var _shader_sprite: Sprite2D = null
 var _gpu_trail_emitters: Array = []
@@ -101,22 +100,6 @@ func _process(delta: float) -> void:
 	if _trail_points.size() > 20:
 		_trail_points.pop_front()
 
-	# --- Beat FX evaluation ---
-	var beat_fx_layers: Array = _resolved_layers.get("beat_fx", []) as Array
-	if not beat_fx_layers.is_empty():
-		var fx_result: Dictionary = EffectLayerRenderer.evaluate_beat_fx(
-			beat_fx_layers, weapon_color, _age, delta
-		)
-		# Collect sparkle particles from beat fx
-		var sparkles: Array = fx_result.get("sparkle_particles", []) as Array
-		for sparkle in sparkles:
-			var s: Dictionary = sparkle as Dictionary
-			s["pos"] = (s["pos"] as Vector2) + global_position
-			_beat_fx_particles.append(s)
-
-	# --- Age beat_fx particles ---
-	_age_particles(_beat_fx_particles, delta)
-
 	# --- Off-screen check ---
 	if position.y < -50 or position.y > 1130 or position.x < -50 or position.x > 1970:
 		_die()
@@ -126,10 +109,6 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# --- Draw beat fx particles ---
-	for p in _beat_fx_particles:
-		EffectLayerRenderer.draw_particle(self, p, global_position)
-
 	# --- Draw ribbon trails ---
 	EffectLayerRenderer.draw_ribbon_trails(
 		self, _resolved_layers.get("trail", []) as Array,
@@ -138,34 +117,11 @@ func _draw() -> void:
 
 	# --- Draw shape stack (skip if shader sprite handles it) ---
 	if not _has_shader_shape:
-		var beat_fx_layers: Array = _resolved_layers.get("beat_fx", []) as Array
-		var scale_mult: float = 1.0
-		if not beat_fx_layers.is_empty():
-			var fx_result: Dictionary = EffectLayerRenderer.evaluate_beat_fx(
-				beat_fx_layers, weapon_color, _age, 0.0
-			)
-			scale_mult = float(fx_result.get("scale_mult", 1.0))
-
-		if scale_mult != 1.0:
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2(scale_mult, scale_mult))
-
 		EffectLayerRenderer.draw_shape_stack(
 			self, Vector2.ZERO,
 			_resolved_layers.get("shape", []) as Array,
 			weapon_color, _age
 		)
-
-		if scale_mult != 1.0:
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	else:
-		# Apply beat fx scale to shader sprite
-		var beat_fx_layers: Array = _resolved_layers.get("beat_fx", []) as Array
-		if not beat_fx_layers.is_empty() and _shader_sprite:
-			var fx_result: Dictionary = EffectLayerRenderer.evaluate_beat_fx(
-				beat_fx_layers, weapon_color, _age, 0.0
-			)
-			var scale_mult: float = float(fx_result.get("scale_mult", 1.0))
-			_shader_sprite.scale = Vector2(scale_mult, scale_mult)
 
 
 func _age_particles(particles: Array, delta: float) -> void:

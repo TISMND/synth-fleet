@@ -26,6 +26,16 @@ var _device_cache: Dictionary = {}
 var _dev_section: VBoxContainer
 var _dev_header: Label
 
+# Right panel (item picker)
+var _right_panel: VBoxContainer
+var _right_panel_header: Label
+var _right_panel_scroll: ScrollContainer
+var _right_panel_list: VBoxContainer
+var _expanded_slot: String = ""
+var _ext_slot_btns: Dictionary = {}  # slot_key -> Button (header)
+var _int_slot_btns: Dictionary = {}
+var _dev_slot_btns: Dictionary = {}
+
 # Live weapon preview
 var _viewport_container: SubViewportContainer
 var _sub_viewport: SubViewport
@@ -99,7 +109,6 @@ func _setup_vhs_overlay() -> void:
 
 
 func _apply_theme() -> void:
-	_apply_grid_bg()
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 	var body_font: Font = ThemeManager.get_font("font_body")
@@ -162,6 +171,16 @@ func _apply_theme() -> void:
 					if sub is Button:
 						ThemeManager.apply_button_style(sub as Button)
 
+	# Right panel header + item buttons
+	if _right_panel and _right_panel.visible:
+		_right_panel_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+		_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+		if body_font:
+			_right_panel_header.add_theme_font_override("font", body_font)
+		for child in _right_panel_list.get_children():
+			if child is Button:
+				ThemeManager.apply_button_style(child as Button)
+
 	# Device section header
 	if _dev_header:
 		_dev_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
@@ -201,12 +220,6 @@ func _apply_theme() -> void:
 				ThemeManager.apply_button_style(child as Button)
 
 
-func _apply_grid_bg() -> void:
-	var parent_node: Node = get_parent()
-	if parent_node and parent_node.has_node("Background"):
-		var bg: ColorRect = parent_node.get_node("Background") as ColorRect
-		if bg:
-			ThemeManager.apply_grid_background(bg)
 
 
 func _cache_weapons() -> void:
@@ -288,6 +301,9 @@ func _rebuild_buttons() -> void:
 	for child in _dev_section.get_children():
 		child.queue_free()
 	_slot_toggle_btns.clear()
+	_ext_slot_btns.clear()
+	_int_slot_btns.clear()
+	_dev_slot_btns.clear()
 
 	# External weapon slots (3)
 	for i in 3:
@@ -367,21 +383,27 @@ func _create_slot_row(slot_key: String, type_label: String, item_name: String, b
 	row.add_child(toggle)
 	_slot_toggle_btns[slot_key] = toggle
 
-	# Slot label (read-only) — shows equipped item info
-	var header := Label.new()
+	# Slot button (clickable) — shows equipped item info, opens picker
+	var header := Button.new()
 	var header_text: String = type_label + "  —  " + item_name
 	if bar_effect_text != "":
 		header_text += "  " + bar_effect_text
 	header.text = header_text
 	header.custom_minimum_size.y = 50
-	header.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_theme_color_override("font_color", ThemeManager.get_color("body"))
-	header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-	var body_font: Font = ThemeManager.get_font("font_body")
-	if body_font:
-		header.add_theme_font_override("font", body_font)
+	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	ThemeManager.apply_button_style(header)
+	var bound_slot: String = slot_key
+	header.pressed.connect(func() -> void: _toggle_slot_list(bound_slot))
 	row.add_child(header)
+
+	# Track header button for highlight
+	if slot_key.begins_with("ext_"):
+		_ext_slot_btns[slot_key] = header
+	elif slot_key.begins_with("int_"):
+		_int_slot_btns[slot_key] = header
+	elif slot_key.begins_with("dev_"):
+		_dev_slot_btns[slot_key] = header
 
 	return row
 
@@ -400,6 +422,147 @@ func _on_slot_toggle(slot_key: String) -> void:
 			btn.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 
 	_sync_preview_active_states()
+
+
+# ── Slot picker (right panel) ────────────────────────────────────────────────
+
+func _toggle_slot_list(slot_key: String) -> void:
+	if _expanded_slot == slot_key:
+		_clear_right_panel()
+		_expanded_slot = ""
+		_unhighlight_all_slot_btns()
+		return
+	_expanded_slot = slot_key
+	_unhighlight_all_slot_btns()
+	# Highlight the active slot button
+	var btn: Button = _get_slot_btn(slot_key)
+	if btn:
+		btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	_populate_right_panel(slot_key)
+
+
+func _unhighlight_all_slot_btns() -> void:
+	var body_color: Color = ThemeManager.get_color("body")
+	for d in [_ext_slot_btns, _int_slot_btns, _dev_slot_btns]:
+		for key in d:
+			var b: Button = d[key]
+			b.remove_theme_color_override("font_color")
+
+
+func _get_slot_btn(slot_key: String) -> Button:
+	if _ext_slot_btns.has(slot_key):
+		return _ext_slot_btns[slot_key]
+	if _int_slot_btns.has(slot_key):
+		return _int_slot_btns[slot_key]
+	if _dev_slot_btns.has(slot_key):
+		return _dev_slot_btns[slot_key]
+	return null
+
+
+func _populate_right_panel(slot_key: String) -> void:
+	_clear_right_panel()
+	_right_panel.visible = true
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+
+	if slot_key.begins_with("ext_"):
+		_right_panel_header.text = "━━ SELECT WEAPON ━━━━━━━━━━━"
+		# "(none)" option
+		var none_btn := Button.new()
+		none_btn.text = "(none)"
+		none_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		none_btn.custom_minimum_size.y = 36
+		ThemeManager.apply_button_style(none_btn)
+		var bound_key: String = slot_key
+		none_btn.pressed.connect(func() -> void: _select_item(bound_key, ""))
+		_right_panel_list.add_child(none_btn)
+		# Weapon list
+		for wid in _weapon_cache:
+			var w: WeaponData = _weapon_cache[wid]
+			var item_btn := Button.new()
+			var label: String = w.display_name if w.display_name != "" else w.id
+			item_btn.text = label
+			item_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			item_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			item_btn.custom_minimum_size.y = 36
+			ThemeManager.apply_button_style(item_btn)
+			var bound_wid: String = wid
+			item_btn.pressed.connect(func() -> void: _select_item(bound_key, bound_wid))
+			_right_panel_list.add_child(item_btn)
+
+	elif slot_key.begins_with("int_"):
+		_right_panel_header.text = "━━ SELECT CORE ━━━━━━━━━━━━━"
+		var none_btn := Button.new()
+		none_btn.text = "(none)"
+		none_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		none_btn.custom_minimum_size.y = 36
+		ThemeManager.apply_button_style(none_btn)
+		var bound_key: String = slot_key
+		none_btn.pressed.connect(func() -> void: _select_item(bound_key, ""))
+		_right_panel_list.add_child(none_btn)
+		for pcid in _power_core_cache:
+			var pc: PowerCoreData = _power_core_cache[pcid]
+			var item_btn := Button.new()
+			var label: String = pc.display_name if pc.display_name != "" else pc.id
+			item_btn.text = label
+			item_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			item_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			item_btn.custom_minimum_size.y = 36
+			ThemeManager.apply_button_style(item_btn)
+			var bound_pcid: String = pcid
+			item_btn.pressed.connect(func() -> void: _select_item(bound_key, bound_pcid))
+			_right_panel_list.add_child(item_btn)
+
+	elif slot_key.begins_with("dev_"):
+		_right_panel_header.text = "━━ SELECT DEVICE ━━━━━━━━━━━"
+		var none_btn := Button.new()
+		none_btn.text = "(none)"
+		none_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		none_btn.custom_minimum_size.y = 36
+		ThemeManager.apply_button_style(none_btn)
+		var bound_key: String = slot_key
+		none_btn.pressed.connect(func() -> void: _select_item(bound_key, ""))
+		_right_panel_list.add_child(none_btn)
+		for did in _device_cache:
+			var d: DeviceData = _device_cache[did]
+			var item_btn := Button.new()
+			var label: String = d.display_name if d.display_name != "" else d.id
+			item_btn.text = label
+			item_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			item_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			item_btn.custom_minimum_size.y = 36
+			ThemeManager.apply_button_style(item_btn)
+			var bound_did: String = did
+			item_btn.pressed.connect(func() -> void: _select_item(bound_key, bound_did))
+			_right_panel_list.add_child(item_btn)
+
+	# Theme the header
+	_right_panel_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if body_font:
+		_right_panel_header.add_theme_font_override("font", body_font)
+
+
+func _select_item(slot_key: String, item_id: String) -> void:
+	if slot_key.begins_with("ext_"):
+		GameState.set_slot_weapon(slot_key, item_id)
+	else:
+		GameState.set_slot_device(slot_key, item_id)
+	_clear_right_panel()
+	_expanded_slot = ""
+	_unhighlight_all_slot_btns()
+	_rebuild_buttons()
+	_sync_preview()
+
+
+func _clear_right_panel() -> void:
+	for child in _right_panel_list.get_children():
+		child.queue_free()
+	_right_panel.visible = false
+	_right_panel_header.text = ""
 
 
 func _sync_preview_active_states() -> void:
@@ -441,6 +604,11 @@ func _on_mode_toggle(new_mode: String) -> void:
 	_functional_content.visible = (_mode == "functional")
 	_audio_content.visible = (_mode == "audio")
 	_controls_content.visible = (_mode == "controls")
+	# Hide right panel when not on functional tab
+	if _mode != "functional":
+		_clear_right_panel()
+		_expanded_slot = ""
+		_unhighlight_all_slot_btns()
 	_update_mode_buttons()
 
 
@@ -1049,6 +1217,33 @@ func _build_ui() -> void:
 	_back_btn.custom_minimum_size.y = 40
 	_back_btn.pressed.connect(_on_back)
 	_center_vbox.add_child(_back_btn)
+
+	# RIGHT — item picker panel
+	var right_margin := MarginContainer.new()
+	right_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_margin.size_flags_stretch_ratio = 0.8
+	right_margin.add_theme_constant_override("margin_left", 10)
+	root.add_child(right_margin)
+
+	_right_panel = VBoxContainer.new()
+	_right_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_right_panel.visible = false
+	right_margin.add_child(_right_panel)
+
+	_right_panel_header = Label.new()
+	_right_panel_header.text = ""
+	_right_panel.add_child(_right_panel_header)
+
+	_right_panel_scroll = ScrollContainer.new()
+	_right_panel_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_panel_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_right_panel.add_child(_right_panel_scroll)
+
+	_right_panel_list = VBoxContainer.new()
+	_right_panel_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_panel_scroll.add_child(_right_panel_list)
 
 
 func _create_bar_cell(text: String, color: Color, seg_count: int = -1) -> Dictionary:

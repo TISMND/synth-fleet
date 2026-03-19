@@ -16,7 +16,6 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]
 
-BeatClock="*res://scripts/autoload/beat_clock.gd"
 GameState="*res://scripts/autoload/game_state.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
 ThemeManager="*res://scripts/autoload/theme_manager.gd"

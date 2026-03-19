@@ -292,7 +292,7 @@ func _process(_delta: float) -> void:
 func _auto_detect_bars() -> void:
 	if _detected_duration_sec <= 0.0:
 		return
-	var bpm: float = BeatClock.bpm
+	var bpm: float = 120.0
 	if bpm <= 0.0:
 		return
 	var beats: float = _detected_duration_sec * bpm / 60.0

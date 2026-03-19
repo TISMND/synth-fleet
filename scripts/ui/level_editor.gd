@@ -604,10 +604,21 @@ func _map_right_click(pos: Vector2) -> void:
 			return
 
 
+func _get_nebula_spread(nebula_id: String) -> float:
+	if nebula_id == "":
+		return float(NebulaData.default_params()["radial_spread"])
+	var ndata: NebulaData = NebulaDataManager.load_by_id(nebula_id)
+	if ndata:
+		return float(ndata.shader_params.get("radial_spread", NebulaData.default_params()["radial_spread"]))
+	return float(NebulaData.default_params()["radial_spread"])
+
+
 func _get_nebula_canvas_radius(neb: Dictionary) -> float:
 	var map_rect: Rect2 = _get_map_rect()
 	var radius: float = float(neb.get("radius", 300.0))
-	return maxf(radius * (map_rect.size.x / SCREEN_W), NEBULA_HIT_RADIUS)
+	var spread: float = _get_nebula_spread(str(neb.get("nebula_id", "")))
+	var effective: float = radius * (1.0 - spread / 2.0)
+	return maxf(effective * (map_rect.size.x / SCREEN_W), NEBULA_HIT_RADIUS)
 
 
 func _map_left_click_nebula(pos: Vector2) -> void:
@@ -1291,7 +1302,10 @@ class _MapCanvasDraw extends Control:
 			var ncy: float = s._level_y_to_canvas_y(float(neb["trigger_y"]))
 			var ncx: float = s._level_x_to_canvas_x(float(neb["x_offset"]))
 			var neb_radius: float = float(neb.get("radius", 300.0))
-			var canvas_radius: float = neb_radius * (map_rect.size.x / 1920.0)
+			var neb_id_for_spread: String = str(neb.get("nebula_id", ""))
+			var spread: float = s._get_nebula_spread(neb_id_for_spread)
+			var effective: float = neb_radius * (1.0 - spread / 2.0)
+			var canvas_radius: float = effective * (map_rect.size.x / 1920.0)
 
 			if ncy < -canvas_radius - 20 or ncy > canvas_h + canvas_radius + 20:
 				continue
