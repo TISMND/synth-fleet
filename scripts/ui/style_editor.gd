@@ -92,10 +92,13 @@ func _build_ui() -> void:
 	# Top bar
 	_build_top_bar(root_vbox)
 
-	# Tab container (full width)
+	# Tab container (full width) — transparent panel so grid background shows through
 	_tab_container = TabContainer.new()
 	_tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var tab_panel_style := StyleBoxFlat.new()
+	tab_panel_style.bg_color = Color.TRANSPARENT
+	_tab_container.add_theme_stylebox_override("panel", tab_panel_style)
 	root_vbox.add_child(_tab_container)
 
 	_build_typography_tab()
@@ -1026,22 +1029,92 @@ func _build_hud_tab_content(parent: VBoxContainer) -> void:
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var body_size: int = ThemeManager.get_font_size("font_size_body")
 
-	# ── Top area: Credits + Menu hint (mock text, preview-specific) ──
-	var top_row := HBoxContainer.new()
-	top_row.add_theme_constant_override("separation", 8)
-	parent.add_child(top_row)
+	# Build 3-panel HUD
+	var hud_result: Dictionary = HudBuilder.build_hud("preview")
 
-	var credits_lbl := Label.new()
-	credits_lbl.text = "CR: 1,250"
-	credits_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	credits_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	credits_lbl.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
-	if body_font:
-		credits_lbl.add_theme_font_override("font", body_font)
-	ThemeManager.apply_text_glow(credits_lbl, "body")
-	top_row.add_child(credits_lbl)
-	_preview_labels.append(credits_lbl)
-	_body_glow_labels.append(credits_lbl)
+	# ── Side panels preview: left | spacer | right in an HBox ──
+	var sides_hbox := HBoxContainer.new()
+	sides_hbox.add_theme_constant_override("separation", 16)
+	sides_hbox.custom_minimum_size.y = 300
+	parent.add_child(sides_hbox)
+
+	var left_root: Control = hud_result["left_panel"]["root"]
+	left_root.custom_minimum_size = Vector2(HudBuilder.SIDE_PANEL_WIDTH, 300)
+	sides_hbox.add_child(left_root)
+	_preview_panels.append(left_root)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sides_hbox.add_child(spacer)
+
+	var right_root: Control = hud_result["right_panel"]["root"]
+	right_root.custom_minimum_size = Vector2(HudBuilder.SIDE_PANEL_WIDTH, 300)
+	sides_hbox.add_child(right_root)
+	_preview_panels.append(right_root)
+
+	# ── Bottom bar with icons ──
+	var bottom_root: Control = hud_result["bottom_bar"]["root"]
+	parent.add_child(bottom_root)
+	_preview_panels.append(bottom_root)
+
+	# Weapon icons — cyan, matching game
+	var weapons_hbox: HBoxContainer = hud_result["weapons_hbox"]
+	var weapon_active_states: Array[bool] = [true, true, false, true]
+	for i in 4:
+		var is_active: bool = weapon_active_states[i]
+		var icon_data: Dictionary = HudBuilder.build_weapon_icon(i + 1, is_active, Color.CYAN)
+		weapons_hbox.add_child(icon_data["container"])
+
+	# Separator between weapons and cores
+	var sep1: ColorRect = HudBuilder.build_icon_separator()
+	weapons_hbox.add_child(sep1)
+
+	# Core icons — purple
+	var core_labels: Array[String] = ["Q", "E"]
+	var core_active_states: Array[bool] = [true, false]
+	for i in 2:
+		var icon_data: Dictionary = HudBuilder.build_weapon_icon(0, core_active_states[i], Color(0.6, 0.4, 1.0))
+		icon_data["number_label"].text = core_labels[i]
+		weapons_hbox.add_child(icon_data["container"])
+
+	# Separator between cores and devices
+	var sep2: ColorRect = HudBuilder.build_icon_separator()
+	weapons_hbox.add_child(sep2)
+
+	# Device icon — cyan
+	var dev_icon: Dictionary = HudBuilder.build_weapon_icon(0, true, Color(0.0, 0.8, 1.0))
+	dev_icon["number_label"].text = "R"
+	weapons_hbox.add_child(dev_icon["container"])
+
+	# Apply mock bar values and theme to side panel bars
+	var preview_values: Dictionary = {"SHIELD": 80.0, "HULL": 45.0, "THERMAL": 30.0, "ELECTRIC": 70.0}
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for panel_key in ["left_panel", "right_panel"]:
+		var bars_dict: Dictionary = hud_result[panel_key]["bars"]
+		for bar_name in bars_dict:
+			var entry: Dictionary = bars_dict[bar_name]
+			var bar: ProgressBar = entry["bar"]
+			var val: float = float(preview_values.get(bar_name, 50.0))
+			bar.max_value = 100.0
+			bar.value = val
+			# Find matching spec for color
+			for spec in specs:
+				if str(spec["name"]) == bar_name:
+					var color: Color = ThemeManager.resolve_bar_color(spec)
+					var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
+					ThemeManager.apply_led_bar(bar, color, val / 100.0, seg, true)
+					# Apply label theme
+					var lbl: Label = entry["label"]
+					HudBuilder.apply_bar_label_theme(lbl, color, body_font, body_size)
+					_preview_labels.append(lbl)
+					_body_glow_labels.append(lbl)
+					break
+			_hud_bars.append(bar)
+
+	# ── Credits + Menu hint BELOW, right-aligned ──
+	var bottom_row := HBoxContainer.new()
+	bottom_row.add_theme_constant_override("separation", 8)
+	parent.add_child(bottom_row)
 
 	var menu_hint := Label.new()
 	menu_hint.text = "ESC: Menu"
@@ -1049,51 +1122,21 @@ func _build_hud_tab_content(parent: VBoxContainer) -> void:
 	menu_hint.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 	if body_font:
 		menu_hint.add_theme_font_override("font", body_font)
-	top_row.add_child(menu_hint)
+	bottom_row.add_child(menu_hint)
 	_preview_labels.append(menu_hint)
 
-	# ── Dashboard panel via HudBuilder ──
-	var dash_result: Dictionary = HudBuilder.build_dashboard("preview")
-	parent.add_child(dash_result["root"])
-	_preview_panels.append(dash_result["root"])
-
-	# Mock weapon icons (mix of active/inactive)
-	var weapons_hbox: HBoxContainer = dash_result["weapons_hbox"]
-	var icon_active_states: Array[bool] = [true, true, false, true, false, true]
-	var icon_colors: Array[String] = ["accent", "header", "dimmed", "positive", "dimmed", "warning"]
-	for i in 6:
-		var is_active: bool = icon_active_states[i]
-		var color: Color = ThemeManager.get_color(icon_colors[i])
-		var icon_data: Dictionary = HudBuilder.build_weapon_icon(i + 1, is_active, color)
-		weapons_hbox.add_child(icon_data["container"])
-
-	# Separator divider
-	var sep: ColorRect = HudBuilder.build_icon_separator()
-	weapons_hbox.add_child(sep)
-
-	# Bars via HudBuilder — then apply mock preview values
-	var bars_dict: Dictionary = HudBuilder.populate_bars(dash_result["bars_grid"])
-	var preview_values: Dictionary = {"SHIELD": 80.0, "HULL": 45.0, "THERMAL": 30.0, "ELECTRIC": 70.0}
-	var specs: Array = ThemeManager.get_status_bar_specs()
-	for spec in specs:
-		var bar_name: String = str(spec["name"])
-		if not bars_dict.has(bar_name):
-			continue
-		var entry: Dictionary = bars_dict[bar_name]
-		var color: Color = ThemeManager.resolve_bar_color(spec)
-		var val: float = float(preview_values.get(bar_name, 50.0))
-		var bar: ProgressBar = entry["bar"]
-		bar.max_value = 100.0
-		bar.value = val
-		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
-		ThemeManager.apply_led_bar(bar, color, val / 100.0, seg)
-		_hud_bars.append(bar)
-
-		# Apply label theme for preview
-		var lbl: Label = entry["label"]
-		HudBuilder.apply_bar_label_theme(lbl, color, body_font, body_size)
-		_preview_labels.append(lbl)
-		_body_glow_labels.append(lbl)
+	var credits_lbl := Label.new()
+	credits_lbl.text = "CR: 1,250"
+	credits_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	credits_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	credits_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	credits_lbl.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
+	if body_font:
+		credits_lbl.add_theme_font_override("font", body_font)
+	ThemeManager.apply_text_glow(credits_lbl, "body")
+	bottom_row.add_child(credits_lbl)
+	_preview_labels.append(credits_lbl)
+	_body_glow_labels.append(credits_lbl)
 
 
 func _build_preview_tab() -> void:

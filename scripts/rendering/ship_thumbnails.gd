@@ -23,9 +23,8 @@ func _draw() -> void:
 ## Static API: draw a ship thumbnail on any CanvasItem.
 static func draw_ship_on(ci: CanvasItem, index: int, at_origin: Vector2,
 		scale: float, mode: int) -> void:
-	ci.draw_set_transform(at_origin, 0, Vector2(scale, scale))
-	var o: Vector2 = Vector2.ZERO
-	var ctx := _DrawCtx.new(ci, mode)
+	var o: Vector2 = at_origin
+	var ctx := _DrawCtx.new(ci, mode, scale, at_origin)
 	match index:
 		0: ctx.draw_switchblade(o)
 		1: ctx.draw_phantom(o)
@@ -39,18 +38,24 @@ static func draw_ship_on(ci: CanvasItem, index: int, at_origin: Vector2,
 
 
 ## Draw any enemy thumbnail on any CanvasItem, dispatched by visual_id.
-static func draw_enemy_on(ci: CanvasItem, visual_id: String, at_origin: Vector2, mode: int) -> void:
-	var ctx := _DrawCtx.new(ci, mode)
+static func draw_enemy_on(ci: CanvasItem, visual_id: String, at_origin: Vector2, mode: int, scale: float = 1.0) -> void:
+	var o: Vector2 = at_origin
+	var ctx := _DrawCtx.new(ci, mode, scale, at_origin)
 	match visual_id:
-		"sentinel": ctx.draw_sentinel(at_origin)
-		"dart": ctx.draw_dart(at_origin)
-		"crucible": ctx.draw_crucible(at_origin)
-		"prism": ctx.draw_prism(at_origin)
-		"scythe": ctx.draw_scythe(at_origin)
-		"tesseract": ctx.draw_tesseract(at_origin)
-		"talon": ctx.draw_talon(at_origin)
-		"obelisk": ctx.draw_obelisk(at_origin)
-		_: ctx.draw_sentinel(at_origin)
+		"sentinel": ctx.draw_sentinel(o)
+		"dart": ctx.draw_dart(o)
+		"crucible": ctx.draw_crucible(o)
+		"prism": ctx.draw_prism(o)
+		"scythe": ctx.draw_scythe(o)
+		"tesseract": ctx.draw_tesseract(o)
+		"talon": ctx.draw_talon(o)
+		"obelisk": ctx.draw_obelisk(o)
+		"ironclad": ctx.draw_ironclad(o)
+		"colossus": ctx.draw_colossus(o)
+		"leviathan": ctx.draw_leviathan(o)
+		"marauder": ctx.draw_marauder(o)
+		"wraith": ctx.draw_wraith(o)
+		_: ctx.draw_sentinel(o)
 
 ## Draw a sentinel enemy thumbnail on any CanvasItem.
 static func draw_sentinel_on(ci: CanvasItem, at_origin: Vector2, mode: int) -> void:
@@ -63,6 +68,8 @@ static func draw_sentinel_on(ci: CanvasItem, at_origin: Vector2, mode: int) -> v
 class _DrawCtx:
 	var ci: CanvasItem
 	var mode: int
+	var sc: float  # extra scale multiplier applied relative to origin
+	var origin: Vector2  # reference point for scaling
 
 	var cyan := Color(0.0, 0.9, 1.0)
 	var magenta := Color(1.0, 0.2, 0.6)
@@ -70,9 +77,11 @@ class _DrawCtx:
 	var purple := Color(0.4, 0.2, 1.0)
 	var teal := Color(0.0, 1.0, 0.7)
 
-	func _init(canvas_item: CanvasItem, render_mode: int) -> void:
+	func _init(canvas_item: CanvasItem, render_mode: int, scale: float = 1.0, at_origin: Vector2 = Vector2.ZERO) -> void:
 		ci = canvas_item
 		mode = render_mode
+		sc = scale
+		origin = at_origin
 		# Apply palette overrides for neon variants
 		match mode:
 			ShipRenderer.RenderMode.EMBER:
@@ -101,21 +110,44 @@ class _DrawCtx:
 				purple = Color(0.5, 0.0, 1.0)
 				teal = Color(0.0, 0.8, 1.0)
 
+	func _scale_pts(points: PackedVector2Array) -> PackedVector2Array:
+		if sc == 1.0:
+			return points
+		var out := PackedVector2Array()
+		out.resize(points.size())
+		for i in range(points.size()):
+			out[i] = origin + (points[i] - origin) * sc
+		return out
+
+	func _sp(p: Vector2) -> Vector2:
+		return origin + (p - origin) * sc if sc != 1.0 else p
+
+	func mc(center: Vector2, radius: float, color: Color) -> void:
+		ci.draw_circle(_sp(center), radius * sc, color)
+
+	func mpoly(points: PackedVector2Array, color: Color) -> void:
+		ci.draw_colored_polygon(_scale_pts(points), color)
+
 	func mp(points: PackedVector2Array, color: Color, w: float) -> void:
+		var scaled: PackedVector2Array = _scale_pts(points)
+		var sw: float = w * sc
 		match mode:
-			ShipRenderer.RenderMode.CHROME: mp_chrome(points, w)
-			ShipRenderer.RenderMode.VOID: mp_void(points, w)
-			ShipRenderer.RenderMode.HIVEMIND: mp_hivemind(points, w)
-			ShipRenderer.RenderMode.SPORE: mp_spore(points, w)
-			_: mp_neon(points, color, w)
+			ShipRenderer.RenderMode.CHROME: mp_chrome(scaled, sw)
+			ShipRenderer.RenderMode.VOID: mp_void(scaled, sw)
+			ShipRenderer.RenderMode.HIVEMIND: mp_hivemind(scaled, sw)
+			ShipRenderer.RenderMode.SPORE: mp_spore(scaled, sw)
+			_: mp_neon(scaled, color, sw)
 
 	func ml(a: Vector2, b: Vector2, color: Color, w: float) -> void:
+		var sa: Vector2 = _sp(a)
+		var sb: Vector2 = _sp(b)
+		var sw: float = w * sc
 		match mode:
-			ShipRenderer.RenderMode.CHROME: ml_chrome(a, b, w)
-			ShipRenderer.RenderMode.VOID: ml_void(a, b, w)
-			ShipRenderer.RenderMode.HIVEMIND: ml_hivemind(a, b, w)
-			ShipRenderer.RenderMode.SPORE: ml_spore(a, b, w)
-			_: ml_neon(a, b, color, w)
+			ShipRenderer.RenderMode.CHROME: ml_chrome(sa, sb, sw)
+			ShipRenderer.RenderMode.VOID: ml_void(sa, sb, sw)
+			ShipRenderer.RenderMode.HIVEMIND: ml_hivemind(sa, sb, sw)
+			ShipRenderer.RenderMode.SPORE: ml_spore(sa, sb, sw)
+			_: ml_neon(sa, sb, color, sw)
 
 	func mp_neon(points: PackedVector2Array, color: Color, w: float) -> void:
 		var fill := color
@@ -290,11 +322,11 @@ class _DrawCtx:
 			o + Vector2(-4, -8) * s,
 		])
 		if mode == ShipRenderer.RenderMode.CHROME:
-			ci.draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
+			mpoly(can, Color(0.05, 0.08, 0.2, 0.85))
 		else:
 			var cf := purple
 			cf.a = 0.3
-			ci.draw_colored_polygon(can, cf)
+			mpoly(can, cf)
 		ml(o + Vector2(8, 16) * s, o + Vector2(8, 22) * s, orange, 1.2)
 		ml(o + Vector2(-8, 16) * s, o + Vector2(-8, 22) * s, orange, 1.2)
 		ml(o + Vector2(12, -8) * s, o + Vector2(36, 8) * s, teal, 0.6)
@@ -346,11 +378,11 @@ class _DrawCtx:
 			o + Vector2(4, -6) * s, o + Vector2(-4, -6) * s, o + Vector2(-6, -12) * s,
 		])
 		if mode == ShipRenderer.RenderMode.CHROME:
-			ci.draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
+			mpoly(can, Color(0.05, 0.08, 0.2, 0.85))
 		else:
 			var cf := purple
 			cf.a = 0.25
-			ci.draw_colored_polygon(can, cf)
+			mpoly(can, cf)
 		ml(o + Vector2(0, -6) * s, o + Vector2(0, 18) * s, magenta, 0.8)
 		ml(o + Vector2(-4, 20) * s, o + Vector2(-4, 27) * s, orange, 1.5)
 		ml(o + Vector2(4, 20) * s, o + Vector2(4, 27) * s, orange, 1.5)
@@ -398,11 +430,11 @@ class _DrawCtx:
 			o + Vector2(-3, -18) * s,
 		])
 		if mode == ShipRenderer.RenderMode.CHROME:
-			ci.draw_colored_polygon(can, Color(0.05, 0.08, 0.2, 0.85))
+			mpoly(can, Color(0.05, 0.08, 0.2, 0.85))
 		else:
 			var cf := purple
 			cf.a = 0.25
-			ci.draw_colored_polygon(can, cf)
+			mpoly(can, cf)
 		ml(o + Vector2(0, -18) * s, o + Vector2(0, 22) * s, magenta, 0.7)
 		ml(o + Vector2(0, 24) * s, o + Vector2(0, 32) * s, orange, 1.5)
 		ml(o + Vector2(13, 26) * s, o + Vector2(13, 33) * s, orange, 1.2)
@@ -532,7 +564,7 @@ class _DrawCtx:
 			hex_pts.append(o + Vector2(cos(angle) * hex_r, sin(angle) * hex_r))
 		mp(hex_pts, magenta, 0.6)
 		# Center dot
-		ci.draw_circle(o, 2.0, cyan)
+		mc(o, 2.0, cyan)
 
 	func draw_dart(o: Vector2) -> void:
 		var s := 0.5
@@ -549,7 +581,7 @@ class _DrawCtx:
 		ml(o + Vector2(8, -4) * s, o + Vector2(12, 2) * s, magenta, 0.5)
 		ml(o + Vector2(-8, -4) * s, o + Vector2(-12, 2) * s, magenta, 0.5)
 		ml(o + Vector2(0, 14) * s, o + Vector2(0, -10) * s, teal, 0.4)
-		ci.draw_circle(o + Vector2(0, -14) * s, 1.5, orange)
+		mc(o + Vector2(0, -14) * s, 1.5, orange)
 
 	func draw_crucible(o: Vector2) -> void:
 		var s := 0.4
@@ -574,7 +606,7 @@ class _DrawCtx:
 		# Forward pylons
 		ml(o + Vector2(4, -16) * s, o + Vector2(3, -24) * s, magenta, 0.6)
 		ml(o + Vector2(-4, -16) * s, o + Vector2(-3, -24) * s, magenta, 0.6)
-		ci.draw_circle(o, 2.0, teal)
+		mc(o, 2.0, teal)
 
 	func draw_prism(o: Vector2) -> void:
 		var s := 0.45
@@ -590,7 +622,7 @@ class _DrawCtx:
 				var angle: float = TAU * float(i) / 3.0 + offsets[t_idx]
 				tri.append(o + Vector2(cos(angle) * r, sin(angle) * r))
 			mp(tri, cols[t_idx], wids[t_idx])
-		ci.draw_circle(o, 2.0, Color(1.0, 1.0, 1.0, 0.7))
+		mc(o, 2.0, Color(1.0, 1.0, 1.0, 0.7))
 
 	func draw_scythe(o: Vector2) -> void:
 		var s := 0.45
@@ -636,7 +668,7 @@ class _DrawCtx:
 		ml(o + Vector2(oh, -oh), o + Vector2(ih, -ih), teal, 0.3)
 		ml(o + Vector2(oh, oh), o + Vector2(ih, ih), teal, 0.3)
 		ml(o + Vector2(-oh, oh), o + Vector2(-ih, ih), teal, 0.3)
-		ci.draw_circle(o, 1.5, Color(1.0, 1.0, 1.0, 0.7))
+		mc(o, 1.5, Color(1.0, 1.0, 1.0, 0.7))
 
 	func draw_talon(o: Vector2) -> void:
 		var s := 0.45
@@ -663,8 +695,8 @@ class _DrawCtx:
 			o + Vector2(0, 12) * s, o + Vector2(-3, 18) * s,
 		])
 		mp(pod, magenta, 0.5)
-		ci.draw_circle(o + Vector2(8, -12) * s, 1.5, orange)
-		ci.draw_circle(o + Vector2(-8, -12) * s, 1.5, orange)
+		mc(o + Vector2(8, -12) * s, 1.5, orange)
+		mc(o + Vector2(-8, -12) * s, 1.5, orange)
 
 	func draw_obelisk(o: Vector2) -> void:
 		var s := 0.45
@@ -680,4 +712,201 @@ class _DrawCtx:
 		ml(o + Vector2(-hw * 0.7, 0), o + Vector2(hw * 0.7, 0), magenta, 0.5)
 		# Corner dots
 		for corner in [Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, hh), Vector2(-hw, hh)]:
-			ci.draw_circle(o + corner, 1.5, teal)
+			mc(o + corner, 1.5, teal)
+
+	func draw_ironclad(o: Vector2) -> void:
+		var s := 0.35
+		# Boxy armored hull
+		var hull := PackedVector2Array([
+			o + Vector2(-6, 28) * s, o + Vector2(6, 28) * s,
+			o + Vector2(16, 18) * s, o + Vector2(18, 6) * s,
+			o + Vector2(18, -18) * s, o + Vector2(14, -24) * s,
+			o + Vector2(-14, -24) * s, o + Vector2(-18, -18) * s,
+			o + Vector2(-18, 6) * s, o + Vector2(-16, 18) * s,
+		])
+		mp(hull, cyan, 0.8)
+		# Armor plate lines
+		for y_off in [14.0, 4.0, -6.0, -16.0]:
+			ml(o + Vector2(-17, y_off) * s, o + Vector2(17, y_off) * s, teal, 0.4)
+		# Forward turret
+		var fwd := PackedVector2Array([
+			o + Vector2(-5, 20) * s, o + Vector2(5, 20) * s,
+			o + Vector2(6, 14) * s, o + Vector2(-6, 14) * s,
+		])
+		mp(fwd, magenta, 0.6)
+		ml(o + Vector2(0, 20) * s, o + Vector2(0, 28) * s, magenta, 0.7)
+		# Shield dome
+		mc(o + Vector2(4, -2) * s, 3.0 * s, Color(teal.r, teal.g, teal.b, 0.3))
+		# Side sponsons
+		var rs := PackedVector2Array([
+			o + Vector2(18, 2) * s, o + Vector2(22, 4) * s,
+			o + Vector2(22, -8) * s, o + Vector2(18, -10) * s,
+		])
+		mp(rs, cyan, 0.5)
+		var ls := PackedVector2Array([
+			o + Vector2(-18, -4) * s, o + Vector2(-22, -2) * s,
+			o + Vector2(-22, -14) * s, o + Vector2(-18, -16) * s,
+		])
+		mp(ls, cyan, 0.5)
+		# Keel line
+		ml(o + Vector2(0, 26) * s, o + Vector2(0, -22) * s, teal, 0.3)
+		# Engines
+		for x_off in [-8.0, 0.0, 8.0]:
+			mc(o + Vector2(x_off, -24) * s, 1.5, orange)
+
+	func draw_colossus(o: Vector2) -> void:
+		var s := 0.30
+		# 3-section hull: prow, mid, aft
+		var prow := PackedVector2Array([
+			o + Vector2(-4, 32) * s, o + Vector2(4, 32) * s,
+			o + Vector2(12, 22) * s, o + Vector2(12, 14) * s,
+			o + Vector2(-12, 14) * s, o + Vector2(-12, 22) * s,
+		])
+		mp(prow, cyan, 0.7)
+		var mid := PackedVector2Array([
+			o + Vector2(-16, 14) * s, o + Vector2(16, 14) * s,
+			o + Vector2(20, 4) * s, o + Vector2(20, -12) * s,
+			o + Vector2(16, -18) * s, o + Vector2(-16, -18) * s,
+			o + Vector2(-20, -12) * s, o + Vector2(-20, 4) * s,
+		])
+		mp(mid, cyan, 0.8)
+		var aft := PackedVector2Array([
+			o + Vector2(-14, -18) * s, o + Vector2(14, -18) * s,
+			o + Vector2(16, -28) * s, o + Vector2(-16, -28) * s,
+		])
+		mp(aft, cyan, 0.7)
+		# Section dividers
+		ml(o + Vector2(-16, 14) * s, o + Vector2(16, 14) * s, magenta, 0.5)
+		ml(o + Vector2(-16, -18) * s, o + Vector2(16, -18) * s, magenta, 0.5)
+		# Command bridge
+		var bridge := PackedVector2Array([
+			o + Vector2(2, 10) * s, o + Vector2(12, 8) * s,
+			o + Vector2(14, 0) * s, o + Vector2(10, -4) * s,
+			o + Vector2(2, -2) * s,
+		])
+		mp(bridge, magenta, 0.6)
+		# Port gun battery
+		ml(o + Vector2(-14, 8) * s, o + Vector2(-18, 14) * s, magenta, 0.6)
+		ml(o + Vector2(-12, 7) * s, o + Vector2(-16, 13) * s, magenta, 0.6)
+		# Starboard gun
+		ml(o + Vector2(20, -5) * s, o + Vector2(24, 1) * s, magenta, 0.6)
+		# Keel line
+		ml(o + Vector2(0, 30) * s, o + Vector2(0, -26) * s, teal, 0.3)
+		# Engines
+		for x_off in [-10.0, -5.0, 0.0, 5.0, 10.0]:
+			mc(o + Vector2(x_off, -28) * s, 1.3, orange)
+
+	func draw_leviathan(o: Vector2) -> void:
+		var s := 0.30
+		# Wide blocky carrier hull
+		var hull := PackedVector2Array([
+			o + Vector2(-18, 22) * s, o + Vector2(-8, 28) * s,
+			o + Vector2(10, 28) * s, o + Vector2(20, 20) * s,
+			o + Vector2(22, 0) * s, o + Vector2(20, -20) * s,
+			o + Vector2(8, -26) * s, o + Vector2(-10, -26) * s,
+			o + Vector2(-20, -18) * s, o + Vector2(-22, 2) * s,
+		])
+		mp(hull, cyan, 0.8)
+		# Bridge tower — starboard
+		var bridge := PackedVector2Array([
+			o + Vector2(10, 18) * s, o + Vector2(17, 16) * s,
+			o + Vector2(18, 6) * s, o + Vector2(14, 4) * s,
+			o + Vector2(10, 6) * s,
+		])
+		mp(bridge, magenta, 0.6)
+		# Hangar slit — port side
+		ml(o + Vector2(-16, 4) * s, o + Vector2(-16, -10) * s, magenta, 0.7)
+		# Hull seams
+		ml(o + Vector2(-6, 24) * s, o + Vector2(-6, -22) * s, teal, 0.3)
+		ml(o + Vector2(4, 26) * s, o + Vector2(4, -24) * s, teal, 0.3)
+		# Side weapon bumps
+		for y_off in [12.0, 0.0, -12.0]:
+			ml(o + Vector2(22, y_off) * s, o + Vector2(26, y_off + 1) * s, cyan, 0.5)
+		# Engines
+		for x_off in [-7.0, -2.0, 3.0, 8.0]:
+			mc(o + Vector2(x_off, -26) * s, 1.3, orange)
+		# Forward sensor
+		mc(o + Vector2(1, 26) * s, 1.5, teal)
+
+	func draw_marauder(o: Vector2) -> void:
+		var s := 0.35
+		# Aggressive forward-heavy hull
+		var hull := PackedVector2Array([
+			o + Vector2(-4, 26) * s, o + Vector2(6, 26) * s,
+			o + Vector2(18, 14) * s, o + Vector2(16, -8) * s,
+			o + Vector2(12, -22) * s, o + Vector2(-10, -22) * s,
+			o + Vector2(-14, -8) * s, o + Vector2(-16, 12) * s,
+		])
+		mp(hull, cyan, 0.8)
+		# Port weapon pylon
+		var pp := PackedVector2Array([
+			o + Vector2(-16, 12) * s, o + Vector2(-22, 18) * s,
+			o + Vector2(-20, 22) * s, o + Vector2(-14, 16) * s,
+		])
+		mp(pp, cyan, 0.6)
+		# Starboard weapon cluster
+		var sp := PackedVector2Array([
+			o + Vector2(18, 14) * s, o + Vector2(24, 20) * s,
+			o + Vector2(26, 18) * s, o + Vector2(22, 10) * s,
+		])
+		mp(sp, cyan, 0.6)
+		ml(o + Vector2(22, 14) * s, o + Vector2(26, 22) * s, magenta, 0.6)
+		# Cockpit
+		var cp := PackedVector2Array([
+			o + Vector2(2, 20) * s, o + Vector2(8, 18) * s,
+			o + Vector2(8, 12) * s, o + Vector2(2, 14) * s,
+		])
+		mp(cp, magenta, 0.5)
+		# Spine
+		ml(o + Vector2(1, 22) * s, o + Vector2(1, -18) * s, teal, 0.4)
+		# Battle scars
+		ml(o + Vector2(-10, 4) * s, o + Vector2(-6, -4) * s, teal, 0.3)
+		# Engines
+		mc(o + Vector2(-6, -22) * s, 1.5, orange)
+		mc(o + Vector2(4, -22) * s, 1.8, orange)
+		mc(o + Vector2(10, -21) * s, 1.3, orange)
+		# Weapon pylon tips
+		mc(o + Vector2(-20, 22) * s, 1.5, magenta)
+		mc(o + Vector2(25, 21) * s, 1.8, magenta)
+
+	func draw_wraith(o: Vector2) -> void:
+		var s := 0.35
+		# Sleek angular stealth hull
+		var hull := PackedVector2Array([
+			o + Vector2(0, 30) * s, o + Vector2(8, 22) * s,
+			o + Vector2(14, 8) * s, o + Vector2(16, -6) * s,
+			o + Vector2(12, -20) * s, o + Vector2(4, -24) * s,
+			o + Vector2(-6, -24) * s, o + Vector2(-12, -18) * s,
+			o + Vector2(-14, -4) * s, o + Vector2(-12, 10) * s,
+			o + Vector2(-6, 24) * s,
+		])
+		mp(hull, cyan, 0.7)
+		# Sensor fin — port side
+		var fin := PackedVector2Array([
+			o + Vector2(-8, 16) * s, o + Vector2(-6, 20) * s,
+			o + Vector2(-4, 16) * s, o + Vector2(-4, 4) * s,
+			o + Vector2(-8, 2) * s,
+		])
+		mp(fin, magenta, 0.5)
+		# Wing stubs
+		var rw := PackedVector2Array([
+			o + Vector2(14, 4) * s, o + Vector2(22, -2) * s,
+			o + Vector2(20, -6) * s, o + Vector2(14, -4) * s,
+		])
+		mp(rw, cyan, 0.6)
+		var lw := PackedVector2Array([
+			o + Vector2(-12, 2) * s, o + Vector2(-18, -4) * s,
+			o + Vector2(-16, -8) * s, o + Vector2(-12, -6) * s,
+		])
+		mp(lw, cyan, 0.6)
+		# Cockpit slit
+		ml(o + Vector2(-2, 22) * s, o + Vector2(4, 20) * s, magenta, 0.5)
+		# Hull seams
+		ml(o + Vector2(0, 28) * s, o + Vector2(4, 0) * s, teal, 0.3)
+		ml(o + Vector2(4, 0) * s, o + Vector2(2, -22) * s, teal, 0.3)
+		# Engines — recessed
+		mc(o + Vector2(-2, -23) * s, 1.2, orange)
+		mc(o + Vector2(6, -23) * s, 1.2, orange)
+		# Wingtip lights
+		mc(o + Vector2(21, -4) * s, 1.2, magenta)
+		mc(o + Vector2(-17, -6) * s, 1.0, magenta)

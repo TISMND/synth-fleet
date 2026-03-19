@@ -209,6 +209,45 @@
 			"trigger_y": 7679.01234567901,
 			"turn_speed": 90.0,
 			"x_offset": 75.1601423487548
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_ironclad",
+			"spacing": 50.0,
+			"speed": 50.0,
+			"trigger_y": 9058.64197530864,
+			"turn_speed": 90.0,
+			"x_offset": 10.2491103202849
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_colossus",
+			"spacing": 200.0,
+			"speed": 50.0,
+			"trigger_y": 9938.27160493827,
+			"turn_speed": 90.0,
+			"x_offset": 589.32384341637
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_1",
+			"rotate_with_path": false,
+			"ship_id": "enemy_colossus",
+			"spacing": 200.0,
+			"speed": 50.0,
+			"trigger_y": 9632.71604938272,
+			"turn_speed": 90.0,
+			"x_offset": -474.875444839858
 		}
 	],
 	"id": "level_1",

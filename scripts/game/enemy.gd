@@ -9,6 +9,7 @@ var drift_speed: float = 100.0
 var enemy_color: Color = Color(1.0, 0.3, 0.5)
 var visual_id: String = ""
 var render_mode_str: String = "neon"
+var grid_size: Vector2i = Vector2i(32, 32)
 
 # Path-following mode (set externally; null = drift mode)
 var path_curve: Curve2D = null
@@ -34,7 +35,7 @@ func _ready() -> void:
 	collision_mask = 0
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
-	circle.radius = 20.0
+	circle.radius = maxf(float(maxi(grid_size.x, grid_size.y)) * 0.4, 12.0)
 	shape.shape = circle
 	add_child(shape)
 

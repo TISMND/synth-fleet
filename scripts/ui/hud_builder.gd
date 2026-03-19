@@ -1,23 +1,34 @@
 class_name HudBuilder extends RefCounted
-## Shared dashboard builder for in-game HUD and style editor HUD preview.
-## Single source of truth for layout, sizing, and theming of the bottom dashboard.
+## Shared HUD builder for in-game HUD and style editor HUD preview.
+## 3-panel layout: bottom bar (icons), left panel (Shield/Hull), right panel (Thermal/Electric).
 
-const PANEL_HEIGHT: int = 110
+const BOTTOM_BAR_HEIGHT: int = 64   # icons(40) + padding(2*12)
+const SIDE_PANEL_WIDTH: int = 60    # bar(28) + padding + label space
+const SIDE_PANEL_PADDING: int = 8
 const PANEL_PADDING: int = 12
 const WEAPON_ICON_SIZE: int = 40
-const BAR_HEIGHT: int = 28
-const BAR_LABEL_WIDTH: int = 80
-const LAYOUT_ORDER: Array[int] = [0, 2, 1, 3]  # Row1: Shield, Thermal — Row2: Hull, Electric
+const BAR_WIDTH: int = 28
 
 
-static func build_dashboard(mode: String) -> Dictionary:
-	## Build the full dashboard container.
-	## "game" mode → ColorRect bg + ColorRect border (absolute positioning in CanvasLayer).
-	## "preview" mode → PanelContainer + StyleBoxFlat (flow layout in ScrollContainer).
-	## Returns: {root, hbox, weapons_hbox, bars_grid, border, mode}
+static func build_hud(mode: String) -> Dictionary:
+	## Top-level builder. Returns: {bottom_bar, left_panel, right_panel, weapons_hbox, mode}
+	var bottom: Dictionary = _build_bottom_bar(mode)
+	var left: Dictionary = build_side_panel(mode, ["SHIELD", "HULL"], {})
+	var right: Dictionary = build_side_panel(mode, ["THERMAL", "ELECTRIC"], {})
+	return {
+		"bottom_bar": bottom,
+		"left_panel": left,
+		"right_panel": right,
+		"weapons_hbox": bottom["weapons_hbox"],
+		"mode": mode,
+	}
+
+
+static func _build_bottom_bar(mode: String) -> Dictionary:
+	## Build the bottom bar with weapon/core/device icons only.
+	## Returns: {root, border, weapons_hbox}
 	var root: Control
 	var border: Control
-	var hbox_parent: Control
 
 	if mode == "game":
 		var bg := ColorRect.new()
@@ -29,11 +40,9 @@ static func build_dashboard(mode: String) -> Dictionary:
 		border_line.size = Vector2(1920, 2)
 		bg.add_child(border_line)
 		border = border_line
-
-		hbox_parent = bg
 	else:
 		var panel := PanelContainer.new()
-		panel.custom_minimum_size.y = PANEL_HEIGHT
+		panel.custom_minimum_size.y = BOTTOM_BAR_HEIGHT
 		var style := StyleBoxFlat.new()
 		style.bg_color = ThemeManager.get_color("panel")
 		var accent_color: Color = ThemeManager.get_color("accent")
@@ -43,88 +52,114 @@ static func build_dashboard(mode: String) -> Dictionary:
 		style.set_content_margin_all(PANEL_PADDING)
 		panel.add_theme_stylebox_override("panel", style)
 		root = panel
-		border = panel  # style editor uses the PanelContainer itself for border theming
+		border = panel
 
-		hbox_parent = panel
-
-	# Main dashboard HBox
-	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 40)
-	if mode == "game":
-		hbox.position = Vector2(PANEL_PADDING, PANEL_PADDING + 4)
-		hbox.size = Vector2(1920 - PANEL_PADDING * 2, PANEL_HEIGHT - PANEL_PADDING * 2 - 4)
-	hbox_parent.add_child(hbox)
-
-	# Left — Weapon icons
+	# Weapon icons HBox
 	var weapons_hbox := HBoxContainer.new()
-	weapons_hbox.custom_minimum_size = Vector2(500, 0)
 	weapons_hbox.add_theme_constant_override("separation", 8)
-	weapons_hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
-	hbox.add_child(weapons_hbox)
-
-	# Right — Status bars 2x2 grid
-	var bars_grid := GridContainer.new()
-	bars_grid.columns = 2
-	bars_grid.add_theme_constant_override("h_separation", 40)
-	bars_grid.add_theme_constant_override("v_separation", 8)
-	bars_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bars_grid.custom_minimum_size.x = 640
-	hbox.add_child(bars_grid)
+	weapons_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	if mode == "game":
+		weapons_hbox.position = Vector2(PANEL_PADDING, PANEL_PADDING)
+		weapons_hbox.size = Vector2(1920 - PANEL_PADDING * 2, BOTTOM_BAR_HEIGHT - PANEL_PADDING * 2)
+		root.add_child(weapons_hbox)
+	else:
+		root.add_child(weapons_hbox)
 
 	return {
 		"root": root,
-		"hbox": hbox,
-		"weapons_hbox": weapons_hbox,
-		"bars_grid": bars_grid,
 		"border": border,
-		"mode": mode,
+		"weapons_hbox": weapons_hbox,
 	}
 
 
-static func populate_bars(bars_grid: GridContainer, seg_overrides: Dictionary = {}) -> Dictionary:
-	## Add 4 bar cells to the grid using LAYOUT_ORDER.
-	## seg_overrides: optional bar_name → int segment count overrides.
-	## Returns: bar_name → {"bar": ProgressBar, "label": Label}
-	var result: Dictionary = {}
+static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dictionary) -> Dictionary:
+	## Build a side panel with 2 vertical bars stacked.
+	## Returns: {root, border, bars: {bar_name: {bar, label, vertical: true}}}
 	var specs: Array = ThemeManager.get_status_bar_specs()
-	for idx in LAYOUT_ORDER:
-		var spec: Dictionary = specs[idx]
-		var bar_name: String = str(spec["name"])
+	var spec_by_name: Dictionary = {}
+	for spec in specs:
+		spec_by_name[str(spec["name"])] = spec
+
+	var root: Control
+	var border: Control
+
+	if mode == "game":
+		var bg := ColorRect.new()
+		var panel_color: Color = ThemeManager.get_color("panel")
+		bg.color = Color(panel_color.r, panel_color.g, panel_color.b, 0.7)
+		root = bg
+
+		var border_line := ColorRect.new()
+		border_line.size = Vector2(2, 1)  # Will be resized by parent
+		bg.add_child(border_line)
+		border = border_line
+	else:
+		var panel := PanelContainer.new()
+		var style := StyleBoxFlat.new()
+		var panel_color: Color = ThemeManager.get_color("panel")
+		style.bg_color = Color(panel_color.r, panel_color.g, panel_color.b, 0.7)
+		var accent_color: Color = ThemeManager.get_color("accent")
+		style.border_color = Color(accent_color.r, accent_color.g, accent_color.b, 0.4)
+		style.set_border_width_all(1)
+		style.set_content_margin_all(SIDE_PANEL_PADDING)
+		panel.add_theme_stylebox_override("panel", style)
+		root = panel
+		border = panel
+
+	# VBox to stack the 2 bars vertically
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	if mode == "game":
+		vbox.position = Vector2(SIDE_PANEL_PADDING, SIDE_PANEL_PADDING)
+	root.add_child(vbox)
+
+	var bars_result: Dictionary = {}
+	for bar_name in bar_names:
+		if not spec_by_name.has(bar_name):
+			continue
+		var spec: Dictionary = spec_by_name[bar_name]
 		var color: Color = ThemeManager.resolve_bar_color(spec)
 		var seg: int = int(seg_overrides.get(bar_name, ShipData.DEFAULT_SEGMENTS.get(bar_name, 8)))
-		var init_val: int = seg
-		var cell: Dictionary = build_bar_cell(bar_name, color, init_val, seg, seg)
-		bars_grid.add_child(cell["vbox"])
-		result[bar_name] = {"bar": cell["bar"], "label": cell["label"]}
-	return result
+		var cell: Dictionary = build_vertical_bar_cell(bar_name, color, seg, seg, seg)
+		vbox.add_child(cell["vbox"])
+		bars_result[bar_name] = {"bar": cell["bar"], "label": cell["label"], "vertical": true}
+
+	return {
+		"root": root,
+		"border": border,
+		"bars": bars_result,
+		"vbox": vbox,
+	}
 
 
-static func build_bar_cell(text: String, color: Color, initial: int, max_val: int, seg_count: int = -1) -> Dictionary:
-	## Single bar cell: HBox(sep=6) → Label(min_x=80) + ProgressBar(min_y=28).
+static func build_vertical_bar_cell(text: String, color: Color, initial: int, max_val: int, seg_count: int = -1) -> Dictionary:
+	## Single vertical bar cell: VBox → Label (above) + vertical ProgressBar (expand fill).
 	## Returns: {vbox, label, bar}
-	var hbox := HBoxContainer.new()
-	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hbox.add_theme_constant_override("separation", 6)
-	hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
+	var short_names: Dictionary = {
+		"SHIELD": "SHLD", "HULL": "HULL", "THERMAL": "THRM", "ELECTRIC": "ELEC"
+	}
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 4)
 
 	var lbl := Label.new()
-	lbl.text = text
-	lbl.custom_minimum_size.x = BAR_LABEL_WIDTH
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	hbox.add_child(lbl)
+	lbl.text = str(short_names.get(text, text))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	vbox.add_child(lbl)
 
 	var bar := ProgressBar.new()
-	bar.custom_minimum_size.y = BAR_HEIGHT
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.custom_minimum_size.x = BAR_WIDTH
+	bar.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	bar.fill_mode = 3  # FILL_BOTTOM_TO_TOP
 	bar.max_value = max_val
 	bar.value = initial
 	bar.show_percentage = false
-	hbox.add_child(bar)
+	vbox.add_child(bar)
 
-	ThemeManager.apply_led_bar(bar, color, float(initial) / maxf(float(max_val), 1.0), seg_count)
+	ThemeManager.apply_led_bar(bar, color, float(initial) / maxf(float(max_val), 1.0), seg_count, true)
 
-	return {"vbox": hbox, "label": lbl, "bar": bar}
+	return {"vbox": vbox, "label": lbl, "bar": bar}
 
 
 static func build_weapon_icon(number: int, active: bool, color: Color) -> Dictionary:
@@ -192,18 +227,35 @@ static func apply_bar_label_theme(lbl: Label, color: Color, font: Font, size: in
 	ThemeManager.apply_text_glow(lbl, "body")
 
 
-static func apply_dashboard_theme(result: Dictionary) -> void:
-	## Update bg/border colors on a dashboard result dict. Handles both modes.
+static func apply_hud_theme(result: Dictionary) -> void:
+	## Update bg/border colors on all three HUD panels. Handles both modes.
 	var accent_color: Color = ThemeManager.get_color("accent")
 	var border_color := Color(accent_color.r, accent_color.g, accent_color.b, 0.4)
+	var panel_color: Color = ThemeManager.get_color("panel")
+	var mode: String = str(result["mode"])
 
-	if result["mode"] == "game":
-		result["root"].color = ThemeManager.get_color("panel")
-		result["border"].color = border_color
+	# Bottom bar
+	var bottom: Dictionary = result["bottom_bar"]
+	if mode == "game":
+		bottom["root"].color = panel_color
+		bottom["border"].color = border_color
 	else:
-		# Preview mode — update StyleBoxFlat on PanelContainer
-		var panel: PanelContainer = result["root"]
+		var panel: PanelContainer = bottom["root"]
 		var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
 		if style:
-			style.bg_color = ThemeManager.get_color("panel")
+			style.bg_color = panel_color
 			style.border_color = border_color
+
+	# Side panels
+	var side_panel_color := Color(panel_color.r, panel_color.g, panel_color.b, 0.7)
+	for panel_key in ["left_panel", "right_panel"]:
+		var side: Dictionary = result[panel_key]
+		if mode == "game":
+			side["root"].color = side_panel_color
+			side["border"].color = border_color
+		else:
+			var panel: PanelContainer = side["root"]
+			var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
+			if style:
+				style.bg_color = side_panel_color
+				style.border_color = border_color

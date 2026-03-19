@@ -296,7 +296,7 @@ func _update_vhs_material(mat: ShaderMaterial) -> void:
 
 var _led_shader: Shader = null
 
-func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segment_count: int = -1) -> void:
+func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segment_count: int = -1, vertical: bool = false) -> void:
 	var overlay_name := "led_overlay"
 	var existing: ColorRect = bar.get_node_or_null(overlay_name) as ColorRect
 
@@ -309,10 +309,14 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 	var seg_px: float = get_float("led_segment_width_px")
 	var gap_px: float = get_float("led_segment_gap_px")
 
-	# Bar width = segments at full width + gaps between them
+	# Bar size = segments at full size + gaps between them
 	if segment_count > 0:
-		bar.custom_minimum_size.x = float(seg_count) * seg_px + float(seg_count - 1) * gap_px
-		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		if vertical:
+			bar.custom_minimum_size.y = float(seg_count) * seg_px + float(seg_count - 1) * gap_px
+			bar.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		else:
+			bar.custom_minimum_size.x = float(seg_count) * seg_px + float(seg_count - 1) * gap_px
+			bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
 	# Hide bar's own rendering — transparent styleboxes
 	var transparent := StyleBoxFlat.new()
@@ -332,13 +336,16 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 	var min_fallback: float = 20.0 if segment_count > 0 else 100.0
 	var bar_w: float = maxf(bar.custom_minimum_size.x, min_fallback)
 	var bar_h: float = maxf(bar.custom_minimum_size.y, 14.0)
-	var aspect: float = bar_w / maxf(bar_h, 1.0)
-	# Vertical glow extends aspect-ratio times further in pixels, so pad generously
-	var glow_px: float = max_glow * bar_w * 2.5 + 4.0
+	# For vertical bars, the long axis is Y (segments run along Y via UV swap)
+	var long_axis: float = bar_h if vertical else bar_w
+	var short_axis: float = bar_w if vertical else bar_h
+	var aspect: float = long_axis / maxf(short_axis, 1.0)
+	# Glow extends aspect-ratio times further in pixels, so pad generously
+	var glow_px: float = max_glow * long_axis * 2.5 + 4.0
 	var pad_px: float = clampf(glow_px, 4.0, 100.0)
 
-	# Convert pixel gap to bar-UV fraction for the shader
-	var gap_uv: float = gap_px / maxf(bar_w, 1.0)
+	# Convert pixel gap to bar-UV fraction for the shader (along long axis)
+	var gap_uv: float = gap_px / maxf(long_axis, 1.0)
 
 	# Create or reuse overlay ColorRect
 	var overlay: ColorRect
@@ -361,8 +368,9 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 	# Calculate padding as fraction of overlay size
 	var total_w: float = bar_w + pad_px * 2.0
 	var total_h: float = bar_h + pad_px * 2.0
-	var pad_x: float = pad_px / total_w
-	var pad_y: float = pad_px / total_h
+	# For vertical bars, shader UV is swapped so pad_x maps to screen-Y and pad_y to screen-X
+	var pad_x_val: float = pad_px / total_h if vertical else pad_px / total_w
+	var pad_y_val: float = pad_px / total_w if vertical else pad_px / total_h
 
 	# Apply shader to overlay
 	var mat: ShaderMaterial
@@ -372,11 +380,12 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 		mat = ShaderMaterial.new()
 		mat.shader = _led_shader
 		overlay.material = mat
-	mat.set_shader_parameter("pad_x", pad_x)
-	mat.set_shader_parameter("pad_y", pad_y)
+	mat.set_shader_parameter("pad_x", pad_x_val)
+	mat.set_shader_parameter("pad_y", pad_y_val)
 	mat.set_shader_parameter("bar_aspect", aspect)
 	mat.set_shader_parameter("segment_count", seg_count)
 	mat.set_shader_parameter("segment_gap", gap_uv)
+	mat.set_shader_parameter("vertical", 1 if vertical else 0)
 	mat.set_shader_parameter("inner_intensity", get_float("led_inner_intensity"))
 	mat.set_shader_parameter("inner_softness", get_float("led_inner_softness"))
 	mat.set_shader_parameter("aura_size", get_float("led_aura_size"))

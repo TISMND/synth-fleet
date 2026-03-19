@@ -1,16 +1,16 @@
 extends CanvasLayer
-## In-game HUD — bottom dashboard with health bars, credits, weapon icons.
+## In-game HUD — bottom icon bar + vertical side bars for status.
 ## Fully themed via ThemeManager with theme_changed reactivity.
-## Dashboard layout delegated to HudBuilder for single source of truth.
+## Layout delegated to HudBuilder for single source of truth.
 
 var _credits_label: Label = null
 var _menu_hint: Label = null
-var _dashboard_result: Dictionary = {}  # HudBuilder.build_dashboard() result
+var _hud_result: Dictionary = {}  # HudBuilder.build_hud() result
 var _weapons_hbox: HBoxContainer = null
 var _weapon_icons: Array = []  # Array of dicts: {container, bg_rect, number_label, active, color}
 var _core_icons: Array = []    # Array of dicts: same shape as weapon_icons
 var _device_icons: Array = []  # Array of dicts: same shape as weapon_icons
-var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
+var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label, "vertical": bool}
 var _bar_segments: Dictionary = {}  # bar_name -> int segment count
 var _bar_pulse_brightness: Dictionary = {}  # bar_name -> float (0.0 = idle, 1.0 = full pulse)
 var _bar_base_colors: Dictionary = {}  # bar_name -> Color
@@ -33,21 +33,50 @@ func _build_ui() -> void:
 
 	# Menu hint
 	_menu_hint = Label.new()
-	_menu_hint.position = Vector2(1780, 50)
+	_menu_hint.position = Vector2(20, 20)
 	_menu_hint.text = "ESC: Menu"
 	add_child(_menu_hint)
 
-	# Dashboard via HudBuilder
-	_dashboard_result = HudBuilder.build_dashboard("game")
-	var root: ColorRect = _dashboard_result["root"]
-	root.position = Vector2(0, 1080 - HudBuilder.PANEL_HEIGHT)
-	root.size = Vector2(1920, HudBuilder.PANEL_HEIGHT)
-	add_child(root)
+	# Build 3-panel HUD via HudBuilder
+	_hud_result = HudBuilder.build_hud("game")
 
-	_weapons_hbox = _dashboard_result["weapons_hbox"]
+	# Position bottom bar
+	var bottom_root: ColorRect = _hud_result["bottom_bar"]["root"]
+	bottom_root.position = Vector2(0, 1080 - HudBuilder.BOTTOM_BAR_HEIGHT)
+	bottom_root.size = Vector2(1920, HudBuilder.BOTTOM_BAR_HEIGHT)
+	add_child(bottom_root)
 
-	# Build bars from shared specs
-	_bars = HudBuilder.populate_bars(_dashboard_result["bars_grid"])
+	# Position left panel (Shield + Hull)
+	var left_root: ColorRect = _hud_result["left_panel"]["root"]
+	var side_top: float = 60.0
+	var side_bottom: float = 1080.0 - HudBuilder.BOTTOM_BAR_HEIGHT - 8.0
+	var side_height: float = side_bottom - side_top
+	left_root.position = Vector2(0, side_top)
+	left_root.size = Vector2(HudBuilder.SIDE_PANEL_WIDTH, side_height)
+	# Size the inner vbox to fill
+	var left_vbox: VBoxContainer = _hud_result["left_panel"]["vbox"]
+	left_vbox.size = Vector2(HudBuilder.SIDE_PANEL_WIDTH - HudBuilder.SIDE_PANEL_PADDING * 2, side_height - HudBuilder.SIDE_PANEL_PADDING * 2)
+	add_child(left_root)
+
+	# Position right panel (Thermal + Electric)
+	var right_root: ColorRect = _hud_result["right_panel"]["root"]
+	right_root.position = Vector2(1920 - HudBuilder.SIDE_PANEL_WIDTH, side_top)
+	right_root.size = Vector2(HudBuilder.SIDE_PANEL_WIDTH, side_height)
+	var right_vbox: VBoxContainer = _hud_result["right_panel"]["vbox"]
+	right_vbox.size = Vector2(HudBuilder.SIDE_PANEL_WIDTH - HudBuilder.SIDE_PANEL_PADDING * 2, side_height - HudBuilder.SIDE_PANEL_PADDING * 2)
+	add_child(right_root)
+
+	_weapons_hbox = _hud_result["weapons_hbox"]
+
+	# Merge bars from both side panels into unified _bars dict
+	var left_bars: Dictionary = _hud_result["left_panel"]["bars"]
+	var right_bars: Dictionary = _hud_result["right_panel"]["bars"]
+	for bar_name in left_bars:
+		_bars[bar_name] = left_bars[bar_name]
+	for bar_name in right_bars:
+		_bars[bar_name] = right_bars[bar_name]
+
+	# Initialize pulse tracking and base colors
 	for bar_name in _bars:
 		_bar_pulse_brightness[bar_name] = 0.0
 		var specs: Array = ThemeManager.get_status_bar_specs()
@@ -84,8 +113,8 @@ func _apply_theme() -> void:
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var body_size: int = ThemeManager.get_font_size("font_size_body")
 
-	# Dashboard background + border
-	HudBuilder.apply_dashboard_theme(_dashboard_result)
+	# HUD panel backgrounds + borders
+	HudBuilder.apply_hud_theme(_hud_result)
 
 	# Credits
 	_credits_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
@@ -113,7 +142,8 @@ func _apply_theme() -> void:
 		var bar: ProgressBar = entry["bar"]
 		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
 		var seg: int = int(_bar_segments.get(bar_name, -1))
-		ThemeManager.apply_led_bar(bar, color, ratio, seg)
+		var is_vertical: bool = entry.get("vertical", false) as bool
+		ThemeManager.apply_led_bar(bar, color, ratio, seg, is_vertical)
 		_bar_base_colors[bar_name] = color
 
 	# Weapon icons
@@ -149,7 +179,8 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 	else:
 		# First time or after theme change — full rebuild
 		var seg: int = int(_bar_segments.get(bar_name, -1))
-		ThemeManager.apply_led_bar(bar, ThemeManager.get_color(color_key), ratio, seg)
+		var is_vertical: bool = entry.get("vertical", false) as bool
+		ThemeManager.apply_led_bar(bar, ThemeManager.get_color(color_key), ratio, seg, is_vertical)
 
 
 func pulse_bar(bar_name: String) -> void:

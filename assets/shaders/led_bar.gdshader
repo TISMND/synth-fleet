@@ -23,7 +23,9 @@ uniform float fill_ratio : hint_range(0.0, 1.0) = 0.75;
 uniform float pad_x : hint_range(0.0, 0.5) = 0.05;
 uniform float pad_y : hint_range(0.0, 0.5) = 0.2;
 // Aspect ratio (bar_width / bar_height) for isotropic glow
-uniform float bar_aspect : hint_range(1.0, 30.0) = 5.0;
+uniform float bar_aspect : hint_range(0.01, 30.0) = 5.0;
+// Vertical mode: 0 = horizontal (default), 1 = vertical (bottom-to-top fill)
+uniform int vertical : hint_range(0, 1) = 0;
 
 // Remap UV from overlay space to bar space.
 // Bar occupies [pad_x, 1-pad_x] x [pad_y, 1-pad_y] in overlay UV.
@@ -115,7 +117,11 @@ float sdf_lit(vec2 bar_uv) {
 }
 
 void fragment() {
-	vec2 bar_uv = to_bar_uv(UV);
+	vec2 uv = UV;
+	if (vertical == 1) {
+		uv = vec2(1.0 - uv.y, uv.x);  // bottom-to-top fill
+	}
+	vec2 bar_uv = to_bar_uv(uv);
 	bool inside = in_bar(bar_uv);
 
 	// Smudge: horizontal blur of the base lit signal (only inside bar)

@@ -173,6 +173,7 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 			enemy.enemy_color = ENEMY_COLORS[sid.hash() % ENEMY_COLORS.size()]
 			enemy.visual_id = ship.visual_id if ship.visual_id != "" else "sentinel"
 			enemy.render_mode_str = ship.render_mode if ship.render_mode != "" else "neon"
+			enemy.grid_size = ship.grid_size
 		else:
 			enemy.health = 30
 			enemy.enemy_color = ENEMY_COLORS[sid.hash() % ENEMY_COLORS.size()]

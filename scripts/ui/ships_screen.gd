@@ -1134,7 +1134,7 @@ class _ShipSelector extends Node2D:
 				draw_rect(Rect2(2, slot_y + 2, PANEL_WIDTH - 4, SLOT_HEIGHT - 4), Color(cyan.r, cyan.g, cyan.b, 0.4), false, 1.0)
 
 			var origin := Vector2(PANEL_WIDTH * 0.5, cy)
-			ShipThumbnails.draw_ship_on(self, i, origin, 1.0, render_mode)
+			ShipThumbnails.draw_ship_on(self, i, origin, 1.5, render_mode)
 
 			# Ship name below thumbnail
 			var font: Font = ThemeDB.fallback_font
@@ -1169,10 +1169,11 @@ class _ShipSelector extends Node2D:
 				draw_rect(Rect2(2, slot_y + 2, PANEL_WIDTH - 4, SLOT_HEIGHT - 4), hl)
 				draw_rect(Rect2(2, slot_y + 2, PANEL_WIDTH - 4, SLOT_HEIGHT - 4), Color(cyan.r, cyan.g, cyan.b, 0.4), false, 1.0)
 
-			# Draw enemy thumbnail based on visual_id
+			# Draw enemy thumbnail based on visual_id, using per-ship render mode
 			var origin := Vector2(PANEL_WIDTH * 0.5, cy)
 			var ship_data: ShipData = enemy_ships[i]
-			ShipThumbnails.draw_enemy_on(self, ship_data.visual_id, origin, render_mode)
+			var ship_mode: int = _render_mode_from_string(ship_data.render_mode)
+			ShipThumbnails.draw_enemy_on(self, ship_data.visual_id, origin, ship_mode, 1.8)
 
 			# Enemy name
 			var name_text: String = ship_data.display_name
@@ -1181,6 +1182,19 @@ class _ShipSelector extends Node2D:
 			var text_width: float = font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x
 			var name_pos := Vector2((PANEL_WIDTH - text_width) * 0.5, slot_y + SLOT_HEIGHT - 10)
 			draw_string(font, name_pos, name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, label_col)
+
+	static func _render_mode_from_string(mode_str: String) -> int:
+		match mode_str:
+			"chrome": return ShipRenderer.RenderMode.CHROME
+			"neon": return ShipRenderer.RenderMode.NEON
+			"void": return ShipRenderer.RenderMode.VOID
+			"hivemind": return ShipRenderer.RenderMode.HIVEMIND
+			"spore": return ShipRenderer.RenderMode.SPORE
+			"ember": return ShipRenderer.RenderMode.EMBER
+			"frost": return ShipRenderer.RenderMode.FROST
+			"solar": return ShipRenderer.RenderMode.SOLAR
+			"sport": return ShipRenderer.RenderMode.SPORT
+		return ShipRenderer.RenderMode.NEON
 
 	func _draw_bosses_placeholder() -> void:
 		var font: Font = ThemeDB.fallback_font

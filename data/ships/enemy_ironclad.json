@@ -12,7 +12,7 @@
 	"id": "enemy_ironclad",
 	"lines": [],
 	"projectile_speed": 260.0,
-	"render_mode": "neon",
+	"render_mode": "sport",
 	"stats": {
 		"acceleration": 150.0,
 		"device_slots": 4.0,
