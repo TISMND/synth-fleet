@@ -63,6 +63,10 @@ text = "SFX"
 layout_mode = 2
 text = "VFX"
 
+[node name="ObjectsButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "OBJECTS"
+
 [node name="BackButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "BACK"

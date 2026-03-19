@@ -844,7 +844,9 @@ func _draw_ruler() -> void:
 		if is_bar:
 			draw_line(Vector2(x, 4), Vector2(x, RULER_HEIGHT - 2), Color(0.5, 0.5, 0.7), 2.0)
 			var bar_num: int = int(beat / float(_beats_per_bar)) + 1
-			draw_string(ThemeManager.get_font("body"), Vector2(x + 3, 13), str(bar_num), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.6, 0.6, 0.8))
+			var rp_font: Font = ThemeManager.get_font("body")
+			if rp_font:
+				draw_string(rp_font, Vector2(x + 3, 13), str(bar_num), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.6, 0.6, 0.8))
 		elif is_beat:
 			draw_line(Vector2(x, 8), Vector2(x, RULER_HEIGHT - 2), Color(0.3, 0.3, 0.5), 1.0)
 		else:
