@@ -1,6 +1,6 @@
 {
 	"bpm": 110.0,
-	"display_name": "New Level",
+	"display_name": "Welcome Void",
 	"encounters": [
 		{
 			"count": 15,
@@ -26,7 +26,7 @@
 			"count": 5,
 			"formation_id": "",
 			"path_id": "path_2",
-			"ship_id": "enemy_1",
+			"ship_id": "enemy_prism",
 			"spacing": 200.0,
 			"speed": 200.0,
 			"trigger_y": 1077.16049382716,
@@ -36,7 +36,7 @@
 			"count": 5,
 			"formation_id": "",
 			"path_id": "path_2",
-			"ship_id": "enemy_1",
+			"ship_id": "enemy_prism",
 			"spacing": 200.0,
 			"speed": 200.0,
 			"trigger_y": 1101.85185185185,
@@ -59,28 +59,28 @@
 			"ship_id": "enemy_1",
 			"spacing": 200.0,
 			"speed": 400.0,
-			"trigger_y": 293.20987654321,
-			"x_offset": 0.0
+			"trigger_y": 978.395061728395,
+			"x_offset": 16.243654822335
 		},
 		{
 			"count": 7,
 			"formation_id": "",
 			"path_id": "path_3",
-			"ship_id": "enemy_1",
+			"ship_id": "enemy_dart",
 			"spacing": 200.0,
 			"speed": 700.0,
-			"trigger_y": 1651.23456790124,
-			"x_offset": 69.2381053802374
+			"trigger_y": 1632.71604938272,
+			"x_offset": 4.2634860908973
 		},
 		{
 			"count": 7,
 			"formation_id": "",
 			"path_id": "path_4",
-			"ship_id": "enemy_1",
+			"ship_id": "enemy_dart",
 			"spacing": 200.0,
 			"speed": 700.0,
-			"trigger_y": 1737.65432098765,
-			"x_offset": 68.2233502538071
+			"trigger_y": 1734.56790123456,
+			"x_offset": 3.248730964467
 		}
 	],
 	"id": "level_1",

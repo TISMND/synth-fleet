@@ -40,8 +40,17 @@ var _encounter_drag_origin_x: float = 0.0
 
 # Right panel
 var _right_panel: PanelContainer
-var _right_panel_vbox: VBoxContainer  # Persistent outer container — never rebuilt
-var _right_content: VBoxContainer     # Inner content — rebuilt on selection change
+var _right_panel_vbox: VBoxContainer  # Persistent outer container
+var _enc_content: VBoxContainer       # Container for all encounter controls
+var _enc_hint: Label                  # "Click map to place" hint
+var _enc_path_dropdown: OptionButton
+var _enc_fm_dropdown: OptionButton
+var _enc_ship_dropdown: OptionButton
+var _enc_speed_spin: SpinBox
+var _enc_count_spin: SpinBox
+var _enc_spacing_spin: SpinBox
+var _enc_center_btn: Button
+var _enc_delete_btn: Button
 
 # Cached data for dropdowns
 var _cached_path_ids: Array[String] = []
@@ -52,6 +61,8 @@ var _cached_ship_ids: Array[String] = []
 var _cached_ship_names: Array[String] = []
 var _ship_id_to_name: Dictionary = {}
 var _formation_id_to_name: Dictionary = {}
+var _path_id_to_name: Dictionary = {}
+var _path_id_to_curve: Dictionary = {}  # path_id -> Curve2D
 
 
 func _ready() -> void:
@@ -87,10 +98,17 @@ func _ready() -> void:
 func _cache_dropdown_data() -> void:
 	_cached_path_ids.clear()
 	_cached_path_names.clear()
+	_path_id_to_name.clear()
+	_path_id_to_curve.clear()
 	var paths: Array[FlightPathData] = FlightPathDataManager.load_all()
 	for fp in paths:
 		_cached_path_ids.append(fp.id)
-		_cached_path_names.append(fp.display_name if fp.display_name != "" else fp.id)
+		var fp_name: String = fp.display_name if fp.display_name != "" else fp.id
+		_cached_path_names.append(fp_name)
+		_path_id_to_name[fp.id] = fp_name
+		var curve: Curve2D = fp.to_curve2d()
+		if curve.point_count > 0:
+			_path_id_to_curve[fp.id] = curve
 
 	_cached_formation_ids.clear()
 	_cached_formation_names.clear()
@@ -108,9 +126,9 @@ func _cache_dropdown_data() -> void:
 	var ships: Array[ShipData] = ShipDataManager.load_all_by_type("enemy")
 	for s in ships:
 		_cached_ship_ids.append(s.id)
-		var name: String = s.display_name if s.display_name != "" else s.id
-		_cached_ship_names.append(name)
-		_ship_id_to_name[s.id] = name
+		var sname: String = s.display_name if s.display_name != "" else s.id
+		_cached_ship_names.append(sname)
+		_ship_id_to_name[s.id] = sname
 
 
 func _input(event: InputEvent) -> void:
@@ -432,7 +450,7 @@ func _handle_map_input(event: InputEvent) -> void:
 				if _encounter_dragging:
 					_encounter_dragging = false
 					_save_current_level()
-					_rebuild_right_panel_content()
+					_update_right_panel()
 				elif _map_dragging:
 					_map_dragging = false
 
@@ -466,7 +484,7 @@ func _map_left_click(pos: Vector2) -> void:
 			_encounter_drag_start = pos
 			_encounter_drag_origin_y = float(enc["trigger_y"])
 			_encounter_drag_origin_x = float(enc["x_offset"])
-			_rebuild_right_panel_content()
+			_update_right_panel()
 			_map_canvas.queue_redraw()
 			return
 
@@ -489,7 +507,7 @@ func _map_left_click(pos: Vector2) -> void:
 			_selected_level.encounters.append(enc)
 			_selected_encounter_idx = _selected_level.encounters.size() - 1
 			_save_current_level()
-			_rebuild_right_panel_content()
+			_update_right_panel()
 			_map_canvas.queue_redraw()
 			return
 
@@ -498,7 +516,7 @@ func _map_left_click(pos: Vector2) -> void:
 	_map_dragging = true
 	_map_drag_start_y = pos.y
 	_map_drag_scroll_start = _scroll_offset
-	_rebuild_right_panel_content()
+	_update_right_panel()
 	_map_canvas.queue_redraw()
 
 
@@ -515,7 +533,7 @@ func _map_right_click(pos: Vector2) -> void:
 			elif _selected_encounter_idx > i:
 				_selected_encounter_idx -= 1
 			_save_current_level()
-			_rebuild_right_panel_content()
+			_update_right_panel()
 			_map_canvas.queue_redraw()
 			return
 
@@ -535,7 +553,6 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_right_panel.add_theme_stylebox_override("panel", style)
 	parent.add_child(_right_panel)
 
-	# Persistent outer vbox — never destroyed, anchors the panel width
 	_right_panel_vbox = VBoxContainer.new()
 	_right_panel_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_right_panel_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -550,189 +567,235 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	ThemeManager.apply_text_glow(header, "header")
 	_right_panel_vbox.add_child(header)
 
-	_right_content = VBoxContainer.new()
-	_right_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_right_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_right_content.add_theme_constant_override("separation", 6)
-	_right_panel_vbox.add_child(_right_content)
+	# Hint label (shown when no encounter selected)
+	_enc_hint = Label.new()
+	_enc_hint.text = "Click map to place"
+	_enc_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_enc_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	_right_panel_vbox.add_child(_enc_hint)
 
-	_rebuild_right_panel_content()
-
-
-func _rebuild_right_panel_content() -> void:
-	for child in _right_content.get_children():
-		_right_content.remove_child(child)
-		child.queue_free()
-
-	if not _selected_level or _selected_encounter_idx < 0 or _selected_encounter_idx >= _selected_level.encounters.size():
-		var hint := Label.new()
-		hint.text = "Click map to place"
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
-		_right_content.add_child(hint)
-		return
-
-	var enc: Dictionary = _selected_level.encounters[_selected_encounter_idx]
-	var enc_idx: int = _selected_encounter_idx
+	# Content container — built once, never destroyed
+	_enc_content = VBoxContainer.new()
+	_enc_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_enc_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_enc_content.add_theme_constant_override("separation", 6)
+	_right_panel_vbox.add_child(_enc_content)
 
 	# Path dropdown
 	var path_label := Label.new()
 	path_label.text = "PATH"
 	ThemeManager.apply_text_glow(path_label, "body")
-	_right_content.add_child(path_label)
+	_enc_content.add_child(path_label)
 
-	var path_dropdown := OptionButton.new()
-	var current_path_id: String = str(enc.get("path_id", ""))
-	var path_select := 0
+	_enc_path_dropdown = OptionButton.new()
 	for i in range(_cached_path_ids.size()):
-		path_dropdown.add_item(_cached_path_names[i], i)
-		path_dropdown.set_item_metadata(i, _cached_path_ids[i])
-		if _cached_path_ids[i] == current_path_id:
-			path_select = i
-	if _cached_path_ids.size() > 0:
-		path_dropdown.select(path_select)
-	path_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_level and enc_idx < _selected_level.encounters.size():
-			_selected_level.encounters[enc_idx]["path_id"] = str(path_dropdown.get_item_metadata(idx))
+		_enc_path_dropdown.add_item(_cached_path_names[i], i)
+		_enc_path_dropdown.set_item_metadata(i, _cached_path_ids[i])
+	_enc_path_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["path_id"] = str(_enc_path_dropdown.get_item_metadata(idx))
 			_save_current_level()
 			_map_canvas.queue_redraw()
 	)
-	_right_content.add_child(path_dropdown)
+	_enc_content.add_child(_enc_path_dropdown)
 
 	# Formation dropdown
 	var sep1 := HSeparator.new()
-	_right_content.add_child(sep1)
+	_enc_content.add_child(sep1)
 
 	var fm_label := Label.new()
 	fm_label.text = "FORMATION"
 	ThemeManager.apply_text_glow(fm_label, "body")
-	_right_content.add_child(fm_label)
+	_enc_content.add_child(fm_label)
 
-	var fm_dropdown := OptionButton.new()
-	fm_dropdown.add_item("(none - single ship)", 0)
-	fm_dropdown.set_item_metadata(0, "")
-	var current_fm_id: String = str(enc.get("formation_id", ""))
-	var fm_select := 0
+	_enc_fm_dropdown = OptionButton.new()
+	_enc_fm_dropdown.add_item("(none - single ship)", 0)
+	_enc_fm_dropdown.set_item_metadata(0, "")
 	for i in range(_cached_formation_ids.size()):
-		fm_dropdown.add_item(_cached_formation_names[i], i + 1)
-		fm_dropdown.set_item_metadata(i + 1, _cached_formation_ids[i])
-		if _cached_formation_ids[i] == current_fm_id:
-			fm_select = i + 1
-	fm_dropdown.select(fm_select)
-	fm_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_level and enc_idx < _selected_level.encounters.size():
-			_selected_level.encounters[enc_idx]["formation_id"] = str(fm_dropdown.get_item_metadata(idx))
+		_enc_fm_dropdown.add_item(_cached_formation_names[i], i + 1)
+		_enc_fm_dropdown.set_item_metadata(i + 1, _cached_formation_ids[i])
+	_enc_fm_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["formation_id"] = str(_enc_fm_dropdown.get_item_metadata(idx))
 			_save_current_level()
 			_map_canvas.queue_redraw()
 	)
-	_right_content.add_child(fm_dropdown)
+	_enc_content.add_child(_enc_fm_dropdown)
 
-	# Ship dropdown (for single-ship mode)
+	# Ship dropdown
 	var ship_label := Label.new()
 	ship_label.text = "SHIP (single)"
 	ThemeManager.apply_text_glow(ship_label, "body")
-	_right_content.add_child(ship_label)
+	_enc_content.add_child(ship_label)
 
-	var ship_dropdown := OptionButton.new()
-	var current_ship_id: String = str(enc.get("ship_id", ""))
-	var ship_select := 0
+	_enc_ship_dropdown = OptionButton.new()
 	for i in range(_cached_ship_ids.size()):
-		ship_dropdown.add_item(_cached_ship_names[i], i)
-		ship_dropdown.set_item_metadata(i, _cached_ship_ids[i])
-		if _cached_ship_ids[i] == current_ship_id:
-			ship_select = i
-	if _cached_ship_ids.size() > 0:
-		ship_dropdown.select(ship_select)
-	ship_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_level and enc_idx < _selected_level.encounters.size():
-			_selected_level.encounters[enc_idx]["ship_id"] = str(ship_dropdown.get_item_metadata(idx))
+		_enc_ship_dropdown.add_item(_cached_ship_names[i], i)
+		_enc_ship_dropdown.set_item_metadata(i, _cached_ship_ids[i])
+	_enc_ship_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["ship_id"] = str(_enc_ship_dropdown.get_item_metadata(idx))
 			_save_current_level()
 	)
-	_right_content.add_child(ship_dropdown)
+	_enc_content.add_child(_enc_ship_dropdown)
 
 	# Speed
 	var sep2 := HSeparator.new()
-	_right_content.add_child(sep2)
+	_enc_content.add_child(sep2)
 
 	var speed_label := Label.new()
 	speed_label.text = "SPEED"
 	ThemeManager.apply_text_glow(speed_label, "body")
-	_right_content.add_child(speed_label)
-	var speed_spin := SpinBox.new()
-	speed_spin.min_value = 50
-	speed_spin.max_value = 1000
-	speed_spin.step = 10
-	speed_spin.value = float(enc.get("speed", 200.0))
-	speed_spin.value_changed.connect(func(v: float) -> void:
-		if _selected_level and enc_idx < _selected_level.encounters.size():
-			_selected_level.encounters[enc_idx]["speed"] = v
+	_enc_content.add_child(speed_label)
+	_enc_speed_spin = SpinBox.new()
+	_enc_speed_spin.min_value = 50
+	_enc_speed_spin.max_value = 1000
+	_enc_speed_spin.step = 10
+	_enc_speed_spin.value = 200
+	_enc_speed_spin.value_changed.connect(func(v: float) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["speed"] = v
 			_save_current_level()
 	)
-	_right_content.add_child(speed_spin)
+	_enc_content.add_child(_enc_speed_spin)
 
 	# Count
 	var count_label := Label.new()
 	count_label.text = "COUNT"
 	ThemeManager.apply_text_glow(count_label, "body")
-	_right_content.add_child(count_label)
-	var count_spin := SpinBox.new()
-	count_spin.min_value = 1
-	count_spin.max_value = 20
-	count_spin.step = 1
-	count_spin.value = int(enc.get("count", 1))
-	count_spin.value_changed.connect(func(v: float) -> void:
-		if _selected_level and enc_idx < _selected_level.encounters.size():
-			_selected_level.encounters[enc_idx]["count"] = int(v)
+	_enc_content.add_child(count_label)
+	_enc_count_spin = SpinBox.new()
+	_enc_count_spin.min_value = 1
+	_enc_count_spin.max_value = 20
+	_enc_count_spin.step = 1
+	_enc_count_spin.value = 1
+	_enc_count_spin.value_changed.connect(func(v: float) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["count"] = int(v)
 			_save_current_level()
 			_map_canvas.queue_redraw()
 	)
-	_right_content.add_child(count_spin)
+	_enc_content.add_child(_enc_count_spin)
 
 	# Spacing
 	var spacing_label := Label.new()
 	spacing_label.text = "SPACING"
 	ThemeManager.apply_text_glow(spacing_label, "body")
-	_right_content.add_child(spacing_label)
-	var spacing_spin := SpinBox.new()
-	spacing_spin.min_value = 50
-	spacing_spin.max_value = 2000
-	spacing_spin.step = 50
-	spacing_spin.value = float(enc.get("spacing", 200.0))
-	spacing_spin.value_changed.connect(func(v: float) -> void:
-		if _selected_level and enc_idx < _selected_level.encounters.size():
-			_selected_level.encounters[enc_idx]["spacing"] = v
+	_enc_content.add_child(spacing_label)
+	_enc_spacing_spin = SpinBox.new()
+	_enc_spacing_spin.min_value = 50
+	_enc_spacing_spin.max_value = 2000
+	_enc_spacing_spin.step = 50
+	_enc_spacing_spin.value = 200
+	_enc_spacing_spin.value_changed.connect(func(v: float) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["spacing"] = v
 			_save_current_level()
 	)
-	_right_content.add_child(spacing_spin)
+	_enc_content.add_child(_enc_spacing_spin)
 
 	# Action buttons
 	var sep3 := HSeparator.new()
-	_right_content.add_child(sep3)
+	_enc_content.add_child(sep3)
 
-	var center_btn := Button.new()
-	center_btn.text = "CENTER"
-	center_btn.pressed.connect(func() -> void:
-		if _selected_level and enc_idx < _selected_level.encounters.size():
-			_selected_level.encounters[enc_idx]["x_offset"] = 0.0
+	_enc_center_btn = Button.new()
+	_enc_center_btn.text = "CENTER"
+	_enc_center_btn.pressed.connect(func() -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["x_offset"] = 0.0
 			_save_current_level()
-			_rebuild_right_panel_content()
 			_map_canvas.queue_redraw()
 	)
-	ThemeManager.apply_button_style(center_btn)
-	_right_content.add_child(center_btn)
+	ThemeManager.apply_button_style(_enc_center_btn)
+	_enc_content.add_child(_enc_center_btn)
 
-	var del_btn := Button.new()
-	del_btn.text = "DELETE ENCOUNTER"
-	del_btn.pressed.connect(func() -> void:
-		if _selected_level and enc_idx < _selected_level.encounters.size():
-			_selected_level.encounters.remove_at(enc_idx)
+	_enc_delete_btn = Button.new()
+	_enc_delete_btn.text = "DELETE ENCOUNTER"
+	_enc_delete_btn.pressed.connect(func() -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters.remove_at(_selected_encounter_idx)
 			_selected_encounter_idx = -1
 			_save_current_level()
-			_rebuild_right_panel_content()
+			_update_right_panel()
 			_map_canvas.queue_redraw()
 	)
-	ThemeManager.apply_button_style(del_btn)
-	_right_content.add_child(del_btn)
+	ThemeManager.apply_button_style(_enc_delete_btn)
+	_enc_content.add_child(_enc_delete_btn)
+
+	_update_right_panel()
+
+
+func _update_right_panel() -> void:
+	var has_enc: bool = _selected_level != null and _selected_encounter_idx >= 0 and _selected_encounter_idx < _selected_level.encounters.size()
+
+	_enc_hint.visible = not has_enc
+	# Never hide _enc_content — hidden nodes leave layout, causing width jump.
+	# Instead grey out + disable when no encounter selected.
+	var disabled: bool = not has_enc
+	_enc_content.modulate = Color(1, 1, 1, 0.3) if disabled else Color.WHITE
+	_enc_path_dropdown.disabled = disabled
+	_enc_fm_dropdown.disabled = disabled
+	_enc_ship_dropdown.disabled = disabled
+	_enc_speed_spin.editable = not disabled
+	_enc_count_spin.editable = not disabled
+	_enc_spacing_spin.editable = not disabled
+	_enc_center_btn.disabled = disabled
+	_enc_delete_btn.disabled = disabled
+
+	if not has_enc:
+		return
+
+	var enc: Dictionary = _selected_level.encounters[_selected_encounter_idx]
+
+	# Update path dropdown selection
+	var current_path_id: String = str(enc.get("path_id", ""))
+	var path_select: int = 0
+	for i in range(_cached_path_ids.size()):
+		if _cached_path_ids[i] == current_path_id:
+			path_select = i
+			break
+	if _cached_path_ids.size() > 0:
+		_enc_path_dropdown.select(path_select)
+
+	# Update formation dropdown selection
+	var current_fm_id: String = str(enc.get("formation_id", ""))
+	var fm_select: int = 0
+	for i in range(_cached_formation_ids.size()):
+		if _cached_formation_ids[i] == current_fm_id:
+			fm_select = i + 1
+			break
+	_enc_fm_dropdown.select(fm_select)
+
+	# Update ship dropdown selection
+	var current_ship_id: String = str(enc.get("ship_id", ""))
+	var ship_select: int = 0
+	for i in range(_cached_ship_ids.size()):
+		if _cached_ship_ids[i] == current_ship_id:
+			ship_select = i
+			break
+	if _cached_ship_ids.size() > 0:
+		_enc_ship_dropdown.select(ship_select)
+
+	# Update spinbox values
+	_enc_speed_spin.value = float(enc.get("speed", 200.0))
+	_enc_count_spin.value = int(enc.get("count", 1))
+	_enc_spacing_spin.value = float(enc.get("spacing", 200.0))
 
 
 # ── Data operations ────────────────────────────────────────────
@@ -748,7 +811,7 @@ func _select_level(lv: LevelData) -> void:
 	_scroll_offset = 0.0
 	_update_level_props_ui()
 	_rebuild_level_list()
-	_rebuild_right_panel_content()
+	_update_right_panel()
 	_map_canvas.queue_redraw()
 
 
@@ -800,7 +863,7 @@ func _on_delete_level() -> void:
 		_select_level(_all_levels[0])
 	else:
 		_update_level_props_ui()
-		_rebuild_right_panel_content()
+		_update_right_panel()
 		_map_canvas.queue_redraw()
 
 
@@ -866,7 +929,14 @@ class _MapCanvasDraw extends Control:
 			var is_selected: bool = (i == s._selected_encounter_idx)
 			var color := Color(1.0, 0.5, 0.2) if is_selected else Color(0.4, 0.8, 1.0)
 
-			# Diamond marker (doubled size)
+			# Path curve preview (draw behind marker when selected)
+			if is_selected:
+				var path_id: String = str(enc.get("path_id", ""))
+				if s._path_id_to_curve.has(path_id):
+					_draw_path_preview(s._path_id_to_curve[path_id], cx, cy, color)
+
+			# Diamond marker
+			var ship_id: String = str(enc.get("ship_id", ""))
 			var sz: float = 16.0
 			var points := PackedVector2Array([
 				Vector2(cx, cy - sz),
@@ -887,10 +957,9 @@ class _MapCanvasDraw extends Control:
 
 			draw_colored_polygon(points, color)
 
-			# Labels: ship name + count, then formation name in different color
+			# Labels: ship name + count, formation name, path name
 			var fm_id: String = str(enc.get("formation_id", ""))
-			var ship_id: String = str(enc.get("ship_id", ""))
-			var ship_name: String = s._ship_id_to_name.get(ship_id, ship_id)
+			var ship_name: String = s._ship_id_to_name.get(ship_id, ship_id) as String
 			if ship_name == "":
 				ship_name = "?"
 			var count_val: int = int(enc.get("count", 1))
@@ -899,11 +968,65 @@ class _MapCanvasDraw extends Control:
 				ship_text += " x" + str(count_val)
 			var font3: Font = ThemeDB.fallback_font
 			var label_x: float = cx + sz * 0.7 + 6
-			draw_string(font3, Vector2(label_x, cy + 4), ship_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(color, 0.9))
+			var label_y_offset: float = 4.0
+			draw_string(font3, Vector2(label_x, cy + label_y_offset), ship_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(color, 0.9))
+			label_y_offset += 12.0
 			if fm_id != "":
-				var fm_name: String = s._formation_id_to_name.get(fm_id, fm_id)
+				var fm_name: String = s._formation_id_to_name.get(fm_id, fm_id) as String
 				var fm_color := Color(0.6, 1.0, 0.5, 0.8) if is_selected else Color(0.5, 0.9, 0.4, 0.7)
-				draw_string(font3, Vector2(label_x, cy + 16), fm_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, fm_color)
+				draw_string(font3, Vector2(label_x, cy + label_y_offset), fm_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, fm_color)
+				label_y_offset += 12.0
+			var enc_path_id: String = str(enc.get("path_id", ""))
+			if enc_path_id != "":
+				var path_name: String = s._path_id_to_name.get(enc_path_id, enc_path_id) as String
+				var path_color := Color(0.5, 0.9, 1.0, 0.7) if is_selected else Color(0.4, 0.7, 0.9, 0.5)
+				draw_string(font3, Vector2(label_x, cy + label_y_offset), path_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, path_color)
+
+
+	func _draw_path_preview(curve: Curve2D, cx: float, cy: float, color: Color) -> void:
+		var baked: PackedVector2Array = curve.get_baked_points()
+		if baked.size() < 2:
+			return
+
+		# Use the map's actual coordinate scale so path preview is proportionally correct
+		var map_rect: Rect2 = screen._get_map_rect()
+		var scale_factor: float = map_rect.size.x / 1920.0
+
+		# Compute bounding box center to anchor preview on the marker
+		var bbox_min := baked[0]
+		var bbox_max := baked[0]
+		for pt in baked:
+			bbox_min.x = minf(bbox_min.x, pt.x)
+			bbox_min.y = minf(bbox_min.y, pt.y)
+			bbox_max.x = maxf(bbox_max.x, pt.x)
+			bbox_max.y = maxf(bbox_max.y, pt.y)
+		var bbox_center: Vector2 = (bbox_min + bbox_max) * 0.5
+
+		# Build transformed points centered on the marker, at map scale
+		var preview_pts := PackedVector2Array()
+		for pt in baked:
+			preview_pts.append(Vector2(cx + (pt.x - bbox_center.x) * scale_factor, cy + (pt.y - bbox_center.y) * scale_factor))
+
+		# Draw the curve
+		draw_polyline(preview_pts, Color(color, 0.3), 2.0, true)
+
+		# Direction arrow at ~25% along the path
+		if preview_pts.size() >= 4:
+			var arrow_idx: int = int(preview_pts.size() * 0.25)
+			var arrow_pos: Vector2 = preview_pts[arrow_idx]
+			var arrow_dir: Vector2 = (preview_pts[mini(arrow_idx + 1, preview_pts.size() - 1)] - preview_pts[maxi(arrow_idx - 1, 0)]).normalized()
+			var perp: Vector2 = Vector2(-arrow_dir.y, arrow_dir.x)
+			var arrow_size: float = 6.0
+			var tip: Vector2 = arrow_pos + arrow_dir * arrow_size
+			draw_colored_polygon(PackedVector2Array([
+				tip,
+				arrow_pos - arrow_dir * arrow_size * 0.5 + perp * arrow_size * 0.5,
+				arrow_pos - arrow_dir * arrow_size * 0.5 - perp * arrow_size * 0.5,
+			]), Color(color, 0.5))
+
+		# Start dot
+		if preview_pts.size() > 0:
+			draw_circle(preview_pts[0], 3.0, Color(color, 0.6))
 
 
 	func _gui_input(event: InputEvent) -> void:
