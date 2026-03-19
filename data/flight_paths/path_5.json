@@ -1,0 +1,39 @@
+{
+	"default_speed": 200.0,
+	"display_name": "Straight",
+	"enemy_ship_id": "",
+	"id": "path_5",
+	"segment_speeds": {
+
+	},
+	"waypoints": [
+		{
+			"ctrl_in": [
+				0.0,
+				0.0
+			],
+			"ctrl_out": [
+				0.0,
+				0.0
+			],
+			"pos": [
+				970.243896484375,
+				2.92682933807373
+			]
+		},
+		{
+			"ctrl_in": [
+				0.0,
+				0.0
+			],
+			"ctrl_out": [
+				0.0,
+				0.0
+			],
+			"pos": [
+				971.707336425781,
+				1075.60974121094
+			]
+		}
+	]
+}

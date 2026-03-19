@@ -1,0 +1,31 @@
+{
+	"burst_directions": 4,
+	"display_name": "Marauder",
+	"enemy_damage": 22,
+	"fire_pattern": "burst",
+	"fire_rate": 1.6,
+	"grid_size": [
+		88,
+		96
+	],
+	"hardpoints": [],
+	"id": "enemy_marauder",
+	"lines": [],
+	"projectile_speed": 280.0,
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 300.0,
+		"device_slots": 3.0,
+		"electric_segments": 8.0,
+		"hull_hp": 160.0,
+		"hull_segments": 10.0,
+		"shield_hp": 40.0,
+		"shield_regen": 2.0,
+		"shield_segments": 6.0,
+		"speed": 80.0,
+		"thermal_segments": 8.0
+	},
+	"type": "enemy",
+	"visual_id": "marauder",
+	"weapon_id": ""
+}

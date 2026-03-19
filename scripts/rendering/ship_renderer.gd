@@ -241,6 +241,11 @@ func _draw_enemy_ship() -> void:
 		"tesseract": _draw_tesseract()
 		"talon": _draw_talon()
 		"obelisk": _draw_obelisk()
+		"leviathan": _draw_leviathan()
+		"marauder": _draw_marauder()
+		"ironclad": _draw_ironclad()
+		"wraith": _draw_wraith()
+		"colossus": _draw_colossus()
 		_: _draw_sentinel()  # Default fallback
 
 func _draw_sentinel() -> void:
@@ -573,6 +578,387 @@ func _draw_obelisk() -> void:
 	# Pulsing center
 	var pulse: float = 0.5 + sin(time * 1.5) * 0.5
 	draw_circle(Vector2.ZERO, 3.0 * s, Color(1.0, 1.0, 1.0, 0.4 * pulse))
+
+# ── Large enemy ships ──
+
+func _draw_leviathan() -> void:
+	var s := 3.2
+	# Main hull — wide blocky carrier body, slightly asymmetric
+	var hull := PackedVector2Array([
+		Vector2(-18 * s, -22 * s),  # port bow
+		Vector2(-8 * s, -28 * s),   # forward port
+		Vector2(10 * s, -28 * s),   # forward starboard
+		Vector2(20 * s, -20 * s),   # starboard bow
+		Vector2(22 * s, 0 * s),     # starboard mid
+		Vector2(20 * s, 20 * s),    # starboard stern
+		Vector2(8 * s, 26 * s),     # aft starboard
+		Vector2(-10 * s, 26 * s),   # aft port
+		Vector2(-20 * s, 18 * s),   # port stern
+		Vector2(-22 * s, -2 * s),   # port mid
+	])
+	_poly(hull, hull_color, 2.0 * s)
+
+	# Bridge tower — offset to starboard side (asymmetric)
+	var bridge := PackedVector2Array([
+		Vector2(10 * s, -18 * s),
+		Vector2(17 * s, -16 * s),
+		Vector2(18 * s, -6 * s),
+		Vector2(14 * s, -4 * s),
+		Vector2(10 * s, -6 * s),
+	])
+	_poly(bridge, accent_color, 1.6 * s)
+
+	# Bridge viewport slit
+	_line(Vector2(11 * s, -14 * s), Vector2(16 * s, -12 * s), detail_color, 0.8 * s)
+
+	# Hangar bay slit on port side
+	var hangar_pulse: float = 0.4 + sin(time * 1.5) * 0.3
+	var hangar_col := Color(accent_color.r, accent_color.g, accent_color.b, hangar_pulse)
+	_line(Vector2(-16 * s, -4 * s), Vector2(-16 * s, 10 * s), hangar_col, 1.4 * s)
+	_line(Vector2(-14 * s, -4 * s), Vector2(-14 * s, 10 * s), hangar_col, 1.0 * s)
+
+	# Hull panel seams
+	_line(Vector2(-6 * s, -24 * s), Vector2(-6 * s, 22 * s), detail_color, 0.5 * s)
+	_line(Vector2(4 * s, -26 * s), Vector2(4 * s, 24 * s), detail_color, 0.5 * s)
+	_line(Vector2(-18 * s, 6 * s), Vector2(18 * s, 6 * s), detail_color, 0.4 * s)
+
+	# Weapon sponsons — small bumps along the sides
+	for y_off in [-12.0, 0.0, 12.0]:
+		_line(Vector2(22 * s, y_off * s), Vector2(26 * s, (y_off - 1) * s), hull_color, 1.0 * s)
+	_line(Vector2(-22 * s, -8 * s), Vector2(-26 * s, -9 * s), hull_color, 1.0 * s)
+	_line(Vector2(-22 * s, 14 * s), Vector2(-26 * s, 13 * s), hull_color, 1.0 * s)
+
+	# Engine bank — 4 engines across the stern
+	var eng_pulse: float = 0.5 + sin(time * 4.0) * 0.3 + sin(time * 6.5) * 0.2
+	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
+	for x_off in [-7.0, -2.0, 3.0, 8.0]:
+		draw_circle(Vector2(x_off * s, 26 * s), 2.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
+		draw_circle(Vector2(x_off * s, 26 * s), 1.5 * s, eng_col)
+
+	# Pulsing forward sensor
+	var sensor_pulse: float = 0.6 + sin(time * 2.0) * 0.4
+	draw_circle(Vector2(1 * s, -26 * s), 2.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, sensor_pulse))
+
+
+func _draw_marauder() -> void:
+	var s := 3.0
+	# Aggressive forward-heavy gunship with offset weapon clusters
+	# Main hull — wedge-shaped, wider at front
+	var hull := PackedVector2Array([
+		Vector2(-4 * s, -26 * s),   # nose port
+		Vector2(6 * s, -26 * s),    # nose starboard (wider — asymmetric)
+		Vector2(18 * s, -14 * s),   # starboard cheek
+		Vector2(16 * s, 8 * s),     # starboard mid
+		Vector2(12 * s, 22 * s),    # starboard aft
+		Vector2(-10 * s, 22 * s),   # port aft
+		Vector2(-14 * s, 8 * s),    # port mid
+		Vector2(-16 * s, -12 * s),  # port cheek
+	])
+	_poly(hull, hull_color, 2.0 * s)
+
+	# Port weapon pylon — extends forward and outward
+	var port_pylon := PackedVector2Array([
+		Vector2(-16 * s, -12 * s),
+		Vector2(-22 * s, -18 * s),
+		Vector2(-20 * s, -22 * s),
+		Vector2(-14 * s, -16 * s),
+	])
+	_poly(port_pylon, hull_color, 1.6 * s)
+
+	# Starboard weapon cluster — heavier, 2 barrels
+	var stbd_pylon := PackedVector2Array([
+		Vector2(18 * s, -14 * s),
+		Vector2(24 * s, -20 * s),
+		Vector2(26 * s, -18 * s),
+		Vector2(22 * s, -10 * s),
+	])
+	_poly(stbd_pylon, hull_color, 1.6 * s)
+	# Second starboard barrel stub
+	_line(Vector2(22 * s, -14 * s), Vector2(26 * s, -22 * s), accent_color, 1.2 * s)
+
+	# Cockpit canopy — offset slightly starboard
+	var cockpit := PackedVector2Array([
+		Vector2(2 * s, -20 * s),
+		Vector2(8 * s, -18 * s),
+		Vector2(8 * s, -12 * s),
+		Vector2(2 * s, -14 * s),
+	])
+	_poly(cockpit, accent_color, 1.2 * s)
+
+	# Armored spine running aft
+	_line(Vector2(1 * s, -22 * s), Vector2(1 * s, 18 * s), detail_color, 0.8 * s)
+
+	# Port hull gash / battle scar detail
+	_line(Vector2(-10 * s, -4 * s), Vector2(-6 * s, 4 * s), detail_color, 0.6 * s)
+	_line(Vector2(-12 * s, 0 * s), Vector2(-8 * s, 6 * s), detail_color, 0.5 * s)
+
+	# Cross panel seams
+	_line(Vector2(-14 * s, -2 * s), Vector2(16 * s, -2 * s), detail_color, 0.4 * s)
+	_line(Vector2(-10 * s, 14 * s), Vector2(12 * s, 14 * s), detail_color, 0.4 * s)
+
+	# Engines — 3, asymmetric placement
+	var eng_pulse: float = 0.5 + sin(time * 5.0) * 0.3 + sin(time * 8.0) * 0.2
+	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
+	draw_circle(Vector2(-6 * s, 22 * s), 3.0 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
+	draw_circle(Vector2(-6 * s, 22 * s), 1.8 * s, eng_col)
+	draw_circle(Vector2(4 * s, 22 * s), 3.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.35 * eng_pulse))
+	draw_circle(Vector2(4 * s, 22 * s), 2.0 * s, eng_col)
+	draw_circle(Vector2(10 * s, 21 * s), 2.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.25 * eng_pulse))
+	draw_circle(Vector2(10 * s, 21 * s), 1.4 * s, eng_col)
+
+	# Weapon pylon tip glow
+	var wpn_pulse: float = 0.4 + sin(time * 3.0) * 0.4
+	draw_circle(Vector2(-20 * s, -22 * s), 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, wpn_pulse))
+	draw_circle(Vector2(25 * s, -21 * s), 2.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, wpn_pulse))
+
+
+func _draw_ironclad() -> void:
+	var s := 3.4
+	# Armored battleship — boxy, heavy, with turret bumps and shield dome
+	# Main hull — thick rectangular with angled bow
+	var hull := PackedVector2Array([
+		Vector2(-6 * s, -28 * s),   # bow port
+		Vector2(6 * s, -28 * s),    # bow starboard
+		Vector2(16 * s, -18 * s),   # starboard forward angle
+		Vector2(18 * s, -6 * s),    # starboard upper
+		Vector2(18 * s, 18 * s),    # starboard aft
+		Vector2(14 * s, 24 * s),    # starboard stern angle
+		Vector2(-14 * s, 24 * s),   # port stern angle
+		Vector2(-18 * s, 18 * s),   # port aft
+		Vector2(-18 * s, -6 * s),   # port upper
+		Vector2(-16 * s, -18 * s),  # port forward angle
+	])
+	_poly(hull, hull_color, 2.2 * s)
+
+	# Armor plate lines — heavy horizontal bands
+	for y_off in [-14.0, -4.0, 6.0, 16.0]:
+		_line(Vector2(-17 * s, y_off * s), Vector2(17 * s, y_off * s), detail_color, 0.6 * s)
+
+	# Forward turret barbette (raised bump)
+	var fwd_turret := PackedVector2Array([
+		Vector2(-5 * s, -20 * s),
+		Vector2(5 * s, -20 * s),
+		Vector2(6 * s, -14 * s),
+		Vector2(-6 * s, -14 * s),
+	])
+	_poly(fwd_turret, accent_color, 1.4 * s)
+	# Turret barrel
+	_line(Vector2(0 * s, -20 * s), Vector2(0 * s, -28 * s), accent_color, 1.2 * s)
+
+	# Aft turret — slightly offset to port (asymmetric)
+	var aft_turret := PackedVector2Array([
+		Vector2(-8 * s, 10 * s),
+		Vector2(-2 * s, 10 * s),
+		Vector2(-1 * s, 16 * s),
+		Vector2(-9 * s, 16 * s),
+	])
+	_poly(aft_turret, accent_color, 1.2 * s)
+	_line(Vector2(-5 * s, 10 * s), Vector2(-5 * s, 4 * s), accent_color, 1.0 * s)
+
+	# Shield generator dome — center-starboard
+	var shield_pulse: float = 0.3 + sin(time * 1.8) * 0.3
+	var dome_col := Color(detail_color.r, detail_color.g, detail_color.b, shield_pulse)
+	draw_circle(Vector2(4 * s, 2 * s), 6.0 * s, Color(dome_col.r, dome_col.g, dome_col.b, 0.15 * shield_pulse))
+	draw_circle(Vector2(4 * s, 2 * s), 4.0 * s, Color(dome_col.r, dome_col.g, dome_col.b, 0.3 * shield_pulse))
+	draw_circle(Vector2(4 * s, 2 * s), 2.0 * s, dome_col)
+
+	# Side armor sponsons
+	var r_sponson := PackedVector2Array([
+		Vector2(18 * s, -2 * s),
+		Vector2(22 * s, -4 * s),
+		Vector2(22 * s, 8 * s),
+		Vector2(18 * s, 10 * s),
+	])
+	_poly(r_sponson, hull_color, 1.4 * s)
+	var l_sponson := PackedVector2Array([
+		Vector2(-18 * s, 4 * s),
+		Vector2(-22 * s, 2 * s),
+		Vector2(-22 * s, 14 * s),
+		Vector2(-18 * s, 16 * s),
+	])
+	_poly(l_sponson, hull_color, 1.4 * s)
+
+	# Vertical keel line
+	_line(Vector2(0 * s, -26 * s), Vector2(0 * s, 22 * s), detail_color, 0.5 * s)
+
+	# Engine bank — 3 heavy engines
+	var eng_pulse: float = 0.5 + sin(time * 3.5) * 0.3 + sin(time * 5.5) * 0.2
+	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
+	for x_off in [-8.0, 0.0, 8.0]:
+		draw_circle(Vector2(x_off * s, 24 * s), 3.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
+		draw_circle(Vector2(x_off * s, 24 * s), 2.0 * s, eng_col)
+
+
+func _draw_wraith() -> void:
+	var s := 3.0
+	# Sleek stealth destroyer — angular, low-profile, off-center sensor fin
+	# Main hull — narrow elongated diamond-ish shape, slightly asymmetric
+	var hull := PackedVector2Array([
+		Vector2(0 * s, -30 * s),    # nose
+		Vector2(8 * s, -22 * s),    # starboard forward
+		Vector2(14 * s, -8 * s),    # starboard shoulder
+		Vector2(16 * s, 6 * s),     # starboard widest
+		Vector2(12 * s, 20 * s),    # starboard aft
+		Vector2(4 * s, 24 * s),     # aft starboard
+		Vector2(-6 * s, 24 * s),    # aft port
+		Vector2(-12 * s, 18 * s),   # port aft
+		Vector2(-14 * s, 4 * s),    # port widest
+		Vector2(-12 * s, -10 * s),  # port shoulder
+		Vector2(-6 * s, -24 * s),   # port forward
+	])
+	_poly(hull, hull_color, 1.8 * s)
+
+	# Sensor fin — tall, offset to port (asymmetric signature element)
+	var fin := PackedVector2Array([
+		Vector2(-8 * s, -16 * s),
+		Vector2(-6 * s, -20 * s),
+		Vector2(-4 * s, -16 * s),
+		Vector2(-4 * s, -4 * s),
+		Vector2(-8 * s, -2 * s),
+	])
+	_poly(fin, accent_color, 1.2 * s)
+
+	# Sensor sweep line on the fin — animated
+	var sweep_t: float = fmod(time * 0.8, 1.0)
+	var sweep_y: float = lerpf(-18.0, -4.0, sweep_t) * s
+	var sweep_alpha: float = 0.5 + sin(sweep_t * PI) * 0.5
+	_line(Vector2(-8 * s, sweep_y), Vector2(-4 * s, sweep_y), Color(detail_color.r, detail_color.g, detail_color.b, sweep_alpha), 0.8 * s)
+
+	# Angular wing stubs — swept back
+	var r_wing := PackedVector2Array([
+		Vector2(14 * s, -4 * s),
+		Vector2(22 * s, 2 * s),
+		Vector2(20 * s, 6 * s),
+		Vector2(14 * s, 4 * s),
+	])
+	_poly(r_wing, hull_color, 1.4 * s)
+	var l_wing := PackedVector2Array([
+		Vector2(-12 * s, -2 * s),
+		Vector2(-18 * s, 4 * s),
+		Vector2(-16 * s, 8 * s),
+		Vector2(-12 * s, 6 * s),
+	])
+	_poly(l_wing, hull_color, 1.4 * s)
+
+	# Cockpit slit — narrow viewport near nose
+	_line(Vector2(-2 * s, -22 * s), Vector2(4 * s, -20 * s), accent_color, 0.9 * s)
+
+	# Hull seam lines — angled for stealth look
+	_line(Vector2(0 * s, -28 * s), Vector2(4 * s, 0 * s), detail_color, 0.4 * s)
+	_line(Vector2(4 * s, 0 * s), Vector2(2 * s, 22 * s), detail_color, 0.4 * s)
+	_line(Vector2(-10 * s, 6 * s), Vector2(14 * s, 2 * s), detail_color, 0.4 * s)
+
+	# Recessed engines — low signature, 2 flush-mounted
+	var eng_pulse: float = 0.3 + sin(time * 4.5) * 0.2 + sin(time * 7.0) * 0.15
+	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
+	draw_circle(Vector2(-2 * s, 23 * s), 2.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.2 * eng_pulse))
+	draw_circle(Vector2(-2 * s, 23 * s), 1.2 * s, eng_col)
+	draw_circle(Vector2(6 * s, 23 * s), 2.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.2 * eng_pulse))
+	draw_circle(Vector2(6 * s, 23 * s), 1.2 * s, eng_col)
+
+	# Wingtip running lights — dim flicker
+	var light_pulse: float = 0.3 + sin(time * 2.5) * 0.3
+	draw_circle(Vector2(21 * s, 4 * s), 1.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, light_pulse))
+	draw_circle(Vector2(-17 * s, 6 * s), 1.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, light_pulse * 0.7))
+
+
+func _draw_colossus() -> void:
+	var s := 3.6
+	# Massive dreadnought — multi-section hull, command bridge, gun batteries
+	# Forward section — armored prow
+	var prow := PackedVector2Array([
+		Vector2(-4 * s, -32 * s),
+		Vector2(4 * s, -32 * s),
+		Vector2(12 * s, -22 * s),
+		Vector2(12 * s, -14 * s),
+		Vector2(-12 * s, -14 * s),
+		Vector2(-12 * s, -22 * s),
+	])
+	_poly(prow, hull_color, 2.0 * s)
+
+	# Mid section — wider main body
+	var midsection := PackedVector2Array([
+		Vector2(-16 * s, -14 * s),
+		Vector2(16 * s, -14 * s),
+		Vector2(20 * s, -4 * s),
+		Vector2(20 * s, 12 * s),
+		Vector2(16 * s, 18 * s),
+		Vector2(-16 * s, 18 * s),
+		Vector2(-20 * s, 12 * s),
+		Vector2(-20 * s, -4 * s),
+	])
+	_poly(midsection, hull_color, 2.2 * s)
+
+	# Aft section — engine block
+	var aft := PackedVector2Array([
+		Vector2(-14 * s, 18 * s),
+		Vector2(14 * s, 18 * s),
+		Vector2(16 * s, 28 * s),
+		Vector2(-16 * s, 28 * s),
+	])
+	_poly(aft, hull_color, 2.0 * s)
+
+	# Section divider lines
+	_line(Vector2(-16 * s, -14 * s), Vector2(16 * s, -14 * s), accent_color, 1.0 * s)
+	_line(Vector2(-16 * s, 18 * s), Vector2(16 * s, 18 * s), accent_color, 1.0 * s)
+
+	# Command bridge — raised structure, offset slightly starboard
+	var bridge := PackedVector2Array([
+		Vector2(2 * s, -10 * s),
+		Vector2(12 * s, -8 * s),
+		Vector2(14 * s, 0 * s),
+		Vector2(10 * s, 4 * s),
+		Vector2(2 * s, 2 * s),
+	])
+	_poly(bridge, accent_color, 1.6 * s)
+	# Bridge viewport
+	_line(Vector2(4 * s, -8 * s), Vector2(10 * s, -6 * s), detail_color, 0.8 * s)
+
+	# Port gun battery — 2 barrel turret
+	var port_gun := PackedVector2Array([
+		Vector2(-16 * s, -6 * s),
+		Vector2(-12 * s, -8 * s),
+		Vector2(-10 * s, -4 * s),
+		Vector2(-14 * s, -2 * s),
+	])
+	_poly(port_gun, accent_color, 1.2 * s)
+	_line(Vector2(-14 * s, -8 * s), Vector2(-18 * s, -14 * s), accent_color, 1.0 * s)
+	_line(Vector2(-12 * s, -7 * s), Vector2(-16 * s, -13 * s), accent_color, 1.0 * s)
+
+	# Starboard gun battery — single heavy barrel
+	var stbd_gun := PackedVector2Array([
+		Vector2(16 * s, 6 * s),
+		Vector2(20 * s, 4 * s),
+		Vector2(22 * s, 8 * s),
+		Vector2(18 * s, 10 * s),
+	])
+	_poly(stbd_gun, accent_color, 1.2 * s)
+	_line(Vector2(20 * s, 5 * s), Vector2(24 * s, -1 * s), accent_color, 1.2 * s)
+
+	# Hull panel detail — vertical and diagonal seams
+	_line(Vector2(0 * s, -30 * s), Vector2(0 * s, 26 * s), detail_color, 0.5 * s)
+	_line(Vector2(-8 * s, -22 * s), Vector2(-8 * s, 16 * s), detail_color, 0.4 * s)
+	_line(Vector2(8 * s, -22 * s), Vector2(8 * s, 16 * s), detail_color, 0.4 * s)
+
+	# Armor plate cross-hatching on prow
+	_line(Vector2(-8 * s, -20 * s), Vector2(8 * s, -18 * s), detail_color, 0.4 * s)
+	_line(Vector2(-10 * s, -16 * s), Vector2(10 * s, -16 * s), detail_color, 0.4 * s)
+
+	# Engine bank — 5 engines, heavy output
+	var eng_pulse: float = 0.5 + sin(time * 3.0) * 0.25 + sin(time * 5.0) * 0.15 + sin(time * 9.0) * 0.1
+	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
+	for x_off in [-10.0, -5.0, 0.0, 5.0, 10.0]:
+		draw_circle(Vector2(x_off * s, 28 * s), 3.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
+		draw_circle(Vector2(x_off * s, 28 * s), 2.0 * s, eng_col)
+
+	# Gun battery glow — slow pulse
+	var wpn_pulse: float = 0.3 + sin(time * 2.0) * 0.3
+	draw_circle(Vector2(-17 * s, -13 * s), 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, wpn_pulse))
+	draw_circle(Vector2(23 * s, 0 * s), 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, wpn_pulse))
+
+	# Pulsing command bridge light
+	var cmd_pulse: float = 0.5 + sin(time * 1.5) * 0.5
+	draw_circle(Vector2(8 * s, -2 * s), 2.0 * s, Color(1.0, 1.0, 1.0, 0.4 * cmd_pulse))
 
 # ── Chrome drawing helpers ──
 

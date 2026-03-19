@@ -1,0 +1,31 @@
+{
+	"burst_directions": 8,
+	"display_name": "Colossus",
+	"enemy_damage": 25,
+	"fire_pattern": "burst",
+	"fire_rate": 2.5,
+	"grid_size": [
+		104,
+		112
+	],
+	"hardpoints": [],
+	"id": "enemy_colossus",
+	"lines": [],
+	"projectile_speed": 220.0,
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 120.0,
+		"device_slots": 6.0,
+		"electric_segments": 14.0,
+		"hull_hp": 350.0,
+		"hull_segments": 16.0,
+		"shield_hp": 150.0,
+		"shield_regen": 5.0,
+		"shield_segments": 12.0,
+		"speed": 35.0,
+		"thermal_segments": 14.0
+	},
+	"type": "enemy",
+	"visual_id": "colossus",
+	"weapon_id": ""
+}

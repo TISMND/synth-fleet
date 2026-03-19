@@ -1,23 +1,15 @@
 extends CanvasLayer
 ## In-game HUD — bottom dashboard with health bars, credits, weapon icons.
 ## Fully themed via ThemeManager with theme_changed reactivity.
-
-const PANEL_HEIGHT: int = 110
-const PANEL_PADDING: int = 12
-const WEAPON_ICON_SIZE: int = 40
-const BAR_HEIGHT: int = 28
-const BAR_LABEL_WIDTH: int = 80
+## Dashboard layout delegated to HudBuilder for single source of truth.
 
 var _credits_label: Label = null
 var _menu_hint: Label = null
-var _dashboard_bg: ColorRect = null
-var _border_line: ColorRect = null
-var _dashboard_hbox: HBoxContainer = null
+var _dashboard_result: Dictionary = {}  # HudBuilder.build_dashboard() result
 var _weapons_hbox: HBoxContainer = null
 var _weapon_icons: Array = []  # Array of dicts: {container, bg_rect, number_label, active, color}
 var _core_icons: Array = []    # Array of dicts: same shape as weapon_icons
 var _device_icons: Array = []  # Array of dicts: same shape as weapon_icons
-var _bars_grid: GridContainer = null
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
 var _bar_segments: Dictionary = {}  # bar_name -> int segment count
 var _bar_pulse_brightness: Dictionary = {}  # bar_name -> float (0.0 = idle, 1.0 = full pulse)
@@ -45,81 +37,24 @@ func _build_ui() -> void:
 	_menu_hint.text = "ESC: Menu"
 	add_child(_menu_hint)
 
-	# Dashboard background panel — bottom-anchored
-	_dashboard_bg = ColorRect.new()
-	_dashboard_bg.position = Vector2(0, 1080 - PANEL_HEIGHT)
-	_dashboard_bg.size = Vector2(1920, PANEL_HEIGHT)
-	add_child(_dashboard_bg)
+	# Dashboard via HudBuilder
+	_dashboard_result = HudBuilder.build_dashboard("game")
+	var root: ColorRect = _dashboard_result["root"]
+	root.position = Vector2(0, 1080 - HudBuilder.PANEL_HEIGHT)
+	root.size = Vector2(1920, HudBuilder.PANEL_HEIGHT)
+	add_child(root)
 
-	# Accent border line at top of dashboard
-	_border_line = ColorRect.new()
-	_border_line.position = Vector2.ZERO
-	_border_line.size = Vector2(1920, 2)
-	_dashboard_bg.add_child(_border_line)
+	_weapons_hbox = _dashboard_result["weapons_hbox"]
 
-	# Main dashboard HBox
-	_dashboard_hbox = HBoxContainer.new()
-	_dashboard_hbox.position = Vector2(PANEL_PADDING, PANEL_PADDING + 4)  # +4 for border
-	_dashboard_hbox.size = Vector2(1920 - PANEL_PADDING * 2, PANEL_HEIGHT - PANEL_PADDING * 2 - 4)
-	_dashboard_hbox.add_theme_constant_override("separation", 40)
-	_dashboard_bg.add_child(_dashboard_hbox)
-
-	# Left — Weapon icons
-	_weapons_hbox = HBoxContainer.new()
-	_weapons_hbox.custom_minimum_size = Vector2(500, 0)
-	_weapons_hbox.add_theme_constant_override("separation", 8)
-	_weapons_hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
-	_dashboard_hbox.add_child(_weapons_hbox)
-
-	# Right — Status bars 2x2 grid (right third of HUD)
-	_bars_grid = GridContainer.new()
-	_bars_grid.columns = 2
-	_bars_grid.add_theme_constant_override("h_separation", 40)
-	_bars_grid.add_theme_constant_override("v_separation", 8)
-	_bars_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_bars_grid.custom_minimum_size.x = 640
-	_dashboard_hbox.add_child(_bars_grid)
-
-	# Build bars from shared specs — layout order: [0] Shield, [2] Thermal, [1] Hull, [3] Electric
-	var specs: Array = ThemeManager.get_status_bar_specs()
-	var layout_order: Array[int] = [0, 2, 1, 3]  # Row1: Shield, Thermal — Row2: Hull, Electric
-	for idx in layout_order:
-		var spec: Dictionary = specs[idx]
-		var bar_name: String = str(spec["name"])
-		var color: Color = ThemeManager.resolve_bar_color(spec)
-		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
-		var init_val: int = seg
-		var cell: Dictionary = _create_bar_cell(bar_name, color, init_val, seg, seg)
-		_bars_grid.add_child(cell["vbox"])
-		_bars[bar_name] = {"bar": cell["bar"], "label": cell["label"]}
+	# Build bars from shared specs
+	_bars = HudBuilder.populate_bars(_dashboard_result["bars_grid"])
+	for bar_name in _bars:
 		_bar_pulse_brightness[bar_name] = 0.0
-		_bar_base_colors[bar_name] = color
-
-
-func _create_bar_cell(text: String, color: Color, initial: int, max_val: int, seg_count: int = -1) -> Dictionary:
-	var hbox := HBoxContainer.new()
-	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hbox.add_theme_constant_override("separation", 6)
-	hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
-
-	var lbl := Label.new()
-	lbl.text = text
-	lbl.custom_minimum_size.x = BAR_LABEL_WIDTH
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	hbox.add_child(lbl)
-
-	var bar := ProgressBar.new()
-	bar.custom_minimum_size.y = BAR_HEIGHT
-	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	bar.max_value = max_val
-	bar.value = initial
-	bar.show_percentage = false
-	hbox.add_child(bar)
-
-	ThemeManager.apply_led_bar(bar, color, float(initial) / maxf(float(max_val), 1.0), seg_count)
-
-	return {"vbox": hbox, "label": lbl, "bar": bar}
+		var specs: Array = ThemeManager.get_status_bar_specs()
+		for spec in specs:
+			if str(spec["name"]) == bar_name:
+				_bar_base_colors[bar_name] = ThemeManager.resolve_bar_color(spec)
+				break
 
 
 func _setup_vhs_overlay() -> void:
@@ -149,10 +84,8 @@ func _apply_theme() -> void:
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var body_size: int = ThemeManager.get_font_size("font_size_body")
 
-	# Dashboard background
-	_dashboard_bg.color = ThemeManager.get_color("panel")
-	var accent_color: Color = ThemeManager.get_color("accent")
-	_border_line.color = Color(accent_color.r, accent_color.g, accent_color.b, 0.4)
+	# Dashboard background + border
+	HudBuilder.apply_dashboard_theme(_dashboard_result)
 
 	# Credits
 	_credits_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
@@ -176,7 +109,7 @@ func _apply_theme() -> void:
 		var entry: Dictionary = _bars[bar_name]
 		var color: Color = ThemeManager.resolve_bar_color(spec)
 		var lbl: Label = entry["label"]
-		_apply_bar_label_theme(lbl, color, body_font, body_size)
+		HudBuilder.apply_bar_label_theme(lbl, color, body_font, body_size)
 		var bar: ProgressBar = entry["bar"]
 		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
 		var seg: int = int(_bar_segments.get(bar_name, -1))
@@ -185,27 +118,7 @@ func _apply_theme() -> void:
 
 	# Weapon icons
 	for icon in _weapon_icons:
-		_apply_weapon_icon_theme(icon)
-
-
-func _apply_bar_label_theme(lbl: Label, color: Color, font: Font, size: int) -> void:
-	lbl.add_theme_font_size_override("font_size", size)
-	lbl.add_theme_color_override("font_color", color)
-	if font:
-		lbl.add_theme_font_override("font", font)
-	ThemeManager.apply_text_glow(lbl, "body")
-
-
-func _apply_weapon_icon_theme(icon: Dictionary) -> void:
-	var active: bool = icon["active"]
-	var color: Color = icon["color"]
-	if active:
-		icon["bg_rect"].color = color
-		icon["number_label"].add_theme_color_override("font_color", Color(0.05, 0.05, 0.1))
-	else:
-		var dim_color: Color = ThemeManager.get_color("panel").lightened(0.1)
-		icon["bg_rect"].color = dim_color
-		icon["number_label"].add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+		HudBuilder.apply_icon_theme(icon)
 
 
 func update_health(current_shield: float, max_shield: float, current_hull: float, max_hull: float) -> void:
@@ -287,47 +200,13 @@ func update_hardpoints(data: Array) -> void:
 			icon["container"].queue_free()
 	_weapon_icons.clear()
 
-	var body_font: Font = ThemeManager.get_font("font_body")
-
 	for i in data.size():
 		var entry: Dictionary = data[i]
 		var active: bool = entry.get("active", false) as bool
 		var color: Color = entry.get("color", Color.CYAN) as Color
-		var hp_num: int = i + 1
-
-		# Container control for fixed size
-		var container := Control.new()
-		container.custom_minimum_size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
-
-		# Background square
-		var bg_rect := ColorRect.new()
-		bg_rect.position = Vector2.ZERO
-		bg_rect.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
-		container.add_child(bg_rect)
-
-		# Number label centered
-		var number_label := Label.new()
-		number_label.text = str(hp_num)
-		number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		number_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		number_label.position = Vector2.ZERO
-		number_label.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
-		number_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-		if body_font:
-			number_label.add_theme_font_override("font", body_font)
-		container.add_child(number_label)
-
-		_weapons_hbox.add_child(container)
-
-		var icon_data: Dictionary = {
-			"container": container,
-			"bg_rect": bg_rect,
-			"number_label": number_label,
-			"active": active,
-			"color": color,
-		}
+		var icon_data: Dictionary = HudBuilder.build_weapon_icon(i + 1, active, color)
+		_weapons_hbox.add_child(icon_data["container"])
 		_weapon_icons.append(icon_data)
-		_apply_weapon_icon_theme(icon_data)
 
 
 func update_cores(data: Array) -> void:
@@ -340,14 +219,9 @@ func update_cores(data: Array) -> void:
 	if data.is_empty():
 		return
 
-	var body_font: Font = ThemeManager.get_font("font_body")
-
 	# Separator between weapons and cores
-	var sep := ColorRect.new()
-	sep.custom_minimum_size = Vector2(2, WEAPON_ICON_SIZE)
-	sep.color = ThemeManager.get_color("disabled")
+	var sep: ColorRect = HudBuilder.build_icon_separator()
 	_weapons_hbox.add_child(sep)
-	# Track separator for cleanup
 	_core_icons.append({"container": sep, "bg_rect": sep, "number_label": null, "active": false, "color": Color.WHITE})
 
 	for i in data.size():
@@ -355,37 +229,11 @@ func update_cores(data: Array) -> void:
 		var active: bool = entry.get("active", false) as bool
 		var color: Color = entry.get("color", Color(0.6, 0.4, 1.0)) as Color
 		var key_label: String = str(entry.get("key", str(i + 1)))
-
-		var container := Control.new()
-		container.custom_minimum_size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
-
-		var bg_rect := ColorRect.new()
-		bg_rect.position = Vector2.ZERO
-		bg_rect.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
-		container.add_child(bg_rect)
-
-		var number_label := Label.new()
-		number_label.text = key_label
-		number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		number_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		number_label.position = Vector2.ZERO
-		number_label.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
-		number_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-		if body_font:
-			number_label.add_theme_font_override("font", body_font)
-		container.add_child(number_label)
-
-		_weapons_hbox.add_child(container)
-
-		var icon_data: Dictionary = {
-			"container": container,
-			"bg_rect": bg_rect,
-			"number_label": number_label,
-			"active": active,
-			"color": color,
-		}
+		var icon_data: Dictionary = HudBuilder.build_weapon_icon(0, active, color)
+		# Override the number label text with the key label
+		icon_data["number_label"].text = key_label
+		_weapons_hbox.add_child(icon_data["container"])
 		_core_icons.append(icon_data)
-		_apply_weapon_icon_theme(icon_data)
 
 
 func update_devices(data: Array) -> void:
@@ -398,12 +246,8 @@ func update_devices(data: Array) -> void:
 	if data.is_empty():
 		return
 
-	var body_font: Font = ThemeManager.get_font("font_body")
-
 	# Separator between cores/weapons and devices
-	var sep := ColorRect.new()
-	sep.custom_minimum_size = Vector2(2, WEAPON_ICON_SIZE)
-	sep.color = ThemeManager.get_color("disabled")
+	var sep: ColorRect = HudBuilder.build_icon_separator()
 	_weapons_hbox.add_child(sep)
 	_device_icons.append({"container": sep, "bg_rect": sep, "number_label": null, "active": false, "color": Color.WHITE})
 
@@ -412,36 +256,7 @@ func update_devices(data: Array) -> void:
 		var active: bool = entry.get("active", false) as bool
 		var color: Color = entry.get("color", Color(0.0, 0.8, 1.0)) as Color
 		var key_label: String = str(entry.get("key", str(i + 1)))
-
-		var container := Control.new()
-		container.custom_minimum_size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
-
-		var bg_rect := ColorRect.new()
-		bg_rect.position = Vector2.ZERO
-		bg_rect.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
-		container.add_child(bg_rect)
-
-		var number_label := Label.new()
-		number_label.text = key_label
-		number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		number_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		number_label.position = Vector2.ZERO
-		number_label.size = Vector2(WEAPON_ICON_SIZE, WEAPON_ICON_SIZE)
-		number_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-		if body_font:
-			number_label.add_theme_font_override("font", body_font)
-		container.add_child(number_label)
-
-		_weapons_hbox.add_child(container)
-
-		var icon_data: Dictionary = {
-			"container": container,
-			"bg_rect": bg_rect,
-			"number_label": number_label,
-			"active": active,
-			"color": color,
-		}
+		var icon_data: Dictionary = HudBuilder.build_weapon_icon(0, active, color)
+		icon_data["number_label"].text = key_label
+		_weapons_hbox.add_child(icon_data["container"])
 		_device_icons.append(icon_data)
-		_apply_weapon_icon_theme(icon_data)
-
-

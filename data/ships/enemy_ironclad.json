@@ -1,0 +1,31 @@
+{
+	"burst_directions": 8,
+	"display_name": "Ironclad",
+	"enemy_damage": 15,
+	"fire_pattern": "turret",
+	"fire_rate": 1.2,
+	"grid_size": [
+		96,
+		104
+	],
+	"hardpoints": [],
+	"id": "enemy_ironclad",
+	"lines": [],
+	"projectile_speed": 260.0,
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 150.0,
+		"device_slots": 4.0,
+		"electric_segments": 12.0,
+		"hull_hp": 280.0,
+		"hull_segments": 14.0,
+		"shield_hp": 120.0,
+		"shield_regen": 4.0,
+		"shield_segments": 10.0,
+		"speed": 45.0,
+		"thermal_segments": 12.0
+	},
+	"type": "enemy",
+	"visual_id": "ironclad",
+	"weapon_id": ""
+}

@@ -6,6 +6,10 @@ var _vhs_overlay: ColorRect
 var _background: ColorRect
 var _tab_container: TabContainer
 var _hud_tab_vbox: VBoxContainer
+var _preview_tab_vbox: VBoxContainer
+
+# HUD replica bars (separate from _preview_bars to avoid index confusion)
+var _hud_bars: Array[ProgressBar] = []
 
 # Track controls for theme_changed refresh
 var _color_pickers: Dictionary = {}
@@ -101,6 +105,7 @@ func _build_ui() -> void:
 	_build_panels_tab()
 	_build_bars_tab()
 	_build_hud_tab()
+	_build_preview_tab()
 
 
 func _build_top_bar(parent: VBoxContainer) -> void:
@@ -987,14 +992,13 @@ func _populate_panels_samples(vbox: VBoxContainer) -> void:
 
 
 func _refresh_bars_preview() -> void:
-	# Refresh inline preview bars (HUD + state bars use apply_led_bar)
+	# Refresh Bars tab inline preview bars
 	var bar_color_keys: Array = [
 		"bar_shield", "bar_hull", "bar_thermal", "bar_electric",
 		"bar_warning", "bar_disabled",
-		"bar_shield", "bar_hull", "bar_thermal", "bar_electric",
 	]
-	var bar_values: Array = [85.0, 60.0, 30.0, 70.0, 75.0, 75.0, 80.0, 45.0, 30.0, 70.0]
-	var bar_segments: Array = [10, 8, 6, 8, 8, 8, 10, 8, 6, 8]
+	var bar_values: Array = [85.0, 60.0, 30.0, 70.0, 75.0, 75.0]
+	var bar_segments: Array = [10, 8, 6, 8, 8, 8]
 	var idx: int = 0
 	for bar in _preview_bars:
 		if not is_instance_valid(bar):
@@ -1018,7 +1022,96 @@ func _refresh_bars_preview() -> void:
 
 
 func _build_hud_tab_content(parent: VBoxContainer) -> void:
-	# Mock menu
+	# HUD preview built via HudBuilder for single source of truth with in-game HUD
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var body_size: int = ThemeManager.get_font_size("font_size_body")
+
+	# ── Top area: Credits + Menu hint (mock text, preview-specific) ──
+	var top_row := HBoxContainer.new()
+	top_row.add_theme_constant_override("separation", 8)
+	parent.add_child(top_row)
+
+	var credits_lbl := Label.new()
+	credits_lbl.text = "CR: 1,250"
+	credits_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	credits_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	credits_lbl.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
+	if body_font:
+		credits_lbl.add_theme_font_override("font", body_font)
+	ThemeManager.apply_text_glow(credits_lbl, "body")
+	top_row.add_child(credits_lbl)
+	_preview_labels.append(credits_lbl)
+	_body_glow_labels.append(credits_lbl)
+
+	var menu_hint := Label.new()
+	menu_hint.text = "ESC: Menu"
+	menu_hint.add_theme_font_size_override("font_size", body_size)
+	menu_hint.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	if body_font:
+		menu_hint.add_theme_font_override("font", body_font)
+	top_row.add_child(menu_hint)
+	_preview_labels.append(menu_hint)
+
+	# ── Dashboard panel via HudBuilder ──
+	var dash_result: Dictionary = HudBuilder.build_dashboard("preview")
+	parent.add_child(dash_result["root"])
+	_preview_panels.append(dash_result["root"])
+
+	# Mock weapon icons (mix of active/inactive)
+	var weapons_hbox: HBoxContainer = dash_result["weapons_hbox"]
+	var icon_active_states: Array[bool] = [true, true, false, true, false, true]
+	var icon_colors: Array[String] = ["accent", "header", "dimmed", "positive", "dimmed", "warning"]
+	for i in 6:
+		var is_active: bool = icon_active_states[i]
+		var color: Color = ThemeManager.get_color(icon_colors[i])
+		var icon_data: Dictionary = HudBuilder.build_weapon_icon(i + 1, is_active, color)
+		weapons_hbox.add_child(icon_data["container"])
+
+	# Separator divider
+	var sep: ColorRect = HudBuilder.build_icon_separator()
+	weapons_hbox.add_child(sep)
+
+	# Bars via HudBuilder — then apply mock preview values
+	var bars_dict: Dictionary = HudBuilder.populate_bars(dash_result["bars_grid"])
+	var preview_values: Dictionary = {"SHIELD": 80.0, "HULL": 45.0, "THERMAL": 30.0, "ELECTRIC": 70.0}
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		if not bars_dict.has(bar_name):
+			continue
+		var entry: Dictionary = bars_dict[bar_name]
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		var val: float = float(preview_values.get(bar_name, 50.0))
+		var bar: ProgressBar = entry["bar"]
+		bar.max_value = 100.0
+		bar.value = val
+		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
+		ThemeManager.apply_led_bar(bar, color, val / 100.0, seg)
+		_hud_bars.append(bar)
+
+		# Apply label theme for preview
+		var lbl: Label = entry["label"]
+		HudBuilder.apply_bar_label_theme(lbl, color, body_font, body_size)
+		_preview_labels.append(lbl)
+		_body_glow_labels.append(lbl)
+
+
+func _build_preview_tab() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.name = "Preview"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_tab_container.add_child(scroll)
+
+	_preview_tab_vbox = VBoxContainer.new()
+	_preview_tab_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_preview_tab_vbox.add_theme_constant_override("separation", 16)
+	scroll.add_child(_preview_tab_vbox)
+
+	_build_preview_tab_content(_preview_tab_vbox)
+
+
+func _build_preview_tab_content(parent: VBoxContainer) -> void:
+	# Menu Preview (moved from old HUD tab)
 	var menu_section := _make_section_label("Menu Preview")
 	parent.add_child(menu_section)
 
@@ -1058,82 +1151,7 @@ func _build_hud_tab_content(parent: VBoxContainer) -> void:
 		menu_vbox.add_child(btn)
 		_preview_buttons.append(btn)
 
-	# Mini HUD with all 4 bars
-	var hud_section := _make_section_label("HUD Preview")
-	parent.add_child(hud_section)
-
-	var hud_panel := PanelContainer.new()
-	var hud_style := StyleBoxFlat.new()
-	hud_style.bg_color = Color(ThemeManager.get_color("background"), 0.8)
-	hud_style.border_color = ThemeManager.get_color("dimmed")
-	hud_style.set_border_width_all(1)
-	hud_style.set_corner_radius_all(2)
-	hud_style.set_content_margin_all(8)
-	hud_panel.add_theme_stylebox_override("panel", hud_style)
-	parent.add_child(hud_panel)
-	_preview_panels.append(hud_panel)
-
-	var hud_vbox := VBoxContainer.new()
-	hud_vbox.add_theme_constant_override("separation", 4)
-	hud_panel.add_child(hud_vbox)
-
-	# All 4 HUD bars from specs
-	var specs: Array = ThemeManager.get_status_bar_specs()
-	var preview_values: Dictionary = {"SHIELD": 80.0, "HULL": 45.0, "THERMAL": 30.0, "ELECTRIC": 70.0}
-	var short_names: Dictionary = {"SHIELD": "SHD", "HULL": "HUL", "THERMAL": "THR", "ELECTRIC": "ELC"}
-	var preview_segments: Dictionary = {"SHIELD": 10, "HULL": 8, "THERMAL": 6, "ELECTRIC": 8}
-	for spec in specs:
-		var bar_name: String = str(spec["name"])
-		var color: Color = ThemeManager.resolve_bar_color(spec)
-		var val: float = float(preview_values.get(bar_name, 50.0))
-		var short: String = str(short_names.get(bar_name, bar_name))
-		var seg: int = int(preview_segments.get(bar_name, 8))
-
-		var bar_row := HBoxContainer.new()
-		bar_row.add_theme_constant_override("separation", 6)
-		hud_vbox.add_child(bar_row)
-
-		var bar_lbl := Label.new()
-		bar_lbl.text = short
-		bar_lbl.add_theme_color_override("font_color", color)
-		bar_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-		bar_row.add_child(bar_lbl)
-		_preview_labels.append(bar_lbl)
-		_body_glow_labels.append(bar_lbl)
-		ThemeManager.apply_text_glow(bar_lbl, "body")
-
-		var bar := ProgressBar.new()
-		bar.custom_minimum_size = Vector2(150, 14)
-		bar.max_value = 100.0
-		bar.value = val
-		bar.show_percentage = false
-		ThemeManager.apply_led_bar(bar, color, val / 100.0, seg)
-		bar_row.add_child(bar)
-		_preview_bars.append(bar)
-
-	# Weapon slots
-	var wep_row := HBoxContainer.new()
-	wep_row.add_theme_constant_override("separation", 4)
-	hud_vbox.add_child(wep_row)
-
-	var slot_colors: Array[String] = ["accent", "header", "positive", "warning"]
-	var slot_states: Array[String] = ["ON", "ON", "OFF", "ON"]
-	for i in 4:
-		var slot := Label.new()
-		var color_key: String = slot_colors[i]
-		var state: String = slot_states[i]
-		slot.text = "[" + str(i + 1) + ":" + state + "]"
-		if state == "OFF":
-			slot.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
-		else:
-			slot.add_theme_color_override("font_color", ThemeManager.get_color(color_key))
-		slot.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-		wep_row.add_child(slot)
-		_preview_labels.append(slot)
-		_body_glow_labels.append(slot)
-		ThemeManager.apply_text_glow(slot, "body")
-
-	# Text samples
+	# Typography Samples (moved from old HUD tab)
 	var text_section := _make_section_label("Typography Samples")
 	parent.add_child(text_section)
 
@@ -1401,12 +1419,15 @@ func _rebuild_preview_and_dynamic() -> void:
 	_preview_panels.clear()
 	_header_glow_labels.clear()
 	_body_glow_labels.clear()
+	_hud_bars.clear()
 
-	# Clear HUD tab content — also trim _preview_bars to just the Bars tab entries (first 6)
+	# Clear HUD tab content
 	for child in _hud_tab_vbox.get_children():
 		child.queue_free()
-	if _preview_bars.size() > 6:
-		_preview_bars.resize(6)
+
+	# Clear Preview tab content
+	for child in _preview_tab_vbox.get_children():
+		child.queue_free()
 
 	# Clear panels sample content
 	for child in _panels_samples_vbox.get_children():
@@ -1425,6 +1446,7 @@ func _rebuild_preview_and_dynamic() -> void:
 
 func _do_rebuild() -> void:
 	_build_hud_tab_content(_hud_tab_vbox)
+	_build_preview_tab_content(_preview_tab_vbox)
 	_populate_panels_samples(_panels_samples_vbox)
 	_populate_btn_preview()
 	# Rebuild per-state locked preview buttons

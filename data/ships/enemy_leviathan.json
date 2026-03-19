@@ -1,0 +1,31 @@
+{
+	"burst_directions": 6,
+	"display_name": "Leviathan",
+	"enemy_damage": 18,
+	"fire_pattern": "burst",
+	"fire_rate": 2.0,
+	"grid_size": [
+		96,
+		96
+	],
+	"hardpoints": [],
+	"id": "enemy_leviathan",
+	"lines": [],
+	"projectile_speed": 250.0,
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 200.0,
+		"device_slots": 4.0,
+		"electric_segments": 10.0,
+		"hull_hp": 200.0,
+		"hull_segments": 12.0,
+		"shield_hp": 80.0,
+		"shield_regen": 3.0,
+		"shield_segments": 8.0,
+		"speed": 60.0,
+		"thermal_segments": 10.0
+	},
+	"type": "enemy",
+	"visual_id": "leviathan",
+	"weapon_id": ""
+}
