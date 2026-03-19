@@ -1,0 +1,30 @@
+{
+	"display_name": "Prism",
+	"enemy_damage": 12,
+	"fire_pattern": "straight",
+	"fire_rate": 1.2,
+	"grid_size": [
+		36,
+		36
+	],
+	"hardpoints": [],
+	"id": "enemy_prism",
+	"lines": [],
+	"projectile_speed": 280.0,
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 500.0,
+		"device_slots": 2.0,
+		"electric_segments": 6.0,
+		"hull_hp": 40.0,
+		"hull_segments": 6.0,
+		"shield_hp": 20.0,
+		"shield_regen": 2.0,
+		"shield_segments": 6.0,
+		"speed": 120.0,
+		"thermal_segments": 6.0
+	},
+	"type": "enemy",
+	"visual_id": "prism",
+	"weapon_id": ""
+}

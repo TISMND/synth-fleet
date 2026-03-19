@@ -48,6 +48,20 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
 	add_child(_ship_renderer)
 
+	# VFX hit effects
+	var vfx: VfxConfig = VfxConfigManager.load_config()
+	_ship_renderer.hull_peak_color = Color(vfx.hull_peak_r, vfx.hull_peak_g, vfx.hull_peak_b, 1.0)
+	_ship_renderer.hull_blink_speed = vfx.hull_blink_speed
+	_ship_renderer.hull_flash_duration = vfx.hull_duration
+	var bubble := ShieldBubbleEffect.new()
+	bubble.shield_color = Color(vfx.shield_color_r, vfx.shield_color_g, vfx.shield_color_b)
+	bubble.flash_duration = vfx.shield_duration
+	bubble.radius_mult = vfx.shield_radius_mult
+	bubble.intensity = vfx.shield_intensity
+	bubble.ship_radius = ShipRenderer.get_ship_scale(_ship_renderer.ship_id) * 50.0
+	bubble.name = "ShieldBubble"
+	add_child(bubble)
+
 	# Create hardpoint controllers from loadout assignments — all fire from center
 	var assignments: Dictionary = loadout.hardpoint_assignments
 	var hp_index: int = 0
@@ -204,9 +218,14 @@ func take_damage(amount: float) -> void:
 		shield -= absorbed
 		remaining -= absorbed
 		SfxPlayer.play("player_shield_hit")
+		var bubble: ShieldBubbleEffect = get_node_or_null("ShieldBubble") as ShieldBubbleEffect
+		if bubble:
+			bubble.trigger()
 	if remaining > 0.0:
 		hull = maxf(hull - remaining, 0.0)
 		SfxPlayer.play("player_hull_hit")
+		if _ship_renderer:
+			_ship_renderer.trigger_hull_flash()
 	if hull <= 0.0:
 		died.emit()
 

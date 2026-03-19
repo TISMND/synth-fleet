@@ -1,0 +1,30 @@
+{
+	"display_name": "Obelisk",
+	"enemy_damage": 20,
+	"fire_pattern": "straight",
+	"fire_rate": 0.5,
+	"grid_size": [
+		40,
+		48
+	],
+	"hardpoints": [],
+	"id": "enemy_obelisk",
+	"lines": [],
+	"projectile_speed": 180.0,
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 150.0,
+		"device_slots": 4.0,
+		"electric_segments": 10.0,
+		"hull_hp": 120.0,
+		"hull_segments": 14.0,
+		"shield_hp": 40.0,
+		"shield_regen": 3.0,
+		"shield_segments": 8.0,
+		"speed": 50.0,
+		"thermal_segments": 8.0
+	},
+	"type": "enemy",
+	"visual_id": "obelisk",
+	"weapon_id": ""
+}

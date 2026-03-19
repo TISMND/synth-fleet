@@ -1,0 +1,13 @@
+{
+	"hull_blink_speed": 3.09,
+	"hull_duration": 0.07,
+	"hull_peak_b": 1.88,
+	"hull_peak_g": 2.16,
+	"hull_peak_r": 2.18,
+	"shield_color_b": 1.0,
+	"shield_color_g": 0.8,
+	"shield_color_r": 0.3,
+	"shield_duration": 0.15,
+	"shield_intensity": 0.43,
+	"shield_radius_mult": 1.01
+}

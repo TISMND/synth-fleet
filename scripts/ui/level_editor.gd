@@ -6,7 +6,7 @@ const LEFT_PANEL_W := 240.0
 const RIGHT_PANEL_W := 220.0
 const SCREEN_W := 1920.0
 const MAP_MARGIN := 60.0  # Margin on each side of the map strip within the canvas
-const ENCOUNTER_HIT_RADIUS := 20.0
+const ENCOUNTER_HIT_RADIUS := 40.0
 const GRID_SPACING := 500.0  # Horizontal grid lines every N pixels of level space
 
 var _vhs_overlay: ColorRect
@@ -49,6 +49,7 @@ var _cached_formation_names: Array[String] = []
 var _cached_ship_ids: Array[String] = []
 var _cached_ship_names: Array[String] = []
 var _ship_id_to_name: Dictionary = {}
+var _formation_id_to_name: Dictionary = {}
 
 
 func _ready() -> void:
@@ -91,10 +92,13 @@ func _cache_dropdown_data() -> void:
 
 	_cached_formation_ids.clear()
 	_cached_formation_names.clear()
+	_formation_id_to_name.clear()
 	var formations: Array[FormationData] = FormationDataManager.load_all()
 	for fm in formations:
 		_cached_formation_ids.append(fm.id)
-		_cached_formation_names.append(fm.display_name if fm.display_name != "" else fm.id)
+		var fm_name: String = fm.display_name if fm.display_name != "" else fm.id
+		_cached_formation_names.append(fm_name)
+		_formation_id_to_name[fm.id] = fm_name
 
 	_cached_ship_ids.clear()
 	_cached_ship_names.clear()
@@ -539,6 +543,7 @@ func _rebuild_right_panel_content() -> void:
 	var vbox := VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.custom_minimum_size.x = RIGHT_PANEL_W - 16  # Prevent panel from shrinking when content hidden
 	vbox.add_theme_constant_override("separation", 6)
 	_right_panel.add_child(vbox)
 
@@ -850,8 +855,8 @@ class _MapCanvasDraw extends Control:
 			var is_selected: bool = (i == s._selected_encounter_idx)
 			var color := Color(1.0, 0.5, 0.2) if is_selected else Color(0.4, 0.8, 1.0)
 
-			# Diamond marker
-			var sz: float = 8.0
+			# Diamond marker (doubled size)
+			var sz: float = 16.0
 			var points := PackedVector2Array([
 				Vector2(cx, cy - sz),
 				Vector2(cx + sz * 0.7, cy),
@@ -871,18 +876,23 @@ class _MapCanvasDraw extends Control:
 
 			draw_colored_polygon(points, color)
 
-			# Label
+			# Labels: ship name + count, then formation name in different color
 			var fm_id: String = str(enc.get("formation_id", ""))
 			var ship_id: String = str(enc.get("ship_id", ""))
 			var ship_name: String = s._ship_id_to_name.get(ship_id, ship_id)
-			var label_text: String = fm_id if fm_id != "" else ship_name
-			if label_text == "":
-				label_text = "?"
+			if ship_name == "":
+				ship_name = "?"
 			var count_val: int = int(enc.get("count", 1))
+			var ship_text: String = ship_name
 			if count_val > 1:
-				label_text += " x" + str(count_val)
+				ship_text += " x" + str(count_val)
 			var font3: Font = ThemeDB.fallback_font
-			draw_string(font3, Vector2(cx + 12, cy + 4), label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(color, 0.8))
+			var label_x: float = cx + sz * 0.7 + 6
+			draw_string(font3, Vector2(label_x, cy + 4), ship_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(color, 0.9))
+			if fm_id != "":
+				var fm_name: String = s._formation_id_to_name.get(fm_id, fm_id)
+				var fm_color := Color(0.6, 1.0, 0.5, 0.8) if is_selected else Color(0.5, 0.9, 0.4, 0.7)
+				draw_string(font3, Vector2(label_x, cy + 16), fm_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, fm_color)
 
 
 	func _gui_input(event: InputEvent) -> void:

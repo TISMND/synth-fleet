@@ -18,6 +18,10 @@ var path_offset: Vector2 = Vector2.ZERO  # formation slot offset
 var path_origin: Vector2 = Vector2.ZERO  # x_offset from level encounter
 
 
+var _renderer: ShipRenderer = null
+var _shield_bubble: ShieldBubbleEffect = null
+
+
 func _ready() -> void:
 	collision_layer = 4
 	collision_mask = 0
@@ -28,13 +32,26 @@ func _ready() -> void:
 	add_child(shape)
 
 	# Add ShipRenderer for visual drawing instead of hardcoded _draw()
-	var renderer := ShipRenderer.new()
-	renderer.ship_id = -1
-	renderer.enemy_visual_id = visual_id if visual_id != "" else "sentinel"
-	renderer.render_mode = ShipRenderer.RenderMode.CHROME if render_mode_str == "chrome" else ShipRenderer.RenderMode.NEON
-	renderer.hull_color = enemy_color
-	renderer.accent_color = Color(1.0, 0.2, 0.6)
-	add_child(renderer)
+	_renderer = ShipRenderer.new()
+	_renderer.ship_id = -1
+	_renderer.enemy_visual_id = visual_id if visual_id != "" else "sentinel"
+	_renderer.render_mode = ShipRenderer.RenderMode.CHROME if render_mode_str == "chrome" else ShipRenderer.RenderMode.NEON
+	_renderer.hull_color = enemy_color
+	_renderer.accent_color = Color(1.0, 0.2, 0.6)
+	add_child(_renderer)
+
+	# VFX hit effects
+	var vfx: VfxConfig = VfxConfigManager.load_config()
+	_renderer.hull_peak_color = Color(vfx.hull_peak_r, vfx.hull_peak_g, vfx.hull_peak_b, 1.0)
+	_renderer.hull_blink_speed = vfx.hull_blink_speed
+	_renderer.hull_flash_duration = vfx.hull_duration
+	_shield_bubble = ShieldBubbleEffect.new()
+	_shield_bubble.shield_color = Color(vfx.shield_color_r, vfx.shield_color_g, vfx.shield_color_b)
+	_shield_bubble.flash_duration = vfx.shield_duration
+	_shield_bubble.radius_mult = vfx.shield_radius_mult
+	_shield_bubble.intensity = vfx.shield_intensity
+	_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(-1) * 50.0
+	add_child(_shield_bubble)
 
 
 func _process(delta: float) -> void:
@@ -64,9 +81,13 @@ func take_damage(amount: int) -> void:
 		shield -= absorbed
 		remaining -= absorbed
 		SfxPlayer.play("enemy_shield_hit")
+		if _shield_bubble:
+			_shield_bubble.trigger()
 	if remaining > 0:
 		health -= remaining
 		SfxPlayer.play("enemy_hull_hit")
+		if _renderer:
+			_renderer.trigger_hull_flash()
 	if health <= 0:
 		SfxPlayer.play_random_explosion()
 		GameState.add_credits(10)

@@ -1,0 +1,30 @@
+{
+	"display_name": "Scythe",
+	"enemy_damage": 12,
+	"fire_pattern": "straight",
+	"fire_rate": 1.8,
+	"grid_size": [
+		36,
+		36
+	],
+	"hardpoints": [],
+	"id": "enemy_scythe",
+	"lines": [],
+	"projectile_speed": 320.0,
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 700.0,
+		"device_slots": 2.0,
+		"electric_segments": 6.0,
+		"hull_hp": 35.0,
+		"hull_segments": 6.0,
+		"shield_hp": 0.0,
+		"shield_regen": 0.0,
+		"shield_segments": 0.0,
+		"speed": 200.0,
+		"thermal_segments": 6.0
+	},
+	"type": "enemy",
+	"visual_id": "scythe",
+	"weapon_id": ""
+}

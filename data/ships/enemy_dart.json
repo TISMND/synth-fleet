@@ -1,0 +1,30 @@
+{
+	"display_name": "Dart",
+	"enemy_damage": 8,
+	"fire_pattern": "straight",
+	"fire_rate": 2.0,
+	"grid_size": [
+		24,
+		32
+	],
+	"hardpoints": [],
+	"id": "enemy_dart",
+	"lines": [],
+	"projectile_speed": 350.0,
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 800.0,
+		"device_slots": 1.0,
+		"electric_segments": 4.0,
+		"hull_hp": 15.0,
+		"hull_segments": 4.0,
+		"shield_hp": 0.0,
+		"shield_regen": 0.0,
+		"shield_segments": 0.0,
+		"speed": 250.0,
+		"thermal_segments": 4.0
+	},
+	"type": "enemy",
+	"visual_id": "dart",
+	"weapon_id": ""
+}
