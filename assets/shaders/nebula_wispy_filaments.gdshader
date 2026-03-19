@@ -5,6 +5,7 @@ uniform float brightness : hint_range(0.5, 4.0) = 1.5;
 uniform float animation_speed : hint_range(0.0, 3.0) = 0.25;
 uniform float density : hint_range(0.5, 4.0) = 2.0;
 uniform float seed_offset : hint_range(0.0, 1000.0) = 0.0;
+uniform float radial_spread : hint_range(0.05, 1.0) = 0.2;
 
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -50,7 +51,7 @@ void fragment() {
 
 	vec2 center = UV - 0.5;
 	float dist = length(center) * 2.0;
-	float falloff = smoothstep(1.0, 0.15, dist);
+	float falloff = smoothstep(1.0, 1.0 - radial_spread, dist);
 
 	float cloud = filament * falloff;
 	vec3 col = nebula_color.rgb * cloud * brightness * 2.5;

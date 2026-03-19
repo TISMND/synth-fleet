@@ -5,6 +5,7 @@ uniform float brightness : hint_range(0.5, 4.0) = 2.0;
 uniform float animation_speed : hint_range(0.0, 3.0) = 0.5;
 uniform float density : hint_range(0.5, 4.0) = 2.0;
 uniform float seed_offset : hint_range(0.0, 1000.0) = 0.0;
+uniform float radial_spread : hint_range(0.05, 1.0) = 0.2;
 
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -46,7 +47,7 @@ void fragment() {
 	// Base nebula cloud
 	float cloud = fbm(offset_uv * 3.0 + vec2(t * 0.06, -t * 0.04));
 	cloud = pow(cloud, 2.5 - density * 0.3);
-	float falloff = smoothstep(1.0, 0.2, dist);
+	float falloff = smoothstep(1.0, 1.0 - radial_spread, dist);
 
 	// Radial flare rays — noise-modulated angular brightness
 	float ray_noise = noise(vec2(angle * 3.0 + t * 0.3, seed_offset + 1.0));

@@ -16,6 +16,9 @@ static func default_params() -> Dictionary:
 		"animation_speed": 0.5,
 		"density": 1.5,
 		"seed_offset": 0.0,
+		"radial_spread": 0.2,
+		"bottom_opacity": 1.0,
+		"top_opacity": 0.1,
 	}
 
 

@@ -1,4 +1,5 @@
 {
+	"burst_directions": 4,
 	"display_name": "Scythe",
 	"enemy_damage": 12,
 	"fire_pattern": "straight",
@@ -11,7 +12,7 @@
 	"id": "enemy_scythe",
 	"lines": [],
 	"projectile_speed": 320.0,
-	"render_mode": "neon",
+	"render_mode": "sport",
 	"stats": {
 		"acceleration": 700.0,
 		"device_slots": 2.0,

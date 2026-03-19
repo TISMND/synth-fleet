@@ -43,6 +43,18 @@ var _brightness_value: Label
 var _speed_value: Label
 var _density_value: Label
 var _seed_value: Label
+var _spread_slider: HSlider
+var _spread_value: Label
+var _bottom_opacity_slider: HSlider
+var _bottom_opacity_value: Label
+var _top_opacity_slider: HSlider
+var _top_opacity_value: Label
+
+# Preview layering refs
+var _preview_container: Control  # Holds bottom nebula, ship, top veil
+var _preview_bottom: ColorRect
+var _preview_ship: ShipRenderer
+var _preview_top: ColorRect
 
 
 func _ready() -> void:
@@ -60,6 +72,7 @@ func _ready() -> void:
 
 	ThemeManager.theme_changed.connect(_apply_theme)
 	call_deferred("_apply_theme")
+	call_deferred("_center_preview_ship")
 
 
 func _build_ui() -> void:
@@ -119,11 +132,41 @@ func _build_ui() -> void:
 	_editor_panel.add_theme_constant_override("separation", 12)
 	right_scroll.add_child(_editor_panel)
 
-	# Preview
-	_preview_rect = ColorRect.new()
-	_preview_rect.custom_minimum_size = Vector2(400, 300)
-	_preview_rect.color = Color(0, 0, 0, 1)
-	_editor_panel.add_child(_preview_rect)
+	# Preview — layered: black bg, bottom nebula, ship, top nebula veil
+	_preview_container = Control.new()
+	_preview_container.custom_minimum_size = Vector2(400, 300)
+	_preview_container.clip_contents = true
+	_editor_panel.add_child(_preview_container)
+
+	# Black background
+	var preview_bg := ColorRect.new()
+	preview_bg.color = Color(0, 0, 0, 1)
+	preview_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_preview_container.add_child(preview_bg)
+
+	# Bottom nebula layer
+	_preview_bottom = ColorRect.new()
+	_preview_bottom.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_preview_bottom.color = Color.WHITE
+	_preview_container.add_child(_preview_bottom)
+
+	# Ship silhouette in the middle
+	_preview_ship = ShipRenderer.new()
+	_preview_ship.ship_id = 0
+	_preview_ship.render_mode = ShipRenderer.RenderMode.CHROME
+	_preview_ship.animate = false
+	_preview_ship.scale = Vector2(1.5, 1.5)
+	_preview_container.add_child(_preview_ship)
+
+	# Top nebula veil (over the ship)
+	_preview_top = ColorRect.new()
+	_preview_top.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_preview_top.color = Color.WHITE
+	_preview_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_preview_container.add_child(_preview_top)
+
+	# Keep ref for compatibility with existing code
+	_preview_rect = _preview_bottom
 
 	# Name
 	var name_row := HBoxContainer.new()
@@ -227,6 +270,24 @@ func _build_param_controls() -> void:
 	_seed_slider = _add_slider_row("Seed", 0.0, 1000.0, 1.0, 0.0)
 	_seed_slider.value_changed.connect(_on_seed_changed)
 
+	# Spread — controls how evenly intensity fills the radius
+	_spread_slider = _add_slider_row("Spread", 0.05, 1.0, 0.05, 0.2)
+	_spread_slider.value_changed.connect(_on_spread_changed)
+
+	# --- Layer opacity section ---
+	var layer_label := Label.new()
+	layer_label.text = "LAYER OPACITY"
+	layer_label.name = "LayerHeader"
+	_params_container.add_child(layer_label)
+
+	# Bottom layer opacity
+	_bottom_opacity_slider = _add_slider_row("Bottom", 0.0, 1.0, 0.05, 1.0)
+	_bottom_opacity_slider.value_changed.connect(_on_bottom_opacity_changed)
+
+	# Top veil opacity
+	_top_opacity_slider = _add_slider_row("Top Veil", 0.0, 0.5, 0.01, 0.1)
+	_top_opacity_slider.value_changed.connect(_on_top_opacity_changed)
+
 
 func _add_slider_row(label_text: String, min_val: float, max_val: float, step: float, default_val: float) -> HSlider:
 	var row := HBoxContainer.new()
@@ -262,6 +323,12 @@ func _add_slider_row(label_text: String, min_val: float, max_val: float, step: f
 		_density_value = value_label
 	elif label_text == "Seed":
 		_seed_value = value_label
+	elif label_text == "Spread":
+		_spread_value = value_label
+	elif label_text == "Bottom":
+		_bottom_opacity_value = value_label
+	elif label_text == "Top Veil":
+		_top_opacity_value = value_label
 
 	return slider
 
@@ -287,7 +354,7 @@ func _rebuild_list() -> void:
 func _show_empty_state() -> void:
 	_selected_id = ""
 	_editor_panel.visible = true
-	_preview_rect.visible = false
+	_preview_container.visible = false
 	_empty_label.visible = true
 	_name_edit.get_parent().visible = false
 	_style_option.get_parent().visible = false
@@ -300,7 +367,7 @@ func _show_empty_state() -> void:
 
 
 func _show_editor_state() -> void:
-	_preview_rect.visible = true
+	_preview_container.visible = true
 	_empty_label.visible = false
 	_name_edit.get_parent().visible = true
 	_style_option.get_parent().visible = true
@@ -354,6 +421,18 @@ func _select_nebula(id: String) -> void:
 	_seed_slider.value = seed_val
 	_seed_value.text = str(snapped(seed_val, 1.0))
 
+	var spread_val: float = float(params.get("radial_spread", defaults["radial_spread"]))
+	_spread_slider.value = spread_val
+	_spread_value.text = str(snapped(spread_val, 0.1))
+
+	var bottom_val: float = float(params.get("bottom_opacity", defaults["bottom_opacity"]))
+	_bottom_opacity_slider.value = bottom_val
+	_bottom_opacity_value.text = str(snapped(bottom_val, 0.05))
+
+	var top_val: float = float(params.get("top_opacity", defaults["top_opacity"]))
+	_top_opacity_slider.value = top_val
+	_top_opacity_value.text = str(snapped(top_val, 0.01))
+
 	_suppressing_signals = false
 
 	# Show/hide secondary color based on style
@@ -375,25 +454,29 @@ func _update_list_selection() -> void:
 func _update_preview() -> void:
 	var data: NebulaData = _get_nebula_by_id(_selected_id)
 	if not data:
-		_preview_rect.material = null
+		_preview_bottom.material = null
+		_preview_top.material = null
 		return
 
 	var style_info: Dictionary = STYLES.get(data.style_id, {})
 	var shader_path: String = style_info.get("shader", "")
 	if shader_path == "":
-		_preview_rect.material = null
+		_preview_bottom.material = null
+		_preview_top.material = null
 		return
 
 	var shader_res: Shader = load(shader_path) as Shader
 	if not shader_res:
-		_preview_rect.material = null
+		_preview_bottom.material = null
+		_preview_top.material = null
 		return
-
-	var mat := ShaderMaterial.new()
-	mat.shader = shader_res
 
 	var params: Dictionary = data.shader_params
 	var defaults: Dictionary = NebulaData.default_params()
+
+	# Build shader material
+	var mat := ShaderMaterial.new()
+	mat.shader = shader_res
 
 	var color_arr: Array = params.get("nebula_color", defaults["nebula_color"])
 	mat.set_shader_parameter("nebula_color", Color(color_arr[0], color_arr[1], color_arr[2], color_arr[3]))
@@ -406,8 +489,16 @@ func _update_preview() -> void:
 	mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
 	mat.set_shader_parameter("density", float(params.get("density", defaults["density"])))
 	mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+	mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
 
-	_preview_rect.material = mat
+	# Bottom layer — full nebula behind ship
+	_preview_bottom.material = mat
+	_preview_bottom.modulate.a = float(params.get("bottom_opacity", defaults["bottom_opacity"]))
+
+	# Top veil — same shader over ship
+	var top_mat := mat.duplicate() as ShaderMaterial
+	_preview_top.material = top_mat
+	_preview_top.modulate.a = float(params.get("top_opacity", defaults["top_opacity"]))
 
 
 func _get_nebula_by_id(id: String) -> NebulaData:
@@ -568,6 +659,45 @@ func _on_seed_changed(val: float) -> void:
 		_auto_save()
 
 
+func _on_spread_changed(val: float) -> void:
+	_spread_value.text = str(snapped(val, 0.1))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["radial_spread"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_bottom_opacity_changed(val: float) -> void:
+	_bottom_opacity_value.text = str(snapped(val, 0.05))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["bottom_opacity"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_top_opacity_changed(val: float) -> void:
+	_top_opacity_value.text = str(snapped(val, 0.01))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["top_opacity"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _center_preview_ship() -> void:
+	if _preview_ship and _preview_container:
+		var sz: Vector2 = _preview_container.size
+		_preview_ship.position = Vector2(sz.x * 0.5, sz.y * 0.5)
+
+
 func _apply_theme() -> void:
 	ThemeManager.apply_button_style(_create_btn)
 	ThemeManager.apply_button_style(_delete_btn)
@@ -595,7 +725,9 @@ func _apply_theme() -> void:
 					ThemeManager.apply_text_glow(sub, "body")
 
 	for child in _params_container.get_children():
-		if child is HBoxContainer:
+		if child is Label:
+			ThemeManager.apply_text_glow(child, "header")
+		elif child is HBoxContainer:
 			for sub in child.get_children():
 				if sub is Label:
 					ThemeManager.apply_text_glow(sub, "body")

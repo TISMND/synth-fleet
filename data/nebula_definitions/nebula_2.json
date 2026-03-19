@@ -1,0 +1,26 @@
+{
+	"display_name": "Cooler",
+	"id": "nebula_2",
+	"shader_params": {
+		"animation_speed": 0.4,
+		"bottom_opacity": 1.0,
+		"brightness": 0.8,
+		"density": 1.25,
+		"nebula_color": [
+			0.386627197265625,
+			0.0,
+			0.48046875,
+			1.0
+		],
+		"radial_spread": 0.5,
+		"secondary_color": [
+			0.199999988079071,
+			0.25,
+			1.0,
+			1.0
+		],
+		"seed_offset": 0.0,
+		"top_opacity": 0.5
+	},
+	"style_id": "dual_swirl"
+}

@@ -250,6 +250,7 @@ func _setup_nebulas() -> void:
 		mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
 		mat.set_shader_parameter("density", float(params.get("density", defaults["density"])))
 		mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+		mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
 
 		# Create sprite with white texture for shader to render on
 		var sprite := Sprite2D.new()
@@ -264,7 +265,41 @@ func _setup_nebulas() -> void:
 		# Position: x from screen center, y negative (scrolls into view)
 		sprite.position = Vector2(960.0 + x_offset, -trigger_y + 540.0)
 
+		# Apply bottom layer opacity from nebula params
+		var bottom_opacity: float = float(params.get("bottom_opacity", defaults["bottom_opacity"]))
+		sprite.modulate.a = bottom_opacity
 		_nebula_container.add_child(sprite)
+
+		# Top veil layer — same visual, reduced opacity, renders above ships
+		var top_opacity: float = float(params.get("top_opacity", defaults["top_opacity"]))
+		if top_opacity > 0.0:
+			var top_sprite := Sprite2D.new()
+			top_sprite.texture = sprite.texture
+			top_sprite.material = mat
+			top_sprite.scale = sprite.scale
+			top_sprite.position = sprite.position
+			top_sprite.z_index = 10  # Relative to container at -5, so effective z = +5
+			top_sprite.modulate.a = top_opacity
+			_nebula_container.add_child(top_sprite)
+
+		# Debug hitbox outline
+		var debug_ring := _NebulaDebugRing.new()
+		debug_ring.radius = radius
+		debug_ring.position = sprite.position
+		debug_ring.z_index = 15
+		_nebula_container.add_child(debug_ring)
+
+
+class _NebulaDebugRing extends Node2D:
+	var radius: float = 300.0
+
+	func _draw() -> void:
+		var segments: int = maxi(int(radius * 0.3), 48)
+		var pts := PackedVector2Array()
+		for i in range(segments + 1):
+			var angle: float = TAU * float(i) / float(segments)
+			pts.append(Vector2(cos(angle), sin(angle)) * radius)
+		draw_polyline(pts, Color(1.0, 1.0, 0.0, 0.7), 2.0, true)
 
 
 class _StarField extends Control:

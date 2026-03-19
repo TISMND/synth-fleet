@@ -12,7 +12,7 @@
 	"id": "enemy_tesseract",
 	"lines": [],
 	"projectile_speed": 200.0,
-	"render_mode": "void",
+	"render_mode": "ember",
 	"stats": {
 		"acceleration": 200.0,
 		"device_slots": 4.0,
