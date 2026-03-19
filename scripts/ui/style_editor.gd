@@ -1030,7 +1030,7 @@ func _build_hud_tab_content(parent: VBoxContainer) -> void:
 	var body_size: int = ThemeManager.get_font_size("font_size_body")
 
 	# Build 3-panel HUD
-	var hud_result: Dictionary = HudBuilder.build_hud("preview")
+	var hud_result: Dictionary = HudBuilder.build_hud("preview", 300.0)
 
 	# ── Side panels preview: left | spacer | right in an HBox ──
 	var sides_hbox := HBoxContainer.new()

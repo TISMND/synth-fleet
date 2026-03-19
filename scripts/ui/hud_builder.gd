@@ -10,11 +10,11 @@ const WEAPON_ICON_SIZE: int = 40
 const BAR_WIDTH: int = 28
 
 
-static func build_hud(mode: String) -> Dictionary:
+static func build_hud(mode: String, panel_height: float = 948.0) -> Dictionary:
 	## Top-level builder. Returns: {bottom_bar, left_panel, right_panel, weapons_hbox, mode}
 	var bottom: Dictionary = _build_bottom_bar(mode)
-	var left: Dictionary = build_side_panel(mode, ["SHIELD", "HULL"], {})
-	var right: Dictionary = build_side_panel(mode, ["THERMAL", "ELECTRIC"], {})
+	var left: Dictionary = build_side_panel(mode, ["SHIELD", "HULL"], {}, panel_height)
+	var right: Dictionary = build_side_panel(mode, ["THERMAL", "ELECTRIC"], {}, panel_height)
 	return {
 		"bottom_bar": bottom,
 		"left_panel": left,
@@ -72,94 +72,128 @@ static func _build_bottom_bar(mode: String) -> Dictionary:
 	}
 
 
-static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dictionary) -> Dictionary:
-	## Build a side panel with 2 vertical bars stacked.
-	## Returns: {root, border, bars: {bar_name: {bar, label, vertical: true}}}
+static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dictionary, panel_height: float = 948.0) -> Dictionary:
+	## Build a side panel with 2 vertical bars at fixed half-and-half positions.
+	## Returns: {root, border, bars: {bar_name: {bar, label, vertical: true}}, content}
 	var specs: Array = ThemeManager.get_status_bar_specs()
 	var spec_by_name: Dictionary = {}
 	for spec in specs:
 		spec_by_name[str(spec["name"])] = spec
+
+	var short_names: Dictionary = {
+		"SHIELD": "SHLD", "HULL": "HULL", "THERMAL": "THRM", "ELECTRIC": "ELEC"
+	}
 
 	var root: Control
 	var border: Control
 
 	if mode == "game":
 		var bg := ColorRect.new()
-		var panel_color: Color = ThemeManager.get_color("panel")
-		bg.color = Color(panel_color.r, panel_color.g, panel_color.b, 0.7)
+		bg.color = Color.WHITE  # Shader controls rendering
 		root = bg
+		# Apply chrome panel shader
+		var shader: Shader = load("res://assets/shaders/chrome_panel.gdshader") as Shader
+		if shader:
+			var mat := ShaderMaterial.new()
+			mat.shader = shader
+			mat.set_shader_parameter("base_color", Vector4(0.12, 0.13, 0.18, 1.0))
+			mat.set_shader_parameter("divider_y", 0.5)
+			var accent_color: Color = ThemeManager.get_color("accent")
+			mat.set_shader_parameter("divider_color", Vector4(accent_color.r, accent_color.g, accent_color.b, 0.5))
+			bg.material = mat
 
 		var border_line := ColorRect.new()
-		border_line.size = Vector2(2, 1)  # Will be resized by parent
+		border_line.size = Vector2(2, 1)
 		bg.add_child(border_line)
 		border = border_line
 	else:
 		var panel := PanelContainer.new()
 		var style := StyleBoxFlat.new()
-		var panel_color: Color = ThemeManager.get_color("panel")
-		style.bg_color = Color(panel_color.r, panel_color.g, panel_color.b, 0.7)
+		style.bg_color = Color.TRANSPARENT
 		var accent_color: Color = ThemeManager.get_color("accent")
 		style.border_color = Color(accent_color.r, accent_color.g, accent_color.b, 0.4)
 		style.set_border_width_all(1)
-		style.set_content_margin_all(SIDE_PANEL_PADDING)
+		style.set_content_margin_all(0)
 		panel.add_theme_stylebox_override("panel", style)
 		root = panel
+
+		# Chrome shader on a child ColorRect filling the panel
+		var chrome_bg := ColorRect.new()
+		chrome_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		chrome_bg.color = Color.WHITE
+		chrome_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var shader: Shader = load("res://assets/shaders/chrome_panel.gdshader") as Shader
+		if shader:
+			var mat := ShaderMaterial.new()
+			mat.shader = shader
+			mat.set_shader_parameter("base_color", Vector4(0.12, 0.13, 0.18, 1.0))
+			mat.set_shader_parameter("divider_y", 0.5)
+			var accent_color2: Color = ThemeManager.get_color("accent")
+			mat.set_shader_parameter("divider_color", Vector4(accent_color2.r, accent_color2.g, accent_color2.b, 0.5))
+			chrome_bg.material = mat
+		panel.add_child(chrome_bg)
 		border = panel
 
-	# VBox to stack the 2 bars vertically
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	if mode == "game":
-		vbox.position = Vector2(SIDE_PANEL_PADDING, SIDE_PANEL_PADDING)
-	root.add_child(vbox)
+	# Fixed-position content container
+	var content := Control.new()
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(content)
+
+	# Layout constants
+	var mid_y: float = panel_height / 2.0
+	var label_h: float = 20.0
+	var bar_pad: float = 6.0
+	var bar_x: float = float(SIDE_PANEL_WIDTH - BAR_WIDTH) / 2.0
 
 	var bars_result: Dictionary = {}
-	for bar_name in bar_names:
+	for i in bar_names.size():
+		var bar_name: String = str(bar_names[i])
 		if not spec_by_name.has(bar_name):
 			continue
 		var spec: Dictionary = spec_by_name[bar_name]
 		var color: Color = ThemeManager.resolve_bar_color(spec)
 		var seg: int = int(seg_overrides.get(bar_name, ShipData.DEFAULT_SEGMENTS.get(bar_name, 8)))
-		var cell: Dictionary = build_vertical_bar_cell(bar_name, color, seg, seg, seg)
-		vbox.add_child(cell["vbox"])
-		bars_result[bar_name] = {"bar": cell["bar"], "label": cell["label"], "vertical": true}
+
+		# Compute positions for top half (i=0) or bottom half (i=1)
+		var zone_top: float = mid_y * float(i) + bar_pad
+		var zone_bottom: float = mid_y * float(i + 1) - bar_pad
+		var bar_top: float = zone_top
+		var bar_height: float = zone_bottom - zone_top - label_h - bar_pad
+		var label_top: float = bar_top + bar_height + bar_pad
+
+		# Create bar
+		var bar := ProgressBar.new()
+		bar.position = Vector2(bar_x, bar_top)
+		bar.size = Vector2(BAR_WIDTH, bar_height)
+		bar.custom_minimum_size = Vector2(BAR_WIDTH, bar_height)
+		bar.fill_mode = 3  # FILL_BOTTOM_TO_TOP
+		bar.max_value = seg
+		bar.value = seg
+		bar.show_percentage = false
+		content.add_child(bar)
+		ThemeManager.apply_led_bar(bar, color, 1.0, seg, true)
+		# Re-set position/size after apply_led_bar may modify minimum size
+		bar.position = Vector2(bar_x, bar_top)
+		bar.size = Vector2(BAR_WIDTH, bar_height)
+
+		# Create label BELOW bar
+		var lbl := Label.new()
+		lbl.text = str(short_names.get(bar_name, bar_name))
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.position = Vector2(0, label_top)
+		lbl.size = Vector2(SIDE_PANEL_WIDTH, label_h)
+		lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		content.add_child(lbl)
+
+		bars_result[bar_name] = {"bar": bar, "label": lbl, "vertical": true}
 
 	return {
 		"root": root,
 		"border": border,
 		"bars": bars_result,
-		"vbox": vbox,
+		"content": content,
 	}
 
-
-static func build_vertical_bar_cell(text: String, color: Color, initial: int, max_val: int, seg_count: int = -1) -> Dictionary:
-	## Single vertical bar cell: VBox → Label (above) + vertical ProgressBar (expand fill).
-	## Returns: {vbox, label, bar}
-	var short_names: Dictionary = {
-		"SHIELD": "SHLD", "HULL": "HULL", "THERMAL": "THRM", "ELECTRIC": "ELEC"
-	}
-	var vbox := VBoxContainer.new()
-	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 4)
-
-	var lbl := Label.new()
-	lbl.text = str(short_names.get(text, text))
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-	vbox.add_child(lbl)
-
-	var bar := ProgressBar.new()
-	bar.custom_minimum_size.x = BAR_WIDTH
-	bar.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	bar.fill_mode = 3  # FILL_BOTTOM_TO_TOP
-	bar.max_value = max_val
-	bar.value = initial
-	bar.show_percentage = false
-	vbox.add_child(bar)
-
-	ThemeManager.apply_led_bar(bar, color, float(initial) / maxf(float(max_val), 1.0), seg_count, true)
-
-	return {"vbox": vbox, "label": lbl, "bar": bar}
 
 
 static func build_weapon_icon(number: int, active: bool, color: Color) -> Dictionary:
@@ -246,16 +280,23 @@ static func apply_hud_theme(result: Dictionary) -> void:
 			style.bg_color = panel_color
 			style.border_color = border_color
 
-	# Side panels
-	var side_panel_color := Color(panel_color.r, panel_color.g, panel_color.b, 0.7)
+	# Side panels — update chrome shader divider color from accent
 	for panel_key in ["left_panel", "right_panel"]:
 		var side: Dictionary = result[panel_key]
 		if mode == "game":
-			side["root"].color = side_panel_color
+			var bg: ColorRect = side["root"] as ColorRect
+			if bg and bg.material is ShaderMaterial:
+				var mat: ShaderMaterial = bg.material as ShaderMaterial
+				mat.set_shader_parameter("divider_color", Vector4(accent_color.r, accent_color.g, accent_color.b, 0.5))
 			side["border"].color = border_color
 		else:
 			var panel: PanelContainer = side["root"]
 			var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
 			if style:
-				style.bg_color = side_panel_color
 				style.border_color = border_color
+			# Update chrome shader on the child ColorRect
+			if panel.get_child_count() > 0:
+				var chrome_bg: ColorRect = panel.get_child(0) as ColorRect
+				if chrome_bg and chrome_bg.material is ShaderMaterial:
+					var mat: ShaderMaterial = chrome_bg.material as ShaderMaterial
+					mat.set_shader_parameter("divider_color", Vector4(accent_color.r, accent_color.g, accent_color.b, 0.5))

@@ -38,7 +38,10 @@ func _build_ui() -> void:
 	add_child(_menu_hint)
 
 	# Build 3-panel HUD via HudBuilder
-	_hud_result = HudBuilder.build_hud("game")
+	var side_top: float = 60.0
+	var side_bottom: float = 1080.0 - HudBuilder.BOTTOM_BAR_HEIGHT - 8.0
+	var side_height: float = side_bottom - side_top
+	_hud_result = HudBuilder.build_hud("game", side_height)
 
 	# Position bottom bar
 	var bottom_root: ColorRect = _hud_result["bottom_bar"]["root"]
@@ -48,22 +51,14 @@ func _build_ui() -> void:
 
 	# Position left panel (Shield + Hull)
 	var left_root: ColorRect = _hud_result["left_panel"]["root"]
-	var side_top: float = 60.0
-	var side_bottom: float = 1080.0 - HudBuilder.BOTTOM_BAR_HEIGHT - 8.0
-	var side_height: float = side_bottom - side_top
 	left_root.position = Vector2(0, side_top)
 	left_root.size = Vector2(HudBuilder.SIDE_PANEL_WIDTH, side_height)
-	# Size the inner vbox to fill
-	var left_vbox: VBoxContainer = _hud_result["left_panel"]["vbox"]
-	left_vbox.size = Vector2(HudBuilder.SIDE_PANEL_WIDTH - HudBuilder.SIDE_PANEL_PADDING * 2, side_height - HudBuilder.SIDE_PANEL_PADDING * 2)
 	add_child(left_root)
 
 	# Position right panel (Thermal + Electric)
 	var right_root: ColorRect = _hud_result["right_panel"]["root"]
 	right_root.position = Vector2(1920 - HudBuilder.SIDE_PANEL_WIDTH, side_top)
 	right_root.size = Vector2(HudBuilder.SIDE_PANEL_WIDTH, side_height)
-	var right_vbox: VBoxContainer = _hud_result["right_panel"]["vbox"]
-	right_vbox.size = Vector2(HudBuilder.SIDE_PANEL_WIDTH - HudBuilder.SIDE_PANEL_PADDING * 2, side_height - HudBuilder.SIDE_PANEL_PADDING * 2)
 	add_child(right_root)
 
 	_weapons_hbox = _hud_result["weapons_hbox"]
@@ -140,10 +135,15 @@ func _apply_theme() -> void:
 		var lbl: Label = entry["label"]
 		HudBuilder.apply_bar_label_theme(lbl, color, body_font, body_size)
 		var bar: ProgressBar = entry["bar"]
+		var saved_pos: Vector2 = bar.position
+		var saved_size: Vector2 = bar.size
 		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
 		var seg: int = int(_bar_segments.get(bar_name, -1))
 		var is_vertical: bool = entry.get("vertical", false) as bool
 		ThemeManager.apply_led_bar(bar, color, ratio, seg, is_vertical)
+		# Restore position/size since bars use fixed positioning
+		bar.position = saved_pos
+		bar.size = saved_size
 		_bar_base_colors[bar_name] = color
 
 	# Weapon icons
