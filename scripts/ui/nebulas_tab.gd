@@ -1,126 +1,603 @@
 extends MarginContainer
-## Nebulas audition tab — 4x3 grid of shader-driven nebula previews with keep/discard toggles.
+## Nebula definition editor — create named nebulas, pick a shader style, tweak parameters.
 
-const COLUMNS := 4
-const CELL_WIDTH := 280
-const CELL_HEIGHT := 200
-const CELL_SPACING := 12
+const STYLES: Dictionary = {
+	"classic_fbm": {"name": "Classic FBM", "shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "dual": false},
+	"wispy_filaments": {"name": "Wispy Filaments", "shader": "res://assets/shaders/nebula_wispy_filaments.gdshader", "dual": false},
+	"dual_color": {"name": "Dual Color", "shader": "res://assets/shaders/nebula_dual_color.gdshader", "dual": true},
+	"voronoi": {"name": "Voronoi Cells", "shader": "res://assets/shaders/nebula_voronoi.gdshader", "dual": false},
+	"turbulent_swirl": {"name": "Turbulent Swirl", "shader": "res://assets/shaders/nebula_turbulent_swirl.gdshader", "dual": false},
+	"electric_filaments": {"name": "Electric Filaments", "shader": "res://assets/shaders/nebula_electric_filaments.gdshader", "dual": false},
+	"lightning_strike": {"name": "Lightning Strike", "shader": "res://assets/shaders/nebula_lightning_strike.gdshader", "dual": false},
+	"arc_discharge": {"name": "Arc Discharge", "shader": "res://assets/shaders/nebula_arc_discharge.gdshader", "dual": false},
+	"energy_flare": {"name": "Energy Flare", "shader": "res://assets/shaders/nebula_energy_flare.gdshader", "dual": false},
+	"dual_swirl": {"name": "Dual Swirl", "shader": "res://assets/shaders/nebula_dual_swirl.gdshader", "dual": true},
+	"dual_voronoi": {"name": "Dual Voronoi", "shader": "res://assets/shaders/nebula_dual_voronoi.gdshader", "dual": true},
+}
 
-var _keep_state: Dictionary = {}
-var _buttons: Dictionary = {}
+var _style_keys: Array[String] = []  # ordered list of style ids for OptionButton indexing
+var _nebulas: Array[NebulaData] = []
+var _selected_id: String = ""
+var _suppressing_signals: bool = false
 
-var _nebula_defs: Array[Dictionary] = [
-	{"id": "classic_fbm", "name": "Classic FBM", "shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "color": Color(0.3, 0.4, 0.9)},
-	{"id": "wispy_filaments", "name": "Wispy Filaments", "shader": "res://assets/shaders/nebula_wispy_filaments.gdshader", "color": Color(0.8, 0.3, 0.6)},
-	{"id": "dual_color", "name": "Dual Color", "shader": "res://assets/shaders/nebula_dual_color.gdshader", "color": Color(0.2, 0.5, 1.0)},
-	{"id": "voronoi", "name": "Voronoi Cells", "shader": "res://assets/shaders/nebula_voronoi.gdshader", "color": Color(0.4, 0.9, 0.5)},
-	{"id": "turbulent_swirl", "name": "Turbulent Swirl", "shader": "res://assets/shaders/nebula_turbulent_swirl.gdshader", "color": Color(0.6, 0.2, 0.9)},
-	{"id": "electric_filaments", "name": "Electric Filaments", "shader": "res://assets/shaders/nebula_electric_filaments.gdshader", "color": Color(0.3, 0.8, 1.0)},
-	{"id": "lightning_strike", "name": "Lightning Strike", "shader": "res://assets/shaders/nebula_lightning_strike.gdshader", "color": Color(0.5, 0.6, 1.0)},
-	{"id": "arc_discharge", "name": "Arc Discharge", "shader": "res://assets/shaders/nebula_arc_discharge.gdshader", "color": Color(0.3, 0.7, 1.0)},
-	{"id": "energy_flare", "name": "Energy Flare", "shader": "res://assets/shaders/nebula_energy_flare.gdshader", "color": Color(1.0, 0.6, 0.2)},
-	{"id": "dual_swirl", "name": "Dual Swirl", "shader": "res://assets/shaders/nebula_dual_swirl.gdshader", "color": Color(0.6, 0.2, 0.9)},
-	{"id": "dual_voronoi", "name": "Dual Voronoi", "shader": "res://assets/shaders/nebula_dual_voronoi.gdshader", "color": Color(0.4, 0.9, 0.5)},
-]
+# UI refs
+var _list_container: VBoxContainer
+var _create_btn: Button
+var _delete_btn: Button
+var _preview_rect: ColorRect
+var _name_edit: LineEdit
+var _style_option: OptionButton
+var _params_container: VBoxContainer
+var _editor_panel: VBoxContainer
+var _empty_label: Label
+
+# Param control refs (rebuilt on style change)
+var _color_picker: ColorPickerButton
+var _color2_picker: ColorPickerButton
+var _color2_row: HBoxContainer
+var _brightness_slider: HSlider
+var _speed_slider: HSlider
+var _density_slider: HSlider
+var _seed_slider: HSlider
+var _brightness_value: Label
+var _speed_value: Label
+var _density_value: Label
+var _seed_value: Label
 
 
 func _ready() -> void:
-	for def in _nebula_defs:
-		var id: String = def["id"]
-		_keep_state[id] = true
+	# Build ordered style key list
+	for key in STYLES:
+		_style_keys.append(key)
 
-	_build_grid()
+	_nebulas = NebulaDataManager.load_all()
+	_build_ui()
+
+	if _nebulas.size() > 0:
+		_select_nebula(_nebulas[0].id)
+	else:
+		_show_empty_state()
+
 	ThemeManager.theme_changed.connect(_apply_theme)
 	call_deferred("_apply_theme")
 
 
-func _build_grid() -> void:
+func _build_ui() -> void:
+	var split := HSplitContainer.new()
+	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.split_offset = 300
+	add_child(split)
+
+	# --- Left panel: nebula list ---
+	var left_panel := VBoxContainer.new()
+	left_panel.custom_minimum_size.x = 280
+	left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_panel.add_theme_constant_override("separation", 8)
+	split.add_child(left_panel)
+
+	var header := Label.new()
+	header.text = "NEBULAS"
+	header.name = "ListHeader"
+	left_panel.add_child(header)
+
 	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	add_child(scroll)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_panel.add_child(scroll)
 
-	var grid := GridContainer.new()
-	grid.columns = COLUMNS
-	grid.add_theme_constant_override("h_separation", CELL_SPACING)
-	grid.add_theme_constant_override("v_separation", CELL_SPACING)
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(grid)
+	_list_container = VBoxContainer.new()
+	_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list_container.add_theme_constant_override("separation", 4)
+	scroll.add_child(_list_container)
 
-	for def in _nebula_defs:
-		var cell := _build_cell(def)
-		grid.add_child(cell)
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 8)
+	left_panel.add_child(btn_row)
+
+	_create_btn = Button.new()
+	_create_btn.text = "+ CREATE NEW"
+	_create_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_create_btn.pressed.connect(_on_create_new)
+	btn_row.add_child(_create_btn)
+
+	_delete_btn = Button.new()
+	_delete_btn.text = "DELETE"
+	_delete_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_delete_btn.disabled = true
+	_delete_btn.pressed.connect(_on_delete)
+	btn_row.add_child(_delete_btn)
+
+	# --- Right panel: editor ---
+	var right_scroll := ScrollContainer.new()
+	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.add_child(right_scroll)
+
+	_editor_panel = VBoxContainer.new()
+	_editor_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_editor_panel.add_theme_constant_override("separation", 12)
+	right_scroll.add_child(_editor_panel)
+
+	# Preview
+	_preview_rect = ColorRect.new()
+	_preview_rect.custom_minimum_size = Vector2(400, 300)
+	_preview_rect.color = Color(0, 0, 0, 1)
+	_editor_panel.add_child(_preview_rect)
+
+	# Name
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 8)
+	_editor_panel.add_child(name_row)
+	var name_label := Label.new()
+	name_label.text = "Name"
+	name_label.custom_minimum_size.x = 100
+	name_row.add_child(name_label)
+	_name_edit = LineEdit.new()
+	_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_name_edit.text_changed.connect(_on_name_changed)
+	name_row.add_child(_name_edit)
+
+	# Style dropdown
+	var style_row := HBoxContainer.new()
+	style_row.add_theme_constant_override("separation", 8)
+	_editor_panel.add_child(style_row)
+	var style_label := Label.new()
+	style_label.text = "Style"
+	style_label.custom_minimum_size.x = 100
+	style_row.add_child(style_label)
+	_style_option = OptionButton.new()
+	_style_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for key in _style_keys:
+		var info: Dictionary = STYLES[key]
+		_style_option.add_item(info["name"])
+	_style_option.item_selected.connect(_on_style_changed)
+	style_row.add_child(_style_option)
+
+	# Parameters section
+	var params_label := Label.new()
+	params_label.text = "PARAMETERS"
+	params_label.name = "ParamsHeader"
+	_editor_panel.add_child(params_label)
+
+	_params_container = VBoxContainer.new()
+	_params_container.add_theme_constant_override("separation", 8)
+	_editor_panel.add_child(_params_container)
+	_build_param_controls()
+
+	# Empty state label (shown when no nebulas exist)
+	_empty_label = Label.new()
+	_empty_label.text = "No nebulas yet. Click + CREATE NEW to get started."
+	_empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_editor_panel.add_child(_empty_label)
+	_empty_label.visible = false
+
+	_rebuild_list()
 
 
-func _build_cell(def: Dictionary) -> VBoxContainer:
-	var id: String = def["id"]
-	var shader_path: String = def["shader"]
-	var color: Color = def["color"]
+func _build_param_controls() -> void:
+	# Clear existing
+	for child in _params_container.get_children():
+		child.queue_free()
 
-	var cell := VBoxContainer.new()
-	cell.add_theme_constant_override("separation", 4)
+	# Color
+	var color_row := HBoxContainer.new()
+	color_row.add_theme_constant_override("separation", 8)
+	_params_container.add_child(color_row)
+	var color_label := Label.new()
+	color_label.text = "Color"
+	color_label.custom_minimum_size.x = 100
+	color_row.add_child(color_label)
+	_color_picker = ColorPickerButton.new()
+	_color_picker.custom_minimum_size = Vector2(60, 30)
+	_color_picker.color = Color(0.3, 0.4, 0.9, 1.0)
+	_color_picker.color_changed.connect(_on_color_changed)
+	color_row.add_child(_color_picker)
 
-	# Shader preview
-	var preview := ColorRect.new()
-	preview.custom_minimum_size = Vector2(CELL_WIDTH, CELL_HEIGHT)
-	preview.color = Color(0, 0, 0, 1)
-	var shader_res: Shader = load(shader_path) as Shader
-	if shader_res:
-		var mat := ShaderMaterial.new()
-		mat.shader = shader_res
-		mat.set_shader_parameter("nebula_color", Color(color.r, color.g, color.b, 1.0))
-		preview.material = mat
-	cell.add_child(preview)
+	# Secondary color (dual styles only)
+	_color2_row = HBoxContainer.new()
+	_color2_row.add_theme_constant_override("separation", 8)
+	_params_container.add_child(_color2_row)
+	var color2_label := Label.new()
+	color2_label.text = "Color 2"
+	color2_label.custom_minimum_size.x = 100
+	_color2_row.add_child(color2_label)
+	_color2_picker = ColorPickerButton.new()
+	_color2_picker.custom_minimum_size = Vector2(60, 30)
+	_color2_picker.color = Color(1.0, 0.5, 0.2, 1.0)
+	_color2_picker.color_changed.connect(_on_color2_changed)
+	_color2_row.add_child(_color2_picker)
+	_color2_row.visible = false
 
-	# Name label
+	# Brightness
+	_brightness_slider = _add_slider_row("Brightness", 0.5, 4.0, 0.05, 1.5)
+	_brightness_slider.value_changed.connect(_on_brightness_changed)
+
+	# Animation Speed
+	_speed_slider = _add_slider_row("Anim Speed", 0.0, 3.0, 0.05, 0.5)
+	_speed_slider.value_changed.connect(_on_speed_changed)
+
+	# Density
+	_density_slider = _add_slider_row("Density", 0.5, 4.0, 0.05, 1.5)
+	_density_slider.value_changed.connect(_on_density_changed)
+
+	# Seed Offset
+	_seed_slider = _add_slider_row("Seed", 0.0, 1000.0, 1.0, 0.0)
+	_seed_slider.value_changed.connect(_on_seed_changed)
+
+
+func _add_slider_row(label_text: String, min_val: float, max_val: float, step: float, default_val: float) -> HSlider:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_params_container.add_child(row)
+
 	var label := Label.new()
-	label.text = def["name"]
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cell.add_child(label)
+	label.text = label_text
+	label.custom_minimum_size.x = 100
+	row.add_child(label)
 
-	# Keep/Discard button
-	var btn := Button.new()
-	btn.text = "KEEP"
-	btn.toggle_mode = true
-	btn.button_pressed = true
-	btn.pressed.connect(_on_toggle.bind(id, btn))
-	cell.add_child(btn)
-	_buttons[id] = btn
+	var slider := HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.step = step
+	slider.value = default_val
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 200
+	row.add_child(slider)
 
-	return cell
+	var value_label := Label.new()
+	value_label.text = str(snapped(default_val, step))
+	value_label.custom_minimum_size.x = 60
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(value_label)
+
+	# Store value label ref by slider name for updates
+	if label_text == "Brightness":
+		_brightness_value = value_label
+	elif label_text == "Anim Speed":
+		_speed_value = value_label
+	elif label_text == "Density":
+		_density_value = value_label
+	elif label_text == "Seed":
+		_seed_value = value_label
+
+	return slider
 
 
-func _on_toggle(id: String, btn: Button) -> void:
-	var kept: bool = btn.button_pressed
-	_keep_state[id] = kept
-	_style_toggle_button(btn, kept)
+func _rebuild_list() -> void:
+	for child in _list_container.get_children():
+		child.queue_free()
+
+	for nebula in _nebulas:
+		var btn := Button.new()
+		btn.text = nebula.display_name
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.toggle_mode = true
+		btn.button_pressed = (nebula.id == _selected_id)
+		btn.pressed.connect(_on_list_item_pressed.bind(nebula.id))
+		btn.name = "ListItem_" + nebula.id
+		_list_container.add_child(btn)
+		ThemeManager.apply_button_style(btn)
+
+	_delete_btn.disabled = (_selected_id == "")
 
 
-func _style_toggle_button(btn: Button, kept: bool) -> void:
-	if kept:
-		btn.text = "KEEP"
-		btn.modulate = Color(0.3, 1.0, 0.4)
+func _show_empty_state() -> void:
+	_selected_id = ""
+	_editor_panel.visible = true
+	_preview_rect.visible = false
+	_empty_label.visible = true
+	_name_edit.get_parent().visible = false
+	_style_option.get_parent().visible = false
+	_params_container.visible = false
+	# Hide params header
+	for child in _editor_panel.get_children():
+		if child is Label and child.name == "ParamsHeader":
+			child.visible = false
+	_delete_btn.disabled = true
+
+
+func _show_editor_state() -> void:
+	_preview_rect.visible = true
+	_empty_label.visible = false
+	_name_edit.get_parent().visible = true
+	_style_option.get_parent().visible = true
+	_params_container.visible = true
+	for child in _editor_panel.get_children():
+		if child is Label and child.name == "ParamsHeader":
+			child.visible = true
+
+
+func _select_nebula(id: String) -> void:
+	_selected_id = id
+	_show_editor_state()
+
+	var data: NebulaData = _get_nebula_by_id(id)
+	if not data:
+		_show_empty_state()
+		return
+
+	_suppressing_signals = true
+
+	_name_edit.text = data.display_name
+
+	# Set style dropdown
+	var style_idx: int = _style_keys.find(data.style_id)
+	if style_idx >= 0:
+		_style_option.selected = style_idx
+
+	# Update param controls
+	var params: Dictionary = data.shader_params
+	var defaults: Dictionary = NebulaData.default_params()
+
+	var color_arr: Array = params.get("nebula_color", defaults["nebula_color"])
+	_color_picker.color = Color(color_arr[0], color_arr[1], color_arr[2], color_arr[3])
+
+	var color2_arr: Array = params.get("secondary_color", defaults["secondary_color"])
+	_color2_picker.color = Color(color2_arr[0], color2_arr[1], color2_arr[2], color2_arr[3])
+
+	var brightness_val: float = float(params.get("brightness", defaults["brightness"]))
+	_brightness_slider.value = brightness_val
+	_brightness_value.text = str(snapped(brightness_val, 0.05))
+
+	var speed_val: float = float(params.get("animation_speed", defaults["animation_speed"]))
+	_speed_slider.value = speed_val
+	_speed_value.text = str(snapped(speed_val, 0.05))
+
+	var density_val: float = float(params.get("density", defaults["density"]))
+	_density_slider.value = density_val
+	_density_value.text = str(snapped(density_val, 0.05))
+
+	var seed_val: float = float(params.get("seed_offset", defaults["seed_offset"]))
+	_seed_slider.value = seed_val
+	_seed_value.text = str(snapped(seed_val, 1.0))
+
+	_suppressing_signals = false
+
+	# Show/hide secondary color based on style
+	var style_info: Dictionary = STYLES.get(data.style_id, {})
+	var is_dual: bool = style_info.get("dual", false)
+	_color2_row.visible = is_dual
+
+	_update_preview()
+	_update_list_selection()
+
+
+func _update_list_selection() -> void:
+	for child in _list_container.get_children():
+		if child is Button:
+			var btn_id: String = child.name.replace("ListItem_", "")
+			child.button_pressed = (btn_id == _selected_id)
+
+
+func _update_preview() -> void:
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if not data:
+		_preview_rect.material = null
+		return
+
+	var style_info: Dictionary = STYLES.get(data.style_id, {})
+	var shader_path: String = style_info.get("shader", "")
+	if shader_path == "":
+		_preview_rect.material = null
+		return
+
+	var shader_res: Shader = load(shader_path) as Shader
+	if not shader_res:
+		_preview_rect.material = null
+		return
+
+	var mat := ShaderMaterial.new()
+	mat.shader = shader_res
+
+	var params: Dictionary = data.shader_params
+	var defaults: Dictionary = NebulaData.default_params()
+
+	var color_arr: Array = params.get("nebula_color", defaults["nebula_color"])
+	mat.set_shader_parameter("nebula_color", Color(color_arr[0], color_arr[1], color_arr[2], color_arr[3]))
+
+	if style_info.get("dual", false):
+		var color2_arr: Array = params.get("secondary_color", defaults["secondary_color"])
+		mat.set_shader_parameter("secondary_color", Color(color2_arr[0], color2_arr[1], color2_arr[2], color2_arr[3]))
+
+	mat.set_shader_parameter("brightness", float(params.get("brightness", defaults["brightness"])))
+	mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
+	mat.set_shader_parameter("density", float(params.get("density", defaults["density"])))
+	mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+
+	_preview_rect.material = mat
+
+
+func _get_nebula_by_id(id: String) -> NebulaData:
+	for n in _nebulas:
+		if n.id == id:
+			return n
+	return null
+
+
+func _generate_unique_id() -> String:
+	var existing: Array[String] = []
+	for n in _nebulas:
+		existing.append(n.id)
+	var counter: int = 1
+	while true:
+		var candidate: String = "nebula_" + str(counter)
+		if candidate not in existing:
+			return candidate
+		counter += 1
+	return "nebula_1"
+
+
+func _auto_save() -> void:
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		NebulaDataManager.save(data)
+
+
+# --- Signals ---
+
+func _on_create_new() -> void:
+	var id: String = _generate_unique_id()
+	var counter: int = _nebulas.size() + 1
+	var data := NebulaData.new()
+	data.id = id
+	data.display_name = "Nebula " + str(counter)
+	data.style_id = "classic_fbm"
+	data.shader_params = NebulaData.default_params()
+	NebulaDataManager.save(data)
+	_nebulas.append(data)
+	_rebuild_list()
+	_select_nebula(id)
+
+
+func _on_delete() -> void:
+	if _selected_id == "":
+		return
+	NebulaDataManager.delete(_selected_id)
+	var idx: int = -1
+	for i in range(_nebulas.size()):
+		if _nebulas[i].id == _selected_id:
+			idx = i
+			break
+	if idx >= 0:
+		_nebulas.remove_at(idx)
+
+	if _nebulas.size() > 0:
+		var new_idx: int = mini(idx, _nebulas.size() - 1)
+		_rebuild_list()
+		_select_nebula(_nebulas[new_idx].id)
 	else:
-		btn.text = "DISCARD"
-		btn.modulate = Color(1.0, 0.3, 0.3, 0.6)
+		_selected_id = ""
+		_rebuild_list()
+		_show_empty_state()
+
+
+func _on_list_item_pressed(id: String) -> void:
+	_select_nebula(id)
+
+
+func _on_name_changed(new_name: String) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.display_name = new_name
+		_auto_save()
+		# Update list button text
+		for child in _list_container.get_children():
+			if child is Button and child.name == "ListItem_" + _selected_id:
+				child.text = new_name
+
+
+func _on_style_changed(idx: int) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if not data:
+		return
+	data.style_id = _style_keys[idx]
+	var style_info: Dictionary = STYLES[data.style_id]
+	_color2_row.visible = style_info.get("dual", false)
+	_update_preview()
+	_auto_save()
+
+
+func _on_color_changed(color: Color) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["nebula_color"] = [color.r, color.g, color.b, color.a]
+		_update_preview()
+		_auto_save()
+
+
+func _on_color2_changed(color: Color) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["secondary_color"] = [color.r, color.g, color.b, color.a]
+		_update_preview()
+		_auto_save()
+
+
+func _on_brightness_changed(val: float) -> void:
+	_brightness_value.text = str(snapped(val, 0.05))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["brightness"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_speed_changed(val: float) -> void:
+	_speed_value.text = str(snapped(val, 0.05))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["animation_speed"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_density_changed(val: float) -> void:
+	_density_value.text = str(snapped(val, 0.05))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["density"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_seed_changed(val: float) -> void:
+	_seed_value.text = str(snapped(val, 1.0))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["seed_offset"] = val
+		_update_preview()
+		_auto_save()
 
 
 func _apply_theme() -> void:
-	for child in get_children():
-		if child is ScrollContainer:
-			var grid: GridContainer = child.get_child(0) as GridContainer
-			if not grid:
-				continue
-			for cell_node in grid.get_children():
-				if cell_node is VBoxContainer:
-					for sub in cell_node.get_children():
-						if sub is Label:
-							ThemeManager.apply_text_glow(sub, "body")
-						elif sub is Button:
-							ThemeManager.apply_button_style(sub)
+	ThemeManager.apply_button_style(_create_btn)
+	ThemeManager.apply_button_style(_delete_btn)
 
-	# Re-apply keep/discard styling on top of theme
-	for id in _buttons:
-		var btn: Button = _buttons[id]
-		var kept: bool = _keep_state[id]
-		_style_toggle_button(btn, kept)
+	for child in _list_container.get_children():
+		if child is Button:
+			ThemeManager.apply_button_style(child)
+
+	# Header labels
+	for child in get_children():
+		if child is HSplitContainer:
+			var left: VBoxContainer = child.get_child(0) as VBoxContainer
+			if left:
+				for sub in left.get_children():
+					if sub is Label:
+						ThemeManager.apply_text_glow(sub, "header")
+
+	# Editor labels
+	for child in _editor_panel.get_children():
+		if child is Label:
+			ThemeManager.apply_text_glow(child, "header")
+		elif child is HBoxContainer:
+			for sub in child.get_children():
+				if sub is Label:
+					ThemeManager.apply_text_glow(sub, "body")
+
+	for child in _params_container.get_children():
+		if child is HBoxContainer:
+			for sub in child.get_children():
+				if sub is Label:
+					ThemeManager.apply_text_glow(sub, "body")
+
+	ThemeManager.apply_text_glow(_empty_label, "body")

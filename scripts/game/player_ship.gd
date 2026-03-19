@@ -149,6 +149,56 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 			"device": device,
 		})
 
+	# Apply persisted per-slot volumes from hangar settings
+	_apply_stored_volumes()
+
+
+func _apply_stored_volumes() -> void:
+	# Weapon slots (ext_N)
+	var hp_idx: int = 0
+	for i in 3:
+		var slot_key: String = "ext_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var weapon_id: String = str(slot_data.get("weapon_id", ""))
+		if weapon_id == "":
+			continue
+		if hp_idx < _hardpoint_controllers.size():
+			var loop_id: String = _hardpoint_controllers[hp_idx]._loop_id
+			var vol: float = KeyBindingManager.get_slot_volume(slot_key)
+			if loop_id != "" and vol != 0.0:
+				LoopMixer.set_volume(loop_id, vol)
+		hp_idx += 1
+
+	# Core slots (int_N)
+	var core_idx: int = 0
+	for i in 3:
+		var slot_key: String = "int_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id == "":
+			continue
+		if core_idx < _core_controllers.size():
+			var loop_id: String = _core_controllers[core_idx]._loop_id
+			var vol: float = KeyBindingManager.get_slot_volume(slot_key)
+			if loop_id != "" and vol != 0.0:
+				LoopMixer.set_volume(loop_id, vol)
+		core_idx += 1
+
+	# Device slots (dev_N)
+	var dev_idx: int = 0
+	for i in 2:
+		var slot_key: String = "dev_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var device_id_val: String = str(slot_data.get("device_id", ""))
+		if device_id_val == "":
+			continue
+		if dev_idx < _device_controllers.size():
+			var loop_id: String = _device_controllers[dev_idx]._loop_id
+			var vol: float = KeyBindingManager.get_slot_volume(slot_key)
+			if loop_id != "" and vol != 0.0:
+				LoopMixer.set_volume(loop_id, vol)
+		dev_idx += 1
+
 
 func _process(delta: float) -> void:
 	# Input movement

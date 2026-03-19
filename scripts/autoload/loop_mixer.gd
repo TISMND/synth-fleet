@@ -89,6 +89,16 @@ func unmute(loop_id: String) -> void:
 	loop_state_changed.emit(loop_id, false)
 
 
+func set_volume(loop_id: String, volume_db: float) -> void:
+	if not _loops.has(loop_id):
+		return
+	var entry: Dictionary = _loops[loop_id]
+	entry["target_volume"] = volume_db
+	if not entry["muted"] as bool:
+		var player: AudioStreamPlayer = entry["player"]
+		player.volume_db = volume_db
+
+
 func is_muted(loop_id: String) -> bool:
 	if not _loops.has(loop_id):
 		return true

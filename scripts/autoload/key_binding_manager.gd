@@ -41,6 +41,7 @@ const RESERVED_KEYS: Array = [
 
 var _bindings: Dictionary = {}  # slot_key -> {physical_keycode, label}
 var _combo_presets: Array = []  # [{label, physical_keycode, key_label, pattern}]
+var _slot_volumes: Dictionary = {}  # slot_key -> float (dB, default 0.0)
 
 
 func _ready() -> void:
@@ -76,6 +77,12 @@ func load_bindings() -> void:
 				"label": str(entry["label"]),
 			}
 
+	# Load slot volumes
+	_slot_volumes.clear()
+	var saved_volumes: Dictionary = data.get("slot_volumes", {}) as Dictionary if data.get("slot_volumes") is Dictionary else {}
+	for slot_key in saved_volumes:
+		_slot_volumes[str(slot_key)] = float(saved_volumes[slot_key])
+
 	# Load combo presets
 	var saved_presets: Array = data.get("combo_presets", []) as Array if data.get("combo_presets") is Array else []
 	for preset in saved_presets:
@@ -96,6 +103,7 @@ func save_bindings() -> void:
 	var data: Dictionary = {
 		"bindings": _bindings,
 		"combo_presets": _combo_presets,
+		"slot_volumes": _slot_volumes,
 	}
 
 	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -205,6 +213,16 @@ func remove_combo_preset(index: int) -> void:
 
 func get_combo_presets() -> Array:
 	return _combo_presets
+
+
+func set_slot_volume(slot_key: String, volume_db: float) -> void:
+	_slot_volumes[slot_key] = volume_db
+	save_bindings()
+	bindings_changed.emit()
+
+
+func get_slot_volume(slot_key: String) -> float:
+	return float(_slot_volumes.get(slot_key, 0.0))
 
 
 func get_all_slot_keys() -> Array:

@@ -1,13 +1,9 @@
 extends MarginContainer
-## Hangar Screen — ship thumbnail + stats on left, FUNCTIONAL/AUDIO mode center, item picker right.
+## Hangar Screen — ship thumbnail + stats on left, FUNCTIONAL/AUDIO/CONTROLS tabs center.
 
 var _ship_thumb: ShipThumbnails
 var _ship_name_label: Label
 var _center_vbox: VBoxContainer
-var _right_panel: VBoxContainer
-var _right_panel_header: Label
-var _right_panel_scroll: ScrollContainer
-var _right_panel_list: VBoxContainer
 var _ext_section: VBoxContainer
 var _int_section: VBoxContainer
 var _title: Label
@@ -27,10 +23,6 @@ var _is_muted: bool = false
 var _weapon_cache: Dictionary = {}
 var _power_core_cache: Dictionary = {}
 var _device_cache: Dictionary = {}
-var _expanded_slot: String = ""
-var _ext_headers: Dictionary = {}
-var _int_headers: Dictionary = {}
-var _dev_headers: Dictionary = {}
 var _dev_section: VBoxContainer
 var _dev_header: Label
 
@@ -44,19 +36,20 @@ var _preview_controllers: Array = []  # HardpointController instances
 # Power core preview — lightweight pulse trigger tracking
 var _core_previews: Array = []  # Array of Dicts: {pc, loop_id, prev_pos, triggers}
 
-# Mode toggle: "functional" or "audio"
+# Mode toggle: "functional", "audio", or "controls"
 var _mode: String = "functional"
 var _functional_btn: Button
 var _audio_btn: Button
+var _controls_btn: Button
 var _functional_content: VBoxContainer
 var _audio_content: VBoxContainer
+var _controls_content: VBoxContainer
 
 # Slot active state for preview toggles
 var _slot_active: Dictionary = {}  # slot_key -> bool
 var _slot_toggle_btns: Dictionary = {}  # slot_key -> Button (toggle)
-var _slot_key_labels: Dictionary = {}  # slot_key -> Button (key label)
 
-# Preset section
+# Preset section (in controls tab)
 var _preset_section: VBoxContainer
 var _preset_list: VBoxContainer
 
@@ -66,9 +59,11 @@ var _capture_label: Label = null
 var _capturing_for: String = ""  # slot_key or "combo_new" or "combo_N"
 var _is_capturing: bool = false
 
-# Audio mode per-slot controls
-var _audio_slot_rows: Dictionary = {}  # slot_key -> {mute_btn, solo_btn}
-var _soloed_slot: String = ""  # "" = no solo
+# Audio mode per-slot sliders
+var _audio_sliders: Dictionary = {}  # slot_key -> {slider: HSlider, label: Label}
+
+# Controls tab key binding buttons
+var _controls_key_btns: Dictionary = {}  # slot_key -> Button
 
 
 func _ready() -> void:
@@ -84,11 +79,11 @@ func _ready() -> void:
 
 func _init_slot_active() -> void:
 	for i in 3:
-		_slot_active["ext_" + str(i)] = false
+		_slot_active["ext_" + str(i)] = true
 	for i in 3:
-		_slot_active["int_" + str(i)] = false
+		_slot_active["int_" + str(i)] = true
 	for i in 2:
-		_slot_active["dev_" + str(i)] = false
+		_slot_active["dev_" + str(i)] = true
 
 
 func _setup_vhs_overlay() -> void:
@@ -157,12 +152,7 @@ func _apply_theme() -> void:
 	ThemeManager.apply_button_style(_back_btn)
 	ThemeManager.apply_button_style(_functional_btn)
 	ThemeManager.apply_button_style(_audio_btn)
-
-	# Right panel header
-	_right_panel_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	if body_font:
-		_right_panel_header.add_theme_font_override("font", body_font)
+	ThemeManager.apply_button_style(_controls_btn)
 
 	# Slot buttons in all sections
 	for section in [_ext_section, _int_section, _dev_section]:
@@ -179,15 +169,10 @@ func _apply_theme() -> void:
 		if body_font:
 			_dev_header.add_theme_font_override("font", body_font)
 
-	# Right panel weapon list buttons
-	for child in _right_panel_list.get_children():
-		if child is Button:
-			ThemeManager.apply_button_style(child as Button)
-
 	# Mode toggle highlight
 	_update_mode_buttons()
 
-	# Preset section buttons
+	# Preset section buttons (in controls tab)
 	if _preset_list:
 		for child in _preset_list.get_children():
 			if child is HBoxContainer:
@@ -195,9 +180,19 @@ func _apply_theme() -> void:
 					if sub is Button:
 						ThemeManager.apply_button_style(sub as Button)
 
-	# Audio content buttons
+	# Audio content children
 	if _audio_content:
 		for child in _audio_content.get_children():
+			if child is HBoxContainer:
+				for sub in child.get_children():
+					if sub is Button:
+						ThemeManager.apply_button_style(sub as Button)
+			elif child is Button:
+				ThemeManager.apply_button_style(child as Button)
+
+	# Controls content children
+	if _controls_content:
+		for child in _controls_content.get_children():
 			if child is HBoxContainer:
 				for sub in child.get_children():
 					if sub is Button:
@@ -292,12 +287,7 @@ func _rebuild_buttons() -> void:
 		child.queue_free()
 	for child in _dev_section.get_children():
 		child.queue_free()
-	_ext_headers.clear()
-	_int_headers.clear()
-	_dev_headers.clear()
 	_slot_toggle_btns.clear()
-	_slot_key_labels.clear()
-	_clear_right_panel()
 
 	# External weapon slots (3)
 	for i in 3:
@@ -353,8 +343,8 @@ func _rebuild_buttons() -> void:
 		var row: HBoxContainer = _create_slot_row(slot_key, "DEVICE " + str(i + 1), device_name, bar_effect_text)
 		_dev_section.add_child(row)
 
-	_rebuild_presets()
 	_rebuild_audio_content()
+	_rebuild_controls_content()
 	call_deferred("_apply_theme")
 
 
@@ -365,7 +355,7 @@ func _create_slot_row(slot_key: String, type_label: String, item_name: String, b
 	# Toggle button
 	var toggle := Button.new()
 	toggle.custom_minimum_size = Vector2(30, 30)
-	var is_active: bool = _slot_active.get(slot_key, false)
+	var is_active: bool = _slot_active.get(slot_key, true)
 	toggle.text = "ON" if is_active else "OFF"
 	ThemeManager.apply_button_style(toggle)
 	if is_active:
@@ -377,35 +367,21 @@ func _create_slot_row(slot_key: String, type_label: String, item_name: String, b
 	row.add_child(toggle)
 	_slot_toggle_btns[slot_key] = toggle
 
-	# Slot button (expanding) — click to open item picker
-	var header := Button.new()
+	# Slot label (read-only) — shows equipped item info
+	var header := Label.new()
 	var header_text: String = type_label + "  —  " + item_name
 	if bar_effect_text != "":
 		header_text += "  " + bar_effect_text
 	header.text = header_text
 	header.custom_minimum_size.y = 50
-	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	header.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ThemeManager.apply_button_style(header)
-	header.pressed.connect(func() -> void: _toggle_slot_list(bound_key))
+	header.add_theme_color_override("font_color", ThemeManager.get_color("body"))
+	header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	var body_font: Font = ThemeManager.get_font("font_body")
+	if body_font:
+		header.add_theme_font_override("font", body_font)
 	row.add_child(header)
-
-	# Track header for highlight
-	if slot_key.begins_with("ext_"):
-		_ext_headers[slot_key] = header
-	elif slot_key.begins_with("int_"):
-		_int_headers[slot_key] = header
-	else:
-		_dev_headers[slot_key] = header
-
-	# Key label button — click to rebind
-	var key_btn := Button.new()
-	key_btn.custom_minimum_size = Vector2(44, 30)
-	key_btn.text = KeyBindingManager.get_key_label_for_slot(slot_key)
-	ThemeManager.apply_button_style(key_btn)
-	key_btn.pressed.connect(func() -> void: _start_key_capture(bound_key))
-	row.add_child(key_btn)
-	_slot_key_labels[slot_key] = key_btn
 
 	return row
 
@@ -464,18 +440,23 @@ func _on_mode_toggle(new_mode: String) -> void:
 	_mode = new_mode
 	_functional_content.visible = (_mode == "functional")
 	_audio_content.visible = (_mode == "audio")
+	_controls_content.visible = (_mode == "controls")
 	_update_mode_buttons()
 
 
 func _update_mode_buttons() -> void:
+	var accent: Color = ThemeManager.get_color("accent")
+	for btn in [_functional_btn, _audio_btn, _controls_btn]:
+		btn.remove_theme_color_override("font_color")
 	if _mode == "functional":
-		_functional_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-		_audio_btn.remove_theme_color_override("font_color")
+		_functional_btn.add_theme_color_override("font_color", accent)
+	elif _mode == "audio":
+		_audio_btn.add_theme_color_override("font_color", accent)
 	else:
-		_audio_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-		_functional_btn.remove_theme_color_override("font_color")
+		_controls_btn.add_theme_color_override("font_color", accent)
 	ThemeManager.apply_button_style(_functional_btn)
 	ThemeManager.apply_button_style(_audio_btn)
+	ThemeManager.apply_button_style(_controls_btn)
 
 
 # ── Key capture ──────────────────────────────────────────────────────────────
@@ -515,7 +496,78 @@ func _end_key_capture() -> void:
 		_capture_overlay.visible = false
 
 
-# ── Presets ──────────────────────────────────────────────────────────────────
+# ── Controls tab content ─────────────────────────────────────────────────────
+
+func _rebuild_controls_content() -> void:
+	if not _controls_content:
+		return
+	for child in _controls_content.get_children():
+		child.queue_free()
+	_controls_key_btns.clear()
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+
+	# Slot bindings header
+	var bindings_header := Label.new()
+	bindings_header.text = "━━ SLOT BINDINGS ━━━━━━━━━━━━━━━━━"
+	bindings_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	bindings_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if body_font:
+		bindings_header.add_theme_font_override("font", body_font)
+	_controls_content.add_child(bindings_header)
+
+	# Binding rows
+	var slot_labels: Dictionary = {
+		"ext_0": "WEAPON 1", "ext_1": "WEAPON 2", "ext_2": "WEAPON 3",
+		"int_0": "CORE 1", "int_1": "CORE 2", "int_2": "CORE 3",
+		"dev_0": "DEVICE 1", "dev_1": "DEVICE 2",
+	}
+	var all_slots: Array = ["ext_0", "ext_1", "ext_2", "int_0", "int_1", "int_2", "dev_0", "dev_1"]
+	for slot_key in all_slots:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		var name_lbl := Label.new()
+		name_lbl.text = str(slot_labels.get(slot_key, slot_key))
+		name_lbl.custom_minimum_size.x = 120
+		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
+		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		if body_font:
+			name_lbl.add_theme_font_override("font", body_font)
+		row.add_child(name_lbl)
+
+		var key_btn := Button.new()
+		key_btn.text = "[" + KeyBindingManager.get_key_label_for_slot(slot_key) + "]"
+		key_btn.custom_minimum_size = Vector2(60, 30)
+		ThemeManager.apply_button_style(key_btn)
+		var bound_key: String = slot_key
+		key_btn.pressed.connect(func() -> void: _start_key_capture(bound_key))
+		row.add_child(key_btn)
+		_controls_key_btns[slot_key] = key_btn
+
+		_controls_content.add_child(row)
+
+	# Combo presets header
+	var presets_header := Label.new()
+	presets_header.text = "━━ COMBO PRESETS ━━━━━━━━━━━━━━━━━"
+	presets_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	presets_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if body_font:
+		presets_header.add_theme_font_override("font", body_font)
+	_controls_content.add_child(presets_header)
+
+	_preset_list = VBoxContainer.new()
+	_controls_content.add_child(_preset_list)
+
+	_rebuild_presets()
+
+	var save_combo_btn := Button.new()
+	save_combo_btn.text = "SAVE CURRENT COMBO"
+	save_combo_btn.custom_minimum_size.y = 34
+	save_combo_btn.pressed.connect(_on_save_combo)
+	ThemeManager.apply_button_style(save_combo_btn)
+	_controls_content.add_child(save_combo_btn)
+
 
 func _rebuild_presets() -> void:
 	if not _preset_list:
@@ -523,6 +575,7 @@ func _rebuild_presets() -> void:
 	for child in _preset_list.get_children():
 		child.queue_free()
 
+	var body_font: Font = ThemeManager.get_font("font_body")
 	var presets: Array = KeyBindingManager.get_combo_presets()
 	for i in presets.size():
 		var preset: Dictionary = presets[i]
@@ -544,7 +597,6 @@ func _rebuild_presets() -> void:
 		name_lbl.custom_minimum_size.x = 100
 		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
 		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-		var body_font: Font = ThemeManager.get_font("font_body")
 		if body_font:
 			name_lbl.add_theme_font_override("font", body_font)
 		row.add_child(name_lbl)
@@ -563,7 +615,7 @@ func _rebuild_presets() -> void:
 		dots_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(dots_lbl)
 
-		# Load button — clicking dots loads the pattern
+		# Load button
 		var load_btn := Button.new()
 		load_btn.text = "LOAD"
 		load_btn.custom_minimum_size = Vector2(50, 28)
@@ -657,9 +709,70 @@ func _rebuild_audio_content() -> void:
 		return
 	for child in _audio_content.get_children():
 		child.queue_free()
-	_audio_slot_rows.clear()
+	_audio_sliders.clear()
 
-	# Global controls
+	var body_font: Font = ThemeManager.get_font("font_body")
+
+	# Header
+	var sep_lbl := Label.new()
+	sep_lbl.text = "━━ LOOP VOLUMES ━━━━━━━━━━━━━━━━━━"
+	sep_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	sep_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if body_font:
+		sep_lbl.add_theme_font_override("font", body_font)
+	_audio_content.add_child(sep_lbl)
+
+	# Per-slot volume slider rows
+	var all_slots: Array = ["ext_0", "ext_1", "ext_2", "int_0", "int_1", "int_2", "dev_0", "dev_1"]
+	var slot_labels: Dictionary = {
+		"ext_0": "WEAPON 1", "ext_1": "WEAPON 2", "ext_2": "WEAPON 3",
+		"int_0": "CORE 1", "int_1": "CORE 2", "int_2": "CORE 3",
+		"dev_0": "DEVICE 1", "dev_1": "DEVICE 2",
+	}
+	for slot_key in all_slots:
+		var item_name: String = _get_slot_item_name(slot_key)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		var name_lbl := Label.new()
+		var type_text: String = str(slot_labels.get(slot_key, slot_key))
+		name_lbl.text = type_text + " — " + item_name
+		name_lbl.custom_minimum_size.x = 180
+		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
+		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		if body_font:
+			name_lbl.add_theme_font_override("font", body_font)
+		row.add_child(name_lbl)
+
+		if item_name != "empty":
+			var stored_vol: float = KeyBindingManager.get_slot_volume(slot_key)
+
+			var slider := HSlider.new()
+			slider.min_value = -40.0
+			slider.max_value = 6.0
+			slider.step = 0.5
+			slider.value = stored_vol
+			slider.custom_minimum_size = Vector2(160, 20)
+			slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var bound_key: String = slot_key
+			row.add_child(slider)
+
+			var val_lbl := Label.new()
+			val_lbl.text = _format_db(stored_vol)
+			val_lbl.custom_minimum_size.x = 55
+			val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			val_lbl.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+			val_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+			if body_font:
+				val_lbl.add_theme_font_override("font", body_font)
+			row.add_child(val_lbl)
+
+			slider.value_changed.connect(func(new_val: float) -> void: _on_volume_slider_changed(bound_key, new_val))
+			_audio_sliders[slot_key] = {"slider": slider, "label": val_lbl}
+
+		_audio_content.add_child(row)
+
+	# Global controls at bottom
 	var global_hbox := HBoxContainer.new()
 	global_hbox.add_theme_constant_override("separation", 10)
 
@@ -686,57 +799,28 @@ func _rebuild_audio_content() -> void:
 
 	_audio_content.add_child(global_hbox)
 
-	# Separator
-	var sep_lbl := Label.new()
-	sep_lbl.text = "━━ AUDIO PREVIEW ━━━━━━━━━━━━━━━━━"
-	sep_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	sep_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	var body_font: Font = ThemeManager.get_font("font_body")
-	if body_font:
-		sep_lbl.add_theme_font_override("font", body_font)
-	_audio_content.add_child(sep_lbl)
 
-	# Per-slot rows
-	var all_slots: Array = ["ext_0", "ext_1", "ext_2", "int_0", "int_1", "int_2", "dev_0", "dev_1"]
-	var slot_labels: Dictionary = {
-		"ext_0": "WEAPON 1", "ext_1": "WEAPON 2", "ext_2": "WEAPON 3",
-		"int_0": "CORE 1", "int_1": "CORE 2", "int_2": "CORE 3",
-		"dev_0": "DEVICE 1", "dev_1": "DEVICE 2",
-	}
-	for slot_key in all_slots:
-		var item_name: String = _get_slot_item_name(slot_key)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
+func _format_db(db: float) -> String:
+	if db <= -40.0:
+		return "-INF"
+	var prefix: String = "+" if db > 0.0 else ""
+	return prefix + "%.1f dB" % db
 
-		var name_lbl := Label.new()
-		var type_text: String = str(slot_labels.get(slot_key, slot_key))
-		name_lbl.text = type_text + " — " + item_name
-		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
-		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-		if body_font:
-			name_lbl.add_theme_font_override("font", body_font)
-		row.add_child(name_lbl)
 
-		if item_name != "empty":
-			var mute_btn := Button.new()
-			mute_btn.text = "MUTE"
-			mute_btn.custom_minimum_size = Vector2(60, 28)
-			ThemeManager.apply_button_style(mute_btn)
-			var bound_key: String = slot_key
-			mute_btn.pressed.connect(func() -> void: _on_audio_slot_mute(bound_key))
-			row.add_child(mute_btn)
+func _on_volume_slider_changed(slot_key: String, volume_db: float) -> void:
+	# Update label
+	if _audio_sliders.has(slot_key):
+		var entry: Dictionary = _audio_sliders[slot_key]
+		var lbl: Label = entry["label"]
+		lbl.text = _format_db(volume_db)
 
-			var solo_btn := Button.new()
-			solo_btn.text = "SOLO"
-			solo_btn.custom_minimum_size = Vector2(60, 28)
-			ThemeManager.apply_button_style(solo_btn)
-			solo_btn.pressed.connect(func() -> void: _on_audio_slot_solo(bound_key))
-			row.add_child(solo_btn)
+	# Apply to LoopMixer live
+	var loop_id: String = _get_loop_id_for_slot(slot_key)
+	if loop_id != "" and LoopMixer.has_loop(loop_id):
+		LoopMixer.set_volume(loop_id, volume_db)
 
-			_audio_slot_rows[slot_key] = {"mute_btn": mute_btn, "solo_btn": solo_btn}
-
-		_audio_content.add_child(row)
+	# Persist
+	KeyBindingManager.set_slot_volume(slot_key, volume_db)
 
 
 func _get_slot_item_name(slot_key: String) -> String:
@@ -773,148 +857,6 @@ func _get_loop_id_for_slot(slot_key: String) -> String:
 	return ""
 
 
-func _on_audio_slot_mute(slot_key: String) -> void:
-	var loop_id: String = _get_loop_id_for_slot(slot_key)
-	if loop_id == "" or not LoopMixer.has_loop(loop_id):
-		return
-	if LoopMixer.is_muted(loop_id):
-		LoopMixer.unmute(loop_id)
-	else:
-		LoopMixer.mute(loop_id)
-	_soloed_slot = ""  # Clear solo when manually muting
-
-
-func _on_audio_slot_solo(slot_key: String) -> void:
-	if _soloed_slot == slot_key:
-		# Un-solo: unmute all
-		_soloed_slot = ""
-		LoopMixer.unmute_all()
-		return
-	_soloed_slot = slot_key
-	# Mute everything, unmute just this one
-	LoopMixer.mute_all()
-	var loop_id: String = _get_loop_id_for_slot(slot_key)
-	if loop_id != "" and LoopMixer.has_loop(loop_id):
-		LoopMixer.unmute(loop_id)
-
-
-# ── Slot list / item picker ─────────────────────────────────────────────────
-
-func _toggle_slot_list(slot_key: String) -> void:
-	if _expanded_slot == slot_key:
-		_expanded_slot = ""
-		_clear_right_panel()
-	else:
-		_expanded_slot = slot_key
-		_populate_right_panel(slot_key)
-	# Highlight the active slot header across all sections
-	for key in _ext_headers:
-		var btn: Button = _ext_headers[key]
-		if key == _expanded_slot:
-			btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-		else:
-			btn.remove_theme_color_override("font_color")
-		ThemeManager.apply_button_style(btn)
-	for key in _int_headers:
-		var btn: Button = _int_headers[key]
-		if key == _expanded_slot:
-			btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-		else:
-			btn.remove_theme_color_override("font_color")
-		ThemeManager.apply_button_style(btn)
-	for key in _dev_headers:
-		var btn: Button = _dev_headers[key]
-		if key == _expanded_slot:
-			btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-		else:
-			btn.remove_theme_color_override("font_color")
-		ThemeManager.apply_button_style(btn)
-
-
-func _populate_right_panel(slot_key: String) -> void:
-	_clear_right_panel()
-	var is_int: bool = slot_key.begins_with("int_")
-	var is_dev: bool = slot_key.begins_with("dev_")
-	if is_dev:
-		_right_panel_header.text = "SELECT DEVICE"
-	elif is_int:
-		_right_panel_header.text = "SELECT POWER CORE"
-	else:
-		_right_panel_header.text = "SELECT WEAPON"
-	_right_panel_header.visible = true
-
-	# "(none)" option
-	var none_btn := Button.new()
-	none_btn.text = "(none)"
-	none_btn.custom_minimum_size.y = 38
-	none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	ThemeManager.apply_button_style(none_btn)
-	var bound_key: String = slot_key
-	none_btn.pressed.connect(func() -> void: _select_item(bound_key, ""))
-	_right_panel_list.add_child(none_btn)
-
-	if is_dev:
-		for did in _device_cache:
-			var d: DeviceData = _device_cache[did]
-			var label: String = d.display_name if d.display_name != "" else d.id
-			var effect_text: String = _format_bar_effects(d.bar_effects)
-			if effect_text != "":
-				label += "  " + effect_text
-			var btn := Button.new()
-			btn.text = label
-			btn.custom_minimum_size.y = 38
-			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			ThemeManager.apply_button_style(btn)
-			var bound_key2: String = slot_key
-			var bound_id: String = did
-			btn.pressed.connect(func() -> void: _select_item(bound_key2, bound_id))
-			_right_panel_list.add_child(btn)
-	elif is_int:
-		for pcid in _power_core_cache:
-			var pc: PowerCoreData = _power_core_cache[pcid]
-			var label: String = pc.display_name if pc.display_name != "" else pc.id
-			var effect_text: String = _format_bar_effects(pc.bar_effects)
-			if effect_text != "":
-				label += "  " + effect_text
-			var btn := Button.new()
-			btn.text = label
-			btn.custom_minimum_size.y = 38
-			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			ThemeManager.apply_button_style(btn)
-			var bound_key2: String = slot_key
-			var bound_id: String = pcid
-			btn.pressed.connect(func() -> void: _select_item(bound_key2, bound_id))
-			_right_panel_list.add_child(btn)
-	else:
-		for wid in _weapon_cache:
-			var w: WeaponData = _weapon_cache[wid]
-			var label: String = w.display_name if w.display_name != "" else w.id
-			var wbtn := Button.new()
-			wbtn.text = label
-			wbtn.custom_minimum_size.y = 38
-			wbtn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			ThemeManager.apply_button_style(wbtn)
-			var bound_key2: String = slot_key
-			var bound_wid: String = wid
-			wbtn.pressed.connect(func() -> void: _select_item(bound_key2, bound_wid))
-			_right_panel_list.add_child(wbtn)
-
-
-func _clear_right_panel() -> void:
-	for child in _right_panel_list.get_children():
-		child.queue_free()
-	_right_panel_header.visible = false
-
-
-func _select_item(slot_key: String, item_id: String) -> void:
-	if slot_key.begins_with("dev_") or slot_key.begins_with("int_"):
-		GameState.set_slot_device(slot_key, item_id)
-	else:
-		GameState.set_slot_weapon(slot_key, item_id)
-	_expanded_slot = ""
-	_clear_right_panel()
-	_rebuild_buttons()
-	_sync_preview()
 
 
 # ── Build UI ─────────────────────────────────────────────────────────────────
@@ -1034,15 +976,21 @@ func _build_ui() -> void:
 
 	_functional_btn = Button.new()
 	_functional_btn.text = "FUNCTIONAL"
-	_functional_btn.custom_minimum_size = Vector2(120, 36)
+	_functional_btn.custom_minimum_size = Vector2(110, 36)
 	_functional_btn.pressed.connect(func() -> void: _on_mode_toggle("functional"))
 	mode_hbox.add_child(_functional_btn)
 
 	_audio_btn = Button.new()
 	_audio_btn.text = "AUDIO"
-	_audio_btn.custom_minimum_size = Vector2(120, 36)
+	_audio_btn.custom_minimum_size = Vector2(80, 36)
 	_audio_btn.pressed.connect(func() -> void: _on_mode_toggle("audio"))
 	mode_hbox.add_child(_audio_btn)
+
+	_controls_btn = Button.new()
+	_controls_btn.text = "CONTROLS"
+	_controls_btn.custom_minimum_size = Vector2(100, 36)
+	_controls_btn.pressed.connect(func() -> void: _on_mode_toggle("controls"))
+	mode_hbox.add_child(_controls_btn)
 
 	# FUNCTIONAL content
 	_functional_content = VBoxContainer.new()
@@ -1071,25 +1019,6 @@ func _build_ui() -> void:
 	_dev_section = VBoxContainer.new()
 	_functional_content.add_child(_dev_section)
 
-	# Preset section
-	var preset_header := Label.new()
-	preset_header.text = "━━ PRESETS ━━━━━━━━━"
-	preset_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_functional_content.add_child(preset_header)
-
-	_preset_section = VBoxContainer.new()
-	_functional_content.add_child(_preset_section)
-
-	_preset_list = VBoxContainer.new()
-	_preset_section.add_child(_preset_list)
-
-	var save_combo_btn := Button.new()
-	save_combo_btn.text = "SAVE CURRENT COMBO"
-	save_combo_btn.custom_minimum_size.y = 34
-	save_combo_btn.pressed.connect(_on_save_combo)
-	ThemeManager.apply_button_style(save_combo_btn)
-	_preset_section.add_child(save_combo_btn)
-
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_functional_content.add_child(spacer)
@@ -1101,7 +1030,14 @@ func _build_ui() -> void:
 	_audio_content.visible = false
 	_center_vbox.add_child(_audio_content)
 
-	# Bottom buttons (always visible, below both content areas)
+	# CONTROLS content (hidden by default)
+	_controls_content = VBoxContainer.new()
+	_controls_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_controls_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_controls_content.visible = false
+	_center_vbox.add_child(_controls_content)
+
+	# Bottom buttons (always visible, below all content areas)
 	_change_ship_btn = Button.new()
 	_change_ship_btn.text = "CHANGE SHIP"
 	_change_ship_btn.custom_minimum_size.y = 40
@@ -1113,27 +1049,6 @@ func _build_ui() -> void:
 	_back_btn.custom_minimum_size.y = 40
 	_back_btn.pressed.connect(_on_back)
 	_center_vbox.add_child(_back_btn)
-
-	# RIGHT — selection panel
-	_right_panel = VBoxContainer.new()
-	_right_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_right_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_right_panel.size_flags_stretch_ratio = 1.0
-	root.add_child(_right_panel)
-
-	_right_panel_header = Label.new()
-	_right_panel_header.text = "SELECT WEAPON"
-	_right_panel_header.visible = false
-	_right_panel.add_child(_right_panel_header)
-
-	_right_panel_scroll = ScrollContainer.new()
-	_right_panel_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_right_panel_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_right_panel.add_child(_right_panel_scroll)
-
-	_right_panel_list = VBoxContainer.new()
-	_right_panel_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_right_panel_scroll.add_child(_right_panel_list)
 
 
 func _create_bar_cell(text: String, color: Color, seg_count: int = -1) -> Dictionary:
@@ -1262,7 +1177,25 @@ func _sync_preview() -> void:
 			continue
 		var loop_id: String = "core_" + str(i)
 		LoopMixer.add_loop(loop_id, pc.loop_file_path)
+		var core_vol: float = KeyBindingManager.get_slot_volume(slot_key)
+		if core_vol != 0.0:
+			LoopMixer.set_volume(loop_id, core_vol)
 		_core_previews.append({"pc": pc, "loop_id": loop_id, "prev_pos": -1.0, "triggers": merged})
+
+	# Apply stored volumes for weapon preview loops
+	var ext_ctrl_idx: int = 0
+	for i2 in 3:
+		var sk: String = "ext_" + str(i2)
+		var sd: Dictionary = GameState.slot_config.get(sk, {})
+		var wid: String = str(sd.get("weapon_id", ""))
+		if wid == "":
+			continue
+		if ext_ctrl_idx < _preview_controllers.size():
+			var ctrl_loop_id: String = _preview_controllers[ext_ctrl_idx]._loop_id
+			var ext_vol: float = KeyBindingManager.get_slot_volume(sk)
+			if ctrl_loop_id != "" and ext_vol != 0.0:
+				LoopMixer.set_volume(ctrl_loop_id, ext_vol)
+		ext_ctrl_idx += 1
 
 	# If already playing, sync active states
 	if _is_playing:
@@ -1404,10 +1337,10 @@ func _input(event: InputEvent) -> void:
 			# Rebinding a slot key
 			KeyBindingManager.set_slot_key(_capturing_for, pkc, label)
 			_end_key_capture()
-			# Update the key label button
-			if _slot_key_labels.has(_capturing_for):
-				var btn: Button = _slot_key_labels[_capturing_for]
-				btn.text = label
+			# Update the key label button in controls tab
+			if _controls_key_btns.has(_capturing_for):
+				var btn: Button = _controls_key_btns[_capturing_for]
+				btn.text = "[" + label + "]"
 		return
 
 	if event.is_action_pressed("ui_cancel") and not _is_capturing:
