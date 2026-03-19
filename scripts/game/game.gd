@@ -13,9 +13,24 @@ var _hud: CanvasLayer = null
 var _projectiles: Node2D = null
 var _enemies: Node2D = null
 var _parallax_bg: ParallaxBackground = null
+var _nebula_container: Node2D = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
 var _scroll_speed: float = 80.0
+
+const NEBULA_STYLES: Dictionary = {
+	"classic_fbm": {"shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "dual": false},
+	"wispy_filaments": {"shader": "res://assets/shaders/nebula_wispy_filaments.gdshader", "dual": false},
+	"dual_color": {"shader": "res://assets/shaders/nebula_dual_color.gdshader", "dual": true},
+	"voronoi": {"shader": "res://assets/shaders/nebula_voronoi.gdshader", "dual": false},
+	"turbulent_swirl": {"shader": "res://assets/shaders/nebula_turbulent_swirl.gdshader", "dual": false},
+	"electric_filaments": {"shader": "res://assets/shaders/nebula_electric_filaments.gdshader", "dual": false},
+	"lightning_strike": {"shader": "res://assets/shaders/nebula_lightning_strike.gdshader", "dual": false},
+	"arc_discharge": {"shader": "res://assets/shaders/nebula_arc_discharge.gdshader", "dual": false},
+	"energy_flare": {"shader": "res://assets/shaders/nebula_energy_flare.gdshader", "dual": false},
+	"dual_swirl": {"shader": "res://assets/shaders/nebula_dual_swirl.gdshader", "dual": true},
+	"dual_voronoi": {"shader": "res://assets/shaders/nebula_dual_voronoi.gdshader", "dual": true},
+}
 
 ## Set this before adding to the scene tree to use a specific level.
 var level_id: String = ""
@@ -47,6 +62,7 @@ func _ready() -> void:
 
 	# Build scene tree
 	_setup_parallax()
+	_setup_nebulas()
 
 	_projectiles = Node2D.new()
 	_projectiles.name = "Projectiles"
@@ -94,6 +110,8 @@ func _process(delta: float) -> void:
 	if _parallax_bg:
 		_parallax_bg.scroll_offset.y += _scroll_speed * delta
 	_scroll_distance += _scroll_speed * delta
+	if _nebula_container:
+		_nebula_container.position.y = _scroll_distance
 	if _wave_manager:
 		_wave_manager.advance_scroll(_scroll_distance)
 	if _hud and _player:
@@ -182,6 +200,71 @@ func _add_star_layer(motion_scale: float, star_count: int, color: Color, seed_va
 	stars.star_seed = seed_val
 	stars.size = Vector2(1920, 1200)
 	layer.add_child(stars)
+
+
+func _setup_nebulas() -> void:
+	if not _level_data:
+		return
+	if _level_data.nebula_placements.size() == 0:
+		return
+
+	_nebula_container = Node2D.new()
+	_nebula_container.name = "Nebulas"
+	_nebula_container.z_index = -5  # Behind gameplay, above stars
+	add_child(_nebula_container)
+
+	for placement in _level_data.nebula_placements:
+		var nebula_id: String = str(placement.get("nebula_id", ""))
+		var trigger_y: float = float(placement.get("trigger_y", 0.0))
+		var x_offset: float = float(placement.get("x_offset", 0.0))
+		var radius: float = float(placement.get("radius", 300.0))
+
+		var ndata: NebulaData = NebulaDataManager.load_by_id(nebula_id)
+		if not ndata:
+			continue
+
+		var style_info: Dictionary = NEBULA_STYLES.get(ndata.style_id, {})
+		var shader_path: String = style_info.get("shader", "") as String
+		if shader_path == "":
+			continue
+		var shader_res: Shader = load(shader_path) as Shader
+		if not shader_res:
+			continue
+
+		# Build shader material from nebula params
+		var mat := ShaderMaterial.new()
+		mat.shader = shader_res
+		var params: Dictionary = ndata.shader_params
+		var defaults: Dictionary = NebulaData.default_params()
+
+		var color_arr: Array = params.get("nebula_color", defaults["nebula_color"]) as Array
+		if color_arr.size() >= 4:
+			mat.set_shader_parameter("nebula_color", Color(float(color_arr[0]), float(color_arr[1]), float(color_arr[2]), float(color_arr[3])))
+
+		if style_info.get("dual", false):
+			var color2_arr: Array = params.get("secondary_color", defaults["secondary_color"]) as Array
+			if color2_arr.size() >= 4:
+				mat.set_shader_parameter("secondary_color", Color(float(color2_arr[0]), float(color2_arr[1]), float(color2_arr[2]), float(color2_arr[3])))
+
+		mat.set_shader_parameter("brightness", float(params.get("brightness", defaults["brightness"])))
+		mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
+		mat.set_shader_parameter("density", float(params.get("density", defaults["density"])))
+		mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+
+		# Create sprite with white texture for shader to render on
+		var sprite := Sprite2D.new()
+		var img := Image.create(2, 2, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		sprite.texture = ImageTexture.create_from_image(img)
+		sprite.material = mat
+
+		# Scale sprite to desired radius (texture is 2x2, scale = radius to get diameter)
+		sprite.scale = Vector2(radius, radius)
+
+		# Position: x from screen center, y negative (scrolls into view)
+		sprite.position = Vector2(960.0 + x_offset, -trigger_y + 540.0)
+
+		_nebula_container.add_child(sprite)
 
 
 class _StarField extends Control:

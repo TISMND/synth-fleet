@@ -8,6 +8,7 @@ extends Resource
 @export var scroll_speed: float = 80.0
 @export var level_length: float = 10000.0
 @export var encounters: Array = []  # Array of encounter dicts
+@export var nebula_placements: Array = []  # Array of placement dicts
 
 
 static func from_dict(data: Dictionary) -> LevelData:
@@ -33,6 +34,15 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"is_melee": bool(enc.get("is_melee", false)),
 			"turn_speed": float(enc.get("turn_speed", 90.0)),
 		})
+	var raw_neb: Array = data.get("nebula_placements", [])
+	l.nebula_placements = []
+	for neb in raw_neb:
+		l.nebula_placements.append({
+			"nebula_id": str(neb.get("nebula_id", "")),
+			"trigger_y": float(neb.get("trigger_y", 0.0)),
+			"x_offset": float(neb.get("x_offset", 0.0)),
+			"radius": float(neb.get("radius", 300.0)),
+		})
 	return l
 
 
@@ -44,6 +54,7 @@ func to_dict() -> Dictionary:
 		"scroll_speed": scroll_speed,
 		"level_length": level_length,
 		"encounters": encounters,
+		"nebula_placements": nebula_placements,
 	}
 
 

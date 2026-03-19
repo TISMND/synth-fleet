@@ -7,10 +7,14 @@ const RIGHT_PANEL_W := 220.0
 const SCREEN_W := 1920.0
 const MAP_MARGIN := 60.0  # Margin on each side of the map strip within the canvas
 const ENCOUNTER_HIT_RADIUS := 40.0
+const NEBULA_HIT_RADIUS := 50.0
 const GRID_SPACING := 500.0  # Horizontal grid lines every N pixels of level space
 
 var _vhs_overlay: ColorRect
 var _bg: ColorRect
+
+# Edit mode: "encounters" or "nebulas"
+var _edit_mode: String = "encounters"
 
 # Level list
 var _all_levels: Array[LevelData] = []
@@ -38,6 +42,13 @@ var _encounter_drag_start: Vector2 = Vector2.ZERO
 var _encounter_drag_origin_y: float = 0.0
 var _encounter_drag_origin_x: float = 0.0
 
+# Nebula placement state
+var _nebula_selected_idx: int = -1
+var _nebula_dragging: bool = false
+var _nebula_drag_start: Vector2 = Vector2.ZERO
+var _nebula_drag_origin_y: float = 0.0
+var _nebula_drag_origin_x: float = 0.0
+
 # Right panel
 var _right_panel: PanelContainer
 var _right_panel_vbox: VBoxContainer  # Persistent outer container
@@ -56,6 +67,18 @@ var _enc_turn_speed_spin: SpinBox
 var _enc_center_btn: Button
 var _enc_delete_btn: Button
 
+# Right panel — mode toggle + nebula controls
+var _mode_toggle_box: HBoxContainer
+var _mode_enc_btn: Button
+var _mode_neb_btn: Button
+var _right_header: Label
+var _neb_content: VBoxContainer
+var _neb_hint: Label
+var _neb_dropdown: OptionButton
+var _neb_radius_spin: SpinBox
+var _neb_center_btn: Button
+var _neb_delete_btn: Button
+
 # Cached data for dropdowns
 var _cached_path_ids: Array[String] = []
 var _cached_path_names: Array[String] = []
@@ -67,6 +90,11 @@ var _ship_id_to_name: Dictionary = {}
 var _formation_id_to_name: Dictionary = {}
 var _path_id_to_name: Dictionary = {}
 var _path_id_to_curve: Dictionary = {}  # path_id -> Curve2D
+
+# Cached nebula data
+var _cached_nebula_ids: Array[String] = []
+var _cached_nebula_names: Array[String] = []
+var _cached_nebula_colors: Dictionary = {}  # id -> Color
 
 
 func _ready() -> void:
@@ -133,6 +161,20 @@ func _cache_dropdown_data() -> void:
 		var sname: String = s.display_name if s.display_name != "" else s.id
 		_cached_ship_names.append(sname)
 		_ship_id_to_name[s.id] = sname
+
+	_cached_nebula_ids.clear()
+	_cached_nebula_names.clear()
+	_cached_nebula_colors.clear()
+	var nebulas: Array[NebulaData] = NebulaDataManager.load_all()
+	for n in nebulas:
+		_cached_nebula_ids.append(n.id)
+		var nname: String = n.display_name if n.display_name != "" else n.id
+		_cached_nebula_names.append(nname)
+		var col_arr: Array = n.shader_params.get("nebula_color", [0.5, 0.5, 1.0, 1.0]) as Array
+		if col_arr.size() >= 3:
+			_cached_nebula_colors[n.id] = Color(float(col_arr[0]), float(col_arr[1]), float(col_arr[2]), 1.0)
+		else:
+			_cached_nebula_colors[n.id] = Color(0.5, 0.5, 1.0)
 
 
 func _input(event: InputEvent) -> void:
@@ -438,9 +480,15 @@ func _handle_map_input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		if mb.pressed:
 			if mb.button_index == MOUSE_BUTTON_LEFT:
-				_map_left_click(mb.position)
+				if _edit_mode == "nebulas":
+					_map_left_click_nebula(mb.position)
+				else:
+					_map_left_click(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_RIGHT:
-				_map_right_click(mb.position)
+				if _edit_mode == "nebulas":
+					_map_right_click_nebula(mb.position)
+				else:
+					_map_right_click(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
 				var step: float = 2500.0 if mb.shift_pressed else 500.0
 				_scroll_offset = minf(_scroll_offset + step, maxf(_selected_level.level_length - 500.0, 0.0))
@@ -455,6 +503,10 @@ func _handle_map_input(event: InputEvent) -> void:
 					_encounter_dragging = false
 					_save_current_level()
 					_update_right_panel()
+				elif _nebula_dragging:
+					_nebula_dragging = false
+					_save_current_level()
+					_update_nebula_right_panel()
 				elif _map_dragging:
 					_map_dragging = false
 
@@ -466,6 +518,13 @@ func _handle_map_input(event: InputEvent) -> void:
 			enc["trigger_y"] = maxf(_encounter_drag_origin_y + delta_y, 0.0)
 			var delta_x: float = _canvas_x_to_level_x(mm.position.x) - _canvas_x_to_level_x(_encounter_drag_start.x)
 			enc["x_offset"] = _encounter_drag_origin_x + delta_x
+			_map_canvas.queue_redraw()
+		elif _nebula_dragging and _nebula_selected_idx >= 0:
+			var neb: Dictionary = _selected_level.nebula_placements[_nebula_selected_idx]
+			var delta_y: float = _canvas_y_to_level_y(mm.position.y) - _canvas_y_to_level_y(_nebula_drag_start.y)
+			neb["trigger_y"] = maxf(_nebula_drag_origin_y + delta_y, 0.0)
+			var delta_x: float = _canvas_x_to_level_x(mm.position.x) - _canvas_x_to_level_x(_nebula_drag_start.x)
+			neb["x_offset"] = _nebula_drag_origin_x + delta_x
 			_map_canvas.queue_redraw()
 		elif _map_dragging:
 			var delta: float = mm.position.y - _map_drag_start_y
@@ -545,6 +604,75 @@ func _map_right_click(pos: Vector2) -> void:
 			return
 
 
+func _get_nebula_canvas_radius(neb: Dictionary) -> float:
+	var map_rect: Rect2 = _get_map_rect()
+	var radius: float = float(neb.get("radius", 300.0))
+	return maxf(radius * (map_rect.size.x / SCREEN_W), NEBULA_HIT_RADIUS)
+
+
+func _map_left_click_nebula(pos: Vector2) -> void:
+	# Hit test existing nebula placements — use actual drawn radius
+	for i in range(_selected_level.nebula_placements.size()):
+		var neb: Dictionary = _selected_level.nebula_placements[i]
+		var neb_cy: float = _level_y_to_canvas_y(float(neb["trigger_y"]))
+		var neb_cx: float = _level_x_to_canvas_x(float(neb["x_offset"]))
+		var hit_radius: float = _get_nebula_canvas_radius(neb)
+		if Vector2(neb_cx, neb_cy).distance_to(pos) < hit_radius:
+			_nebula_selected_idx = i
+			_nebula_dragging = true
+			_nebula_drag_start = pos
+			_nebula_drag_origin_y = float(neb["trigger_y"])
+			_nebula_drag_origin_x = float(neb["x_offset"])
+			_update_nebula_right_panel()
+			_map_canvas.queue_redraw()
+			return
+
+	# Click empty map — place new nebula
+	var map_rect: Rect2 = _get_map_rect()
+	if map_rect.has_point(pos):
+		var trigger_y: float = _canvas_y_to_level_y(pos.y)
+		var x_offset: float = _canvas_x_to_level_x(pos.x)
+		if trigger_y >= 0.0 and trigger_y <= _selected_level.level_length:
+			var neb: Dictionary = {
+				"nebula_id": _cached_nebula_ids[0] if _cached_nebula_ids.size() > 0 else "",
+				"trigger_y": trigger_y,
+				"x_offset": x_offset,
+				"radius": 300.0,
+			}
+			_selected_level.nebula_placements.append(neb)
+			_nebula_selected_idx = _selected_level.nebula_placements.size() - 1
+			_save_current_level()
+			_update_nebula_right_panel()
+			_map_canvas.queue_redraw()
+			return
+
+	# Click outside map — deselect + scroll drag
+	_nebula_selected_idx = -1
+	_map_dragging = true
+	_map_drag_start_y = pos.y
+	_map_drag_scroll_start = _scroll_offset
+	_update_nebula_right_panel()
+	_map_canvas.queue_redraw()
+
+
+func _map_right_click_nebula(pos: Vector2) -> void:
+	for i in range(_selected_level.nebula_placements.size()):
+		var neb: Dictionary = _selected_level.nebula_placements[i]
+		var neb_cy: float = _level_y_to_canvas_y(float(neb["trigger_y"]))
+		var neb_cx: float = _level_x_to_canvas_x(float(neb["x_offset"]))
+		var hit_radius: float = _get_nebula_canvas_radius(neb)
+		if Vector2(neb_cx, neb_cy).distance_to(pos) < hit_radius:
+			_selected_level.nebula_placements.remove_at(i)
+			if _nebula_selected_idx == i:
+				_nebula_selected_idx = -1
+			elif _nebula_selected_idx > i:
+				_nebula_selected_idx -= 1
+			_save_current_level()
+			_update_nebula_right_panel()
+			_map_canvas.queue_redraw()
+			return
+
+
 # ── Right panel: encounter properties ─────────────────────────
 
 func _build_right_panel(parent: HSplitContainer) -> void:
@@ -567,21 +695,43 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_right_panel_vbox.add_theme_constant_override("separation", 6)
 	_right_panel.add_child(_right_panel_vbox)
 
-	var header := Label.new()
-	header.text = "ENCOUNTER"
-	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header.custom_minimum_size.x = RIGHT_PANEL_W - 16
-	ThemeManager.apply_text_glow(header, "header")
-	_right_panel_vbox.add_child(header)
+	# Mode toggle buttons
+	_mode_toggle_box = HBoxContainer.new()
+	_mode_toggle_box.add_theme_constant_override("separation", 4)
+	_right_panel_vbox.add_child(_mode_toggle_box)
 
-	# Hint label (shown when no encounter selected)
+	_mode_enc_btn = Button.new()
+	_mode_enc_btn.text = "ENCOUNTERS"
+	_mode_enc_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mode_enc_btn.pressed.connect(func() -> void: _set_edit_mode("encounters"))
+	ThemeManager.apply_button_style(_mode_enc_btn)
+	_mode_toggle_box.add_child(_mode_enc_btn)
+
+	_mode_neb_btn = Button.new()
+	_mode_neb_btn.text = "NEBULAS"
+	_mode_neb_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mode_neb_btn.pressed.connect(func() -> void: _set_edit_mode("nebulas"))
+	ThemeManager.apply_button_style(_mode_neb_btn)
+	_mode_toggle_box.add_child(_mode_neb_btn)
+
+	var mode_sep := HSeparator.new()
+	_right_panel_vbox.add_child(mode_sep)
+
+	_right_header = Label.new()
+	_right_header.text = "ENCOUNTER"
+	_right_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_right_header.custom_minimum_size.x = RIGHT_PANEL_W - 16
+	ThemeManager.apply_text_glow(_right_header, "header")
+	_right_panel_vbox.add_child(_right_header)
+
+	# Encounter hint label
 	_enc_hint = Label.new()
 	_enc_hint.text = "Click map to place"
 	_enc_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_enc_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 	_right_panel_vbox.add_child(_enc_hint)
 
-	# Content container — built once, never destroyed
+	# Encounter content container — built once, never destroyed
 	_enc_content = VBoxContainer.new()
 	_enc_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_enc_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -793,6 +943,93 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	ThemeManager.apply_button_style(_enc_delete_btn)
 	_enc_content.add_child(_enc_delete_btn)
 
+	# ── Nebula content (same level in _right_panel_vbox) ──
+	_neb_hint = Label.new()
+	_neb_hint.text = "Click map to place"
+	_neb_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_neb_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	_right_panel_vbox.add_child(_neb_hint)
+
+	_neb_content = VBoxContainer.new()
+	_neb_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_neb_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_neb_content.add_theme_constant_override("separation", 6)
+	_right_panel_vbox.add_child(_neb_content)
+
+	var neb_label := Label.new()
+	neb_label.text = "NEBULA"
+	ThemeManager.apply_text_glow(neb_label, "body")
+	_neb_content.add_child(neb_label)
+
+	_neb_dropdown = OptionButton.new()
+	for i in range(_cached_nebula_ids.size()):
+		_neb_dropdown.add_item(_cached_nebula_names[i], i)
+		_neb_dropdown.set_item_metadata(i, _cached_nebula_ids[i])
+	_neb_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _nebula_selected_idx < 0 or not _selected_level:
+			return
+		if _nebula_selected_idx < _selected_level.nebula_placements.size():
+			_selected_level.nebula_placements[_nebula_selected_idx]["nebula_id"] = str(_neb_dropdown.get_item_metadata(idx))
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	_neb_content.add_child(_neb_dropdown)
+
+	var neb_sep := HSeparator.new()
+	_neb_content.add_child(neb_sep)
+
+	var radius_label := Label.new()
+	radius_label.text = "RADIUS"
+	ThemeManager.apply_text_glow(radius_label, "body")
+	_neb_content.add_child(radius_label)
+
+	_neb_radius_spin = SpinBox.new()
+	_neb_radius_spin.min_value = 50
+	_neb_radius_spin.max_value = 1000
+	_neb_radius_spin.step = 25
+	_neb_radius_spin.value = 300
+	_neb_radius_spin.value_changed.connect(func(v: float) -> void:
+		if _nebula_selected_idx < 0 or not _selected_level:
+			return
+		if _nebula_selected_idx < _selected_level.nebula_placements.size():
+			_selected_level.nebula_placements[_nebula_selected_idx]["radius"] = v
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	_neb_content.add_child(_neb_radius_spin)
+
+	var neb_sep2 := HSeparator.new()
+	_neb_content.add_child(neb_sep2)
+
+	_neb_center_btn = Button.new()
+	_neb_center_btn.text = "CENTER"
+	_neb_center_btn.pressed.connect(func() -> void:
+		if _nebula_selected_idx < 0 or not _selected_level:
+			return
+		if _nebula_selected_idx < _selected_level.nebula_placements.size():
+			_selected_level.nebula_placements[_nebula_selected_idx]["x_offset"] = 0.0
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	ThemeManager.apply_button_style(_neb_center_btn)
+	_neb_content.add_child(_neb_center_btn)
+
+	_neb_delete_btn = Button.new()
+	_neb_delete_btn.text = "DELETE NEBULA"
+	_neb_delete_btn.pressed.connect(func() -> void:
+		if _nebula_selected_idx < 0 or not _selected_level:
+			return
+		if _nebula_selected_idx < _selected_level.nebula_placements.size():
+			_selected_level.nebula_placements.remove_at(_nebula_selected_idx)
+			_nebula_selected_idx = -1
+			_save_current_level()
+			_update_nebula_right_panel()
+			_map_canvas.queue_redraw()
+	)
+	ThemeManager.apply_button_style(_neb_delete_btn)
+	_neb_content.add_child(_neb_delete_btn)
+
+	_set_edit_mode("encounters")
 	_update_right_panel()
 
 
@@ -873,6 +1110,59 @@ func _update_melee_ui_state() -> void:
 	_enc_turn_speed_spin.modulate = Color.WHITE if melee_on else Color(1, 1, 1, 0.3)
 
 
+func _set_edit_mode(mode: String) -> void:
+	_edit_mode = mode
+	var is_enc: bool = mode == "encounters"
+	_mode_enc_btn.modulate = Color(1.2, 1.2, 1.5) if is_enc else Color(0.6, 0.6, 0.7)
+	_mode_neb_btn.modulate = Color(1.2, 1.2, 1.5) if not is_enc else Color(0.6, 0.6, 0.7)
+	_right_header.text = "ENCOUNTER" if is_enc else "NEBULA"
+
+	# Show/hide via visibility — per gotcha, keep containers that anchor width visible.
+	# Encounter and nebula panels don't share width, so toggling visibility is safe here
+	# since the mode toggle buttons hold the panel width stable.
+	_enc_hint.visible = is_enc and (_selected_level == null or _selected_encounter_idx < 0 or _selected_encounter_idx >= _selected_level.encounters.size())
+	_enc_content.visible = is_enc
+	_neb_hint.visible = not is_enc and (_selected_level == null or _nebula_selected_idx < 0 or _nebula_selected_idx >= _selected_level.nebula_placements.size())
+	_neb_content.visible = not is_enc
+
+	if is_enc:
+		_update_right_panel()
+	else:
+		_update_nebula_right_panel()
+	_map_canvas.queue_redraw()
+
+
+func _update_nebula_right_panel() -> void:
+	if _edit_mode != "nebulas":
+		return
+	var has_neb: bool = _selected_level != null and _nebula_selected_idx >= 0 and _nebula_selected_idx < _selected_level.nebula_placements.size()
+
+	_neb_hint.visible = not has_neb
+	var disabled: bool = not has_neb
+	_neb_content.modulate = Color(1, 1, 1, 0.3) if disabled else Color.WHITE
+	_neb_dropdown.disabled = disabled
+	_neb_radius_spin.editable = not disabled
+	_neb_center_btn.disabled = disabled
+	_neb_delete_btn.disabled = disabled
+
+	if not has_neb:
+		return
+
+	var neb: Dictionary = _selected_level.nebula_placements[_nebula_selected_idx]
+
+	# Update nebula dropdown selection
+	var current_neb_id: String = str(neb.get("nebula_id", ""))
+	var neb_select: int = 0
+	for i in range(_cached_nebula_ids.size()):
+		if _cached_nebula_ids[i] == current_neb_id:
+			neb_select = i
+			break
+	if _cached_nebula_ids.size() > 0:
+		_neb_dropdown.select(neb_select)
+
+	_neb_radius_spin.value = float(neb.get("radius", 300.0))
+
+
 # ── Data operations ────────────────────────────────────────────
 
 func _load_all_levels() -> void:
@@ -883,10 +1173,12 @@ func _load_all_levels() -> void:
 func _select_level(lv: LevelData) -> void:
 	_selected_level = lv
 	_selected_encounter_idx = -1
+	_nebula_selected_idx = -1
 	_scroll_offset = 0.0
 	_update_level_props_ui()
 	_rebuild_level_list()
 	_update_right_panel()
+	_update_nebula_right_panel()
 	_map_canvas.queue_redraw()
 
 
@@ -939,6 +1231,7 @@ func _on_delete_level() -> void:
 	else:
 		_update_level_props_ui()
 		_update_right_panel()
+		_update_nebula_right_panel()
 		_map_canvas.queue_redraw()
 
 
@@ -991,6 +1284,49 @@ class _MapCanvasDraw extends Control:
 		# Y position readout
 		var font2: Font = ThemeDB.fallback_font
 		draw_string(font2, Vector2(bar_x - 40, bar_y + bar_h * 0.5 + 4), str(int(s._scroll_offset)), HORIZONTAL_ALIGNMENT_RIGHT, 44, 10, Color(0.5, 0.7, 1.0, 0.7))
+
+		# Draw nebula placement circles (background layer, always visible)
+		for i in range(level.nebula_placements.size()):
+			var neb: Dictionary = level.nebula_placements[i]
+			var ncy: float = s._level_y_to_canvas_y(float(neb["trigger_y"]))
+			var ncx: float = s._level_x_to_canvas_x(float(neb["x_offset"]))
+			var neb_radius: float = float(neb.get("radius", 300.0))
+			var canvas_radius: float = neb_radius * (map_rect.size.x / 1920.0)
+
+			if ncy < -canvas_radius - 20 or ncy > canvas_h + canvas_radius + 20:
+				continue
+
+			var neb_id: String = str(neb.get("nebula_id", ""))
+			var neb_color: Color = s._cached_nebula_colors.get(neb_id, Color(0.5, 0.5, 1.0)) as Color
+			var is_neb_selected: bool = (s._edit_mode == "nebulas" and i == s._nebula_selected_idx)
+
+			var center := Vector2(ncx, ncy)
+
+			if is_neb_selected:
+				# Selected: bright fill + thick outline + outer glow rings
+				draw_circle(center, canvas_radius, Color(neb_color, 0.3))
+				_draw_circle_outline(center, canvas_radius, Color(neb_color, 0.9), 3.0)
+				_draw_circle_outline(center, canvas_radius + 4, Color(neb_color, 0.4), 2.0)
+				_draw_circle_outline(center, canvas_radius + 8, Color(neb_color, 0.2), 1.0)
+				# Center crosshair
+				var ch: float = minf(canvas_radius * 0.3, 12.0)
+				draw_line(Vector2(ncx - ch, ncy), Vector2(ncx + ch, ncy), Color(neb_color, 0.6), 1.0)
+				draw_line(Vector2(ncx, ncy - ch), Vector2(ncx, ncy + ch), Color(neb_color, 0.6), 1.0)
+			else:
+				# Unselected: subtle fill + thin outline
+				draw_circle(center, canvas_radius, Color(neb_color, 0.15))
+				_draw_circle_outline(center, canvas_radius, Color(neb_color, 0.4), 2.0)
+
+			# Name label below circle
+			var neb_name: String = ""
+			for ni in range(s._cached_nebula_ids.size()):
+				if s._cached_nebula_ids[ni] == neb_id:
+					neb_name = s._cached_nebula_names[ni]
+					break
+			if neb_name == "":
+				neb_name = neb_id
+			var nfont: Font = ThemeDB.fallback_font
+			draw_string(nfont, Vector2(ncx - 40, ncy + canvas_radius + 14), neb_name, HORIZONTAL_ALIGNMENT_CENTER, 80, 10, Color(neb_color, 0.7))
 
 		# Draw encounter markers
 		for i in range(level.encounters.size()):
@@ -1110,10 +1446,19 @@ class _MapCanvasDraw extends Control:
 			draw_circle(preview_pts[0], 3.0, Color(color, 0.6))
 
 
+	func _draw_circle_outline(center: Vector2, radius: float, color: Color, width: float) -> void:
+		var segments: int = maxi(int(radius * 0.5), 24)
+		var pts := PackedVector2Array()
+		for i in range(segments + 1):
+			var angle: float = TAU * float(i) / float(segments)
+			pts.append(center + Vector2(cos(angle), sin(angle)) * radius)
+		draw_polyline(pts, color, width, true)
+
+
 	func _gui_input(event: InputEvent) -> void:
 		if screen:
 			screen._handle_map_input(event)
 			if event is InputEventMouseButton:
 				accept_event()
-			elif event is InputEventMouseMotion and (screen._encounter_dragging or screen._map_dragging):
+			elif event is InputEventMouseMotion and (screen._encounter_dragging or screen._nebula_dragging or screen._map_dragging):
 				accept_event()

@@ -213,5 +213,31 @@
 	],
 	"id": "level_1",
 	"level_length": 10000.0,
+	"nebula_placements": [
+		{
+			"nebula_id": "nebula_1",
+			"radius": 650.0,
+			"trigger_y": 2046.2962962963,
+			"x_offset": 382.633451957295
+		},
+		{
+			"nebula_id": "nebula_1",
+			"radius": 300.0,
+			"trigger_y": 1345.67901234568,
+			"x_offset": -633.73665480427
+		},
+		{
+			"nebula_id": "nebula_1",
+			"radius": 300.0,
+			"trigger_y": 1987.65432098765,
+			"x_offset": -625.195729537367
+		},
+		{
+			"nebula_id": "nebula_1",
+			"radius": 300.0,
+			"trigger_y": 1552.46913580247,
+			"x_offset": -304.056939501779
+		}
+	],
 	"scroll_speed": 140.0
 }
