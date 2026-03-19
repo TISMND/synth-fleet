@@ -29,6 +29,7 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"spacing": float(enc.get("spacing", 200.0)),
 			"trigger_y": float(enc.get("trigger_y", 0.0)),
 			"x_offset": float(enc.get("x_offset", 0.0)),
+			"rotate_with_path": bool(enc.get("rotate_with_path", false)),
 		})
 	return l
 

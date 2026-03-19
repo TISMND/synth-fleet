@@ -18,7 +18,6 @@ var path_offset: Vector2 = Vector2.ZERO  # formation slot offset
 var path_origin: Vector2 = Vector2.ZERO  # x_offset from level encounter
 var rotate_with_path: bool = false
 
-
 var _renderer: ShipRenderer = null
 var _shield_bubble: ShieldBubbleEffect = null
 
@@ -66,11 +65,11 @@ func _process(delta: float) -> void:
 		var curve_pos: Vector2 = path_curve.sample_baked(path_progress)
 		position = curve_pos + path_offset + path_origin
 		if rotate_with_path:
-			var look_ahead: float = minf(path_progress + 2.0, total_len)
-			var ahead_pos: Vector2 = path_curve.sample_baked(look_ahead)
-			var direction: Vector2 = (ahead_pos - curve_pos).normalized()
-			if direction.length_squared() > 0.001:
-				rotation = direction.angle() - PI / 2.0
+			var behind: float = maxf(path_progress - 10.0, 0.0)
+			var ahead: float = minf(path_progress + 10.0, total_len)
+			var dir: Vector2 = path_curve.sample_baked(ahead) - path_curve.sample_baked(behind)
+			if dir.length_squared() > 0.01:
+				rotation = dir.angle() - PI / 2.0
 		# Despawn if off screen
 		if position.y > 1200 or position.y < -200 or position.x < -200 or position.x > 2120:
 			queue_free()

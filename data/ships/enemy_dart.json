@@ -1,4 +1,5 @@
 {
+	"burst_directions": 4,
 	"display_name": "Dart",
 	"enemy_damage": 8,
 	"fire_pattern": "straight",
@@ -11,7 +12,7 @@
 	"id": "enemy_dart",
 	"lines": [],
 	"projectile_speed": 350.0,
-	"render_mode": "neon",
+	"render_mode": "spore",
 	"stats": {
 		"acceleration": 800.0,
 		"device_slots": 1.0,

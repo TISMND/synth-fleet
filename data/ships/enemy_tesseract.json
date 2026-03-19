@@ -1,8 +1,8 @@
 {
+	"burst_directions": 8,
 	"display_name": "Tesseract",
 	"enemy_damage": 18,
 	"fire_pattern": "burst",
-	"burst_directions": 8,
 	"fire_rate": 0.6,
 	"grid_size": [
 		40,
@@ -12,7 +12,7 @@
 	"id": "enemy_tesseract",
 	"lines": [],
 	"projectile_speed": 200.0,
-	"render_mode": "neon",
+	"render_mode": "void",
 	"stats": {
 		"acceleration": 200.0,
 		"device_slots": 4.0,

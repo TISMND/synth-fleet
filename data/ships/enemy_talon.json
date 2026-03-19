@@ -1,4 +1,5 @@
 {
+	"burst_directions": 4,
 	"display_name": "Talon",
 	"enemy_damage": 10,
 	"fire_pattern": "straight",
@@ -11,7 +12,7 @@
 	"id": "enemy_talon",
 	"lines": [],
 	"projectile_speed": 300.0,
-	"render_mode": "chrome",
+	"render_mode": "neon",
 	"stats": {
 		"acceleration": 600.0,
 		"device_slots": 2.0,

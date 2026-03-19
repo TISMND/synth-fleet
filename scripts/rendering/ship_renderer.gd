@@ -3,13 +3,36 @@ extends Node2D
 ## Full-size ship renderer with banking, chrome+neon modes, all ships.
 ## Extracted from ships_screen.gd _ShipDraw for reuse across the codebase.
 
-enum RenderMode { NEON, CHROME }
+enum RenderMode { NEON, CHROME, VOID, HIVEMIND, PHASE, RIFT, SPORE }
 
 const CHROME_DARK := Color(0.12, 0.13, 0.18)
 const CHROME_MID := Color(0.35, 0.38, 0.45)
 const CHROME_LIGHT := Color(0.65, 0.70, 0.80)
 const CHROME_BRIGHT := Color(0.85, 0.88, 0.95)
 const CHROME_SPEC := Color(1.0, 1.0, 1.0, 0.9)
+
+# Void palette
+const VOID_FILL := Color(0.02, 0.01, 0.05, 0.95)
+const VOID_EDGE := Color(0.6, 0.0, 1.0)
+const VOID_EDGE_DIM := Color(0.2, 0.0, 0.5, 0.3)
+
+# Hivemind palette
+const HIVE_FILL := Color(0.12, 0.06, 0.0)
+const HIVE_VEIN := Color(0.1, 1.0, 0.3)
+const HIVE_VEIN_DIM := Color(0.05, 0.4, 0.15, 0.4)
+
+# Phase constant
+const PHASE_OFFSET := 2.5
+
+# Rift palette
+const RIFT_DARK := Color(0.08, 0.04, 0.02)
+const RIFT_GLOW := Color(1.0, 0.3, 0.05)
+const RIFT_FLASH := Color(1.0, 0.9, 0.5)
+
+# Spore palette
+const SPORE_CORE := Color(0.0, 0.8, 0.5, 0.12)
+const SPORE_DOT := Color(0.2, 1.0, 0.7)
+const SPORE_DOT_ALT := Color(0.8, 0.3, 1.0)
 
 var hull_color := Color(0.0, 0.9, 1.0)
 var accent_color := Color(1.0, 0.2, 0.6)
@@ -88,32 +111,87 @@ static func get_engine_offsets(id: int) -> Array[Vector2]:
 # ── Dispatch helpers ──
 
 func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
-	if render_mode == RenderMode.CHROME:
-		_draw_chrome_polygon(points, color, bank)
-	else:
-		_draw_neon_polygon(points, color, width)
+	match render_mode:
+		RenderMode.CHROME: _draw_chrome_polygon(points, color, bank)
+		RenderMode.VOID: _draw_void_polygon(points, width)
+		RenderMode.HIVEMIND: _draw_hivemind_polygon(points, width)
+		RenderMode.PHASE: _draw_phase_polygon(points, color, width)
+		RenderMode.RIFT: _draw_rift_polygon(points, width)
+		RenderMode.SPORE: _draw_spore_polygon(points, width)
+		_: _draw_neon_polygon(points, color, width)
 
 func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
-	if render_mode == RenderMode.CHROME:
-		_draw_chrome_line(a, b, color, width)
-	else:
-		_draw_neon_line(a, b, color, width)
+	match render_mode:
+		RenderMode.CHROME: _draw_chrome_line(a, b, color, width)
+		RenderMode.VOID: _draw_void_line(a, b, width)
+		RenderMode.HIVEMIND: _draw_hivemind_line(a, b, width)
+		RenderMode.PHASE: _draw_phase_line(a, b, color, width)
+		RenderMode.RIFT: _draw_rift_line(a, b, width)
+		RenderMode.SPORE: _draw_spore_line(a, b, width)
+		_: _draw_neon_line(a, b, color, width)
 
 func _canopy(points: PackedVector2Array) -> void:
-	if render_mode == RenderMode.CHROME:
-		_draw_chrome_canopy(points, bank)
-	else:
-		var cf := canopy_color
-		cf.a = 0.3
-		draw_colored_polygon(points, cf)
-		_draw_neon_lines(points, canopy_color, 1.2 * 1.4)
+	match render_mode:
+		RenderMode.CHROME:
+			_draw_chrome_canopy(points, bank)
+		RenderMode.VOID:
+			draw_colored_polygon(points, Color(0.0, 0.0, 0.0, 0.95))
+			var pulse: float = 0.7 + sin(time * 2.0) * 0.3
+			_draw_neon_lines(points, Color(VOID_EDGE.r, VOID_EDGE.g, VOID_EDGE.b, pulse), 1.4)
+		RenderMode.HIVEMIND:
+			var membrane := Color(0.15, 0.08, 0.0, 0.5)
+			draw_colored_polygon(points, membrane)
+			var pulse: float = 0.6 + sin(time * 1.5) * 0.4
+			_draw_neon_lines(points, Color(HIVE_VEIN.r, HIVE_VEIN.g, HIVE_VEIN.b, pulse), 1.2)
+		RenderMode.PHASE:
+			var offx: float = sin(time * 0.6) * PHASE_OFFSET
+			var offy: float = cos(time * 0.8) * PHASE_OFFSET
+			var r_pts := PackedVector2Array()
+			var b_pts := PackedVector2Array()
+			for pt in points:
+				r_pts.append(pt + Vector2(offx, offy))
+				b_pts.append(pt + Vector2(-offx, -offy))
+			draw_colored_polygon(r_pts, Color(1.0, 0.0, 0.0, 0.15))
+			draw_colored_polygon(points, Color(0.0, 1.0, 0.0, 0.15))
+			draw_colored_polygon(b_pts, Color(0.0, 0.0, 1.0, 0.15))
+			_draw_neon_lines(points, Color(1, 1, 1, 0.8), 1.0)
+		RenderMode.RIFT:
+			draw_colored_polygon(points, Color(RIFT_GLOW.r, RIFT_GLOW.g, RIFT_GLOW.b, 0.7))
+			var pulse: float = 0.7 + sin(time * 1.0) * 0.3
+			_draw_neon_lines(points, Color(RIFT_FLASH.r, RIFT_FLASH.g, RIFT_FLASH.b, pulse), 1.2)
+		RenderMode.SPORE:
+			draw_colored_polygon(points, Color(SPORE_CORE.r, SPORE_CORE.g, SPORE_CORE.b, 0.2))
+			for i in range(points.size()):
+				var dot_pulse: float = 0.5 + sin(time * 1.5 + float(i) * 2.3) * 0.5
+				draw_circle(points[i], 2.0 * dot_pulse, SPORE_DOT_ALT)
+		_:
+			var cf := canopy_color
+			cf.a = 0.3
+			draw_colored_polygon(points, cf)
+			_draw_neon_lines(points, canopy_color, 1.2 * 1.4)
 
 func _exhaust_line(a: Vector2, b: Vector2, width: float) -> void:
-	var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-	if render_mode == RenderMode.CHROME:
-		_draw_chrome_line(a, b, exhaust, width)
-	else:
-		_draw_neon_line(a, b, exhaust, width)
+	match render_mode:
+		RenderMode.CHROME:
+			var exhaust := Color(1.0, 0.8, 0.3, 0.8)
+			_draw_chrome_line(a, b, exhaust, width)
+		RenderMode.VOID:
+			_draw_neon_line(a, b, Color(0.5, 0.0, 1.0, 0.6), width)
+		RenderMode.HIVEMIND:
+			_draw_neon_line(a, b, Color(0.2, 1.0, 0.4, 0.7), width)
+		RenderMode.PHASE:
+			var offx: float = sin(time * 0.6) * PHASE_OFFSET * 0.5
+			var offy: float = cos(time * 0.8) * PHASE_OFFSET * 0.5
+			_draw_neon_line(a + Vector2(offx, offy), b + Vector2(offx, offy), Color(1, 0.3, 0.3, 0.5), width)
+			_draw_neon_line(a, b, Color(0.3, 1.0, 0.3, 0.5), width)
+			_draw_neon_line(a - Vector2(offx, offy), b - Vector2(offx, offy), Color(0.3, 0.3, 1.0, 0.5), width)
+		RenderMode.RIFT:
+			_draw_neon_line(a, b, Color(1.0, 0.4, 0.1, 0.8), width)
+		RenderMode.SPORE:
+			_draw_neon_line(a, b, Color(0.3, 1.0, 0.6, 0.6), width)
+		_:
+			var exhaust := Color(1.0, 0.8, 0.3, 0.8)
+			_draw_neon_line(a, b, exhaust, width)
 
 func _draw() -> void:
 	if ship_id == -1:
@@ -1368,6 +1446,178 @@ func _draw_bastion() -> void:
 	_exhaust_line(_bp(6, 44, s, 0.04), _bp(6, 52, s, 0.04), 2.8 * s)
 	_exhaust_line(_bp(14, 44, s, 0.04), _bp(14, 52, s, 0.04), 2.8 * s)
 	_exhaust_line(_bp(22, 44, s, 0.04), _bp(22, 52, s, 0.04), 2.8 * s)
+
+# ── Void draw helpers ──
+
+func _draw_void_polygon(points: PackedVector2Array, width: float) -> void:
+	draw_colored_polygon(points, VOID_FILL)
+	# Dim outer edge glow
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], VOID_EDGE_DIM, width * 2.5, true)
+	# Per-edge shimmer hue-shifting violet<->blue
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		var shimmer: float = sin(time * 0.4 + float(i) * 0.7) * 0.5 + 0.5
+		var edge_col := Color(
+			lerpf(VOID_EDGE.r, 0.2, shimmer),
+			lerpf(VOID_EDGE.g, 0.0, shimmer),
+			lerpf(VOID_EDGE.b, 1.0, shimmer)
+		)
+		draw_line(points[i], points[ni], edge_col, width, true)
+	# Faint white flicker core
+	var flicker: float = 0.2 + sin(time * 1.8) * 0.15
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], Color(1, 1, 1, flicker), width * 0.3, true)
+
+func _draw_void_line(a: Vector2, b: Vector2, width: float) -> void:
+	draw_line(a, b, VOID_EDGE_DIM, width * 2.5, true)
+	draw_line(a, b, VOID_EDGE, width, true)
+	draw_line(a, b, Color(1, 1, 1, 0.15), width * 0.3, true)
+
+# ── Hivemind draw helpers ──
+
+func _draw_hivemind_polygon(points: PackedVector2Array, width: float) -> void:
+	# Dark amber fill
+	draw_colored_polygon(points, HIVE_FILL)
+	# Breathing amber overlay
+	var breath: float = sin(time * 1.2) * 0.08
+	draw_colored_polygon(points, Color(0.2, 0.1, 0.0, 0.15 + breath))
+	# Dim green vein underglow
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], HIVE_VEIN_DIM, width * 2.0, true)
+	# Bright green veins with per-edge phase offset
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		var pulse: float = 0.5 + sin(time * 1.2 + float(i) * 1.1) * 0.5
+		var vein_col := Color(HIVE_VEIN.r, HIVE_VEIN.g, HIVE_VEIN.b, pulse)
+		draw_line(points[i], points[ni], vein_col, width, true)
+	# Bright vertex junction dots
+	for pt in points:
+		draw_circle(pt, width * 1.2, HIVE_VEIN)
+
+func _draw_hivemind_line(a: Vector2, b: Vector2, width: float) -> void:
+	# Dim underglow
+	draw_line(a, b, HIVE_VEIN_DIM, width * 2.0, true)
+	# Pulsing bright green
+	var pulse: float = 0.5 + sin(time * 1.2) * 0.5
+	draw_line(a, b, Color(HIVE_VEIN.r, HIVE_VEIN.g, HIVE_VEIN.b, pulse), width, true)
+	# Endpoint node circles
+	draw_circle(a, width * 1.0, HIVE_VEIN)
+	draw_circle(b, width * 1.0, HIVE_VEIN)
+
+# ── Phase draw helpers ──
+
+func _draw_phase_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
+	# 3 translucent RGB-split fills at drifting offsets
+	var offx: float = sin(time * 0.6) * PHASE_OFFSET
+	var offy: float = cos(time * 0.8) * PHASE_OFFSET
+	var r_pts := PackedVector2Array()
+	var g_pts := PackedVector2Array()
+	var b_pts := PackedVector2Array()
+	for pt in points:
+		r_pts.append(pt + Vector2(offx, offy))
+		g_pts.append(pt)
+		b_pts.append(pt + Vector2(-offx, -offy))
+	# Red ghost
+	draw_colored_polygon(r_pts, Color(1.0, 0.0, 0.0, 0.12))
+	# Green center
+	draw_colored_polygon(g_pts, Color(0.0, 1.0, 0.0, 0.12))
+	# Blue ghost
+	draw_colored_polygon(b_pts, Color(0.0, 0.0, 1.0, 0.12))
+	# Normal-color edge
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], color, width, true)
+	# White core edge
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], Color(1, 1, 1, 0.4), width * 0.4, true)
+
+func _draw_phase_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
+	var offx: float = sin(time * 0.6) * PHASE_OFFSET
+	var offy: float = cos(time * 0.8) * PHASE_OFFSET
+	draw_line(a + Vector2(offx, offy), b + Vector2(offx, offy), Color(1, 0.2, 0.2, 0.4), width, true)
+	draw_line(a, b, Color(0.2, 1.0, 0.2, 0.4), width, true)
+	draw_line(a + Vector2(-offx, -offy), b + Vector2(-offx, -offy), Color(0.2, 0.2, 1.0, 0.4), width, true)
+	draw_line(a, b, color, width * 0.6, true)
+
+# ── Rift draw helpers ──
+
+func _draw_rift_polygon(points: PackedVector2Array, width: float) -> void:
+	# Bright molten glow fill
+	draw_colored_polygon(points, Color(RIFT_GLOW.r, RIFT_GLOW.g, RIFT_GLOW.b, 0.25))
+	# Dark crust inset 8% toward centroid
+	if points.size() >= 3:
+		var centroid := Vector2.ZERO
+		for pt in points:
+			centroid += pt
+		centroid /= float(points.size())
+		var inset := PackedVector2Array()
+		for pt in points:
+			inset.append(pt.lerp(centroid, 0.08))
+		draw_colored_polygon(inset, RIFT_DARK)
+	# Per-edge glow
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		var glow: float = 0.4 + sin(time * 0.7 + float(i) * 2.3) * 0.4
+		draw_line(points[i], points[ni], Color(RIFT_GLOW.r, RIFT_GLOW.g, RIFT_GLOW.b, glow), width * 1.5, true)
+	# Traveling flash on one edge at a time
+	var flash_idx: int = int(time * 0.5) % maxi(points.size(), 1)
+	var flash_ni: int = (flash_idx + 1) % points.size()
+	draw_line(points[flash_idx], points[flash_ni], RIFT_FLASH, width * 2.0, true)
+	# Ember dots at vertices
+	for pt in points:
+		draw_circle(pt, width * 0.8, RIFT_GLOW)
+
+func _draw_rift_line(a: Vector2, b: Vector2, width: float) -> void:
+	# Molten underglow
+	draw_line(a, b, Color(RIFT_GLOW.r, RIFT_GLOW.g, RIFT_GLOW.b, 0.4), width * 2.0, true)
+	# Bright core
+	draw_line(a, b, RIFT_GLOW, width, true)
+	# Hot white center
+	draw_line(a, b, Color(1, 0.9, 0.5, 0.6), width * 0.4, true)
+
+# ── Spore draw helpers ──
+
+func _draw_spore_polygon(points: PackedVector2Array, width: float) -> void:
+	# Ghostly teal fill
+	draw_colored_polygon(points, SPORE_CORE)
+	# Faint continuous underglow
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], Color(SPORE_DOT.r, SPORE_DOT.g, SPORE_DOT.b, 0.15), width * 2.0, true)
+	# Alternating edge segments swap visibility
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		var vis: int = (i + int(time * 0.8)) % 2
+		var seg_col: Color = SPORE_DOT if vis == 0 else SPORE_DOT_ALT
+		seg_col.a = 0.7
+		draw_line(points[i], points[ni], seg_col, width, true)
+	# Pulsing vertex dots
+	for i in range(points.size()):
+		var dot_pulse: float = 0.4 + sin(time * 1.5 + float(i) * 2.3) * 0.4
+		draw_circle(points[i], width * 1.0 * dot_pulse + 1.0, SPORE_DOT)
+	# Wandering highlight orbiting centroid
+	if points.size() >= 3:
+		var centroid := Vector2.ZERO
+		for pt in points:
+			centroid += pt
+		centroid /= float(points.size())
+		var wander := centroid + Vector2(cos(time * 0.7) * 6.0, sin(time * 0.9) * 6.0)
+		draw_circle(wander, 3.0, Color(1, 1, 1, 0.3 + sin(time * 2.0) * 0.2))
+
+func _draw_spore_line(a: Vector2, b: Vector2, width: float) -> void:
+	# Faint underglow
+	draw_line(a, b, Color(SPORE_DOT.r, SPORE_DOT.g, SPORE_DOT.b, 0.2), width * 2.0, true)
+	# Bright endpoint node circles
+	draw_circle(a, width * 0.8, SPORE_DOT)
+	draw_circle(b, width * 0.8, SPORE_DOT)
+	# Purple midpoint dot
+	var mid: Vector2 = (a + b) * 0.5
+	draw_circle(mid, width * 0.6, SPORE_DOT_ALT)
 
 # ── Neon drawing helpers ──
 

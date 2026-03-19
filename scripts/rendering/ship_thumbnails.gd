@@ -75,16 +75,24 @@ class _DrawCtx:
 		mode = render_mode
 
 	func mp(points: PackedVector2Array, color: Color, w: float) -> void:
-		if mode == ShipRenderer.RenderMode.CHROME:
-			mp_chrome(points, w)
-		else:
-			mp_neon(points, color, w)
+		match mode:
+			ShipRenderer.RenderMode.CHROME: mp_chrome(points, w)
+			ShipRenderer.RenderMode.VOID: mp_void(points, w)
+			ShipRenderer.RenderMode.HIVEMIND: mp_hivemind(points, w)
+			ShipRenderer.RenderMode.PHASE: mp_phase(points, color, w)
+			ShipRenderer.RenderMode.RIFT: mp_rift(points, w)
+			ShipRenderer.RenderMode.SPORE: mp_spore(points, w)
+			_: mp_neon(points, color, w)
 
 	func ml(a: Vector2, b: Vector2, color: Color, w: float) -> void:
-		if mode == ShipRenderer.RenderMode.CHROME:
-			ml_chrome(a, b, w)
-		else:
-			ml_neon(a, b, color, w)
+		match mode:
+			ShipRenderer.RenderMode.CHROME: ml_chrome(a, b, w)
+			ShipRenderer.RenderMode.VOID: ml_void(a, b, w)
+			ShipRenderer.RenderMode.HIVEMIND: ml_hivemind(a, b, w)
+			ShipRenderer.RenderMode.PHASE: ml_phase(a, b, color, w)
+			ShipRenderer.RenderMode.RIFT: ml_rift(a, b, w)
+			ShipRenderer.RenderMode.SPORE: ml_spore(a, b, w)
+			_: ml_neon(a, b, color, w)
 
 	func mp_neon(points: PackedVector2Array, color: Color, w: float) -> void:
 		var fill := color
@@ -135,6 +143,95 @@ class _DrawCtx:
 	func ml_chrome(a: Vector2, b: Vector2, w: float) -> void:
 		ci.draw_line(a, b, ShipRenderer.CHROME_MID, w * 1.2, true)
 		ci.draw_line(a, b, ShipRenderer.CHROME_BRIGHT, w * 0.6, true)
+
+	# ── Void thumbnail helpers ──
+
+	func mp_void(points: PackedVector2Array, w: float) -> void:
+		ci.draw_colored_polygon(points, ShipRenderer.VOID_FILL)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], ShipRenderer.VOID_EDGE, w, true)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], Color(1, 1, 1, 0.15), w * 0.3, true)
+
+	func ml_void(a: Vector2, b: Vector2, w: float) -> void:
+		ci.draw_line(a, b, ShipRenderer.VOID_EDGE_DIM, w * 2.0, true)
+		ci.draw_line(a, b, ShipRenderer.VOID_EDGE, w, true)
+
+	# ── Hivemind thumbnail helpers ──
+
+	func mp_hivemind(points: PackedVector2Array, w: float) -> void:
+		ci.draw_colored_polygon(points, ShipRenderer.HIVE_FILL)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], ShipRenderer.HIVE_VEIN, w, true)
+		for pt in points:
+			ci.draw_circle(pt, w * 1.0, ShipRenderer.HIVE_VEIN)
+
+	func ml_hivemind(a: Vector2, b: Vector2, w: float) -> void:
+		ci.draw_line(a, b, ShipRenderer.HIVE_VEIN_DIM, w * 1.5, true)
+		ci.draw_line(a, b, ShipRenderer.HIVE_VEIN, w, true)
+		ci.draw_circle(a, w * 0.8, ShipRenderer.HIVE_VEIN)
+		ci.draw_circle(b, w * 0.8, ShipRenderer.HIVE_VEIN)
+
+	# ── Phase thumbnail helpers ──
+
+	func mp_phase(points: PackedVector2Array, color: Color, w: float) -> void:
+		ci.draw_colored_polygon(points, Color(1, 0, 0, 0.08))
+		ci.draw_colored_polygon(points, Color(0, 1, 0, 0.08))
+		ci.draw_colored_polygon(points, Color(0, 0, 1, 0.08))
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], color, w, true)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], Color(1, 1, 1, 0.3), w * 0.4, true)
+
+	func ml_phase(a: Vector2, b: Vector2, color: Color, w: float) -> void:
+		ci.draw_line(a, b, Color(1, 0.2, 0.2, 0.3), w, true)
+		ci.draw_line(a, b, Color(0.2, 0.2, 1, 0.3), w, true)
+		ci.draw_line(a, b, color, w * 0.6, true)
+
+	# ── Rift thumbnail helpers ──
+
+	func mp_rift(points: PackedVector2Array, w: float) -> void:
+		ci.draw_colored_polygon(points, Color(ShipRenderer.RIFT_GLOW.r, ShipRenderer.RIFT_GLOW.g, ShipRenderer.RIFT_GLOW.b, 0.2))
+		if points.size() >= 3:
+			var centroid := Vector2.ZERO
+			for pt in points:
+				centroid += pt
+			centroid /= float(points.size())
+			var inset := PackedVector2Array()
+			for pt in points:
+				inset.append(pt.lerp(centroid, 0.08))
+			ci.draw_colored_polygon(inset, ShipRenderer.RIFT_DARK)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], ShipRenderer.RIFT_GLOW, w, true)
+
+	func ml_rift(a: Vector2, b: Vector2, w: float) -> void:
+		ci.draw_line(a, b, Color(ShipRenderer.RIFT_GLOW.r, ShipRenderer.RIFT_GLOW.g, ShipRenderer.RIFT_GLOW.b, 0.4), w * 1.5, true)
+		ci.draw_line(a, b, ShipRenderer.RIFT_GLOW, w, true)
+
+	# ── Spore thumbnail helpers ──
+
+	func mp_spore(points: PackedVector2Array, w: float) -> void:
+		ci.draw_colored_polygon(points, ShipRenderer.SPORE_CORE)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			var seg_col: Color = ShipRenderer.SPORE_DOT if j % 2 == 0 else ShipRenderer.SPORE_DOT_ALT
+			seg_col.a = 0.7
+			ci.draw_line(points[j], points[nj], seg_col, w, true)
+		for pt in points:
+			ci.draw_circle(pt, w * 0.8, ShipRenderer.SPORE_DOT)
+
+	func ml_spore(a: Vector2, b: Vector2, w: float) -> void:
+		ci.draw_line(a, b, Color(ShipRenderer.SPORE_DOT.r, ShipRenderer.SPORE_DOT.g, ShipRenderer.SPORE_DOT.b, 0.3), w * 1.5, true)
+		ci.draw_circle(a, w * 0.6, ShipRenderer.SPORE_DOT)
+		ci.draw_circle(b, w * 0.6, ShipRenderer.SPORE_DOT)
+		var mid: Vector2 = (a + b) * 0.5
+		ci.draw_circle(mid, w * 0.4, ShipRenderer.SPORE_DOT_ALT)
 
 	# ── Mini ship thumbnails ──
 

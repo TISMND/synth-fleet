@@ -721,7 +721,6 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 			_selected_level.encounters[_selected_encounter_idx]["rotate_with_path"] = pressed
 			_save_current_level()
 	)
-	ThemeManager.apply_text_glow(_enc_rotate_check, "body")
 	_enc_content.add_child(_enc_rotate_check)
 
 	# Action buttons

@@ -3,6 +3,9 @@ extends Control
 ## Left panel: ship selection. Center: ship preview (WASD movement).
 ## Right panel: attribute sliders + skin dropdown + save. Bottom: HUD replica.
 
+const SKIN_NAMES: Array[String] = ["CHROME", "NEON", "VOID", "HIVEMIND", "PHASE", "RIFT", "SPORE"]
+const SKIN_KEYS: Array[String] = ["chrome", "neon", "void", "hivemind", "phase", "rift", "spore"]
+
 const MOVE_DECEL := 800.0
 const BANK_LERP := 6.0
 const LEFT_PANEL_W := 200.0
@@ -254,7 +257,8 @@ func _select_ship(index: int) -> void:
 		_slider_labels[key].text = str(int(slider.value))
 	# Update skin dropdown
 	if _skin_dropdown:
-		_skin_dropdown.selected = 0 if _working_render_mode == "chrome" else 1
+		var skin_idx: int = SKIN_KEYS.find(_working_render_mode)
+		_skin_dropdown.selected = maxi(skin_idx, 0)
 	_updating_sliders = false
 
 	# Apply render mode to preview
@@ -264,7 +268,15 @@ func _select_ship(index: int) -> void:
 
 
 func _apply_render_mode() -> void:
-	var mode: int = ShipRenderer.RenderMode.CHROME if _working_render_mode == "chrome" else ShipRenderer.RenderMode.NEON
+	var mode: int = ShipRenderer.RenderMode.NEON
+	match _working_render_mode:
+		"chrome": mode = ShipRenderer.RenderMode.CHROME
+		"neon": mode = ShipRenderer.RenderMode.NEON
+		"void": mode = ShipRenderer.RenderMode.VOID
+		"hivemind": mode = ShipRenderer.RenderMode.HIVEMIND
+		"phase": mode = ShipRenderer.RenderMode.PHASE
+		"rift": mode = ShipRenderer.RenderMode.RIFT
+		"spore": mode = ShipRenderer.RenderMode.SPORE
 	_ship_draw.render_mode = mode
 	_ship_selector.render_mode = mode
 	_ship_draw.queue_redraw()
@@ -321,7 +333,7 @@ func _select_enemy(index: int) -> void:
 	_enemy_idle_time = 0.0
 
 	_ship_draw.enemy_visual_id = _working_enemy.visual_id
-	_ship_draw.render_mode = ShipRenderer.RenderMode.CHROME if _working_render_mode == "chrome" else ShipRenderer.RenderMode.NEON
+	_apply_render_mode()
 
 	_rebuild_right_panel()
 	_update_enemy_hud()
@@ -528,8 +540,8 @@ func _build_player_right_panel() -> void:
 	vbox.add_child(skin_label)
 
 	_skin_dropdown = OptionButton.new()
-	_skin_dropdown.add_item("CHROME", 0)
-	_skin_dropdown.add_item("NEON", 1)
+	for i in range(SKIN_NAMES.size()):
+		_skin_dropdown.add_item(SKIN_NAMES[i], i)
 	_skin_dropdown.selected = 0
 	_skin_dropdown.item_selected.connect(_on_skin_changed)
 	vbox.add_child(_skin_dropdown)
@@ -702,9 +714,10 @@ func _build_enemy_right_panel() -> void:
 
 	_skin_dropdown = OptionButton.new()
 	_skin_dropdown.clip_text = true
-	_skin_dropdown.add_item("CHROME", 0)
-	_skin_dropdown.add_item("NEON", 1)
-	_skin_dropdown.selected = 0 if _working_render_mode == "chrome" else 1
+	for i in range(SKIN_NAMES.size()):
+		_skin_dropdown.add_item(SKIN_NAMES[i], i)
+	var enemy_skin_idx: int = SKIN_KEYS.find(_working_render_mode)
+	_skin_dropdown.selected = maxi(enemy_skin_idx, 0)
 	_skin_dropdown.item_selected.connect(_on_skin_changed)
 	vbox.add_child(_skin_dropdown)
 
@@ -855,7 +868,7 @@ func _on_attr_changed(value: float, key: String) -> void:
 func _on_skin_changed(index: int) -> void:
 	if _updating_sliders:
 		return
-	_working_render_mode = "chrome" if index == 0 else "neon"
+	_working_render_mode = SKIN_KEYS[index] if index < SKIN_KEYS.size() else "chrome"
 	if _category == "ENEMIES" and _working_enemy:
 		_working_enemy.render_mode = _working_render_mode
 	_apply_render_mode()
