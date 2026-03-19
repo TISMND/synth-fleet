@@ -417,7 +417,7 @@ func _build_ui() -> void:
 	_ship_thumb.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ship_thumb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_ship_thumb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_ship_thumb.render_mode = ShipThumbnails.RenderMode.CHROME
+	_ship_thumb.render_mode = ShipRenderer.RenderMode.CHROME
 	_ship_thumb.draw_scale = 3.0
 	_sub_viewport.add_child(_ship_thumb)
 

@@ -22,25 +22,12 @@ var _hud: CanvasLayer = null
 var _weapon_data_per_hp: Array = []
 var _space_state: int = 0  # 0=all off, 1=all on
 
-# Chrome Stiletto drawing
+# Banking + rendering
 var _bank: float = 0.0
-var _time: float = 0.0
 var _prev_x: float = 0.0
+var _ship_renderer: ShipRenderer = null
 
-# Chrome palette
 const THERMAL_COOLING_RATE: float = 1.0  # segments/sec passive cooling
-
-const CHROME_DARK := Color(0.12, 0.13, 0.18)
-const CHROME_MID := Color(0.35, 0.38, 0.45)
-const CHROME_LIGHT := Color(0.65, 0.70, 0.80)
-const CHROME_BRIGHT := Color(0.85, 0.88, 0.95)
-const CHROME_SPEC := Color(1.0, 1.0, 1.0, 0.9)
-
-var hull_color := Color(0.0, 0.9, 1.0)
-var accent_color := Color(1.0, 0.2, 0.6)
-var engine_color := Color(1.0, 0.5, 0.1)
-var canopy_color := Color(0.4, 0.2, 1.0)
-var detail_color := Color(0.0, 1.0, 0.7)
 
 
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
@@ -54,6 +41,12 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	electric_max = float(stats.get("electric_segments", 8))
 	speed = float(stats.get("speed", 400))
 	shield_regen = float(stats.get("shield_regen", 1.0))
+
+	# Ship renderer
+	_ship_renderer = ShipRenderer.new()
+	_ship_renderer.ship_id = _resolve_ship_id(ship_data)
+	_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	add_child(_ship_renderer)
 
 	# Create hardpoint controllers from loadout assignments — all fire from center
 	var assignments: Dictionary = loadout.hardpoint_assignments
@@ -138,8 +131,8 @@ func _process(delta: float) -> void:
 	_prev_x = position.x
 	var target_bank: float = clampf(-velocity_x / maxf(speed, 1.0), -1.0, 1.0)
 	_bank = lerpf(_bank, target_bank, minf(delta * 8.0, 1.0))
-	_time += delta
-	queue_redraw()
+	if _ship_renderer:
+		_ship_renderer.bank = _bank
 
 
 func _input(event: InputEvent) -> void:
@@ -273,225 +266,12 @@ func _on_contact(area: Area2D) -> void:
 	take_damage(1.5)
 
 
-# ── Chrome Stiletto Drawing ──────────────────────────────────────
-
-func _bx(x: float, s: float, intensity: float) -> float:
-	var sf: float = signf(x) if x != 0.0 else 0.0
-	return x * (1.0 + _bank * sf * intensity) * s
-
-func _bp(x: float, y: float, s: float, intensity: float) -> Vector2:
-	return Vector2(_bx(x, s, intensity) + _bank * 2.5 * s, y * s)
-
-func _side_color(base: Color, side: float) -> Color:
-	var col := base
-	col.a = clampf(col.a + _bank * side * 0.06, 0.5, 1.0)
-	return col
-
-
-func _draw() -> void:
-	_draw_stiletto()
-
-
-func _draw_stiletto() -> void:
-	var s := 1.4
-
-	# Diamond faceted body
-	var hull_poly := PackedVector2Array([
-		_bp(0, -35, s, 0.1),
-		_bp(14, -12, s, 0.15),
-		_bp(28, 4, s, 0.2),
-		_bp(22, 14, s, 0.18),
-		_bp(10, 24, s, 0.1),
-		_bp(-10, 24, s, 0.1),
-		_bp(-22, 14, s, 0.18),
-		_bp(-28, 4, s, 0.2),
-		_bp(-14, -12, s, 0.15),
-	])
-	_draw_chrome_polygon(hull_poly, hull_color, _bank)
-
-	# Facet edge lines
-	_draw_chrome_line(_bp(0, -32, s, 0.1), _bp(14, -12, s, 0.15), detail_color, 0.8 * s)
-	_draw_chrome_line(_bp(0, -32, s, 0.1), _bp(-14, -12, s, 0.15), detail_color, 0.8 * s)
-	_draw_chrome_line(_bp(14, -12, s, 0.15), _bp(10, 24, s, 0.1), detail_color, 0.8 * s)
-	_draw_chrome_line(_bp(-14, -12, s, 0.15), _bp(-10, 24, s, 0.1), detail_color, 0.8 * s)
-	# Cross facet
-	_draw_chrome_line(_bp(-14, -12, s, 0.15), _bp(14, -12, s, 0.15), detail_color, 0.6 * s)
-
-	# Angular canopy slit
-	var cx: float = -_bank * 1.2 * s
-	var can := PackedVector2Array([
-		_bp(0, -28, s, 0.05) + Vector2(cx, 0),
-		_bp(7, -14, s, 0.05) + Vector2(cx, 0),
-		_bp(5, -6, s, 0.05) + Vector2(cx, 0),
-		_bp(-5, -6, s, 0.05) + Vector2(cx, 0),
-		_bp(-7, -14, s, 0.05) + Vector2(cx, 0),
-	])
-	_draw_chrome_canopy(can, _bank)
-
-	# Spine
-	_draw_chrome_line(_bp(0, -6, s, 0.1), _bp(0, 20, s, 0.1), accent_color, 1.2 * s)
-
-	# Twin tight engines
-	var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-	_draw_chrome_line(_bp(-4, 22, s, 0.08), _bp(-4, 30, s, 0.08), exhaust, 3.0 * s)
-	_draw_chrome_line(_bp(4, 22, s, 0.08), _bp(4, 30, s, 0.08), exhaust, 3.0 * s)
-
-
-# ── Chrome rendering helpers ─────────────────────────────────────
-
-func _draw_chrome_polygon(points: PackedVector2Array, tint_color: Color, bk: float) -> void:
-	if points.size() < 3:
-		return
-	draw_colored_polygon(points, CHROME_DARK)
-
-	var min_y := points[0].y
-	var max_y := points[0].y
-	var min_x := points[0].x
-	var max_x := points[0].x
-	for pt in points:
-		min_y = minf(min_y, pt.y)
-		max_y = maxf(max_y, pt.y)
-		min_x = minf(min_x, pt.x)
-		max_x = maxf(max_x, pt.x)
-	var height: float = max_y - min_y
-	var width: float = max_x - min_x
-	if height < 0.5 or width < 0.5:
-		return
-
-	# Horizontal gradient bands
-	var band_colors: Array[Color] = [
-		CHROME_DARK.lerp(CHROME_MID, 0.3),
-		CHROME_MID,
-		CHROME_LIGHT,
-		CHROME_BRIGHT,
-	]
-	var band_count: int = band_colors.size()
-	for i in range(band_count):
-		var t0: float = float(i) / float(band_count)
-		var t1: float = float(i + 1) / float(band_count)
-		var y0: float = max_y - t0 * height
-		var y1: float = max_y - t1 * height
-		var band_rect := PackedVector2Array([
-			Vector2(min_x - 5.0, y0),
-			Vector2(max_x + 5.0, y0),
-			Vector2(max_x + 5.0, y1),
-			Vector2(min_x - 5.0, y1),
-		])
-		var clipped: Array = Geometry2D.intersect_polygons(points, band_rect)
-		for clip_idx in range(clipped.size()):
-			var clip_poly: PackedVector2Array = clipped[clip_idx]
-			if clip_poly.size() >= 3:
-				draw_colored_polygon(clip_poly, band_colors[i])
-
-	# Bank-reactive left/right shading
-	var center_x: float = (min_x + max_x) * 0.5
-	var left_rect := PackedVector2Array([
-		Vector2(min_x - 5.0, min_y - 5.0),
-		Vector2(center_x, min_y - 5.0),
-		Vector2(center_x, max_y + 5.0),
-		Vector2(min_x - 5.0, max_y + 5.0),
-	])
-	var right_rect := PackedVector2Array([
-		Vector2(center_x, min_y - 5.0),
-		Vector2(max_x + 5.0, min_y - 5.0),
-		Vector2(max_x + 5.0, max_y + 5.0),
-		Vector2(center_x, max_y + 5.0),
-	])
-
-	var left_alpha: float = clampf(-bk * 0.15, -0.08, 0.15)
-	var right_alpha: float = clampf(bk * 0.15, -0.08, 0.15)
-	if left_alpha > 0.01:
-		var left_clips: Array = Geometry2D.intersect_polygons(points, left_rect)
-		for clip_idx in range(left_clips.size()):
-			var clip_poly: PackedVector2Array = left_clips[clip_idx]
-			if clip_poly.size() >= 3:
-				draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, left_alpha))
-	elif left_alpha < -0.01:
-		var left_clips: Array = Geometry2D.intersect_polygons(points, left_rect)
-		for clip_idx in range(left_clips.size()):
-			var clip_poly: PackedVector2Array = left_clips[clip_idx]
-			if clip_poly.size() >= 3:
-				draw_colored_polygon(clip_poly, Color(0.0, 0.0, 0.0, -left_alpha))
-	if right_alpha > 0.01:
-		var right_clips: Array = Geometry2D.intersect_polygons(points, right_rect)
-		for clip_idx in range(right_clips.size()):
-			var clip_poly: PackedVector2Array = right_clips[clip_idx]
-			if clip_poly.size() >= 3:
-				draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, right_alpha))
-	elif right_alpha < -0.01:
-		var right_clips: Array = Geometry2D.intersect_polygons(points, right_rect)
-		for clip_idx in range(right_clips.size()):
-			var clip_poly: PackedVector2Array = right_clips[clip_idx]
-			if clip_poly.size() >= 3:
-				draw_colored_polygon(clip_poly, Color(0.0, 0.0, 0.0, -right_alpha))
-
-	# Specular highlight
-	var spec_x: float = center_x + bk * width * 0.4 + sin(_time * 0.8) * width * 0.05
-	var spec_brightness: float = 0.9 + sin(_time * 1.2) * 0.1
-	var gleam_layers: Array[Array] = [
-		[width * 0.22, 0.06],
-		[width * 0.14, 0.12],
-		[width * 0.08, 0.20],
-		[width * 0.03, 0.35],
-	]
-	for layer in gleam_layers:
-		var half_w: float = layer[0]
-		var alpha: float = layer[1] * spec_brightness
-		var strip := PackedVector2Array([
-			Vector2(spec_x - half_w, min_y - 5.0),
-			Vector2(spec_x + half_w, min_y - 5.0),
-			Vector2(spec_x + half_w, max_y + 5.0),
-			Vector2(spec_x - half_w, max_y + 5.0),
-		])
-		var strip_clips: Array = Geometry2D.intersect_polygons(points, strip)
-		for clip_idx in range(strip_clips.size()):
-			var clip_poly: PackedVector2Array = strip_clips[clip_idx]
-			if clip_poly.size() >= 3:
-				draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, alpha))
-
-	# Color tint overlay
-	var tint := tint_color
-	tint.a = 0.08
-	draw_colored_polygon(points, tint)
-
-	# Chrome edges
-	_draw_chrome_edges(points, bk)
-
-
-func _draw_chrome_edges(points: PackedVector2Array, bk: float) -> void:
-	if points.size() < 2:
-		return
-	var light_dir := Vector2(bk * 0.7, -1.0).normalized()
-	for i in range(points.size()):
-		var ni: int = (i + 1) % points.size()
-		var a: Vector2 = points[i]
-		var b: Vector2 = points[ni]
-		var edge_dir: Vector2 = (b - a).normalized()
-		var edge_normal := Vector2(-edge_dir.y, edge_dir.x)
-		var facing: float = edge_normal.dot(light_dir)
-		var brightness: float = clampf(facing * 0.5 + 0.5, 0.15, 1.0)
-		var edge_col := CHROME_DARK.lerp(CHROME_SPEC, brightness)
-		edge_col.a = 0.6 + brightness * 0.4
-		draw_line(a, b, edge_col, 1.5, true)
-
-
-func _draw_chrome_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
-	var perp: Vector2 = (b - a).normalized()
-	perp = Vector2(-perp.y, perp.x)
-	var shadow_off: Vector2 = perp * 1.0
-	draw_line(a + shadow_off, b + shadow_off, CHROME_DARK, width * 1.2, true)
-	draw_line(a - shadow_off, b - shadow_off, CHROME_BRIGHT, width * 0.8, true)
-	var mid := CHROME_MID.lerp(color, 0.15)
-	draw_line(a, b, mid, width, true)
-	var spec_brightness: float = 0.9 + sin(_time * 1.2) * 0.1
-	var spec := CHROME_SPEC
-	spec.a = 0.4 * spec_brightness
-	draw_line(a, b, spec, width * 0.3, true)
-
-
-func _draw_chrome_canopy(points: PackedVector2Array, bk: float) -> void:
-	if points.size() < 3:
-		return
-	var glass := Color(0.05, 0.08, 0.2, 0.85)
-	draw_colored_polygon(points, glass)
-	_draw_chrome_edges(points, bk)
+static func _resolve_ship_id(ship: ShipData) -> int:
+	var name_to_id: Dictionary = {
+		"switchblade": 0, "phantom": 1, "mantis": 2, "corsair": 3,
+		"stiletto": 4, "trident": 5, "orrery": 6, "dreadnought": 7, "bastion": 8,
+	}
+	var ship_id_str: String = ship.id.to_lower() if ship else ""
+	if name_to_id.has(ship_id_str):
+		return int(name_to_id[ship_id_str])
+	return 4  # Default to stiletto

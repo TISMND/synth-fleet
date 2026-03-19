@@ -116,7 +116,7 @@ func _build_ui() -> void:
 		# Thumbnail
 		var thumb := ShipThumbnails.new()
 		thumb.ship_index = i
-		thumb.render_mode = ShipThumbnails.RenderMode.CHROME
+		thumb.render_mode = ShipRenderer.RenderMode.CHROME
 		thumb.custom_minimum_size = Vector2(140, 80)
 		thumb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		thumb.size_flags_vertical = Control.SIZE_EXPAND_FILL
