@@ -15,9 +15,10 @@ var _nebula_defs: Array[Dictionary] = [
 	{"id": "dual_color", "name": "Dual Color", "shader": "res://assets/shaders/nebula_dual_color.gdshader", "color": Color(0.2, 0.5, 1.0)},
 	{"id": "voronoi", "name": "Voronoi Cells", "shader": "res://assets/shaders/nebula_voronoi.gdshader", "color": Color(0.4, 0.9, 0.5)},
 	{"id": "turbulent_swirl", "name": "Turbulent Swirl", "shader": "res://assets/shaders/nebula_turbulent_swirl.gdshader", "color": Color(0.6, 0.2, 0.9)},
-	{"id": "starfield_embedded", "name": "Starfield Embedded", "shader": "res://assets/shaders/nebula_starfield_embedded.gdshader", "color": Color(0.2, 0.3, 0.7)},
 	{"id": "electric_filaments", "name": "Electric Filaments", "shader": "res://assets/shaders/nebula_electric_filaments.gdshader", "color": Color(0.3, 0.8, 1.0)},
-	{"id": "lightning", "name": "Lightning", "shader": "res://assets/shaders/nebula_lightning.gdshader", "color": Color(0.7, 0.85, 1.0)},
+	{"id": "lightning_strike", "name": "Lightning Strike", "shader": "res://assets/shaders/nebula_lightning_strike.gdshader", "color": Color(0.5, 0.6, 1.0)},
+	{"id": "arc_discharge", "name": "Arc Discharge", "shader": "res://assets/shaders/nebula_arc_discharge.gdshader", "color": Color(0.3, 0.7, 1.0)},
+	{"id": "energy_flare", "name": "Energy Flare", "shader": "res://assets/shaders/nebula_energy_flare.gdshader", "color": Color(1.0, 0.6, 0.2)},
 	{"id": "dual_swirl", "name": "Dual Swirl", "shader": "res://assets/shaders/nebula_dual_swirl.gdshader", "color": Color(0.6, 0.2, 0.9)},
 	{"id": "dual_voronoi", "name": "Dual Voronoi", "shader": "res://assets/shaders/nebula_dual_voronoi.gdshader", "color": Color(0.4, 0.9, 0.5)},
 ]
