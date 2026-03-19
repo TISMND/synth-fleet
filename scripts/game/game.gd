@@ -282,9 +282,11 @@ func _setup_nebulas() -> void:
 			top_sprite.modulate.a = top_opacity
 			_nebula_container.add_child(top_sprite)
 
-		# Debug hitbox outline
+		# Debug hitbox outline — shrink to where nebula is ~50% visible
+		var spread: float = float(params.get("radial_spread", defaults["radial_spread"]))
+		var effective_radius: float = radius * (1.0 - spread / 2.0)
 		var debug_ring := _NebulaDebugRing.new()
-		debug_ring.radius = radius
+		debug_ring.radius = effective_radius
 		debug_ring.position = sprite.position
 		debug_ring.z_index = 15
 		_nebula_container.add_child(debug_ring)
