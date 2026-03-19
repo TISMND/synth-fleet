@@ -13,15 +13,13 @@ var _nebula_defs: Array[Dictionary] = [
 	{"id": "classic_fbm", "name": "Classic FBM", "shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "color": Color(0.3, 0.4, 0.9)},
 	{"id": "wispy_filaments", "name": "Wispy Filaments", "shader": "res://assets/shaders/nebula_wispy_filaments.gdshader", "color": Color(0.8, 0.3, 0.6)},
 	{"id": "dual_color", "name": "Dual Color", "shader": "res://assets/shaders/nebula_dual_color.gdshader", "color": Color(0.2, 0.5, 1.0)},
-	{"id": "bright_core", "name": "Bright Core", "shader": "res://assets/shaders/nebula_bright_core.gdshader", "color": Color(1.0, 0.8, 0.3)},
 	{"id": "voronoi", "name": "Voronoi Cells", "shader": "res://assets/shaders/nebula_voronoi.gdshader", "color": Color(0.4, 0.9, 0.5)},
 	{"id": "turbulent_swirl", "name": "Turbulent Swirl", "shader": "res://assets/shaders/nebula_turbulent_swirl.gdshader", "color": Color(0.6, 0.2, 0.9)},
-	{"id": "layered_bands", "name": "Layered Bands", "shader": "res://assets/shaders/nebula_layered_bands.gdshader", "color": Color(0.9, 0.5, 0.2)},
 	{"id": "starfield_embedded", "name": "Starfield Embedded", "shader": "res://assets/shaders/nebula_starfield_embedded.gdshader", "color": Color(0.2, 0.3, 0.7)},
 	{"id": "electric_filaments", "name": "Electric Filaments", "shader": "res://assets/shaders/nebula_electric_filaments.gdshader", "color": Color(0.3, 0.8, 1.0)},
-	{"id": "plasma_glow", "name": "Plasma Glow", "shader": "res://assets/shaders/nebula_plasma_glow.gdshader", "color": Color(0.9, 0.2, 0.4)},
-	{"id": "dusty_scatter", "name": "Dusty Scatter", "shader": "res://assets/shaders/nebula_dusty_scatter.gdshader", "color": Color(0.7, 0.6, 0.4)},
-	{"id": "dense_cumulus", "name": "Dense Cumulus", "shader": "res://assets/shaders/nebula_dense_cumulus.gdshader", "color": Color(0.5, 0.4, 0.7)},
+	{"id": "lightning", "name": "Lightning", "shader": "res://assets/shaders/nebula_lightning.gdshader", "color": Color(0.7, 0.85, 1.0)},
+	{"id": "dual_swirl", "name": "Dual Swirl", "shader": "res://assets/shaders/nebula_dual_swirl.gdshader", "color": Color(0.6, 0.2, 0.9)},
+	{"id": "dual_voronoi", "name": "Dual Voronoi", "shader": "res://assets/shaders/nebula_dual_voronoi.gdshader", "color": Color(0.4, 0.9, 0.5)},
 ]
 
 
