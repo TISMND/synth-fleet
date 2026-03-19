@@ -22,7 +22,6 @@
 	"loop_file_path": "res://loop_zips/sorted/synth/Thinking About Reaction - 120 BPM - 3 - Synth - sp_ins120_plans1_Fm.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
-	"power_cost": 5,
 	"projectile_speed": 600.0,
 	"projectile_style_id": "rect_lightning",
 	"special_effect": "none",

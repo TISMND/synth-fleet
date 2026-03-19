@@ -13,7 +13,6 @@ extends Resource
 @export var pulse_settings: Dictionary = {}  # Per-bar overrides keyed by bar type, same shape as global
 @export var bar_effects: Dictionary = {}  # {"shield": -0.5, "thermal": 1.2, ...} float delta per trigger hit
 @export var passive_effects: Dictionary = {}  # {"shield": 1.5, "thermal": -0.3, ...} float delta per second
-@export var power_cost: int = 5
 
 
 static func from_dict(data: Dictionary) -> PowerCoreData:
@@ -23,7 +22,6 @@ static func from_dict(data: Dictionary) -> PowerCoreData:
 	pc.description = data.get("description", "")
 	pc.loop_file_path = data.get("loop_file_path", "")
 	pc.loop_length_bars = int(data.get("loop_length_bars", 2))
-	pc.power_cost = int(data.get("power_cost", 5))
 	var raw_bar_effects: Dictionary = data.get("bar_effects", {}) as Dictionary
 	pc.bar_effects = {}
 	for key in raw_bar_effects:
@@ -79,5 +77,4 @@ func to_dict() -> Dictionary:
 		"pulse_settings": pulse_settings,
 		"bar_effects": bar_effects,
 		"passive_effects": passive_effects,
-		"power_cost": power_cost,
 	}

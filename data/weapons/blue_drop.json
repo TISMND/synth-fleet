@@ -68,7 +68,6 @@
 	"loop_file_path": "res://loop_zips/sorted/keys/Oscillating Spoons - 120 BPM - 7 - Keys - FRANCMOODY_115_sh101_loop_pulse_F#maj.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
-	"power_cost": 5,
 	"projectile_speed": 600.0,
 	"projectile_style_id": "square_drop",
 	"special_effect": "none",

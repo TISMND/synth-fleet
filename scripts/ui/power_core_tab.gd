@@ -35,7 +35,6 @@ var _preview_bar_brightness: Array[float] = [0.0, 0.0, 0.0, 0.0]  # 0.0=idle, 1.
 var _component_display: Control = null  # Ship component shapes display
 
 # Mechanics subtab
-var _power_cost_slider: HSlider
 var _mechanics_bar_effect_sliders: Dictionary = {}  # bar_type -> HSlider
 var _passive_effect_sliders: Dictionary = {}  # bar_type -> HSlider
 
@@ -415,13 +414,6 @@ func _build_mechanics_tab() -> Control:
 	var form := VBoxContainer.new()
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(form)
-
-	# Power Cost
-	_add_section_header(form, "POWER COST")
-	var cost_row := _add_slider_row(form, "Power Cost:", 1.0, 30.0, 5.0, 1.0)
-	_power_cost_slider = cost_row[0]
-
-	_add_separator(form)
 
 	# Bar Effects (per trigger hit)
 	_add_section_header(form, "BAR EFFECTS (per trigger hit)")
@@ -807,7 +799,6 @@ func _collect_power_core_data() -> Dictionary:
 		"pulse_settings": _collect_pulse_overrides(),
 		"bar_effects": _collect_bar_effects(),
 		"passive_effects": _collect_passive_effects(),
-		"power_cost": int(_power_cost_slider.value),
 	}
 
 
@@ -918,7 +909,6 @@ func _on_new() -> void:
 			(data["dim"] as HSlider).value = 0.3
 			(data["container"] as VBoxContainer).visible = false
 	# Reset mechanics sliders
-	_power_cost_slider.value = 5.0
 	for bar_type in BAR_TYPES:
 		var be_slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
 		if be_slider:
@@ -991,7 +981,6 @@ func _populate_from_power_core(data: PowerCoreData) -> void:
 			(override_data["container"] as VBoxContainer).visible = false
 
 	# Mechanics — power cost, bar effects, passive effects
-	_power_cost_slider.value = float(data.power_cost)
 	for bar_type in BAR_TYPES:
 		var be_slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
 		if be_slider:

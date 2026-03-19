@@ -22,7 +22,6 @@ extends Resource
 @export var mechanic_params: Dictionary = {}
 @export var bar_effects: Dictionary = {}  # {"shield": 0.5, ...} float delta per trigger hit
 @export var passive_effects: Dictionary = {}  # {"shield": 1.5, ...} float delta per second
-@export var power_cost: int = 5
 @export var color_override: Color = Color.WHITE
 
 
@@ -42,8 +41,6 @@ static func from_dict(data: Dictionary) -> DeviceData:
 	d.fade_out_duration = float(data.get("fade_out_duration", 0.3))
 	d.animation_speed = float(data.get("animation_speed", 1.0))
 	d.device_type = str(data.get("device_type", "shield_aura"))
-	d.power_cost = int(data.get("power_cost", 5))
-
 	# Parse pulse_triggers — flat array of floats
 	var raw_triggers: Array = data.get("pulse_triggers", []) as Array
 	d.pulse_triggers = []
@@ -96,6 +93,5 @@ func to_dict() -> Dictionary:
 		"mechanic_params": mechanic_params,
 		"bar_effects": bar_effects,
 		"passive_effects": passive_effects,
-		"power_cost": power_cost,
 		"color_override": [color_override.r, color_override.g, color_override.b, color_override.a],
 	}

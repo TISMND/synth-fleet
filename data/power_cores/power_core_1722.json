@@ -16,7 +16,6 @@
 	"passive_effects": {
 		"thermal": 1.25
 	},
-	"power_cost": 5,
 	"pulse_settings": {
 		"shield": {
 			"brighten_duration": 0.03,

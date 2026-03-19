@@ -70,7 +70,6 @@ var _anim_speed_label: Label
 var _device_type_button: OptionButton
 var _mechanic_params_container: VBoxContainer
 var _mechanic_param_sliders: Dictionary = {}
-var _power_cost_slider: HSlider
 var _bar_effect_sliders: Dictionary = {}
 var _passive_effect_sliders: Dictionary = {}
 
@@ -498,13 +497,6 @@ func _build_mechanics_tab() -> Control:
 
 	_add_separator(form)
 
-	# Power Cost
-	_add_section_header(form, "POWER COST")
-	var cost_row: Array = _add_slider_row(form, "Power Cost:", 1.0, 30.0, 5.0, 1.0)
-	_power_cost_slider = cost_row[0]
-
-	_add_separator(form)
-
 	# Bar Effects (per trigger hit)
 	_add_section_header(form, "BAR EFFECTS (per trigger hit)")
 	for i in BAR_TYPES.size():
@@ -865,7 +857,6 @@ func _collect_device_data() -> Dictionary:
 		"mechanic_params": mechanic_params,
 		"bar_effects": bar_effects,
 		"passive_effects": passive_effects,
-		"power_cost": int(_power_cost_slider.value),
 		"color_override": [color.r, color.g, color.b, color.a],
 	}
 
@@ -919,7 +910,6 @@ func _on_new() -> void:
 	_anim_speed_slider.value = 1.0
 	_device_type_button.selected = 0
 	_rebuild_mechanic_params("shield_aura")
-	_power_cost_slider.value = 5.0
 	_color_override_picker.color = Color.WHITE
 	_visual_mode_button.selected = 0
 	_field_style_button.selected = 0
@@ -1007,8 +997,6 @@ func _populate_from_device(device: DeviceData) -> void:
 		if param_name in _mechanic_param_sliders:
 			var slider: HSlider = _mechanic_param_sliders[param_name]
 			slider.value = float(device.mechanic_params[param_name])
-
-	_power_cost_slider.value = device.power_cost
 
 	for bar_type in BAR_TYPES:
 		if bar_type in _bar_effect_sliders:
