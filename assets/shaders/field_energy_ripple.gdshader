@@ -13,6 +13,7 @@ uniform float ring_width : hint_range(0.01, 0.1) = 0.03;
 uniform float expansion_speed : hint_range(0.1, 3.0) = 1.0;
 
 void fragment() {
+	float modulate_alpha = COLOR.a;
 	float t = TIME * animation_speed;
 	vec2 uv = UV - 0.5;
 	float dist = length(uv) * 2.0;
@@ -42,5 +43,5 @@ void fragment() {
 
 	if (dist > 1.05) alpha = 0.0;
 
-	COLOR = vec4(col, alpha);
+	COLOR = vec4(col, alpha * modulate_alpha);
 }

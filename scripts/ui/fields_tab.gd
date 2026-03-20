@@ -22,8 +22,6 @@ var _status_label: Label
 var _name_input: LineEdit
 var _shader_button: OptionButton
 var _color_picker: ColorPickerButton
-var _glow_slider: HSlider
-var _glow_label: Label
 var _brightness_slider: HSlider
 var _brightness_label: Label
 var _anim_speed_slider: HSlider
@@ -66,6 +64,11 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	# Auto-pulse every ~1.5s for preview
+	if _pulse_brightness_slider and _pulse_brightness_slider.value <= 0.0:
+		if _preview_material:
+			_preview_material.set_shader_parameter("pulse_intensity", 0.0)
+		_pulse_active = false
+		return
 	_auto_pulse_timer += delta
 	if _auto_pulse_timer >= 1.5:
 		_auto_pulse_timer = 0.0
@@ -189,6 +192,7 @@ func _build_left_panel() -> Control:
 	viewport.size = Vector2i(400, 400)
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	viewport.transparent_bg = false
+	viewport.use_hdr_2d = true
 	viewport_container.add_child(viewport)
 
 	VFXFactory.add_bloom_to_viewport(viewport)
@@ -243,11 +247,11 @@ func _build_controls(parent: VBoxContainer) -> void:
 
 	# Common params
 	_add_section_header(parent, "COMMON")
-	var brightness_row: Array = _add_slider_row(parent, "Brightness:", 0.5, 4.0, 1.0, 0.1)
+	var brightness_row: Array = _add_slider_row(parent, "HDR Brightness:", 0.5, 4.0, 1.5, 0.1)
 	_brightness_slider = brightness_row[0]
 	_brightness_label = brightness_row[1]
 
-	var anim_row: Array = _add_slider_row(parent, "Anim Speed:", 0.1, 3.0, 1.0, 0.1)
+	var anim_row: Array = _add_slider_row(parent, "Time Scale:", 0.1, 3.0, 1.0, 0.1)
 	_anim_speed_slider = anim_row[0]
 	_anim_speed_label = anim_row[1]
 
@@ -276,17 +280,9 @@ func _build_controls(parent: VBoxContainer) -> void:
 
 	_add_separator(parent)
 
-	# Glow
-	_add_section_header(parent, "GLOW")
-	var glow_row: Array = _add_slider_row(parent, "Glow:", 0.5, 4.0, 1.5, 0.1)
-	_glow_slider = glow_row[0]
-	_glow_label = glow_row[1]
-
-	_add_separator(parent)
-
 	# Pulse
 	_add_section_header(parent, "PULSE")
-	var pb_row: Array = _add_slider_row(parent, "Pulse Bright:", 0.5, 4.0, 2.0, 0.1)
+	var pb_row: Array = _add_slider_row(parent, "Pulse Bright:", 0.0, 4.0, 2.0, 0.1)
 	_pulse_brightness_slider = pb_row[0]
 	_pulse_brightness_label = pb_row[1]
 
@@ -341,7 +337,7 @@ func _collect_style_data() -> Dictionary:
 		"field_shader": _shader_button.get_item_text(_shader_button.selected),
 		"shader_params": shader_params,
 		"color": [_color_picker.color.r, _color_picker.color.g, _color_picker.color.b, _color_picker.color.a],
-		"glow_intensity": _glow_slider.value,
+		"glow_intensity": _brightness_slider.value,
 		"pulse_brightness": _pulse_brightness_slider.value,
 		"pulse_total_duration": _pulse_total_dur_slider.value,
 		"pulse_fade_up": _pulse_fade_up_slider.value,
@@ -360,7 +356,7 @@ func _update_preview() -> void:
 	_preview_material = ShaderMaterial.new()
 	_preview_material.shader = shader
 	_preview_material.set_shader_parameter("field_color", _color_picker.color)
-	_preview_material.set_shader_parameter("brightness", _glow_slider.value)
+	_preview_material.set_shader_parameter("brightness", _brightness_slider.value)
 	_preview_material.set_shader_parameter("animation_speed", _anim_speed_slider.value)
 	_preview_material.set_shader_parameter("opacity", 1.0)
 	_preview_material.set_shader_parameter("pulse_intensity", 0.0)
@@ -414,8 +410,7 @@ func _on_new() -> void:
 	_current_id = ""
 	_name_input.text = ""
 	_shader_button.selected = 0
-	_glow_slider.value = 1.5
-	_brightness_slider.value = 1.0
+	_brightness_slider.value = 1.5
 	_anim_speed_slider.value = 1.0
 	_pulse_brightness_slider.value = 2.0
 	_pulse_total_dur_slider.value = 0.5
@@ -450,7 +445,7 @@ func _populate_from_style(style: FieldStyle) -> void:
 			slider.value = float(style.shader_params[param_name])
 
 	_color_picker.color = style.color
-	_glow_slider.value = style.glow_intensity
+	_brightness_slider.value = style.glow_intensity
 	_pulse_brightness_slider.value = style.pulse_brightness
 	_pulse_total_dur_slider.value = style.pulse_total_duration
 	_pulse_fade_up_slider.value = style.pulse_fade_up

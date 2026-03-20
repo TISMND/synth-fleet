@@ -171,6 +171,7 @@ func _build_left_panel() -> Control:
 	viewport.size = Vector2i(400, 400)
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	viewport.transparent_bg = false
+	viewport.use_hdr_2d = true
 	viewport_container.add_child(viewport)
 
 	VFXFactory.add_bloom_to_viewport(viewport)
@@ -239,7 +240,7 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_color_picker.color_changed.connect(func(_c: Color) -> void: _rebuild_preview())
 	color_row.add_child(_color_picker)
 
-	var glow_row: Array = _add_slider_row(parent, "Brightness:", 0.5, 6.0, 2.0, 0.1)
+	var glow_row: Array = _add_slider_row(parent, "HDR Brightness:", 0.5, 6.0, 2.0, 0.1)
 	_glow_slider = glow_row[0]
 	_glow_label = glow_row[1]
 

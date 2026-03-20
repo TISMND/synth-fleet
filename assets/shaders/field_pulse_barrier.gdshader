@@ -13,6 +13,7 @@ uniform float pulse_decay : hint_range(0.1, 2.0) = 0.5;
 uniform float flash_intensity : hint_range(0.5, 4.0) = 2.0;
 
 void fragment() {
+	float modulate_alpha = COLOR.a;
 	float t = TIME * animation_speed;
 	vec2 uv = UV - 0.5;
 	float dist = length(uv) * 2.0;
@@ -50,5 +51,5 @@ void fragment() {
 
 	if (dist > 1.05) alpha = 0.0;
 
-	COLOR = vec4(col, alpha);
+	COLOR = vec4(col, alpha * modulate_alpha);
 }
