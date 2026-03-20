@@ -121,6 +121,8 @@ var _enemy_shield_max: float = 0.0
 var _enemy_hull: float = 0.0
 var _enemy_hull_max: float = 0.0
 var _enemy_shield_regen: float = 0.0
+var _hits_per_trigger_slider: HSlider
+var _hits_per_trigger_label: Label
 var _enemy_shield_bar: ProgressBar
 var _enemy_hull_bar: ProgressBar
 var _enemy_section: VBoxContainer
@@ -507,6 +509,7 @@ func _build_movement_tab() -> Control:
 	_pattern_button.item_selected.connect(func(_i: int) -> void:
 		_mark_dirty()
 		_update_preview()
+		_update_hits_from_pattern()
 	)
 
 	_add_separator(form)
@@ -725,6 +728,17 @@ func _build_stats_tab() -> Control:
 	enemy_row.add_child(_enemy_selector)
 	_refresh_enemy_list()
 
+	# Hits per trigger
+	var hits_row: Array = _add_slider_row(form, "Hits/trigger:", 1, 6, 1, 1)
+	_hits_per_trigger_slider = hits_row[0]
+	_hits_per_trigger_label = hits_row[1]
+	_hits_per_trigger_label.text = "1"
+	var hits_hint := Label.new()
+	hits_hint.text = "How many beams/projectiles connect per trigger (pattern dependent)"
+	hits_hint.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	hits_hint.add_theme_font_size_override("font_size", 11)
+	form.add_child(hits_hint)
+
 	_enemy_section = VBoxContainer.new()
 	_enemy_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	form.add_child(_enemy_section)
@@ -922,6 +936,28 @@ func _on_beam_style_selected(_idx: int) -> void:
 	_update_preview()
 
 
+func _get_pattern_max_hits() -> int:
+	var fp: String = _pattern_button.get_item_text(_pattern_button.selected)
+	match fp:
+		"single": return 1
+		"dual": return 2
+		"spread": return 3
+		"burst": return 3
+		"scatter": return 4
+		"wave": return 1
+	return 1
+
+
+func _update_hits_from_pattern() -> void:
+	var max_hits: int = _get_pattern_max_hits()
+	_hits_per_trigger_slider.max_value = max_hits
+	# Auto-set to max (assume all connect) but don't exceed current max
+	_hits_per_trigger_slider.value = mini(int(_hits_per_trigger_slider.value), max_hits)
+	if _hits_per_trigger_slider.value < 1:
+		_hits_per_trigger_slider.value = max_hits
+	_hits_per_trigger_label.text = str(int(_hits_per_trigger_slider.value))
+
+
 func _get_selected_beam_style_id() -> String:
 	if not _beam_style_selector or _beam_style_selector.selected <= 0:
 		return ""
@@ -934,21 +970,19 @@ func _is_beam_mode() -> bool:
 
 func _update_beam_visibility() -> void:
 	var beam_mode: bool = _is_beam_mode()
-	# Grey out projectile controls when beam mode
-	var proj_alpha: float = 0.3 if beam_mode else 1.0
+	# Grey out projectile-only controls when beam mode
+	var proj_only_alpha: float = 0.3 if beam_mode else 1.0
 	var beam_alpha: float = 1.0 if beam_mode else 0.3
 	if _style_selector:
 		_style_selector.disabled = beam_mode
-		_style_selector.modulate = Color(1, 1, 1, proj_alpha)
-	if _pattern_button:
-		_pattern_button.disabled = beam_mode
-		_pattern_button.modulate = Color(1, 1, 1, proj_alpha)
+		_style_selector.modulate = Color(1, 1, 1, proj_only_alpha)
+	# Fire pattern, direction, aim mode, mirror — work for both projectiles and beams
 	if _speed_slider:
 		_speed_slider.editable = not beam_mode
-		_speed_slider.modulate = Color(1, 1, 1, proj_alpha)
+		_speed_slider.modulate = Color(1, 1, 1, proj_only_alpha)
 	if _pierce_slider:
 		_pierce_slider.editable = not beam_mode
-		_pierce_slider.modulate = Color(1, 1, 1, proj_alpha)
+		_pierce_slider.modulate = Color(1, 1, 1, proj_only_alpha)
 	# Grey out beam controls when projectile mode
 	if _beam_timing_section:
 		_beam_timing_section.modulate = Color(1, 1, 1, beam_alpha)
@@ -961,7 +995,7 @@ func _update_beam_visibility() -> void:
 	# Grey out regular damage when beam mode
 	if _damage_slider:
 		_damage_slider.editable = not beam_mode
-		_damage_slider.modulate = Color(1, 1, 1, proj_alpha)
+		_damage_slider.modulate = Color(1, 1, 1, proj_only_alpha)
 
 
 # ── UI Helpers ──────────────────────────────────────────────
@@ -1255,6 +1289,11 @@ func _on_new() -> void:
 	_splash_radius_slider.value = 40
 	_skips_shields_toggle.button_pressed = false
 
+	# Reset hits per trigger
+	_hits_per_trigger_slider.max_value = 6
+	_hits_per_trigger_slider.value = 1
+	_hits_per_trigger_label.text = "1"
+
 	# Reset beam fields
 	_refresh_beam_style_list()
 	_beam_style_selector.selected = 0
@@ -1352,6 +1391,9 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_on_splash_toggled(weapon.splash_enabled)
 	_splash_radius_slider.value = weapon.splash_radius if weapon.splash_radius > 0.0 else 40.0
 	_skips_shields_toggle.button_pressed = weapon.skips_shields
+
+	# Auto-set hits per trigger from fire pattern
+	_update_hits_from_pattern()
 
 	# Beam fields
 	_refresh_beam_style_list()
@@ -1457,21 +1499,23 @@ func _on_trigger_fired() -> void:
 	# Projectile: one-shot bar effect deltas with wave animation
 	_apply_bar_effects_once()
 
-	# Projectile: one-shot damage to enemy
+	# Projectile: one-shot damage to enemy (multiplied by hits connecting)
 	if _enemy_section.visible and _enemy_hull > 0.0 and not _enemy_ttk_done:
 		if not _enemy_ttk_active:
 			_enemy_ttk_active = true
 			_enemy_ttk_timer = 0.0
-		_apply_enemy_damage(float(_damage_slider.value))
+		var hits: float = _hits_per_trigger_slider.value
+		_apply_enemy_damage(float(_damage_slider.value) * hits)
 
 
 func _apply_bar_effects_once() -> void:
+	var hits: float = _hits_per_trigger_slider.value
 	for bi in BAR_TYPES.size():
 		var bar_type: String = BAR_TYPES[bi]
 		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
 		if slider and slider.value != 0.0:
 			var old_val: float = _stats_bar_values[bi]
-			_stats_bar_values[bi] = clampf(old_val + slider.value, 0.0, _stats_bar_maxes[bi])
+			_stats_bar_values[bi] = clampf(old_val + slider.value * hits, 0.0, _stats_bar_maxes[bi])
 			var delta_ratio: float = (_stats_bar_values[bi] - old_val) / maxf(_stats_bar_maxes[bi], 1.0)
 			if delta_ratio > WAVE_MIN_CHANGE:
 				_stats_gain_wave[bi]["active"] = true
@@ -1486,30 +1530,45 @@ func _update_beam_sustain(delta: float) -> void:
 	if _beam_active_remaining < 0.0:
 		_beam_active_remaining = 0.0
 
-	# Continuous bar effects (scaled by delta, like DPS)
+	# Continuous bar effects (scaled by delta and hits connecting)
+	var hits: float = _hits_per_trigger_slider.value
 	for bi in BAR_TYPES.size():
 		var bar_type: String = BAR_TYPES[bi]
 		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
 		if slider and slider.value != 0.0:
 			# Scale bar effect by delta so it drains/gains smoothly over beam duration
-			var scaled_effect: float = slider.value * delta * 4.0  # 4x = similar feel to per-trigger
+			var scaled_effect: float = slider.value * hits * delta * 4.0  # 4x = similar feel to per-trigger
 			var old_val: float = _stats_bar_values[bi]
 			_stats_bar_values[bi] = clampf(old_val + scaled_effect, 0.0, _stats_bar_maxes[bi])
-			var delta_ratio: float = (_stats_bar_values[bi] - old_val) / maxf(_stats_bar_maxes[bi], 1.0)
-			if delta_ratio > WAVE_MIN_CHANGE:
-				_stats_gain_wave[bi]["active"] = true
-				_stats_gain_wave[bi]["position"] = 0.0
-			elif delta_ratio < -WAVE_MIN_CHANGE:
-				_stats_drain_wave[bi]["active"] = true
-				_stats_drain_wave[bi]["position"] = 1.0
+			# Keep rolling glow wave active continuously while beam is on
+			if slider.value > 0.0:
+				if not bool(_stats_gain_wave[bi]["active"]):
+					_stats_gain_wave[bi]["active"] = true
+					_stats_gain_wave[bi]["position"] = 0.0
+			elif slider.value < 0.0:
+				if not bool(_stats_drain_wave[bi]["active"]):
+					_stats_drain_wave[bi]["active"] = true
+					_stats_drain_wave[bi]["position"] = 1.0
 
 	# Continuous DPS to enemy
 	if _enemy_section.visible and _enemy_hull > 0.0 and not _enemy_ttk_done:
-		_beam_damage_accumulator += _beam_dps_slider.value * delta
+		var hits: float = _hits_per_trigger_slider.value
+		_beam_damage_accumulator += _beam_dps_slider.value * hits * delta
 		if _beam_damage_accumulator >= 1.0:
 			var tick_dmg: float = floorf(_beam_damage_accumulator)
 			_beam_damage_accumulator -= tick_dmg
 			_apply_enemy_damage(tick_dmg)
+
+	# Keep enemy bar drain wave rolling while beam damages
+	if _enemy_section.visible and not _enemy_ttk_done and _beam_active_remaining > 0.0:
+		if _enemy_shield > 0.0 and not _skips_shields_toggle.button_pressed:
+			if not bool(_enemy_shield_drain_wave["active"]):
+				_enemy_shield_drain_wave["active"] = true
+				_enemy_shield_drain_wave["position"] = 1.0
+		elif _enemy_hull > 0.0:
+			if not bool(_enemy_hull_drain_wave["active"]):
+				_enemy_hull_drain_wave["active"] = true
+				_enemy_hull_drain_wave["position"] = 1.0
 
 
 func _apply_enemy_damage(amount: float) -> void:

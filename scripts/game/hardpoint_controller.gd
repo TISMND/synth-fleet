@@ -184,6 +184,23 @@ func _get_current_direction() -> float:
 			return direction_deg
 
 
+## Beam-specific direction: no lead prediction (beams hit instantly), same sweep.
+func _get_beam_direction() -> float:
+	match aim_mode:
+		"sweep":
+			var phase: float = fmod(_sweep_time, sweep_duration) / sweep_duration
+			var sweep_offset: float = sin(phase * TAU) * sweep_arc_deg * 0.5
+			return direction_deg + sweep_offset
+		"track":
+			var nearest: Node2D = _find_nearest_enemy()
+			if nearest:
+				var to_target: Vector2 = nearest.global_position - global_position
+				return rad_to_deg(Vector2.UP.angle_to(to_target))
+			return direction_deg
+		_:
+			return direction_deg
+
+
 func _predict_position(target: Node2D) -> Vector2:
 	var dist: float = global_position.distance_to(target.global_position)
 	var proj_speed: float = weapon_data.projectile_speed if weapon_data else 600.0
@@ -216,7 +233,8 @@ func _fire(trigger_idx: int = -1) -> void:
 	if not weapon_data or not _projectiles_container:
 		return
 
-	var current_dir: float = _get_current_direction()
+	# Beams use no-prediction direction; projectiles use prediction
+	var current_dir: float = _get_beam_direction() if weapon_data.beam_style_id != "" else _get_current_direction()
 
 	match mirror_mode:
 		"mirror":
@@ -288,7 +306,7 @@ func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trig
 	# Beam dispatch via beam_style_id
 	if weapon_data.beam_style_id != "":
 		var bstyle: BeamStyle = _get_beam_style()
-		_spawn_beam_v2(pos, bstyle)
+		_spawn_beam_v2(pos, dir, bstyle)
 		return
 
 	var style: ProjectileStyle = _get_style()
@@ -313,7 +331,7 @@ func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trig
 	_projectiles_container.add_child(proj)
 
 
-func _spawn_beam_v2(pos: Vector2, bstyle: BeamStyle) -> void:
+func _spawn_beam_v2(pos: Vector2, dir: Vector2, bstyle: BeamStyle) -> void:
 	var beam := BeamProjectile.new()
 	beam.position = pos
 	beam.weapon_color = bstyle.color if bstyle else Color.CYAN
@@ -326,31 +344,86 @@ func _spawn_beam_v2(pos: Vector2, bstyle: BeamStyle) -> void:
 	beam.skips_shields = weapon_data.skips_shields
 	beam.passthrough = weapon_data.beam_passthrough
 	beam.track_node = self  # beam follows hardpoint position
+	# Rotate beam to match firing direction (Vector2.UP = 0 rotation)
+	beam.rotation = Vector2.UP.angle_to(dir)
+	# For sweep/track aim modes, beam continuously follows current direction
+	if aim_mode == "sweep" or aim_mode == "track":
+		beam.set_direction_source(_get_beam_direction)
 	# Calculate beam length — full screen or style-defined
 	var beam_length: float = bstyle.max_length if bstyle else 400.0
 	if bstyle and bstyle.full_screen_length:
-		# Extend beam from hardpoint to the top edge of the screen (y=0), with padding
-		beam_length = maxf(pos.y + 50.0, beam_length)
+		if aim_mode == "sweep" or aim_mode == "track":
+			# Sweep/track change direction — use viewport diagonal as worst case
+			var vp_size: Vector2 = Vector2(1920, 1080)
+			if get_viewport():
+				vp_size = Vector2(get_viewport().get_visible_rect().size)
+			beam_length = vp_size.length() + 200.0
+		else:
+			beam_length = _calc_full_screen_length(pos, dir)
 	beam.max_length = beam_length
 	_projectiles_container.add_child(beam)
+
+
+## Calculate beam length needed to exit the viewport from pos along dir, with generous padding.
+func _calc_full_screen_length(pos: Vector2, dir: Vector2) -> float:
+	# Viewport rect (1920x1080 per project.godot, but read dynamically)
+	var vp_size: Vector2 = Vector2(1920, 1080)
+	if get_viewport():
+		vp_size = Vector2(get_viewport().get_visible_rect().size)
+	# Ray-box intersection: find distance from pos along dir to exit the viewport
+	# dir points in the beam's travel direction (typically upward-ish)
+	# We test against all 4 edges and pick the nearest positive intersection
+	var best_dist: float = 9999.0
+	# Top edge (y = 0)
+	if dir.y < -0.001:
+		var t: float = -pos.y / dir.y
+		if t > 0.0:
+			best_dist = minf(best_dist, t)
+	# Bottom edge (y = vp_size.y)
+	if dir.y > 0.001:
+		var t: float = (vp_size.y - pos.y) / dir.y
+		if t > 0.0:
+			best_dist = minf(best_dist, t)
+	# Left edge (x = 0)
+	if dir.x < -0.001:
+		var t: float = -pos.x / dir.x
+		if t > 0.0:
+			best_dist = minf(best_dist, t)
+	# Right edge (x = vp_size.x)
+	if dir.x > 0.001:
+		var t: float = (vp_size.x - pos.x) / dir.x
+		if t > 0.0:
+			best_dist = minf(best_dist, t)
+	# Add generous padding so the beam never reveals its end
+	return best_dist + 200.0
 
 
 func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:
 	if not weapon_data:
 		return
 	var style: ProjectileStyle = _get_style()
-	# Use weapon's effect_profile; fall back to projectile style's effect_profile
+	# Use weapon's effect_profile; fall back to projectile style or beam style effect_profile
 	var profile: Dictionary = weapon_data.effect_profile
 	var defaults: Dictionary = profile.get("defaults", {}) as Dictionary
 	if defaults.is_empty() and style and not style.effect_profile.is_empty():
 		profile = style.effect_profile
+	if defaults.is_empty() and weapon_data.beam_style_id != "":
+		var bstyle: BeamStyle = _get_beam_style()
+		if bstyle and not bstyle.effect_profile.is_empty():
+			profile = bstyle.effect_profile
 	if profile.is_empty() or (profile.get("defaults", {}) as Dictionary).is_empty():
 		return
 	var resolved: Dictionary = EffectLayerRenderer.resolve_layers(profile, trigger_idx)
 	var muzzle_layers: Array = resolved.get("muzzle", []) as Array
 	if muzzle_layers.is_empty():
 		return
-	var color: Color = style.color if style else Color.CYAN
+	var color: Color = Color.CYAN
+	if style:
+		color = style.color
+	elif weapon_data.beam_style_id != "":
+		var bstyle2: BeamStyle = _get_beam_style()
+		if bstyle2:
+			color = bstyle2.color
 
 	# Spawn GPU particle muzzle emitters
 	for layer in muzzle_layers:

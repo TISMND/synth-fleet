@@ -15,6 +15,7 @@ extends Resource
 @export var appearance_mode: String = "flow_in"  # "flow_in" | "expand_out"
 @export var flip_shader: bool = false  # flip UV.y to reverse shader scroll direction
 @export var full_screen_length: bool = false  # if true, beam extends to screen edge
+@export var effect_profile: Dictionary = {}  # v2 format: muzzle + impact effect layers
 
 
 static func from_dict(data: Dictionary) -> BeamStyle:
@@ -39,6 +40,7 @@ static func from_dict(data: Dictionary) -> BeamStyle:
 	s.appearance_mode = str(data.get("appearance_mode", "flow_in"))
 	s.flip_shader = bool(data.get("flip_shader", false))
 	s.full_screen_length = bool(data.get("full_screen_length", false))
+	s.effect_profile = data.get("effect_profile", {}) as Dictionary
 	return s
 
 
@@ -56,4 +58,5 @@ func to_dict() -> Dictionary:
 		"appearance_mode": appearance_mode,
 		"flip_shader": flip_shader,
 		"full_screen_length": full_screen_length,
+		"effect_profile": effect_profile,
 	}

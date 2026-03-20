@@ -51,6 +51,11 @@ var _glow_label: Label
 var _flip_toggle: CheckBox
 var _full_screen_toggle: CheckBox
 
+# Effect slot UI — per-slot data (muzzle + impact only)
+# _slot_layer_data[slot] = { "type_btn": OptionButton, "param_container": VBoxContainer, "param_sliders": Dictionary, "color_picker": ColorPickerButton }
+var _slot_layer_data: Dictionary = {}
+const BEAM_EFFECT_SLOTS: Array[String] = ["muzzle", "impact"]
+
 # Dynamic param sections
 var _common_params_container: VBoxContainer
 var _common_param_sliders: Dictionary = {}
@@ -316,6 +321,13 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_glow_slider = glow_row[0]
 	_glow_label = glow_row[1]
 
+	_add_separator(parent)
+
+	# Effect sections (muzzle + impact — no trail for beams)
+	for slot in BEAM_EFFECT_SLOTS:
+		_build_effect_slot_section(parent, slot)
+		_add_separator(parent)
+
 
 # ── Dynamic Param Sections ─────────────────────────────────
 
@@ -350,6 +362,172 @@ func _rebuild_shader_params(shader_name: String) -> void:
 		var row: Array = _add_slider_row(_shader_params_container, param_name + ":",
 			float(bounds[0]), float(bounds[1]), float(bounds[2]), float(bounds[3]))
 		_shader_param_sliders[param_name] = row[0]
+
+
+# ── Effect Slot Sections ───────────────────────────────────
+
+func _build_effect_slot_section(parent: Control, slot: String) -> void:
+	var slot_label: String = EditorConstants.EFFECT_SLOT_LABELS.get(slot, slot.to_upper()) as String
+	_add_section_header(parent, slot_label)
+
+	# Type selector row
+	var type_row := HBoxContainer.new()
+	parent.add_child(type_row)
+
+	var type_label := Label.new()
+	type_label.text = "Type:"
+	type_label.custom_minimum_size.x = 130
+	type_row.add_child(type_label)
+
+	var types: Array = EditorConstants.EFFECT_TYPES[slot]
+	var type_btn := OptionButton.new()
+	type_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for t in types:
+		type_btn.add_item(str(t))
+	type_btn.selected = 0
+	type_row.add_child(type_btn)
+
+	# Color picker row
+	var color_row := HBoxContainer.new()
+	parent.add_child(color_row)
+
+	var color_label := Label.new()
+	color_label.text = "Effect Color:"
+	color_label.custom_minimum_size.x = 130
+	color_row.add_child(color_label)
+
+	var color_picker := ColorPickerButton.new()
+	color_picker.color = _color_picker.color if _color_picker else Color.CYAN
+	color_picker.custom_minimum_size = Vector2(80, 30)
+	color_picker.color_changed.connect(func(_c: Color) -> void: _spawn_preview_beam())
+	color_row.add_child(color_picker)
+
+	# Param container
+	var param_container := VBoxContainer.new()
+	param_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(param_container)
+
+	_slot_layer_data[slot] = {
+		"type_btn": type_btn,
+		"param_container": param_container,
+		"param_sliders": {},
+		"color_picker": color_picker,
+	}
+
+	# Build params for initial type
+	_rebuild_effect_slot_params(slot, type_btn.get_item_text(type_btn.selected))
+
+	# Connect type change
+	type_btn.item_selected.connect(func(idx: int) -> void:
+		var new_type: String = type_btn.get_item_text(idx)
+		_rebuild_effect_slot_params(slot, new_type)
+		_spawn_preview_beam()
+	)
+
+
+func _rebuild_effect_slot_params(slot: String, type_name: String) -> void:
+	var data: Dictionary = _slot_layer_data[slot]
+	var param_container: VBoxContainer = data["param_container"]
+
+	for child in param_container.get_children():
+		child.queue_free()
+	data["param_sliders"] = {}
+
+	var slot_defs: Dictionary = EditorConstants.EFFECT_PARAM_DEFS.get(slot, {}) as Dictionary
+	var type_params: Dictionary = slot_defs.get(type_name, {}) as Dictionary
+
+	if type_params.is_empty():
+		var no_params := Label.new()
+		no_params.text = "  (no parameters)"
+		no_params.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+		param_container.add_child(no_params)
+		return
+
+	var sliders_dict: Dictionary = {}
+	for param_name in type_params:
+		var bounds: Array = type_params[param_name]
+		var row: Array = _add_slider_row(param_container, param_name + ":",
+			float(bounds[0]), float(bounds[1]), float(bounds[2]), float(bounds[3]))
+		sliders_dict[param_name] = row[0]
+	data["param_sliders"] = sliders_dict
+
+
+func _collect_effect_profile() -> Dictionary:
+	var defaults: Dictionary = {}
+	for slot in BEAM_EFFECT_SLOTS:
+		var data: Dictionary = _slot_layer_data.get(slot, {})
+		if data.is_empty():
+			continue
+		var type_btn: OptionButton = data["type_btn"]
+		var type_name: String = type_btn.get_item_text(type_btn.selected)
+		if type_name == "none":
+			continue
+		var params: Dictionary = {}
+		var sliders: Dictionary = data.get("param_sliders", {}) as Dictionary
+		for param_name in sliders:
+			var slider: HSlider = sliders[param_name]
+			params[param_name] = slider.value
+		var layer_dict: Dictionary = {"type": type_name, "params": params}
+		var color_picker: ColorPickerButton = data["color_picker"]
+		var c: Color = color_picker.color
+		if not c.is_equal_approx(_color_picker.color):
+			layer_dict["color"] = [c.r, c.g, c.b, c.a]
+		defaults[slot] = [layer_dict]
+	if defaults.is_empty():
+		return {}
+	return {"version": 2, "defaults": defaults, "trigger_overrides": {}}
+
+
+func _populate_effects_from_profile(profile: Dictionary) -> void:
+	var defaults: Dictionary = profile.get("defaults", {}) as Dictionary
+	for slot in BEAM_EFFECT_SLOTS:
+		var data: Dictionary = _slot_layer_data.get(slot, {})
+		if data.is_empty():
+			continue
+		var type_btn: OptionButton = data["type_btn"]
+		var color_picker: ColorPickerButton = data["color_picker"]
+		var slot_layers: Array = defaults.get(slot, []) as Array
+		if slot_layers.is_empty():
+			type_btn.selected = 0
+			_rebuild_effect_slot_params(slot, "none")
+			color_picker.color = _color_picker.color if _color_picker else Color.CYAN
+		else:
+			var layer_dict: Dictionary = slot_layers[0] as Dictionary
+			var type_name: String = str(layer_dict.get("type", "none"))
+			var types: Array = EditorConstants.EFFECT_TYPES[slot]
+			var type_idx: int = -1
+			for i in types.size():
+				if str(types[i]) == type_name:
+					type_idx = i
+					break
+			type_btn.selected = type_idx if type_idx >= 0 else 0
+			_rebuild_effect_slot_params(slot, type_name)
+			var params: Dictionary = layer_dict.get("params", {}) as Dictionary
+			var sliders: Dictionary = data.get("param_sliders", {}) as Dictionary
+			for param_name in params:
+				if param_name in sliders:
+					var slider: HSlider = sliders[param_name]
+					slider.value = float(params[param_name])
+			if layer_dict.has("color"):
+				var ca: Array = layer_dict["color"] as Array
+				if ca.size() >= 3:
+					var a: float = float(ca[3]) if ca.size() >= 4 else 1.0
+					color_picker.color = Color(float(ca[0]), float(ca[1]), float(ca[2]), a)
+				else:
+					color_picker.color = _color_picker.color if _color_picker else Color.CYAN
+			else:
+				color_picker.color = _color_picker.color if _color_picker else Color.CYAN
+
+
+func _reset_effect_slots() -> void:
+	for slot in BEAM_EFFECT_SLOTS:
+		var data: Dictionary = _slot_layer_data.get(slot, {})
+		if not data.is_empty():
+			var type_btn: OptionButton = data["type_btn"]
+			type_btn.selected = 0
+			_rebuild_effect_slot_params(slot, "none")
+			var color_picker: ColorPickerButton = data["color_picker"]
+			color_picker.color = _color_picker.color if _color_picker else Color.CYAN
 
 
 func _on_shader_changed(_idx: int) -> void:
@@ -396,6 +574,7 @@ func _collect_beam_style() -> BeamStyle:
 	s.appearance_mode = APPEARANCE_MODES[_appearance_button.selected]
 	s.flip_shader = _flip_toggle.button_pressed
 	s.full_screen_length = _full_screen_toggle.button_pressed
+	s.effect_profile = _collect_effect_profile()
 	# Collect shader params
 	var params: Dictionary = {}
 	for param_name in _common_param_sliders:
@@ -472,6 +651,7 @@ func _on_new() -> void:
 	_glow_slider.value = 1.5
 	_rebuild_common_params()
 	_rebuild_shader_params("beam")
+	_reset_effect_slots()
 	_spawn_preview_beam()
 	_status_label.text = "New beam style — ready to edit."
 
@@ -523,6 +703,12 @@ func _populate_from_style(bstyle: BeamStyle) -> void:
 	_max_length_slider.value = bstyle.max_length
 	_beam_width_slider.value = bstyle.beam_width
 	_glow_slider.value = bstyle.glow_intensity
+
+	# Effect profile
+	if not bstyle.effect_profile.is_empty():
+		_populate_effects_from_profile(bstyle.effect_profile)
+	else:
+		_reset_effect_slots()
 
 	_spawn_preview_beam()
 

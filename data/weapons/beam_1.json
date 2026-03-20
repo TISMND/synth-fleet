@@ -1,16 +1,16 @@
 {
-	"aim_mode": "fixed",
+	"aim_mode": "track",
 	"bar_effects": {
-
+		"electric": -1.0
 	},
-	"beam_dps": 104.0,
+	"beam_dps": 20.0,
 	"beam_duration": 1.6,
-	"beam_passthrough": true,
+	"beam_passthrough": false,
 	"beam_style_id": "beam_1",
 	"beam_transition_time": 0.26,
 	"damage": 10,
 	"description": "",
-	"direction_deg": 0.0,
+	"direction_deg": 79.0,
 	"display_name": "Beam 1",
 	"effect_profile": {
 		"defaults": {
@@ -35,14 +35,14 @@
 	"id": "beam_1",
 	"loop_file_path": "res://loop_zips/sorted/bass/Dreading Sphere - 120 BPM - 1 - Bass - cw_bass90_youthful_E.wav",
 	"loop_length_bars": 8,
-	"mirror_mode": "none",
+	"mirror_mode": "mirror",
 	"pierce_count": 0,
 	"projectile_speed": 600.0,
 	"projectile_style_id": "",
 	"skips_shields": false,
 	"splash_enabled": false,
 	"splash_radius": 0.0,
-	"sweep_arc_deg": 60.0,
+	"sweep_arc_deg": 127.0,
 	"sweep_duration": 1.0,
 	"transition_mode": "instant",
 	"transition_ms": 200

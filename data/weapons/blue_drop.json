@@ -3,42 +3,18 @@
 	"bar_effects": {
 		"electric": -6.0
 	},
+	"beam_dps": 50.0,
+	"beam_duration": 0.3,
+	"beam_passthrough": true,
+	"beam_style_id": "",
+	"beam_transition_time": 0.1,
 	"damage": 20,
 	"description": "",
 	"direction_deg": 0.0,
 	"display_name": "Blue Drop",
 	"effect_profile": {
 		"defaults": {
-			"impact": [
-				{
-					"params": {
-						"lifetime": 0.55,
-						"particle_count": 12.0,
-						"radius": 40.0
-					},
-					"type": "shatter_lines"
-				}
-			],
-			"muzzle": [
-				{
-					"params": {
-						"lifetime": 0.1,
-						"particle_count": 8.0,
-						"spread_angle": 360.0
-					},
-					"type": "spiral_burst"
-				}
-			],
-			"trail": [
-				{
-					"params": {
-						"lifetime": 0.1,
-						"width_end": 0.5,
-						"width_start": 4.0
-					},
-					"type": "ribbon"
-				}
-			]
+
 		},
 		"trigger_overrides": {
 
@@ -68,9 +44,14 @@
 	"loop_file_path": "res://loop_zips/sorted/keys/Oscillating Spoons - 120 BPM - 7 - Keys - FRANCMOODY_115_sh101_loop_pulse_F#maj.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
+	"pierce_count": 0,
 	"projectile_speed": 600.0,
 	"projectile_style_id": "square_drop",
-	"special_effect": "none",
+	"skips_shields": false,
+	"splash_enabled": false,
+	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
-	"sweep_duration": 1.2
+	"sweep_duration": 1.2,
+	"transition_mode": "instant",
+	"transition_ms": 200
 }
