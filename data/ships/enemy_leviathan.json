@@ -1,7 +1,15 @@
 {
 	"burst_directions": 6,
 	"display_name": "Leviathan",
-	"enemy_damage": 180,
+	"enable_screen_shake": false,
+	"enemy_damage": 13,
+	"explosion_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"explosion_size": 1.0,
 	"fire_pattern": "burst",
 	"fire_rate": 2.0,
 	"grid_size": [

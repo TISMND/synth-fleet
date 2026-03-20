@@ -13,7 +13,7 @@
 		"shield_hp": 240.0,
 		"shield_regen": 1.0,
 		"shield_segments": 13.0,
-		"speed": 470.0,
+		"speed": 500.0,
 		"thermal_hp": 120.0,
 		"thermal_segments": 9.0
 	}

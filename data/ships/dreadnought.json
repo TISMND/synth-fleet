@@ -1,0 +1,18 @@
+{
+	"display_name": "Dreadnought",
+	"id": "dreadnought",
+	"render_mode": "chrome",
+	"stats": {
+		"acceleration": 600,
+		"electric_hp": 80,
+		"electric_segments": 13.0,
+		"hull_hp": 160,
+		"hull_segments": 14.0,
+		"shield_hp": 160,
+		"shield_regen": 0.6,
+		"shield_segments": 14.0,
+		"speed": 280,
+		"thermal_hp": 60,
+		"thermal_segments": 11.0
+	}
+}

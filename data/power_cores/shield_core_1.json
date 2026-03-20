@@ -1,6 +1,49 @@
 {
+	"bar_effect_triggers": [
+		{
+			"time": 0.0,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.125,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.25,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.375,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.5,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.625,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.75,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.875,
+			"type": "shield",
+			"value": 5.0
+		}
+	],
 	"bar_effects": {
-		"electric": -5.0
+		"electric": -2.0,
+		"shield": 6.0
 	},
 	"description": "",
 	"display_name": "Shield Core 1",
@@ -19,7 +62,7 @@
 
 	},
 	"pulse_triggers": {
-		"shield": [
+		"electric": [
 			0.0,
 			0.125,
 			0.25,

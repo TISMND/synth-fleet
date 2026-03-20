@@ -1,7 +1,15 @@
 {
 	"burst_directions": 8,
 	"display_name": "Colossus",
-	"enemy_damage": 250,
+	"enable_screen_shake": false,
+	"enemy_damage": 20,
+	"explosion_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"explosion_size": 1.0,
 	"fire_pattern": "burst",
 	"fire_rate": 2.5,
 	"grid_size": [

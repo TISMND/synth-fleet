@@ -1,7 +1,15 @@
 {
 	"burst_directions": 4,
 	"display_name": "Marauder",
-	"enemy_damage": 220,
+	"enable_screen_shake": false,
+	"enemy_damage": 16,
+	"explosion_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"explosion_size": 1.0,
 	"fire_pattern": "burst",
 	"fire_rate": 1.6,
 	"grid_size": [

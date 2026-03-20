@@ -131,6 +131,17 @@ func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
 		RenderMode.SPORE: _draw_spore_polygon(points, width)
 		_: _draw_neon_polygon(points, color, width)
 
+func _circle(center: Vector2, radius: float, color: Color, width: float) -> void:
+	match render_mode:
+		RenderMode.CHROME:
+			# Chrome needs polygon points for gradient band clipping
+			var pts: PackedVector2Array = _make_circle_points(center, radius, 64)
+			_draw_chrome_polygon(pts, color, bank)
+		RenderMode.VOID: _draw_void_circle(center, radius, width)
+		RenderMode.HIVEMIND: _draw_hivemind_circle(center, radius, width)
+		RenderMode.SPORE: _draw_spore_circle(center, radius, width)
+		_: _draw_neon_circle(center, radius, color, width)
+
 func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
 	match render_mode:
 		RenderMode.CHROME: _draw_chrome_line(a, b, color, width)
@@ -273,8 +284,7 @@ func _draw_sentinel() -> void:
 	var detail := detail_color
 
 	# Outer circle body
-	var circle_pts: PackedVector2Array = _make_circle_points(Vector2.ZERO, r, 32)
-	_poly(circle_pts, glow_col, 1.8 * s)
+	_circle(Vector2.ZERO, r, glow_col, 1.8 * s)
 
 	# Inner spinning hexagon
 	var hex_pts := PackedVector2Array()
@@ -2021,3 +2031,77 @@ func _draw_neon_lines(points: PackedVector2Array, color: Color, width: float) ->
 		draw_circle(pt, width * 0.9, Color(color.r, color.g, color.b, 0.5))
 		draw_circle(pt, width * 0.5, color)
 		draw_circle(pt, width * 0.2, Color(1, 1, 1, 0.6))
+
+# ── Circle draw helpers (native primitives instead of polygon approximation) ──
+
+func _draw_neon_circle(center: Vector2, radius: float, color: Color, width: float) -> void:
+	# Fill
+	var glow := color
+	glow.a = 0.15
+	draw_circle(center, radius, glow)
+	# Outer glow arc
+	var gc := color
+	gc.a = 0.25
+	draw_arc(center, radius, 0.0, TAU, 128, gc, width * 3.0, true)
+	# Mid glow
+	gc.a = 0.5
+	draw_arc(center, radius, 0.0, TAU, 128, gc, width * 1.8, true)
+	# Bright core
+	draw_arc(center, radius, 0.0, TAU, 128, color, width, true)
+	# White-hot center
+	draw_arc(center, radius, 0.0, TAU, 128, Color(1, 1, 1, 0.6), width * 0.4, true)
+
+func _draw_void_circle(center: Vector2, radius: float, width: float) -> void:
+	draw_circle(center, radius, VOID_FILL)
+	# Dim outer edge glow
+	draw_arc(center, radius, 0.0, TAU, 128, VOID_EDGE_DIM, width * 2.5, true)
+	# Shimmer — animate hue shift around the ring
+	var arc_steps: int = 32
+	var arc_len: float = TAU / float(arc_steps)
+	for i in range(arc_steps):
+		var a0: float = arc_len * float(i)
+		var shimmer: float = sin(time * 0.4 + float(i) * 0.7) * 0.5 + 0.5
+		var edge_col := Color(
+			lerpf(VOID_EDGE.r, 0.2, shimmer),
+			lerpf(VOID_EDGE.g, 0.0, shimmer),
+			lerpf(VOID_EDGE.b, 1.0, shimmer)
+		)
+		draw_arc(center, radius, a0, a0 + arc_len * 1.1, 8, edge_col, width, true)
+	# Faint white flicker core
+	var flicker: float = 0.2 + sin(time * 1.8) * 0.15
+	draw_arc(center, radius, 0.0, TAU, 128, Color(1, 1, 1, flicker), width * 0.3, true)
+
+func _draw_hivemind_circle(center: Vector2, radius: float, width: float) -> void:
+	# Dark amber fill
+	draw_circle(center, radius, HIVE_FILL)
+	# Breathing amber overlay
+	var breath: float = sin(time * 1.2) * 0.08
+	draw_circle(center, radius, Color(0.2, 0.1, 0.0, 0.15 + breath))
+	# Dim green vein underglow
+	draw_arc(center, radius, 0.0, TAU, 128, HIVE_VEIN_DIM, width * 2.0, true)
+	# Pulsing green veins — segmented arcs with phase offset
+	var arc_steps: int = 24
+	var arc_len: float = TAU / float(arc_steps)
+	for i in range(arc_steps):
+		var a0: float = arc_len * float(i)
+		var pulse: float = 0.5 + sin(time * 1.2 + float(i) * 1.1) * 0.5
+		var vein_col := Color(HIVE_VEIN.r, HIVE_VEIN.g, HIVE_VEIN.b, pulse)
+		draw_arc(center, radius, a0, a0 + arc_len * 1.1, 8, vein_col, width, true)
+
+func _draw_spore_circle(center: Vector2, radius: float, width: float) -> void:
+	# Ghostly teal fill
+	draw_circle(center, radius, SPORE_CORE)
+	# Faint continuous underglow
+	draw_arc(center, radius, 0.0, TAU, 128, Color(SPORE_DOT.r, SPORE_DOT.g, SPORE_DOT.b, 0.15), width * 2.0, true)
+	# Alternating arc segments swap visibility
+	var arc_steps: int = 24
+	var arc_len: float = TAU / float(arc_steps)
+	for i in range(arc_steps):
+		var a0: float = arc_len * float(i)
+		var vis: int = (i + int(time * 2.4)) % 2
+		var seg_col: Color = SPORE_DOT if vis == 0 else SPORE_DOT_ALT
+		seg_col.a = 0.7
+		draw_arc(center, radius, a0, a0 + arc_len * 1.1, 8, seg_col, width, true)
+	# Wandering highlight
+	var wander: Vector2 = center + Vector2(cos(time * 0.7) * 6.0, sin(time * 0.9) * 6.0)
+	draw_circle(wander, 3.0, Color(1, 1, 1, 0.3 + sin(time * 2.0) * 0.2))

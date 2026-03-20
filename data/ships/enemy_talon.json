@@ -1,7 +1,15 @@
 {
 	"burst_directions": 4,
 	"display_name": "Talon",
-	"enemy_damage": 100,
+	"enable_screen_shake": false,
+	"enemy_damage": 12,
+	"explosion_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"explosion_size": 1.0,
 	"fire_pattern": "straight",
 	"fire_rate": 1.5,
 	"grid_size": [

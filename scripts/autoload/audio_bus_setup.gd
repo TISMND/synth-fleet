@@ -12,6 +12,10 @@ func _ready() -> void:
 	_load_volumes()
 
 
+## Buses that get an AudioEffectPitchShift (for nebula key-change etc.)
+const PITCH_SHIFT_BUSES: Array[String] = ["Weapons", "Atmosphere"]
+
+
 func _ensure_buses() -> void:
 	for bus_name in BUS_NAMES:
 		var idx: int = AudioServer.get_bus_index(bus_name)
@@ -20,6 +24,23 @@ func _ensure_buses() -> void:
 			var new_idx: int = AudioServer.bus_count - 1
 			AudioServer.set_bus_name(new_idx, bus_name)
 			AudioServer.set_bus_send(new_idx, "Master")
+	# Add pitch-shift effects to designated buses (disabled by default)
+	for bus_name in PITCH_SHIFT_BUSES:
+		var bus_idx: int = AudioServer.get_bus_index(bus_name)
+		if bus_idx < 0:
+			continue
+		# Skip if already has a pitch shift effect
+		var already_has: bool = false
+		for i in range(AudioServer.get_bus_effect_count(bus_idx)):
+			if AudioServer.get_bus_effect(bus_idx, i) is AudioEffectPitchShift:
+				already_has = true
+				break
+		if not already_has:
+			var fx := AudioEffectPitchShift.new()
+			fx.pitch_scale = 1.0
+			AudioServer.add_bus_effect(bus_idx, fx)
+			# Start disabled — enabled when a nebula applies a key shift
+			AudioServer.set_bus_effect_enabled(bus_idx, AudioServer.get_bus_effect_count(bus_idx) - 1, false)
 
 
 func _load_volumes() -> void:

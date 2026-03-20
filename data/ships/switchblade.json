@@ -6,7 +6,7 @@
 		"acceleration": 4100.0,
 		"device_slots": 2.0,
 		"electric_hp": 80.0,
-		"electric_segments": 6.0,
+		"electric_segments": 8.0,
 		"generator_power": 12.0,
 		"hull_hp": 60.0,
 		"hull_segments": 5.0,

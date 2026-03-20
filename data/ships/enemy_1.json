@@ -2,7 +2,7 @@
 	"burst_directions": 4,
 	"display_name": "Sentinel",
 	"enable_screen_shake": false,
-	"enemy_damage": 100,
+	"enemy_damage": 15,
 	"explosion_color": [
 		0.945465683937073,
 		0.301960825920105,

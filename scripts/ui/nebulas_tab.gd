@@ -58,6 +58,9 @@ var _effects_container: VBoxContainer
 var _special_effect_checks: Dictionary = {}  # effect_id -> CheckBox
 const KNOWN_SPECIAL_EFFECTS: Array[String] = ["cloak", "slow", "damage_boost"]
 
+# Music effects
+var _key_shift_spin: SpinBox
+
 # Preview layering refs
 var _preview_container: Control  # Holds bottom nebula, ship, top veil
 var _preview_bottom: ColorRect
@@ -400,6 +403,31 @@ func _build_effects_controls() -> void:
 		_effects_container.add_child(check)
 		_special_effect_checks[effect_id] = check
 
+	# Music effects
+	var music_label := Label.new()
+	music_label.text = "Music Effects"
+	music_label.name = "MusicEffectsLabel"
+	_effects_container.add_child(music_label)
+
+	var key_row := HBoxContainer.new()
+	key_row.add_theme_constant_override("separation", 8)
+	_effects_container.add_child(key_row)
+
+	var key_lbl := Label.new()
+	key_lbl.text = "Key Shift"
+	key_lbl.custom_minimum_size.x = 100
+	key_row.add_child(key_lbl)
+
+	_key_shift_spin = SpinBox.new()
+	_key_shift_spin.min_value = -6
+	_key_shift_spin.max_value = 6
+	_key_shift_spin.step = 1
+	_key_shift_spin.value = 0
+	_key_shift_spin.suffix = " st"
+	_key_shift_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_key_shift_spin.value_changed.connect(_on_key_shift_changed)
+	key_row.add_child(_key_shift_spin)
+
 
 func _rebuild_list() -> void:
 	for child in _list_container.get_children():
@@ -513,6 +541,9 @@ func _select_nebula(id: String) -> void:
 	for effect_id in _special_effect_checks:
 		var check: CheckBox = _special_effect_checks[effect_id]
 		check.button_pressed = data.special_effects.has(effect_id)
+
+	# Load key shift
+	_key_shift_spin.value = data.key_shift_semitones
 
 	_suppressing_signals = false
 
@@ -796,6 +827,16 @@ func _on_special_effect_toggled(toggled_on: bool, effect_id: String) -> void:
 		data.special_effects.append(effect_id)
 	elif not toggled_on and data.special_effects.has(effect_id):
 		data.special_effects.erase(effect_id)
+	_auto_save()
+
+
+func _on_key_shift_changed(val: float) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if not data:
+		return
+	data.key_shift_semitones = int(val)
 	_auto_save()
 
 
