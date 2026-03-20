@@ -46,8 +46,6 @@ var level_id: String = ""
 
 
 func _ready() -> void:
-	_setup_world_environment()
-
 	# Build ShipData — start from registry, then apply user overrides for stats/render
 	var ship: ShipData = ShipRegistry.build_ship_data(GameState.current_ship_index)
 	var ship_override: ShipData = ShipDataManager.load_by_id(ship.id)
@@ -301,22 +299,6 @@ func _return_to_menu() -> void:
 	else:
 		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
-
-func _setup_world_environment() -> void:
-	var world_env := WorldEnvironment.new()
-	var env := Environment.new()
-	env.background_mode = Environment.BG_CANVAS
-	env.glow_enabled = true
-	env.glow_intensity = 0.8
-	env.glow_bloom = 0.1
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	env.glow_hdr_threshold = 0.8
-	env.set_glow_level(0, true)
-	env.set_glow_level(1, true)
-	env.set_glow_level(2, true)
-	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	world_env.environment = env
-	add_child(world_env)
 
 
 func _setup_parallax() -> void:

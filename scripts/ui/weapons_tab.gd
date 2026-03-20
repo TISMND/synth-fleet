@@ -1402,20 +1402,17 @@ func _apply_stats_bar_glow(bar_idx: int) -> void:
 		seg = int(ShipData.DEFAULT_SEGMENTS.get(_stats_bar_names[bar_idx], -1))
 	ThemeManager.apply_led_bar(bar, base_color, ratio, seg)
 
-	# Apply glow pulse on the overlay
+	# Apply glow pulse on the bar material
 	var glow: float = _stats_bar_brightness[bar_idx] * 0.5
-	var overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
-	if overlay and overlay.material is ShaderMaterial:
-		var mat: ShaderMaterial = overlay.material as ShaderMaterial
+	if bar.material is ShaderMaterial:
+		var mat: ShaderMaterial = bar.material as ShaderMaterial
 		var bright: Color = base_color.lightened(0.6)
 		var modulated: Color = base_color.lerp(bright, clampf(glow, 0.0, 1.0))
 		mat.set_shader_parameter("fill_color", modulated)
 		var base_inner: float = ThemeManager.get_float("led_inner_intensity")
-		var base_bloom: float = ThemeManager.get_float("led_bloom_intensity")
-		var base_aura: float = ThemeManager.get_float("led_aura_intensity")
+		var base_hdr: float = ThemeManager.get_float("led_hdr_multiplier")
 		mat.set_shader_parameter("inner_intensity", base_inner + glow * 1.5)
-		mat.set_shader_parameter("bloom_intensity", base_bloom + glow * 0.8)
-		mat.set_shader_parameter("aura_intensity", base_aura + glow * 0.6)
+		mat.set_shader_parameter("hdr_multiplier", base_hdr + glow * 0.8)
 
 
 func _refresh_stats_bars() -> void:

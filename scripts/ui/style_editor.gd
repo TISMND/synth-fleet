@@ -737,25 +737,13 @@ func _build_bars_tab() -> void:
 	_add_float_slider(root, "led_inner_intensity", 0.0, 2.0, ThemeManager.get_float("led_inner_intensity"))
 	_add_float_slider(root, "led_inner_softness", 0.1, 3.0, ThemeManager.get_float("led_inner_softness"))
 
-	# ── Aura ──
-	var aura_header := Label.new()
-	aura_header.text = "Aura"
-	aura_header.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
-	root.add_child(aura_header)
+	# ── HDR Bloom ──
+	var hdr_header := Label.new()
+	hdr_header.text = "HDR Bloom"
+	hdr_header.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+	root.add_child(hdr_header)
 
-	_add_float_slider(root, "led_aura_size", 0.0, 0.15, ThemeManager.get_float("led_aura_size"))
-	_add_float_slider(root, "led_aura_intensity", 0.0, 3.0, ThemeManager.get_float("led_aura_intensity"))
-	_add_float_slider(root, "led_aura_falloff", 0.1, 4.0, ThemeManager.get_float("led_aura_falloff"))
-
-	# ── Bloom ──
-	var bloom_header := Label.new()
-	bloom_header.text = "Bloom"
-	bloom_header.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
-	root.add_child(bloom_header)
-
-	_add_float_slider(root, "led_bloom_size", 0.0, 0.3, ThemeManager.get_float("led_bloom_size"))
-	_add_float_slider(root, "led_bloom_intensity", 0.0, 2.0, ThemeManager.get_float("led_bloom_intensity"))
-	_add_float_slider(root, "led_bloom_falloff", 0.1, 4.0, ThemeManager.get_float("led_bloom_falloff"))
+	_add_float_slider(root, "led_hdr_multiplier", 1.0, 4.0, ThemeManager.get_float("led_hdr_multiplier"))
 
 	# ── Smudge ──
 	var smudge_header := Label.new()

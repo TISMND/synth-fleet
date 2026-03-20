@@ -7,7 +7,7 @@ const SIDE_PANEL_WIDTH: int = 60    # bar(28) + padding + label space
 const SIDE_PANEL_PADDING: int = 8
 const PANEL_PADDING: int = 12
 const WEAPON_ICON_SIZE: int = 40
-const BAR_WIDTH: int = 28
+const BAR_WIDTH: int = 52
 
 
 static func build_hud(mode: String, panel_height: float = 948.0) -> Dictionary:
@@ -158,10 +158,12 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 
 		# Fixed bar height from segment count — no stretching
 		var bar_height: float = float(seg) * seg_px + float(seg - 1) * gap_px
-		# Label anchored to bottom of zone, bar grows upward from just above label
+		# Label anchored to bottom of zone, bar centered in remaining space above
+		var zone_top: float = mid_y * float(i) + bar_pad
 		var zone_bottom: float = mid_y * float(i + 1)
 		var label_top: float = zone_bottom - bar_pad - label_h
-		var bar_top: float = label_top - bar_pad - bar_height
+		var available_h: float = label_top - bar_pad - zone_top
+		var bar_top: float = zone_top + (available_h - bar_height) / 2.0
 		# Create bar
 		var bar := ProgressBar.new()
 		bar.fill_mode = 3  # FILL_BOTTOM_TO_TOP
@@ -170,18 +172,8 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		bar.show_percentage = false
 		content.add_child(bar)
 		ThemeManager.apply_led_bar(bar, color, 1.0, seg, true)
-		bar.size_flags_vertical = Control.SIZE_FILL
-		# Defer position: apply_led_bar's glow overlay inflates actual size,
-		# so we wait one frame, read the real size, and anchor bottom edge above label
-		var _def_bar: ProgressBar = bar
-		var _def_x: float = bar_x
-		var _def_label_top: float = label_top
-		var _def_pad: float = bar_pad
-		(func():
-			var actual_h: float = _def_bar.size.y
-			var anchored_top: float = _def_label_top - _def_pad - actual_h
-			_def_bar.position = Vector2(_def_x, anchored_top)
-		).call_deferred()
+		bar.size = Vector2(BAR_WIDTH, bar_height)
+		bar.position = Vector2(bar_x, bar_top)
 
 		# Create label BELOW bar
 		var lbl := Label.new()

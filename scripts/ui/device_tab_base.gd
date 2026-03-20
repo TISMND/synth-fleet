@@ -657,10 +657,9 @@ func _apply_bar_glow(bar_idx: int, glow: float) -> void:
 	if bar_idx >= _preview_bars.size() or bar_idx >= _preview_bar_base_colors.size():
 		return
 	var bar: ProgressBar = _preview_bars[bar_idx]
-	var overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
-	if not overlay or not overlay.material is ShaderMaterial:
+	if not bar.material is ShaderMaterial:
 		return
-	var mat: ShaderMaterial = overlay.material as ShaderMaterial
+	var mat: ShaderMaterial = bar.material as ShaderMaterial
 	var base_color: Color = _preview_bar_base_colors[bar_idx]
 	var bright: Color = base_color.lightened(0.6)
 	var modulated: Color = base_color.lerp(bright, clampf(glow, 0.0, 1.0))

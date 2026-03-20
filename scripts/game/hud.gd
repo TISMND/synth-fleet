@@ -142,15 +142,10 @@ func _apply_theme() -> void:
 		var lbl: Label = entry["label"]
 		HudBuilder.apply_bar_label_theme(lbl, color, body_font, body_size)
 		var bar: ProgressBar = entry["bar"]
-		var saved_pos: Vector2 = bar.position
-		var saved_size: Vector2 = bar.size
 		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
 		var seg: int = int(_bar_segments.get(bar_name, -1))
 		var is_vertical: bool = entry.get("vertical", false) as bool
 		ThemeManager.apply_led_bar(bar, color, ratio, seg, is_vertical)
-		# Restore position/size since bars use fixed positioning
-		bar.position = saved_pos
-		bar.size = saved_size
 		_bar_base_colors[bar_name] = color
 
 	# Weapon icons
@@ -190,9 +185,8 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 	_bar_prev_values[bar_name] = ratio
 
 	# Only update fill_ratio on existing shader — don't rebuild the entire LED bar
-	var overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
-	if overlay and overlay.material is ShaderMaterial:
-		var mat: ShaderMaterial = overlay.material as ShaderMaterial
+	if bar.material is ShaderMaterial:
+		var mat: ShaderMaterial = bar.material as ShaderMaterial
 		mat.set_shader_parameter("fill_ratio", ratio)
 	else:
 		# First time or after theme change — full rebuild
@@ -261,10 +255,9 @@ func _apply_wave_uniforms(bar_name: String) -> void:
 		return
 	var entry: Dictionary = _bars[bar_name]
 	var bar: ProgressBar = entry["bar"]
-	var overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
-	if not overlay or not overlay.material is ShaderMaterial:
+	if not bar.material is ShaderMaterial:
 		return
-	var mat: ShaderMaterial = overlay.material as ShaderMaterial
+	var mat: ShaderMaterial = bar.material as ShaderMaterial
 	var gain_wave: Dictionary = _bar_gain_wave[bar_name]
 	var drain_wave: Dictionary = _bar_drain_wave[bar_name]
 	var gain_pos: float = float(gain_wave["position"]) if bool(gain_wave["active"]) else -1.0

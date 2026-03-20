@@ -4,7 +4,6 @@ extends Control
 ## Right side: HDR bars (simple bright colors, WorldEnvironment bloom does the glow).
 ## Center: ships + grid to prove normal-brightness content is unaffected.
 
-var world_env: WorldEnvironment
 var env: Environment
 
 # Slider references for live tuning
@@ -30,8 +29,8 @@ func _ready() -> void:
 	add_child(grid_bg)
 	ThemeManager.apply_grid_background(grid_bg)
 
-	# WorldEnvironment — the whole point of this test
-	_setup_world_environment()
+	# Use ThemeManager's global WorldEnvironment
+	env = ThemeManager.get_environment()
 
 	# Layout: three columns
 	# Left (x=40): Current LED bars (shader glow)
@@ -45,22 +44,6 @@ func _ready() -> void:
 	_build_controls()
 	_build_labels()
 
-
-func _setup_world_environment() -> void:
-	world_env = WorldEnvironment.new()
-	env = Environment.new()
-	env.background_mode = Environment.BG_CANVAS
-	env.glow_enabled = true
-	env.glow_intensity = 0.8
-	env.glow_bloom = 0.1
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	env.glow_hdr_threshold = 0.8
-	env.set_glow_level(0, true)
-	env.set_glow_level(1, true)
-	env.set_glow_level(2, true)
-	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	world_env.environment = env
-	add_child(world_env)
 
 
 # ── Current LED bars (existing shader approach) ──

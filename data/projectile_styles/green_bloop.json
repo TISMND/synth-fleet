@@ -20,7 +20,7 @@
 	"mask_path": "",
 	"shader_params": {
 		"animation_speed": 2.1,
-		"brightness": 1.8,
+		"brightness": 2.3,
 		"color_mix": 0.0,
 		"edge_softness": 0.62,
 		"fade_rate": 1.5,

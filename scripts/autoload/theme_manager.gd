@@ -67,14 +67,9 @@ var _floats: Dictionary = {
 	"led_segment_gap_px": 3.0,
 	"led_inner_intensity": 0.3,
 	"led_inner_softness": 1.0,
-	"led_aura_size": 0.02,
-	"led_aura_intensity": 0.8,
-	"led_aura_falloff": 1.0,
-	"led_bloom_size": 0.05,
-	"led_bloom_intensity": 0.4,
-	"led_bloom_falloff": 1.0,
 	"led_smudge_blur": 0.008,
 	"led_segment_width_px": 10.0,
+	"led_hdr_multiplier": 1.8,
 	# Button globals
 	"btn_border_width": 1.0,
 	"btn_corner_radius": 1.0,
@@ -143,11 +138,40 @@ var _font_cache: Dictionary = {}
 var _grid_line_color: Color = Color(0.15, 0.35, 0.6, 0.4)
 
 var _grid_shader: Shader = null
+var _world_env: WorldEnvironment = null
+var _env: Environment = null
 
 
 func _ready() -> void:
 	_grid_shader = load("res://assets/shaders/grid_background.gdshader") as Shader
+	_setup_world_environment()
 	load_settings()
+
+
+func _setup_world_environment() -> void:
+	_world_env = WorldEnvironment.new()
+	_env = Environment.new()
+	_env.background_mode = Environment.BG_CANVAS
+	_env.glow_enabled = true
+	_env.glow_intensity = 0.8
+	_env.glow_bloom = 0.1
+	_env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	_env.glow_hdr_threshold = 0.8
+	_env.set_glow_level(0, true)
+	_env.set_glow_level(1, true)
+	_env.set_glow_level(2, true)
+	_env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	_world_env.environment = _env
+	add_child(_world_env)
+
+
+func get_environment() -> Environment:
+	return _env
+
+
+func set_glow_enabled(enabled: bool) -> void:
+	if _env:
+		_env.glow_enabled = enabled
 
 
 # ── Typed getters (no Variant leaks) ──────────────────────────
@@ -297,13 +321,15 @@ func _update_vhs_material(mat: ShaderMaterial) -> void:
 var _led_shader: Shader = null
 
 func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segment_count: int = -1, vertical: bool = false) -> void:
-	var overlay_name := "led_overlay"
-	var existing: ColorRect = bar.get_node_or_null(overlay_name) as ColorRect
-
 	if not _led_shader:
-		_led_shader = load("res://assets/shaders/led_bar.gdshader") as Shader
+		_led_shader = load("res://assets/shaders/led_bar_hdr.gdshader") as Shader
 	if not _led_shader:
 		return
+
+	# Remove legacy overlay if present (migration from old shader system)
+	var old_overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
+	if old_overlay:
+		old_overlay.queue_free()
 
 	var seg_count: int = segment_count if segment_count > 0 else int(get_float("led_segment_count"))
 	var seg_px: float = get_float("led_segment_width_px")
@@ -318,86 +344,41 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 			bar.custom_minimum_size.x = float(seg_count) * seg_px + float(seg_count - 1) * gap_px
 			bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
-	# Hide bar's own rendering — transparent styleboxes
-	var transparent := StyleBoxFlat.new()
-	transparent.bg_color = Color(0, 0, 0, 0)
-	bar.add_theme_stylebox_override("fill", transparent)
-	bar.add_theme_stylebox_override("background", transparent)
-	bar.material = null
-	bar.clip_contents = false
+	# Transparent fill so ProgressBar's value-based scaling doesn't affect visuals.
+	# Opaque background covers the full bar area — shader renders on it.
+	var fill_style := StyleBoxFlat.new()
+	fill_style.bg_color = Color(0, 0, 0, 0)
+	bar.add_theme_stylebox_override("fill", fill_style)
+	var bg_style := StyleBoxFlat.new()
+	bg_style.bg_color = Color(0, 0, 0, 1)
+	bar.add_theme_stylebox_override("background", bg_style)
 
-	# Also disable clipping on bar's parent so overlay can extend
-	var bar_parent: Control = bar.get_parent() as Control
-	if bar_parent:
-		bar_parent.clip_contents = false
-
-	# Compute padding from glow settings — enough room for bloom falloff in all directions
-	var max_glow: float = maxf(get_float("led_bloom_size"), get_float("led_aura_size"))
-	var min_fallback: float = 20.0 if segment_count > 0 else 100.0
-	var bar_w: float = maxf(bar.custom_minimum_size.x, min_fallback)
-	var bar_h: float = maxf(bar.custom_minimum_size.y, 14.0)
-	# For vertical bars, the long axis is Y (segments run along Y via UV swap)
-	var long_axis: float = bar_h if vertical else bar_w
-	var short_axis: float = bar_w if vertical else bar_h
-	var aspect: float = long_axis / maxf(short_axis, 1.0)
-	# Glow extends aspect-ratio times further in pixels, so pad generously
-	var glow_px: float = max_glow * long_axis * 2.5 + 4.0
-	var pad_px: float = clampf(glow_px, 4.0, 100.0)
-
-	# Convert pixel gap to bar-UV fraction for the shader (along long axis)
+	# Convert pixel gap to bar-UV fraction for the shader
+	var long_axis: float
+	if vertical:
+		long_axis = maxf(bar.custom_minimum_size.y, 14.0)
+	else:
+		long_axis = maxf(bar.custom_minimum_size.x, 20.0)
 	var gap_uv: float = gap_px / maxf(long_axis, 1.0)
 
-	# Create or reuse overlay ColorRect
-	var overlay: ColorRect
-	if existing:
-		overlay = existing
-	else:
-		overlay = ColorRect.new()
-		overlay.name = overlay_name
-		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay.color = Color(1, 1, 1, 1)  # Shader overrides this
-		bar.add_child(overlay)
-
-	# Position overlay to extend beyond bar bounds
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.offset_left = -pad_px
-	overlay.offset_top = -pad_px
-	overlay.offset_right = pad_px
-	overlay.offset_bottom = pad_px
-
-	# Calculate padding as fraction of overlay size
-	var total_w: float = bar_w + pad_px * 2.0
-	var total_h: float = bar_h + pad_px * 2.0
-	# For vertical bars, shader UV is swapped so pad_x maps to screen-Y and pad_y to screen-X
-	var pad_x_val: float = pad_px / total_h if vertical else pad_px / total_w
-	var pad_y_val: float = pad_px / total_w if vertical else pad_px / total_h
-
-	# Apply shader to overlay
+	# Apply shader directly to bar — no overlay needed
 	var mat: ShaderMaterial
-	if overlay.material is ShaderMaterial:
-		mat = overlay.material as ShaderMaterial
+	if bar.material is ShaderMaterial:
+		mat = bar.material as ShaderMaterial
 	else:
 		mat = ShaderMaterial.new()
 		mat.shader = _led_shader
-		overlay.material = mat
-	mat.set_shader_parameter("pad_x", pad_x_val)
-	mat.set_shader_parameter("pad_y", pad_y_val)
-	mat.set_shader_parameter("bar_aspect", aspect)
+		bar.material = mat
 	mat.set_shader_parameter("segment_count", seg_count)
 	mat.set_shader_parameter("segment_gap", gap_uv)
 	mat.set_shader_parameter("vertical", 1 if vertical else 0)
 	mat.set_shader_parameter("inner_intensity", get_float("led_inner_intensity"))
 	mat.set_shader_parameter("inner_softness", get_float("led_inner_softness"))
-	mat.set_shader_parameter("aura_size", get_float("led_aura_size"))
-	mat.set_shader_parameter("aura_intensity", get_float("led_aura_intensity"))
-	mat.set_shader_parameter("aura_falloff", get_float("led_aura_falloff"))
-	mat.set_shader_parameter("bloom_size", get_float("led_bloom_size"))
-	mat.set_shader_parameter("bloom_intensity", get_float("led_bloom_intensity"))
-	mat.set_shader_parameter("bloom_falloff", get_float("led_bloom_falloff"))
 	mat.set_shader_parameter("smudge_blur", get_float("led_smudge_blur"))
 	mat.set_shader_parameter("fill_color", fill_color)
 	mat.set_shader_parameter("bg_color", get_color("panel"))
 	mat.set_shader_parameter("fill_ratio", value_ratio)
+	mat.set_shader_parameter("hdr_multiplier", get_float("led_hdr_multiplier"))
 
 
 # ── Supercharged LED Bar Helper ──────────────────────────────
@@ -405,13 +386,15 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 var _supercharged_shader: Shader = null
 
 func apply_supercharged_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segment_count: int = -1) -> void:
-	var overlay_name := "led_overlay"
-	var existing: ColorRect = bar.get_node_or_null(overlay_name) as ColorRect
-
 	if not _supercharged_shader:
-		_supercharged_shader = load("res://assets/shaders/led_bar_supercharged.gdshader") as Shader
+		_supercharged_shader = load("res://assets/shaders/led_bar_supercharged_hdr.gdshader") as Shader
 	if not _supercharged_shader:
 		return
+
+	# Remove legacy overlay if present
+	var old_overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
+	if old_overlay:
+		old_overlay.queue_free()
 
 	var seg_count: int = segment_count if segment_count > 0 else int(get_float("led_segment_count"))
 	var seg_px: float = get_float("led_segment_width_px")
@@ -422,74 +405,36 @@ func apply_supercharged_bar(bar: ProgressBar, fill_color: Color, value_ratio: fl
 		bar.custom_minimum_size.x = float(seg_count) * seg_px + float(seg_count - 1) * gap_px
 		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
-	# Hide bar's own rendering
-	var transparent := StyleBoxFlat.new()
-	transparent.bg_color = Color(0, 0, 0, 0)
-	bar.add_theme_stylebox_override("fill", transparent)
-	bar.add_theme_stylebox_override("background", transparent)
-	bar.material = null
-	bar.clip_contents = false
-
-	var bar_parent: Control = bar.get_parent() as Control
-	if bar_parent:
-		bar_parent.clip_contents = false
-
-	var max_glow: float = maxf(get_float("led_bloom_size"), get_float("led_aura_size"))
-	var min_fallback: float = 20.0 if segment_count > 0 else 100.0
-	var bar_w: float = maxf(bar.custom_minimum_size.x, min_fallback)
-	var bar_h: float = maxf(bar.custom_minimum_size.y, 14.0)
-	var aspect: float = bar_w / maxf(bar_h, 1.0)
-	var glow_px: float = max_glow * bar_w * 2.5 + 4.0
-	var pad_px: float = clampf(glow_px, 4.0, 100.0)
+	# Transparent fill so ProgressBar's value-based scaling doesn't affect visuals.
+	# Opaque background covers the full bar area — shader renders on it.
+	var fill_style := StyleBoxFlat.new()
+	fill_style.bg_color = Color(0, 0, 0, 0)
+	bar.add_theme_stylebox_override("fill", fill_style)
+	var bg_style := StyleBoxFlat.new()
+	bg_style.bg_color = Color(0, 0, 0, 1)
+	bar.add_theme_stylebox_override("background", bg_style)
 
 	# Convert pixel gap to bar-UV fraction for the shader
+	var bar_w: float = maxf(bar.custom_minimum_size.x, 20.0)
 	var gap_uv: float = gap_px / maxf(bar_w, 1.0)
 
-	var overlay: ColorRect
-	if existing:
-		overlay = existing
-	else:
-		overlay = ColorRect.new()
-		overlay.name = overlay_name
-		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay.color = Color(1, 1, 1, 1)
-		bar.add_child(overlay)
-
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.offset_left = -pad_px
-	overlay.offset_top = -pad_px
-	overlay.offset_right = pad_px
-	overlay.offset_bottom = pad_px
-
-	var total_w: float = bar_w + pad_px * 2.0
-	var total_h: float = bar_h + pad_px * 2.0
-	var pad_x: float = pad_px / total_w
-	var pad_y: float = pad_px / total_h
-
+	# Apply shader directly to bar
 	var mat: ShaderMaterial
-	if overlay.material is ShaderMaterial:
-		mat = overlay.material as ShaderMaterial
+	if bar.material is ShaderMaterial:
+		mat = bar.material as ShaderMaterial
 	else:
 		mat = ShaderMaterial.new()
 		mat.shader = _supercharged_shader
-		overlay.material = mat
-	mat.set_shader_parameter("pad_x", pad_x)
-	mat.set_shader_parameter("pad_y", pad_y)
-	mat.set_shader_parameter("bar_aspect", aspect)
+		bar.material = mat
 	mat.set_shader_parameter("segment_count", seg_count)
 	mat.set_shader_parameter("segment_gap", gap_uv)
 	mat.set_shader_parameter("inner_intensity", get_float("led_inner_intensity"))
 	mat.set_shader_parameter("inner_softness", get_float("led_inner_softness"))
-	mat.set_shader_parameter("aura_size", get_float("led_aura_size"))
-	mat.set_shader_parameter("aura_intensity", get_float("led_aura_intensity"))
-	mat.set_shader_parameter("aura_falloff", get_float("led_aura_falloff"))
-	mat.set_shader_parameter("bloom_size", get_float("led_bloom_size"))
-	mat.set_shader_parameter("bloom_intensity", get_float("led_bloom_intensity"))
-	mat.set_shader_parameter("bloom_falloff", get_float("led_bloom_falloff"))
 	mat.set_shader_parameter("smudge_blur", get_float("led_smudge_blur"))
 	mat.set_shader_parameter("fill_color", fill_color)
 	mat.set_shader_parameter("bg_color", get_color("panel"))
 	mat.set_shader_parameter("fill_ratio", value_ratio)
+	mat.set_shader_parameter("hdr_multiplier", get_float("led_hdr_multiplier"))
 	mat.set_shader_parameter("animation_speed", get_float("supercharged_speed"))
 	mat.set_shader_parameter("pulse_intensity", get_float("supercharged_intensity"))
 	mat.set_shader_parameter("energy_distortion", get_float("supercharged_distortion"))
