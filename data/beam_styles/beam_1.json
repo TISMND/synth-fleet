@@ -1,0 +1,30 @@
+{
+	"appearance_mode": "expand_out",
+	"beam_width": 16.0,
+	"color": [
+		0.0,
+		1.0,
+		1.0,
+		1.0
+	],
+	"display_name": "beam 1",
+	"fill_shader": "energy",
+	"glow_intensity": 1.3,
+	"id": "beam_1",
+	"max_length": 690.0,
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 0.6,
+		"brightness": 1.0,
+		"color_mix": 0.0,
+		"distortion": 0.78,
+		"edge_glow": 0.0,
+		"edge_softness": 0.11,
+		"scroll_speed": 2.5
+	}
+}

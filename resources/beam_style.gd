@@ -13,6 +13,7 @@ extends Resource
 @export var max_length: float = 400.0
 @export var beam_width: float = 16.0
 @export var appearance_mode: String = "flow_in"  # "flow_in" | "expand_out"
+@export var flip_shader: bool = false  # flip UV.y to reverse shader scroll direction
 
 
 static func from_dict(data: Dictionary) -> BeamStyle:
@@ -35,6 +36,7 @@ static func from_dict(data: Dictionary) -> BeamStyle:
 	s.max_length = float(data.get("max_length", 400.0))
 	s.beam_width = float(data.get("beam_width", 16.0))
 	s.appearance_mode = str(data.get("appearance_mode", "flow_in"))
+	s.flip_shader = bool(data.get("flip_shader", false))
 	return s
 
 
@@ -50,4 +52,5 @@ func to_dict() -> Dictionary:
 		"max_length": max_length,
 		"beam_width": beam_width,
 		"appearance_mode": appearance_mode,
+		"flip_shader": flip_shader,
 	}

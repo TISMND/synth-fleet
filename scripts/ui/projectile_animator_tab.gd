@@ -56,6 +56,7 @@ var _scale_y_label: Label
 var _color_picker: ColorPickerButton
 var _secondary_color_picker: ColorPickerButton
 var _secondary_color_row: HBoxContainer
+var _flip_toggle: CheckBox
 var _preview_node: ProjectileAnimatorPreview
 
 # Dynamic sections
@@ -356,6 +357,12 @@ func _build_controls(parent: VBoxContainer) -> void:
 	var sy_row: Array = _add_slider_row(parent, "Height:", 4.0, 128.0, 32.0, 2.0)
 	_scale_y_slider = sy_row[0]
 	_scale_y_label = sy_row[1]
+
+	_flip_toggle = CheckBox.new()
+	_flip_toggle.text = "FLIP SHADER DIRECTION"
+	_flip_toggle.button_pressed = false
+	_flip_toggle.toggled.connect(func(_on: bool) -> void: _update_preview())
+	parent.add_child(_flip_toggle)
 
 	_add_separator(parent)
 
@@ -726,6 +733,7 @@ func _collect_style_data() -> Dictionary:
 		"secondary_color": [sec_color.r, sec_color.g, sec_color.b, sec_color.a],
 		"procedural_mask_shape": proc_shape,
 		"procedural_mask_feather": proc_feather,
+		"flip_shader": _flip_toggle.button_pressed,
 		"effect_profile": _collect_effect_profile(),
 	}
 
@@ -802,6 +810,7 @@ func _on_new() -> void:
 	_feather_slider.value = 0.3
 	_mask_preview.texture = null
 	_update_mask_highlights()
+	_flip_toggle.button_pressed = false
 	_rebuild_common_params()
 	_rebuild_shader_params("energy")
 	_reset_effect_slots()
@@ -868,6 +877,9 @@ func _populate_from_style(style: ProjectileStyle) -> void:
 		_mask_grid.visible = false
 		_selected_mask = ""
 	_update_mask_highlights()
+
+	# Flip
+	_flip_toggle.button_pressed = style.flip_shader
 
 	# Effect profile
 	if not style.effect_profile.is_empty():

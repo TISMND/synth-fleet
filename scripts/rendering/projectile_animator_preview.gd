@@ -83,6 +83,7 @@ func update_style(data: Dictionary) -> void:
 	style.procedural_mask_shape = str(data.get("procedural_mask_shape", ""))
 	style.procedural_mask_feather = float(data.get("procedural_mask_feather", 0.3))
 	style.secondary_color = data.get("secondary_color", Color(1.0, 0.3, 0.5, 1.0)) as Color
+	style.flip_shader = bool(data.get("flip_shader", false))
 
 	# Cache archetype params
 	var ap: Dictionary = data.get("archetype_params", {}) as Dictionary

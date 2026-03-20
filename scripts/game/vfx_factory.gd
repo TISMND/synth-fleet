@@ -619,6 +619,9 @@ static func create_styled_sprite(style: ProjectileStyle, color: Color) -> Sprite
 	var h: int = int(ceilf(style.base_scale.y))
 	sprite.texture = _generate_white_rect(w, h)
 
+	# Flip UV.y to reverse shader scroll direction
+	sprite.flip_v = style.flip_shader
+
 	return sprite
 
 

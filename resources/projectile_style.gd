@@ -16,6 +16,7 @@ extends Resource
 @export var secondary_color: Color = Color(1.0, 0.3, 0.5, 1.0)
 @export var procedural_mask_shape: String = ""  # "" | "circle" | "diamond" | "rounded_rect" | "star" | "hexagon" | "arrow" | "cross"
 @export var procedural_mask_feather: float = 0.3
+@export var flip_shader: bool = false  # flip UV.y to reverse shader scroll direction
 @export var effect_profile: Dictionary = {}
 
 
@@ -44,6 +45,7 @@ static func from_dict(data: Dictionary) -> ProjectileStyle:
 		s.secondary_color = Color(float(sec_data[0]), float(sec_data[1]), float(sec_data[2]), 1.0)
 	s.procedural_mask_shape = str(data.get("procedural_mask_shape", ""))
 	s.procedural_mask_feather = float(data.get("procedural_mask_feather", 0.3))
+	s.flip_shader = bool(data.get("flip_shader", false))
 	s.effect_profile = data.get("effect_profile", {}) as Dictionary
 	return s
 
@@ -61,5 +63,6 @@ func to_dict() -> Dictionary:
 		"secondary_color": [secondary_color.r, secondary_color.g, secondary_color.b, secondary_color.a],
 		"procedural_mask_shape": procedural_mask_shape,
 		"procedural_mask_feather": procedural_mask_feather,
+		"flip_shader": flip_shader,
 		"effect_profile": effect_profile,
 	}

@@ -1,0 +1,40 @@
+{
+	"aim_mode": "fixed",
+	"bar_effects": {
+
+	},
+	"beam_dps": 50.0,
+	"beam_duration": 0.3,
+	"beam_passthrough": true,
+	"beam_style_id": "",
+	"beam_transition_time": 0.1,
+	"damage": 10,
+	"description": "",
+	"direction_deg": 0.0,
+	"display_name": "Beam 1",
+	"effect_profile": {
+		"defaults": {
+
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fire_pattern": "single",
+	"fire_triggers": [],
+	"id": "beam_1",
+	"loop_file_path": "res://loop_zips/sorted/percussion/Dreading Sphere - 120 BPM - 8 - Percussion - NW_NR_80_percussion_loop_hair.wav",
+	"loop_length_bars": 2,
+	"mirror_mode": "none",
+	"pierce_count": 0,
+	"projectile_speed": 600.0,
+	"projectile_style_id": "",
+	"skips_shields": false,
+	"splash_enabled": false,
+	"splash_radius": 0.0,
+	"sweep_arc_deg": 60.0,
+	"sweep_duration": 1.0,
+	"transition_mode": "instant",
+	"transition_ms": 200
+}

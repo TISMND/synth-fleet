@@ -15,6 +15,7 @@ var skips_shields: bool = false
 var passthrough: bool = true
 var appearance_mode: String = "flow_in"
 var preview_mode: bool = false
+var flip_shader: bool = false
 
 var _age: float = 0.0
 var _damage_accumulator: float = 0.0
@@ -22,6 +23,7 @@ var _sprite: Sprite2D = null
 var _collision_area: Area2D = null
 var _collision_shape: CollisionShape2D = null
 var _rect_shape: RectangleShape2D = null
+var _overlapping_enemies: Array[Area2D] = []
 
 
 func _ready() -> void:
@@ -52,6 +54,13 @@ func _setup_visual() -> void:
 			mat.set_shader_parameter(str(param), float(beam_style.shader_params[param]))
 	_sprite.material = mat
 	_sprite.position = Vector2(0, -max_length / 2.0)
+
+	# Flip shader direction if requested (reverses UV.y scroll)
+	var should_flip: bool = flip_shader
+	if beam_style:
+		should_flip = beam_style.flip_shader
+	_sprite.flip_v = should_flip
+
 	add_child(_sprite)
 
 	# Start with zero scale based on appearance mode
@@ -69,12 +78,13 @@ func _setup_collision() -> void:
 	_collision_area.collision_mask = 4
 	_collision_shape = CollisionShape2D.new()
 	_rect_shape = RectangleShape2D.new()
-	_rect_shape.size = Vector2(beam_width, 0.01)  # starts tiny
+	_rect_shape.size = Vector2(beam_width, max_length)
 	_collision_shape.shape = _rect_shape
-	_collision_shape.position = Vector2.ZERO
+	_collision_shape.position = Vector2(0, -max_length / 2.0)
 	_collision_area.add_child(_collision_shape)
 	add_child(_collision_area)
 	_collision_area.area_entered.connect(_on_area_entered)
+	_collision_area.area_exited.connect(_on_area_exited)
 
 
 func _process(delta: float) -> void:
@@ -94,7 +104,6 @@ func _process(delta: float) -> void:
 
 	var length_ratio: float = 1.0
 	var width_ratio: float = 1.0
-	var in_sustain: bool = false
 
 	if _age < appear_end:
 		# Appear phase
@@ -105,12 +114,7 @@ func _process(delta: float) -> void:
 		else:  # expand_out
 			length_ratio = 1.0
 			width_ratio = t
-	elif _age < disappear_start:
-		# Sustain phase
-		length_ratio = 1.0
-		width_ratio = 1.0
-		in_sustain = true
-	else:
+	elif _age >= disappear_start:
 		# Disappear phase
 		var t: float = (_age - disappear_start) / maxf(beam_duration - disappear_start, 0.001)
 		t = clampf(t, 0.0, 1.0)
@@ -123,13 +127,13 @@ func _process(delta: float) -> void:
 
 	_update_beam_geometry(length_ratio, width_ratio)
 
-	# Damage tick during sustain + appear (after transition completes)
-	if not preview_mode and (in_sustain or _age >= appear_end):
+	# Damage tick — apply DPS to all tracked overlapping enemies
+	if not preview_mode and not _overlapping_enemies.is_empty():
 		_damage_accumulator += damage_per_tick * delta
 		if _damage_accumulator >= 1.0:
 			var tick_damage: int = int(_damage_accumulator)
 			_damage_accumulator -= float(tick_damage)
-			_apply_damage_to_overlapping(tick_damage)
+			_apply_damage_to_tracked(tick_damage)
 
 
 func _update_beam_geometry(length_ratio: float, width_ratio: float) -> void:
@@ -143,18 +147,30 @@ func _update_beam_geometry(length_ratio: float, width_ratio: float) -> void:
 		_collision_shape.position = Vector2(0, -current_length / 2.0)
 
 
-func _apply_damage_to_overlapping(dmg: int) -> void:
-	if not _collision_area:
-		return
-	var areas: Array[Area2D] = _collision_area.get_overlapping_areas()
-	for area in areas:
-		if area.has_method("take_damage"):
+func _apply_damage_to_tracked(dmg: int) -> void:
+	# Iterate backwards to safely remove invalid refs
+	var i: int = _overlapping_enemies.size() - 1
+	while i >= 0:
+		var area: Area2D = _overlapping_enemies[i]
+		if not is_instance_valid(area):
+			_overlapping_enemies.remove_at(i)
+		elif area.has_method("take_damage"):
 			area.take_damage(dmg, skips_shields)
+		i -= 1
 
 
 func _on_area_entered(area: Area2D) -> void:
 	if preview_mode:
 		return
 	if area.has_method("take_damage"):
+		if area not in _overlapping_enemies:
+			_overlapping_enemies.append(area)
+		# Immediate first-hit damage
 		var initial_dmg: int = int(maxf(damage_per_tick * 0.1, 1.0))
 		area.take_damage(initial_dmg, skips_shields)
+
+
+func _on_area_exited(area: Area2D) -> void:
+	var idx: int = _overlapping_enemies.find(area)
+	if idx >= 0:
+		_overlapping_enemies.remove_at(idx)

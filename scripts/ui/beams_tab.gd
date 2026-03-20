@@ -48,6 +48,7 @@ var _beam_width_slider: HSlider
 var _beam_width_label: Label
 var _glow_slider: HSlider
 var _glow_label: Label
+var _flip_toggle: CheckBox
 
 # Dynamic param sections
 var _common_params_container: VBoxContainer
@@ -278,6 +279,12 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_appearance_button.item_selected.connect(func(_i: int) -> void: _spawn_preview_beam())
 	parent.add_child(_appearance_button)
 
+	_flip_toggle = CheckBox.new()
+	_flip_toggle.text = "FLIP SHADER DIRECTION"
+	_flip_toggle.button_pressed = false
+	_flip_toggle.toggled.connect(func(_on: bool) -> void: _spawn_preview_beam())
+	parent.add_child(_flip_toggle)
+
 	_add_separator(parent)
 
 	# Dimensions
@@ -376,6 +383,7 @@ func _collect_beam_style() -> BeamStyle:
 	s.max_length = _max_length_slider.value
 	s.beam_width = _beam_width_slider.value
 	s.appearance_mode = APPEARANCE_MODES[_appearance_button.selected]
+	s.flip_shader = _flip_toggle.button_pressed
 	# Collect shader params
 	var params: Dictionary = {}
 	for param_name in _common_param_sliders:
@@ -443,6 +451,7 @@ func _on_new() -> void:
 	_color_picker.color = Color.CYAN
 	_secondary_color_picker.color = Color(1.0, 0.3, 0.5, 1.0)
 	_appearance_button.selected = 0
+	_flip_toggle.button_pressed = false
 	_max_length_slider.value = 400.0
 	_beam_width_slider.value = 16.0
 	_glow_slider.value = 1.5
@@ -488,6 +497,9 @@ func _populate_from_style(bstyle: BeamStyle) -> void:
 	# Appearance mode
 	var mode_idx: int = APPEARANCE_MODES.find(bstyle.appearance_mode)
 	_appearance_button.selected = mode_idx if mode_idx >= 0 else 0
+
+	# Flip
+	_flip_toggle.button_pressed = bstyle.flip_shader
 
 	# Dimensions
 	_max_length_slider.value = bstyle.max_length
