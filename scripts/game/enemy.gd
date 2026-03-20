@@ -10,6 +10,8 @@ var enemy_color: Color = Color(1.0, 0.3, 0.5)
 var visual_id: String = ""
 var render_mode_str: String = "neon"
 var grid_size: Vector2i = Vector2i(32, 32)
+var ship_id: String = ""                    # ShipData id for presence tracking
+var presence_loop_path: String = ""         # Audio loop path for presence system
 
 # Path-following mode (set externally; null = drift mode)
 var path_curve: Curve2D = null
@@ -26,11 +28,29 @@ var melee_turn_speed: float = 90.0  # degrees per second
 var _melee_heading: float = PI / 2.0  # radians, starts pointing down
 var _melee_target: Node2D = null
 
+# Whether this enemy's weapons are active (set by encounter data)
+var weapons_active: bool = true
+
 var _renderer: ShipRenderer = null
 var _shield_bubble: ShieldBubbleEffect = null
+var _weapon_controller: EnemyWeaponController = null
+
+# Set externally before adding to scene tree for weapon setup
+var ship_data_ref: ShipData = null
+var player_ref: Node2D = null
+var projectiles_container: Node2D = null
 
 
 func _ready() -> void:
+	add_to_group("enemies")
+
+	# Register presence with game node for audio loop tracking
+	if ship_id != "" and presence_loop_path != "":
+		var game_node: Node2D = get_parent().get_parent() as Node2D
+		if game_node and game_node.has_method("register_enemy_presence"):
+			game_node.register_enemy_presence(ship_id, presence_loop_path)
+		tree_exiting.connect(_on_presence_exit)
+
 	collision_layer = 4
 	collision_mask = 0
 	var shape := CollisionShape2D.new()
@@ -60,6 +80,23 @@ func _ready() -> void:
 	_shield_bubble.intensity = vfx.shield_intensity
 	_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(-1) * 50.0
 	add_child(_shield_bubble)
+
+	# Setup weapon controller if ship data has weapon fields
+	if ship_data_ref and ship_data_ref.fire_rate > 0.0 and projectiles_container:
+		_weapon_controller = EnemyWeaponController.new()
+		_weapon_controller.projectile_color = enemy_color
+		_weapon_controller.weapons_enabled = weapons_active
+		add_child(_weapon_controller)
+		_weapon_controller.setup(ship_data_ref, self, player_ref, projectiles_container)
+
+
+func _on_presence_exit() -> void:
+	# Unregister presence with game node when leaving the tree
+	var parent: Node = get_parent()
+	if parent:
+		var game_node: Node2D = parent.get_parent() as Node2D
+		if game_node and game_node.has_method("unregister_enemy_presence"):
+			game_node.unregister_enemy_presence(ship_id)
 
 
 func set_melee_target(target: Node2D) -> void:
@@ -103,6 +140,17 @@ func _process(delta: float) -> void:
 			queue_free()
 
 
+func _spawn_explosion() -> void:
+	var explosion: ExplosionEffect = ExplosionEffect.new()
+	explosion.explosion_color = enemy_color
+	explosion.explosion_size = maxf(float(maxi(grid_size.x, grid_size.y)) / 32.0, 0.8)
+	explosion.global_position = global_position
+	# Add to parent (enemies container) so it persists after enemy queue_free
+	var container: Node = get_parent()
+	if container:
+		container.add_child(explosion)
+
+
 func take_damage(amount: int) -> void:
 	var remaining: int = amount
 	if shield > 0:
@@ -118,8 +166,11 @@ func take_damage(amount: int) -> void:
 		if _renderer:
 			_renderer.trigger_hull_flash()
 	if health <= 0:
+		if _weapon_controller:
+			_weapon_controller.cleanup()
 		SfxPlayer.play_random_explosion()
 		GameState.add_credits(10)
+		_spawn_explosion()
 		queue_free()
 
 

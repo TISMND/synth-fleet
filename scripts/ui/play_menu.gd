@@ -9,6 +9,7 @@ func _ready() -> void:
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
 	$VBoxContainer/HangarButton.pressed.connect(_on_hangar)
+	$VBoxContainer/LevelsButton.pressed.connect(_on_levels)
 	$VBoxContainer/BeginButton.pressed.connect(_on_begin)
 	$VBoxContainer/BackButton.pressed.connect(_on_back)
 
@@ -17,6 +18,10 @@ func _ready() -> void:
 
 func _on_hangar() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
+
+
+func _on_levels() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/level_select_screen.tscn")
 
 
 func _on_begin() -> void:

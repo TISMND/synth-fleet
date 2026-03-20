@@ -39,6 +39,10 @@ theme_override_constants/separation = 20
 layout_mode = 2
 text = "HANGAR"
 
+[node name="LevelsButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "SELECT LEVEL"
+
 [node name="BeginButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "BEGIN"

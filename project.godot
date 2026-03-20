@@ -17,6 +17,7 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 [autoload]
 
 GameState="*res://scripts/autoload/game_state.gd"
+AudioBusSetup="*res://scripts/autoload/audio_bus_setup.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
 ThemeManager="*res://scripts/autoload/theme_manager.gd"
 LoopMixer="*res://scripts/autoload/loop_mixer.gd"

@@ -6,6 +6,8 @@ extends Resource
 @export var display_name: String = ""
 @export var style_id: String = "classic_fbm"
 @export var shader_params: Dictionary = {}
+@export var bar_effects: Dictionary = {}  # bar_name -> float rate per second (negative = drain, positive = fill)
+@export var special_effects: Array[String] = []  # e.g. "cloak", "slow", "damage_boost"
 
 
 static func default_params() -> Dictionary:
@@ -33,13 +35,33 @@ static func from_dict(data: Dictionary) -> NebulaData:
 		if not params.has(key):
 			params[key] = defaults[key]
 	n.shader_params = params
+
+	# Bar effects: bar_name -> rate (float, per second)
+	var raw_bar_effects: Dictionary = data.get("bar_effects", {})
+	var typed_bar_effects: Dictionary = {}
+	for key in raw_bar_effects:
+		typed_bar_effects[str(key)] = float(raw_bar_effects[key])
+	n.bar_effects = typed_bar_effects
+
+	# Special effects: array of string IDs
+	var raw_specials: Array = data.get("special_effects", []) as Array
+	var typed_specials: Array[String] = []
+	for s in raw_specials:
+		typed_specials.append(str(s))
+	n.special_effects = typed_specials
+
 	return n
 
 
 func to_dict() -> Dictionary:
-	return {
+	var d: Dictionary = {
 		"id": id,
 		"display_name": display_name,
 		"style_id": style_id,
 		"shader_params": shader_params,
 	}
+	if bar_effects.size() > 0:
+		d["bar_effects"] = bar_effects
+	if special_effects.size() > 0:
+		d["special_effects"] = special_effects
+	return d

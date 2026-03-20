@@ -26,6 +26,7 @@ var _sorted_encounters: Array[Dictionary] = []
 var _next_encounter_idx: int = 0
 var _scroll_distance: float = 0.0
 var _stagger_queue: Array[Dictionary] = []  # Pending staggered spawns
+var _projectiles_container: Node2D = null
 
 const ENEMY_COLORS: Array[Color] = [
 	Color(1.0, 0.3, 0.5),
@@ -37,16 +38,19 @@ const ENEMY_COLORS: Array[Color] = [
 ]
 
 
-func setup(waves: Array, enemies_container: Node2D) -> void:
+func setup(waves: Array, enemies_container: Node2D, player: Node2D = null, proj_container: Node2D = null) -> void:
 	_waves = waves
 	_enemies_container = enemies_container
+	_player_ref = player
+	_projectiles_container = proj_container
 	_level_mode = false
 
 
-func setup_level(level: LevelData, enemies_container: Node2D, player: Node2D = null) -> void:
+func setup_level(level: LevelData, enemies_container: Node2D, player: Node2D = null, proj_container: Node2D = null) -> void:
 	_player_ref = player
 	_level_data = level
 	_enemies_container = enemies_container
+	_projectiles_container = proj_container
 	_level_mode = true
 	_scroll_distance = 0.0
 	_next_encounter_idx = 0
@@ -92,6 +96,7 @@ func _spawn_encounter(enc: Dictionary) -> void:
 	var x_offset: float = float(enc.get("x_offset", 0.0))
 	var enc_is_melee: bool = bool(enc.get("is_melee", false))
 	var enc_turn_speed: float = float(enc.get("turn_speed", 90.0))
+	var enc_weapons_active: bool = bool(enc.get("weapons_active", true))
 
 	# Load path (skip for melee encounters)
 	var curve: Curve2D = null
@@ -129,6 +134,7 @@ func _spawn_encounter(enc: Dictionary) -> void:
 				"rotate_with_path": bool(enc.get("rotate_with_path", false)),
 				"is_melee": enc_is_melee,
 				"turn_speed": enc_turn_speed,
+				"weapons_active": enc_weapons_active,
 			}
 			if delay <= 0.0:
 				_do_spawn_enemy(spawn_data)
@@ -174,6 +180,13 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 			enemy.visual_id = ship.visual_id if ship.visual_id != "" else "sentinel"
 			enemy.render_mode_str = ship.render_mode if ship.render_mode != "" else "neon"
 			enemy.grid_size = ship.grid_size
+			enemy.ship_id = sid
+			enemy.presence_loop_path = ship.presence_loop_path
+			# Pass weapon data for EnemyWeaponController
+			if ship.type == "enemy" and ship.fire_rate > 0.0:
+				enemy.ship_data_ref = ship
+				enemy.player_ref = _player_ref
+				enemy.projectiles_container = _projectiles_container
 		else:
 			enemy.health = 30
 			enemy.enemy_color = ENEMY_COLORS[sid.hash() % ENEMY_COLORS.size()]
@@ -182,6 +195,9 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 		enemy.enemy_color = ENEMY_COLORS[randi() % ENEMY_COLORS.size()]
 
 	enemy.rotate_with_path = bool(spawn_data.get("rotate_with_path", false))
+
+	# Weapons active flag from encounter data
+	enemy.weapons_active = bool(spawn_data.get("weapons_active", true))
 
 	# Melee mode
 	var spawn_is_melee: bool = bool(spawn_data.get("is_melee", false))

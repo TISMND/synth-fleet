@@ -23,6 +23,8 @@ extends Resource
 @export var bar_effects: Dictionary = {}  # {"shield": 0.5, ...} float delta per trigger hit
 @export var passive_effects: Dictionary = {}  # {"shield": 1.5, ...} float delta per second
 @export var color_override: Color = Color.WHITE
+@export var transition_mode: String = "instant"  # "instant" or "fade"
+@export var transition_ms: int = 200  # fade duration in milliseconds (50–2000)
 
 
 static func from_dict(data: Dictionary) -> DeviceData:
@@ -63,6 +65,10 @@ static func from_dict(data: Dictionary) -> DeviceData:
 	for key in raw_passive:
 		d.passive_effects[str(key)] = float(raw_passive[key])
 
+	# Transition settings
+	d.transition_mode = str(data.get("transition_mode", "instant"))
+	d.transition_ms = int(data.get("transition_ms", 200))
+
 	# Parse color_override
 	var color_data: Array = data.get("color_override", []) as Array
 	if color_data.size() >= 4:
@@ -94,4 +100,6 @@ func to_dict() -> Dictionary:
 		"bar_effects": bar_effects,
 		"passive_effects": passive_effects,
 		"color_override": [color_override.r, color_override.g, color_override.b, color_override.a],
+		"transition_mode": transition_mode,
+		"transition_ms": transition_ms,
 	}

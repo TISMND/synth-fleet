@@ -50,6 +50,14 @@ var _bottom_opacity_value: Label
 var _top_opacity_slider: HSlider
 var _top_opacity_value: Label
 
+# Bar effects spinboxes
+var _bar_effect_spinboxes: Dictionary = {}  # bar_name -> SpinBox
+var _effects_container: VBoxContainer
+
+# Special effects checkboxes
+var _special_effect_checks: Dictionary = {}  # effect_id -> CheckBox
+const KNOWN_SPECIAL_EFFECTS: Array[String] = ["cloak", "slow", "damage_boost"]
+
 # Preview layering refs
 var _preview_container: Control  # Holds bottom nebula, ship, top veil
 var _preview_bottom: ColorRect
@@ -208,6 +216,17 @@ func _build_ui() -> void:
 	_editor_panel.add_child(_params_container)
 	_build_param_controls()
 
+	# --- Status Effects section ---
+	var effects_header := Label.new()
+	effects_header.text = "STATUS EFFECTS"
+	effects_header.name = "EffectsHeader"
+	_editor_panel.add_child(effects_header)
+
+	_effects_container = VBoxContainer.new()
+	_effects_container.add_theme_constant_override("separation", 8)
+	_editor_panel.add_child(_effects_container)
+	_build_effects_controls()
+
 	# Empty state label (shown when no nebulas exist)
 	_empty_label = Label.new()
 	_empty_label.text = "No nebulas yet. Click + CREATE NEW to get started."
@@ -333,6 +352,55 @@ func _add_slider_row(label_text: String, min_val: float, max_val: float, step: f
 	return slider
 
 
+func _build_effects_controls() -> void:
+	# Clear existing
+	for child in _effects_container.get_children():
+		child.queue_free()
+	_bar_effect_spinboxes.clear()
+	_special_effect_checks.clear()
+
+	# Bar effects: spinboxes for shield, hull, thermal, electric
+	var bar_label := Label.new()
+	bar_label.text = "Bar Rates (per second)"
+	bar_label.name = "BarRatesLabel"
+	_effects_container.add_child(bar_label)
+
+	var bar_names: Array[String] = ["shield", "hull", "thermal", "electric"]
+	for bar_name in bar_names:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		_effects_container.add_child(row)
+
+		var lbl := Label.new()
+		lbl.text = bar_name.capitalize()
+		lbl.custom_minimum_size.x = 100
+		row.add_child(lbl)
+
+		var spin := SpinBox.new()
+		spin.min_value = -10.0
+		spin.max_value = 10.0
+		spin.step = 0.5
+		spin.value = 0.0
+		spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spin.value_changed.connect(_on_bar_effect_changed.bind(bar_name))
+		row.add_child(spin)
+
+		_bar_effect_spinboxes[bar_name] = spin
+
+	# Special effects: checkboxes
+	var special_label := Label.new()
+	special_label.text = "Special Effects"
+	special_label.name = "SpecialEffectsLabel"
+	_effects_container.add_child(special_label)
+
+	for effect_id in KNOWN_SPECIAL_EFFECTS:
+		var check := CheckBox.new()
+		check.text = effect_id.capitalize().replace("_", " ")
+		check.toggled.connect(_on_special_effect_toggled.bind(effect_id))
+		_effects_container.add_child(check)
+		_special_effect_checks[effect_id] = check
+
+
 func _rebuild_list() -> void:
 	for child in _list_container.get_children():
 		child.queue_free()
@@ -359,9 +427,10 @@ func _show_empty_state() -> void:
 	_name_edit.get_parent().visible = false
 	_style_option.get_parent().visible = false
 	_params_container.visible = false
-	# Hide params header
+	_effects_container.visible = false
+	# Hide params header and effects header
 	for child in _editor_panel.get_children():
-		if child is Label and child.name == "ParamsHeader":
+		if child is Label and (child.name == "ParamsHeader" or child.name == "EffectsHeader"):
 			child.visible = false
 	_delete_btn.disabled = true
 
@@ -372,8 +441,9 @@ func _show_editor_state() -> void:
 	_name_edit.get_parent().visible = true
 	_style_option.get_parent().visible = true
 	_params_container.visible = true
+	_effects_container.visible = true
 	for child in _editor_panel.get_children():
-		if child is Label and child.name == "ParamsHeader":
+		if child is Label and (child.name == "ParamsHeader" or child.name == "EffectsHeader"):
 			child.visible = true
 
 
@@ -432,6 +502,17 @@ func _select_nebula(id: String) -> void:
 	var top_val: float = float(params.get("top_opacity", defaults["top_opacity"]))
 	_top_opacity_slider.value = top_val
 	_top_opacity_value.text = str(snapped(top_val, 0.01))
+
+	# Load bar effects into spinboxes
+	for bar_name in _bar_effect_spinboxes:
+		var spin: SpinBox = _bar_effect_spinboxes[bar_name]
+		var rate: float = float(data.bar_effects.get(bar_name, 0.0))
+		spin.value = rate
+
+	# Load special effects into checkboxes
+	for effect_id in _special_effect_checks:
+		var check: CheckBox = _special_effect_checks[effect_id]
+		check.button_pressed = data.special_effects.has(effect_id)
 
 	_suppressing_signals = false
 
@@ -692,6 +773,32 @@ func _on_top_opacity_changed(val: float) -> void:
 		_auto_save()
 
 
+func _on_bar_effect_changed(val: float, bar_name: String) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if not data:
+		return
+	if val == 0.0:
+		data.bar_effects.erase(bar_name)
+	else:
+		data.bar_effects[bar_name] = val
+	_auto_save()
+
+
+func _on_special_effect_toggled(toggled_on: bool, effect_id: String) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if not data:
+		return
+	if toggled_on and not data.special_effects.has(effect_id):
+		data.special_effects.append(effect_id)
+	elif not toggled_on and data.special_effects.has(effect_id):
+		data.special_effects.erase(effect_id)
+	_auto_save()
+
+
 func _center_preview_ship() -> void:
 	if _preview_ship and _preview_container:
 		var sz: Vector2 = _preview_container.size
@@ -731,5 +838,15 @@ func _apply_theme() -> void:
 			for sub in child.get_children():
 				if sub is Label:
 					ThemeManager.apply_text_glow(sub, "body")
+
+	for child in _effects_container.get_children():
+		if child is Label:
+			ThemeManager.apply_text_glow(child, "header")
+		elif child is HBoxContainer:
+			for sub in child.get_children():
+				if sub is Label:
+					ThemeManager.apply_text_glow(sub, "body")
+		elif child is CheckBox:
+			ThemeManager.apply_text_glow(child, "body")
 
 	ThemeManager.apply_text_glow(_empty_label, "body")

@@ -723,6 +723,28 @@ func _build_enemy_right_panel() -> void:
 	_skin_dropdown.item_selected.connect(_on_skin_changed)
 	vbox.add_child(_skin_dropdown)
 
+	# ── AUDIO ──
+	_add_section_spacer(vbox)
+	var audio_label := Label.new()
+	audio_label.text = "AUDIO"
+	audio_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(audio_label)
+
+	var loop_hbox := HBoxContainer.new()
+	loop_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(loop_hbox)
+	var loop_lbl := Label.new()
+	loop_lbl.text = "LOOP"
+	loop_lbl.custom_minimum_size.x = 40
+	loop_hbox.add_child(loop_lbl)
+	var loop_edit := LineEdit.new()
+	loop_edit.name = "PresenceLoopEdit"
+	loop_edit.placeholder_text = "res://assets/audio/..."
+	loop_edit.text = _working_enemy.presence_loop_path if _working_enemy.presence_loop_path != "" else ""
+	loop_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	loop_edit.text_changed.connect(_on_enemy_presence_loop_changed)
+	loop_hbox.add_child(loop_edit)
+
 	# ── HP readout ──
 	_add_section_spacer(vbox)
 	var hp_readout := Label.new()
@@ -900,6 +922,11 @@ func _on_enemy_burst_dirs_changed(value: float) -> void:
 		_working_enemy.burst_directions = int(value)
 
 
+func _on_enemy_presence_loop_changed(new_path: String) -> void:
+	if _working_enemy:
+		_working_enemy.presence_loop_path = new_path
+
+
 func _on_save_pressed() -> void:
 	var ship_id: String = ShipRegistry.get_ship_name(_selected_ship).to_lower()
 	var data: Dictionary = {
@@ -948,7 +975,7 @@ func _apply_right_panel_theme() -> void:
 	if not vbox:
 		return
 	var section_names: Array[String] = ["ATTRIBUTES", "BAR SEGMENTS", "PROPULSION", "SKIN",
-		"ENEMY ATTRIBUTES", "IDENTITY", "HEALTH", "WEAPONS", "BOSSES"]
+		"ENEMY ATTRIBUTES", "IDENTITY", "HEALTH", "WEAPONS", "AUDIO", "BOSSES"]
 	for child in vbox.get_children():
 		if child is Label:
 			var lbl: Label = child as Label

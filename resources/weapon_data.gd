@@ -20,6 +20,8 @@ extends Resource
 @export var sweep_duration: float = 1.0  # seconds per full sweep cycle
 @export var mirror_mode: String = "none"  # "none", "mirror", "alternate"
 @export var bar_effects: Dictionary = {}  # {"shield": -0.5, "thermal": 1.2, ...} float delta per trigger hit
+@export var transition_mode: String = "instant"  # "instant" or "fade"
+@export var transition_ms: int = 200  # fade duration in milliseconds (50–2000)
 
 
 static func from_dict(data: Dictionary) -> WeaponData:
@@ -59,6 +61,8 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.bar_effects = {}
 	for key in raw_bar_effects:
 		w.bar_effects[str(key)] = float(raw_bar_effects[key])
+	w.transition_mode = str(data.get("transition_mode", "instant"))
+	w.transition_ms = int(data.get("transition_ms", 200))
 	return w
 
 
@@ -107,4 +111,6 @@ func to_dict() -> Dictionary:
 		"sweep_duration": sweep_duration,
 		"mirror_mode": mirror_mode,
 		"bar_effects": bar_effects,
+		"transition_mode": transition_mode,
+		"transition_ms": transition_ms,
 	}

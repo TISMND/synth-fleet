@@ -64,6 +64,7 @@ var _enc_rotate_check: CheckButton
 var _enc_melee_check: CheckButton
 var _enc_turn_speed_label: Label
 var _enc_turn_speed_spin: SpinBox
+var _enc_weapons_active_check: CheckButton
 var _enc_center_btn: Button
 var _enc_delete_btn: Button
 
@@ -569,6 +570,7 @@ func _map_left_click(pos: Vector2) -> void:
 				"rotate_with_path": false,
 			"is_melee": false,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			}
 			_selected_level.encounters.append(enc)
 			_selected_encounter_idx = _selected_level.encounters.size() - 1
@@ -922,6 +924,22 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	)
 	_enc_content.add_child(_enc_turn_speed_spin)
 
+	# Weapons active
+	var sep_weapons := HSeparator.new()
+	_enc_content.add_child(sep_weapons)
+
+	_enc_weapons_active_check = CheckButton.new()
+	_enc_weapons_active_check.text = "WEAPONS ACTIVE"
+	_enc_weapons_active_check.button_pressed = true
+	_enc_weapons_active_check.toggled.connect(func(pressed: bool) -> void:
+		if _selected_encounter_idx < 0 or not _selected_level:
+			return
+		if _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["weapons_active"] = pressed
+			_save_current_level()
+	)
+	_enc_content.add_child(_enc_weapons_active_check)
+
 	# Action buttons
 	var sep3 := HSeparator.new()
 	_enc_content.add_child(sep3)
@@ -1061,6 +1079,7 @@ func _update_right_panel() -> void:
 	_enc_rotate_check.disabled = disabled
 	_enc_melee_check.disabled = disabled
 	_enc_turn_speed_spin.editable = not disabled
+	_enc_weapons_active_check.disabled = disabled
 	_enc_center_btn.disabled = disabled
 	_enc_delete_btn.disabled = disabled
 
@@ -1105,6 +1124,7 @@ func _update_right_panel() -> void:
 	_enc_rotate_check.button_pressed = bool(enc.get("rotate_with_path", false))
 	_enc_melee_check.button_pressed = bool(enc.get("is_melee", false))
 	_enc_turn_speed_spin.value = float(enc.get("turn_speed", 90.0))
+	_enc_weapons_active_check.button_pressed = bool(enc.get("weapons_active", true))
 	_update_melee_ui_state()
 
 

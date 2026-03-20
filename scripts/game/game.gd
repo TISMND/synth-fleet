@@ -17,6 +17,15 @@ var _nebula_container: Node2D = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
 var _scroll_speed: float = 80.0
+var _presence_counts: Dictionary = {}  # ship_id -> int (active enemy count)
+var _presence_loops: Dictionary = {}   # ship_id -> presence_loop_path
+
+# Nebula status effects
+var _nebula_areas: Array = []  # Array of {area: Area2D, nebula_data: NebulaData}
+var _active_nebula_effects: Array = []  # NebulaData objects currently overlapping the player
+var _nebula_bar_accumulators: Dictionary = {}  # bar_name -> float accumulator for sub-frame amounts
+var _player_base_speed: float = 400.0
+var _player_base_modulate_a: float = 1.0
 
 const NEBULA_STYLES: Dictionary = {
 	"classic_fbm": {"shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "dual": false},
@@ -97,6 +106,13 @@ func _ready() -> void:
 	_player._update_hud_hardpoints()
 	_player._update_hud_cores()
 
+	# Store base speed for nebula slow effect restoration
+	_player_base_speed = _player.speed
+	_player_base_modulate_a = _player.modulate.a
+
+	# Pre-register presence loops for all enemy types used in this level (start muted)
+	_register_presence_loops()
+
 	# Start immediately
 	LoopMixer.start_all()
 	_start_waves()
@@ -110,6 +126,8 @@ func _process(delta: float) -> void:
 		_nebula_container.position.y = _scroll_distance
 	if _wave_manager:
 		_wave_manager.advance_scroll(_scroll_distance)
+	# Apply nebula status effects each frame
+	_apply_nebula_bar_effects(delta)
 	if _hud and _player:
 		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
 		_hud.update_bar_pulses(delta)
@@ -119,12 +137,12 @@ func _process(delta: float) -> void:
 func _start_waves() -> void:
 	if _level_data:
 		_scroll_distance = 0.0
-		_wave_manager.setup_level(_level_data, _enemies, _player)
+		_wave_manager.setup_level(_level_data, _enemies, _player, _projectiles)
 	else:
 		var waves: Array = []
 		for w in WAVE_CONFIG:
 			waves.append(w)
-		_wave_manager.setup(waves, _enemies)
+		_wave_manager.setup(waves, _enemies, _player, _projectiles)
 		_wave_manager.start()
 
 
@@ -136,6 +154,118 @@ func _on_all_waves_cleared() -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		_return_to_menu()
+
+
+func _register_presence_loops() -> void:
+	## Scan all enemy ship IDs used in encounters and add their presence loops to LoopMixer (muted).
+	var seen_ids: Dictionary = {}
+	if _level_data:
+		for enc in _level_data.encounters:
+			var sid: String = str(enc.get("ship_id", ""))
+			if sid != "" and not seen_ids.has(sid):
+				seen_ids[sid] = true
+	for sid in seen_ids:
+		var ship: ShipData = ShipDataManager.load_by_id(sid)
+		if ship and ship.presence_loop_path != "":
+			var loop_id: String = "presence_" + sid
+			_presence_loops[sid] = ship.presence_loop_path
+			_presence_counts[sid] = 0
+			if not LoopMixer.has_loop(loop_id):
+				LoopMixer.add_loop(loop_id, ship.presence_loop_path, "Master", 0.0, true)
+
+
+func register_enemy_presence(sid: String, loop_path: String) -> void:
+	## Called when an enemy enters the scene. Increments count, unmutes on 0->1.
+	if sid == "" or loop_path == "":
+		return
+	var loop_id: String = "presence_" + sid
+	# Lazily register if not pre-registered (e.g. fallback wave spawns)
+	if not _presence_loops.has(sid):
+		_presence_loops[sid] = loop_path
+		_presence_counts[sid] = 0
+		if not LoopMixer.has_loop(loop_id):
+			LoopMixer.add_loop(loop_id, loop_path, "Master", 0.0, true)
+			if LoopMixer.is_playing():
+				LoopMixer.start_all()
+
+	var count: int = int(_presence_counts.get(sid, 0))
+	count += 1
+	_presence_counts[sid] = count
+	if count == 1:
+		LoopMixer.unmute(loop_id)
+
+
+func unregister_enemy_presence(sid: String) -> void:
+	## Called when an enemy exits the scene. Decrements count, mutes on 1->0.
+	if sid == "" or not _presence_counts.has(sid):
+		return
+	var loop_id: String = "presence_" + sid
+	var count: int = int(_presence_counts.get(sid, 0))
+	count = maxi(count - 1, 0)
+	_presence_counts[sid] = count
+	if count == 0:
+		LoopMixer.mute(loop_id)
+
+
+func _on_nebula_entered(_area: Area2D, ndata: NebulaData) -> void:
+	if ndata not in _active_nebula_effects:
+		_active_nebula_effects.append(ndata)
+		_apply_special_effects()
+
+
+func _on_nebula_exited(_area: Area2D, ndata: NebulaData) -> void:
+	_active_nebula_effects.erase(ndata)
+	_apply_special_effects()
+
+
+func _apply_nebula_bar_effects(delta: float) -> void:
+	## Apply bar drain/fill from all overlapping nebulas each frame.
+	if _active_nebula_effects.is_empty() or not _player:
+		return
+	var combined_rates: Dictionary = {}
+	for ndata in _active_nebula_effects:
+		for bar_name in ndata.bar_effects:
+			var rate: float = float(ndata.bar_effects[bar_name])
+			if combined_rates.has(bar_name):
+				combined_rates[bar_name] = float(combined_rates[bar_name]) + rate
+			else:
+				combined_rates[bar_name] = rate
+	for bar_name in combined_rates:
+		var rate: float = float(combined_rates[bar_name])
+		var amount: float = rate * delta
+		if not _nebula_bar_accumulators.has(bar_name):
+			_nebula_bar_accumulators[bar_name] = 0.0
+		_nebula_bar_accumulators[bar_name] = float(_nebula_bar_accumulators[bar_name]) + amount
+		var accumulated: float = float(_nebula_bar_accumulators[bar_name])
+		if absf(accumulated) >= 0.01:
+			_player.apply_bar_effects({bar_name: accumulated})
+			_nebula_bar_accumulators[bar_name] = 0.0
+
+
+func _apply_special_effects() -> void:
+	## Apply or remove special effects based on currently overlapping nebulas.
+	if not _player:
+		return
+	var active_specials: Array[String] = []
+	for ndata in _active_nebula_effects:
+		for effect_id in ndata.special_effects:
+			if effect_id not in active_specials:
+				active_specials.append(effect_id)
+	# Cloak: reduce player opacity
+	if "cloak" in active_specials:
+		_player.modulate.a = 0.3
+	else:
+		_player.modulate.a = _player_base_modulate_a
+	# Slow: reduce player speed
+	if "slow" in active_specials:
+		_player.speed = _player_base_speed * 0.5
+	else:
+		_player.speed = _player_base_speed
+	# Damage boost: set meta flag
+	if _player.has_meta("nebula_damage_boost"):
+		_player.remove_meta("nebula_damage_boost")
+	if "damage_boost" in active_specials:
+		_player.set_meta("nebula_damage_boost", true)
 
 
 func _return_to_menu() -> void:
@@ -285,6 +415,22 @@ func _setup_nebulas() -> void:
 		debug_ring.position = sprite.position
 		debug_ring.z_index = 15
 		_nebula_container.add_child(debug_ring)
+
+		# Collision area for status effects (if nebula has any effects defined)
+		if ndata.bar_effects.size() > 0 or ndata.special_effects.size() > 0:
+			var area := Area2D.new()
+			area.collision_layer = 0
+			area.collision_mask = 1  # Detects player (layer 1)
+			area.position = sprite.position
+			var col_shape := CollisionShape2D.new()
+			var circle := CircleShape2D.new()
+			circle.radius = effective_radius
+			col_shape.shape = circle
+			area.add_child(col_shape)
+			_nebula_container.add_child(area)
+			_nebula_areas.append({"area": area, "nebula_data": ndata})
+			area.area_entered.connect(_on_nebula_entered.bind(ndata))
+			area.area_exited.connect(_on_nebula_exited.bind(ndata))
 
 
 class _NebulaDebugRing extends Node2D:

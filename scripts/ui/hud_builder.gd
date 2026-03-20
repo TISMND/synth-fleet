@@ -144,6 +144,8 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 	var label_h: float = 20.0
 	var bar_pad: float = 6.0
 	var bar_x: float = float(SIDE_PANEL_WIDTH - BAR_WIDTH) / 2.0
+	var seg_px: float = ThemeManager.get_float("led_segment_width_px")
+	var gap_px: float = ThemeManager.get_float("led_segment_gap_px")
 
 	var bars_result: Dictionary = {}
 	for i in bar_names.size():
@@ -154,11 +156,11 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		var color: Color = ThemeManager.resolve_bar_color(spec)
 		var seg: int = int(seg_overrides.get(bar_name, ShipData.DEFAULT_SEGMENTS.get(bar_name, 8)))
 
-		# Compute positions for top half (i=0) or bottom half (i=1)
+		# Fixed bar height from segment count — no stretching
+		var bar_height: float = float(seg) * seg_px + float(seg - 1) * gap_px
+		# Anchor to top of half-panel zone, leave remaining space empty
 		var zone_top: float = mid_y * float(i) + bar_pad
-		var zone_bottom: float = mid_y * float(i + 1) - bar_pad
 		var bar_top: float = zone_top
-		var bar_height: float = zone_bottom - zone_top - label_h - bar_pad
 		var label_top: float = bar_top + bar_height + bar_pad
 
 		# Create bar

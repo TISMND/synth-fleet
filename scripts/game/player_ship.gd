@@ -97,7 +97,7 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	# Player collision area for contact damage
 	_player_area = Area2D.new()
 	_player_area.collision_layer = 1
-	_player_area.collision_mask = 4
+	_player_area.collision_mask = 4 | 8  # Enemies (4) + Enemy projectiles (8)
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = 15.0
@@ -459,6 +459,9 @@ func apply_bar_effects(effects: Dictionary) -> void:
 
 
 func _on_contact(area: Area2D) -> void:
+	# Enemy projectiles handle their own damage via their _on_area_entered
+	if area is EnemyProjectile:
+		return
 	take_damage(1.5)
 
 

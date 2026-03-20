@@ -10,6 +10,9 @@ const MUTE_DB := -80.0
 var _loops: Dictionary = {}
 # Each entry: {player: AudioStreamPlayer, target_volume: float, muted: bool, duration: float}
 
+var _active_tweens: Dictionary = {}
+# Per loop_id: active Tween for fade transitions (cancelled when a new fade starts)
+
 
 func add_loop(loop_id: String, stream_path: String, bus: String = "Master", volume_db: float = 0.0, start_muted: bool = true) -> void:
 	if _loops.has(loop_id):
@@ -57,6 +60,7 @@ func add_loop(loop_id: String, stream_path: String, bus: String = "Master", volu
 func remove_loop(loop_id: String) -> void:
 	if not _loops.has(loop_id):
 		return
+	_cancel_fade(loop_id)
 	var entry: Dictionary = _loops[loop_id]
 	var player: AudioStreamPlayer = entry["player"]
 	player.stop()
@@ -69,24 +73,53 @@ func remove_all_loops() -> void:
 		remove_loop(loop_id)
 
 
-func mute(loop_id: String) -> void:
+func mute(loop_id: String, fade_ms: int = 0) -> void:
 	if not _loops.has(loop_id):
 		return
 	var entry: Dictionary = _loops[loop_id]
 	entry["muted"] = true
 	var player: AudioStreamPlayer = entry["player"]
-	player.volume_db = MUTE_DB
+	_cancel_fade(loop_id)
+	if fade_ms > 0:
+		var duration_sec: float = float(fade_ms) / 1000.0
+		var tween: Tween = get_tree().create_tween()
+		tween.tween_property(player, "volume_db", MUTE_DB, duration_sec)
+		_active_tweens[loop_id] = tween
+		tween.finished.connect(func() -> void:
+			_active_tweens.erase(loop_id)
+		)
+	else:
+		player.volume_db = MUTE_DB
 	loop_state_changed.emit(loop_id, true)
 
 
-func unmute(loop_id: String) -> void:
+func unmute(loop_id: String, fade_ms: int = 0) -> void:
 	if not _loops.has(loop_id):
 		return
 	var entry: Dictionary = _loops[loop_id]
 	entry["muted"] = false
+	var target_vol: float = float(entry["target_volume"])
 	var player: AudioStreamPlayer = entry["player"]
-	player.volume_db = float(entry["target_volume"])
+	_cancel_fade(loop_id)
+	if fade_ms > 0:
+		var duration_sec: float = float(fade_ms) / 1000.0
+		var tween: Tween = get_tree().create_tween()
+		tween.tween_property(player, "volume_db", target_vol, duration_sec)
+		_active_tweens[loop_id] = tween
+		tween.finished.connect(func() -> void:
+			_active_tweens.erase(loop_id)
+		)
+	else:
+		player.volume_db = target_vol
 	loop_state_changed.emit(loop_id, false)
+
+
+func _cancel_fade(loop_id: String) -> void:
+	if _active_tweens.has(loop_id):
+		var tween: Tween = _active_tweens[loop_id]
+		if tween and tween.is_valid():
+			tween.kill()
+		_active_tweens.erase(loop_id)
 
 
 func set_volume(loop_id: String, volume_db: float) -> void:
@@ -129,14 +162,14 @@ func is_playing() -> bool:
 	return false
 
 
-func mute_all() -> void:
+func mute_all(fade_ms: int = 0) -> void:
 	for loop_id in _loops:
-		mute(loop_id)
+		mute(loop_id, fade_ms)
 
 
-func unmute_all() -> void:
+func unmute_all(fade_ms: int = 0) -> void:
 	for loop_id in _loops:
-		unmute(loop_id)
+		unmute(loop_id, fade_ms)
 
 
 func has_loop(loop_id: String) -> bool:

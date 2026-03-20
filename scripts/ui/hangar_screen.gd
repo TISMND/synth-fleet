@@ -127,12 +127,37 @@ func _apply_theme() -> void:
 	if body_font:
 		_ship_name_label.add_theme_font_override("font", body_font)
 
-	# Section headers
-	for hdr in [_ext_header, _int_header]:
-		hdr.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-		hdr.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-		if body_font:
-			hdr.add_theme_font_override("font", body_font)
+	# Section headers — larger, color-coded, with glow
+	var section_pairs: Array = [
+		[_ext_header, "ext_0"],
+		[_int_header, "int_0"],
+		[_dev_header, "dev_0"],
+	]
+	for pair in section_pairs:
+		var hdr: Label = pair[0]
+		var prefix: String = str(pair[1])
+		if not hdr:
+			continue
+		var type_color: Color = _get_slot_type_color(prefix)
+		hdr.add_theme_color_override("font_color", type_color)
+		hdr.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
+		if header_font:
+			hdr.add_theme_font_override("font", header_font)
+		ThemeManager.apply_text_glow(hdr, "header")
+		# Re-apply the panel background bar color
+		var panel_parent: PanelContainer = hdr.get_parent() as PanelContainer
+		if panel_parent:
+			var sb: StyleBoxFlat = StyleBoxFlat.new()
+			sb.bg_color = Color(type_color.r, type_color.g, type_color.b, 0.12)
+			sb.border_color = Color(type_color.r, type_color.g, type_color.b, 0.35)
+			sb.border_width_bottom = 2
+			sb.border_width_top = 0
+			sb.border_width_left = 0
+			sb.border_width_right = 0
+			sb.set_content_margin_all(6)
+			sb.content_margin_left = 10
+			sb.content_margin_right = 10
+			panel_parent.add_theme_stylebox_override("panel", sb)
 
 	# Status bars
 	var specs: Array = ThemeManager.get_status_bar_specs()
@@ -163,13 +188,30 @@ func _apply_theme() -> void:
 	ThemeManager.apply_button_style(_audio_btn)
 	ThemeManager.apply_button_style(_controls_btn)
 
-	# Slot buttons in all sections
-	for section in [_ext_section, _int_section, _dev_section]:
+	# Slot buttons in all sections — re-apply base style then color-coding
+	var section_prefixes: Array = [
+		[_ext_section, "ext_"],
+		[_int_section, "int_"],
+		[_dev_section, "dev_"],
+	]
+	for sp in section_prefixes:
+		var section: VBoxContainer = sp[0]
+		var prefix: String = str(sp[1])
+		var slot_idx: int = 0
 		for child in section.get_children():
 			if child is HBoxContainer:
+				var slot_key: String = prefix + str(slot_idx)
 				for sub in child.get_children():
 					if sub is Button:
-						ThemeManager.apply_button_style(sub as Button)
+						var btn: Button = sub as Button
+						ThemeManager.apply_button_style(btn)
+						# Re-apply color-coding for the slot header button (the wide one)
+						if btn.size_flags_horizontal & Control.SIZE_EXPAND_FILL:
+							var slot_color: Color = _get_slot_type_color(slot_key)
+							btn.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.7))
+							btn.add_theme_color_override("font_hover_color", Color(slot_color.r, slot_color.g, slot_color.b, 1.0))
+							btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
+				slot_idx += 1
 
 	# Right panel header + item buttons
 	if _right_panel and _right_panel.visible:
@@ -181,12 +223,7 @@ func _apply_theme() -> void:
 			if child is Button:
 				ThemeManager.apply_button_style(child as Button)
 
-	# Device section header
-	if _dev_header:
-		_dev_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-		_dev_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-		if body_font:
-			_dev_header.add_theme_font_override("font", body_font)
+	# Device section header — handled in section_pairs loop above
 
 	# Mode toggle highlight
 	_update_mode_buttons()
@@ -364,13 +401,57 @@ func _rebuild_buttons() -> void:
 	call_deferred("_apply_theme")
 
 
+func _create_section_header_bar(title: String, section_prefix: String) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	# Colored background bar
+	var type_color: Color = _get_slot_type_color(section_prefix + "_0")
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(type_color.r, type_color.g, type_color.b, 0.12)
+	sb.border_color = Color(type_color.r, type_color.g, type_color.b, 0.35)
+	sb.border_width_bottom = 2
+	sb.border_width_top = 0
+	sb.border_width_left = 0
+	sb.border_width_right = 0
+	sb.set_content_margin_all(6)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	panel.add_theme_stylebox_override("panel", sb)
+
+	var header_label := Label.new()
+	header_label.text = title
+	header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	panel.add_child(header_label)
+
+	# Store reference for theming
+	if section_prefix == "ext":
+		_ext_header = header_label
+	elif section_prefix == "int":
+		_int_header = header_label
+	elif section_prefix == "dev":
+		_dev_header = header_label
+
+	return panel
+
+
+func _get_slot_type_color(slot_key: String) -> Color:
+	if slot_key.begins_with("ext_"):
+		return ThemeManager.get_color("bar_shield")  # Cyan-ish for weapons
+	elif slot_key.begins_with("int_"):
+		return ThemeManager.get_color("bar_electric")  # Yellow for cores
+	elif slot_key.begins_with("dev_"):
+		return ThemeManager.get_color("bar_thermal")  # Orange for devices
+	return ThemeManager.get_color("accent")
+
+
 func _create_slot_row(slot_key: String, type_label: String, item_name: String, bar_effect_text: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
+	row.add_theme_constant_override("separation", 8)
 
 	# Toggle button
 	var toggle := Button.new()
-	toggle.custom_minimum_size = Vector2(30, 30)
+	toggle.custom_minimum_size = Vector2(44, 38)
 	var is_active: bool = _slot_active.get(slot_key, true)
 	toggle.text = "ON" if is_active else "OFF"
 	ThemeManager.apply_button_style(toggle)
@@ -389,10 +470,15 @@ func _create_slot_row(slot_key: String, type_label: String, item_name: String, b
 	if bar_effect_text != "":
 		header_text += "  " + bar_effect_text
 	header.text = header_text
-	header.custom_minimum_size.y = 50
+	header.custom_minimum_size.y = 54
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	ThemeManager.apply_button_style(header)
+	# Apply slot type color tint to the button font
+	var slot_color: Color = _get_slot_type_color(slot_key)
+	header.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.7))
+	header.add_theme_color_override("font_hover_color", Color(slot_color.r, slot_color.g, slot_color.b, 1.0))
+	header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
 	var bound_slot: String = slot_key
 	header.pressed.connect(func() -> void: _toggle_slot_list(bound_slot))
 	row.add_child(header)
@@ -1139,8 +1225,13 @@ func _build_ui() -> void:
 
 	# Mode toggle buttons
 	var mode_hbox := HBoxContainer.new()
-	mode_hbox.add_theme_constant_override("separation", 4)
+	mode_hbox.add_theme_constant_override("separation", 6)
 	_center_vbox.add_child(mode_hbox)
+
+	# Spacer below mode tabs
+	var mode_spacer := Control.new()
+	mode_spacer.custom_minimum_size.y = 6
+	_center_vbox.add_child(mode_spacer)
 
 	_functional_btn = Button.new()
 	_functional_btn.text = "FUNCTIONAL"
@@ -1164,27 +1255,41 @@ func _build_ui() -> void:
 	_functional_content = VBoxContainer.new()
 	_functional_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_functional_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_functional_content.add_theme_constant_override("separation", 4)
 	_center_vbox.add_child(_functional_content)
 
-	_ext_header = Label.new()
-	_ext_header.text = "━━ EXTERNAL ━━━━━━━━"
-	_functional_content.add_child(_ext_header)
+	# Weapons section
+	var ext_header_bar: PanelContainer = _create_section_header_bar("WEAPONS", "ext")
+	_functional_content.add_child(ext_header_bar)
 
 	_ext_section = VBoxContainer.new()
+	_ext_section.add_theme_constant_override("separation", 6)
 	_functional_content.add_child(_ext_section)
 
-	_int_header = Label.new()
-	_int_header.text = "━━ INTERNAL ━━━━━━━━"
-	_functional_content.add_child(_int_header)
+	# Add spacer between sections
+	var spacer_1 := Control.new()
+	spacer_1.custom_minimum_size.y = 8
+	_functional_content.add_child(spacer_1)
+
+	# Cores section
+	var int_header_bar: PanelContainer = _create_section_header_bar("CORES", "int")
+	_functional_content.add_child(int_header_bar)
 
 	_int_section = VBoxContainer.new()
+	_int_section.add_theme_constant_override("separation", 6)
 	_functional_content.add_child(_int_section)
 
-	_dev_header = Label.new()
-	_dev_header.text = "━━ DEVICES ━━━━━━━━━"
-	_functional_content.add_child(_dev_header)
+	# Add spacer between sections
+	var spacer_2 := Control.new()
+	spacer_2.custom_minimum_size.y = 8
+	_functional_content.add_child(spacer_2)
+
+	# Devices section
+	var dev_header_bar: PanelContainer = _create_section_header_bar("DEVICES", "dev")
+	_functional_content.add_child(dev_header_bar)
 
 	_dev_section = VBoxContainer.new()
+	_dev_section.add_theme_constant_override("separation", 6)
 	_functional_content.add_child(_dev_section)
 
 	var spacer := Control.new()

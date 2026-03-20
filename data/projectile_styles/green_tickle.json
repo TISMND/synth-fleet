@@ -1,0 +1,30 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		6.0,
+		26.0
+	],
+	"color": [
+		0.085693359375,
+		0.8125,
+		0.318498611450195,
+		1.0
+	],
+	"display_name": "green_tickle",
+	"fill_shader": "fire",
+	"glow_intensity": 1.5,
+	"id": "green_tickle",
+	"mask_path": "",
+	"shader_params": {
+		"animation_speed": 1.1,
+		"brightness": 0.8,
+		"color_mix": 0.0,
+		"edge_softness": 0.0,
+		"flame_detail": 1.0,
+		"heat_distortion": 0.0,
+		"scroll_speed": 3.7
+	}
+}

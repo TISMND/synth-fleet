@@ -73,7 +73,8 @@ func activate() -> void:
 		return
 	_active = true
 	_prev_loop_pos = -1.0
-	LoopMixer.unmute(_loop_id)
+	var fade_ms: int = _get_audio_fade_ms()
+	LoopMixer.unmute(_loop_id, fade_ms)
 	if _orbiter_renderer:
 		_orbiter_renderer.visible = true
 	else:
@@ -86,7 +87,8 @@ func deactivate() -> void:
 	if not _active:
 		return
 	_active = false
-	LoopMixer.mute(_loop_id)
+	var fade_ms: int = _get_audio_fade_ms()
+	LoopMixer.mute(_loop_id, fade_ms)
 	if _orbiter_renderer:
 		_orbiter_renderer.remove_all()
 		_orbiter_renderer.visible = false
@@ -115,6 +117,14 @@ func cleanup() -> void:
 		_orbiter_renderer.queue_free()
 	if _collision_area and is_instance_valid(_collision_area):
 		_collision_area.queue_free()
+
+
+func _get_audio_fade_ms() -> int:
+	if not device_data:
+		return 0
+	if device_data.transition_mode == "fade":
+		return device_data.transition_ms
+	return 0
 
 
 func _start_fade(target: float, duration: float) -> void:

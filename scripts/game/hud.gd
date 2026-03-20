@@ -12,8 +12,13 @@ var _core_icons: Array = []    # Array of dicts: same shape as weapon_icons
 var _device_icons: Array = []  # Array of dicts: same shape as weapon_icons
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label, "vertical": bool}
 var _bar_segments: Dictionary = {}  # bar_name -> int segment count
-var _bar_pulse_brightness: Dictionary = {}  # bar_name -> float (0.0 = idle, 1.0 = full pulse)
 var _bar_base_colors: Dictionary = {}  # bar_name -> Color
+var _bar_prev_values: Dictionary = {}  # bar_name -> float (previous frame's value for change detection)
+# Per-bar rolling wave state: {active: bool, position: float, speed: float}
+var _bar_gain_wave: Dictionary = {}   # bar_name -> wave state dict
+var _bar_drain_wave: Dictionary = {}  # bar_name -> wave state dict
+const WAVE_SPEED: float = 2.5  # normalized units per second (wave traverses bar in ~0.4s)
+const WAVE_MIN_CHANGE: float = 0.01  # minimum ratio change to trigger a wave
 var _vhs_overlay: ColorRect = null
 
 
@@ -71,9 +76,11 @@ func _build_ui() -> void:
 	for bar_name in right_bars:
 		_bars[bar_name] = right_bars[bar_name]
 
-	# Initialize pulse tracking and base colors
+	# Initialize wave tracking and base colors
 	for bar_name in _bars:
-		_bar_pulse_brightness[bar_name] = 0.0
+		_bar_gain_wave[bar_name] = {"active": false, "position": 0.0, "speed": WAVE_SPEED}
+		_bar_drain_wave[bar_name] = {"active": false, "position": 1.0, "speed": WAVE_SPEED}
+		_bar_prev_values[bar_name] = -1.0  # sentinel: first frame won't trigger wave
 		var specs: Array = ThemeManager.get_status_bar_specs()
 		for spec in specs:
 			if str(spec["name"]) == bar_name:
@@ -171,6 +178,17 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 	bar.max_value = max_val
 	bar.value = current
 	var ratio: float = current / maxf(max_val, 1.0)
+
+	# Detect gain/drain and trigger rolling waves
+	var prev_ratio: float = float(_bar_prev_values.get(bar_name, -1.0))
+	if prev_ratio >= 0.0:  # skip first frame (sentinel value)
+		var delta_ratio: float = ratio - prev_ratio
+		if delta_ratio > WAVE_MIN_CHANGE:
+			trigger_gain_wave(bar_name)
+		elif delta_ratio < -WAVE_MIN_CHANGE:
+			trigger_drain_wave(bar_name)
+	_bar_prev_values[bar_name] = ratio
+
 	# Only update fill_ratio on existing shader — don't rebuild the entire LED bar
 	var overlay: ColorRect = bar.get_node_or_null("led_overlay") as ColorRect
 	if overlay and overlay.material is ShaderMaterial:
@@ -184,22 +202,61 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 
 
 func pulse_bar(bar_name: String) -> void:
-	## Trigger a glow pulse on a status bar (called when a power core trigger fires).
-	_bar_pulse_brightness[bar_name] = 1.0
+	## Trigger a gain wave on a status bar (called when a power core trigger fires).
+	trigger_gain_wave(bar_name)
+
+
+func trigger_gain_wave(bar_name: String) -> void:
+	## Start an upward-rolling gain wave from bottom (0.0) to top (1.0).
+	if not _bar_gain_wave.has(bar_name):
+		return
+	var wave: Dictionary = _bar_gain_wave[bar_name]
+	wave["active"] = true
+	wave["position"] = 0.0
+	wave["speed"] = WAVE_SPEED
+
+
+func trigger_drain_wave(bar_name: String) -> void:
+	## Start a downward-rolling drain wave from top (1.0) to bottom (0.0).
+	if not _bar_drain_wave.has(bar_name):
+		return
+	var wave: Dictionary = _bar_drain_wave[bar_name]
+	wave["active"] = true
+	wave["position"] = 1.0
+	wave["speed"] = WAVE_SPEED
 
 
 func update_bar_pulses(delta: float) -> void:
-	## Decay pulse brightness and modulate LED shader glow. Called every frame from game.
-	for bar_name in _bar_pulse_brightness:
-		var brightness: float = float(_bar_pulse_brightness[bar_name])
-		if brightness <= 0.0:
-			continue
-		brightness = maxf(0.0, brightness - delta / 0.3)
-		_bar_pulse_brightness[bar_name] = brightness
-		_apply_bar_pulse_glow(bar_name, brightness)
+	## Advance rolling wave positions and update shader uniforms. Called every frame from game.
+	for bar_name in _bar_gain_wave:
+		var gain_wave: Dictionary = _bar_gain_wave[bar_name]
+		var drain_wave: Dictionary = _bar_drain_wave[bar_name]
+
+		# Advance gain wave (moves upward: 0 -> 1)
+		if bool(gain_wave["active"]):
+			var pos: float = float(gain_wave["position"])
+			pos += float(gain_wave["speed"]) * delta
+			if pos > 1.3:  # overshoot past end before deactivating
+				gain_wave["active"] = false
+				gain_wave["position"] = -1.0
+			else:
+				gain_wave["position"] = pos
+
+		# Advance drain wave (moves downward: 1 -> 0)
+		if bool(drain_wave["active"]):
+			var pos: float = float(drain_wave["position"])
+			pos -= float(drain_wave["speed"]) * delta
+			if pos < -0.3:  # overshoot past end before deactivating
+				drain_wave["active"] = false
+				drain_wave["position"] = -1.0
+			else:
+				drain_wave["position"] = pos
+
+		# Update shader uniforms
+		_apply_wave_uniforms(bar_name)
 
 
-func _apply_bar_pulse_glow(bar_name: String, glow: float) -> void:
+func _apply_wave_uniforms(bar_name: String) -> void:
 	if not _bars.has(bar_name):
 		return
 	var entry: Dictionary = _bars[bar_name]
@@ -208,16 +265,12 @@ func _apply_bar_pulse_glow(bar_name: String, glow: float) -> void:
 	if not overlay or not overlay.material is ShaderMaterial:
 		return
 	var mat: ShaderMaterial = overlay.material as ShaderMaterial
-	var base_color: Color = _bar_base_colors.get(bar_name, Color.CYAN)
-	var bright: Color = base_color.lightened(0.6)
-	var modulated: Color = base_color.lerp(bright, clampf(glow, 0.0, 1.0))
-	mat.set_shader_parameter("fill_color", modulated)
-	var base_inner: float = ThemeManager.get_float("led_inner_intensity")
-	var base_bloom: float = ThemeManager.get_float("led_bloom_intensity")
-	var base_aura: float = ThemeManager.get_float("led_aura_intensity")
-	mat.set_shader_parameter("inner_intensity", base_inner + glow * 1.5)
-	mat.set_shader_parameter("bloom_intensity", base_bloom + glow * 0.8)
-	mat.set_shader_parameter("aura_intensity", base_aura + glow * 0.6)
+	var gain_wave: Dictionary = _bar_gain_wave[bar_name]
+	var drain_wave: Dictionary = _bar_drain_wave[bar_name]
+	var gain_pos: float = float(gain_wave["position"]) if bool(gain_wave["active"]) else -1.0
+	var drain_pos: float = float(drain_wave["position"]) if bool(drain_wave["active"]) else -1.0
+	mat.set_shader_parameter("gain_wave_pos", gain_pos)
+	mat.set_shader_parameter("drain_wave_pos", drain_pos)
 
 
 func update_credits(amount: int) -> void:

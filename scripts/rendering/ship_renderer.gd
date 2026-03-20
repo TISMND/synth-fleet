@@ -139,6 +139,23 @@ func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
 		RenderMode.SPORE: _draw_spore_line(a, b, width)
 		_: _draw_neon_line(a, b, color, width)
 
+## Generate evenly-spaced points around a circle (for use with _poly).
+func _make_circle_points(center: Vector2, radius: float, point_count: int) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in range(point_count):
+		var angle: float = TAU * float(i) / float(point_count)
+		pts.append(center + Vector2(cos(angle) * radius, sin(angle) * radius))
+	return pts
+
+## Draw an arc that respects render modes (dispatches per-segment through _line).
+func _arc(center: Vector2, radius: float, start_angle: float, end_angle: float, point_count: int, color: Color, width: float) -> void:
+	for i in range(point_count):
+		var t0: float = float(i) / float(point_count)
+		var t1: float = float(i + 1) / float(point_count)
+		var a0: float = lerpf(start_angle, end_angle, t0)
+		var a1: float = lerpf(start_angle, end_angle, t1)
+		_line(center + Vector2(cos(a0) * radius, sin(a0) * radius), center + Vector2(cos(a1) * radius, sin(a1) * radius), color, width)
+
 func _canopy(points: PackedVector2Array) -> void:
 	match render_mode:
 		RenderMode.CHROME:
@@ -255,12 +272,8 @@ func _draw_sentinel() -> void:
 	var inner_col := accent_color
 	var detail := detail_color
 
-	# Outer circle body — drawn as polygon approximation
-	var circle_pts := PackedVector2Array()
-	var seg_count := 12
-	for i in range(seg_count):
-		var angle: float = TAU * float(i) / float(seg_count)
-		circle_pts.append(Vector2(cos(angle) * r, sin(angle) * r))
+	# Outer circle body
+	var circle_pts: PackedVector2Array = _make_circle_points(Vector2.ZERO, r, 32)
 	_poly(circle_pts, glow_col, 1.8 * s)
 
 	# Inner spinning hexagon
@@ -414,13 +427,10 @@ func _draw_scythe() -> void:
 	_poly(blade, hull_color, 1.6 * s)
 
 	# Inner edge accent line
-	for i in range(arc_points - 1):
-		var t0: float = float(i) / float(arc_points - 1)
-		var t1: float = float(i + 1) / float(arc_points - 1)
-		var a0: float = -PI * 0.6 + t0 * PI * 1.2 + rot
-		var a1: float = -PI * 0.6 + t1 * PI * 1.2 + rot
-		var r: float = 11.0 * s
-		_line(Vector2(cos(a0) * r, sin(a0) * r), Vector2(cos(a1) * r, sin(a1) * r), detail_color, 0.8 * s)
+	var inner_r: float = 11.0 * s
+	var arc_start: float = -PI * 0.6 + rot
+	var arc_end: float = -PI * 0.6 + PI * 1.2 + rot
+	_arc(Vector2.ZERO, inner_r, arc_start, arc_end, 16, detail_color, 0.8 * s)
 
 	# Cockpit pod near top of curve
 	var cockpit := PackedVector2Array([

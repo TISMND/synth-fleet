@@ -88,14 +88,24 @@ func activate() -> void:
 		return
 	_active = true
 	_prev_loop_pos = -1.0
-	LoopMixer.unmute(_loop_id)
+	var fade_ms: int = _get_audio_fade_ms()
+	LoopMixer.unmute(_loop_id, fade_ms)
 
 
 func deactivate() -> void:
 	if not _active:
 		return
 	_active = false
-	LoopMixer.mute(_loop_id)
+	var fade_ms: int = _get_audio_fade_ms()
+	LoopMixer.mute(_loop_id, fade_ms)
+
+
+func _get_audio_fade_ms() -> int:
+	if not weapon_data:
+		return 0
+	if weapon_data.transition_mode == "fade":
+		return weapon_data.transition_ms
+	return 0
 
 
 func toggle() -> void:

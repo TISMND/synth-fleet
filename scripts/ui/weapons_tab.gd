@@ -67,6 +67,11 @@ var _snap_button: OptionButton
 var _grid_toggle: Button
 var _bars_button: OptionButton
 
+# Transition controls
+var _transition_mode_button: OptionButton
+var _transition_ms_slider: HSlider
+var _transition_ms_label: Label
+
 # Movement subtab
 var _pattern_button: OptionButton
 var _speed_slider: HSlider
@@ -370,6 +375,46 @@ func _build_timing_tab() -> Control:
 	_bars_button.selected = 0  # Auto
 	_bars_button.item_selected.connect(_on_bars_changed)
 	control_row.add_child(_bars_button)
+
+	_add_separator(vbox)
+
+	# Audio Transition
+	_add_section_header(vbox, "AUDIO TRANSITION")
+	var transition_row := HBoxContainer.new()
+	vbox.add_child(transition_row)
+
+	var trans_mode_label := Label.new()
+	trans_mode_label.text = "Mode:"
+	trans_mode_label.custom_minimum_size.x = 60
+	transition_row.add_child(trans_mode_label)
+
+	_transition_mode_button = OptionButton.new()
+	_transition_mode_button.add_item("Instant")
+	_transition_mode_button.add_item("Fade")
+	_transition_mode_button.selected = 0
+	_transition_mode_button.item_selected.connect(_on_transition_mode_changed)
+	transition_row.add_child(_transition_mode_button)
+
+	var trans_dur_label := Label.new()
+	trans_dur_label.text = "  Duration:"
+	transition_row.add_child(trans_dur_label)
+
+	_transition_ms_slider = HSlider.new()
+	_transition_ms_slider.min_value = 50
+	_transition_ms_slider.max_value = 2000
+	_transition_ms_slider.value = 200
+	_transition_ms_slider.step = 10
+	_transition_ms_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_transition_ms_slider.custom_minimum_size.x = 120
+	_transition_ms_slider.editable = false
+	_transition_ms_slider.value_changed.connect(_on_transition_ms_changed)
+	transition_row.add_child(_transition_ms_slider)
+
+	_transition_ms_label = Label.new()
+	_transition_ms_label.text = "200ms"
+	_transition_ms_label.custom_minimum_size.x = 60
+	_transition_ms_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	transition_row.add_child(_transition_ms_label)
 
 	_add_separator(vbox)
 
@@ -890,6 +935,8 @@ func _collect_weapon_data() -> Dictionary:
 		"sweep_duration": _sweep_duration_slider.value,
 		"mirror_mode": MIRROR_MODES[_mirror_mode_button.selected],
 		"bar_effects": _collect_bar_effects(),
+		"transition_mode": "fade" if _transition_mode_button.selected == 1 else "instant",
+		"transition_ms": int(_transition_ms_slider.value),
 	}
 
 
@@ -999,6 +1046,19 @@ func _on_bars_changed(idx: int) -> void:
 	_update_preview()
 
 
+func _on_transition_mode_changed(idx: int) -> void:
+	var is_fade: bool = idx == 1
+	_transition_ms_slider.editable = is_fade
+	_transition_ms_slider.modulate = Color(1, 1, 1, 1.0) if is_fade else Color(1, 1, 1, 0.3)
+	_transition_ms_label.modulate = Color(1, 1, 1, 1.0) if is_fade else Color(1, 1, 1, 0.3)
+	_mark_dirty()
+
+
+func _on_transition_ms_changed(val: float) -> void:
+	_transition_ms_label.text = str(int(val)) + "ms"
+	_mark_dirty()
+
+
 func _on_triggers_changed(_triggers: Array) -> void:
 	_refresh_trigger_override_selector()
 	_mark_dirty()
@@ -1103,6 +1163,12 @@ func _on_new() -> void:
 	_on_reset_bars()
 	_stats_prev_loop_progress = -1.0
 
+	# Reset transition controls
+	_transition_mode_button.selected = 0
+	_on_transition_mode_changed(0)
+	_transition_ms_slider.value = 200
+	_transition_ms_label.text = "200ms"
+
 	# Reset all effect slots to "none" with white color
 	for slot in EFFECT_SLOTS:
 		var data: Dictionary = _slot_layer_data.get(slot, {})
@@ -1193,6 +1259,15 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 			if val_label:
 				val_label.text = "%.2f" % val
 	_stats_prev_loop_progress = -1.0
+
+	# Transition settings
+	if weapon.transition_mode == "fade":
+		_transition_mode_button.selected = 1
+	else:
+		_transition_mode_button.selected = 0
+	_on_transition_mode_changed(_transition_mode_button.selected)
+	_transition_ms_slider.value = float(weapon.transition_ms)
+	_transition_ms_label.text = str(weapon.transition_ms) + "ms"
 
 	_update_preview()
 	_populating = false

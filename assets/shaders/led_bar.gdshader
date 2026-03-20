@@ -26,6 +26,11 @@ uniform float pad_y : hint_range(0.0, 0.5) = 0.2;
 uniform float bar_aspect : hint_range(0.01, 30.0) = 5.0;
 // Vertical mode: 0 = horizontal (default), 1 = vertical (bottom-to-top fill)
 uniform int vertical : hint_range(0, 1) = 0;
+// Rolling wave animations (per-segment directional glow)
+uniform float gain_wave_pos : hint_range(-1.0, 2.0) = -1.0;  // upward roll position (-1 = inactive)
+uniform float drain_wave_pos : hint_range(-1.0, 2.0) = -1.0; // downward roll position (-1 = inactive)
+uniform float wave_intensity : hint_range(0.0, 1.5) = 0.5;   // brightness boost at wave peak
+uniform float wave_width : hint_range(0.02, 0.4) = 0.15;     // width of the glow wave (normalized)
 
 // Remap UV from overlay space to bar space.
 // Bar occupies [pad_x, 1-pad_x] x [pad_y, 1-pad_y] in overlay UV.
@@ -116,7 +121,20 @@ float sdf_lit(vec2 bar_uv) {
 	return min_dist;
 }
 
+// Compute wave glow contribution for a segment at normalized position seg_pos.
+// wave_pos is the current wave center (-1 = inactive). Returns 0.0-1.0 glow amount.
+float wave_glow(float seg_pos, float wave_pos) {
+	if (wave_pos < -0.5) return 0.0;  // inactive
+	float dist = abs(seg_pos - wave_pos);
+	float half_w = wave_width * 0.5;
+	if (dist > half_w) return 0.0;
+	// Smooth gaussian-like falloff
+	float t = dist / half_w;
+	return (1.0 - t * t) * wave_intensity;
+}
+
 void fragment() {
+	float modulate_alpha = COLOR.a;
 	vec2 uv = UV;
 	if (vertical == 1) {
 		uv = vec2(1.0 - uv.y, uv.x);  // bottom-to-top fill
@@ -178,6 +196,22 @@ void fragment() {
 		vert_soft = smoothstep(0.0, 0.12, bar_uv.y) * smoothstep(1.0, 0.88, bar_uv.y);
 	}
 
+	// Rolling wave glow (per-segment)
+	float gain_glow = 0.0;
+	float drain_glow = 0.0;
+	if (inside) {
+		// Get the normalized segment position for this pixel
+		float seg_width = 1.0 / float(segment_count);
+		int seg_idx = clamp(int(floor(bar_uv.x / seg_width)), 0, segment_count - 1);
+		float seg_pos = (float(seg_idx) + 0.5) / float(segment_count);
+		bool is_filled = seg_pos <= fill_ratio;
+
+		// Compute wave contributions — full strength on filled segments, reduced on empty
+		float fill_mult = is_filled ? 1.0 : 0.3;
+		gain_glow = wave_glow(seg_pos, gain_wave_pos) * fill_mult;
+		drain_glow = wave_glow(seg_pos, drain_wave_pos) * fill_mult;
+	}
+
 	// Combine
 	vec3 base_col = fill_color.rgb * base * vert_soft;
 	vec3 inner_col = mix(fill_color.rgb, vec3(1.0), 0.7) * inner * vert_soft;
@@ -185,7 +219,17 @@ void fragment() {
 	vec3 bloom_col = fill_color.rgb * bloom * 0.6;
 
 	vec3 lit_total = base_col + inner_col + aura_col + bloom_col;
-	float alpha = clamp(base + aura * 0.8 + bloom * 0.4, 0.0, 1.0);
+
+	// Apply gain wave: brighten toward white
+	vec3 gain_col = mix(fill_color.rgb, vec3(1.0), 0.6) * gain_glow * vert_soft;
+	lit_total += gain_col;
+
+	// Apply drain wave: shift toward red/warning
+	vec3 drain_col = vec3(1.0, 0.2, 0.1) * drain_glow * vert_soft;
+	lit_total += drain_col;
+
+	float wave_alpha = (gain_glow + drain_glow) * 0.6;
+	float alpha = clamp(base + aura * 0.8 + bloom * 0.4 + wave_alpha, 0.0, 1.0);
 
 	// Inside bar: mix with bg. Outside bar: glow over transparent.
 	vec3 final_color;
@@ -200,5 +244,5 @@ void fragment() {
 		final_alpha = clamp(aura * 0.6 + bloom * 0.3, 0.0, 0.9);
 	}
 
-	COLOR = vec4(clamp(final_color, vec3(0.0), vec3(1.0)), final_alpha);
+	COLOR = vec4(clamp(final_color, vec3(0.0), vec3(1.0)), final_alpha * modulate_alpha);
 }

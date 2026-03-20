@@ -32,6 +32,7 @@ const DEFAULT_SEGMENTS: Dictionary = {
 @export var enemy_damage: int = 10          # Damage per enemy projectile
 @export var projectile_speed: float = 300.0
 @export var weapon_id: String = ""          # Future: enemy weapon definitions
+@export var presence_loop_path: String = "" # Audio loop that plays while this enemy type is on screen
 
 
 static func from_dict(data: Dictionary) -> ShipData:
@@ -59,6 +60,7 @@ static func from_dict(data: Dictionary) -> ShipData:
 	s.enemy_damage = int(data.get("enemy_damage", 10))
 	s.projectile_speed = float(data.get("projectile_speed", 300.0))
 	s.weapon_id = data.get("weapon_id", "")
+	s.presence_loop_path = data.get("presence_loop_path", "")
 	return s
 
 
@@ -81,4 +83,6 @@ func to_dict() -> Dictionary:
 		d["enemy_damage"] = enemy_damage
 		d["projectile_speed"] = projectile_speed
 		d["weapon_id"] = weapon_id
+		if presence_loop_path != "":
+			d["presence_loop_path"] = presence_loop_path
 	return d

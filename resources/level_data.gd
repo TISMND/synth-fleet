@@ -33,6 +33,7 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"rotate_with_path": bool(enc.get("rotate_with_path", false)),
 			"is_melee": bool(enc.get("is_melee", false)),
 			"turn_speed": float(enc.get("turn_speed", 90.0)),
+			"weapons_active": bool(enc.get("weapons_active", true)),
 		})
 	var raw_neb: Array = data.get("nebula_placements", [])
 	l.nebula_placements = []
