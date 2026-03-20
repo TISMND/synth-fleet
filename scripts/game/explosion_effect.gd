@@ -3,6 +3,7 @@ extends Node2D
 ## Animated explosion VFX for enemy deaths.
 ## Uses GPU particles for burst + expanding rings drawn with _draw().
 ## Self-destructs after animation completes.
+## Colors are used directly — the WorldEnvironment glow system handles bloom.
 
 var explosion_color: Color = Color(1.0, 0.3, 0.5)
 var explosion_size: float = 1.0  # multiplier based on enemy size
@@ -102,12 +103,18 @@ func _spawn_gpu_burst() -> void:
 	mat.damping_min = 40.0
 	mat.damping_max = 80.0
 
-	# Color gradient: white-hot -> explosion color -> transparent
+	# Color gradient: bright core -> explosion color -> transparent
+	# Glow system handles bloom, so no HDR multipliers needed
 	var gradient := Gradient.new()
-	var hdr_color := Color(explosion_color.r * 3.0, explosion_color.g * 3.0, explosion_color.b * 3.0, 1.0)
-	gradient.set_color(0, Color(3.0, 3.0, 3.0, 1.0))  # white-hot start
-	gradient.add_point(0.2, hdr_color)
-	gradient.add_point(0.6, Color(explosion_color.r * 1.5, explosion_color.g * 1.5, explosion_color.b * 1.5, 0.6))
+	var bright_core := Color(
+		lerpf(explosion_color.r, 1.0, 0.6),
+		lerpf(explosion_color.g, 1.0, 0.6),
+		lerpf(explosion_color.b, 1.0, 0.6),
+		1.0
+	)
+	gradient.set_color(0, bright_core)
+	gradient.add_point(0.2, explosion_color)
+	gradient.add_point(0.6, Color(explosion_color, 0.6))
 	gradient.set_color(gradient.get_point_count() - 1, Color(explosion_color, 0.0))
 	var color_ramp := GradientTexture1D.new()
 	color_ramp.gradient = gradient
@@ -151,7 +158,13 @@ func _spawn_gpu_burst() -> void:
 	spark_mat.damping_max = 50.0
 
 	var spark_gradient := Gradient.new()
-	spark_gradient.set_color(0, Color(3.0, 3.0, 3.0, 1.0))
+	var spark_bright := Color(
+		lerpf(explosion_color.r, 1.0, 0.5),
+		lerpf(explosion_color.g, 1.0, 0.5),
+		lerpf(explosion_color.b, 1.0, 0.5),
+		1.0
+	)
+	spark_gradient.set_color(0, spark_bright)
 	spark_gradient.set_color(1, Color(explosion_color, 0.0))
 	var spark_ramp := GradientTexture1D.new()
 	spark_ramp.gradient = spark_gradient
@@ -220,40 +233,42 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# Central flash
+	# Central flash — uses explosion color, glow system provides bloom
 	if _flash_alpha > 0.01:
 		var flash_radius: float = (8.0 + _age * 60.0) * explosion_size
-		var flash_hdr: float = 3.0 * _flash_alpha
-		# Outer glow
+		# Outer glow — soft, colored
 		draw_circle(Vector2.ZERO, flash_radius * 1.5, Color(
-			explosion_color.r * flash_hdr * 0.5,
-			explosion_color.g * flash_hdr * 0.5,
-			explosion_color.b * flash_hdr * 0.5,
+			explosion_color.r,
+			explosion_color.g,
+			explosion_color.b,
 			_flash_alpha * 0.3
 		))
-		# Core flash — white-hot
-		draw_circle(Vector2.ZERO, flash_radius, Color(
-			flash_hdr, flash_hdr, flash_hdr, _flash_alpha * 0.8
-		))
+		# Core flash — bright tint of explosion color
+		var core := Color(
+			lerpf(explosion_color.r, 1.0, 0.4),
+			lerpf(explosion_color.g, 1.0, 0.4),
+			lerpf(explosion_color.b, 1.0, 0.4),
+			_flash_alpha * 0.8
+		)
+		draw_circle(Vector2.ZERO, flash_radius, core)
 
-	# Expanding rings
+	# Expanding rings — pure explosion color
 	for ring in _rings:
 		var r: Dictionary = ring
 		var radius: float = float(r["radius"])
 		var alpha: float = float(r["alpha"])
 		var w: float = float(r["width"])
 		if radius > 0.1 and alpha > 0.01:
-			var hdr: float = 2.0 * alpha
 			var ring_color := Color(
-				explosion_color.r * hdr,
-				explosion_color.g * hdr,
-				explosion_color.b * hdr,
+				explosion_color.r,
+				explosion_color.g,
+				explosion_color.b,
 				alpha * 0.7
 			)
 			var segments: int = maxi(int(radius * 0.4), 24)
 			draw_arc(Vector2.ZERO, radius, 0.0, TAU, segments, ring_color, w, true)
 
-	# Debris lines
+	# Debris lines — pure explosion color
 	for d in _debris:
 		var debris: Dictionary = d
 		var alpha: float = float(debris["alpha"])
@@ -262,11 +277,10 @@ func _draw() -> void:
 			var angle: float = float(debris["angle"])
 			var length: float = float(debris["length"])
 			var end: Vector2 = pos + Vector2(cos(angle), sin(angle)) * length
-			var hdr: float = 2.0 * alpha
 			var line_color := Color(
-				explosion_color.r * hdr,
-				explosion_color.g * hdr,
-				explosion_color.b * hdr,
+				explosion_color.r,
+				explosion_color.g,
+				explosion_color.b,
 				alpha
 			)
 			draw_line(pos, end, line_color, 1.5, true)

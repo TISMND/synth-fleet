@@ -15,6 +15,7 @@ uniform float animation_speed : hint_range(0.1, 3.0) = 1.0;
 uniform float edge_softness : hint_range(0.0, 1.0) = 0.5;
 
 void fragment() {
+	float modulate_alpha = COLOR.a;
 	float t = TIME * animation_speed;
 	vec2 uv = UV - 0.5;
 	float dist = length(uv) * 2.0;
@@ -53,5 +54,5 @@ void fragment() {
 		alpha *= mask_alpha;
 	}
 
-	COLOR = vec4(col, alpha);
+	COLOR = vec4(col, alpha * modulate_alpha);
 }

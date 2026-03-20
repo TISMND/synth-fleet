@@ -146,8 +146,13 @@ func _process(delta: float) -> void:
 
 func _spawn_explosion() -> void:
 	var explosion: ExplosionEffect = ExplosionEffect.new()
-	explosion.explosion_color = enemy_color
-	explosion.explosion_size = maxf(float(maxi(grid_size.x, grid_size.y)) / 32.0, 0.8)
+	if ship_data_ref:
+		explosion.explosion_color = ship_data_ref.explosion_color
+		explosion.explosion_size = ship_data_ref.explosion_size
+		explosion.enable_screen_shake = ship_data_ref.enable_screen_shake
+	else:
+		explosion.explosion_color = enemy_color
+		explosion.explosion_size = maxf(float(maxi(grid_size.x, grid_size.y)) / 32.0, 0.8)
 	explosion.global_position = global_position
 	# Add to parent (enemies container) so it persists after enemy queue_free
 	var container: Node = get_parent()

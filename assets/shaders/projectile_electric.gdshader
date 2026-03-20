@@ -31,6 +31,7 @@ float noise(vec2 p) {
 }
 
 void fragment() {
+	float modulate_alpha = COLOR.a;
 	float t = TIME * animation_speed;
 	vec2 uv = UV;
 	float center_x = uv.x - 0.5;
@@ -77,5 +78,5 @@ void fragment() {
 		alpha *= mask_alpha;
 	}
 
-	COLOR = vec4(col, alpha);
+	COLOR = vec4(col, alpha * modulate_alpha);
 }

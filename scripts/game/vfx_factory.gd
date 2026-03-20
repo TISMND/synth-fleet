@@ -23,9 +23,14 @@ static var _hologram_shader: Shader = null
 static var _glitch_shader: Shader = null
 static var _pulse_shader: Shader = null
 static var _smoke_shader: Shader = null
+static var _nebula_dual_shader: Shader = null
+static var _nebula_voronoi_shader: Shader = null
+static var _nebula_swirl_shader: Shader = null
+static var _nebula_wispy_shader: Shader = null
+static var _nebula_electric_shader: Shader = null
 
 # Valid fill shader names for validation
-const FILL_SHADERS: PackedStringArray = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke"]
+const FILL_SHADERS: PackedStringArray = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke", "nebula_dual", "nebula_voronoi", "nebula_swirl", "nebula_wispy", "nebula_electric"]
 
 # Field shader cache + names
 static var _field_shaders: Dictionary = {}  # name -> Shader
@@ -449,6 +454,36 @@ static func _load_smoke_shader() -> Shader:
 	return _smoke_shader
 
 
+static func _load_nebula_dual_shader() -> Shader:
+	if _nebula_dual_shader == null:
+		_nebula_dual_shader = load("res://assets/shaders/projectile_nebula_dual.gdshader") as Shader
+	return _nebula_dual_shader
+
+
+static func _load_nebula_voronoi_shader() -> Shader:
+	if _nebula_voronoi_shader == null:
+		_nebula_voronoi_shader = load("res://assets/shaders/projectile_nebula_voronoi.gdshader") as Shader
+	return _nebula_voronoi_shader
+
+
+static func _load_nebula_swirl_shader() -> Shader:
+	if _nebula_swirl_shader == null:
+		_nebula_swirl_shader = load("res://assets/shaders/projectile_nebula_swirl.gdshader") as Shader
+	return _nebula_swirl_shader
+
+
+static func _load_nebula_wispy_shader() -> Shader:
+	if _nebula_wispy_shader == null:
+		_nebula_wispy_shader = load("res://assets/shaders/projectile_nebula_wispy.gdshader") as Shader
+	return _nebula_wispy_shader
+
+
+static func _load_nebula_electric_shader() -> Shader:
+	if _nebula_electric_shader == null:
+		_nebula_electric_shader = load("res://assets/shaders/projectile_nebula_electric.gdshader") as Shader
+	return _nebula_electric_shader
+
+
 ## Create a Sprite2D with a shader material for shader-based shape types.
 ## Returns null if the shape type is not shader-based.
 static func create_shader_sprite(shape_type: String, color: Color, width: float, height: float) -> Sprite2D:
@@ -513,6 +548,16 @@ static func get_fill_shader(shader_name: String) -> Shader:
 			return _load_pulse_shader()
 		"smoke":
 			return _load_smoke_shader()
+		"nebula_dual":
+			return _load_nebula_dual_shader()
+		"nebula_voronoi":
+			return _load_nebula_voronoi_shader()
+		"nebula_swirl":
+			return _load_nebula_swirl_shader()
+		"nebula_wispy":
+			return _load_nebula_wispy_shader()
+		"nebula_electric":
+			return _load_nebula_electric_shader()
 	return _load_energy_shader()
 
 
@@ -532,14 +577,23 @@ static func create_styled_sprite(style: ProjectileStyle, color: Color) -> Sprite
 	for param_name in style.shader_params:
 		mat.set_shader_parameter(param_name, float(style.shader_params[param_name]))
 
-	# Load mask if specified (res://data/ path — must use Image, not load())
-	if style.mask_path != "":
+	# Load mask: procedural shape or PNG file
+	if style.procedural_mask_shape != "":
+		var mask_tex: ImageTexture = generate_procedural_mask(style.procedural_mask_shape, style.procedural_mask_feather)
+		if mask_tex:
+			mat.set_shader_parameter("mask_texture", mask_tex)
+			mat.set_shader_parameter("use_mask", true)
+	elif style.mask_path != "":
 		var img := Image.new()
 		var err: Error = img.load(style.mask_path)
 		if err == OK:
 			var mask_tex: ImageTexture = ImageTexture.create_from_image(img)
 			mat.set_shader_parameter("mask_texture", mask_tex)
 			mat.set_shader_parameter("use_mask", true)
+
+	# Secondary color for nebula_dual shader
+	if style.fill_shader == "nebula_dual":
+		mat.set_shader_parameter("secondary_color", style.secondary_color)
 
 	sprite.material = mat
 
@@ -549,6 +603,68 @@ static func create_styled_sprite(style: ProjectileStyle, color: Color) -> Sprite
 	sprite.texture = _generate_white_rect(w, h)
 
 	return sprite
+
+
+# ── Procedural Mask Generation ─────────────────────────────
+
+static var _procedural_mask_cache: Dictionary = {}  # "shape_feather" -> ImageTexture
+
+
+static func generate_procedural_mask(shape: String, feather: float) -> ImageTexture:
+	var cache_key: String = shape + "_" + str(snappedi(int(feather * 100), 1))
+	if _procedural_mask_cache.has(cache_key):
+		return _procedural_mask_cache[cache_key] as ImageTexture
+
+	var size: int = 128
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var center: float = float(size) / 2.0
+	var half: float = center
+
+	for y in size:
+		for x in size:
+			var dx: float = (float(x) - center) / half
+			var dy: float = (float(y) - center) / half
+			var dist: float = _mask_shape_distance(shape, dx, dy)
+			var alpha: float = _smoothstep(1.0, 1.0 - maxf(feather, 0.01), dist)
+			img.set_pixel(x, y, Color(1, 1, 1, alpha))
+
+	var tex: ImageTexture = ImageTexture.create_from_image(img)
+	_procedural_mask_cache[cache_key] = tex
+	return tex
+
+
+static func _mask_shape_distance(shape: String, dx: float, dy: float) -> float:
+	match shape:
+		"circle":
+			return Vector2(dx, dy).length()
+		"diamond":
+			return absf(dx) + absf(dy)
+		"rounded_rect":
+			var ax: float = maxf(absf(dx) - 0.6, 0.0)
+			var ay: float = maxf(absf(dy) - 0.6, 0.0)
+			return maxf(absf(dx), absf(dy)) * 0.7 + Vector2(ax, ay).length() * 0.6
+		"star":
+			var angle: float = atan2(dy, dx)
+			var r: float = Vector2(dx, dy).length()
+			var star_shape: float = 0.6 + 0.4 * cos(angle * 5.0)
+			return r / star_shape
+		"hexagon":
+			var ax: float = absf(dx)
+			var ay: float = absf(dy)
+			return maxf(ax * 0.866 + ay * 0.5, ay)
+		"arrow":
+			var ay: float = absf(dy)
+			# Arrow pointing up: wider at bottom, narrow at top
+			var width: float = lerpf(0.8, 0.15, (dy + 1.0) * 0.5)
+			var edge_x: float = absf(dx) / maxf(width, 0.01)
+			return maxf(edge_x, ay * 0.5)
+		"cross":
+			var ax: float = absf(dx)
+			var ay: float = absf(dy)
+			var cross: float = minf(ax, ay)
+			var outer: float = maxf(ax, ay)
+			return lerpf(cross, outer, 0.6)
+	return Vector2(dx, dy).length()  # fallback circle
 
 
 static func _generate_white_rect(w: int, h: int) -> ImageTexture:

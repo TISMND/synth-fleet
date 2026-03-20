@@ -24,7 +24,7 @@ var _exhaust_timer := 0.0
 var _ship_selector: Node2D
 var _selected_ship := 0
 var _vhs_overlay: ColorRect
-var _hud_replica: CanvasLayer = null
+var _hud_replica: Control = null
 var _right_panel: Panel = null
 var _sliders: Dictionary = {}  # key -> HSlider
 var _slider_labels: Dictionary = {}  # key -> Label
@@ -43,6 +43,8 @@ var _enemy_idle_time: float = 0.0
 var _loop_popup: Panel = null
 var _loop_browser_popup: LoopBrowser = null
 var _presence_loop_label: Label = null
+var _explosion_color_rect: ColorRect = null
+var _explosion_preview: Node2D = null
 
 
 func _ready() -> void:
@@ -461,6 +463,8 @@ func _rebuild_right_panel() -> void:
 		return
 	_close_loop_popup()
 	_presence_loop_label = null
+	_explosion_color_rect = null
+	_explosion_preview = null
 	for child in _right_panel.get_children():
 		_right_panel.remove_child(child)
 		child.queue_free()
@@ -750,6 +754,59 @@ func _build_enemy_right_panel() -> void:
 	loop_btn_row.add_child(clear_btn)
 	ThemeManager.apply_button_style(clear_btn)
 
+	# ── EXPLOSION ──
+	_add_section_spacer(vbox)
+	var exp_label := Label.new()
+	exp_label.text = "EXPLOSION"
+	exp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(exp_label)
+
+	# Color picker row
+	var color_hbox := HBoxContainer.new()
+	color_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(color_hbox)
+	var color_lbl := Label.new()
+	color_lbl.text = "COLOR"
+	color_lbl.custom_minimum_size.x = 40
+	color_hbox.add_child(color_lbl)
+	var color_btn := ColorPickerButton.new()
+	color_btn.color = _working_enemy.explosion_color
+	color_btn.custom_minimum_size = Vector2(0, 28)
+	color_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	color_btn.edit_alpha = false
+	color_btn.color_changed.connect(_on_explosion_color_changed)
+	color_hbox.add_child(color_btn)
+
+	# Preview swatch
+	_explosion_color_rect = ColorRect.new()
+	_explosion_color_rect.custom_minimum_size = Vector2(28, 28)
+	_explosion_color_rect.color = _working_enemy.explosion_color
+	color_hbox.add_child(_explosion_color_rect)
+
+	# Size slider
+	_add_slider_row(vbox, "explosion_size", "SIZE", 0.3, 4.0, 0.1)
+
+	# Screen shake toggle
+	var shake_hbox := HBoxContainer.new()
+	shake_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(shake_hbox)
+	var shake_lbl := Label.new()
+	shake_lbl.text = "SHAKE"
+	shake_lbl.custom_minimum_size.x = 40
+	shake_hbox.add_child(shake_lbl)
+	var shake_check := CheckButton.new()
+	shake_check.button_pressed = _working_enemy.enable_screen_shake
+	shake_check.text = "Screen Shake"
+	shake_check.toggled.connect(_on_explosion_shake_toggled)
+	shake_hbox.add_child(shake_check)
+
+	# Preview button
+	var preview_btn := Button.new()
+	preview_btn.text = "PREVIEW EXPLOSION"
+	preview_btn.pressed.connect(_preview_explosion)
+	vbox.add_child(preview_btn)
+	ThemeManager.apply_button_style(preview_btn)
+
 	# ── HP readout ──
 	_add_section_spacer(vbox)
 	var hp_readout := Label.new()
@@ -783,7 +840,7 @@ func _build_enemy_right_panel() -> void:
 	for key in _sliders:
 		var slider: HSlider = _sliders[key]
 		var val: float = 0.0
-		if key in ["fire_rate", "enemy_damage", "projectile_speed"]:
+		if key in ["fire_rate", "enemy_damage", "projectile_speed", "explosion_size"]:
 			val = float(_working_enemy.get(key))
 		else:
 			val = float(_working_enemy.stats.get(key, slider.min_value))
@@ -868,6 +925,8 @@ func _on_attr_changed(value: float, key: String) -> void:
 				_working_enemy.set(key, int(value))
 			else:
 				_working_enemy.set(key, value)
+		elif key == "explosion_size":
+			_working_enemy.explosion_size = value
 		else:
 			_working_enemy.stats[key] = value
 		# Update HP readout
@@ -919,6 +978,33 @@ func _on_enemy_fire_pattern_changed(index: int) -> void:
 func _on_enemy_burst_dirs_changed(value: float) -> void:
 	if _working_enemy:
 		_working_enemy.burst_directions = int(value)
+
+
+func _on_explosion_color_changed(color: Color) -> void:
+	if _working_enemy:
+		_working_enemy.explosion_color = color
+	if _explosion_color_rect:
+		_explosion_color_rect.color = color
+
+
+func _on_explosion_shake_toggled(pressed: bool) -> void:
+	if _working_enemy:
+		_working_enemy.enable_screen_shake = pressed
+
+
+func _preview_explosion() -> void:
+	if not _working_enemy:
+		return
+	# Remove any existing preview
+	if _explosion_preview and is_instance_valid(_explosion_preview):
+		_explosion_preview.queue_free()
+	var explosion := ExplosionEffect.new()
+	explosion.explosion_color = _working_enemy.explosion_color
+	explosion.explosion_size = _working_enemy.explosion_size
+	explosion.enable_screen_shake = false  # Don't shake in preview
+	explosion.position = _ship_draw.position
+	add_child(explosion)
+	_explosion_preview = explosion
 
 
 func _open_loop_popup() -> void:
@@ -1077,7 +1163,7 @@ func _apply_right_panel_theme() -> void:
 	if not vbox:
 		return
 	var section_names: Array[String] = ["ATTRIBUTES", "BAR SEGMENTS", "PROPULSION", "SKIN",
-		"ENEMY ATTRIBUTES", "IDENTITY", "HEALTH", "WEAPONS", "AUDIO", "BOSSES"]
+		"ENEMY ATTRIBUTES", "IDENTITY", "HEALTH", "WEAPONS", "AUDIO", "EXPLOSION", "BOSSES"]
 	for child in vbox.get_children():
 		if child is Label:
 			var lbl: Label = child as Label
@@ -1113,6 +1199,12 @@ func _apply_right_panel_theme() -> void:
 					ssb.add_theme_font_size_override("font_size", body_size)
 					if body_font:
 						ssb.add_theme_font_override("font", body_font)
+				elif sub is CheckButton:
+					var scb: CheckButton = sub as CheckButton
+					scb.add_theme_font_size_override("font_size", body_size)
+					scb.add_theme_color_override("font_color", text_color)
+					if body_font:
+						scb.add_theme_font_override("font", body_font)
 		elif child is Button:
 			ThemeManager.apply_button_style(child as Button)
 		elif child is OptionButton:
@@ -1321,4 +1413,3 @@ class _ShipSelector extends Node2D:
 		var text := "COMING SOON"
 		var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 16).x
 		draw_string(font, Vector2((PANEL_WIDTH - tw) * 0.5, HEADER_HEIGHT + 60), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.5, 0.5, 0.6))
-

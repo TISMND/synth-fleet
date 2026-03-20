@@ -13,6 +13,9 @@ extends Resource
 @export var base_scale: Vector2 = Vector2(24, 32)
 @export var archetype_params: Dictionary = {}
 @export var color: Color = Color.CYAN
+@export var secondary_color: Color = Color(1.0, 0.3, 0.5, 1.0)
+@export var procedural_mask_shape: String = ""  # "" | "circle" | "diamond" | "rounded_rect" | "star" | "hexagon" | "arrow" | "cross"
+@export var procedural_mask_feather: float = 0.3
 
 
 static func from_dict(data: Dictionary) -> ProjectileStyle:
@@ -33,6 +36,13 @@ static func from_dict(data: Dictionary) -> ProjectileStyle:
 		s.color = Color(float(color_data[0]), float(color_data[1]), float(color_data[2]), float(color_data[3]))
 	elif color_data.size() >= 3:
 		s.color = Color(float(color_data[0]), float(color_data[1]), float(color_data[2]), 1.0)
+	var sec_data: Array = data.get("secondary_color", []) as Array
+	if sec_data.size() >= 4:
+		s.secondary_color = Color(float(sec_data[0]), float(sec_data[1]), float(sec_data[2]), float(sec_data[3]))
+	elif sec_data.size() >= 3:
+		s.secondary_color = Color(float(sec_data[0]), float(sec_data[1]), float(sec_data[2]), 1.0)
+	s.procedural_mask_shape = str(data.get("procedural_mask_shape", ""))
+	s.procedural_mask_feather = float(data.get("procedural_mask_feather", 0.3))
 	return s
 
 
@@ -48,4 +58,7 @@ func to_dict() -> Dictionary:
 		"base_scale": [base_scale.x, base_scale.y],
 		"archetype_params": archetype_params,
 		"color": [color.r, color.g, color.b, color.a],
+		"secondary_color": [secondary_color.r, secondary_color.g, secondary_color.b, secondary_color.a],
+		"procedural_mask_shape": procedural_mask_shape,
+		"procedural_mask_feather": procedural_mask_feather,
 	}

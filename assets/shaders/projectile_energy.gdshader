@@ -2,8 +2,8 @@ shader_type canvas_item;
 
 uniform vec4 weapon_color : source_color = vec4(0.0, 1.0, 1.0, 1.0);
 uniform float scroll_speed : hint_range(0.5, 5.0) = 2.0;
-uniform float distortion : hint_range(0.0, 0.5) = 0.15;
-uniform float edge_glow : hint_range(0.5, 3.0) = 1.5;
+uniform float distortion : hint_range(0.0, 1.5) = 0.15;
+uniform float edge_glow : hint_range(0.0, 3.0) = 1.5;
 uniform sampler2D mask_texture : hint_default_white;
 uniform bool use_mask = false;
 
@@ -43,6 +43,7 @@ float fbm(vec2 p) {
 }
 
 void fragment() {
+	float modulate_alpha = COLOR.a;
 	float t = TIME * animation_speed;
 	vec2 uv = UV - 0.5;
 	float dist = length(uv) * 2.0;
@@ -82,5 +83,5 @@ void fragment() {
 		alpha *= mask_alpha;
 	}
 
-	COLOR = vec4(col, alpha);
+	COLOR = vec4(col, alpha * modulate_alpha);
 }

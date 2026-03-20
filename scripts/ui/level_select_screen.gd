@@ -85,6 +85,13 @@ func _build_ui() -> void:
 	_detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_detail_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_detail_panel.size_flags_stretch_ratio = 1.2
+	# Apply dark style immediately so it doesn't flash white before _apply_theme()
+	var init_style := StyleBoxFlat.new()
+	init_style.bg_color = Color(0.05, 0.05, 0.12, 0.8)
+	init_style.border_color = Color(0.0, 0.8, 1.0, 0.4)
+	init_style.set_border_width_all(1)
+	init_style.set_corner_radius_all(4)
+	_detail_panel.add_theme_stylebox_override("panel", init_style)
 	hbox.add_child(_detail_panel)
 
 	var detail_margin := MarginContainer.new()

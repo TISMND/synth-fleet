@@ -1,7 +1,15 @@
 {
 	"burst_directions": 4,
 	"display_name": "Sentinel",
+	"enable_screen_shake": false,
 	"enemy_damage": 10,
+	"explosion_color": [
+		0.945465683937073,
+		0.301960825920105,
+		1.0,
+		1.0
+	],
+	"explosion_size": 1.4,
 	"fire_pattern": "turret",
 	"fire_rate": 1.5,
 	"grid_size": [

@@ -1,15 +1,13 @@
 shader_type canvas_item;
 
-uniform vec4 weapon_color : source_color = vec4(0.6, 0.6, 0.7, 1.0);
-uniform float flow_speed : hint_range(0.5, 4.0) = 1.5;
-uniform float density : hint_range(1.0, 6.0) = 3.0;
-uniform float wisp_scale : hint_range(1.0, 8.0) = 4.0;
-uniform float turbulence : hint_range(0.0, 1.0) = 0.5;
+uniform vec4 weapon_color : source_color = vec4(0.8, 0.3, 0.6, 1.0);
+uniform float filament_stretch : hint_range(1.0, 8.0) = 4.0;
+uniform float density : hint_range(0.5, 4.0) = 2.0;
 uniform sampler2D mask_texture : hint_default_white;
 uniform bool use_mask = false;
 
 // Universal params
-uniform float brightness : hint_range(0.5, 4.0) = 1.0;
+uniform float brightness : hint_range(0.5, 4.0) = 1.5;
 uniform float color_mix : hint_range(0.0, 1.0) = 0.0;
 uniform float animation_speed : hint_range(0.1, 3.0) = 1.0;
 uniform float edge_softness : hint_range(0.0, 1.0) = 0.5;
@@ -48,36 +46,28 @@ void fragment() {
 	vec2 uv = UV - 0.5;
 	float dist = length(uv) * 2.0;
 
-	// Flowing smoke layers
-	vec2 flow1 = UV * wisp_scale + vec2(t * flow_speed * 0.3, -t * flow_speed * 0.5);
-	vec2 flow2 = UV * wisp_scale * 1.5 + vec2(-t * flow_speed * 0.4, t * flow_speed * 0.2) + 50.0;
+	// Anisotropic stretch for tendril effect
+	vec2 stretched = vec2(UV.x * 1.0, UV.y * filament_stretch);
+	float wisp1 = fbm(stretched * 3.0 + vec2(t * 0.3, -t * 0.6));
+	float wisp2 = fbm(stretched * 2.0 + vec2(-t * 0.2, t * 0.4) + 30.0);
 
-	// Turbulence distortion
-	float turb = noise(UV * 4.0 + t * 0.5) * turbulence * 0.3;
-	flow1 += turb;
-	flow2 -= turb;
+	// Sharpen into filaments
+	float filament = pow(wisp1, 1.5) * 0.7 + pow(wisp2, 2.0) * 0.5;
+	filament = pow(filament, 2.0 - density * 0.3);
 
-	float smoke1 = fbm(flow1);
-	float smoke2 = fbm(flow2);
+	// Circular falloff
+	float soft = mix(0.5, 0.9, edge_softness);
+	float falloff = smoothstep(1.0, soft, dist);
 
-	// Combine smoke layers with density control
-	float smoke = (smoke1 + smoke2) * 0.5;
-	smoke = pow(smoke, 2.0 - density * 0.25);
-
-	// Wispy edges
-	float wisp = smoothstep(0.8, 0.2, dist) * smoke;
-
-	// Core nebula glow
-	float core = smoothstep(0.6, 0.0, dist) * 0.5;
-	float total = wisp + core;
-
+	float cloud = filament * falloff;
 	vec3 base_col = mix(weapon_color.rgb, vec3(1.0), color_mix);
-	vec3 col = base_col * total * 2.0 * brightness;
+	vec3 col = base_col * cloud * brightness * 2.5;
+
+	// White-hot core
+	float core = smoothstep(0.4, 0.0, dist);
 	col += vec3(1.0) * core * 0.2;
 
-	float soft = mix(0.6, 0.95, edge_softness);
-	float alpha = smoothstep(1.0, soft, dist) * weapon_color.a;
-	alpha *= smoothstep(0.05, 0.2, total);
+	float alpha = cloud * weapon_color.a;
 
 	if (use_mask) {
 		float mask_alpha = texture(mask_texture, UV).a;

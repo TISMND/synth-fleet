@@ -33,6 +33,9 @@ const DEFAULT_SEGMENTS: Dictionary = {
 @export var projectile_speed: float = 300.0
 @export var weapon_id: String = ""          # Future: enemy weapon definitions
 @export var presence_loop_path: String = "" # Audio loop that plays while this enemy type is on screen
+@export var explosion_color: Color = Color(1.0, 0.3, 0.5)  # Explosion VFX color
+@export var explosion_size: float = 1.0                      # Explosion size multiplier
+@export var enable_screen_shake: bool = false                 # Screen shake on death (bosses)
 
 
 static func from_dict(data: Dictionary) -> ShipData:
@@ -61,6 +64,13 @@ static func from_dict(data: Dictionary) -> ShipData:
 	s.projectile_speed = float(data.get("projectile_speed", 300.0))
 	s.weapon_id = data.get("weapon_id", "")
 	s.presence_loop_path = data.get("presence_loop_path", "")
+	# Explosion settings
+	var exp_color: Array = data.get("explosion_color", [1.0, 0.3, 0.5, 1.0])
+	if exp_color.size() >= 3:
+		var a: float = float(exp_color[3]) if exp_color.size() >= 4 else 1.0
+		s.explosion_color = Color(float(exp_color[0]), float(exp_color[1]), float(exp_color[2]), a)
+	s.explosion_size = float(data.get("explosion_size", 1.0))
+	s.enable_screen_shake = bool(data.get("enable_screen_shake", false))
 	return s
 
 
@@ -85,4 +95,7 @@ func to_dict() -> Dictionary:
 		d["weapon_id"] = weapon_id
 		if presence_loop_path != "":
 			d["presence_loop_path"] = presence_loop_path
+		d["explosion_color"] = [explosion_color.r, explosion_color.g, explosion_color.b, explosion_color.a]
+		d["explosion_size"] = explosion_size
+		d["enable_screen_shake"] = enable_screen_shake
 	return d

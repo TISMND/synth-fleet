@@ -3,7 +3,14 @@ extends MarginContainer
 ## Styles are saved to res://data/projectile_styles/ and referenced by weapons.
 
 const ARCHETYPES: Array[String] = ["bullet", "beam", "pulse_wave"]
-const FILL_SHADERS: Array[String] = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke"]
+const FILL_SHADERS: Array[String] = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke", "nebula_dual", "nebula_voronoi", "nebula_swirl", "nebula_wispy", "nebula_electric"]
+
+const COMMON_PARAM_DISPLAY_NAMES: Dictionary = {
+	"brightness": "HDR Brightness",
+	"color_mix": "Desaturation",
+	"animation_speed": "Time Scale",
+	"edge_softness": "Thickness",
+}
 
 const COMMON_PARAM_DEFS: Dictionary = {
 	"brightness": [0.5, 4.0, 1.0, 0.1],
@@ -12,8 +19,10 @@ const COMMON_PARAM_DEFS: Dictionary = {
 	"edge_softness": [0.0, 1.0, 0.5, 0.01],
 }
 
+const PROCEDURAL_SHAPES: Array[String] = ["circle", "diamond", "rounded_rect", "star", "hexagon", "arrow", "cross"]
+
 const SHADER_PARAM_DEFS: Dictionary = {
-	"energy": {"scroll_speed": [0.5, 5.0, 2.0, 0.1], "distortion": [0.0, 0.5, 0.15, 0.01], "edge_glow": [0.5, 3.0, 1.5, 0.1]},
+	"energy": {"scroll_speed": [0.5, 5.0, 2.0, 0.1], "distortion": [0.0, 1.5, 0.15, 0.01], "edge_glow": [0.0, 3.0, 1.5, 0.1]},
 	"plasma": {"turbulence_speed": [0.5, 5.0, 2.0, 0.1], "pulse_rate": [0.5, 4.0, 1.5, 0.1]},
 	"beam": {"beam_speed": [0.5, 5.0, 3.0, 0.1], "beam_width": [0.1, 0.8, 0.3, 0.01], "flicker_rate": [0.0, 10.0, 4.0, 0.5]},
 	"fire": {"scroll_speed": [0.5, 5.0, 2.0, 0.1], "heat_distortion": [0.0, 0.3, 0.1, 0.01], "flame_detail": [1.0, 6.0, 3.0, 0.5]},
@@ -25,6 +34,11 @@ const SHADER_PARAM_DEFS: Dictionary = {
 	"glitch": {"block_size": [2.0, 20.0, 8.0, 1.0], "glitch_rate": [1.0, 12.0, 6.0, 0.5], "rgb_split": [0.0, 0.15, 0.05, 0.005], "intensity": [0.2, 1.0, 0.7, 0.05]},
 	"pulse": {"ring_count": [2.0, 10.0, 5.0, 1.0], "ring_speed": [0.5, 4.0, 2.0, 0.1], "ring_width": [0.02, 0.2, 0.08, 0.01], "fade_rate": [0.5, 3.0, 1.5, 0.1]},
 	"smoke": {"flow_speed": [0.5, 4.0, 1.5, 0.1], "density": [1.0, 6.0, 3.0, 0.5], "wisp_scale": [1.0, 8.0, 4.0, 0.5], "turbulence": [0.0, 1.0, 0.5, 0.05]},
+	"nebula_dual": {"density": [0.5, 4.0, 2.0, 0.1]},
+	"nebula_voronoi": {"cell_scale": [2.0, 8.0, 4.0, 0.5], "density": [0.5, 4.0, 2.0, 0.1]},
+	"nebula_swirl": {"warp_strength": [1.0, 6.0, 4.0, 0.5], "density": [0.5, 4.0, 2.0, 0.1]},
+	"nebula_wispy": {"filament_stretch": [1.0, 8.0, 4.0, 0.5], "density": [0.5, 4.0, 2.0, 0.1]},
+	"nebula_electric": {"ridge_sharpness": [0.5, 4.0, 2.0, 0.1], "density": [0.5, 4.0, 2.0, 0.1]},
 }
 
 const BEAM_PARAM_DEFS: Dictionary = {
@@ -49,13 +63,13 @@ var _status_label: Label
 var _name_input: LineEdit
 var _archetype_button: OptionButton
 var _shader_button: OptionButton
-var _glow_slider: HSlider
-var _glow_label: Label
 var _scale_x_slider: HSlider
 var _scale_x_label: Label
 var _scale_y_slider: HSlider
 var _scale_y_label: Label
 var _color_picker: ColorPickerButton
+var _secondary_color_picker: ColorPickerButton
+var _secondary_color_row: HBoxContainer
 var _preview_node: ProjectileAnimatorPreview
 
 # Dynamic sections
@@ -68,6 +82,12 @@ var _archetype_param_sliders: Dictionary = {}
 var _mask_grid: GridContainer
 var _selected_mask: String = ""
 var _mask_thumbnails: Dictionary = {}  # filename -> TextureRect
+var _mask_mode: String = "none"  # "none" | "procedural" | "import"
+var _procedural_shape_button: OptionButton
+var _feather_slider: HSlider
+var _feather_label: Label
+var _procedural_controls: VBoxContainer
+var _mask_preview: TextureRect
 
 # State
 var _current_id: String = ""
@@ -188,6 +208,7 @@ func _build_left_panel() -> Control:
 	viewport.size = Vector2i(400, 500)
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	viewport.transparent_bg = false
+	viewport.use_hdr_2d = true
 	viewport_container.add_child(viewport)
 
 	VFXFactory.add_bloom_to_viewport(viewport)
@@ -231,15 +252,59 @@ func _build_controls(parent: VBoxContainer) -> void:
 	ThemeManager.apply_button_style(no_mask_btn)
 	mask_controls.add_child(no_mask_btn)
 
+	var procedural_btn := Button.new()
+	procedural_btn.text = "Procedural"
+	procedural_btn.pressed.connect(_on_procedural_mask)
+	ThemeManager.apply_button_style(procedural_btn)
+	mask_controls.add_child(procedural_btn)
+
 	var import_btn := Button.new()
 	import_btn.text = "Import PNG..."
 	import_btn.pressed.connect(_on_import_mask)
 	ThemeManager.apply_button_style(import_btn)
 	mask_controls.add_child(import_btn)
 
+	# Procedural mask controls (hidden by default)
+	_procedural_controls = VBoxContainer.new()
+	_procedural_controls.visible = false
+	parent.add_child(_procedural_controls)
+
+	var shape_row := HBoxContainer.new()
+	_procedural_controls.add_child(shape_row)
+	var shape_label := Label.new()
+	shape_label.text = "Shape:"
+	shape_label.custom_minimum_size.x = 130
+	shape_row.add_child(shape_label)
+	_procedural_shape_button = OptionButton.new()
+	_procedural_shape_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for s in PROCEDURAL_SHAPES:
+		_procedural_shape_button.add_item(s)
+	_procedural_shape_button.item_selected.connect(_on_procedural_shape_changed)
+	shape_row.add_child(_procedural_shape_button)
+
+	var feather_row: Array = _add_slider_row(_procedural_controls, "Feather:", 0.0, 1.0, 0.3, 0.01)
+	_feather_slider = feather_row[0]
+	_feather_label = feather_row[1]
+	_feather_slider.value_changed.connect(func(_v: float) -> void: _update_procedural_preview())
+
+	# Procedural mask preview
+	var preview_row := HBoxContainer.new()
+	_procedural_controls.add_child(preview_row)
+	var preview_label := Label.new()
+	preview_label.text = "Preview:"
+	preview_label.custom_minimum_size.x = 130
+	preview_row.add_child(preview_label)
+	_mask_preview = TextureRect.new()
+	_mask_preview.custom_minimum_size = Vector2(64, 64)
+	_mask_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_mask_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	preview_row.add_child(_mask_preview)
+
+	# Import mask grid
 	_mask_grid = GridContainer.new()
 	_mask_grid.columns = 5
 	_mask_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mask_grid.visible = false
 	parent.add_child(_mask_grid)
 
 	_add_separator(parent)
@@ -283,13 +348,20 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_color_picker.color_changed.connect(func(_c: Color) -> void: _update_preview())
 	color_row.add_child(_color_picker)
 
-	_add_separator(parent)
-
-	# Glow
-	_add_section_header(parent, "GLOW INTENSITY")
-	var glow_row: Array = _add_slider_row(parent, "Glow:", 0.5, 4.0, 1.5, 0.1)
-	_glow_slider = glow_row[0]
-	_glow_label = glow_row[1]
+	# Secondary color (shown only for nebula_dual shader)
+	_secondary_color_row = HBoxContainer.new()
+	_secondary_color_row.visible = false
+	parent.add_child(_secondary_color_row)
+	var sec_label := Label.new()
+	sec_label.text = "Secondary:"
+	sec_label.custom_minimum_size.x = 130
+	_secondary_color_row.add_child(sec_label)
+	_secondary_color_picker = ColorPickerButton.new()
+	_secondary_color_picker.color = Color(1.0, 0.3, 0.5, 1.0)
+	_secondary_color_picker.custom_minimum_size = Vector2(80, 30)
+	_secondary_color_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_secondary_color_picker.color_changed.connect(func(_c: Color) -> void: _update_preview())
+	_secondary_color_row.add_child(_secondary_color_picker)
 
 	_add_separator(parent)
 
@@ -303,14 +375,10 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_scale_y_slider = sy_row[0]
 	_scale_y_label = sy_row[1]
 
-	_add_separator(parent)
-
-	# Archetype Params (dynamic)
-	_add_section_header(parent, "ARCHETYPE PARAMS")
+	# Archetype params container (kept for data but not shown in UI)
 	_archetype_params_container = VBoxContainer.new()
-	_archetype_params_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_archetype_params_container.visible = false
 	parent.add_child(_archetype_params_container)
-	_rebuild_archetype_params("bullet")
 
 
 # ── Dynamic Param Sections ─────────────────────────────────
@@ -322,7 +390,8 @@ func _rebuild_common_params() -> void:
 
 	for param_name in COMMON_PARAM_DEFS:
 		var bounds: Array = COMMON_PARAM_DEFS[param_name]
-		var row: Array = _add_slider_row(_common_params_container, param_name + ":",
+		var display: String = COMMON_PARAM_DISPLAY_NAMES.get(param_name, param_name) as String
+		var row: Array = _add_slider_row(_common_params_container, display + ":",
 			float(bounds[0]), float(bounds[1]), float(bounds[2]), float(bounds[3]))
 		_common_param_sliders[param_name] = row[0]
 
@@ -410,6 +479,7 @@ func _create_mask_thumbnail(mask_name: String) -> TextureRect:
 
 
 func _select_mask(mask_name: String) -> void:
+	_mask_mode = "import"
 	_selected_mask = mask_name
 	_update_mask_highlights()
 	_update_preview()
@@ -425,9 +495,37 @@ func _update_mask_highlights() -> void:
 
 
 func _on_no_mask() -> void:
+	_mask_mode = "none"
 	_selected_mask = ""
+	_procedural_controls.visible = false
+	_mask_grid.visible = false
+	_mask_preview.texture = null
 	_update_mask_highlights()
 	_update_preview()
+
+
+func _on_procedural_mask() -> void:
+	_mask_mode = "procedural"
+	_selected_mask = ""
+	_procedural_controls.visible = true
+	_mask_grid.visible = false
+	_update_mask_highlights()
+	_update_procedural_preview()
+	_update_preview()
+
+
+func _on_procedural_shape_changed(_idx: int) -> void:
+	_update_procedural_preview()
+	_update_preview()
+
+
+func _update_procedural_preview() -> void:
+	if _mask_mode != "procedural":
+		return
+	var shape: String = _procedural_shape_button.get_item_text(_procedural_shape_button.selected)
+	var feather: float = _feather_slider.value
+	var tex: ImageTexture = VFXFactory.generate_procedural_mask(shape, feather)
+	_mask_preview.texture = tex
 
 
 func _on_import_mask() -> void:
@@ -439,6 +537,9 @@ func _on_import_mask() -> void:
 		var fname: String = path.get_file()
 		var result: String = ProjectileStyleManager.import_mask(path, fname)
 		if result != "":
+			_mask_mode = "import"
+			_procedural_controls.visible = false
+			_mask_grid.visible = true
 			_status_label.text = "Imported: " + fname
 			_refresh_mask_grid()
 			_select_mask(fname)
@@ -469,6 +570,7 @@ func _on_archetype_changed(_idx: int) -> void:
 func _on_shader_changed(_idx: int) -> void:
 	var shader_name: String = _shader_button.get_item_text(_shader_button.selected)
 	_rebuild_shader_params(shader_name)
+	_secondary_color_row.visible = (shader_name == "nebula_dual")
 	_update_preview()
 
 
@@ -491,8 +593,16 @@ func _collect_style_data() -> Dictionary:
 		archetype_params[param_name] = slider.value
 
 	var mask_path: String = ""
-	if _selected_mask != "":
+	if _mask_mode == "import" and _selected_mask != "":
 		mask_path = ProjectileStyleManager.MASKS_DIR + _selected_mask
+
+	var proc_shape: String = ""
+	var proc_feather: float = 0.3
+	if _mask_mode == "procedural":
+		proc_shape = _procedural_shape_button.get_item_text(_procedural_shape_button.selected)
+		proc_feather = _feather_slider.value
+
+	var sec_color: Color = _secondary_color_picker.color
 
 	return {
 		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
@@ -501,10 +611,13 @@ func _collect_style_data() -> Dictionary:
 		"mask_path": mask_path,
 		"fill_shader": _shader_button.get_item_text(_shader_button.selected),
 		"shader_params": shader_params,
-		"glow_intensity": _glow_slider.value,
+		"glow_intensity": 1.5,
 		"base_scale": [_scale_x_slider.value, _scale_y_slider.value],
 		"archetype_params": archetype_params,
 		"color": [_color_picker.color.r, _color_picker.color.g, _color_picker.color.b, _color_picker.color.a],
+		"secondary_color": [sec_color.r, sec_color.g, sec_color.b, sec_color.a],
+		"procedural_mask_shape": proc_shape,
+		"procedural_mask_feather": proc_feather,
 	}
 
 
@@ -513,6 +626,7 @@ func _update_preview() -> void:
 		return
 	var data: Dictionary = _collect_style_data()
 	data["color"] = _color_picker.color
+	data["secondary_color"] = _secondary_color_picker.color
 	data["base_scale"] = Vector2(_scale_x_slider.value, _scale_y_slider.value)
 	_preview_node.update_style(data)
 
@@ -560,11 +674,19 @@ func _on_new() -> void:
 	_name_input.text = ""
 	_archetype_button.selected = 0
 	_shader_button.selected = 0
-	_glow_slider.value = 1.5
 	_scale_x_slider.value = 24.0
 	_scale_y_slider.value = 32.0
 	_color_picker.color = Color.CYAN
+	_secondary_color_picker.color = Color(1.0, 0.3, 0.5, 1.0)
+	_secondary_color_row.visible = false
 	_selected_mask = ""
+	_mask_mode = "none"
+	_procedural_controls.visible = false
+	_mask_grid.visible = false
+	if _procedural_shape_button.get_item_count() > 0:
+		_procedural_shape_button.selected = 0
+	_feather_slider.value = 0.3
+	_mask_preview.texture = null
 	_update_mask_highlights()
 	_rebuild_common_params()
 	_rebuild_shader_params("energy")
@@ -608,16 +730,32 @@ func _populate_from_style(style: ProjectileStyle) -> void:
 
 	# Color
 	_color_picker.color = style.color
+	_secondary_color_picker.color = style.secondary_color
+	_secondary_color_row.visible = (style.fill_shader == "nebula_dual")
 
-	# Glow + scale
-	_glow_slider.value = style.glow_intensity
+	# Scale
 	_scale_x_slider.value = style.base_scale.x
 	_scale_y_slider.value = style.base_scale.y
 
 	# Mask
-	if style.mask_path != "":
+	if style.procedural_mask_shape != "":
+		_mask_mode = "procedural"
+		_procedural_controls.visible = true
+		_mask_grid.visible = false
+		var shape_idx: int = PROCEDURAL_SHAPES.find(style.procedural_mask_shape)
+		_procedural_shape_button.selected = shape_idx if shape_idx >= 0 else 0
+		_feather_slider.value = style.procedural_mask_feather
+		_selected_mask = ""
+		_update_procedural_preview()
+	elif style.mask_path != "":
+		_mask_mode = "import"
+		_procedural_controls.visible = false
+		_mask_grid.visible = true
 		_selected_mask = style.mask_path.get_file()
 	else:
+		_mask_mode = "none"
+		_procedural_controls.visible = false
+		_mask_grid.visible = false
 		_selected_mask = ""
 	_update_mask_highlights()
 
