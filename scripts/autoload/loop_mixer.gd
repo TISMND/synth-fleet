@@ -206,9 +206,8 @@ func get_stream_duration(loop_id: String) -> float:
 
 
 func set_pitch_shift(semitones: float, fade_sec: float = 0.5) -> void:
-	## Apply a pitch shift (in semitones) to Weapons and Atmosphere buses.
-	## Uses AudioEffectPitchShift added by AudioBusSetup — FFT-based, no tempo change.
-	## Pass 0.0 to reset to normal pitch.
+	## Apply a pitch shift (in semitones) to loop buses via AudioEffectPitchShift.
+	## FFT-based — changes pitch without changing tempo. Pass 0.0 to reset.
 	var target_scale: float = pow(2.0, semitones / 12.0)
 	for bus_name in AudioBusSetup.PITCH_SHIFT_BUSES:
 		var bus_idx: int = AudioServer.get_bus_index(bus_name)
@@ -219,13 +218,11 @@ func set_pitch_shift(semitones: float, fade_sec: float = 0.5) -> void:
 			if fx is AudioEffectPitchShift:
 				var pitch_fx: AudioEffectPitchShift = fx as AudioEffectPitchShift
 				if semitones == 0.0:
-					# Disable effect entirely when no shift (zero CPU cost)
 					pitch_fx.pitch_scale = 1.0
 					AudioServer.set_bus_effect_enabled(bus_idx, i, false)
 				else:
 					AudioServer.set_bus_effect_enabled(bus_idx, i, true)
 					if fade_sec > 0.0:
-						# Tween the pitch_scale for smooth transition
 						var tween: Tween = get_tree().create_tween()
 						tween.tween_property(pitch_fx, "pitch_scale", target_scale, fade_sec)
 					else:

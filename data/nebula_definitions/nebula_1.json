@@ -1,9 +1,10 @@
 {
 	"display_name": "Shield Recharger",
 	"id": "nebula_1",
+	"key_shift_semitones": -1,
 	"shader_params": {
-		"animation_speed": 0.45,
-		"bottom_opacity": 1.0,
+		"animation_speed": 0.4,
+		"bottom_opacity": 0.95,
 		"brightness": 1.35,
 		"density": 2.95,
 		"nebula_color": [

@@ -13,7 +13,8 @@ func _ready() -> void:
 
 
 ## Buses that get an AudioEffectPitchShift (for nebula key-change etc.)
-const PITCH_SHIFT_BUSES: Array[String] = ["Weapons", "Atmosphere"]
+## All loops currently play on Master, so that's where the effect must live.
+const PITCH_SHIFT_BUSES: Array[String] = ["Master"]
 
 
 func _ensure_buses() -> void:

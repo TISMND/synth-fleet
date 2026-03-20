@@ -59,7 +59,8 @@ var _special_effect_checks: Dictionary = {}  # effect_id -> CheckBox
 const KNOWN_SPECIAL_EFFECTS: Array[String] = ["cloak", "slow", "damage_boost"]
 
 # Music effects
-var _key_shift_spin: SpinBox
+var _key_shift_slider: HSlider
+var _key_shift_value: Label
 
 # Preview layering refs
 var _preview_container: Control  # Holds bottom nebula, ship, top veil
@@ -418,15 +419,21 @@ func _build_effects_controls() -> void:
 	key_lbl.custom_minimum_size.x = 100
 	key_row.add_child(key_lbl)
 
-	_key_shift_spin = SpinBox.new()
-	_key_shift_spin.min_value = -6
-	_key_shift_spin.max_value = 6
-	_key_shift_spin.step = 1
-	_key_shift_spin.value = 0
-	_key_shift_spin.suffix = " st"
-	_key_shift_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_key_shift_spin.value_changed.connect(_on_key_shift_changed)
-	key_row.add_child(_key_shift_spin)
+	_key_shift_slider = HSlider.new()
+	_key_shift_slider.min_value = -6
+	_key_shift_slider.max_value = 6
+	_key_shift_slider.step = 1
+	_key_shift_slider.value = 0
+	_key_shift_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_key_shift_slider.custom_minimum_size.x = 200
+	_key_shift_slider.value_changed.connect(_on_key_shift_changed)
+	key_row.add_child(_key_shift_slider)
+
+	_key_shift_value = Label.new()
+	_key_shift_value.text = "0 st"
+	_key_shift_value.custom_minimum_size.x = 60
+	_key_shift_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	key_row.add_child(_key_shift_value)
 
 
 func _rebuild_list() -> void:
@@ -543,7 +550,8 @@ func _select_nebula(id: String) -> void:
 		check.button_pressed = data.special_effects.has(effect_id)
 
 	# Load key shift
-	_key_shift_spin.value = data.key_shift_semitones
+	_key_shift_slider.value = data.key_shift_semitones
+	_key_shift_value.text = _format_semitones(data.key_shift_semitones)
 
 	_suppressing_signals = false
 
@@ -831,6 +839,7 @@ func _on_special_effect_toggled(toggled_on: bool, effect_id: String) -> void:
 
 
 func _on_key_shift_changed(val: float) -> void:
+	_key_shift_value.text = _format_semitones(int(val))
 	if _suppressing_signals:
 		return
 	var data: NebulaData = _get_nebula_by_id(_selected_id)
@@ -838,6 +847,15 @@ func _on_key_shift_changed(val: float) -> void:
 		return
 	data.key_shift_semitones = int(val)
 	_auto_save()
+
+
+static func _format_semitones(st: int) -> String:
+	if st == 0:
+		return "0 st"
+	elif st > 0:
+		return "+" + str(st) + " st"
+	else:
+		return str(st) + " st"
 
 
 func _center_preview_ship() -> void:

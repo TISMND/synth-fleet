@@ -602,385 +602,346 @@ func _draw_obelisk() -> void:
 # ── Large enemy ships ──
 
 func _draw_leviathan() -> void:
+	# Organic jellyfish — dome bell with trailing tentacles
 	var s := 3.2
-	# Main hull — wide blocky carrier body, slightly asymmetric
-	# +Y = forward (downward on screen), -Y = aft (top of screen)
-	var hull := PackedVector2Array([
-		Vector2(-18 * s, 22 * s),   # port bow
-		Vector2(-8 * s, 28 * s),    # forward port
-		Vector2(10 * s, 28 * s),    # forward starboard
-		Vector2(20 * s, 20 * s),    # starboard bow
-		Vector2(22 * s, 0 * s),     # starboard mid
-		Vector2(20 * s, -20 * s),   # starboard stern
-		Vector2(8 * s, -26 * s),    # aft starboard
-		Vector2(-10 * s, -26 * s),  # aft port
-		Vector2(-20 * s, -18 * s),  # port stern
-		Vector2(-22 * s, 2 * s),    # port mid
-	])
-	_poly(hull, hull_color, 2.0 * s)
+	var breath: float = sin(time * 1.2) * 0.08
 
-	# Bridge tower — offset to starboard side (asymmetric)
-	var bridge := PackedVector2Array([
-		Vector2(10 * s, 18 * s),
-		Vector2(17 * s, 16 * s),
-		Vector2(18 * s, 6 * s),
-		Vector2(14 * s, 4 * s),
-		Vector2(10 * s, 6 * s),
-	])
-	_poly(bridge, accent_color, 1.6 * s)
+	# Bell dome — half-circle arc at top, flat bottom
+	var dome := PackedVector2Array()
+	var dome_r: float = 16.0 * s
+	for i in range(17):
+		var angle: float = PI + PI * float(i) / 16.0  # bottom half-circle (PI to TAU)
+		dome.append(Vector2(cos(angle) * dome_r, sin(angle) * dome_r * 0.7 - 8.0 * s))
+	_poly(dome, hull_color, 2.0 * s)
 
-	# Bridge viewport slit
-	_line(Vector2(11 * s, 14 * s), Vector2(16 * s, 12 * s), detail_color, 0.8 * s)
+	# Internal organ glow — pulsing clusters inside the bell
+	var organ_pulse: float = 0.3 + sin(time * 1.8) * 0.2
+	draw_circle(Vector2(-4 * s, -14 * s), 5.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, organ_pulse * 0.4))
+	draw_circle(Vector2(3 * s, -10 * s), 4.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, organ_pulse * 0.5))
+	draw_circle(Vector2(-1 * s, -18 * s), 3.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, organ_pulse * 0.6))
 
-	# Hangar bay slit on port side
-	var hangar_pulse: float = 0.4 + sin(time * 1.5) * 0.3
-	var hangar_col := Color(accent_color.r, accent_color.g, accent_color.b, hangar_pulse)
-	_line(Vector2(-16 * s, 4 * s), Vector2(-16 * s, -10 * s), hangar_col, 1.4 * s)
-	_line(Vector2(-14 * s, 4 * s), Vector2(-14 * s, -10 * s), hangar_col, 1.0 * s)
+	# Bioluminescent vein lines inside bell
+	for i in range(5):
+		var vx: float = lerpf(-12.0, 12.0, float(i) / 4.0) * s
+		var vein_wave: float = sin(time * 1.5 + float(i) * 0.8) * 2.0 * s
+		var vein_alpha: float = 0.2 + sin(time * 2.0 + float(i)) * 0.15
+		_line(
+			Vector2(vx + vein_wave, -6 * s),
+			Vector2(vx * 0.7 + vein_wave * 0.5, -22 * s),
+			Color(detail_color.r, detail_color.g, detail_color.b, vein_alpha), 0.6 * s
+		)
 
-	# Hull panel seams
-	_line(Vector2(-6 * s, 24 * s), Vector2(-6 * s, -22 * s), detail_color, 0.5 * s)
-	_line(Vector2(4 * s, 26 * s), Vector2(4 * s, -24 * s), detail_color, 0.5 * s)
-	_line(Vector2(-18 * s, -6 * s), Vector2(18 * s, -6 * s), detail_color, 0.4 * s)
+	# Trailing tentacles — sinusoidal wave animation
+	var tentacle_count: int = 7
+	for t in range(tentacle_count):
+		var tx: float = lerpf(-14.0, 14.0, float(t) / float(tentacle_count - 1)) * s
+		var phase: float = float(t) * 0.9 + time * 2.5
+		var length: float = (20.0 + sin(time * 0.7 + float(t)) * 4.0) * s
+		var seg_count: int = 8
+		var prev := Vector2(tx, -4.0 * s)
+		for seg in range(1, seg_count + 1):
+			var frac: float = float(seg) / float(seg_count)
+			var wave_x: float = sin(phase + frac * 3.0) * (4.0 + frac * 6.0) * s * (1.0 + breath)
+			var ny: float = -4.0 * s + frac * length
+			var curr := Vector2(tx + wave_x, ny)
+			var seg_alpha: float = 1.0 - frac * 0.6
+			var w: float = (1.4 - frac * 0.8) * s
+			_line(prev, curr, Color(hull_color.r, hull_color.g, hull_color.b, seg_alpha), w)
+			prev = curr
+		# Tentacle tip glow
+		var tip_pulse: float = 0.4 + sin(time * 3.0 + float(t) * 1.3) * 0.4
+		draw_circle(prev, 1.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, tip_pulse))
 
-	# Weapon sponsons — small bumps along the sides
-	for y_off in [12.0, 0.0, -12.0]:
-		_line(Vector2(22 * s, y_off * s), Vector2(26 * s, (y_off + 1) * s), hull_color, 1.0 * s)
-	_line(Vector2(-22 * s, 8 * s), Vector2(-26 * s, 9 * s), hull_color, 1.0 * s)
-	_line(Vector2(-22 * s, -14 * s), Vector2(-26 * s, -13 * s), hull_color, 1.0 * s)
-
-	# Engine bank — 4 engines across the stern (top of screen = aft)
-	var eng_pulse: float = 0.5 + sin(time * 4.0) * 0.3 + sin(time * 6.5) * 0.2
-	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
-	for x_off in [-7.0, -2.0, 3.0, 8.0]:
-		draw_circle(Vector2(x_off * s, -26 * s), 2.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
-		draw_circle(Vector2(x_off * s, -26 * s), 1.5 * s, eng_col)
-
-	# Pulsing forward sensor (bottom of screen = bow)
-	var sensor_pulse: float = 0.6 + sin(time * 2.0) * 0.4
-	draw_circle(Vector2(1 * s, 26 * s), 2.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, sensor_pulse))
+	# Bell rim highlight
+	for i in range(16):
+		var angle: float = PI + PI * float(i) / 15.0
+		var rim_pulse: float = 0.3 + sin(time * 2.0 + float(i) * 0.5) * 0.3
+		var pt := Vector2(cos(angle) * dome_r, sin(angle) * dome_r * 0.7 - 8.0 * s)
+		draw_circle(pt, 1.2 * s, Color(detail_color.r, detail_color.g, detail_color.b, rim_pulse))
 
 
 func _draw_marauder() -> void:
+	# Geometric — rotating concentric pentagons with orbiting satellites
 	var s := 3.0
-	# Aggressive forward-heavy gunship with offset weapon clusters
-	# +Y = forward (downward on screen), -Y = aft (top of screen)
-	var hull := PackedVector2Array([
-		Vector2(-4 * s, 26 * s),    # nose port
-		Vector2(6 * s, 26 * s),     # nose starboard (wider — asymmetric)
-		Vector2(18 * s, 14 * s),    # starboard cheek
-		Vector2(16 * s, -8 * s),    # starboard mid
-		Vector2(12 * s, -22 * s),   # starboard aft
-		Vector2(-10 * s, -22 * s),  # port aft
-		Vector2(-14 * s, -8 * s),   # port mid
-		Vector2(-16 * s, 12 * s),   # port cheek
-	])
-	_poly(hull, hull_color, 2.0 * s)
+	var outer_r: float = 18.0 * s
+	var mid_r: float = 11.0 * s
+	var inner_r: float = 5.0 * s
 
-	# Port weapon pylon — extends forward and outward
-	var port_pylon := PackedVector2Array([
-		Vector2(-16 * s, 12 * s),
-		Vector2(-22 * s, 18 * s),
-		Vector2(-20 * s, 22 * s),
-		Vector2(-14 * s, 16 * s),
-	])
-	_poly(port_pylon, hull_color, 1.6 * s)
+	# Outer pentagon — slow rotation
+	var spin1: float = time * 0.3
+	var outer_pts := PackedVector2Array()
+	for i in range(5):
+		var angle: float = TAU * float(i) / 5.0 + spin1
+		outer_pts.append(Vector2(cos(angle) * outer_r, sin(angle) * outer_r))
+	_poly(outer_pts, hull_color, 1.8 * s)
 
-	# Starboard weapon cluster — heavier, 2 barrels
-	var stbd_pylon := PackedVector2Array([
-		Vector2(18 * s, 14 * s),
-		Vector2(24 * s, 20 * s),
-		Vector2(26 * s, 18 * s),
-		Vector2(22 * s, 10 * s),
-	])
-	_poly(stbd_pylon, hull_color, 1.6 * s)
-	# Second starboard barrel stub
-	_line(Vector2(22 * s, 14 * s), Vector2(26 * s, 22 * s), accent_color, 1.2 * s)
+	# Mid pentagon — counter-rotation, slightly faster
+	var spin2: float = -time * 0.55
+	var mid_pts := PackedVector2Array()
+	for i in range(5):
+		var angle: float = TAU * float(i) / 5.0 + spin2
+		mid_pts.append(Vector2(cos(angle) * mid_r, sin(angle) * mid_r))
+	_poly(mid_pts, accent_color, 1.4 * s)
 
-	# Cockpit canopy — offset slightly starboard
-	var cockpit := PackedVector2Array([
-		Vector2(2 * s, 20 * s),
-		Vector2(8 * s, 18 * s),
-		Vector2(8 * s, 12 * s),
-		Vector2(2 * s, 14 * s),
-	])
-	_poly(cockpit, accent_color, 1.2 * s)
+	# Inner pentagon — fast rotation
+	var spin3: float = time * 0.9
+	var inner_pts := PackedVector2Array()
+	for i in range(5):
+		var angle: float = TAU * float(i) / 5.0 + spin3
+		inner_pts.append(Vector2(cos(angle) * inner_r, sin(angle) * inner_r))
+	_poly(inner_pts, detail_color, 1.2 * s)
 
-	# Armored spine running aft
-	_line(Vector2(1 * s, 22 * s), Vector2(1 * s, -18 * s), detail_color, 0.8 * s)
+	# Connecting spokes — outer vertices to mid vertices (animated alpha)
+	for i in range(5):
+		var spoke_alpha: float = 0.2 + sin(time * 1.5 + float(i) * 1.2) * 0.2
+		_line(outer_pts[i], mid_pts[i], Color(detail_color.r, detail_color.g, detail_color.b, spoke_alpha), 0.6 * s)
 
-	# Port hull gash / battle scar detail
-	_line(Vector2(-10 * s, 4 * s), Vector2(-6 * s, -4 * s), detail_color, 0.6 * s)
-	_line(Vector2(-12 * s, 0 * s), Vector2(-8 * s, -6 * s), detail_color, 0.5 * s)
+	# Orbiting satellite nodes — 3 nodes at different orbital speeds
+	for sat in range(3):
+		var orbit_r: float = (22.0 + float(sat) * 3.0) * s
+		var orbit_speed: float = 0.7 + float(sat) * 0.35
+		var orbit_angle: float = time * orbit_speed + float(sat) * TAU / 3.0
+		var sat_pos := Vector2(cos(orbit_angle) * orbit_r, sin(orbit_angle) * orbit_r)
+		var sat_pulse: float = 0.5 + sin(time * 3.0 + float(sat) * 2.0) * 0.4
 
-	# Cross panel seams
-	_line(Vector2(-14 * s, 2 * s), Vector2(16 * s, 2 * s), detail_color, 0.4 * s)
-	_line(Vector2(-10 * s, -14 * s), Vector2(12 * s, -14 * s), detail_color, 0.4 * s)
+		# Satellite body — small triangle
+		var sat_pts := PackedVector2Array()
+		var sat_r: float = 3.0 * s
+		for i in range(3):
+			var a: float = TAU * float(i) / 3.0 + orbit_angle * 2.0
+			sat_pts.append(sat_pos + Vector2(cos(a) * sat_r, sin(a) * sat_r))
+		_poly(sat_pts, accent_color, 1.0 * s)
 
-	# Engines — 3, asymmetric placement (top of screen = aft)
-	var eng_pulse: float = 0.5 + sin(time * 5.0) * 0.3 + sin(time * 8.0) * 0.2
-	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
-	draw_circle(Vector2(-6 * s, -22 * s), 3.0 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
-	draw_circle(Vector2(-6 * s, -22 * s), 1.8 * s, eng_col)
-	draw_circle(Vector2(4 * s, -22 * s), 3.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.35 * eng_pulse))
-	draw_circle(Vector2(4 * s, -22 * s), 2.0 * s, eng_col)
-	draw_circle(Vector2(10 * s, -21 * s), 2.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.25 * eng_pulse))
-	draw_circle(Vector2(10 * s, -21 * s), 1.4 * s, eng_col)
+		# Tether line to center
+		_line(Vector2.ZERO, sat_pos, Color(hull_color.r, hull_color.g, hull_color.b, 0.15), 0.4 * s)
 
-	# Weapon pylon tip glow (bottom of screen = forward)
-	var wpn_pulse: float = 0.4 + sin(time * 3.0) * 0.4
-	draw_circle(Vector2(-20 * s, 22 * s), 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, wpn_pulse))
-	draw_circle(Vector2(25 * s, 21 * s), 2.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, wpn_pulse))
+		# Satellite glow
+		draw_circle(sat_pos, 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, sat_pulse * 0.5))
+
+	# Center core — pulsing
+	var core_pulse: float = 0.6 + sin(time * 2.5) * 0.4
+	draw_circle(Vector2.ZERO, 3.5 * s, Color(detail_color.r, detail_color.g, detail_color.b, 0.3 * core_pulse))
+	draw_circle(Vector2.ZERO, 2.0 * s, Color(1.0, 1.0, 1.0, 0.8 * core_pulse))
 
 
 func _draw_ironclad() -> void:
+	# Organic scarab beetle — segmented carapace, twitching mandibles, legs
 	var s := 3.4
-	# Armored battleship — boxy, heavy, with turret bumps and shield dome
-	# +Y = forward (downward on screen), -Y = aft (top of screen)
-	var hull := PackedVector2Array([
-		Vector2(-6 * s, 28 * s),    # bow port
-		Vector2(6 * s, 28 * s),     # bow starboard
-		Vector2(16 * s, 18 * s),    # starboard forward angle
-		Vector2(18 * s, 6 * s),     # starboard upper
-		Vector2(18 * s, -18 * s),   # starboard aft
-		Vector2(14 * s, -24 * s),   # starboard stern angle
-		Vector2(-14 * s, -24 * s),  # port stern angle
-		Vector2(-18 * s, -18 * s),  # port aft
-		Vector2(-18 * s, 6 * s),    # port upper
-		Vector2(-16 * s, 18 * s),   # port forward angle
-	])
-	_poly(hull, hull_color, 2.2 * s)
+	var breath: float = sin(time * 1.0) * 0.06
 
-	# Armor plate lines — heavy horizontal bands
-	for y_off in [14.0, 4.0, -6.0, -16.0]:
-		_line(Vector2(-17 * s, y_off * s), Vector2(17 * s, y_off * s), detail_color, 0.6 * s)
+	# Abdomen (rear/top) — oval
+	var abd := PackedVector2Array()
+	var abd_rx: float = 14.0 * s
+	var abd_ry: float = 12.0 * s
+	for i in range(16):
+		var angle: float = TAU * float(i) / 16.0
+		abd.append(Vector2(cos(angle) * abd_rx, sin(angle) * abd_ry - 14.0 * s))
+	_poly(abd, hull_color, 2.0 * s)
 
-	# Forward turret barbette (raised bump) — near bow
-	var fwd_turret := PackedVector2Array([
-		Vector2(-5 * s, 20 * s),
-		Vector2(5 * s, 20 * s),
-		Vector2(6 * s, 14 * s),
-		Vector2(-6 * s, 14 * s),
-	])
-	_poly(fwd_turret, accent_color, 1.4 * s)
-	# Turret barrel — extends forward past bow
-	_line(Vector2(0 * s, 20 * s), Vector2(0 * s, 28 * s), accent_color, 1.2 * s)
+	# Thorax (mid) — smaller oval, overlapping
+	var thx := PackedVector2Array()
+	var thx_rx: float = 10.0 * s * (1.0 + breath)
+	var thx_ry: float = 8.0 * s
+	for i in range(12):
+		var angle: float = TAU * float(i) / 12.0
+		thx.append(Vector2(cos(angle) * thx_rx, sin(angle) * thx_ry + 2.0 * s))
+	_poly(thx, hull_color, 1.8 * s)
 
-	# Aft turret — slightly offset to port (asymmetric)
-	var aft_turret := PackedVector2Array([
-		Vector2(-8 * s, -10 * s),
-		Vector2(-2 * s, -10 * s),
-		Vector2(-1 * s, -16 * s),
-		Vector2(-9 * s, -16 * s),
-	])
-	_poly(aft_turret, accent_color, 1.2 * s)
-	_line(Vector2(-5 * s, -10 * s), Vector2(-5 * s, -4 * s), accent_color, 1.0 * s)
+	# Head — forward small oval
+	var head := PackedVector2Array()
+	var head_r: float = 7.0 * s
+	for i in range(10):
+		var angle: float = TAU * float(i) / 10.0
+		head.append(Vector2(cos(angle) * head_r * 0.9, sin(angle) * head_r * 0.7 + 14.0 * s))
+	_poly(head, accent_color, 1.6 * s)
 
-	# Shield generator dome — center-starboard
-	var shield_pulse: float = 0.3 + sin(time * 1.8) * 0.3
-	var dome_col := Color(detail_color.r, detail_color.g, detail_color.b, shield_pulse)
-	draw_circle(Vector2(4 * s, -2 * s), 6.0 * s, Color(dome_col.r, dome_col.g, dome_col.b, 0.15 * shield_pulse))
-	draw_circle(Vector2(4 * s, -2 * s), 4.0 * s, Color(dome_col.r, dome_col.g, dome_col.b, 0.3 * shield_pulse))
-	draw_circle(Vector2(4 * s, -2 * s), 2.0 * s, dome_col)
+	# Carapace segment lines on abdomen
+	for i in range(4):
+		var sy: float = (-8.0 - float(i) * 5.0) * s
+		var sx: float = (12.0 - float(i) * 1.5) * s
+		var seg_alpha: float = 0.3 + sin(time * 1.5 + float(i) * 0.7) * 0.15
+		_line(Vector2(-sx, sy), Vector2(sx, sy), Color(detail_color.r, detail_color.g, detail_color.b, seg_alpha), 0.7 * s)
 
-	# Side armor sponsons
-	var r_sponson := PackedVector2Array([
-		Vector2(18 * s, 2 * s),
-		Vector2(22 * s, 4 * s),
-		Vector2(22 * s, -8 * s),
-		Vector2(18 * s, -10 * s),
-	])
-	_poly(r_sponson, hull_color, 1.4 * s)
-	var l_sponson := PackedVector2Array([
-		Vector2(-18 * s, -4 * s),
-		Vector2(-22 * s, -2 * s),
-		Vector2(-22 * s, -14 * s),
-		Vector2(-18 * s, -16 * s),
-	])
-	_poly(l_sponson, hull_color, 1.4 * s)
+	# Mandibles — twitching pincers extending forward from head
+	var mandible_angle: float = 0.15 + sin(time * 3.5) * 0.12
+	for side in [-1.0, 1.0]:
+		var base := Vector2(side * 5.0 * s, 18.0 * s)
+		var mid_pt := Vector2(side * (8.0 + mandible_angle * 20.0) * s, 22.0 * s)
+		var tip := Vector2(side * (4.0 + mandible_angle * 8.0) * s, 28.0 * s)
+		_line(base, mid_pt, accent_color, 1.4 * s)
+		_line(mid_pt, tip, accent_color, 1.0 * s)
+		# Mandible tip glow
+		var tip_pulse: float = 0.5 + sin(time * 4.0 + side) * 0.4
+		draw_circle(tip, 1.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, tip_pulse))
 
-	# Vertical keel line
-	_line(Vector2(0 * s, 26 * s), Vector2(0 * s, -22 * s), detail_color, 0.5 * s)
+	# Legs — 3 pairs, animated with walking-like movement
+	for pair in range(3):
+		var attach_y: float = (4.0 - float(pair) * 6.0) * s
+		var leg_phase: float = time * 2.0 + float(pair) * 1.0
+		for side in [-1.0, 1.0]:
+			var leg_swing: float = sin(leg_phase + side * 0.5) * 4.0 * s
+			var hip := Vector2(side * thx_rx * 0.85, attach_y)
+			var knee := Vector2(side * (thx_rx + 8.0 * s), attach_y + leg_swing)
+			var foot := Vector2(side * (thx_rx + 14.0 * s), attach_y + leg_swing + 4.0 * s)
+			_line(hip, knee, hull_color, 1.0 * s)
+			_line(knee, foot, hull_color, 0.7 * s)
 
-	# Engine bank — 3 heavy engines (top of screen = aft)
-	var eng_pulse: float = 0.5 + sin(time * 3.5) * 0.3 + sin(time * 5.5) * 0.2
-	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
-	for x_off in [-8.0, 0.0, 8.0]:
-		draw_circle(Vector2(x_off * s, -24 * s), 3.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
-		draw_circle(Vector2(x_off * s, -24 * s), 2.0 * s, eng_col)
+	# Eyes — two dots on head, independent twitching
+	for side in [-1.0, 1.0]:
+		var eye_jitter := Vector2(sin(time * 5.0 + side * 3.0) * 1.0 * s, cos(time * 4.0 + side) * 0.5 * s)
+		var eye_pos := Vector2(side * 3.0 * s, 15.0 * s) + eye_jitter
+		draw_circle(eye_pos, 2.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, 0.3))
+		draw_circle(eye_pos, 1.2 * s, Color(1.0, 1.0, 1.0, 0.9))
+
+	# Bioluminescent dorsal stripe
+	var stripe_pulse: float = 0.3 + sin(time * 2.0) * 0.2
+	_line(Vector2(0, 10.0 * s), Vector2(0, -24.0 * s), Color(detail_color.r, detail_color.g, detail_color.b, stripe_pulse), 0.8 * s)
 
 
 func _draw_wraith() -> void:
+	# Geometric — phase-shifting diamond lattice, parts fade in/out
 	var s := 3.0
-	# Sleek stealth destroyer — angular, low-profile, off-center sensor fin
-	# +Y = forward (downward on screen), -Y = aft (top of screen)
-	var hull := PackedVector2Array([
-		Vector2(0 * s, 30 * s),     # nose
-		Vector2(8 * s, 22 * s),     # starboard forward
-		Vector2(14 * s, 8 * s),     # starboard shoulder
-		Vector2(16 * s, -6 * s),    # starboard widest
-		Vector2(12 * s, -20 * s),   # starboard aft
-		Vector2(4 * s, -24 * s),    # aft starboard
-		Vector2(-6 * s, -24 * s),   # aft port
-		Vector2(-12 * s, -18 * s),  # port aft
-		Vector2(-14 * s, -4 * s),   # port widest
-		Vector2(-12 * s, 10 * s),   # port shoulder
-		Vector2(-6 * s, 24 * s),    # port forward
-	])
-	_poly(hull, hull_color, 1.8 * s)
+	var phase_cycle: float = fmod(time * 0.4, 1.0)
 
-	# Sensor fin — tall, offset to port (asymmetric signature element)
-	var fin := PackedVector2Array([
-		Vector2(-8 * s, 16 * s),
-		Vector2(-6 * s, 20 * s),
-		Vector2(-4 * s, 16 * s),
-		Vector2(-4 * s, 4 * s),
-		Vector2(-8 * s, 2 * s),
-	])
-	_poly(fin, accent_color, 1.2 * s)
+	# Diamond lattice — 4 nested diamonds at different rotations
+	for ring in range(4):
+		var ring_r: float = (6.0 + float(ring) * 6.0) * s
+		var ring_spin: float = time * (0.2 + float(ring) * 0.15) * (1.0 if ring % 2 == 0 else -1.0)
+		# Phase visibility — each ring fades in/out at different times
+		var ring_phase: float = fmod(phase_cycle + float(ring) * 0.25, 1.0)
+		var ring_alpha: float = 0.3 + sin(ring_phase * TAU) * 0.35 + 0.35
 
-	# Sensor sweep line on the fin — animated
-	var sweep_t: float = fmod(time * 0.8, 1.0)
-	var sweep_y: float = lerpf(18.0, 4.0, sweep_t) * s
-	var sweep_alpha: float = 0.5 + sin(sweep_t * PI) * 0.5
-	_line(Vector2(-8 * s, sweep_y), Vector2(-4 * s, sweep_y), Color(detail_color.r, detail_color.g, detail_color.b, sweep_alpha), 0.8 * s)
+		var diamond := PackedVector2Array()
+		for i in range(4):
+			var angle: float = TAU * float(i) / 4.0 + ring_spin
+			diamond.append(Vector2(cos(angle) * ring_r, sin(angle) * ring_r))
 
-	# Angular wing stubs — swept back (toward -Y)
-	var r_wing := PackedVector2Array([
-		Vector2(14 * s, 4 * s),
-		Vector2(22 * s, -2 * s),
-		Vector2(20 * s, -6 * s),
-		Vector2(14 * s, -4 * s),
-	])
-	_poly(r_wing, hull_color, 1.4 * s)
-	var l_wing := PackedVector2Array([
-		Vector2(-12 * s, 2 * s),
-		Vector2(-18 * s, -4 * s),
-		Vector2(-16 * s, -8 * s),
-		Vector2(-12 * s, -6 * s),
-	])
-	_poly(l_wing, hull_color, 1.4 * s)
+		var ring_col: Color
+		if ring == 0:
+			ring_col = detail_color
+		elif ring % 2 == 0:
+			ring_col = accent_color
+		else:
+			ring_col = hull_color
+		ring_col.a = ring_alpha
+		_poly(diamond, ring_col, (1.0 + float(ring) * 0.2) * s)
 
-	# Cockpit slit — narrow viewport near nose
-	_line(Vector2(-2 * s, 22 * s), Vector2(4 * s, 20 * s), accent_color, 0.9 * s)
+		# Vertex nodes — glow dots at diamond corners
+		for i in range(4):
+			var angle: float = TAU * float(i) / 4.0 + ring_spin
+			var pt := Vector2(cos(angle) * ring_r, sin(angle) * ring_r)
+			var node_pulse: float = 0.3 + sin(time * 3.0 + float(ring) * 1.5 + float(i) * 1.0) * 0.4
+			draw_circle(pt, 1.5 * s, Color(detail_color.r, detail_color.g, detail_color.b, node_pulse * ring_alpha))
 
-	# Hull seam lines — angled for stealth look
-	_line(Vector2(0 * s, 28 * s), Vector2(4 * s, 0 * s), detail_color, 0.4 * s)
-	_line(Vector2(4 * s, 0 * s), Vector2(2 * s, -22 * s), detail_color, 0.4 * s)
-	_line(Vector2(-10 * s, -6 * s), Vector2(14 * s, -2 * s), detail_color, 0.4 * s)
+	# Phase-shift streaks — ghostly afterimages trailing behind each ring
+	for streak in range(3):
+		var streak_delay: float = float(streak + 1) * 0.12
+		var streak_alpha: float = 0.08 - float(streak) * 0.025
+		var streak_r: float = 18.0 * s
+		var streak_spin: float = time * 0.35 - streak_delay
+		var streak_pts := PackedVector2Array()
+		for i in range(4):
+			var angle: float = TAU * float(i) / 4.0 + streak_spin
+			streak_pts.append(Vector2(cos(angle) * streak_r, sin(angle) * streak_r))
+		_poly(streak_pts, Color(hull_color.r, hull_color.g, hull_color.b, streak_alpha), 0.8 * s)
 
-	# Recessed engines — low signature, 2 flush-mounted (top of screen = aft)
-	var eng_pulse: float = 0.3 + sin(time * 4.5) * 0.2 + sin(time * 7.0) * 0.15
-	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
-	draw_circle(Vector2(-2 * s, -23 * s), 2.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.2 * eng_pulse))
-	draw_circle(Vector2(-2 * s, -23 * s), 1.2 * s, eng_col)
-	draw_circle(Vector2(6 * s, -23 * s), 2.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.2 * eng_pulse))
-	draw_circle(Vector2(6 * s, -23 * s), 1.2 * s, eng_col)
+	# Cross-lattice connections — lines connecting rings at matching angles
+	for i in range(4):
+		var base_angle: float = TAU * float(i) / 4.0
+		var inner := Vector2(cos(base_angle + time * 0.2) * 6.0 * s, sin(base_angle + time * 0.2) * 6.0 * s)
+		var outer := Vector2(cos(base_angle + time * 0.5) * 24.0 * s, sin(base_angle + time * 0.5) * 24.0 * s)
+		var conn_alpha: float = 0.1 + sin(time * 2.0 + float(i) * 1.5) * 0.1
+		_line(inner, outer, Color(accent_color.r, accent_color.g, accent_color.b, conn_alpha), 0.4 * s)
 
-	# Wingtip running lights — dim flicker
-	var light_pulse: float = 0.3 + sin(time * 2.5) * 0.3
-	draw_circle(Vector2(21 * s, -4 * s), 1.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, light_pulse))
-	draw_circle(Vector2(-17 * s, -6 * s), 1.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, light_pulse * 0.7))
+	# Central void — pulsing dark/bright core
+	var core_breath: float = sin(time * 1.5)
+	var core_bright: float = 0.5 + core_breath * 0.4
+	draw_circle(Vector2.ZERO, 4.0 * s, Color(0.0, 0.0, 0.0, 0.6))
+	draw_circle(Vector2.ZERO, 2.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, core_bright * 0.4))
+	draw_circle(Vector2.ZERO, 1.2 * s, Color(1.0, 1.0, 1.0, core_bright))
 
 
 func _draw_colossus() -> void:
+	# Organic — massive eye/maw creature with radiating tendrils, breathing
 	var s := 3.6
-	# Massive dreadnought — multi-section hull, command bridge, gun batteries
-	# +Y = forward (downward on screen), -Y = aft (top of screen)
-	# Forward section — armored prow (bottom of screen)
-	var prow := PackedVector2Array([
-		Vector2(-4 * s, 32 * s),
-		Vector2(4 * s, 32 * s),
-		Vector2(12 * s, 22 * s),
-		Vector2(12 * s, 14 * s),
-		Vector2(-12 * s, 14 * s),
-		Vector2(-12 * s, 22 * s),
-	])
-	_poly(prow, hull_color, 2.0 * s)
+	var breath: float = sin(time * 0.8)
+	var breath_scale: float = 1.0 + breath * 0.05
 
-	# Mid section — wider main body
-	var midsection := PackedVector2Array([
-		Vector2(-16 * s, 14 * s),
-		Vector2(16 * s, 14 * s),
-		Vector2(20 * s, 4 * s),
-		Vector2(20 * s, -12 * s),
-		Vector2(16 * s, -18 * s),
-		Vector2(-16 * s, -18 * s),
-		Vector2(-20 * s, -12 * s),
-		Vector2(-20 * s, 4 * s),
-	])
-	_poly(midsection, hull_color, 2.2 * s)
+	# Main body mass — irregular blobby shape (breathing)
+	var body := PackedVector2Array()
+	var body_pts: int = 20
+	for i in range(body_pts):
+		var angle: float = TAU * float(i) / float(body_pts)
+		var base_r: float = 18.0 * s
+		# Organic wobble — different lobes
+		var wobble: float = sin(angle * 3.0 + time * 0.5) * 3.0 * s
+		var wobble2: float = cos(angle * 2.0 - time * 0.3) * 2.0 * s
+		var r: float = (base_r + wobble + wobble2) * breath_scale
+		body.append(Vector2(cos(angle) * r, sin(angle) * r))
+	_poly(body, hull_color, 2.2 * s)
 
-	# Aft section — engine block (top of screen)
-	var aft := PackedVector2Array([
-		Vector2(-14 * s, -18 * s),
-		Vector2(14 * s, -18 * s),
-		Vector2(16 * s, -28 * s),
-		Vector2(-16 * s, -28 * s),
-	])
-	_poly(aft, hull_color, 2.0 * s)
+	# Inner membrane layers — pulsing translucent rings
+	for ring in range(3):
+		var ring_r: float = (12.0 - float(ring) * 3.5) * s * breath_scale
+		var ring_alpha: float = 0.1 + float(ring) * 0.05 + sin(time * 1.5 + float(ring)) * 0.05
+		var membrane := PackedVector2Array()
+		for i in range(16):
+			var angle: float = TAU * float(i) / 16.0
+			var mr: float = ring_r + sin(angle * 4.0 + time * (1.0 + float(ring) * 0.3)) * 1.5 * s
+			membrane.append(Vector2(cos(angle) * mr, sin(angle) * mr))
+		_poly(membrane, Color(accent_color.r, accent_color.g, accent_color.b, ring_alpha), 0.8 * s)
 
-	# Section divider lines
-	_line(Vector2(-16 * s, 14 * s), Vector2(16 * s, 14 * s), accent_color, 1.0 * s)
-	_line(Vector2(-16 * s, -18 * s), Vector2(16 * s, -18 * s), accent_color, 1.0 * s)
+	# Central eye / maw — layered concentric circles
+	var eye_r: float = 8.0 * s
+	var iris_r: float = 5.0 * s * (0.9 + sin(time * 2.0) * 0.1)
+	var pupil_r: float = 2.5 * s * (0.8 + sin(time * 1.5 + 0.5) * 0.2)
 
-	# Command bridge — raised structure, offset slightly starboard
-	var bridge := PackedVector2Array([
-		Vector2(2 * s, 10 * s),
-		Vector2(12 * s, 8 * s),
-		Vector2(14 * s, 0 * s),
-		Vector2(10 * s, -4 * s),
-		Vector2(2 * s, -2 * s),
-	])
-	_poly(bridge, accent_color, 1.6 * s)
-	# Bridge viewport
-	_line(Vector2(4 * s, 8 * s), Vector2(10 * s, 6 * s), detail_color, 0.8 * s)
+	# Eye socket glow
+	draw_circle(Vector2.ZERO, eye_r + 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, 0.15))
+	# Iris — colored ring
+	draw_arc(Vector2.ZERO, iris_r, 0.0, TAU, 64, accent_color, 2.5 * s, true)
+	draw_arc(Vector2.ZERO, iris_r * 0.7, 0.0, TAU, 64, Color(accent_color.r, accent_color.g, accent_color.b, 0.5), 1.5 * s, true)
+	# Pupil
+	draw_circle(Vector2.ZERO, pupil_r, Color(0.0, 0.0, 0.0, 0.9))
+	# Pupil glint
+	var glint_offset := Vector2(sin(time * 0.7) * 1.0 * s, cos(time * 0.9) * 0.8 * s)
+	draw_circle(glint_offset, 1.0 * s, Color(1.0, 1.0, 1.0, 0.8))
 
-	# Port gun battery — 2 barrel turret (barrels point forward = +Y)
-	var port_gun := PackedVector2Array([
-		Vector2(-16 * s, 6 * s),
-		Vector2(-12 * s, 8 * s),
-		Vector2(-10 * s, 4 * s),
-		Vector2(-14 * s, 2 * s),
-	])
-	_poly(port_gun, accent_color, 1.2 * s)
-	_line(Vector2(-14 * s, 8 * s), Vector2(-18 * s, 14 * s), accent_color, 1.0 * s)
-	_line(Vector2(-12 * s, 7 * s), Vector2(-16 * s, 13 * s), accent_color, 1.0 * s)
+	# Radiating tendrils — organic, sinuous, variable length
+	var tendril_count: int = 9
+	for t in range(tendril_count):
+		var base_angle: float = TAU * float(t) / float(tendril_count) + sin(time * 0.3) * 0.05
+		var tendril_len: float = (22.0 + sin(time * 0.6 + float(t) * 0.7) * 6.0) * s
+		var seg_count: int = 10
+		var phase: float = float(t) * 1.1 + time * 1.8
 
-	# Starboard gun battery — single heavy barrel
-	var stbd_gun := PackedVector2Array([
-		Vector2(16 * s, -6 * s),
-		Vector2(20 * s, -4 * s),
-		Vector2(22 * s, -8 * s),
-		Vector2(18 * s, -10 * s),
-	])
-	_poly(stbd_gun, accent_color, 1.2 * s)
-	_line(Vector2(20 * s, -5 * s), Vector2(24 * s, 1 * s), accent_color, 1.2 * s)
+		var prev := Vector2(cos(base_angle) * 16.0 * s * breath_scale, sin(base_angle) * 16.0 * s * breath_scale)
+		for seg in range(1, seg_count + 1):
+			var frac: float = float(seg) / float(seg_count)
+			var wave: float = sin(phase + frac * 4.0) * (2.0 + frac * 5.0) * s
+			# Perpendicular wave offset
+			var tangent := Vector2(-sin(base_angle), cos(base_angle))
+			var radial := Vector2(cos(base_angle), sin(base_angle))
+			var dist: float = 16.0 * s * breath_scale + frac * tendril_len
+			var curr: Vector2 = radial * dist + tangent * wave
 
-	# Hull panel detail — vertical and diagonal seams
-	_line(Vector2(0 * s, 30 * s), Vector2(0 * s, -26 * s), detail_color, 0.5 * s)
-	_line(Vector2(-8 * s, 22 * s), Vector2(-8 * s, -16 * s), detail_color, 0.4 * s)
-	_line(Vector2(8 * s, 22 * s), Vector2(8 * s, -16 * s), detail_color, 0.4 * s)
+			var seg_alpha: float = 1.0 - frac * 0.7
+			var w: float = (2.0 - frac * 1.4) * s
+			_line(prev, curr, Color(hull_color.r, hull_color.g, hull_color.b, seg_alpha), w)
+			prev = curr
 
-	# Armor plate cross-hatching on prow
-	_line(Vector2(-8 * s, 20 * s), Vector2(8 * s, 18 * s), detail_color, 0.4 * s)
-	_line(Vector2(-10 * s, 16 * s), Vector2(10 * s, 16 * s), detail_color, 0.4 * s)
+		# Tendril tip — pulsing node
+		var tip_pulse: float = 0.3 + sin(time * 2.5 + float(t) * 0.9) * 0.4
+		draw_circle(prev, 2.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, tip_pulse))
 
-	# Engine bank — 5 engines, heavy output (top of screen = aft)
-	var eng_pulse: float = 0.5 + sin(time * 3.0) * 0.25 + sin(time * 5.0) * 0.15 + sin(time * 9.0) * 0.1
-	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
-	for x_off in [-10.0, -5.0, 0.0, 5.0, 10.0]:
-		draw_circle(Vector2(x_off * s, -28 * s), 3.5 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.3 * eng_pulse))
-		draw_circle(Vector2(x_off * s, -28 * s), 2.0 * s, eng_col)
-
-	# Gun battery glow — slow pulse
-	var wpn_pulse: float = 0.3 + sin(time * 2.0) * 0.3
-	draw_circle(Vector2(-17 * s, 13 * s), 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, wpn_pulse))
-	draw_circle(Vector2(23 * s, 0 * s), 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, wpn_pulse))
-
-	# Pulsing command bridge light
-	var cmd_pulse: float = 0.5 + sin(time * 1.5) * 0.5
-	draw_circle(Vector2(8 * s, 2 * s), 2.0 * s, Color(1.0, 1.0, 1.0, 0.4 * cmd_pulse))
+	# Vein network — short connecting lines between nearby tendril bases
+	for t in range(tendril_count):
+		var a1: float = TAU * float(t) / float(tendril_count)
+		var a2: float = TAU * float((t + 1) % tendril_count) / float(tendril_count)
+		var p1 := Vector2(cos(a1) * 17.0 * s, sin(a1) * 17.0 * s)
+		var p2 := Vector2(cos(a2) * 17.0 * s, sin(a2) * 17.0 * s)
+		var vein_alpha: float = 0.15 + sin(time * 1.2 + float(t) * 0.8) * 0.1
+		_line(p1, p2, Color(detail_color.r, detail_color.g, detail_color.b, vein_alpha), 0.5 * s)
 
 # ── Chrome drawing helpers ──
 

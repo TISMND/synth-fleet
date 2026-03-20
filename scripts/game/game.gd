@@ -26,6 +26,9 @@ var _active_nebula_effects: Array = []  # NebulaData objects currently overlappi
 var _nebula_bar_accumulators: Dictionary = {}  # bar_name -> float accumulator for sub-frame amounts
 var _player_base_speed: float = 400.0
 var _player_base_modulate_a: float = 1.0
+var _current_key_shift: int = 0
+var _pending_key_shift: int = 0
+var _prev_loop_pos: float = -1.0  # For bar-boundary detection
 
 const NEBULA_STYLES: Dictionary = {
 	"classic_fbm": {"shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "dual": false},
@@ -130,6 +133,7 @@ func _process(delta: float) -> void:
 		_wave_manager.advance_scroll(_scroll_distance)
 	# Apply nebula status effects each frame
 	_apply_nebula_bar_effects(delta)
+	_check_measure_boundary_key_shift()
 	if _hud and _player:
 		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
 		_hud.update_bar_pulses(delta)
@@ -287,6 +291,69 @@ func _apply_special_effects() -> void:
 		_player.remove_meta("nebula_damage_boost")
 	if "damage_boost" in active_specials:
 		_player.set_meta("nebula_damage_boost", true)
+	# Key shift: queue pitch change — applied at next measure boundary
+	var total_shift: int = 0
+	for ndata in _active_nebula_effects:
+		total_shift += ndata.key_shift_semitones
+	_pending_key_shift = clampi(total_shift, -12, 12)
+
+
+func _check_measure_boundary_key_shift() -> void:
+	## Apply pending key shift only when playback crosses a measure (4-beat) boundary.
+	## Uses the first available core or weapon loop for timing reference.
+	if _pending_key_shift == _current_key_shift:
+		_prev_loop_pos = -1.0
+		return
+	if not _player:
+		return
+	# Find a reference loop: any core or weapon controller with a playing loop
+	var ref_loop_id: String = ""
+	var ref_bars: int = 0
+	for c in _player._core_controllers:
+		var ctrl: PowerCoreController = c as PowerCoreController
+		if ctrl and ctrl.power_core_data and LoopMixer.has_loop(ctrl._loop_id):
+			var pos: float = LoopMixer.get_playback_position(ctrl._loop_id)
+			if pos >= 0.0:
+				ref_loop_id = ctrl._loop_id
+				ref_bars = ctrl.power_core_data.loop_length_bars
+				break
+	if ref_loop_id == "":
+		for c in _player._hardpoint_controllers:
+			var ctrl: HardpointController = c as HardpointController
+			if ctrl and ctrl.weapon_data and ctrl._loop_id != "" and LoopMixer.has_loop(ctrl._loop_id):
+				var pos: float = LoopMixer.get_playback_position(ctrl._loop_id)
+				if pos >= 0.0:
+					ref_loop_id = ctrl._loop_id
+					ref_bars = ctrl.weapon_data.loop_length_bars
+					break
+	if ref_loop_id == "":
+		# No reference loop available — apply immediately as fallback
+		_current_key_shift = _pending_key_shift
+		LoopMixer.set_pitch_shift(float(_current_key_shift), 0.1)
+		return
+	var pos_sec: float = LoopMixer.get_playback_position(ref_loop_id)
+	var duration: float = LoopMixer.get_stream_duration(ref_loop_id)
+	if duration <= 0.0 or pos_sec < 0.0:
+		return
+	var curr_norm: float = pos_sec / duration
+	if _prev_loop_pos < 0.0:
+		_prev_loop_pos = curr_norm
+		return
+	# Measure boundaries are at 0.0, 1/bars, 2/bars, ... (each = 4 beats)
+	var measure_size: float = 1.0 / float(maxi(ref_bars, 1))
+	var crossed: bool = false
+	if curr_norm >= _prev_loop_pos:
+		# Normal progression — check if any boundary falls in (prev, curr]
+		var prev_measure: int = int(_prev_loop_pos / measure_size)
+		var curr_measure: int = int(curr_norm / measure_size)
+		crossed = curr_measure > prev_measure
+	else:
+		# Wrap-around (loop restarted) — always a boundary at 0.0
+		crossed = true
+	_prev_loop_pos = curr_norm
+	if crossed:
+		_current_key_shift = _pending_key_shift
+		LoopMixer.set_pitch_shift(float(_current_key_shift), 0.1)
 
 
 func _return_to_menu() -> void:
@@ -422,7 +489,7 @@ func _setup_nebulas() -> void:
 		_nebula_container.add_child(debug_ring)
 
 		# Collision area for status effects (if nebula has any effects defined)
-		if ndata.bar_effects.size() > 0 or ndata.special_effects.size() > 0:
+		if ndata.bar_effects.size() > 0 or ndata.special_effects.size() > 0 or ndata.key_shift_semitones != 0:
 			var area := Area2D.new()
 			area.collision_layer = 0
 			area.collision_mask = 1  # Detects player (layer 1)
