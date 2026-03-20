@@ -49,6 +49,7 @@ var _beam_width_label: Label
 var _glow_slider: HSlider
 var _glow_label: Label
 var _flip_toggle: CheckBox
+var _full_screen_toggle: CheckBox
 
 # Dynamic param sections
 var _common_params_container: VBoxContainer
@@ -297,6 +298,16 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_beam_width_slider = width_row[0]
 	_beam_width_label = width_row[1]
 
+	_full_screen_toggle = CheckBox.new()
+	_full_screen_toggle.text = "FULL SCREEN LENGTH"
+	_full_screen_toggle.button_pressed = false
+	_full_screen_toggle.toggled.connect(func(on: bool) -> void:
+		_max_length_slider.editable = not on
+		_max_length_slider.modulate = Color(1, 1, 1, 0.3) if on else Color(1, 1, 1, 1.0)
+		_spawn_preview_beam()
+	)
+	parent.add_child(_full_screen_toggle)
+
 	_add_separator(parent)
 
 	# Glow
@@ -384,6 +395,7 @@ func _collect_beam_style() -> BeamStyle:
 	s.beam_width = _beam_width_slider.value
 	s.appearance_mode = APPEARANCE_MODES[_appearance_button.selected]
 	s.flip_shader = _flip_toggle.button_pressed
+	s.full_screen_length = _full_screen_toggle.button_pressed
 	# Collect shader params
 	var params: Dictionary = {}
 	for param_name in _common_param_sliders:
@@ -452,6 +464,9 @@ func _on_new() -> void:
 	_secondary_color_picker.color = Color(1.0, 0.3, 0.5, 1.0)
 	_appearance_button.selected = 0
 	_flip_toggle.button_pressed = false
+	_full_screen_toggle.button_pressed = false
+	_max_length_slider.editable = true
+	_max_length_slider.modulate = Color(1, 1, 1, 1.0)
 	_max_length_slider.value = 400.0
 	_beam_width_slider.value = 16.0
 	_glow_slider.value = 1.5
@@ -498,8 +513,11 @@ func _populate_from_style(bstyle: BeamStyle) -> void:
 	var mode_idx: int = APPEARANCE_MODES.find(bstyle.appearance_mode)
 	_appearance_button.selected = mode_idx if mode_idx >= 0 else 0
 
-	# Flip
+	# Flip + Full screen
 	_flip_toggle.button_pressed = bstyle.flip_shader
+	_full_screen_toggle.button_pressed = bstyle.full_screen_length
+	_max_length_slider.editable = not bstyle.full_screen_length
+	_max_length_slider.modulate = Color(1, 1, 1, 0.3) if bstyle.full_screen_length else Color(1, 1, 1, 1.0)
 
 	# Dimensions
 	_max_length_slider.value = bstyle.max_length

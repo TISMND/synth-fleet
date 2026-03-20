@@ -109,6 +109,9 @@ var _reset_bars_button: Button
 var _bar_effect_sliders: Dictionary = {}   # "shield" -> HSlider
 var _bar_effect_labels: Dictionary = {}    # "shield" -> Label
 var _stats_prev_loop_progress: float = -1.0
+# Beam sustained simulation — tracks active beam timers for continuous DPS + bar effects
+var _beam_active_remaining: float = 0.0
+var _beam_damage_accumulator: float = 0.0
 # Enemy damage test
 var _enemy_selector: OptionButton
 var _enemy_ids: Array[String] = []
@@ -1236,6 +1239,8 @@ func _on_new() -> void:
 			val_label.text = "0.0"
 	_on_reset_bars()
 	_stats_prev_loop_progress = -1.0
+	_beam_active_remaining = 0.0
+	_beam_damage_accumulator = 0.0
 
 	# Reset transition controls
 	_transition_mode_button.selected = 0
@@ -1413,6 +1418,10 @@ func _update_stats_preview(delta: float) -> void:
 
 	_stats_prev_loop_progress = progress
 
+	# Beam sustained DPS + bar effects (continuous while beam is active)
+	if _is_beam_mode() and _beam_active_remaining > 0.0:
+		_update_beam_sustain(delta)
+
 	# Advance rolling waves + update bars
 	for i in _stats_preview_bars.size():
 		if i >= BAR_TYPES.size():
@@ -1434,7 +1443,29 @@ func _update_stats_preview(delta: float) -> void:
 
 
 func _on_trigger_fired() -> void:
-	# Apply bar effect deltas with wave animation
+	if _is_beam_mode():
+		# Beam: start sustained beam timer — DPS + bar effects applied per frame in _update_beam_sustain
+		_beam_active_remaining = _beam_duration_slider.value
+		_beam_damage_accumulator = 0.0
+		# Start TTK timer on first beam
+		if _enemy_section.visible and _enemy_hull > 0.0 and not _enemy_ttk_done:
+			if not _enemy_ttk_active:
+				_enemy_ttk_active = true
+				_enemy_ttk_timer = 0.0
+		return
+
+	# Projectile: one-shot bar effect deltas with wave animation
+	_apply_bar_effects_once()
+
+	# Projectile: one-shot damage to enemy
+	if _enemy_section.visible and _enemy_hull > 0.0 and not _enemy_ttk_done:
+		if not _enemy_ttk_active:
+			_enemy_ttk_active = true
+			_enemy_ttk_timer = 0.0
+		_apply_enemy_damage(float(_damage_slider.value))
+
+
+func _apply_bar_effects_once() -> void:
 	for bi in BAR_TYPES.size():
 		var bar_type: String = BAR_TYPES[bi]
 		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
@@ -1449,13 +1480,36 @@ func _on_trigger_fired() -> void:
 				_stats_drain_wave[bi]["active"] = true
 				_stats_drain_wave[bi]["position"] = 1.0
 
-	# Apply damage to enemy
+
+func _update_beam_sustain(delta: float) -> void:
+	_beam_active_remaining -= delta
+	if _beam_active_remaining < 0.0:
+		_beam_active_remaining = 0.0
+
+	# Continuous bar effects (scaled by delta, like DPS)
+	for bi in BAR_TYPES.size():
+		var bar_type: String = BAR_TYPES[bi]
+		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
+		if slider and slider.value != 0.0:
+			# Scale bar effect by delta so it drains/gains smoothly over beam duration
+			var scaled_effect: float = slider.value * delta * 4.0  # 4x = similar feel to per-trigger
+			var old_val: float = _stats_bar_values[bi]
+			_stats_bar_values[bi] = clampf(old_val + scaled_effect, 0.0, _stats_bar_maxes[bi])
+			var delta_ratio: float = (_stats_bar_values[bi] - old_val) / maxf(_stats_bar_maxes[bi], 1.0)
+			if delta_ratio > WAVE_MIN_CHANGE:
+				_stats_gain_wave[bi]["active"] = true
+				_stats_gain_wave[bi]["position"] = 0.0
+			elif delta_ratio < -WAVE_MIN_CHANGE:
+				_stats_drain_wave[bi]["active"] = true
+				_stats_drain_wave[bi]["position"] = 1.0
+
+	# Continuous DPS to enemy
 	if _enemy_section.visible and _enemy_hull > 0.0 and not _enemy_ttk_done:
-		if not _enemy_ttk_active:
-			_enemy_ttk_active = true
-			_enemy_ttk_timer = 0.0
-		var dmg: float = float(_damage_slider.value)
-		_apply_enemy_damage(dmg)
+		_beam_damage_accumulator += _beam_dps_slider.value * delta
+		if _beam_damage_accumulator >= 1.0:
+			var tick_dmg: float = floorf(_beam_damage_accumulator)
+			_beam_damage_accumulator -= tick_dmg
+			_apply_enemy_damage(tick_dmg)
 
 
 func _apply_enemy_damage(amount: float) -> void:
@@ -1610,6 +1664,8 @@ func _load_enemy(ship: ShipData) -> void:
 
 
 func _on_enemy_reset() -> void:
+	_beam_active_remaining = 0.0
+	_beam_damage_accumulator = 0.0
 	var idx: int = _enemy_selector.selected
 	if idx <= 0:
 		return

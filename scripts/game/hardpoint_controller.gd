@@ -321,11 +321,17 @@ func _spawn_beam_v2(pos: Vector2, bstyle: BeamStyle) -> void:
 	beam.beam_duration = weapon_data.beam_duration
 	beam.beam_transition_time = weapon_data.beam_transition_time
 	beam.appearance_mode = bstyle.appearance_mode if bstyle else "flow_in"
-	beam.max_length = bstyle.max_length if bstyle else 400.0
 	beam.beam_width = bstyle.beam_width if bstyle else 16.0
 	beam.beam_style = bstyle
 	beam.skips_shields = weapon_data.skips_shields
 	beam.passthrough = weapon_data.beam_passthrough
+	beam.track_node = self  # beam follows hardpoint position
+	# Calculate beam length — full screen or style-defined
+	var beam_length: float = bstyle.max_length if bstyle else 400.0
+	if bstyle and bstyle.full_screen_length:
+		# Extend beam from hardpoint to the top edge of the screen (y=0), with padding
+		beam_length = maxf(pos.y + 50.0, beam_length)
+	beam.max_length = beam_length
 	_projectiles_container.add_child(beam)
 
 

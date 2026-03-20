@@ -3,11 +3,11 @@
 	"bar_effects": {
 
 	},
-	"beam_dps": 50.0,
-	"beam_duration": 0.3,
+	"beam_dps": 104.0,
+	"beam_duration": 1.6,
 	"beam_passthrough": true,
-	"beam_style_id": "",
-	"beam_transition_time": 0.1,
+	"beam_style_id": "beam_1",
+	"beam_transition_time": 0.26,
 	"damage": 10,
 	"description": "",
 	"direction_deg": 0.0,
@@ -22,10 +22,19 @@
 		"version": 2
 	},
 	"fire_pattern": "single",
-	"fire_triggers": [],
+	"fire_triggers": [
+		0.0,
+		0.125,
+		0.25,
+		0.375,
+		0.5,
+		0.625,
+		0.75,
+		0.875
+	],
 	"id": "beam_1",
-	"loop_file_path": "res://loop_zips/sorted/percussion/Dreading Sphere - 120 BPM - 8 - Percussion - NW_NR_80_percussion_loop_hair.wav",
-	"loop_length_bars": 2,
+	"loop_file_path": "res://loop_zips/sorted/bass/Dreading Sphere - 120 BPM - 1 - Bass - cw_bass90_youthful_E.wav",
+	"loop_length_bars": 8,
 	"mirror_mode": "none",
 	"pierce_count": 0,
 	"projectile_speed": 600.0,

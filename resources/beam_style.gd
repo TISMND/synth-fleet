@@ -14,6 +14,7 @@ extends Resource
 @export var beam_width: float = 16.0
 @export var appearance_mode: String = "flow_in"  # "flow_in" | "expand_out"
 @export var flip_shader: bool = false  # flip UV.y to reverse shader scroll direction
+@export var full_screen_length: bool = false  # if true, beam extends to screen edge
 
 
 static func from_dict(data: Dictionary) -> BeamStyle:
@@ -37,6 +38,7 @@ static func from_dict(data: Dictionary) -> BeamStyle:
 	s.beam_width = float(data.get("beam_width", 16.0))
 	s.appearance_mode = str(data.get("appearance_mode", "flow_in"))
 	s.flip_shader = bool(data.get("flip_shader", false))
+	s.full_screen_length = bool(data.get("full_screen_length", false))
 	return s
 
 
@@ -53,4 +55,5 @@ func to_dict() -> Dictionary:
 		"beam_width": beam_width,
 		"appearance_mode": appearance_mode,
 		"flip_shader": flip_shader,
+		"full_screen_length": full_screen_length,
 	}
