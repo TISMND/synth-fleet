@@ -27,7 +27,7 @@ var _alternate_flip: bool = false
 var _enemies_group: String = "enemies"
 var _external_loop: bool = false  # if true, skip loop add/remove
 var _beam_bar_remaining: float = 0.0  # tracks beam bar-effect duration for continuous emission
-var _beam_bar_accumulator: Dictionary = {}  # bar_type -> float accumulator
+var _beam_bar_emit_cooldown: float = 0.0  # throttle emission interval
 
 
 func setup(weapon: WeaponData, dir_deg: float, proj_container: Node2D, hp_index: int = 0) -> void:
@@ -159,21 +159,13 @@ func _process(delta: float) -> void:
 		if _trigger_crossed(prev, curr, t):
 			_fire(trigger_idx)
 
-	# Continuous beam bar effects (emit small deltas each frame during beam)
+	# Continuous beam bar effects — emit full bar effects periodically during beam
 	if _beam_bar_remaining > 0.0 and weapon_data and not weapon_data.bar_effects.is_empty():
 		_beam_bar_remaining -= delta
-		var effects_to_emit: Dictionary = {}
-		for bar_type in weapon_data.bar_effects:
-			var rate: float = float(weapon_data.bar_effects[bar_type])
-			# Scale bar effect by delta * 4.0 (same feel as per-trigger, spread over beam duration)
-			var acc: float = float(_beam_bar_accumulator.get(bar_type, 0.0))
-			acc += rate * delta * 4.0
-			if absf(acc) >= 0.5:
-				effects_to_emit[bar_type] = acc
-				acc = 0.0
-			_beam_bar_accumulator[bar_type] = acc
-		if not effects_to_emit.is_empty():
-			bar_effect_fired.emit(effects_to_emit)
+		_beam_bar_emit_cooldown -= delta
+		if _beam_bar_emit_cooldown <= 0.0:
+			_beam_bar_emit_cooldown = 0.25  # emit every 0.25s — fast enough for rolling glow
+			bar_effect_fired.emit(weapon_data.bar_effects)
 
 
 func _trigger_crossed(prev: float, curr: float, trigger: float) -> bool:
@@ -277,7 +269,7 @@ func _fire(trigger_idx: int = -1) -> void:
 		if weapon_data.beam_style_id != "":
 			# Beam: start continuous bar effect emission over beam duration
 			_beam_bar_remaining = weapon_data.beam_duration
-			_beam_bar_accumulator.clear()
+			_beam_bar_emit_cooldown = 0.0  # emit immediately on first frame
 		else:
 			# Projectile: one-shot bar effect
 			bar_effect_fired.emit(weapon_data.bar_effects)
