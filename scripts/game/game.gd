@@ -91,6 +91,7 @@ func _ready() -> void:
 	_wave_manager.name = "WaveManager"
 	add_child(_wave_manager)
 	_wave_manager.all_waves_cleared.connect(_on_all_waves_cleared)
+	_wave_manager.presence_pre_trigger.connect(register_enemy_presence)
 
 	# HUD
 	_hud = CanvasLayer.new()
@@ -192,7 +193,7 @@ func register_enemy_presence(sid: String, loop_path: String) -> void:
 	count += 1
 	_presence_counts[sid] = count
 	if count == 1:
-		LoopMixer.unmute(loop_id)
+		LoopMixer.unmute(loop_id, 2000)
 
 
 func unregister_enemy_presence(sid: String) -> void:
@@ -204,7 +205,7 @@ func unregister_enemy_presence(sid: String) -> void:
 	count = maxi(count - 1, 0)
 	_presence_counts[sid] = count
 	if count == 0:
-		LoopMixer.mute(loop_id)
+		LoopMixer.mute(loop_id, 2000)
 
 
 func _on_nebula_entered(_area: Area2D, ndata: NebulaData) -> void:

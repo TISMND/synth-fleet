@@ -6,6 +6,7 @@ extends Node
 signal wave_started(wave_index: int, total_waves: int)
 signal wave_cleared(wave_index: int, total_waves: int)
 signal all_waves_cleared
+signal presence_pre_trigger(ship_id: String, loop_path: String)
 
 var _waves: Array = []
 var _enemies_container: Node2D = null
@@ -27,6 +28,9 @@ var _next_encounter_idx: int = 0
 var _scroll_distance: float = 0.0
 var _stagger_queue: Array[Dictionary] = []  # Pending staggered spawns
 var _projectiles_container: Node2D = null
+var _pre_triggered_encounters: Dictionary = {}  # encounter index -> bool
+
+const PRESENCE_LEAD_DISTANCE: float = 160.0  # ~2s at 80px/s scroll speed
 
 const ENEMY_COLORS: Array[Color] = [
 	Color(1.0, 0.3, 0.5),
@@ -44,6 +48,7 @@ func setup(waves: Array, enemies_container: Node2D, player: Node2D = null, proj_
 	_player_ref = player
 	_projectiles_container = proj_container
 	_level_mode = false
+	_pre_triggered_encounters.clear()
 
 
 func setup_level(level: LevelData, enemies_container: Node2D, player: Node2D = null, proj_container: Node2D = null) -> void:
@@ -55,6 +60,7 @@ func setup_level(level: LevelData, enemies_container: Node2D, player: Node2D = n
 	_scroll_distance = 0.0
 	_next_encounter_idx = 0
 	_stagger_queue.clear()
+	_pre_triggered_encounters.clear()
 
 	# Sort encounters by trigger_y
 	_sorted_encounters.clear()
@@ -69,7 +75,27 @@ func advance_scroll(distance: float) -> void:
 	if not _level_mode:
 		return
 	_scroll_distance = distance
+	_check_presence_pretriggers()
 	_check_encounter_triggers()
+
+
+func _check_presence_pretriggers() -> void:
+	var lead_distance: float = _scroll_distance + PRESENCE_LEAD_DISTANCE
+	for i in range(_sorted_encounters.size()):
+		if _pre_triggered_encounters.has(i):
+			continue
+		var enc: Dictionary = _sorted_encounters[i]
+		var trigger_y: float = float(enc["trigger_y"])
+		if trigger_y > lead_distance:
+			break  # Sorted by trigger_y, so no more encounters within range
+		# Within lead distance — pre-trigger presence audio
+		_pre_triggered_encounters[i] = true
+		var sid: String = str(enc.get("ship_id", ""))
+		if sid == "":
+			continue
+		var ship: ShipData = ShipDataManager.load_by_id(sid)
+		if ship and ship.presence_loop_path != "":
+			presence_pre_trigger.emit(sid, ship.presence_loop_path)
 
 
 func _check_encounter_triggers() -> void:
