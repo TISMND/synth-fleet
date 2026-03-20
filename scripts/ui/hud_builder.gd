@@ -158,25 +158,32 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 
 		# Fixed bar height from segment count — no stretching
 		var bar_height: float = float(seg) * seg_px + float(seg - 1) * gap_px
-		# Anchor to top of half-panel zone, leave remaining space empty
-		var zone_top: float = mid_y * float(i) + bar_pad
-		var bar_top: float = zone_top
-		var label_top: float = bar_top + bar_height + bar_pad
+		# Label anchored to bottom of zone, bar grows upward from just above label
+		var zone_bottom: float = mid_y * float(i + 1)
+		var label_top: float = zone_bottom - bar_pad - label_h
+		var bar_top: float = label_top - bar_pad - bar_height
+		print("[HUD] %s: seg=%d seg_px=%.1f gap_px=%.1f bar_height=%.1f mid_y=%.1f zone_bottom=%.1f label_top=%.1f bar_top=%.1f panel_height=%.1f" % [bar_name, seg, seg_px, gap_px, bar_height, mid_y, zone_bottom, label_top, bar_top, panel_height])
 
 		# Create bar
 		var bar := ProgressBar.new()
-		bar.position = Vector2(bar_x, bar_top)
-		bar.size = Vector2(BAR_WIDTH, bar_height)
-		bar.custom_minimum_size = Vector2(BAR_WIDTH, bar_height)
 		bar.fill_mode = 3  # FILL_BOTTOM_TO_TOP
 		bar.max_value = seg
 		bar.value = seg
 		bar.show_percentage = false
 		content.add_child(bar)
 		ThemeManager.apply_led_bar(bar, color, 1.0, seg, true)
-		# Re-set position/size after apply_led_bar may modify minimum size
-		bar.position = Vector2(bar_x, bar_top)
-		bar.size = Vector2(BAR_WIDTH, bar_height)
+		bar.size_flags_vertical = Control.SIZE_FILL
+		# Defer position: apply_led_bar's glow overlay inflates actual size,
+		# so we wait one frame, read the real size, and anchor bottom edge above label
+		var _def_bar: ProgressBar = bar
+		var _def_x: float = bar_x
+		var _def_label_top: float = label_top
+		var _def_pad: float = bar_pad
+		(func():
+			var actual_h: float = _def_bar.size.y
+			var anchored_top: float = _def_label_top - _def_pad - actual_h
+			_def_bar.position = Vector2(_def_x, anchored_top)
+		).call_deferred()
 
 		# Create label BELOW bar
 		var lbl := Label.new()
