@@ -3,7 +3,7 @@ extends MarginContainer
 ## live preview, loop browser, time-based waveform triggers, save/load/delete.
 ## Effects are configured per-style in the Projectile Animator tab.
 
-const FIRE_PATTERNS: Array[String] = ["single", "burst", "dual", "wave", "spread", "beam", "scatter"]
+const FIRE_PATTERNS: Array[String] = ["single", "burst", "dual", "wave", "spread", "scatter"]
 const AIM_MODES: Array[String] = ["fixed", "sweep", "track"]
 const MIRROR_MODES: Array[String] = ["none", "mirror", "alternate"]
 const SNAP_MODES: Array[Dictionary] = EditorConstants.SNAP_MODES
@@ -52,6 +52,26 @@ var _mirror_section: VBoxContainer
 # Projectile style selector
 var _style_selector: OptionButton
 var _style_ids: Array[String] = []
+
+# Beam style selector (Movement subtab)
+var _beam_style_selector: OptionButton
+var _beam_style_ids: Array[String] = []
+# Beam controls — sections to grey out
+var _projectile_section_controls: Array[Control] = []  # greyed when beam mode
+var _beam_section_controls: Array[Control] = []        # greyed when projectile mode
+
+# Beam timing (Timing subtab)
+var _beam_timing_section: VBoxContainer
+var _beam_duration_slider: HSlider
+var _beam_duration_label: Label
+var _beam_transition_slider: HSlider
+var _beam_transition_label: Label
+
+# Beam stats (Stats subtab)
+var _beam_stats_section: VBoxContainer
+var _beam_dps_slider: HSlider
+var _beam_dps_label: Label
+var _beam_passthrough_toggle: CheckBox
 
 # Pierce (Movement subtab)
 var _pierce_slider: HSlider
@@ -408,6 +428,23 @@ func _build_timing_tab() -> Control:
 
 	_add_separator(vbox)
 
+	# Beam Timing (visible when beam_style_id set)
+	_beam_timing_section = VBoxContainer.new()
+	_beam_timing_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_beam_timing_section.modulate = Color(1, 1, 1, 0.3)
+	vbox.add_child(_beam_timing_section)
+	_add_section_header(_beam_timing_section, "BEAM TIMING")
+	var bdur_row: Array = _add_slider_row(_beam_timing_section, "Beam Duration:", 0.05, 3.0, 0.3, 0.05)
+	_beam_duration_slider = bdur_row[0]
+	_beam_duration_label = bdur_row[1]
+	_beam_duration_slider.editable = false
+	var btrans_row: Array = _add_slider_row(_beam_timing_section, "Transition Time:", 0.01, 1.0, 0.1, 0.01)
+	_beam_transition_slider = btrans_row[0]
+	_beam_transition_label = btrans_row[1]
+	_beam_transition_slider.editable = false
+
+	_add_separator(vbox)
+
 	# Loop Browser
 	_add_section_header(vbox, "LOOP BROWSER")
 	_loop_browser = LoopBrowser.new()
@@ -442,6 +479,22 @@ func _build_movement_tab() -> Control:
 	_style_selector.item_selected.connect(_on_style_selected)
 	style_row.add_child(_style_selector)
 	_refresh_style_list()
+
+	_add_separator(form)
+
+	# Beam Style selector
+	_add_section_header(form, "BEAM STYLE")
+	var beam_style_row := HBoxContainer.new()
+	form.add_child(beam_style_row)
+	var beam_style_label := Label.new()
+	beam_style_label.text = "Beam:"
+	beam_style_label.custom_minimum_size.x = 60
+	beam_style_row.add_child(beam_style_label)
+	_beam_style_selector = OptionButton.new()
+	_beam_style_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_beam_style_selector.item_selected.connect(_on_beam_style_selected)
+	beam_style_row.add_child(_beam_style_selector)
+	_refresh_beam_style_list()
 
 	_add_separator(form)
 
@@ -588,6 +641,28 @@ func _build_stats_tab() -> Control:
 	var damage_row := _add_slider_row(form, "Damage:", 1, 100, 10, 1)
 	_damage_slider = damage_row[0]
 	_damage_label = damage_row[1]
+
+	_add_separator(form)
+
+	# Beam Damage (visible when beam_style_id set)
+	_beam_stats_section = VBoxContainer.new()
+	_beam_stats_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_beam_stats_section.modulate = Color(1, 1, 1, 0.3)
+	form.add_child(_beam_stats_section)
+	_add_section_header(_beam_stats_section, "BEAM DAMAGE")
+	var bdps_row: Array = _add_slider_row(_beam_stats_section, "Beam DPS:", 1, 500, 50, 1)
+	_beam_dps_slider = bdps_row[0]
+	_beam_dps_label = bdps_row[1]
+	_beam_dps_slider.editable = false
+	_beam_passthrough_toggle = CheckBox.new()
+	_beam_passthrough_toggle.text = "BEAM PASSTHROUGH"
+	_beam_passthrough_toggle.button_pressed = true
+	_beam_passthrough_toggle.disabled = true
+	_beam_passthrough_toggle.toggled.connect(func(_on: bool) -> void:
+		_mark_dirty()
+		_update_preview()
+	)
+	_beam_stats_section.add_child(_beam_passthrough_toggle)
 
 	_add_separator(form)
 
@@ -740,6 +815,7 @@ func _build_stats_tab() -> Control:
 func _on_visibility_changed() -> void:
 	if visible and _ui_ready:
 		_refresh_style_list()
+		_refresh_beam_style_list()
 		_refresh_load_list()
 
 
@@ -814,6 +890,75 @@ func _get_selected_style_id() -> String:
 	if not _style_selector or _style_selector.selected <= 0:
 		return ""
 	return _style_selector.get_item_text(_style_selector.selected)
+
+
+# ── Beam Style ─────────────────────────────────────────────
+
+func _refresh_beam_style_list() -> void:
+	if not _beam_style_selector:
+		return
+	var prev_text: String = ""
+	if _beam_style_selector.selected >= 0:
+		prev_text = _beam_style_selector.get_item_text(_beam_style_selector.selected)
+	_beam_style_selector.clear()
+	_beam_style_selector.add_item("None (projectile weapon)")
+	_beam_style_ids = BeamStyleManager.list_ids()
+	for id in _beam_style_ids:
+		_beam_style_selector.add_item(id)
+	if prev_text != "" and prev_text != "None (projectile weapon)":
+		for i in _beam_style_selector.item_count:
+			if _beam_style_selector.get_item_text(i) == prev_text:
+				_beam_style_selector.selected = i
+				return
+	_beam_style_selector.selected = 0
+
+
+func _on_beam_style_selected(_idx: int) -> void:
+	_update_beam_visibility()
+	_mark_dirty()
+	_update_preview()
+
+
+func _get_selected_beam_style_id() -> String:
+	if not _beam_style_selector or _beam_style_selector.selected <= 0:
+		return ""
+	return _beam_style_selector.get_item_text(_beam_style_selector.selected)
+
+
+func _is_beam_mode() -> bool:
+	return _get_selected_beam_style_id() != ""
+
+
+func _update_beam_visibility() -> void:
+	var beam_mode: bool = _is_beam_mode()
+	# Grey out projectile controls when beam mode
+	var proj_alpha: float = 0.3 if beam_mode else 1.0
+	var beam_alpha: float = 1.0 if beam_mode else 0.3
+	if _style_selector:
+		_style_selector.disabled = beam_mode
+		_style_selector.modulate = Color(1, 1, 1, proj_alpha)
+	if _pattern_button:
+		_pattern_button.disabled = beam_mode
+		_pattern_button.modulate = Color(1, 1, 1, proj_alpha)
+	if _speed_slider:
+		_speed_slider.editable = not beam_mode
+		_speed_slider.modulate = Color(1, 1, 1, proj_alpha)
+	if _pierce_slider:
+		_pierce_slider.editable = not beam_mode
+		_pierce_slider.modulate = Color(1, 1, 1, proj_alpha)
+	# Grey out beam controls when projectile mode
+	if _beam_timing_section:
+		_beam_timing_section.modulate = Color(1, 1, 1, beam_alpha)
+		_beam_duration_slider.editable = beam_mode
+		_beam_transition_slider.editable = beam_mode
+	if _beam_stats_section:
+		_beam_stats_section.modulate = Color(1, 1, 1, beam_alpha)
+		_beam_dps_slider.editable = beam_mode
+		_beam_passthrough_toggle.disabled = not beam_mode
+	# Grey out regular damage when beam mode
+	if _damage_slider:
+		_damage_slider.editable = not beam_mode
+		_damage_slider.modulate = Color(1, 1, 1, proj_alpha)
 
 
 # ── UI Helpers ──────────────────────────────────────────────
@@ -912,6 +1057,11 @@ func _collect_weapon_data() -> Dictionary:
 		"splash_enabled": _splash_toggle.button_pressed,
 		"splash_radius": _splash_radius_slider.value if _splash_toggle.button_pressed else 0.0,
 		"skips_shields": _skips_shields_toggle.button_pressed,
+		"beam_style_id": _get_selected_beam_style_id(),
+		"beam_duration": _beam_duration_slider.value,
+		"beam_transition_time": _beam_transition_slider.value,
+		"beam_dps": _beam_dps_slider.value,
+		"beam_passthrough": _beam_passthrough_toggle.button_pressed,
 	}
 
 
@@ -1100,6 +1250,15 @@ func _on_new() -> void:
 	_splash_radius_slider.value = 40
 	_skips_shields_toggle.button_pressed = false
 
+	# Reset beam fields
+	_refresh_beam_style_list()
+	_beam_style_selector.selected = 0
+	_beam_duration_slider.value = 0.3
+	_beam_transition_slider.value = 0.1
+	_beam_dps_slider.value = 50
+	_beam_passthrough_toggle.button_pressed = true
+	_update_beam_visibility()
+
 	_update_preview()
 	_populating = false
 	_mark_clean()
@@ -1188,6 +1347,21 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_on_splash_toggled(weapon.splash_enabled)
 	_splash_radius_slider.value = weapon.splash_radius if weapon.splash_radius > 0.0 else 40.0
 	_skips_shields_toggle.button_pressed = weapon.skips_shields
+
+	# Beam fields
+	_refresh_beam_style_list()
+	if weapon.beam_style_id != "":
+		for i in _beam_style_selector.item_count:
+			if _beam_style_selector.get_item_text(i) == weapon.beam_style_id:
+				_beam_style_selector.selected = i
+				break
+	else:
+		_beam_style_selector.selected = 0
+	_beam_duration_slider.value = weapon.beam_duration
+	_beam_transition_slider.value = weapon.beam_transition_time
+	_beam_dps_slider.value = weapon.beam_dps
+	_beam_passthrough_toggle.button_pressed = weapon.beam_passthrough
+	_update_beam_visibility()
 
 	_update_preview()
 	_populating = false

@@ -3,7 +3,6 @@ extends MarginContainer
 ## Styles are saved to res://data/projectile_styles/ and referenced by weapons.
 ## Effect profile (muzzle/trail/impact) is configured here per style.
 
-const ARCHETYPES: Array[String] = ["bullet", "beam", "pulse_wave"]
 const FILL_SHADERS: Array[String] = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke", "nebula_dual", "nebula_voronoi", "nebula_swirl", "nebula_wispy", "nebula_electric"]
 
 const COMMON_PARAM_DISPLAY_NAMES: Dictionary = {
@@ -42,19 +41,6 @@ const SHADER_PARAM_DEFS: Dictionary = {
 	"nebula_electric": {"ridge_sharpness": [0.5, 4.0, 2.0, 0.1], "density": [0.5, 4.0, 2.0, 0.1]},
 }
 
-const BEAM_PARAM_DEFS: Dictionary = {
-	"max_length": [100.0, 800.0, 400.0, 10.0],
-	"beam_duration": [0.1, 2.0, 0.3, 0.05],
-	"width": [4.0, 64.0, 16.0, 2.0],
-}
-
-const PULSE_PARAM_DEFS: Dictionary = {
-	"expansion_rate": [50.0, 600.0, 200.0, 10.0],
-	"max_radius": [50.0, 500.0, 300.0, 10.0],
-	"lifetime": [0.2, 3.0, 1.0, 0.1],
-	"ring_width": [2.0, 24.0, 8.0, 1.0],
-}
-
 # UI references
 var _load_button: OptionButton
 var _save_button: Button
@@ -62,7 +48,6 @@ var _delete_button: Button
 var _new_button: Button
 var _status_label: Label
 var _name_input: LineEdit
-var _archetype_button: OptionButton
 var _shader_button: OptionButton
 var _scale_x_slider: HSlider
 var _scale_x_label: Label
@@ -78,8 +63,6 @@ var _shader_params_container: VBoxContainer
 var _shader_param_sliders: Dictionary = {}
 var _common_params_container: VBoxContainer
 var _common_param_sliders: Dictionary = {}
-var _archetype_params_container: VBoxContainer
-var _archetype_param_sliders: Dictionary = {}
 var _mask_grid: GridContainer
 var _selected_mask: String = ""
 var _mask_thumbnails: Dictionary = {}  # filename -> TextureRect
@@ -240,17 +223,6 @@ func _build_controls(parent: VBoxContainer) -> void:
 
 	_add_separator(parent)
 
-	# Archetype
-	_add_section_header(parent, "ARCHETYPE")
-	_archetype_button = OptionButton.new()
-	_archetype_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for a in ARCHETYPES:
-		_archetype_button.add_item(a)
-	_archetype_button.item_selected.connect(_on_archetype_changed)
-	parent.add_child(_archetype_button)
-
-	_add_separator(parent)
-
 	# Mask Browser
 	_add_section_header(parent, "MASK")
 	var mask_controls := HBoxContainer.new()
@@ -385,11 +357,6 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_scale_y_slider = sy_row[0]
 	_scale_y_label = sy_row[1]
 
-	# Archetype params container (kept for data but not shown in UI)
-	_archetype_params_container = VBoxContainer.new()
-	_archetype_params_container.visible = false
-	parent.add_child(_archetype_params_container)
-
 	_add_separator(parent)
 
 	# Effect sections (muzzle / trail / impact)
@@ -431,31 +398,6 @@ func _rebuild_shader_params(shader_name: String) -> void:
 		var row: Array = _add_slider_row(_shader_params_container, param_name + ":",
 			float(bounds[0]), float(bounds[1]), float(bounds[2]), float(bounds[3]))
 		_shader_param_sliders[param_name] = row[0]
-
-
-func _rebuild_archetype_params(archetype: String) -> void:
-	for child in _archetype_params_container.get_children():
-		child.queue_free()
-	_archetype_param_sliders.clear()
-
-	var defs: Dictionary = {}
-	match archetype:
-		"beam":
-			defs = BEAM_PARAM_DEFS
-		"pulse_wave":
-			defs = PULSE_PARAM_DEFS
-		"bullet":
-			var lbl := Label.new()
-			lbl.text = "  (no archetype-specific parameters)"
-			lbl.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
-			_archetype_params_container.add_child(lbl)
-			return
-
-	for param_name in defs:
-		var bounds: Array = defs[param_name]
-		var row: Array = _add_slider_row(_archetype_params_container, param_name + ":",
-			float(bounds[0]), float(bounds[1]), float(bounds[2]), float(bounds[3]))
-		_archetype_param_sliders[param_name] = row[0]
 
 
 # ── Effect Slot Sections ───────────────────────────────────
@@ -739,12 +681,6 @@ func _on_import_mask() -> void:
 
 # ── Event Handlers ─────────────────────────────────────────
 
-func _on_archetype_changed(_idx: int) -> void:
-	var archetype: String = _archetype_button.get_item_text(_archetype_button.selected)
-	_rebuild_archetype_params(archetype)
-	_update_preview()
-
-
 func _on_shader_changed(_idx: int) -> void:
 	var shader_name: String = _shader_button.get_item_text(_shader_button.selected)
 	_rebuild_shader_params(shader_name)
@@ -765,11 +701,6 @@ func _collect_style_data() -> Dictionary:
 		var slider: HSlider = _shader_param_sliders[param_name]
 		shader_params[param_name] = slider.value
 
-	var archetype_params: Dictionary = {}
-	for param_name in _archetype_param_sliders:
-		var slider: HSlider = _archetype_param_sliders[param_name]
-		archetype_params[param_name] = slider.value
-
 	var mask_path: String = ""
 	if _mask_mode == "import" and _selected_mask != "":
 		mask_path = ProjectileStyleManager.MASKS_DIR + _selected_mask
@@ -785,13 +716,12 @@ func _collect_style_data() -> Dictionary:
 	return {
 		"id": _generate_id(_name_input.text),
 		"display_name": _name_input.text,
-		"archetype": _archetype_button.get_item_text(_archetype_button.selected),
+		"archetype": "bullet",
 		"mask_path": mask_path,
 		"fill_shader": _shader_button.get_item_text(_shader_button.selected),
 		"shader_params": shader_params,
 		"glow_intensity": 1.5,
 		"base_scale": [_scale_x_slider.value, _scale_y_slider.value],
-		"archetype_params": archetype_params,
 		"color": [_color_picker.color.r, _color_picker.color.g, _color_picker.color.b, _color_picker.color.a],
 		"secondary_color": [sec_color.r, sec_color.g, sec_color.b, sec_color.a],
 		"procedural_mask_shape": proc_shape,
@@ -857,7 +787,6 @@ func _on_delete() -> void:
 func _on_new() -> void:
 	_current_id = ""
 	_name_input.text = ""
-	_archetype_button.selected = 0
 	_shader_button.selected = 0
 	_scale_x_slider.value = 24.0
 	_scale_y_slider.value = 32.0
@@ -875,7 +804,6 @@ func _on_new() -> void:
 	_update_mask_highlights()
 	_rebuild_common_params()
 	_rebuild_shader_params("energy")
-	_rebuild_archetype_params("bullet")
 	_reset_effect_slots()
 	_update_preview()
 	_status_label.text = "New style — ready to edit."
@@ -892,10 +820,6 @@ func _refresh_load_list() -> void:
 func _populate_from_style(style: ProjectileStyle) -> void:
 	_current_id = style.id
 	_name_input.text = style.display_name
-
-	# Archetype
-	var arch_idx: int = ARCHETYPES.find(style.archetype)
-	_archetype_button.selected = arch_idx if arch_idx >= 0 else 0
 
 	# Fill shader
 	var shader_idx: int = FILL_SHADERS.find(style.fill_shader)
@@ -944,13 +868,6 @@ func _populate_from_style(style: ProjectileStyle) -> void:
 		_mask_grid.visible = false
 		_selected_mask = ""
 	_update_mask_highlights()
-
-	# Archetype params
-	_rebuild_archetype_params(style.archetype)
-	for param_name in style.archetype_params:
-		if param_name in _archetype_param_sliders:
-			var slider: HSlider = _archetype_param_sliders[param_name]
-			slider.value = float(style.archetype_params[param_name])
 
 	# Effect profile
 	if not style.effect_profile.is_empty():

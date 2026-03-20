@@ -20,6 +20,8 @@ var _fire_triggers_sorted: Array = []  # Array of [trigger_value, original_index
 var _prev_loop_pos: float = -1.0
 var _cached_style: ProjectileStyle = null
 var _style_loaded: bool = false
+var _cached_beam_style: BeamStyle = null
+var _beam_style_loaded: bool = false
 var _sweep_time: float = 0.0
 var _alternate_flip: bool = false
 var _enemies_group: String = "enemies"
@@ -74,6 +76,8 @@ func update_from_dict(data: Dictionary) -> void:
 	_prev_loop_pos = -1.0
 	_style_loaded = false
 	_cached_style = null
+	_beam_style_loaded = false
+	_cached_beam_style = null
 
 
 func _rebuild_triggers() -> void:
@@ -260,8 +264,6 @@ func _fire_pattern_at(dir_deg: float, trigger_idx: int) -> void:
 			_spawn_projectile(base_pos, dir.rotated(deg_to_rad(angle_off)), 1.0, trigger_idx)
 	elif fp == "wave":
 		_spawn_projectile(base_pos, dir, 1.0, trigger_idx)
-	elif fp == "beam":
-		_spawn_projectile(base_pos, dir, 3.0, trigger_idx)
 	else:
 		_spawn_projectile(base_pos, dir, 1.0, trigger_idx)
 
@@ -274,16 +276,22 @@ func _get_style() -> ProjectileStyle:
 	return _cached_style
 
 
-func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trigger_idx: int = -1) -> void:
-	var style: ProjectileStyle = _get_style()
+func _get_beam_style() -> BeamStyle:
+	if not _beam_style_loaded:
+		_beam_style_loaded = true
+		if weapon_data.beam_style_id != "":
+			_cached_beam_style = BeamStyleManager.load_by_id(weapon_data.beam_style_id)
+	return _cached_beam_style
 
-	# Branch on archetype
-	if style and style.archetype == "beam":
-		_spawn_beam(pos, style)
+
+func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trigger_idx: int = -1) -> void:
+	# Beam dispatch via beam_style_id
+	if weapon_data.beam_style_id != "":
+		var bstyle: BeamStyle = _get_beam_style()
+		_spawn_beam_v2(pos, bstyle)
 		return
-	elif style and style.archetype == "pulse_wave":
-		_spawn_pulse_wave(pos, style)
-		return
+
+	var style: ProjectileStyle = _get_style()
 
 	# Standard bullet (with or without style)
 	var proj := Projectile.new()
@@ -305,33 +313,20 @@ func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trig
 	_projectiles_container.add_child(proj)
 
 
-func _spawn_beam(pos: Vector2, style: ProjectileStyle) -> void:
+func _spawn_beam_v2(pos: Vector2, bstyle: BeamStyle) -> void:
 	var beam := BeamProjectile.new()
 	beam.position = pos
-	beam.weapon_color = style.color
-	beam.damage_per_tick = float(weapon_data.damage)
-	beam.projectile_style = style
-	var ap: Dictionary = style.archetype_params
-	beam.beam_duration = float(ap.get("beam_duration", 0.3))
-	beam.max_length = float(ap.get("max_length", 400.0))
-	beam.beam_width = float(ap.get("width", 16.0))
+	beam.weapon_color = bstyle.color if bstyle else Color.CYAN
+	beam.damage_per_tick = weapon_data.beam_dps
+	beam.beam_duration = weapon_data.beam_duration
+	beam.beam_transition_time = weapon_data.beam_transition_time
+	beam.appearance_mode = bstyle.appearance_mode if bstyle else "flow_in"
+	beam.max_length = bstyle.max_length if bstyle else 400.0
+	beam.beam_width = bstyle.beam_width if bstyle else 16.0
+	beam.beam_style = bstyle
 	beam.skips_shields = weapon_data.skips_shields
+	beam.passthrough = weapon_data.beam_passthrough
 	_projectiles_container.add_child(beam)
-
-
-func _spawn_pulse_wave(pos: Vector2, style: ProjectileStyle) -> void:
-	var pulse := PulseWaveProjectile.new()
-	pulse.position = pos
-	pulse.weapon_color = style.color
-	pulse.damage = weapon_data.damage
-	pulse.projectile_style = style
-	var ap: Dictionary = style.archetype_params
-	pulse.expansion_rate = float(ap.get("expansion_rate", 200.0))
-	pulse.max_radius = float(ap.get("max_radius", 300.0))
-	pulse.lifetime = float(ap.get("lifetime", 1.0))
-	pulse.ring_width = float(ap.get("ring_width", 8.0))
-	pulse.skips_shields = weapon_data.skips_shields
-	_projectiles_container.add_child(pulse)
 
 
 func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:

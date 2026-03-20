@@ -1,8 +1,9 @@
-[gd_scene load_steps=9 format=3 uid="uid://dev_studio"]
+[gd_scene load_steps=10 format=3 uid="uid://dev_studio"]
 
 [ext_resource type="Script" path="res://scripts/ui/dev_studio.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ui/weapons_tab.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/ui/projectile_animator_tab.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/ui/beams_tab.gd" id="4b"]
 [ext_resource type="Script" path="res://scripts/ui/power_core_tab.gd" id="5"]
 [ext_resource type="Script" path="res://scripts/ui/field_emitters_tab.gd" id="6"]
 [ext_resource type="Script" path="res://scripts/ui/orbital_generators_tab.gd" id="7"]
@@ -57,6 +58,10 @@ script = ExtResource("3")
 [node name="Projectiles" type="MarginContainer" parent="VBoxContainer/TabContainer"]
 layout_mode = 2
 script = ExtResource("4")
+
+[node name="Beams" type="MarginContainer" parent="VBoxContainer/TabContainer"]
+layout_mode = 2
+script = ExtResource("4b")
 
 [node name="Power Cores" type="MarginContainer" parent="VBoxContainer/TabContainer"]
 layout_mode = 2

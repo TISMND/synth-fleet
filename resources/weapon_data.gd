@@ -26,6 +26,11 @@ extends Resource
 @export var splash_enabled: bool = false
 @export var splash_radius: float = 0.0  # splash damage radius in pixels
 @export var skips_shields: bool = false  # bypasses shields, damages hull directly
+@export var beam_style_id: String = ""        # if non-empty → beam weapon
+@export var beam_duration: float = 0.3        # seconds beam fires per trigger
+@export var beam_transition_time: float = 0.1 # seconds for appear/disappear
+@export var beam_dps: float = 50.0            # sustained damage per second
+@export var beam_passthrough: bool = true      # if false, beam stops at first enemy
 
 
 static func from_dict(data: Dictionary) -> WeaponData:
@@ -71,6 +76,11 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.splash_enabled = bool(data.get("splash_enabled", false))
 	w.splash_radius = float(data.get("splash_radius", 0.0))
 	w.skips_shields = bool(data.get("skips_shields", false))
+	w.beam_style_id = str(data.get("beam_style_id", ""))
+	w.beam_duration = float(data.get("beam_duration", 0.3))
+	w.beam_transition_time = float(data.get("beam_transition_time", 0.1))
+	w.beam_dps = float(data.get("beam_dps", 50.0))
+	w.beam_passthrough = bool(data.get("beam_passthrough", true))
 	return w
 
 
@@ -125,4 +135,9 @@ func to_dict() -> Dictionary:
 		"splash_enabled": splash_enabled,
 		"splash_radius": splash_radius,
 		"skips_shields": skips_shields,
+		"beam_style_id": beam_style_id,
+		"beam_duration": beam_duration,
+		"beam_transition_time": beam_transition_time,
+		"beam_dps": beam_dps,
+		"beam_passthrough": beam_passthrough,
 	}
