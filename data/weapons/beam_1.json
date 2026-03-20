@@ -1,7 +1,8 @@
 {
 	"aim_mode": "track",
 	"bar_effects": {
-		"electric": -1.0
+		"electric": -1.5,
+		"thermal": 0.5
 	},
 	"beam_dps": 20.0,
 	"beam_duration": 1.6,

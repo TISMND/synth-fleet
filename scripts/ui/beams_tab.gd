@@ -541,24 +541,61 @@ func _on_shader_changed(_idx: int) -> void:
 func _spawn_preview_beam() -> void:
 	if not _ui_ready or not _preview_beam_container:
 		return
-	# Clear old beams
+	# Clear old beams and effects
 	for child in _preview_beam_container.get_children():
 		child.queue_free()
 	# Build a BeamStyle from current settings
 	var bstyle: BeamStyle = _collect_beam_style()
 	var beam := BeamProjectile.new()
-	beam.position = Vector2(200, 460)
+	var fire_pos: Vector2 = Vector2(200, 460)
+	beam.position = fire_pos
 	beam.weapon_color = bstyle.color
 	beam.damage_per_tick = 0.0  # preview only
 	beam.beam_duration = 1.5
 	beam.beam_transition_time = 0.3
 	beam.appearance_mode = bstyle.appearance_mode
-	beam.max_length = bstyle.max_length
+	beam.max_length = minf(bstyle.max_length, 420.0)  # cap for preview viewport
 	beam.beam_width = bstyle.beam_width
 	beam.beam_style = bstyle
 	beam.passthrough = true
 	beam.preview_mode = true
 	_preview_beam_container.add_child(beam)
+
+	# Spawn muzzle effect at fire point
+	_spawn_preview_effects(bstyle, fire_pos)
+
+
+func _spawn_preview_effects(bstyle: BeamStyle, fire_pos: Vector2) -> void:
+	var profile: Dictionary = bstyle.effect_profile
+	if profile.is_empty() or (profile.get("defaults", {}) as Dictionary).is_empty():
+		return
+	var resolved: Dictionary = EffectLayerRenderer.resolve_layers(profile, -1)
+	var color: Color = bstyle.color
+
+	# Muzzle at fire point
+	var muzzle_layers: Array = resolved.get("muzzle", []) as Array
+	for layer in muzzle_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var mtype: String = str(layer_dict.get("type", "none"))
+		if mtype == "none":
+			continue
+		var layer_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, color)
+		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, layer_color)
+		emitter.position = fire_pos
+		_preview_beam_container.add_child(emitter)
+
+	# Impact at beam tip (top of beam)
+	var impact_layers: Array = resolved.get("impact", []) as Array
+	var tip_pos: Vector2 = Vector2(fire_pos.x, fire_pos.y - minf(bstyle.max_length, 420.0))
+	for layer in impact_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var itype: String = str(layer_dict.get("type", "none"))
+		if itype == "none":
+			continue
+		var layer_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, color)
+		var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer_dict, layer_color)
+		emitter.position = tip_pos
+		_preview_beam_container.add_child(emitter)
 
 
 func _collect_beam_style() -> BeamStyle:

@@ -1552,7 +1552,6 @@ func _update_beam_sustain(delta: float) -> void:
 
 	# Continuous DPS to enemy
 	if _enemy_section.visible and _enemy_hull > 0.0 and not _enemy_ttk_done:
-		var hits: float = _hits_per_trigger_slider.value
 		_beam_damage_accumulator += _beam_dps_slider.value * hits * delta
 		if _beam_damage_accumulator >= 1.0:
 			var tick_dmg: float = floorf(_beam_damage_accumulator)
