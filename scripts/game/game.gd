@@ -91,7 +91,7 @@ func _ready() -> void:
 	_wave_manager.name = "WaveManager"
 	add_child(_wave_manager)
 	_wave_manager.all_waves_cleared.connect(_on_all_waves_cleared)
-	_wave_manager.presence_pre_trigger.connect(register_enemy_presence)
+	_wave_manager.presence_pre_trigger.connect(_on_presence_pre_trigger)
 
 	# HUD
 	_hud = CanvasLayer.new()
@@ -173,6 +173,25 @@ func _register_presence_loops() -> void:
 			_presence_counts[sid] = 0
 			if not LoopMixer.has_loop(loop_id):
 				LoopMixer.add_loop(loop_id, ship.presence_loop_path, "Master", 0.0, true)
+
+
+func _on_presence_pre_trigger(sid: String, loop_path: String) -> void:
+	## Pre-fade: unmute the loop early without incrementing the ref count.
+	## The actual ref count is managed by register/unregister when enemies spawn/die.
+	if sid == "" or loop_path == "":
+		return
+	var loop_id: String = "presence_" + sid
+	# Lazily register if not pre-registered
+	if not _presence_loops.has(sid):
+		_presence_loops[sid] = loop_path
+		_presence_counts[sid] = 0
+		if not LoopMixer.has_loop(loop_id):
+			LoopMixer.add_loop(loop_id, loop_path, "Master", 0.0, true)
+			if LoopMixer.is_playing():
+				LoopMixer.start_all()
+	# Only unmute if no enemies of this type are alive yet
+	if int(_presence_counts.get(sid, 0)) == 0:
+		LoopMixer.unmute(loop_id, 2000)
 
 
 func register_enemy_presence(sid: String, loop_path: String) -> void:

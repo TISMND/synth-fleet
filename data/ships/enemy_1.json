@@ -11,7 +11,6 @@
 	"hardpoints": [],
 	"id": "enemy_1",
 	"lines": [],
-	"presence_loop_path": "res://loop_zips/sorted/strings/Thinking About Reaction - 120 BPM - 7 - Strings - jc_sc_85_quartet_stack_heroic_full_F#maj.wav",
 	"projectile_speed": 300.0,
 	"render_mode": "neon",
 	"stats": {
