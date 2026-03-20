@@ -192,7 +192,6 @@ func _build_left_panel() -> Control:
 	viewport.size = Vector2i(400, 400)
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	viewport.transparent_bg = false
-	viewport.use_hdr_2d = true
 	viewport_container.add_child(viewport)
 
 	VFXFactory.add_bloom_to_viewport(viewport)

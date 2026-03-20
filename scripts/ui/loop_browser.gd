@@ -3,10 +3,17 @@ extends VBoxContainer
 ## Reusable loop browser — scans loop_zips/sorted/ by instrument folder,
 ## prev/next navigation with autoplay, category filtering.
 ## Supports usage badges showing where each loop is already assigned.
+## Loop scan is cached statically — only the first instance pays the cost.
 
 signal loop_selected(path: String, category: String)
 
 const SCAN_ROOT := "res://loop_zips/sorted/"
+
+# Static cache — shared across all LoopBrowser instances
+static var _cached_categories: Array[String] = []
+static var _cached_loops_by_category: Dictionary = {}
+static var _cached_all_loops: Array[Dictionary] = []
+static var _cache_valid: bool = false
 
 var _categories: Array[String] = []
 var _loops_by_category: Dictionary = {}  # category -> Array[Dictionary]
@@ -21,10 +28,11 @@ var _song_label: Label
 var _file_label: Label
 var _count_label: Label
 var _usage_label: Label
-var _hide_used_button: CheckButton
+var _hide_used_button: CheckBox
 
 var _audition_id: String = "loop_browser_audition"
 var _is_playing: bool = false
+var _suppress_autoplay: bool = true  # suppress playback during initial build
 
 # Usage tracking — set externally via set_usage_data() or auto-scanned
 var _usage_data: Dictionary = {}  # path -> Array[String]
@@ -33,7 +41,9 @@ var _hide_used: bool = false
 
 func _ready() -> void:
 	_scan_loops()
+	_suppress_autoplay = true
 	_build_ui()
+	_suppress_autoplay = false
 	_apply_theme()
 	ThemeManager.theme_changed.connect(_apply_theme)
 
@@ -56,6 +66,25 @@ func _build_ui() -> void:
 	_file_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_file_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 	add_child(_file_label)
+
+	# Filter row: category dropdown + hide-used checkbox side by side
+	var filter_row := HBoxContainer.new()
+	filter_row.add_theme_constant_override("separation", 8)
+	add_child(filter_row)
+
+	_category_button = OptionButton.new()
+	_category_button.custom_minimum_size.x = 140
+	_category_button.add_item("ALL")
+	for cat in _categories:
+		_category_button.add_item(cat.to_upper())
+	_category_button.item_selected.connect(_on_category_changed)
+	filter_row.add_child(_category_button)
+
+	_hide_used_button = CheckBox.new()
+	_hide_used_button.text = "HIDE USED"
+	_hide_used_button.button_pressed = false
+	_hide_used_button.toggled.connect(_on_hide_used_toggled)
+	filter_row.add_child(_hide_used_button)
 
 	# Usage badges
 	_usage_label = Label.new()
@@ -88,35 +117,18 @@ func _build_ui() -> void:
 	_next_button.pressed.connect(_on_next)
 	nav_row.add_child(_next_button)
 
-	# Category row
-	var cat_row := HBoxContainer.new()
-	add_child(cat_row)
-
-	var cat_label := Label.new()
-	cat_label.text = "Category:"
-	cat_label.custom_minimum_size.x = 80
-	cat_row.add_child(cat_label)
-
-	_category_button = OptionButton.new()
-	_category_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_category_button.add_item("ALL")
-	for cat in _categories:
-		_category_button.add_item(cat.to_upper())
-	_category_button.item_selected.connect(_on_category_changed)
-	cat_row.add_child(_category_button)
-
-	# Hide-used toggle
-	_hide_used_button = CheckButton.new()
-	_hide_used_button.text = "HIDE USED"
-	_hide_used_button.button_pressed = false
-	_hide_used_button.toggled.connect(_on_hide_used_toggled)
-	add_child(_hide_used_button)
-
 	# Set initial list
 	_on_category_changed(0)
 
 
 func _scan_loops() -> void:
+	# Use static cache — only the first LoopBrowser instance pays the scan cost
+	if _cache_valid:
+		_categories = _cached_categories
+		_loops_by_category = _cached_loops_by_category
+		_all_loops = _cached_all_loops
+		return
+
 	var dir := DirAccess.open(SCAN_ROOT)
 	if not dir:
 		return
@@ -136,6 +148,12 @@ func _scan_loops() -> void:
 	_all_loops.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return str(a["song_name"]) < str(b["song_name"])
 	)
+
+	# Cache for other instances
+	_cached_categories = _categories
+	_cached_loops_by_category = _loops_by_category
+	_cached_all_loops = _all_loops
+	_cache_valid = true
 
 
 func _scan_folder(path: String, category: String, results: Array[Dictionary]) -> void:
@@ -243,8 +261,9 @@ func _select_current() -> void:
 	# Update usage badge
 	_update_usage_display(path)
 
-	# Autoplay
-	_start_playback(path)
+	# Autoplay (suppressed during initial build)
+	if not _suppress_autoplay:
+		_start_playback(path)
 
 	loop_selected.emit(path, cat)
 

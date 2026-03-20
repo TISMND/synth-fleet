@@ -126,7 +126,8 @@ func _process(delta: float) -> void:
 		var trail_pts: Array = proj["trail_points"]
 		var trail_pos: Vector2 = proj["pos"]
 		trail_pts.append(trail_pos)
-		if trail_pts.size() > 20:
+		var ribbon_max: int = int(proj.get("ribbon_max_points", 20))
+		if trail_pts.size() > ribbon_max:
 			trail_pts.pop_front()
 
 		var pos: Vector2 = proj["pos"]
@@ -218,6 +219,9 @@ func _fire_projectiles() -> void:
 	for i in spawn_points.size():
 		var sp: Vector2 = spawn_points[i]
 		var dir: Vector2 = directions[i]
+		var ribbon_max: int = EffectLayerRenderer.get_ribbon_max_points(
+			(_resolved_layers.get("trail", []) as Array)
+		)
 		var proj: Dictionary = {
 			"id": _next_id,
 			"pos": sp,
@@ -227,6 +231,7 @@ func _fire_projectiles() -> void:
 			"trail_points": [],
 			"trail_particles": [],
 			"resolved_layers": _resolved_layers,
+			"ribbon_max_points": ribbon_max,
 		}
 		_projectiles.append(proj)
 
@@ -328,7 +333,7 @@ func _draw_projectile(proj: Dictionary) -> void:
 	var trail_layers: Array = proj_resolved.get("trail", []) as Array
 	var trail_pts: Array = proj["trail_points"]
 	if trail_pts.size() >= 2:
-		EffectLayerRenderer.draw_ribbon_trails(self, trail_layers, trail_pts, _weapon_color, Vector2.ZERO)
+		EffectLayerRenderer.draw_ribbon_trails(self, trail_layers, trail_pts, _weapon_color, Vector2.ZERO, age)
 
 	# Draw shape stack
 	var shape_layers: Array = proj_resolved.get("shape", []) as Array

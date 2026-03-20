@@ -10,11 +10,17 @@ var weapon_color: Color = Color.CYAN
 var effect_profile: Dictionary = {}
 var trigger_index: int = -1
 var projectile_style: ProjectileStyle = null
+var pierce_count: int = 0  # 0 = die on hit, N = pass through N enemies, -1 = infinite
+var splash_enabled: bool = false
+var splash_radius: float = 0.0
 
 var _age: float = 0.0
 var _base_x: float = 0.0
 var _trail_points: Array = []
 var _trail_particles: Array = []
+var _ribbon_max_points: int = 20
+var _pierced_enemies: Array = []  # enemies already hit (for pierce)
+var _pierce_remaining: int = 0
 
 # Resolved once at spawn — layer arrays per slot
 var _resolved_layers: Dictionary = {}
@@ -38,8 +44,16 @@ func _ready() -> void:
 	add_child(shape)
 	area_entered.connect(_on_area_entered)
 	_base_x = position.x
-	# Resolve layers once at spawn
-	_resolved_layers = EffectLayerRenderer.resolve_layers(effect_profile, trigger_index)
+	_pierce_remaining = pierce_count
+	# Resolve layers once at spawn — fall back to style's effect_profile if weapon has none
+	var profile: Dictionary = effect_profile
+	var defaults: Dictionary = profile.get("defaults", {}) as Dictionary
+	if defaults.is_empty() and projectile_style and not projectile_style.effect_profile.is_empty():
+		profile = projectile_style.effect_profile
+	_resolved_layers = EffectLayerRenderer.resolve_layers(profile, trigger_index)
+	_ribbon_max_points = EffectLayerRenderer.get_ribbon_max_points(
+		_resolved_layers.get("trail", []) as Array
+	)
 
 	# Setup styled sprite (ProjectileStyle takes priority over shape layers)
 	if projectile_style:
@@ -104,7 +118,7 @@ func _process(delta: float) -> void:
 
 	# --- Trail points (for ribbon trails) ---
 	_trail_points.append(global_position)
-	if _trail_points.size() > 20:
+	if _trail_points.size() > _ribbon_max_points:
 		_trail_points.pop_front()
 
 	# --- Off-screen check ---
@@ -119,7 +133,7 @@ func _draw() -> void:
 	# --- Draw ribbon trails ---
 	EffectLayerRenderer.draw_ribbon_trails(
 		self, _resolved_layers.get("trail", []) as Array,
-		_trail_points, weapon_color, global_position
+		_trail_points, weapon_color, global_position, _age
 	)
 
 	# --- Draw shape stack (skip if shader sprite handles it) ---
@@ -191,6 +205,32 @@ func _spawn_impact_effect() -> void:
 
 
 func _on_area_entered(area: Area2D) -> void:
+	# Skip enemies already hit by this projectile (pierce)
+	if _pierced_enemies.has(area):
+		return
+
 	if area.has_method("take_damage"):
 		area.take_damage(damage)
+	_pierced_enemies.append(area)
+
+	# Splash damage — hit all enemies within radius (except the direct target)
+	if splash_enabled and splash_radius > 0.0:
+		var enemies: Array[Node] = get_tree().get_nodes_in_group("enemies")
+		for node in enemies:
+			if node == area or not node is Node2D:
+				continue
+			if _pierced_enemies.has(node):
+				continue
+			var enemy: Node2D = node as Node2D
+			if global_position.distance_to(enemy.global_position) <= splash_radius:
+				if enemy.has_method("take_damage"):
+					enemy.take_damage(damage)
+
+	# Pierce: keep going or die
+	if pierce_count == -1:
+		# Infinite pierce — never die from hits
+		return
+	if _pierce_remaining > 0:
+		_pierce_remaining -= 1
+		return
 	_die()

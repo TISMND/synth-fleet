@@ -1,6 +1,7 @@
 extends MarginContainer
-## Projectile Animator Tab — design animated projectiles with mask + fill shader.
+## Projectile Animator Tab — design animated projectiles with mask + fill shader + effects.
 ## Styles are saved to res://data/projectile_styles/ and referenced by weapons.
+## Effect profile (muzzle/trail/impact) is configured here per style.
 
 const ARCHETYPES: Array[String] = ["bullet", "beam", "pulse_wave"]
 const FILL_SHADERS: Array[String] = ["energy", "plasma", "beam", "fire", "electric", "void", "ice", "toxic", "hologram", "glitch", "pulse", "smoke", "nebula_dual", "nebula_voronoi", "nebula_swirl", "nebula_wispy", "nebula_electric"]
@@ -89,6 +90,10 @@ var _feather_label: Label
 var _procedural_controls: VBoxContainer
 var _mask_preview: TextureRect
 
+# Effect slot UI — per-slot data
+# _slot_layer_data[slot] = { "type_btn": OptionButton, "param_container": VBoxContainer, "param_sliders": Dictionary, "color_picker": ColorPickerButton }
+var _slot_layer_data: Dictionary = {}
+
 # State
 var _current_id: String = ""
 var _section_headers: Array[Label] = []
@@ -102,6 +107,12 @@ func _ready() -> void:
 	_refresh_mask_grid()
 	call_deferred("_start_preview")
 	ThemeManager.theme_changed.connect(_apply_theme)
+	visibility_changed.connect(_on_visibility_changed)
+
+
+func _on_visibility_changed() -> void:
+	if visible and _ui_ready:
+		_refresh_load_list()
 
 
 func _exit_tree() -> void:
@@ -208,7 +219,6 @@ func _build_left_panel() -> Control:
 	viewport.size = Vector2i(400, 500)
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	viewport.transparent_bg = false
-	viewport.use_hdr_2d = true
 	viewport_container.add_child(viewport)
 
 	VFXFactory.add_bloom_to_viewport(viewport)
@@ -380,6 +390,13 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_archetype_params_container.visible = false
 	parent.add_child(_archetype_params_container)
 
+	_add_separator(parent)
+
+	# Effect sections (muzzle / trail / impact)
+	for slot in EditorConstants.EFFECT_SLOTS:
+		_build_effect_slot_section(parent, slot)
+		_add_separator(parent)
+
 
 # ── Dynamic Param Sections ─────────────────────────────────
 
@@ -439,6 +456,167 @@ func _rebuild_archetype_params(archetype: String) -> void:
 		var row: Array = _add_slider_row(_archetype_params_container, param_name + ":",
 			float(bounds[0]), float(bounds[1]), float(bounds[2]), float(bounds[3]))
 		_archetype_param_sliders[param_name] = row[0]
+
+
+# ── Effect Slot Sections ───────────────────────────────────
+
+func _build_effect_slot_section(parent: Control, slot: String) -> void:
+	var slot_label: String = EditorConstants.EFFECT_SLOT_LABELS.get(slot, slot.to_upper()) as String
+	_add_section_header(parent, slot_label)
+
+	# Type selector row
+	var type_row := HBoxContainer.new()
+	parent.add_child(type_row)
+
+	var type_label := Label.new()
+	type_label.text = "Type:"
+	type_label.custom_minimum_size.x = 130
+	type_row.add_child(type_label)
+
+	var types: Array = EditorConstants.EFFECT_TYPES[slot]
+	var type_btn := OptionButton.new()
+	type_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for t in types:
+		type_btn.add_item(str(t))
+	type_btn.selected = 0
+	type_row.add_child(type_btn)
+
+	# Color picker row
+	var color_row := HBoxContainer.new()
+	parent.add_child(color_row)
+
+	var color_label := Label.new()
+	color_label.text = "Effect Color:"
+	color_label.custom_minimum_size.x = 130
+	color_row.add_child(color_label)
+
+	var color_picker := ColorPickerButton.new()
+	color_picker.color = _color_picker.color if _color_picker else Color.CYAN
+	color_picker.custom_minimum_size = Vector2(80, 30)
+	color_picker.color_changed.connect(func(_c: Color) -> void: _update_preview())
+	color_row.add_child(color_picker)
+
+	# Param container
+	var param_container := VBoxContainer.new()
+	param_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(param_container)
+
+	_slot_layer_data[slot] = {
+		"type_btn": type_btn,
+		"param_container": param_container,
+		"param_sliders": {},
+		"color_picker": color_picker,
+	}
+
+	# Build params for initial type
+	_rebuild_effect_slot_params(slot, type_btn.get_item_text(type_btn.selected))
+
+	# Connect type change
+	type_btn.item_selected.connect(func(idx: int) -> void:
+		var new_type: String = type_btn.get_item_text(idx)
+		_rebuild_effect_slot_params(slot, new_type)
+		_update_preview()
+	)
+
+
+func _rebuild_effect_slot_params(slot: String, type_name: String) -> void:
+	var data: Dictionary = _slot_layer_data[slot]
+	var param_container: VBoxContainer = data["param_container"]
+
+	for child in param_container.get_children():
+		child.queue_free()
+	data["param_sliders"] = {}
+
+	var slot_defs: Dictionary = EditorConstants.EFFECT_PARAM_DEFS.get(slot, {}) as Dictionary
+	var type_params: Dictionary = slot_defs.get(type_name, {}) as Dictionary
+
+	if type_params.is_empty():
+		var no_params := Label.new()
+		no_params.text = "  (no parameters)"
+		no_params.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+		param_container.add_child(no_params)
+		return
+
+	var sliders_dict: Dictionary = {}
+	for param_name in type_params:
+		var bounds: Array = type_params[param_name]
+		var min_val: float = float(bounds[0])
+		var max_val: float = float(bounds[1])
+		var default_val: float = float(bounds[2])
+		var step_val: float = float(bounds[3])
+		var row: Array = _add_slider_row(param_container, param_name + ":", min_val, max_val, default_val, step_val)
+		sliders_dict[param_name] = row[0]
+	data["param_sliders"] = sliders_dict
+
+
+func _collect_effect_profile() -> Dictionary:
+	var defaults: Dictionary = {}
+	for slot in EditorConstants.EFFECT_SLOTS:
+		var data: Dictionary = _slot_layer_data.get(slot, {})
+		if data.is_empty():
+			continue
+		var type_btn: OptionButton = data["type_btn"]
+		var type_name: String = type_btn.get_item_text(type_btn.selected)
+		if type_name == "none":
+			continue
+		var params: Dictionary = {}
+		var sliders: Dictionary = data.get("param_sliders", {}) as Dictionary
+		for param_name in sliders:
+			var slider: HSlider = sliders[param_name]
+			params[param_name] = slider.value
+		var layer_dict: Dictionary = {"type": type_name, "params": params}
+		var color_picker: ColorPickerButton = data["color_picker"]
+		var c: Color = color_picker.color
+		# Store color if it differs from the style's primary color
+		if not c.is_equal_approx(_color_picker.color):
+			layer_dict["color"] = [c.r, c.g, c.b, c.a]
+		defaults[slot] = [layer_dict]
+	if defaults.is_empty():
+		return {}
+	return {"version": 2, "defaults": defaults, "trigger_overrides": {}}
+
+
+func _populate_effects_from_profile(profile: Dictionary) -> void:
+	var defaults: Dictionary = profile.get("defaults", {}) as Dictionary
+	for slot in EditorConstants.EFFECT_SLOTS:
+		var data: Dictionary = _slot_layer_data.get(slot, {})
+		if data.is_empty():
+			continue
+		var type_btn: OptionButton = data["type_btn"]
+		var color_picker: ColorPickerButton = data["color_picker"]
+		var slot_layers: Array = defaults.get(slot, []) as Array
+		if slot_layers.is_empty():
+			type_btn.selected = 0
+			_rebuild_effect_slot_params(slot, "none")
+			color_picker.color = _color_picker.color if _color_picker else Color.CYAN
+		else:
+			var layer_dict: Dictionary = slot_layers[0] as Dictionary
+			var type_name: String = str(layer_dict.get("type", "none"))
+			var types: Array = EditorConstants.EFFECT_TYPES[slot]
+			var type_idx: int = -1
+			for i in types.size():
+				if str(types[i]) == type_name:
+					type_idx = i
+					break
+			type_btn.selected = type_idx if type_idx >= 0 else 0
+			_rebuild_effect_slot_params(slot, type_name)
+			# Set param values
+			var params: Dictionary = layer_dict.get("params", {}) as Dictionary
+			var sliders: Dictionary = data.get("param_sliders", {}) as Dictionary
+			for param_name in params:
+				if param_name in sliders:
+					var slider: HSlider = sliders[param_name]
+					slider.value = float(params[param_name])
+			# Set color
+			if layer_dict.has("color"):
+				var c: Array = layer_dict["color"] as Array
+				if c.size() >= 3:
+					var a: float = float(c[3]) if c.size() >= 4 else 1.0
+					color_picker.color = Color(float(c[0]), float(c[1]), float(c[2]), a)
+				else:
+					color_picker.color = _color_picker.color if _color_picker else Color.CYAN
+			else:
+				color_picker.color = _color_picker.color if _color_picker else Color.CYAN
 
 
 # ── Mask Browser ───────────────────────────────────────────
@@ -605,7 +783,7 @@ func _collect_style_data() -> Dictionary:
 	var sec_color: Color = _secondary_color_picker.color
 
 	return {
-		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
+		"id": _generate_id(_name_input.text),
 		"display_name": _name_input.text,
 		"archetype": _archetype_button.get_item_text(_archetype_button.selected),
 		"mask_path": mask_path,
@@ -618,6 +796,7 @@ func _collect_style_data() -> Dictionary:
 		"secondary_color": [sec_color.r, sec_color.g, sec_color.b, sec_color.a],
 		"procedural_mask_shape": proc_shape,
 		"procedural_mask_feather": proc_feather,
+		"effect_profile": _collect_effect_profile(),
 	}
 
 
@@ -639,10 +818,16 @@ func _on_save() -> void:
 		_status_label.text = "Enter a style name first!"
 		return
 	var data: Dictionary = _collect_style_data()
-	var id: String = str(data["id"])
-	_current_id = id
-	ProjectileStyleManager.save(id, data)
-	_status_label.text = "Saved: " + id
+	var new_id: String = str(data["id"])
+	var old_id: String = _current_id
+	if old_id != "" and old_id != new_id:
+		# Name changed — rename (updates weapon references)
+		ProjectileStyleManager.rename(old_id, new_id, data)
+		_status_label.text = "Renamed: " + old_id + " → " + new_id
+	else:
+		ProjectileStyleManager.save(new_id, data)
+		_status_label.text = "Saved: " + new_id
+	_current_id = new_id
 	_refresh_load_list()
 
 
@@ -691,6 +876,7 @@ func _on_new() -> void:
 	_rebuild_common_params()
 	_rebuild_shader_params("energy")
 	_rebuild_archetype_params("bullet")
+	_reset_effect_slots()
 	_update_preview()
 	_status_label.text = "New style — ready to edit."
 
@@ -766,6 +952,12 @@ func _populate_from_style(style: ProjectileStyle) -> void:
 			var slider: HSlider = _archetype_param_sliders[param_name]
 			slider.value = float(style.archetype_params[param_name])
 
+	# Effect profile
+	if not style.effect_profile.is_empty():
+		_populate_effects_from_profile(style.effect_profile)
+	else:
+		_reset_effect_slots()
+
 	_update_preview()
 
 
@@ -781,6 +973,17 @@ func _generate_id(display_name: String) -> String:
 	if clean == "":
 		clean = "style_" + str(randi() % 10000)
 	return clean
+
+
+func _reset_effect_slots() -> void:
+	for slot in EditorConstants.EFFECT_SLOTS:
+		var data: Dictionary = _slot_layer_data.get(slot, {})
+		if not data.is_empty():
+			var type_btn: OptionButton = data["type_btn"]
+			type_btn.selected = 0
+			_rebuild_effect_slot_params(slot, "none")
+			var color_picker: ColorPickerButton = data["color_picker"]
+			color_picker.color = _color_picker.color if _color_picker else Color.CYAN
 
 
 # ── UI Helpers ─────────────────────────────────────────────

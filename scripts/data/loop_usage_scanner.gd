@@ -2,10 +2,18 @@ class_name LoopUsageScanner
 extends RefCounted
 ## Scans all data sources to find which loops are in use.
 ## Returns a Dictionary mapping loop_path -> Array[String] of usage labels.
-## Call scan() once and pass the result to LoopBrowser instances.
+## Results are cached per frame so multiple LoopBrowser instances don't repeat the work.
+
+static var _cached_usage: Dictionary = {}
+static var _cache_frame: int = -1
 
 
 static func scan() -> Dictionary:
+	# Return cached result if already scanned this frame
+	var frame: int = Engine.get_process_frames()
+	if frame == _cache_frame and not _cached_usage.is_empty():
+		return _cached_usage
+
 	var usage: Dictionary = {}  # path -> Array[String]
 
 	# Weapons
@@ -38,6 +46,8 @@ static func scan() -> Dictionary:
 			var label: String = "Device: " + d.display_name
 			_add_usage(usage, dev_path, label)
 
+	_cached_usage = usage
+	_cache_frame = frame
 	return usage
 
 

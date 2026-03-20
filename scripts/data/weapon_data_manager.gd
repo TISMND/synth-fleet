@@ -55,6 +55,32 @@ static func delete(id: String) -> void:
 		DirAccess.remove_absolute(path)
 
 
+## Rename a weapon: save under new_id, delete old_id, update GameState references.
+static func rename(old_id: String, new_id: String, data: Dictionary) -> void:
+	if old_id == new_id:
+		save(new_id, data)
+		return
+	# Save new file
+	save(new_id, data)
+	# Delete old file
+	delete(old_id)
+	# Update GameState references (owned weapons + slot assignments)
+	_update_game_state_references(old_id, new_id)
+
+
+static func _update_game_state_references(old_id: String, new_id: String) -> void:
+	# Update owned_weapon_ids
+	var idx: int = GameState.owned_weapon_ids.find(old_id)
+	if idx >= 0:
+		GameState.owned_weapon_ids[idx] = new_id
+	# Update slot assignments
+	for slot_key in GameState.slot_config:
+		var slot_data: Dictionary = GameState.slot_config[slot_key] as Dictionary
+		if str(slot_data.get("weapon_id", "")) == old_id:
+			slot_data["weapon_id"] = new_id
+	GameState.save_game()
+
+
 static func list_ids() -> Array[String]:
 	_ensure_dir()
 	var ids: Array[String] = []

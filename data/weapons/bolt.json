@@ -10,56 +10,10 @@
 	"display_name": "Bolt",
 	"effect_profile": {
 		"defaults": {
-			"impact": [
-				{
-					"params": {
-						"lifetime": 0.25,
-						"particle_count": 12.0,
-						"radius": 30.0
-					},
-					"type": "ring_expand"
-				}
-			],
-			"muzzle": [
-				{
-					"params": {
-						"lifetime": 0.4,
-						"particle_count": 6.0,
-						"spread_angle": 360.0
-					},
-					"type": "radial_burst"
-				}
-			]
+
 		},
 		"trigger_overrides": {
-			"0": {
-				"impact": [
-					{
-						"params": {
-							"lifetime": 0.25,
-							"particle_count": 12.0,
-							"radius": 30.0
-						},
-						"type": "ring_expand"
-					}
-				],
-				"muzzle": [
-					{
-						"color": [
-							0.0,
-							0.6484375,
-							0.0101318359375,
-							1.0
-						],
-						"params": {
-							"lifetime": 0.4,
-							"particle_count": 6.0,
-							"spread_angle": 360.0
-						},
-						"type": "radial_burst"
-					}
-				]
-			}
+
 		},
 		"version": 2
 	},
@@ -82,8 +36,11 @@
 	"loop_file_path": "res://loop_zips/sorted/chords/Fortunate Interval - 120 BPM - 6 - Chords - PMNF_Chord_Loop_88_Fmin_Lost_In_Space.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
+	"pierce_count": -1,
 	"projectile_speed": 760.0,
 	"projectile_style_id": "rect_lightning",
+	"splash_enabled": false,
+	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
 	"transition_mode": "fade",

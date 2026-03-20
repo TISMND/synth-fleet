@@ -6,29 +6,10 @@
 	"damage": 10,
 	"description": "",
 	"direction_deg": 0.0,
-	"display_name": "Green Friz",
+	"display_name": "Whiteish Oval",
 	"effect_profile": {
 		"defaults": {
-			"impact": [
-				{
-					"params": {
-						"lifetime": 0.25,
-						"particle_count": 8.0,
-						"radius": 20.0
-					},
-					"type": "burst"
-				}
-			],
-			"muzzle": [
-				{
-					"params": {
-						"lifetime": 0.1,
-						"particle_count": 6.0,
-						"spread_angle": 210.0
-					},
-					"type": "ring_pulse"
-				}
-			]
+
 		},
 		"trigger_overrides": {
 
@@ -98,12 +79,17 @@
 		0.9453125,
 		0.953125
 	],
-	"id": "green_friz",
+	"id": "whiteish_oval",
 	"loop_file_path": "res://loop_zips/sorted/leads/Tired Robot - 120 BPM - 5 - Leads - NW_SFST_128_synth_small_Emin.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
+	"pierce_count": 0,
 	"projectile_speed": 1050.0,
-	"projectile_style_id": "green_bloop",
+	"projectile_style_id": "whiteish_oval",
+	"splash_enabled": false,
+	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
-	"sweep_duration": 1.2
+	"sweep_duration": 1.2,
+	"transition_mode": "instant",
+	"transition_ms": 200
 }

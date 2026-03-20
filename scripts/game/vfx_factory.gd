@@ -158,7 +158,7 @@ static func create_muzzle_emitter(layer: Dictionary, color: Color) -> GPUParticl
 
 	match mtype:
 		"radial_burst":
-			mat.spread = 180.0  # full circle
+			mat.spread = spread / 2.0
 			mat.initial_velocity_min = 80.0
 			mat.initial_velocity_max = 200.0
 		"directional_flash":
@@ -168,19 +168,27 @@ static func create_muzzle_emitter(layer: Dictionary, color: Color) -> GPUParticl
 			mat.initial_velocity_max = 250.0
 		"ring_pulse":
 			mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
-			mat.emission_ring_radius = 8.0
-			mat.emission_ring_inner_radius = 6.0
+			mat.emission_ring_radius = 24.0
+			mat.emission_ring_inner_radius = 20.0
 			mat.emission_ring_height = 0.0
 			mat.emission_ring_axis = Vector3(0, 0, 1)
-			mat.spread = 180.0
-			mat.initial_velocity_min = 100.0
-			mat.initial_velocity_max = 150.0
+			mat.spread = spread / 2.0
+			mat.initial_velocity_min = 40.0
+			mat.initial_velocity_max = 80.0
+			emitter.texture = get_ring()
 		"spiral_burst":
-			mat.spread = 180.0
+			mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+			mat.emission_ring_radius = 4.0
+			mat.emission_ring_inner_radius = 0.0
+			mat.emission_ring_height = 0.0
+			mat.emission_ring_axis = Vector3(0, 0, 1)
+			mat.spread = spread / 2.0
 			mat.initial_velocity_min = 80.0
 			mat.initial_velocity_max = 160.0
 			mat.angular_velocity_min = 200.0
 			mat.angular_velocity_max = 400.0
+			mat.orbit_velocity_min = 0.3
+			mat.orbit_velocity_max = 0.5
 
 	# Color gradient: weapon_color -> transparent
 	var gradient := Gradient.new()
@@ -206,7 +214,9 @@ static func create_muzzle_emitter(layer: Dictionary, color: Color) -> GPUParticl
 	mat.damping_max = 40.0
 
 	emitter.process_material = mat
-	emitter.texture = get_soft_circle()
+	# Only set default texture if not already assigned in match (e.g. ring_pulse uses ring)
+	if emitter.texture == null:
+		emitter.texture = get_soft_circle()
 
 	# Additive blending for glow
 	var canvas_mat := CanvasItemMaterial.new()
@@ -235,21 +245,21 @@ static func create_trail_emitter(layer: Dictionary, color: Color) -> GPUParticle
 
 	match ttype:
 		"particle":
-			emitter.amount = 8
+			emitter.amount = int(params.get("amount", 8))
 			mat.spread = 30.0
 			mat.direction = Vector3(0, 1, 0)  # emit backward (projectile moves up)
 			mat.initial_velocity_min = 10.0
 			mat.initial_velocity_max = 40.0
 			mat.gravity = Vector3(0, 20, 0)
 		"sparkle":
-			emitter.amount = 6
+			emitter.amount = int(params.get("amount", 6))
 			mat.spread = 90.0
 			mat.direction = Vector3(0, 1, 0)
 			mat.initial_velocity_min = 20.0
 			mat.initial_velocity_max = 60.0
 			emitter.texture = get_sparkle()
 		"afterimage":
-			emitter.amount = 4
+			emitter.amount = int(params.get("amount", 4))
 			mat.spread = 0.0
 			mat.initial_velocity_min = 0.0
 			mat.initial_velocity_max = 0.0
@@ -266,15 +276,22 @@ static func create_trail_emitter(layer: Dictionary, color: Color) -> GPUParticle
 	color_ramp.gradient = gradient
 	mat.color_ramp = color_ramp
 
-	# Scale down over lifetime
+	# Scale curve: afterimage holds size then fades, others shrink
 	var scale_curve := CurveTexture.new()
 	var curve := Curve.new()
-	curve.add_point(Vector2(0.0, 0.8))
-	curve.add_point(Vector2(1.0, 0.1))
+	if ttype == "afterimage":
+		curve.add_point(Vector2(0.0, 1.0))
+		curve.add_point(Vector2(0.7, 0.9))
+		curve.add_point(Vector2(1.0, 0.3))
+		mat.scale_min = 0.8
+		mat.scale_max = 1.2
+	else:
+		curve.add_point(Vector2(0.0, 0.8))
+		curve.add_point(Vector2(1.0, 0.1))
+		mat.scale_min = 0.3
+		mat.scale_max = 0.7
 	scale_curve.curve = curve
 	mat.scale_curve = scale_curve
-	mat.scale_min = 0.3
-	mat.scale_max = 0.7
 
 	emitter.process_material = mat
 
@@ -676,18 +693,21 @@ static func _generate_white_rect(w: int, h: int) -> ImageTexture:
 # ── WorldEnvironment Helper ─────────────────────────────────
 
 ## Add a WorldEnvironment with bloom settings to a SubViewport for preview rendering.
+## Enables use_hdr_2d so HDR colors produce bloom, and reads glow params from ThemeManager
+## so preview rendering matches the main game viewport.
 static func add_bloom_to_viewport(viewport: SubViewport) -> void:
+	viewport.use_hdr_2d = true
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CANVAS
 	env.glow_enabled = true
-	env.glow_intensity = 0.8
-	env.glow_bloom = 0.1
+	env.glow_intensity = ThemeManager.get_float("glow_intensity")
+	env.glow_bloom = ThemeManager.get_float("glow_bloom")
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	env.glow_hdr_threshold = 0.8
-	env.set_glow_level(0, true)
-	env.set_glow_level(1, true)
-	env.set_glow_level(2, true)
+	env.glow_hdr_threshold = ThemeManager.get_float("glow_hdr_threshold")
+	for i in 7:
+		var val: float = ThemeManager.get_float("glow_level_%d" % i)
+		env.set_glow_level(i, val > 0.5)
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	world_env.environment = env
 	viewport.add_child(world_env)

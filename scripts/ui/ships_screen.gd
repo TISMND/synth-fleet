@@ -1053,7 +1053,7 @@ func _open_loop_popup() -> void:
 
 	# Loop browser
 	_loop_browser_popup = LoopBrowser.new()
-	_loop_browser_popup.refresh_usage()
+	_loop_browser_popup.call_deferred("refresh_usage")
 	if _working_enemy and _working_enemy.presence_loop_path != "":
 		_loop_browser_popup.call_deferred("select_path", _working_enemy.presence_loop_path)
 	_loop_browser_popup.loop_selected.connect(_on_popup_loop_selected)

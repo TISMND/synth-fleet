@@ -331,7 +331,7 @@ func _build_timing_tab() -> Control:
 	_loop_browser = LoopBrowser.new()
 	_loop_browser.loop_selected.connect(_on_loop_selected)
 	vbox.add_child(_loop_browser)
-	_loop_browser.refresh_usage()
+	_loop_browser.call_deferred("refresh_usage")
 
 	return scroll
 

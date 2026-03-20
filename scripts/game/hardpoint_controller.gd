@@ -293,6 +293,9 @@ func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trig
 	proj.damage = weapon_data.damage
 	proj.effect_profile = weapon_data.effect_profile
 	proj.trigger_index = trigger_idx
+	proj.pierce_count = weapon_data.pierce_count
+	proj.splash_enabled = weapon_data.splash_enabled
+	proj.splash_radius = weapon_data.splash_radius
 	if style:
 		proj.projectile_style = style
 		proj.weapon_color = style.color
@@ -329,13 +332,21 @@ func _spawn_pulse_wave(pos: Vector2, style: ProjectileStyle) -> void:
 
 
 func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:
-	if not weapon_data or weapon_data.effect_profile.is_empty():
+	if not weapon_data:
 		return
-	var resolved: Dictionary = EffectLayerRenderer.resolve_layers(weapon_data.effect_profile, trigger_idx)
+	var style: ProjectileStyle = _get_style()
+	# Use weapon's effect_profile; fall back to projectile style's effect_profile
+	var profile: Dictionary = weapon_data.effect_profile
+	var defaults: Dictionary = profile.get("defaults", {}) as Dictionary
+	if defaults.is_empty() and style and not style.effect_profile.is_empty():
+		profile = style.effect_profile
+	if profile.is_empty() or (profile.get("defaults", {}) as Dictionary).is_empty():
+		return
+	var resolved: Dictionary = EffectLayerRenderer.resolve_layers(profile, trigger_idx)
 	var muzzle_layers: Array = resolved.get("muzzle", []) as Array
 	if muzzle_layers.is_empty():
 		return
-	var color: Color = Color.CYAN
+	var color: Color = style.color if style else Color.CYAN
 
 	# Spawn GPU particle muzzle emitters
 	for layer in muzzle_layers:

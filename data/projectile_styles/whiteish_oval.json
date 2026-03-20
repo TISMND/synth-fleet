@@ -1,0 +1,42 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		78.0,
+		36.0
+	],
+	"color": [
+		0.266436129808426,
+		0.84375,
+		0.25048828125,
+		1.0
+	],
+	"display_name": "whiteish_oval",
+	"effect_profile": {
+
+	},
+	"fill_shader": "pulse",
+	"glow_intensity": 1.5,
+	"id": "whiteish_oval",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 2.5,
+		"brightness": 1.6,
+		"color_mix": 0.44,
+		"edge_softness": 0.62,
+		"fade_rate": 1.5,
+		"ring_count": 5.0,
+		"ring_speed": 2.5,
+		"ring_width": 0.11
+	}
+}

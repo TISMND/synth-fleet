@@ -1,52 +1,13 @@
 extends MarginContainer
-## Weapons Tab — weapon editor with subtabs (Timing / Movement / Effects / Stats),
+## Weapons Tab — weapon editor with subtabs (Timing / Movement / Stats),
 ## live preview, loop browser, time-based waveform triggers, save/load/delete.
-## Effects tab has 3 slots (muzzle/trail/impact) with single layer each + per-layer color.
+## Effects are configured per-style in the Projectile Animator tab.
 
 const FIRE_PATTERNS: Array[String] = ["single", "burst", "dual", "wave", "spread", "beam", "scatter"]
 const AIM_MODES: Array[String] = ["fixed", "sweep", "track"]
 const MIRROR_MODES: Array[String] = ["none", "mirror", "alternate"]
 const SNAP_MODES: Array[Dictionary] = EditorConstants.SNAP_MODES
 const BARS_OPTIONS: Array[Dictionary] = EditorConstants.BARS_OPTIONS
-
-const EFFECT_SLOTS: Array[String] = ["muzzle", "trail", "impact"]
-const EFFECT_SLOT_LABELS: Dictionary = {
-	"muzzle": "MUZZLE FLASH",
-	"trail": "TRAIL",
-	"impact": "IMPACT",
-}
-
-const EFFECT_TYPES: Dictionary = {
-	"muzzle": ["none", "radial_burst", "directional_flash", "ring_pulse", "spiral_burst"],
-	"trail": ["none", "particle", "ribbon", "afterimage", "sparkle", "sine_ribbon"],
-	"impact": ["none", "burst", "ring_expand", "shatter_lines", "nova_flash", "ripple"],
-}
-
-const EFFECT_PARAM_DEFS: Dictionary = {
-	"muzzle": {
-		"none": {},
-		"radial_burst": {"particle_count": [2, 20, 6, 1], "lifetime": [0.1, 1.0, 0.3, 0.05], "spread_angle": [30.0, 360.0, 360.0, 5.0]},
-		"directional_flash": {"particle_count": [2, 12, 4, 1], "lifetime": [0.05, 0.5, 0.2, 0.05], "spread_angle": [10.0, 90.0, 30.0, 5.0]},
-		"ring_pulse": {"particle_count": [4, 24, 8, 1], "lifetime": [0.1, 0.8, 0.3, 0.05], "spread_angle": [180.0, 360.0, 360.0, 10.0]},
-		"spiral_burst": {"particle_count": [4, 20, 8, 1], "lifetime": [0.1, 1.0, 0.4, 0.05], "spread_angle": [180.0, 360.0, 360.0, 10.0]},
-	},
-	"trail": {
-		"none": {},
-		"particle": {"amount": [2, 20, 8, 1], "lifetime": [0.05, 0.8, 0.2, 0.05]},
-		"ribbon": {"width_start": [1.0, 12.0, 4.0, 0.5], "width_end": [0.0, 6.0, 0.0, 0.5], "lifetime": [0.1, 1.0, 0.3, 0.05]},
-		"afterimage": {"amount": [2, 10, 4, 1], "lifetime": [0.05, 0.5, 0.15, 0.05]},
-		"sparkle": {"amount": [2, 16, 6, 1], "lifetime": [0.05, 0.6, 0.25, 0.05]},
-		"sine_ribbon": {"width_start": [1.0, 10.0, 3.0, 0.5], "width_end": [0.0, 6.0, 0.0, 0.5], "lifetime": [0.1, 1.0, 0.3, 0.05], "amplitude": [1.0, 20.0, 5.0, 0.5], "frequency": [1.0, 10.0, 4.0, 0.5]},
-	},
-	"impact": {
-		"none": {},
-		"burst": {"particle_count": [4, 24, 8, 1], "lifetime": [0.1, 1.0, 0.4, 0.05], "radius": [5.0, 60.0, 20.0, 1.0]},
-		"ring_expand": {"particle_count": [6, 30, 12, 1], "lifetime": [0.1, 0.8, 0.3, 0.05], "radius": [10.0, 60.0, 30.0, 1.0]},
-		"shatter_lines": {"particle_count": [3, 16, 6, 1], "lifetime": [0.1, 0.8, 0.3, 0.05], "radius": [5.0, 50.0, 25.0, 1.0]},
-		"nova_flash": {"particle_count": [6, 24, 10, 1], "lifetime": [0.2, 1.0, 0.5, 0.05], "radius": [10.0, 80.0, 40.0, 1.0]},
-		"ripple": {"particle_count": [4, 20, 8, 1], "lifetime": [0.1, 1.0, 0.4, 0.05], "radius": [10.0, 70.0, 35.0, 1.0]},
-	},
-}
 
 # UI references — shared
 var _load_button: OptionButton
@@ -88,17 +49,19 @@ var _direction_section: VBoxContainer
 var _sweep_section: VBoxContainer
 var _mirror_section: VBoxContainer
 
-# Effects subtab — per-slot single layer data
-# _slot_layer_data[slot] = { "type_btn": OptionButton, "param_container": VBoxContainer, "param_sliders": Dictionary, "color_picker": ColorPickerButton }
-var _slot_layer_data: Dictionary = {}
-
-# Per-trigger override state
-var _trigger_override_selector: OptionButton
-var _editing_trigger_index: int = -1  # -1 = editing defaults
-
 # Projectile style selector
 var _style_selector: OptionButton
 var _style_ids: Array[String] = []
+
+# Pierce (Movement subtab)
+var _pierce_slider: HSlider
+var _pierce_label: Label
+
+# Splash (Stats subtab)
+var _splash_toggle: CheckBox
+var _splash_radius_slider: HSlider
+var _splash_radius_label: Label
+var _splash_section: VBoxContainer
 
 # Stats subtab
 var _name_input: LineEdit
@@ -108,15 +71,43 @@ var _damage_label: Label
 const BAR_TYPES: Array[String] = ["shield", "hull", "thermal", "electric"]
 const BAR_TYPE_LABELS: Array[String] = ["SHD", "HUL", "THR", "ELC"]
 const BAR_TYPE_COLOR_KEYS: Array[String] = ["bar_shield", "bar_hull", "bar_thermal", "bar_electric"]
+const BAR_MAX_DEFAULTS: Array[float] = [10.0, 8.0, 6.0, 8.0]
 var _stats_preview_bars: Array[ProgressBar] = []
 var _stats_bar_base_colors: Array[Color] = []
-var _stats_bar_brightness: Array[float] = [0.0, 0.0, 0.0, 0.0]
-var _stats_bar_values: Array[float] = [50.0, 50.0, 50.0, 50.0]
-var _reset_bars_button: Button
+var _stats_bar_values: Array[float] = [10.0, 8.0, 6.0, 8.0]
+var _stats_bar_maxes: Array[float] = [10.0, 8.0, 6.0, 8.0]
 var _stats_bar_names: Array[String] = []
+# Rolling wave state per bar
+var _stats_gain_wave: Array[Dictionary] = []
+var _stats_drain_wave: Array[Dictionary] = []
+const WAVE_SPEED: float = 2.5
+const WAVE_MIN_CHANGE: float = 0.01
+var _reset_bars_button: Button
 var _bar_effect_sliders: Dictionary = {}   # "shield" -> HSlider
 var _bar_effect_labels: Dictionary = {}    # "shield" -> Label
 var _stats_prev_loop_progress: float = -1.0
+# Enemy damage test
+var _enemy_selector: OptionButton
+var _enemy_ids: Array[String] = []
+var _enemy_cache: Dictionary = {}  # id -> ShipData
+var _enemy_shield: float = 0.0
+var _enemy_shield_max: float = 0.0
+var _enemy_hull: float = 0.0
+var _enemy_hull_max: float = 0.0
+var _enemy_shield_regen: float = 0.0
+var _enemy_shield_bar: ProgressBar
+var _enemy_hull_bar: ProgressBar
+var _enemy_section: VBoxContainer
+var _enemy_ttk_label: Label
+var _enemy_ttk_timer: float = 0.0
+var _enemy_ttk_active: bool = false
+var _enemy_ttk_done: bool = false
+var _enemy_reset_button: Button
+var _enemy_shield_seg: int = 0
+var _enemy_hull_seg: int = 0
+var _enemy_shield_gain_wave: Dictionary = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
+var _enemy_shield_drain_wave: Dictionary = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
+var _enemy_hull_drain_wave: Dictionary = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
 
 # Dirty tracking
 var _dirty: bool = false
@@ -127,7 +118,6 @@ var _name_header_label: Label
 var _current_id: String = ""
 var _section_headers: Array[Label] = []
 var _ui_ready: bool = false
-var _effects_form: VBoxContainer
 
 
 func _ready() -> void:
@@ -138,6 +128,7 @@ func _ready() -> void:
 	_waveform_editor.set_snap_mode(16)
 	call_deferred("_start_preview")
 	ThemeManager.theme_changed.connect(_apply_theme)
+	visibility_changed.connect(_on_visibility_changed)
 
 
 func _process(delta: float) -> void:
@@ -219,10 +210,6 @@ func _build_ui() -> void:
 	var movement_tab := _build_movement_tab()
 	movement_tab.name = "Movement"
 	_tab_container.add_child(movement_tab)
-
-	var effects_tab := _build_effects_tab()
-	effects_tab.name = "Effects"
-	_tab_container.add_child(effects_tab)
 
 	var stats_tab := _build_stats_tab()
 	stats_tab.name = "Stats"
@@ -423,7 +410,8 @@ func _build_timing_tab() -> Control:
 	_loop_browser = LoopBrowser.new()
 	_loop_browser.loop_selected.connect(_on_loop_selected)
 	vbox.add_child(_loop_browser)
-	_loop_browser.refresh_usage()
+	# Defer usage scan so it doesn't block UI construction
+	_loop_browser.call_deferred("refresh_usage")
 
 	return scroll
 
@@ -437,6 +425,22 @@ func _build_movement_tab() -> Control:
 	var form := VBoxContainer.new()
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(form)
+
+	# Projectile Style selector (at top of Movement)
+	_add_section_header(form, "PROJECTILE STYLE")
+	var style_row := HBoxContainer.new()
+	form.add_child(style_row)
+	var style_label := Label.new()
+	style_label.text = "Style:"
+	style_label.custom_minimum_size.x = 60
+	style_row.add_child(style_label)
+	_style_selector = OptionButton.new()
+	_style_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_selector.item_selected.connect(_on_style_selected)
+	style_row.add_child(_style_selector)
+	_refresh_style_list()
+
+	_add_separator(form)
 
 	# Fire Pattern
 	_add_section_header(form, "FIRE PATTERN")
@@ -502,55 +506,24 @@ func _build_movement_tab() -> Control:
 		_update_preview()
 	)
 
-	return scroll
+	_add_separator(form)
 
+	# Pierce (passthrough)
+	_add_section_header(form, "PIERCE")
+	var pierce_row := _add_slider_row(form, "Pierce Count:", -1, 20, 0, 1)
+	_pierce_slider = pierce_row[0]
+	_pierce_label = pierce_row[1]
+	_pierce_label.text = "0"
 
-func _build_effects_tab() -> Control:
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-
-	_effects_form = VBoxContainer.new()
-	_effects_form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_effects_form)
-
-	# Projectile Style selector
-	var style_row := HBoxContainer.new()
-	_effects_form.add_child(style_row)
-	var style_label := Label.new()
-	style_label.text = "Projectile Style:"
-	style_row.add_child(style_label)
-	_style_selector = OptionButton.new()
-	_style_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_style_selector.item_selected.connect(_on_style_selected)
-	style_row.add_child(_style_selector)
-	_refresh_style_list()
-
-	_add_separator(_effects_form)
-
-	# Per-trigger override selector
-	var override_row := HBoxContainer.new()
-	_effects_form.add_child(override_row)
-
-	var override_label := Label.new()
-	override_label.text = "Editing:"
-	override_row.add_child(override_label)
-
-	_trigger_override_selector = OptionButton.new()
-	_trigger_override_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_trigger_override_selector.add_item("All Triggers (Defaults)")
-	_trigger_override_selector.item_selected.connect(_on_trigger_override_changed)
-	override_row.add_child(_trigger_override_selector)
-
-	_add_separator(_effects_form)
-
-	# Build slot sections (single layer each)
-	for slot in EFFECT_SLOTS:
-		_build_effect_slot_section(_effects_form, slot)
-		_add_separator(_effects_form)
+	var pierce_hint := Label.new()
+	pierce_hint.text = "0 = normal  |  N = pass through N enemies  |  -1 = infinite"
+	pierce_hint.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	pierce_hint.add_theme_font_size_override("font_size", 11)
+	form.add_child(pierce_hint)
 
 	return scroll
+
+
 
 
 func _build_stats_tab() -> Control:
@@ -563,7 +536,7 @@ func _build_stats_tab() -> Control:
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(form)
 
-	# Bar Effect Preview (LED bars at top)
+	# Bar Effect Preview (LED bars — segment-based like the game)
 	_add_section_header(form, "BAR EFFECT PREVIEW")
 	var specs: Array = ThemeManager.get_status_bar_specs()
 	for i in specs.size():
@@ -582,16 +555,21 @@ func _build_stats_tab() -> Control:
 
 		var bar := ProgressBar.new()
 		bar.custom_minimum_size = Vector2(200, 20)
-		bar.max_value = 100.0
-		bar.value = 50.0
+		var bar_max: float = BAR_MAX_DEFAULTS[i]
+		bar.max_value = bar_max
+		bar.value = bar_max
 		bar.show_percentage = false
 		bar_hbox.add_child(bar)
 		var bar_name: String = str(spec["name"])
 		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, -1))
-		ThemeManager.apply_led_bar(bar, color, 0.5, seg)
+		ThemeManager.apply_led_bar(bar, color, 1.0, seg)
 		_stats_preview_bars.append(bar)
 		_stats_bar_base_colors.append(color)
 		_stats_bar_names.append(bar_name)
+		_stats_bar_values[i] = bar_max
+		_stats_bar_maxes[i] = bar_max
+		_stats_gain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
+		_stats_drain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
 
 	_reset_bars_button = Button.new()
 	_reset_bars_button.text = "RESET BARS"
@@ -650,104 +628,110 @@ func _build_stats_tab() -> Control:
 		_bar_effect_sliders[bar_type] = slider
 		_bar_effect_labels[bar_type] = val_label
 
+	_add_separator(form)
+
+	# Enemy Damage Test
+	_add_section_header(form, "ENEMY DAMAGE TEST")
+	var enemy_row := HBoxContainer.new()
+	form.add_child(enemy_row)
+	var enemy_label := Label.new()
+	enemy_label.text = "Enemy:"
+	enemy_label.custom_minimum_size.x = 60
+	enemy_row.add_child(enemy_label)
+	_enemy_selector = OptionButton.new()
+	_enemy_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_enemy_selector.item_selected.connect(_on_enemy_selected)
+	enemy_row.add_child(_enemy_selector)
+	_refresh_enemy_list()
+
+	_enemy_section = VBoxContainer.new()
+	_enemy_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	form.add_child(_enemy_section)
+
+	# Enemy shield bar
+	var shield_hbox := HBoxContainer.new()
+	shield_hbox.add_theme_constant_override("separation", 6)
+	_enemy_section.add_child(shield_hbox)
+	var shield_lbl := Label.new()
+	shield_lbl.text = "SHIELD"
+	shield_lbl.custom_minimum_size.x = 70
+	shield_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	shield_lbl.add_theme_color_override("font_color", ThemeManager.get_color("bar_shield"))
+	shield_hbox.add_child(shield_lbl)
+	_enemy_shield_bar = ProgressBar.new()
+	_enemy_shield_bar.custom_minimum_size = Vector2(200, 20)
+	_enemy_shield_bar.show_percentage = false
+	shield_hbox.add_child(_enemy_shield_bar)
+
+	# Enemy hull bar
+	var hull_hbox := HBoxContainer.new()
+	hull_hbox.add_theme_constant_override("separation", 6)
+	_enemy_section.add_child(hull_hbox)
+	var hull_lbl := Label.new()
+	hull_lbl.text = "HULL"
+	hull_lbl.custom_minimum_size.x = 70
+	hull_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hull_lbl.add_theme_color_override("font_color", ThemeManager.get_color("bar_hull"))
+	hull_hbox.add_child(hull_lbl)
+	_enemy_hull_bar = ProgressBar.new()
+	_enemy_hull_bar.custom_minimum_size = Vector2(200, 20)
+	_enemy_hull_bar.show_percentage = false
+	hull_hbox.add_child(_enemy_hull_bar)
+
+	# TTK label + reset
+	var ttk_row := HBoxContainer.new()
+	ttk_row.add_theme_constant_override("separation", 8)
+	_enemy_section.add_child(ttk_row)
+	_enemy_ttk_label = Label.new()
+	_enemy_ttk_label.text = "TTK: —"
+	_enemy_ttk_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_enemy_ttk_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	ttk_row.add_child(_enemy_ttk_label)
+	_enemy_reset_button = Button.new()
+	_enemy_reset_button.text = "RESET"
+	_enemy_reset_button.custom_minimum_size.x = 80
+	_enemy_reset_button.pressed.connect(_on_enemy_reset)
+	ThemeManager.apply_button_style(_enemy_reset_button)
+	ttk_row.add_child(_enemy_reset_button)
+
+	_enemy_section.visible = false
+
+	_add_separator(form)
+
+	# Splash Damage
+	_add_section_header(form, "SPLASH DAMAGE")
+	_splash_toggle = CheckBox.new()
+	_splash_toggle.text = "ENABLE SPLASH"
+	_splash_toggle.button_pressed = false
+	_splash_toggle.toggled.connect(_on_splash_toggled)
+	form.add_child(_splash_toggle)
+
+	_splash_section = VBoxContainer.new()
+	_splash_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_splash_section.modulate = Color(1, 1, 1, 0.3)
+	form.add_child(_splash_section)
+
+	var splash_row := _add_slider_row(_splash_section, "Radius:", 10, 200, 40, 5)
+	_splash_radius_slider = splash_row[0]
+	_splash_radius_label = splash_row[1]
+	_splash_radius_slider.editable = false
+
 	return scroll
 
 
-# ── Effect Slot Section (single layer per slot) ─────────────────
-
-func _build_effect_slot_section(parent: Control, slot: String) -> void:
-	var slot_label: String = EFFECT_SLOT_LABELS.get(slot, slot.to_upper())
-	_add_section_header(parent, slot_label)
-
-	# Type selector row
-	var type_row := HBoxContainer.new()
-	parent.add_child(type_row)
-
-	var type_label := Label.new()
-	type_label.text = "Type:"
-	type_label.custom_minimum_size.x = 60
-	type_row.add_child(type_label)
-
-	var types: Array = EFFECT_TYPES[slot]
-	var type_btn := OptionButton.new()
-	type_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for t in types:
-		type_btn.add_item(str(t))
-	type_btn.selected = 0
-	type_row.add_child(type_btn)
-
-	# Color picker row
-	var color_row := HBoxContainer.new()
-	parent.add_child(color_row)
-
-	var color_label := Label.new()
-	color_label.text = "Effect Color:"
-	color_label.custom_minimum_size.x = 100
-	color_row.add_child(color_label)
-
-	var color_picker := ColorPickerButton.new()
-	color_picker.color = Color.WHITE
-	color_picker.custom_minimum_size = Vector2(80, 30)
-	color_picker.color_changed.connect(func(_c: Color) -> void:
-		_mark_dirty()
-		_update_preview()
-	)
-	color_row.add_child(color_picker)
-
-	# Param container
-	var param_container := VBoxContainer.new()
-	param_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	parent.add_child(param_container)
-
-	_slot_layer_data[slot] = {
-		"type_btn": type_btn,
-		"param_container": param_container,
-		"param_sliders": {},
-		"color_picker": color_picker,
-	}
-
-	# Build params for initial type
-	_rebuild_slot_params(slot, type_btn.get_item_text(type_btn.selected))
-
-	# Connect type change
-	type_btn.item_selected.connect(func(idx: int) -> void:
-		var new_type: String = type_btn.get_item_text(idx)
-		_rebuild_slot_params(slot, new_type)
-		_mark_dirty()
-		_update_preview()
-	)
 
 
-func _rebuild_slot_params(slot: String, type_name: String) -> void:
-	var data: Dictionary = _slot_layer_data[slot]
-	var param_container: VBoxContainer = data["param_container"]
+func _on_visibility_changed() -> void:
+	if visible and _ui_ready:
+		_refresh_style_list()
+		_refresh_load_list()
 
-	for child in param_container.get_children():
-		child.queue_free()
-	data["param_sliders"] = {}
 
-	var slot_defs: Dictionary = EFFECT_PARAM_DEFS.get(slot, {})
-	var type_params: Dictionary = slot_defs.get(type_name, {})
-
-	if type_params.is_empty():
-		var no_params := Label.new()
-		no_params.text = "  (no parameters)"
-		no_params.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
-		param_container.add_child(no_params)
-		return
-
-	var sliders_dict: Dictionary = {}
-	for param_name in type_params:
-		var bounds: Array = type_params[param_name]
-		var min_val: float = float(bounds[0])
-		var max_val: float = float(bounds[1])
-		var default_val: float = float(bounds[2])
-		var step_val: float = float(bounds[3])
-
-		var row := _add_slider_row(param_container, param_name + ":", min_val, max_val, default_val, step_val)
-		sliders_dict[param_name] = row[0]
-
-	data["param_sliders"] = sliders_dict
+func _on_splash_toggled(enabled: bool) -> void:
+	_splash_section.modulate = Color(1, 1, 1, 1.0) if enabled else Color(1, 1, 1, 0.3)
+	_splash_radius_slider.editable = enabled
+	_mark_dirty()
+	_update_preview()
 
 
 # ── Aim Mode Visibility ────────────────────────────────────
@@ -781,36 +765,6 @@ func _update_mirror_visibility() -> void:
 		_mirror_section.visible = absf(_direction_slider.value) > 0.01 and _direction_slider.value < 359.99
 	else:
 		_mirror_section.visible = false
-
-
-# ── Per-Trigger Override ────────────────────────────────────
-
-func _on_trigger_override_changed(idx: int) -> void:
-	if idx == 0:
-		_editing_trigger_index = -1
-	else:
-		_editing_trigger_index = idx - 1
-	_rebuild_effects_from_profile(_get_current_profile())
-
-
-func _refresh_trigger_override_selector() -> void:
-	if not _trigger_override_selector:
-		return
-	var prev_selected: int = _trigger_override_selector.selected
-	_trigger_override_selector.clear()
-	_trigger_override_selector.add_item("All Triggers (Defaults)")
-	var triggers: Array = _waveform_editor.get_triggers()
-	for i in triggers.size():
-		_trigger_override_selector.add_item("Trigger " + str(i + 1) + " (%.3f)" % float(triggers[i]))
-	if prev_selected < _trigger_override_selector.item_count:
-		_trigger_override_selector.selected = prev_selected
-	else:
-		_trigger_override_selector.selected = 0
-		_editing_trigger_index = -1
-
-
-func _get_current_profile() -> Dictionary:
-	return _collect_effect_profile()
 
 
 # ── Projectile Style ────────────────────────────────────────
@@ -919,7 +873,7 @@ func _collect_weapon_data() -> Dictionary:
 	var triggers: Array = _waveform_editor.get_triggers()
 
 	return {
-		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
+		"id": _generate_id(_name_input.text),
 		"display_name": _name_input.text,
 		"description": "",
 		"damage": int(_damage_slider.value),
@@ -928,7 +882,7 @@ func _collect_weapon_data() -> Dictionary:
 		"loop_length_bars": loop_bars,
 		"fire_triggers": triggers,
 		"fire_pattern": _pattern_button.get_item_text(_pattern_button.selected),
-		"effect_profile": _collect_effect_profile(),
+		"effect_profile": {"version": 2, "defaults": {}, "trigger_overrides": {}},
 		"direction_deg": _direction_slider.value,
 		"projectile_style_id": _get_selected_style_id(),
 		"aim_mode": AIM_MODES[_aim_mode_button.selected],
@@ -938,60 +892,11 @@ func _collect_weapon_data() -> Dictionary:
 		"bar_effects": _collect_bar_effects(),
 		"transition_mode": "fade" if _transition_mode_button.selected == 1 else "instant",
 		"transition_ms": int(_transition_ms_slider.value),
+		"pierce_count": int(_pierce_slider.value),
+		"splash_enabled": _splash_toggle.button_pressed,
+		"splash_radius": _splash_radius_slider.value if _splash_toggle.button_pressed else 0.0,
 	}
 
-
-func _collect_effect_profile() -> Dictionary:
-	# Collect current UI state — single layer per slot
-	var current_layers: Dictionary = {}
-	for slot in EFFECT_SLOTS:
-		var data: Dictionary = _slot_layer_data.get(slot, {})
-		if data.is_empty():
-			continue
-		var type_btn: OptionButton = data["type_btn"]
-		var type_name: String = type_btn.get_item_text(type_btn.selected)
-		if type_name == "none":
-			continue
-		var params: Dictionary = {}
-		var sliders: Dictionary = data.get("param_sliders", {}) as Dictionary
-		for param_name in sliders:
-			var slider: HSlider = sliders[param_name]
-			params[param_name] = slider.value
-		var layer_dict: Dictionary = {"type": type_name, "params": params}
-		# Add color if not white
-		var color_picker: ColorPickerButton = data["color_picker"]
-		var c: Color = color_picker.color
-		if not c.is_equal_approx(Color.WHITE):
-			layer_dict["color"] = [c.r, c.g, c.b, c.a]
-		current_layers[slot] = [layer_dict]
-
-	# Build v2 profile
-	var profile: Dictionary = {"version": 2, "defaults": {}, "trigger_overrides": {}}
-
-	# Preserve existing data we're not currently editing
-	if _current_profile_cache.has("defaults"):
-		profile["defaults"] = (_current_profile_cache["defaults"] as Dictionary).duplicate(true)
-	if _current_profile_cache.has("trigger_overrides"):
-		profile["trigger_overrides"] = (_current_profile_cache["trigger_overrides"] as Dictionary).duplicate(true)
-
-	if _editing_trigger_index < 0:
-		# Editing defaults
-		profile["defaults"] = current_layers
-	else:
-		# Editing a specific trigger override
-		var key: String = str(_editing_trigger_index)
-		var overrides: Dictionary = profile.get("trigger_overrides", {}) as Dictionary
-		if current_layers.is_empty():
-			overrides.erase(key)
-		else:
-			overrides[key] = current_layers
-		profile["trigger_overrides"] = overrides
-
-	_current_profile_cache = profile.duplicate(true)
-	return profile
-
-# Cache to preserve non-editing-target data
-var _current_profile_cache: Dictionary = {"version": 2, "defaults": {}, "trigger_overrides": {}}
 
 
 func _generate_id(display_name: String) -> String:
@@ -1061,7 +966,6 @@ func _on_transition_ms_changed(val: float) -> void:
 
 
 func _on_triggers_changed(_triggers: Array) -> void:
-	_refresh_trigger_override_selector()
 	_mark_dirty()
 	_update_preview()
 
@@ -1098,10 +1002,16 @@ func _on_save() -> void:
 		return
 
 	var data: Dictionary = _collect_weapon_data()
-	var id: String = str(data["id"])
-	_current_id = id
-	WeaponDataManager.save(id, data)
-	_status_label.text = "Saved: " + id
+	var new_id: String = str(data["id"])
+	var old_id: String = _current_id
+	if old_id != "" and old_id != new_id:
+		# Name changed — rename (updates GameState references)
+		WeaponDataManager.rename(old_id, new_id, data)
+		_status_label.text = "Renamed: " + old_id + " → " + new_id
+	else:
+		WeaponDataManager.save(new_id, data)
+		_status_label.text = "Saved: " + new_id
+	_current_id = new_id
 	_refresh_load_list()
 	_mark_clean()
 
@@ -1147,10 +1057,6 @@ func _on_new() -> void:
 	_waveform_editor.set_stream_from_path("")
 	_waveform_editor.set_triggers([])
 	_bars_button.selected = 0
-	_editing_trigger_index = -1
-	if _trigger_override_selector:
-		_trigger_override_selector.selected = 0
-	_current_profile_cache = {"version": 2, "defaults": {}, "trigger_overrides": {}}
 	_refresh_style_list()
 
 	# Reset bar effect sliders
@@ -1170,15 +1076,11 @@ func _on_new() -> void:
 	_transition_ms_slider.value = 200
 	_transition_ms_label.text = "200ms"
 
-	# Reset all effect slots to "none" with white color
-	for slot in EFFECT_SLOTS:
-		var data: Dictionary = _slot_layer_data.get(slot, {})
-		if not data.is_empty():
-			var type_btn: OptionButton = data["type_btn"]
-			type_btn.selected = 0
-			_rebuild_slot_params(slot, "none")
-			var color_picker: ColorPickerButton = data["color_picker"]
-			color_picker.color = Color.WHITE
+	# Reset pierce / splash
+	_pierce_slider.value = 0
+	_splash_toggle.button_pressed = false
+	_on_splash_toggled(false)
+	_splash_radius_slider.value = 40
 
 	_update_preview()
 	_populating = false
@@ -1242,14 +1144,6 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	else:
 		_style_selector.selected = 0
 
-	# Effect profile (v2 format — WeaponData.from_dict auto-migrates)
-	_current_profile_cache = weapon.effect_profile.duplicate(true)
-	_editing_trigger_index = -1
-	if _trigger_override_selector:
-		_trigger_override_selector.selected = 0
-	_refresh_trigger_override_selector()
-	_rebuild_effects_from_profile(weapon.effect_profile)
-
 	# Bar effects
 	for bar_type in BAR_TYPES:
 		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
@@ -1270,73 +1164,25 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_transition_ms_slider.value = float(weapon.transition_ms)
 	_transition_ms_label.text = str(weapon.transition_ms) + "ms"
 
+	# Pierce / Splash
+	_pierce_slider.value = weapon.pierce_count
+	_splash_toggle.button_pressed = weapon.splash_enabled
+	_on_splash_toggled(weapon.splash_enabled)
+	_splash_radius_slider.value = weapon.splash_radius if weapon.splash_radius > 0.0 else 40.0
+
 	_update_preview()
 	_populating = false
 	_mark_clean()
 
-
-func _rebuild_effects_from_profile(profile: Dictionary) -> void:
-	# Determine which layers to show based on editing target
-	var layers_source: Dictionary = {}
-	if _editing_trigger_index < 0:
-		layers_source = profile.get("defaults", {}) as Dictionary
-	else:
-		var overrides: Dictionary = profile.get("trigger_overrides", {}) as Dictionary
-		var key: String = str(_editing_trigger_index)
-		if overrides.has(key):
-			layers_source = overrides[key] as Dictionary
-		else:
-			layers_source = profile.get("defaults", {}) as Dictionary
-
-	# Populate each slot from profile (single layer per slot)
-	for slot in EFFECT_SLOTS:
-		var data: Dictionary = _slot_layer_data.get(slot, {})
-		if data.is_empty():
-			continue
-		var type_btn: OptionButton = data["type_btn"]
-		var color_picker: ColorPickerButton = data["color_picker"]
-		var slot_layers: Array = layers_source.get(slot, []) as Array
-		if slot_layers.is_empty():
-			type_btn.selected = 0
-			_rebuild_slot_params(slot, "none")
-			color_picker.color = Color.WHITE
-		else:
-			var layer_dict: Dictionary = slot_layers[0] as Dictionary
-			var type_name: String = str(layer_dict.get("type", "none"))
-			# Find type index
-			var types: Array = EFFECT_TYPES[slot]
-			var type_idx: int = -1
-			for i in types.size():
-				if str(types[i]) == type_name:
-					type_idx = i
-					break
-			type_btn.selected = type_idx if type_idx >= 0 else 0
-			_rebuild_slot_params(slot, type_name)
-			# Set param values
-			var params: Dictionary = layer_dict.get("params", {}) as Dictionary
-			var sliders: Dictionary = data.get("param_sliders", {}) as Dictionary
-			for param_name in params:
-				if param_name in sliders:
-					var slider: HSlider = sliders[param_name]
-					slider.value = float(params[param_name])
-			# Set color
-			if layer_dict.has("color"):
-				var c: Array = layer_dict["color"] as Array
-				if c.size() >= 3:
-					var a: float = float(c[3]) if c.size() >= 4 else 1.0
-					color_picker.color = Color(float(c[0]), float(c[1]), float(c[2]), a)
-				else:
-					color_picker.color = Color.WHITE
-			else:
-				color_picker.color = Color.WHITE
 
 
 # ── Stats Bar Preview ────────────────────────────────────────
 
 func _on_reset_bars() -> void:
 	for i in _stats_bar_values.size():
-		_stats_bar_values[i] = 50.0
-		_stats_bar_brightness[i] = 0.0
+		_stats_bar_values[i] = _stats_bar_maxes[i]
+		_stats_gain_wave[i] = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
+		_stats_drain_wave[i] = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
 	_refresh_stats_bars()
 
 
@@ -1344,7 +1190,7 @@ func _update_stats_preview(delta: float) -> void:
 	if not _ui_ready or _stats_preview_bars.is_empty():
 		return
 	# Only animate when Stats subtab is active
-	if _tab_container.current_tab != 3:
+	if _tab_container.current_tab != 2:
 		return
 
 	var audition_id: String = "loop_browser_audition"
@@ -1370,49 +1216,140 @@ func _update_stats_preview(delta: float) -> void:
 			else:
 				crossed = t > prev and t <= progress
 			if crossed:
-				# Apply bar effect deltas
-				for bi in BAR_TYPES.size():
-					var bar_type: String = BAR_TYPES[bi]
-					var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
-					if slider and slider.value != 0.0:
-						_stats_bar_values[bi] = clampf(_stats_bar_values[bi] + slider.value, 0.0, 100.0)
-						_stats_bar_brightness[bi] = 1.0
+				_on_trigger_fired()
 
 	_stats_prev_loop_progress = progress
 
-	# Decay brightness and update display
+	# Advance rolling waves + update bars
 	for i in _stats_preview_bars.size():
 		if i >= BAR_TYPES.size():
 			break
-		_stats_bar_brightness[i] = maxf(0.0, _stats_bar_brightness[i] - delta / 0.3)
-		_apply_stats_bar_glow(i)
+		_advance_wave(_stats_gain_wave[i], delta, 1.0)
+		_advance_wave(_stats_drain_wave[i], delta, -1.0)
+		_update_bar_display(i)
+
+	# Advance enemy waves + regen
+	if _enemy_section.visible and not _enemy_ttk_done:
+		_advance_wave(_enemy_shield_gain_wave, delta, 1.0)
+		_advance_wave(_enemy_shield_drain_wave, delta, -1.0)
+		_advance_wave(_enemy_hull_drain_wave, delta, -1.0)
+		# Shield regen
+		if _enemy_shield_regen > 0.0 and _enemy_shield < _enemy_shield_max and _enemy_hull > 0.0:
+			var old_shield: float = _enemy_shield
+			_enemy_shield = minf(_enemy_shield + _enemy_shield_regen * delta, _enemy_shield_max)
+			if _enemy_shield - old_shield > WAVE_MIN_CHANGE:
+				_enemy_shield_gain_wave["active"] = true
+				_enemy_shield_gain_wave["position"] = 0.0
+		# TTK timer
+		if _enemy_ttk_active and not _enemy_ttk_done:
+			_enemy_ttk_timer += delta
+			_enemy_ttk_label.text = "TTK: %.1fs" % _enemy_ttk_timer
+		_update_enemy_bar_display()
 
 
-func _apply_stats_bar_glow(bar_idx: int) -> void:
+func _on_trigger_fired() -> void:
+	# Apply bar effect deltas with wave animation
+	for bi in BAR_TYPES.size():
+		var bar_type: String = BAR_TYPES[bi]
+		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
+		if slider and slider.value != 0.0:
+			var old_val: float = _stats_bar_values[bi]
+			_stats_bar_values[bi] = clampf(old_val + slider.value, 0.0, _stats_bar_maxes[bi])
+			var delta_ratio: float = (_stats_bar_values[bi] - old_val) / maxf(_stats_bar_maxes[bi], 1.0)
+			if delta_ratio > WAVE_MIN_CHANGE:
+				_stats_gain_wave[bi]["active"] = true
+				_stats_gain_wave[bi]["position"] = 0.0
+			elif delta_ratio < -WAVE_MIN_CHANGE:
+				_stats_drain_wave[bi]["active"] = true
+				_stats_drain_wave[bi]["position"] = 1.0
+
+	# Apply damage to enemy
+	if _enemy_section.visible and _enemy_hull > 0.0 and not _enemy_ttk_done:
+		if not _enemy_ttk_active:
+			_enemy_ttk_active = true
+			_enemy_ttk_timer = 0.0
+		var dmg: float = float(_damage_slider.value)
+		_apply_enemy_damage(dmg)
+
+
+func _apply_enemy_damage(amount: float) -> void:
+	var remaining: float = amount
+	if _enemy_shield > 0.0:
+		var absorbed: float = minf(remaining, _enemy_shield)
+		var old_shield: float = _enemy_shield
+		_enemy_shield -= absorbed
+		remaining -= absorbed
+		if (old_shield - _enemy_shield) / maxf(_enemy_shield_max, 1.0) > WAVE_MIN_CHANGE:
+			_enemy_shield_drain_wave["active"] = true
+			_enemy_shield_drain_wave["position"] = 1.0
+	if remaining > 0.0:
+		var old_hull: float = _enemy_hull
+		_enemy_hull = maxf(_enemy_hull - remaining, 0.0)
+		if (old_hull - _enemy_hull) / maxf(_enemy_hull_max, 1.0) > WAVE_MIN_CHANGE:
+			_enemy_hull_drain_wave["active"] = true
+			_enemy_hull_drain_wave["position"] = 1.0
+	if _enemy_hull <= 0.0:
+		_enemy_ttk_done = true
+		_enemy_ttk_label.text = "DESTROYED in %.1fs" % _enemy_ttk_timer
+
+
+func _advance_wave(wave: Dictionary, delta: float, direction: float) -> void:
+	if not bool(wave["active"]):
+		return
+	var pos: float = float(wave["position"])
+	pos += direction * float(wave["speed"]) * delta
+	if direction > 0.0 and pos > 1.3:
+		wave["active"] = false
+		wave["position"] = -1.0
+	elif direction < 0.0 and pos < -0.3:
+		wave["active"] = false
+		wave["position"] = -1.0
+	else:
+		wave["position"] = pos
+
+
+func _update_bar_display(bar_idx: int) -> void:
 	if bar_idx < 0 or bar_idx >= _stats_preview_bars.size():
 		return
 	var bar: ProgressBar = _stats_preview_bars[bar_idx]
-	var ratio: float = _stats_bar_values[bar_idx] / 100.0
+	var bar_max: float = _stats_bar_maxes[bar_idx]
+	var ratio: float = _stats_bar_values[bar_idx] / maxf(bar_max, 1.0)
+	bar.max_value = bar_max
 	bar.value = _stats_bar_values[bar_idx]
-	var base_color: Color = _stats_bar_base_colors[bar_idx]
-
-	# Update LED bar fill
-	var seg: int = -1
-	if bar_idx < _stats_bar_names.size():
-		seg = int(ShipData.DEFAULT_SEGMENTS.get(_stats_bar_names[bar_idx], -1))
-	ThemeManager.apply_led_bar(bar, base_color, ratio, seg)
-
-	# Apply glow pulse on the bar material
-	var glow: float = _stats_bar_brightness[bar_idx] * 0.5
+	# Update fill_ratio on shader without rebuilding bar
 	if bar.material is ShaderMaterial:
 		var mat: ShaderMaterial = bar.material as ShaderMaterial
-		var bright: Color = base_color.lightened(0.6)
-		var modulated: Color = base_color.lerp(bright, clampf(glow, 0.0, 1.0))
-		mat.set_shader_parameter("fill_color", modulated)
-		var base_inner: float = ThemeManager.get_float("led_inner_intensity")
-		var base_hdr: float = ThemeManager.get_float("led_hdr_multiplier")
-		mat.set_shader_parameter("inner_intensity", base_inner + glow * 1.5)
-		mat.set_shader_parameter("hdr_multiplier", base_hdr + glow * 0.8)
+		mat.set_shader_parameter("fill_ratio", ratio)
+		var gain_pos: float = float(_stats_gain_wave[bar_idx]["position"]) if bool(_stats_gain_wave[bar_idx]["active"]) else -1.0
+		var drain_pos: float = float(_stats_drain_wave[bar_idx]["position"]) if bool(_stats_drain_wave[bar_idx]["active"]) else -1.0
+		mat.set_shader_parameter("gain_wave_pos", gain_pos)
+		mat.set_shader_parameter("drain_wave_pos", drain_pos)
+
+
+func _update_enemy_bar_display() -> void:
+	if not _enemy_shield_bar or not _enemy_hull_bar:
+		return
+	# Shield
+	var s_ratio: float = _enemy_shield / maxf(_enemy_shield_max, 1.0) if _enemy_shield_max > 0.0 else 0.0
+	_enemy_shield_bar.max_value = _enemy_shield_max
+	_enemy_shield_bar.value = _enemy_shield
+	if _enemy_shield_bar.material is ShaderMaterial:
+		var mat: ShaderMaterial = _enemy_shield_bar.material as ShaderMaterial
+		mat.set_shader_parameter("fill_ratio", s_ratio)
+		var gain_pos: float = float(_enemy_shield_gain_wave["position"]) if bool(_enemy_shield_gain_wave["active"]) else -1.0
+		var drain_pos: float = float(_enemy_shield_drain_wave["position"]) if bool(_enemy_shield_drain_wave["active"]) else -1.0
+		mat.set_shader_parameter("gain_wave_pos", gain_pos)
+		mat.set_shader_parameter("drain_wave_pos", drain_pos)
+	# Hull
+	var h_ratio: float = _enemy_hull / maxf(_enemy_hull_max, 1.0) if _enemy_hull_max > 0.0 else 0.0
+	_enemy_hull_bar.max_value = _enemy_hull_max
+	_enemy_hull_bar.value = _enemy_hull
+	if _enemy_hull_bar.material is ShaderMaterial:
+		var mat: ShaderMaterial = _enemy_hull_bar.material as ShaderMaterial
+		mat.set_shader_parameter("fill_ratio", h_ratio)
+		var drain_pos: float = float(_enemy_hull_drain_wave["position"]) if bool(_enemy_hull_drain_wave["active"]) else -1.0
+		mat.set_shader_parameter("gain_wave_pos", -1.0)
+		mat.set_shader_parameter("drain_wave_pos", drain_pos)
 
 
 func _refresh_stats_bars() -> void:
@@ -1420,12 +1357,83 @@ func _refresh_stats_bars() -> void:
 		if i >= BAR_TYPES.size():
 			break
 		var bar: ProgressBar = _stats_preview_bars[i]
+		var bar_max: float = _stats_bar_maxes[i]
+		bar.max_value = bar_max
 		bar.value = _stats_bar_values[i]
 		var color: Color = _stats_bar_base_colors[i]
 		var seg: int = -1
 		if i < _stats_bar_names.size():
 			seg = int(ShipData.DEFAULT_SEGMENTS.get(_stats_bar_names[i], -1))
-		ThemeManager.apply_led_bar(bar, color, _stats_bar_values[i] / 100.0, seg)
+		ThemeManager.apply_led_bar(bar, color, _stats_bar_values[i] / maxf(bar_max, 1.0), seg)
+
+
+# ── Enemy Damage Test ────────────────────────────────────────
+
+func _refresh_enemy_list() -> void:
+	if not _enemy_selector:
+		return
+	_enemy_selector.clear()
+	_enemy_selector.add_item("(none)")
+	_enemy_ids.clear()
+	_enemy_cache.clear()
+	var enemies: Array[ShipData] = ShipDataManager.load_all_by_type("enemy")
+	for e in enemies:
+		_enemy_ids.append(e.id)
+		_enemy_cache[e.id] = e
+		var hp_text: String = "%s  [S:%d H:%d]" % [e.display_name, int(e.stats.get("shield_hp", 0)), int(e.stats.get("hull_hp", 0))]
+		_enemy_selector.add_item(hp_text)
+
+
+func _on_enemy_selected(idx: int) -> void:
+	if idx <= 0:
+		_enemy_section.visible = false
+		return
+	var eid: String = _enemy_ids[idx - 1]
+	var ship: ShipData = _enemy_cache.get(eid) as ShipData
+	if not ship:
+		return
+	_load_enemy(ship)
+
+
+func _load_enemy(ship: ShipData) -> void:
+	_enemy_shield_max = float(ship.stats.get("shield_hp", 0.0))
+	_enemy_shield = _enemy_shield_max
+	_enemy_hull_max = float(ship.stats.get("hull_hp", 30.0))
+	_enemy_hull = _enemy_hull_max
+	_enemy_shield_regen = float(ship.stats.get("shield_regen", 0.0))
+	_enemy_shield_seg = int(ship.stats.get("shield_segments", 0))
+	_enemy_hull_seg = int(ship.stats.get("hull_segments", 4))
+
+	# Setup bars
+	var shield_color: Color = ThemeManager.get_color("bar_shield")
+	var hull_color: Color = ThemeManager.get_color("bar_hull")
+	_enemy_shield_bar.max_value = maxf(_enemy_shield_max, 1.0)
+	_enemy_shield_bar.value = _enemy_shield
+	ThemeManager.apply_led_bar(_enemy_shield_bar, shield_color, _enemy_shield / maxf(_enemy_shield_max, 1.0), _enemy_shield_seg)
+	_enemy_hull_bar.max_value = maxf(_enemy_hull_max, 1.0)
+	_enemy_hull_bar.value = _enemy_hull
+	ThemeManager.apply_led_bar(_enemy_hull_bar, hull_color, 1.0, _enemy_hull_seg)
+
+	# Reset TTK
+	_enemy_ttk_timer = 0.0
+	_enemy_ttk_active = false
+	_enemy_ttk_done = false
+	_enemy_ttk_label.text = "TTK: —"
+	_enemy_shield_gain_wave = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
+	_enemy_shield_drain_wave = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
+	_enemy_hull_drain_wave = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
+
+	_enemy_section.visible = true
+
+
+func _on_enemy_reset() -> void:
+	var idx: int = _enemy_selector.selected
+	if idx <= 0:
+		return
+	var eid: String = _enemy_ids[idx - 1]
+	var ship: ShipData = _enemy_cache.get(eid) as ShipData
+	if ship:
+		_load_enemy(ship)
 
 
 func _collect_bar_effects() -> Dictionary:
@@ -1474,6 +1482,8 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_new_button)
 	if _reset_bars_button:
 		ThemeManager.apply_button_style(_reset_bars_button)
+	if _enemy_reset_button:
+		ThemeManager.apply_button_style(_enemy_reset_button)
 	if _name_input:
 		_name_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 		_name_input.add_theme_color_override("font_color", ThemeManager.get_color("header"))

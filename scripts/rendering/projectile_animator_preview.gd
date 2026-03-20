@@ -26,6 +26,18 @@ var _beam_grow_time: float = 0.3
 var _beam_end_time: float = 0.15
 var _beam_gap_time: float = 0.5
 
+# Fire cycle for bullet effect preview
+var _fire_cycle_age: float = 0.0
+var _fire_cycle_active: bool = false
+var _fire_cycle_impact_spawned: bool = false
+var _fire_trail_emitter: GPUParticles2D = null
+var _fire_trail_points: Array = []  # Vector2 trail history for ribbon drawing
+var _fire_trail_layers: Array = []  # resolved trail layers for ribbon drawing
+var _fire_ribbon_max_points: int = 30
+var _effect_profile: Dictionary = {}
+const FIRE_CYCLE_TRAVEL_TIME: float = 1.5
+const FIRE_CYCLE_PAUSE: float = 0.5
+
 # Zoom and pan
 var _zoom: float = 1.0
 var _pan_offset: Vector2 = Vector2.ZERO
@@ -47,9 +59,14 @@ func update_style(data: Dictionary) -> void:
 		_sprite.queue_free()
 		_sprite = null
 
+	# Clean up fire cycle emitter
+	_cleanup_fire_cycle()
+
 	_archetype = str(data.get("archetype", "bullet"))
 	_preview_color = data.get("color", Color.CYAN) as Color
 	_beam_age = 0.0
+	_fire_cycle_age = 0.0
+	_effect_profile = data.get("effect_profile", {}) as Dictionary
 
 	# Reset zoom/pan on style change
 	_zoom = 1.0
@@ -83,6 +100,12 @@ func update_style(data: Dictionary) -> void:
 		match _archetype:
 			"bullet":
 				_sprite.position = Vector2(_viewport_size.x / 2.0, _viewport_size.y / 2.0)
+				# Start fire cycle if we have effects
+				var defaults: Dictionary = _effect_profile.get("defaults", {}) as Dictionary
+				_fire_cycle_active = not defaults.is_empty()
+				if _fire_cycle_active:
+					_fire_cycle_age = 0.0
+					_start_fire_cycle()
 			"pulse_wave":
 				_sprite.position = Vector2(_viewport_size.x / 2.0, _viewport_size.y / 2.0)
 				_sprite.modulate.a = 1.0
@@ -96,6 +119,8 @@ func update_style(data: Dictionary) -> void:
 func _process(delta: float) -> void:
 	if _archetype == "beam":
 		_process_beam(delta)
+	elif _archetype == "bullet" and _fire_cycle_active:
+		_process_fire_cycle(delta)
 
 	queue_redraw()
 
@@ -147,6 +172,123 @@ func _apply_beam_transform(center_x: float, base_y: float, length: float) -> voi
 	var tex_h: float = maxf(_sprite.texture.get_height(), 1.0)
 	_sprite.scale = Vector2(_beam_width / tex_w, length / tex_h)
 	_sprite.position = Vector2(center_x, base_y - length / 2.0)
+
+
+# ── Fire Cycle (bullet effect preview) ─────────────────────
+
+func _start_fire_cycle() -> void:
+	_fire_cycle_age = 0.0
+	_fire_cycle_impact_spawned = false
+	_fire_trail_points.clear()
+	var resolved: Dictionary = EffectLayerRenderer.resolve_layers(_effect_profile, -1)
+	var center_x: float = _viewport_size.x / 2.0
+	var bottom_y: float = _viewport_size.y - 40.0
+
+	# Spawn muzzle emitter at bottom-center
+	var muzzle_layers: Array = resolved.get("muzzle", []) as Array
+	for layer in muzzle_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var mtype: String = str(layer_dict.get("type", "none"))
+		if mtype == "none":
+			continue
+		var layer_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, _preview_color)
+		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, layer_color)
+		emitter.position = Vector2(center_x, bottom_y)
+		_content.add_child(emitter)
+
+	# Spawn GPU trail emitter (travels with sprite) — skip ribbon types
+	_fire_trail_layers = resolved.get("trail", []) as Array
+	_fire_ribbon_max_points = EffectLayerRenderer.get_ribbon_max_points(_fire_trail_layers)
+	for layer in _fire_trail_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var ttype: String = str(layer_dict.get("type", "none"))
+		if ttype == "none" or ttype == "ribbon" or ttype == "sine_ribbon":
+			continue
+		var trail_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, _preview_color)
+		_fire_trail_emitter = VFXFactory.create_trail_emitter(layer_dict, trail_color)
+		_fire_trail_emitter.position = Vector2(center_x, bottom_y)
+		_content.add_child(_fire_trail_emitter)
+		break  # one GPU trail
+
+	# Position sprite at bottom
+	if _sprite and is_instance_valid(_sprite):
+		_sprite.position = Vector2(center_x, bottom_y)
+
+
+func _process_fire_cycle(delta: float) -> void:
+	_fire_cycle_age += delta
+	var total_cycle: float = FIRE_CYCLE_TRAVEL_TIME + FIRE_CYCLE_PAUSE
+
+	if _fire_cycle_age >= total_cycle:
+		# Restart cycle
+		_cleanup_fire_cycle()
+		_start_fire_cycle()
+		return
+
+	if _fire_cycle_age < FIRE_CYCLE_TRAVEL_TIME:
+		# Move sprite from bottom to top
+		var t: float = _fire_cycle_age / FIRE_CYCLE_TRAVEL_TIME
+		var center_x: float = _viewport_size.x / 2.0
+		var bottom_y: float = _viewport_size.y - 40.0
+		var top_y: float = 40.0
+		var current_y: float = lerpf(bottom_y, top_y, t)
+		var current_pos := Vector2(center_x, current_y)
+		if _sprite and is_instance_valid(_sprite):
+			_sprite.position = current_pos
+		if _fire_trail_emitter and is_instance_valid(_fire_trail_emitter):
+			_fire_trail_emitter.position = current_pos
+
+		# Track trail points for ribbon drawing
+		_fire_trail_points.append(current_pos)
+		if _fire_trail_points.size() > _fire_ribbon_max_points:
+			_fire_trail_points.pop_front()
+
+		# At top: spawn impact (once)
+		if t >= 0.99 and not _fire_cycle_impact_spawned:
+			_fire_cycle_impact_spawned = true
+			_spawn_fire_cycle_impact()
+	else:
+		# Pause phase — hide sprite
+		if _sprite and is_instance_valid(_sprite):
+			_sprite.position = Vector2(_viewport_size.x / 2.0, -100)
+		# Stop trail
+		if _fire_trail_emitter and is_instance_valid(_fire_trail_emitter):
+			_fire_trail_emitter.emitting = false
+		# Fade out ribbon trail points
+		if _fire_trail_points.size() > 0:
+			_fire_trail_points.pop_front()
+			if _fire_trail_points.size() > 0:
+				_fire_trail_points.pop_front()
+
+
+func _spawn_fire_cycle_impact() -> void:
+	var resolved: Dictionary = EffectLayerRenderer.resolve_layers(_effect_profile, -1)
+	var impact_layers: Array = resolved.get("impact", []) as Array
+	var center_x: float = _viewport_size.x / 2.0
+	var top_y: float = 40.0
+	for layer in impact_layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var itype: String = str(layer_dict.get("type", "none"))
+		if itype == "none":
+			continue
+		var impact_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, _preview_color)
+		var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer_dict, impact_color)
+		emitter.position = Vector2(center_x, top_y)
+		_content.add_child(emitter)
+
+
+func _cleanup_fire_cycle() -> void:
+	_fire_trail_points.clear()
+	if _fire_trail_emitter and is_instance_valid(_fire_trail_emitter):
+		_fire_trail_emitter.emitting = false
+		# Let particles finish, then free
+		var timer := Timer.new()
+		timer.one_shot = true
+		timer.wait_time = _fire_trail_emitter.lifetime + 0.1
+		timer.timeout.connect(_fire_trail_emitter.queue_free)
+		_fire_trail_emitter.add_child(timer)
+		timer.start()
+		_fire_trail_emitter = null
 
 
 func _apply_zoom_pan() -> void:
@@ -220,6 +362,14 @@ func _draw() -> void:
 		draw_line(Vector2(0, y), Vector2(grid_extent, y), grid_color, 1.0)
 
 	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+	# Ribbon trails for fire cycle (drawn in content space with zoom/pan)
+	if _fire_cycle_active and _fire_trail_points.size() >= 2 and not _fire_trail_layers.is_empty():
+		draw_set_transform_matrix(grid_xform)
+		EffectLayerRenderer.draw_ribbon_trails(
+			self, _fire_trail_layers, _fire_trail_points, _preview_color, Vector2.ZERO, _fire_cycle_age
+		)
+		draw_set_transform_matrix(Transform2D.IDENTITY)
 
 	# Pulse wave fallback drawing when no sprite
 	if _archetype == "pulse_wave" and (not _sprite or not is_instance_valid(_sprite)):

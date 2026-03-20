@@ -61,6 +61,28 @@ static func delete(id: String) -> void:
 		DirAccess.remove_absolute(path)
 
 
+## Rename a style: save under new_id, delete old_id, update all weapon references.
+static func rename(old_id: String, new_id: String, data: Dictionary) -> void:
+	if old_id == new_id:
+		save(new_id, data)
+		return
+	# Save new file
+	save(new_id, data)
+	# Delete old file
+	delete(old_id)
+	# Update all weapons that reference this style
+	_update_weapon_style_references(old_id, new_id)
+
+
+static func _update_weapon_style_references(old_id: String, new_id: String) -> void:
+	var weapon_ids: Array[String] = WeaponDataManager.list_ids()
+	for wid in weapon_ids:
+		var weapon: WeaponData = WeaponDataManager.load_by_id(wid)
+		if weapon and weapon.projectile_style_id == old_id:
+			weapon.projectile_style_id = new_id
+			WeaponDataManager.save(wid, weapon.to_dict())
+
+
 static func list_ids() -> Array[String]:
 	_ensure_dir()
 	var ids: Array[String] = []

@@ -236,7 +236,8 @@ static func spawn_trail_particles(layers: Array, pos: Vector2, color: Color, par
 # ── Ribbon Trail Drawing ────────────────────────────────────
 
 ## Draw ribbon trails from all trail layers that are ribbon-type.
-static func draw_ribbon_trails(canvas: CanvasItem, layers: Array, trail_points: Array, color: Color, global_offset: Vector2) -> void:
+## time is the projectile's age in seconds (used for sine_ribbon animation).
+static func draw_ribbon_trails(canvas: CanvasItem, layers: Array, trail_points: Array, color: Color, global_offset: Vector2, time: float = 0.0) -> void:
 	for layer in layers:
 		var layer_dict: Dictionary = layer as Dictionary
 		var ttype: String = str(layer_dict.get("type", "none"))
@@ -247,6 +248,7 @@ static func draw_ribbon_trails(canvas: CanvasItem, layers: Array, trail_points: 
 		var params: Dictionary = layer_dict.get("params", {}) as Dictionary
 		var width_start: float = float(params.get("width_start", 4.0))
 		var width_end: float = float(params.get("width_end", 0.0))
+		var layer_color: Color = get_layer_color(layer_dict, color)
 		var count: int = trail_points.size()
 
 		for i in range(count - 1):
@@ -257,16 +259,30 @@ static func draw_ribbon_trails(canvas: CanvasItem, layers: Array, trail_points: 
 			if ttype == "sine_ribbon":
 				var amp: float = float(params.get("amplitude", 5.0))
 				var freq: float = float(params.get("frequency", 4.0))
-				var offset: float = sin(float(i) * freq * 0.5) * amp * (1.0 - t)
-				from_pt.x += offset
-				to_pt.x += offset
+				var wave_speed: float = float(params.get("speed", 3.0))
+				# Animate: wave scrolls along trail over time
+				var phase_from: float = float(i) / maxf(float(count), 1.0) * freq + time * wave_speed
+				var phase_to: float = float(i + 1) / maxf(float(count), 1.0) * freq + time * wave_speed
+				from_pt.x += sin(phase_from * TAU) * amp * (1.0 - t)
+				to_pt.x += sin(phase_to * TAU) * amp * (1.0 - t)
 
 			var w: float = lerpf(width_end, width_start, t)
-			var alpha: float = t * 0.7
-			# HDR color for bloom on ribbon trails
-			var hdr_mult: float = 1.0 + alpha * 1.5
-			var line_color := Color(color.r * hdr_mult, color.g * hdr_mult, color.b * hdr_mult, alpha)
+			var alpha: float = t
+			# HDR color for bloom — needs to exceed glow_hdr_threshold (0.8)
+			var hdr_mult: float = 1.5 + alpha * 1.5
+			var line_color := Color(layer_color.r * hdr_mult, layer_color.g * hdr_mult, layer_color.b * hdr_mult, alpha)
 			canvas.draw_line(from_pt, to_pt, line_color, maxf(w, 1.0))
+
+
+## Get the max trail point count from ribbon layers. Returns 20 as fallback.
+static func get_ribbon_max_points(layers: Array) -> int:
+	for layer in layers:
+		var layer_dict: Dictionary = layer as Dictionary
+		var ttype: String = str(layer_dict.get("type", "none"))
+		if ttype == "ribbon" or ttype == "sine_ribbon":
+			var params: Dictionary = layer_dict.get("params", {}) as Dictionary
+			return int(params.get("length", 20))
+	return 20
 
 
 # ── Impact Spawning ─────────────────────────────────────────
