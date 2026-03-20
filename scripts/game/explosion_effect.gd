@@ -6,6 +6,7 @@ extends Node2D
 
 var explosion_color: Color = Color(1.0, 0.3, 0.5)
 var explosion_size: float = 1.0  # multiplier based on enemy size
+var enable_screen_shake: bool = false  # only for boss deaths
 
 var _age: float = 0.0
 var _duration: float = 0.6
@@ -31,13 +32,14 @@ func _ready() -> void:
 	_setup_debris()
 	_spawn_gpu_burst()
 
-	# Screen shake — offset the game root node
-	var game_node: Node2D = _find_game_root()
-	if game_node:
-		_shake_target = game_node
-		_shake_original_pos = game_node.position
-		_shake_remaining = 0.25
-		_shake_amplitude = 2.0 + explosion_size * 1.5
+	# Screen shake — offset the game root node (boss deaths only)
+	if enable_screen_shake:
+		var game_node: Node2D = _find_game_root()
+		if game_node:
+			_shake_target = game_node
+			_shake_original_pos = game_node.position
+			_shake_remaining = 0.25
+			_shake_amplitude = 2.0 + explosion_size * 1.5
 
 
 func _find_game_root() -> Node2D:

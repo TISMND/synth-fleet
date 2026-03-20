@@ -16,7 +16,7 @@
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/explosion_1.wav",
-			"volume_db": -11.5
+			"volume_db": -22.0
 		},
 		"explosion_2": {
 			"clip_end_time": 0.0,
