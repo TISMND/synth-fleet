@@ -6,7 +6,6 @@ extends Control
 const SKIN_NAMES: Array[String] = ["CHROME", "NEON", "VOID", "HIVEMIND", "SPORE", "EMBER", "FROST", "SOLAR", "SPORT"]
 const SKIN_KEYS: Array[String] = ["chrome", "neon", "void", "hivemind", "spore", "ember", "frost", "solar", "sport"]
 
-const MOVE_DECEL := 800.0
 const BANK_LERP := 6.0
 const LEFT_PANEL_W := 200.0
 const RIGHT_PANEL_W := 280.0
@@ -24,7 +23,9 @@ var _exhaust_timer := 0.0
 var _ship_selector: Node2D
 var _selected_ship := 0
 var _vhs_overlay: ColorRect
-var _hud_replica: Control = null
+var _hud_replica: Control = null  # Compact horizontal bar strip (not the game HUD)
+var _compact_bars: Dictionary = {}  # bar_name -> {bar: ProgressBar, label: Label}
+var _compact_bar_segments: Dictionary = {}  # bar_name -> int
 var _right_panel: Panel = null
 var _sliders: Dictionary = {}  # key -> HSlider
 var _slider_labels: Dictionary = {}  # key -> Label
@@ -112,12 +113,12 @@ func _process(delta: float) -> void:
 	if input_dir != 0.0:
 		_velocity = move_toward(_velocity, input_dir * _top_speed, _accel * delta)
 	else:
-		_velocity = move_toward(_velocity, 0.0, MOVE_DECEL * delta)
+		_velocity = move_toward(_velocity, 0.0, _accel * delta)
 
 	if input_dir_y != 0.0:
 		_velocity_y = move_toward(_velocity_y, input_dir_y * _top_speed, _accel * delta)
 	else:
-		_velocity_y = move_toward(_velocity_y, 0.0, MOVE_DECEL * delta)
+		_velocity_y = move_toward(_velocity_y, 0.0, _accel * delta)
 
 	_ship_draw.position.x += _velocity * delta
 	_ship_draw.position.y += _velocity_y * delta
@@ -205,6 +206,7 @@ func _on_theme_changed() -> void:
 	_apply_right_panel_theme()
 	if _category_dropdown:
 		ThemeManager.apply_button_style(_category_dropdown)
+	_apply_compact_bar_theme()
 
 
 func _input(event: InputEvent) -> void:
@@ -418,14 +420,23 @@ func _update_enemy_hud() -> void:
 
 
 func _update_hud_from_stats() -> void:
-	if not _hud_replica:
+	if _compact_bars.is_empty():
 		return
-	_hud_replica.set_bar_segments(_working_stats)
-	var s: float = float(_working_stats.get("shield_segments", 10))
-	var h: float = float(_working_stats.get("hull_segments", 8))
-	var t: float = float(_working_stats.get("thermal_segments", 6))
-	var e: float = float(_working_stats.get("electric_segments", 8))
-	_hud_replica.update_all_bars(s, s, h, h, t, t, e, e)
+	# Update segment counts from stats, then rebuild LED bars
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		if not _compact_bars.has(bar_name):
+			continue
+		var seg_key: String = str(spec.get("segments_stat", ""))
+		var seg: int = int(_working_stats.get(seg_key, ShipData.DEFAULT_SEGMENTS.get(bar_name, 8)))
+		_compact_bar_segments[bar_name] = seg
+		var entry: Dictionary = _compact_bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		bar.max_value = seg
+		bar.value = seg  # Always show full in preview
+		ThemeManager.apply_led_bar(bar, color, 1.0, seg, false)
 
 
 # ── Right attribute panel ─────────────────────────────────────
@@ -517,10 +528,10 @@ func _build_player_right_panel() -> void:
 	seg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(seg_label)
 
-	_add_slider_row(vbox, "shield_segments", "SHD", 4, 24, 1)
-	_add_slider_row(vbox, "hull_segments", "HUL", 4, 24, 1)
-	_add_slider_row(vbox, "thermal_segments", "THR", 2, 12, 1)
-	_add_slider_row(vbox, "electric_segments", "ELC", 2, 12, 1)
+	_add_slider_row(vbox, "shield_segments", "SHD", 4, 25, 1)
+	_add_slider_row(vbox, "hull_segments", "HUL", 4, 25, 1)
+	_add_slider_row(vbox, "thermal_segments", "THR", 2, 25, 1)
+	_add_slider_row(vbox, "electric_segments", "ELC", 2, 25, 1)
 
 	# Spacer
 	var spacer2 := Control.new()
@@ -533,7 +544,7 @@ func _build_player_right_panel() -> void:
 	prop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(prop_label)
 
-	_add_slider_row(vbox, "acceleration", "ACCEL", 400, 2400, 50)
+	_add_slider_row(vbox, "acceleration", "ACCEL", 400, 10000, 50)
 	_add_slider_row(vbox, "speed", "SPEED", 200, 600, 10)
 
 	# Spacer
@@ -1218,25 +1229,116 @@ func _apply_right_panel_theme() -> void:
 # ── HUD replica ───────────────────────────────────────────────
 
 func _build_hud_replica() -> void:
-	var HudScript: GDScript = load("res://scripts/game/hud.gd") as GDScript
-	_hud_replica = HudScript.new()
+	# Compact horizontal bar strip at the bottom — not the full game HUD.
+	# 4 bars laid out horizontally: SHLD | HULL | THRM | ELEC
+	var vp_size: Vector2 = get_viewport_rect().size
+
+	_hud_replica = Control.new()
+	_hud_replica.position = Vector2(LEFT_PANEL_W, vp_size.y - HUD_HEIGHT)
+	_hud_replica.size = Vector2(vp_size.x - LEFT_PANEL_W - RIGHT_PANEL_W, HUD_HEIGHT)
 	add_child(_hud_replica)
 
-	# Hide irrelevant elements
-	if _hud_replica._credits_label:
-		_hud_replica._credits_label.visible = false
-	if _hud_replica._menu_hint:
-		_hud_replica._menu_hint.visible = false
+	# Chrome panel background
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color.WHITE
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shader: Shader = load("res://assets/shaders/chrome_panel.gdshader") as Shader
+	if shader:
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("base_color", Vector4(0.12, 0.13, 0.18, 1.0))
+		mat.set_shader_parameter("divider_y", -1.0)  # No divider
+		var accent_color: Color = ThemeManager.get_color("accent")
+		mat.set_shader_parameter("divider_color", Vector4(accent_color.r, accent_color.g, accent_color.b, 0.5))
+		bg.material = mat
+	_hud_replica.add_child(bg)
 
-	# Remove the HUD's own VHS overlay (ship viewer already has one).
-	# Null out the reference so _apply_theme doesn't crash on freed object.
-	for child in _hud_replica.get_children():
-		if child is CanvasLayer:
-			if child.layer == 10:
-				_hud_replica._vhs_overlay = null
-				child.queue_free()
-				break
+	# Top border line
+	var border_line := ColorRect.new()
+	border_line.position = Vector2.ZERO
+	border_line.size = Vector2(vp_size.x - LEFT_PANEL_W - RIGHT_PANEL_W, 2)
+	var accent: Color = ThemeManager.get_color("accent")
+	border_line.color = Color(accent.r, accent.g, accent.b, 0.4)
+	_hud_replica.add_child(border_line)
 
+	# HBox for 4 horizontal bars
+	var hbox := HBoxContainer.new()
+	hbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hbox.offset_left = 16
+	hbox.offset_right = -16
+	hbox.offset_top = 10
+	hbox.offset_bottom = -8
+	hbox.add_theme_constant_override("separation", 20)
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	_hud_replica.add_child(hbox)
+
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	var short_names: Dictionary = {
+		"SHIELD": "SHLD", "HULL": "HULL", "THERMAL": "THRM", "ELECTRIC": "ELEC"
+	}
+	_compact_bars.clear()
+
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
+
+		# Each bar in a VBox: label on top, horizontal bar below
+		var bar_vbox := VBoxContainer.new()
+		bar_vbox.add_theme_constant_override("separation", 2)
+		bar_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox.add_child(bar_vbox)
+
+		var lbl := Label.new()
+		lbl.text = str(short_names.get(bar_name, bar_name))
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var body_font: Font = ThemeManager.get_font("font_body")
+		var body_size: int = ThemeManager.get_font_size("font_size_body")
+		lbl.add_theme_font_size_override("font_size", body_size)
+		lbl.add_theme_color_override("font_color", color)
+		if body_font:
+			lbl.add_theme_font_override("font", body_font)
+		ThemeManager.apply_text_glow(lbl, "body")
+		bar_vbox.add_child(lbl)
+
+		var bar := ProgressBar.new()
+		bar.fill_mode = 0  # FILL_LEFT_TO_RIGHT (horizontal)
+		bar.max_value = seg
+		bar.value = seg
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0, 24)
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar_vbox.add_child(bar)
+		ThemeManager.apply_led_bar(bar, color, 1.0, seg, false)
+
+		_compact_bars[bar_name] = {"bar": bar, "label": lbl}
+		_compact_bar_segments[bar_name] = seg
+
+
+
+func _apply_compact_bar_theme() -> void:
+	if _compact_bars.is_empty():
+		return
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var body_size: int = ThemeManager.get_font_size("font_size_body")
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		if not _compact_bars.has(bar_name):
+			continue
+		var entry: Dictionary = _compact_bars[bar_name]
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		var lbl: Label = entry["label"]
+		lbl.add_theme_font_size_override("font_size", body_size)
+		lbl.add_theme_color_override("font_color", color)
+		if body_font:
+			lbl.add_theme_font_override("font", body_font)
+		ThemeManager.apply_text_glow(lbl, "body")
+		var bar: ProgressBar = entry["bar"]
+		var seg: int = int(_compact_bar_segments.get(bar_name, 8))
+		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
+		ThemeManager.apply_led_bar(bar, color, ratio, seg, false)
 
 
 # ── Exhaust Drawing (inner class) ────────────────────────────

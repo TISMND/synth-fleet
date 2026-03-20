@@ -1,0 +1,18 @@
+{
+	"display_name": "Orrery",
+	"id": "orrery",
+	"render_mode": "chrome",
+	"stats": {
+		"acceleration": 3800.0,
+		"electric_hp": 80,
+		"electric_segments": 11.0,
+		"hull_hp": 70,
+		"hull_segments": 5.0,
+		"shield_hp": 180,
+		"shield_regen": 1.6,
+		"shield_segments": 21.0,
+		"speed": 470.0,
+		"thermal_hp": 60,
+		"thermal_segments": 6
+	}
+}

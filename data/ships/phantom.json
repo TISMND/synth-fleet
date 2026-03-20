@@ -1,0 +1,18 @@
+{
+	"display_name": "Phantom",
+	"id": "phantom",
+	"render_mode": "chrome",
+	"stats": {
+		"acceleration": 3050.0,
+		"electric_hp": 80,
+		"electric_segments": 8,
+		"hull_hp": 70,
+		"hull_segments": 7,
+		"shield_hp": 120,
+		"shield_regen": 1.4,
+		"shield_segments": 12,
+		"speed": 500.0,
+		"thermal_hp": 60,
+		"thermal_segments": 6
+	}
+}

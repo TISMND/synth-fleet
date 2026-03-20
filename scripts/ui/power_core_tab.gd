@@ -25,21 +25,30 @@ var _mute_button: Button
 var _snap_button: OptionButton
 var _grid_toggle: Button
 var _bars_button: OptionButton
-var _bar_type_buttons: Array[Button] = []
-var _active_bar_type: int = 0  # Index into BAR_TYPES
-
 # Preview panel (left side)
 var _preview_bars: Array[ProgressBar] = []
 var _preview_bar_base_colors: Array[Color] = []  # Base colors per bar (from theme)
 var _preview_bar_brightness: Array[float] = [0.0, 0.0, 0.0, 0.0]  # 0.0=idle, 1.0=full pulse
 var _component_display: Control = null  # Ship component shapes display
 
-# Bar effect lane (Timing subtab)
-var _bar_effect_lane: BarEffectLane
+# Bar effect lanes (Timing subtab) — one per non-electric bar type
+var _bar_effect_lanes: Dictionary = {}  # bar_type -> BarEffectLane
 
-# Mechanics subtab
+# Stats subtab
 var _mechanics_bar_effect_sliders: Dictionary = {}  # bar_type -> HSlider
 var _passive_effect_sliders: Dictionary = {}  # bar_type -> HSlider
+# Stats bar preview (LED bars with rolling wave animation)
+var _stats_preview_bars: Array[ProgressBar] = []
+var _stats_bar_base_colors: Array[Color] = []
+var _stats_bar_values: Array[float] = [50.0, 40.0, 30.0, 40.0]
+var _stats_bar_maxes: Array[float] = [100.0, 80.0, 60.0, 80.0]
+var _stats_bar_names: Array[String] = []
+var _stats_gain_wave: Array[Dictionary] = []
+var _stats_drain_wave: Array[Dictionary] = []
+const WAVE_SPEED: float = 2.5
+const WAVE_MIN_CHANGE: float = 0.01
+const BAR_MAX_DEFAULTS: Array[float] = [100.0, 80.0, 60.0, 80.0]
+var _reset_bars_button: Button
 
 # Pulse subtab
 var _global_brightness_slider: HSlider
@@ -71,8 +80,8 @@ func _ready() -> void:
 	_ui_ready = true
 	_refresh_load_list()
 	_waveform_editor.set_snap_mode(16)
-	if _bar_effect_lane:
-		_bar_effect_lane.set_snap_mode(16)
+	for lane in _bar_effect_lanes.values():
+		(lane as BarEffectLane).set_snap_mode(16)
 	ThemeManager.theme_changed.connect(_apply_theme)
 
 
@@ -139,9 +148,9 @@ func _build_ui() -> void:
 	pulse_tab.name = "Pulse"
 	_tab_container.add_child(pulse_tab)
 
-	var mechanics_tab := _build_mechanics_tab()
-	mechanics_tab.name = "Mechanics"
-	_tab_container.add_child(mechanics_tab)
+	var stats_tab := _build_stats_tab()
+	stats_tab.name = "Stats"
+	_tab_container.add_child(stats_tab)
 
 	var effects_tab := _build_placeholder_tab("Effects — Coming soon")
 	effects_tab.name = "Effects"
@@ -249,47 +258,31 @@ func _build_timing_tab() -> Control:
 
 	_add_separator(vbox)
 
-	# Bar type selector
-	_add_section_header(vbox, "BAR TYPE")
-	var type_row := HBoxContainer.new()
-	vbox.add_child(type_row)
-
-	for i in BAR_TYPES.size():
-		var btn := Button.new()
-		btn.text = BAR_TYPE_LABELS[i]
-		btn.toggle_mode = true
-		btn.button_pressed = (i == 0)
-		btn.custom_minimum_size = Vector2(70, 32)
-		var color_key: String = BAR_TYPE_COLOR_KEYS[i]
-		var bar_color: Color = ThemeManager.get_color(color_key)
-		btn.add_theme_color_override("font_color", bar_color)
-		btn.add_theme_color_override("font_pressed_color", bar_color)
-		btn.add_theme_color_override("font_hover_color", bar_color)
-		btn.add_theme_color_override("font_hover_pressed_color", bar_color)
-		var idx: int = i
-		btn.pressed.connect(_on_bar_type_pressed.bind(idx))
-		ThemeManager.apply_button_style(btn)
-		type_row.add_child(btn)
-		_bar_type_buttons.append(btn)
-
-	# Waveform Editor
-	_add_section_header(vbox, "WAVEFORM / TRIGGERS")
+	# Waveform Editor — electric triggers (main waveform)
+	_add_section_header(vbox, "ELECTRIC TRIGGERS")
 	_waveform_editor = WaveformEditor.new()
 	_waveform_editor.custom_minimum_size = Vector2(400, 140)
 	_waveform_editor.triggers_changed.connect(_on_triggers_changed)
 	_waveform_editor.play_pause_requested.connect(_on_play_pause)
 	_waveform_editor.seek_requested.connect(_on_seek)
 	_waveform_editor.set_audition_loop_id("loop_browser_audition")
-	_waveform_editor.set_marker_color_callback(_get_trigger_color)
+	# Color all waveform markers as electric
+	var elec_color: Color = ThemeManager.get_color("bar_electric")
+	_waveform_editor.set_marker_color_callback(func(_idx: int) -> Color: return elec_color)
 	vbox.add_child(_waveform_editor)
 
-	# Thermal trigger lane — click to place thermal markers independently of pulse triggers
-	_bar_effect_lane = BarEffectLane.new()
-	_bar_effect_lane.custom_minimum_size = Vector2(400, 40)
-	_bar_effect_lane.set_waveform_ref(_waveform_editor)
-	_bar_effect_lane.setup("thermal", "THERMAL", ThemeManager.get_color("bar_thermal"), 5.0)
-	_bar_effect_lane.triggers_changed.connect(_on_bar_effect_triggers_changed)
-	vbox.add_child(_bar_effect_lane)
+	# Bar effect lanes — one per remaining bar type (shield, hull, thermal)
+	var lane_types: Array[String] = ["shield", "hull", "thermal"]
+	var lane_labels: Array[String] = ["SHIELD", "HULL", "THERMAL"]
+	var lane_color_keys: Array[String] = ["bar_shield", "bar_hull", "bar_thermal"]
+	for i in lane_types.size():
+		var lane := BarEffectLane.new()
+		lane.custom_minimum_size = Vector2(400, 40)
+		lane.set_waveform_ref(_waveform_editor)
+		lane.setup(lane_types[i], lane_labels[i], ThemeManager.get_color(lane_color_keys[i]), 5.0)
+		lane.triggers_changed.connect(_on_bar_effect_triggers_changed)
+		vbox.add_child(lane)
+		_bar_effect_lanes[lane_types[i]] = lane
 
 	# Control row: Mute + Snap + Grid toggle + Bars
 	var control_row := HBoxContainer.new()
@@ -419,7 +412,7 @@ func _build_pulse_tab() -> Control:
 	return scroll
 
 
-func _build_mechanics_tab() -> Control:
+func _build_stats_tab() -> Control:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -428,6 +421,50 @@ func _build_mechanics_tab() -> Control:
 	var form := VBoxContainer.new()
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(form)
+
+	# Bar Effect Preview (LED bars with rolling wave animation)
+	_add_section_header(form, "BAR EFFECT PREVIEW")
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for i in specs.size():
+		var spec: Dictionary = specs[i]
+		var bar_hbox := HBoxContainer.new()
+		bar_hbox.add_theme_constant_override("separation", 6)
+		form.add_child(bar_hbox)
+
+		var bar_label := Label.new()
+		bar_label.text = str(spec["name"])
+		bar_label.custom_minimum_size.x = 70
+		bar_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		bar_label.add_theme_color_override("font_color", color)
+		bar_hbox.add_child(bar_label)
+
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size = Vector2(200, 20)
+		var bar_max: float = BAR_MAX_DEFAULTS[i]
+		var bar_start: float = bar_max * 0.5
+		bar.max_value = bar_max
+		bar.value = bar_start
+		bar.show_percentage = false
+		bar_hbox.add_child(bar)
+		var bar_name: String = str(spec["name"])
+		ThemeManager.apply_led_bar(bar, color, bar_start / bar_max, 20)
+		_stats_preview_bars.append(bar)
+		_stats_bar_base_colors.append(color)
+		_stats_bar_names.append(bar_name)
+		_stats_bar_values[i] = bar_start
+		_stats_bar_maxes[i] = bar_max
+		_stats_gain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
+		_stats_drain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
+
+	_reset_bars_button = Button.new()
+	_reset_bars_button.text = "RESET BARS"
+	_reset_bars_button.custom_minimum_size = Vector2(120, 30)
+	_reset_bars_button.pressed.connect(_on_reset_stats_bars)
+	ThemeManager.apply_button_style(_reset_bars_button)
+	form.add_child(_reset_bars_button)
+
+	_add_separator(form)
 
 	# Bar Effects (per trigger hit)
 	_add_section_header(form, "BAR EFFECTS (per trigger hit)")
@@ -526,22 +563,6 @@ func _build_placeholder_tab(text: String) -> Control:
 
 # ── Bar Type Selector ──────────────────────────────────────
 
-func _on_bar_type_pressed(idx: int) -> void:
-	_active_bar_type = idx
-	for i in _bar_type_buttons.size():
-		_bar_type_buttons[i].button_pressed = (i == idx)
-
-
-func _get_trigger_color(idx: int) -> Color:
-	if idx < 0 or idx >= _trigger_types.size():
-		return ThemeManager.get_color("bar_shield")
-	var bar_type: String = _trigger_types[idx]
-	var type_idx: int = BAR_TYPES.find(bar_type)
-	if type_idx < 0:
-		return ThemeManager.get_color("bar_shield")
-	return ThemeManager.get_color(BAR_TYPE_COLOR_KEYS[type_idx])
-
-
 # ── Preview Pulsing (glow brightness, not bar fill) ────────
 
 func _update_preview_bars(delta: float) -> void:
@@ -574,10 +595,13 @@ func _update_preview_bars(delta: float) -> void:
 				var bar_idx: int = BAR_TYPES.find(bar_type)
 				if bar_idx >= 0 and not _is_pulsing_disabled(bar_type):
 					_preview_bar_brightness[bar_idx] = 1.0
+				# Apply bar_effect slider for this trigger's bar type only
+				_apply_stats_bar_effect_for_type(bar_type)
 
-		# Detect bar effect trigger crossings (bar value changes)
-		if _bar_effect_lane:
-			var bet_trigs: Array = _bar_effect_lane.get_triggers()
+		# Detect bar effect lane trigger crossings (shield, hull, thermal lanes)
+		for lane_type in _bar_effect_lanes:
+			var lane: BarEffectLane = _bar_effect_lanes[lane_type] as BarEffectLane
+			var bet_trigs: Array = lane.get_triggers()
 			for bet in bet_trigs:
 				var d: Dictionary = bet as Dictionary
 				var t: float = float(d.get("time", 0.0))
@@ -588,11 +612,16 @@ func _update_preview_bars(delta: float) -> void:
 					crossed = t > prev and t <= progress
 				if crossed:
 					var effect_type: String = str(d.get("type", ""))
-					var effect_value: float = float(d.get("value", 0.0))
 					var bar_idx: int = BAR_TYPES.find(effect_type)
-					if bar_idx >= 0 and bar_idx < _preview_bars.size() and effect_value != 0.0:
-						var bar: ProgressBar = _preview_bars[bar_idx]
-						bar.value = clampf(bar.value + effect_value, 0.0, bar.max_value)
+					if bar_idx >= 0:
+						# Pulse the side panel bar + component shapes
+						if not _is_pulsing_disabled(effect_type):
+							_preview_bar_brightness[bar_idx] = 1.0
+						var effect_value: float = float(d.get("value", 0.0))
+						if effect_value != 0.0 and bar_idx < _preview_bars.size():
+							var bar: ProgressBar = _preview_bars[bar_idx]
+							bar.value = clampf(bar.value + effect_value, 0.0, bar.max_value)
+						_apply_stats_bar_effect_for_type(effect_type)
 
 	_prev_loop_progress = progress
 
@@ -627,6 +656,22 @@ func _update_preview_bars(delta: float) -> void:
 			var pulse_strength: float = float(settings.get("brightness", 0.5))
 			glow_values.append(_preview_bar_brightness[i] * pulse_strength)
 		shape_display.update_glow(glow_values)
+
+	# Stats preview: advance rolling waves + update stats bars
+	if not _stats_preview_bars.is_empty():
+		# Passive effects on stats bars too
+		for i in BAR_TYPES.size():
+			var bar_type: String = BAR_TYPES[i]
+			var slider: HSlider = _passive_effect_sliders.get(bar_type) as HSlider
+			if slider and slider.value != 0.0 and i < _stats_preview_bars.size():
+				var old_val: float = _stats_bar_values[i]
+				_stats_bar_values[i] = clampf(old_val + slider.value * delta, 0.0, _stats_bar_maxes[i])
+		for i in _stats_preview_bars.size():
+			if i >= BAR_TYPES.size():
+				break
+			_advance_wave(_stats_gain_wave[i], delta, 1.0)
+			_advance_wave(_stats_drain_wave[i], delta, -1.0)
+			_update_stats_bar_display(i)
 
 
 func _apply_bar_glow(bar_idx: int, glow: float) -> void:
@@ -689,70 +734,159 @@ func _is_pulsing_disabled(bar_type: String) -> bool:
 	return disable_cb != null and disable_cb.button_pressed
 
 
+# ── Stats Bar Preview Helpers ──────────────────────────────
+
+func _apply_stats_bar_effect_for_type(bar_type: String) -> void:
+	## Apply bar_effect slider for a specific bar type only (not all types).
+	if _stats_preview_bars.is_empty():
+		return
+	var bi: int = BAR_TYPES.find(bar_type)
+	if bi < 0:
+		return
+	var slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
+	if slider and slider.value != 0.0:
+		_apply_single_stats_bar_effect(bi, slider.value)
+
+
+func _apply_single_stats_bar_effect(bar_idx: int, effect_value: float) -> void:
+	if bar_idx < 0 or bar_idx >= _stats_preview_bars.size():
+		return
+	var old_val: float = _stats_bar_values[bar_idx]
+	_stats_bar_values[bar_idx] = clampf(old_val + effect_value, 0.0, _stats_bar_maxes[bar_idx])
+	var actual_change: float = _stats_bar_values[bar_idx] - old_val
+	if actual_change > 0.0:
+		_stats_gain_wave[bar_idx]["active"] = true
+		_stats_gain_wave[bar_idx]["position"] = 0.0
+	elif actual_change < 0.0:
+		_stats_drain_wave[bar_idx]["active"] = true
+		_stats_drain_wave[bar_idx]["position"] = 1.0
+
+
+func _advance_wave(wave: Dictionary, delta: float, direction: float) -> void:
+	if not bool(wave["active"]):
+		return
+	var pos: float = float(wave["position"])
+	pos += direction * float(wave["speed"]) * delta
+	if direction > 0.0 and pos > 1.3:
+		wave["active"] = false
+		wave["position"] = -1.0
+	elif direction < 0.0 and pos < -0.3:
+		wave["active"] = false
+		wave["position"] = -1.0
+	else:
+		wave["position"] = pos
+
+
+func _update_stats_bar_display(bar_idx: int) -> void:
+	if bar_idx < 0 or bar_idx >= _stats_preview_bars.size():
+		return
+	var bar: ProgressBar = _stats_preview_bars[bar_idx]
+	var bar_max: float = _stats_bar_maxes[bar_idx]
+	var ratio: float = _stats_bar_values[bar_idx] / maxf(bar_max, 1.0)
+	bar.max_value = bar_max
+	bar.value = _stats_bar_values[bar_idx]
+	if bar.material is ShaderMaterial:
+		var mat: ShaderMaterial = bar.material as ShaderMaterial
+		mat.set_shader_parameter("fill_ratio", ratio)
+		var gain_pos: float = float(_stats_gain_wave[bar_idx]["position"]) if bool(_stats_gain_wave[bar_idx]["active"]) else -1.0
+		var drain_pos: float = float(_stats_drain_wave[bar_idx]["position"]) if bool(_stats_drain_wave[bar_idx]["active"]) else -1.0
+		mat.set_shader_parameter("gain_wave_pos", gain_pos)
+		mat.set_shader_parameter("drain_wave_pos", drain_pos)
+
+
+func _on_reset_stats_bars() -> void:
+	for i in _stats_bar_values.size():
+		_stats_bar_values[i] = _stats_bar_maxes[i] * 0.5
+		_stats_gain_wave[i] = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
+		_stats_drain_wave[i] = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
+	_refresh_stats_bars()
+
+
+func _refresh_stats_bars() -> void:
+	for i in _stats_preview_bars.size():
+		if i >= BAR_TYPES.size():
+			break
+		var bar: ProgressBar = _stats_preview_bars[i]
+		var bar_max: float = _stats_bar_maxes[i]
+		bar.max_value = bar_max
+		bar.value = _stats_bar_values[i]
+		var color: Color = _stats_bar_base_colors[i]
+		ThemeManager.apply_led_bar(bar, color, _stats_bar_values[i] / maxf(bar_max, 1.0), 20)
+
+
 # ── Trigger Management ─────────────────────────────────────
 
 func _on_triggers_changed(new_triggers: Array) -> void:
 	_mark_dirty()
-	# Diff old vs new by time proximity to preserve type assignments
-	var old_triggers: Array = _merged_triggers.duplicate()
-	var old_types: Array = _trigger_types.duplicate()
-	var new_types: Array = []
-	var used_old: Array[bool] = []
-	used_old.resize(old_triggers.size())
-	used_old.fill(false)
-
-	for ni in new_triggers.size():
-		var t: float = float(new_triggers[ni])
-		var best_old: int = -1
-		var best_dist: float = 0.005  # Proximity threshold
-		for oi in old_triggers.size():
-			if used_old[oi]:
-				continue
-			var dist: float = absf(float(old_triggers[oi]) - t)
-			if dist < best_dist:
-				best_dist = dist
-				best_old = oi
-		if best_old >= 0:
-			used_old[best_old] = true
-			new_types.append(old_types[best_old])
-		else:
-			# New trigger — assign active bar type
-			new_types.append(BAR_TYPES[_active_bar_type])
-
+	# Waveform triggers are all electric now
 	_merged_triggers = new_triggers.duplicate()
-	_trigger_types = new_types
-	_waveform_editor.queue_redraw()
+	_trigger_types.clear()
+	for _i in new_triggers.size():
+		_trigger_types.append("electric")
 
 
 func _merge_triggers_from_dict(pulse_triggers: Dictionary) -> void:
-	## Merge per-bar-type trigger arrays into sorted merged + type arrays.
-	var pairs: Array = []  # [[time, type], ...]
-	for bar_type in BAR_TYPES:
-		var triggers: Array = pulse_triggers.get(bar_type, []) as Array
-		for t in triggers:
-			pairs.append([float(t), bar_type])
-	# Sort by time
-	pairs.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	## Load electric triggers into waveform, other types into their lanes.
+	# Waveform gets electric triggers only
+	var electric_triggers: Array = pulse_triggers.get("electric", []) as Array
 	_merged_triggers.clear()
 	_trigger_types.clear()
-	for pair in pairs:
-		_merged_triggers.append(float(pair[0]))
-		_trigger_types.append(str(pair[1]))
+	for t in electric_triggers:
+		_merged_triggers.append(float(t))
+		_trigger_types.append("electric")
+	_merged_triggers.sort()
+	# Other bar types go into bar_effect_triggers for their lanes
+	# (converted from old pulse_triggers format to lane format)
+	for bar_type in ["shield", "hull", "thermal"]:
+		var triggers: Array = pulse_triggers.get(bar_type, []) as Array
+		if triggers.is_empty():
+			continue
+		var lane: BarEffectLane = _bar_effect_lanes.get(bar_type) as BarEffectLane
+		if lane:
+			var lane_trigs: Array = []
+			for t in triggers:
+				lane_trigs.append({"time": float(t), "type": bar_type, "value": 5.0})
+			lane.set_triggers(lane_trigs)
 
 
 func _split_triggers_to_dict() -> Dictionary:
-	## Split merged triggers back to per-bar-type Dictionary.
+	## Waveform triggers are all electric. Just return them under "electric".
 	var result: Dictionary = {}
-	for i in _merged_triggers.size():
-		var bar_type: String = _trigger_types[i] if i < _trigger_types.size() else "shield"
-		if not result.has(bar_type):
-			result[bar_type] = []
-		result[bar_type].append(float(_merged_triggers[i]))
-	# Sort each array
-	for bar_type in result:
-		var arr: Array = result[bar_type]
+	if not _merged_triggers.is_empty():
+		var arr: Array = []
+		for t in _merged_triggers:
+			arr.append(float(t))
 		arr.sort()
+		result["electric"] = arr
 	return result
+
+
+func _collect_all_lane_triggers() -> Array:
+	## Merge all bar effect lane triggers into one flat array for saving.
+	var all_trigs: Array = []
+	for lane_type in _bar_effect_lanes:
+		var lane: BarEffectLane = _bar_effect_lanes[lane_type] as BarEffectLane
+		var trigs: Array = lane.get_triggers()
+		all_trigs.append_array(trigs)
+	return all_trigs
+
+
+func _distribute_lane_triggers(bar_effect_triggers: Array) -> void:
+	## Split bar_effect_triggers by type and set on the appropriate lane.
+	var per_type: Dictionary = {}  # type -> Array of trigger dicts
+	for bet in bar_effect_triggers:
+		var d: Dictionary = bet as Dictionary
+		var btype: String = str(d.get("type", ""))
+		if btype == "":
+			continue
+		if not per_type.has(btype):
+			per_type[btype] = []
+		per_type[btype].append(d)
+	for lane_type in _bar_effect_lanes:
+		var lane: BarEffectLane = _bar_effect_lanes[lane_type] as BarEffectLane
+		var trigs: Array = per_type.get(lane_type, []) as Array
+		lane.set_triggers(trigs)
+		lane.set_loop_length_bars(_waveform_editor._loop_length_bars)
 
 
 # ── Bar Effect Lane Events ────────────────────────────────
@@ -773,8 +907,8 @@ func _on_loop_selected(path: String, _category: String) -> void:
 func _on_snap_changed(idx: int) -> void:
 	var mode: int = int(SNAP_MODES[idx]["value"])
 	_waveform_editor.set_snap_mode(mode)
-	if _bar_effect_lane:
-		_bar_effect_lane.set_snap_mode(mode)
+	for lane in _bar_effect_lanes.values():
+		(lane as BarEffectLane).set_snap_mode(mode)
 
 
 func _on_grid_toggled(pressed: bool) -> void:
@@ -788,8 +922,8 @@ func _on_bars_changed(idx: int) -> void:
 		_waveform_editor._auto_detect_bars()
 	else:
 		_waveform_editor.set_loop_length_bars(bars_val)
-	if _bar_effect_lane:
-		_bar_effect_lane.set_loop_length_bars(_waveform_editor._loop_length_bars)
+	for lane in _bar_effect_lanes.values():
+		(lane as BarEffectLane).set_loop_length_bars(_waveform_editor._loop_length_bars)
 
 
 func _on_mute_toggle() -> void:
@@ -837,7 +971,7 @@ func _collect_power_core_data() -> Dictionary:
 		},
 		"pulse_settings": _collect_pulse_overrides(),
 		"bar_effects": _collect_bar_effects(),
-		"bar_effect_triggers": _bar_effect_lane.get_triggers() if _bar_effect_lane else [],
+		"bar_effect_triggers": _collect_all_lane_triggers(),
 		"passive_effects": _collect_passive_effects(),
 	}
 
@@ -929,10 +1063,7 @@ func _on_new() -> void:
 	_waveform_editor.set_stream_from_path("")
 	_waveform_editor.set_triggers([])
 	_bars_button.selected = 0
-	_active_bar_type = 0
 	_prev_loop_progress = -1.0
-	for i in _bar_type_buttons.size():
-		_bar_type_buttons[i].button_pressed = (i == 0)
 	# Reset pulse settings
 	_global_brightness_slider.value = 0.5
 	_global_brighten_slider.value = 0.05
@@ -949,8 +1080,8 @@ func _on_new() -> void:
 			(data["dim"] as HSlider).value = 0.3
 			(data["container"] as VBoxContainer).visible = false
 	# Reset bar effect lane
-	if _bar_effect_lane:
-		_bar_effect_lane.clear_triggers()
+	for lane in _bar_effect_lanes.values():
+		(lane as BarEffectLane).clear_triggers()
 	# Reset mechanics sliders
 	for bar_type in BAR_TYPES:
 		var be_slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
@@ -966,6 +1097,8 @@ func _on_new() -> void:
 		bar.value = 0.5
 	if _component_display and _component_display is ComponentShapeDisplay:
 		(_component_display as ComponentShapeDisplay).update_glow([0.0, 0.0, 0.0, 0.0])
+	# Reset stats preview bars
+	_on_reset_stats_bars()
 	_populating = false
 	_mark_clean()
 	_status_label.text = "New power core — ready to edit."
@@ -1033,9 +1166,8 @@ func _populate_from_power_core(data: PowerCoreData) -> void:
 			pe_slider.value = float(data.passive_effects.get(bar_type, 0.0))
 
 	# Bar effect triggers (independent lane)
-	if _bar_effect_lane:
-		_bar_effect_lane.set_triggers(data.bar_effect_triggers)
-		_bar_effect_lane.set_loop_length_bars(_waveform_editor._loop_length_bars)
+	# Distribute bar_effect_triggers to their respective lanes
+	_distribute_lane_triggers(data.bar_effect_triggers)
 
 	_populating = false
 	_mark_clean()
@@ -1148,17 +1280,6 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_delete_button)
 	if _new_button:
 		ThemeManager.apply_button_style(_new_button)
-	for btn in _bar_type_buttons:
-		if is_instance_valid(btn):
-			ThemeManager.apply_button_style(btn)
-	# Re-tint bar type buttons
-	for i in _bar_type_buttons.size():
-		if i < BAR_TYPE_COLOR_KEYS.size() and is_instance_valid(_bar_type_buttons[i]):
-			var bar_color: Color = ThemeManager.get_color(BAR_TYPE_COLOR_KEYS[i])
-			_bar_type_buttons[i].add_theme_color_override("font_color", bar_color)
-			_bar_type_buttons[i].add_theme_color_override("font_pressed_color", bar_color)
-			_bar_type_buttons[i].add_theme_color_override("font_hover_color", bar_color)
-			_bar_type_buttons[i].add_theme_color_override("font_hover_pressed_color", bar_color)
 	if _name_input:
 		_name_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 		_name_input.add_theme_color_override("font_color", ThemeManager.get_color("header"))

@@ -132,14 +132,15 @@ func _process(delta: float) -> void:
 				var existing: float = float(hit_effects.get(effect_type, 0.0))
 				hit_effects[effect_type] = existing + effect_value
 
-	# Also apply legacy flat bar_effects on pulse trigger hits (backward compat)
+	# Apply legacy bar_effects only for the specific bar types that pulsed
 	if not pulsed_bars.is_empty() and not power_core_data.bar_effects.is_empty():
-		for effect_bar in power_core_data.bar_effects:
-			var val: float = float(power_core_data.bar_effects[effect_bar])
-			if val != 0.0:
-				var key: String = str(effect_bar)
-				var existing: float = float(hit_effects.get(key, 0.0))
-				hit_effects[key] = existing + val
+		for pulsed_type in pulsed_bars:
+			var key: String = str(pulsed_type)
+			if power_core_data.bar_effects.has(key):
+				var val: float = float(power_core_data.bar_effects[key])
+				if val != 0.0:
+					var existing: float = float(hit_effects.get(key, 0.0))
+					hit_effects[key] = existing + val
 
 	if not hit_effects.is_empty():
 		bar_effect_fired.emit(hit_effects)

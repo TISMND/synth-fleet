@@ -1,0 +1,19 @@
+{
+	"display_name": "Mantis",
+	"id": "mantis",
+	"render_mode": "chrome",
+	"stats": {
+		"acceleration": 3300.0,
+		"device_slots": 2,
+		"electric_hp": 80.0,
+		"electric_segments": 9.0,
+		"hull_hp": 80.0,
+		"hull_segments": 7.0,
+		"shield_hp": 140.0,
+		"shield_regen": 1.0,
+		"shield_segments": 14.0,
+		"speed": 400.0,
+		"thermal_hp": 60.0,
+		"thermal_segments": 5.0
+	}
+}

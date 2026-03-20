@@ -14,6 +14,8 @@ var thermal_max: float = 6.0
 var electric: float = 8.0
 var electric_max: float = 8.0
 var speed: float = 400.0
+var acceleration: float = 1200.0
+var _velocity: Vector2 = Vector2.ZERO
 var _hardpoint_controllers: Array = []
 var _core_controllers: Array = []  # PowerCoreController instances
 var _core_data_per_slot: Array = []  # [{label, pc}]
@@ -26,7 +28,6 @@ var _space_state: int = 0  # 0=all off, 1=all on
 
 # Banking + rendering
 var _bank: float = 0.0
-var _prev_x: float = 0.0
 var _ship_renderer: ShipRenderer = null
 
 const THERMAL_COOLING_RATE: float = 10.0  # hp/sec passive cooling (10x scale)
@@ -42,6 +43,7 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	thermal_max = float(stats.get("thermal_hp", float(stats.get("thermal_segments", 6)) * 10.0))
 	electric_max = float(stats.get("electric_hp", float(stats.get("electric_segments", 8)) * 10.0))
 	speed = float(stats.get("speed", 400))
+	acceleration = float(stats.get("acceleration", 1200))
 	shield_regen = float(stats.get("shield_regen", 1.0))
 
 	# Ship renderer
@@ -105,8 +107,6 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_player_area.add_child(shape)
 	_player_area.area_entered.connect(_on_contact)
 	add_child(_player_area)
-
-	_prev_x = position.x
 
 	# Create power core controllers from GameState internal slots
 	for i in 3:
@@ -201,20 +201,26 @@ func _apply_stored_volumes() -> void:
 
 
 func _process(delta: float) -> void:
-	# Input movement
+	# Acceleration-based movement
 	var input_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	position += input_dir * speed * delta
-	# Clamp to screen
-	position.x = clampf(position.x, 50.0, 1870.0)
-	position.y = clampf(position.y, 50.0, 936.0)
+	var target_velocity: Vector2 = input_dir * speed
+	_velocity = _velocity.move_toward(target_velocity, acceleration * delta)
+	position += _velocity * delta
+	# Clamp to screen — kill velocity on axis if clamped
+	var clamped_x: float = clampf(position.x, 50.0, 1870.0)
+	var clamped_y: float = clampf(position.y, 50.0, 936.0)
+	if position.x != clamped_x:
+		_velocity.x = 0.0
+		position.x = clamped_x
+	if position.y != clamped_y:
+		_velocity.y = 0.0
+		position.y = clamped_y
 	# Shield regen is component-based only (no auto-regen)
 	# Passive thermal cooling
 	thermal = maxf(thermal - THERMAL_COOLING_RATE * delta, 0.0)
 
 	# Banking animation from horizontal velocity
-	var velocity_x: float = (position.x - _prev_x) / maxf(delta, 0.001)
-	_prev_x = position.x
-	var target_bank: float = clampf(-velocity_x / maxf(speed, 1.0), -1.0, 1.0)
+	var target_bank: float = clampf(-_velocity.x / maxf(speed, 1.0), -1.0, 1.0)
 	_bank = lerpf(_bank, target_bank, minf(delta * 8.0, 1.0))
 	if _ship_renderer:
 		_ship_renderer.bank = _bank

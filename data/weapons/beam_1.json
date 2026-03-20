@@ -1,17 +1,17 @@
 {
-	"aim_mode": "track",
+	"aim_mode": "fixed",
 	"bar_effects": {
-		"electric": -1.5,
+		"electric": -1.0,
 		"thermal": 0.5
 	},
-	"beam_dps": 20.0,
+	"beam_dps": 15.0,
 	"beam_duration": 1.6,
 	"beam_passthrough": false,
 	"beam_style_id": "beam_1",
 	"beam_transition_time": 0.26,
 	"damage": 10,
 	"description": "",
-	"direction_deg": 79.0,
+	"direction_deg": 0.0,
 	"display_name": "Beam 1",
 	"effect_profile": {
 		"defaults": {

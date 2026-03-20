@@ -1,0 +1,19 @@
+{
+	"display_name": "Trident",
+	"id": "trident",
+	"render_mode": "chrome",
+	"stats": {
+		"acceleration": 2450.0,
+		"device_slots": 2.0,
+		"electric_hp": 80.0,
+		"electric_segments": 8.0,
+		"hull_hp": 100.0,
+		"hull_segments": 10.0,
+		"shield_hp": 110.0,
+		"shield_regen": 0.9,
+		"shield_segments": 13.0,
+		"speed": 460.0,
+		"thermal_hp": 60.0,
+		"thermal_segments": 10.0
+	}
+}

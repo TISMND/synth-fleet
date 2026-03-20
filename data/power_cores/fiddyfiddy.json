@@ -2,6 +2,86 @@
 	"bar_effect_triggers": [
 		{
 			"time": 0.0234375,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.0390625,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.1484375,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.1640625,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.2734375,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.2890625,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.3984375,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.4140625,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.5234375,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.5390625,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.6484375,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.6640625,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.7734375,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.7890625,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.8984375,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.9140625,
+			"type": "shield",
+			"value": 5.0
+		},
+		{
+			"time": 0.0234375,
 			"type": "thermal",
 			"value": 5.0
 		},
@@ -163,7 +243,8 @@
 	],
 	"bar_effects": {
 		"electric": 5.0,
-		"shield": 2.5
+		"shield": 4.0,
+		"thermal": 0.4
 	},
 	"description": "",
 	"display_name": "FiddyFiddy",
@@ -176,7 +257,7 @@
 	"loop_file_path": "res://loop_zips/sorted/percussion/Microdose Sleep - 120 BPM - 5 - Percussion - NW_MMRT_100_percussion_chocolate.wav",
 	"loop_length_bars": 8,
 	"passive_effects": {
-		"thermal": 1.25
+
 	},
 	"pulse_settings": {
 		"electric": {
@@ -203,24 +284,6 @@
 			0.8515625,
 			0.953125,
 			0.9765625
-		],
-		"shield": [
-			0.0234375,
-			0.0390625,
-			0.1484375,
-			0.1640625,
-			0.2734375,
-			0.2890625,
-			0.3984375,
-			0.4140625,
-			0.5234375,
-			0.5390625,
-			0.6484375,
-			0.6640625,
-			0.7734375,
-			0.7890625,
-			0.8984375,
-			0.9140625
 		]
 	}
 }
