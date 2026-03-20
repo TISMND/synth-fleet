@@ -1,7 +1,7 @@
 {
 	"burst_directions": 8,
 	"display_name": "Ironclad",
-	"enemy_damage": 15,
+	"enemy_damage": 150,
 	"fire_pattern": "turret",
 	"fire_rate": 1.2,
 	"grid_size": [

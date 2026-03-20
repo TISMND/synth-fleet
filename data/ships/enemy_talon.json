@@ -1,7 +1,7 @@
 {
 	"burst_directions": 4,
 	"display_name": "Talon",
-	"enemy_damage": 10,
+	"enemy_damage": 100,
 	"fire_pattern": "straight",
 	"fire_rate": 1.5,
 	"grid_size": [

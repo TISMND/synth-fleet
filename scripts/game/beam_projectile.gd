@@ -10,6 +10,7 @@ var max_length: float = 400.0
 var beam_width: float = 16.0
 var scroll_speed: float = 3.0
 var projectile_style: ProjectileStyle = null
+var skips_shields: bool = false
 
 var _age: float = 0.0
 var _damage_accumulator: float = 0.0
@@ -74,10 +75,10 @@ func _apply_damage_to_overlapping(dmg: int) -> void:
 	var areas: Array[Area2D] = _collision_area.get_overlapping_areas()
 	for area in areas:
 		if area.has_method("take_damage"):
-			area.take_damage(dmg)
+			area.take_damage(dmg, skips_shields)
 
 
 func _on_area_entered(area: Area2D) -> void:
 	if area.has_method("take_damage"):
 		var initial_dmg: int = int(maxf(damage_per_tick * 0.1, 1.0))
-		area.take_damage(initial_dmg)
+		area.take_damage(initial_dmg, skips_shields)

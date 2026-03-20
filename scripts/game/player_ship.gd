@@ -29,18 +29,18 @@ var _bank: float = 0.0
 var _prev_x: float = 0.0
 var _ship_renderer: ShipRenderer = null
 
-const THERMAL_COOLING_RATE: float = 1.0  # segments/sec passive cooling
+const THERMAL_COOLING_RATE: float = 10.0  # hp/sec passive cooling (10x scale)
 
 
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
 	ship_data = ship
 	var stats: Dictionary = ship_data.stats
-	hull_max = float(stats.get("hull_segments", 8))
+	hull_max = float(stats.get("hull_hp", float(stats.get("hull_segments", 8)) * 10.0))
 	hull = hull_max
-	shield_max = float(stats.get("shield_segments", 10))
+	shield_max = float(stats.get("shield_hp", float(stats.get("shield_segments", 10)) * 10.0))
 	shield = shield_max
-	thermal_max = float(stats.get("thermal_segments", 6))
-	electric_max = float(stats.get("electric_segments", 8))
+	thermal_max = float(stats.get("thermal_hp", float(stats.get("thermal_segments", 6)) * 10.0))
+	electric_max = float(stats.get("electric_hp", float(stats.get("electric_segments", 8)) * 10.0))
 	speed = float(stats.get("speed", 400))
 	shield_regen = float(stats.get("shield_regen", 1.0))
 
@@ -207,8 +207,7 @@ func _process(delta: float) -> void:
 	# Clamp to screen
 	position.x = clampf(position.x, 50.0, 1870.0)
 	position.y = clampf(position.y, 50.0, 936.0)
-	# Shield regen
-	shield = minf(shield + shield_regen * delta, shield_max)
+	# Shield regen is component-based only (no auto-regen)
 	# Passive thermal cooling
 	thermal = maxf(thermal - THERMAL_COOLING_RATE * delta, 0.0)
 
@@ -462,7 +461,7 @@ func _on_contact(area: Area2D) -> void:
 	# Enemy projectiles handle their own damage via their _on_area_entered
 	if area is EnemyProjectile:
 		return
-	take_damage(1.5)
+	take_damage(15.0)
 
 
 static func _resolve_ship_id(ship: ShipData) -> int:

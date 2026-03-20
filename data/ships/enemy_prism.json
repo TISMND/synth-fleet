@@ -1,7 +1,7 @@
 {
 	"burst_directions": 4,
 	"display_name": "Prism",
-	"enemy_damage": 12,
+	"enemy_damage": 120,
 	"fire_pattern": "straight",
 	"fire_rate": 1.2,
 	"grid_size": [

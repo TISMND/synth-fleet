@@ -5,6 +5,9 @@ extends Resource
 const DEFAULT_SEGMENTS: Dictionary = {
 	"SHIELD": 10, "HULL": 8, "THERMAL": 6, "ELECTRIC": 8
 }
+const DEFAULT_HP: Dictionary = {
+	"SHIELD": 100, "HULL": 80, "THERMAL": 60, "ELECTRIC": 80
+}
 
 @export var id: String = ""
 @export var display_name: String = ""

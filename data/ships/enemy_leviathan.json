@@ -1,7 +1,7 @@
 {
 	"burst_directions": 6,
 	"display_name": "Leviathan",
-	"enemy_damage": 18,
+	"enemy_damage": 180,
 	"fire_pattern": "burst",
 	"fire_rate": 2.0,
 	"grid_size": [

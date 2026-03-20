@@ -1,7 +1,7 @@
 {
 	"burst_directions": 4,
 	"display_name": "Obelisk",
-	"enemy_damage": 20,
+	"enemy_damage": 200,
 	"fire_pattern": "straight",
 	"fire_rate": 0.5,
 	"grid_size": [

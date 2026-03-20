@@ -1,7 +1,7 @@
 {
 	"burst_directions": 8,
 	"display_name": "Tesseract",
-	"enemy_damage": 18,
+	"enemy_damage": 180,
 	"fire_pattern": "burst",
 	"fire_rate": 0.6,
 	"grid_size": [

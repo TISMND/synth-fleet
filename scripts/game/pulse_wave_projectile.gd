@@ -9,6 +9,7 @@ var max_radius: float = 300.0
 var lifetime: float = 1.0
 var ring_width: float = 8.0
 var projectile_style: ProjectileStyle = null
+var skips_shields: bool = false
 
 var _age: float = 0.0
 var _current_radius: float = 0.0
@@ -85,4 +86,4 @@ func _on_area_entered(area: Area2D) -> void:
 		return
 	_already_hit.append(area)
 	if area.has_method("take_damage"):
-		area.take_damage(damage)
+		area.take_damage(damage, skips_shields)

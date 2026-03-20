@@ -1,7 +1,7 @@
 {
 	"burst_directions": 8,
 	"display_name": "Colossus",
-	"enemy_damage": 25,
+	"enemy_damage": 250,
 	"fire_pattern": "burst",
 	"fire_rate": 2.5,
 	"grid_size": [

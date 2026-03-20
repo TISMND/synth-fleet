@@ -63,6 +63,9 @@ var _splash_radius_slider: HSlider
 var _splash_radius_label: Label
 var _splash_section: VBoxContainer
 
+# Skips Shields (Stats subtab)
+var _skips_shields_toggle: CheckBox
+
 # Stats subtab
 var _name_input: LineEdit
 var _damage_slider: HSlider
@@ -71,11 +74,11 @@ var _damage_label: Label
 const BAR_TYPES: Array[String] = ["shield", "hull", "thermal", "electric"]
 const BAR_TYPE_LABELS: Array[String] = ["SHD", "HUL", "THR", "ELC"]
 const BAR_TYPE_COLOR_KEYS: Array[String] = ["bar_shield", "bar_hull", "bar_thermal", "bar_electric"]
-const BAR_MAX_DEFAULTS: Array[float] = [10.0, 8.0, 6.0, 8.0]
+const BAR_MAX_DEFAULTS: Array[float] = [100.0, 80.0, 60.0, 80.0]
 var _stats_preview_bars: Array[ProgressBar] = []
 var _stats_bar_base_colors: Array[Color] = []
-var _stats_bar_values: Array[float] = [10.0, 8.0, 6.0, 8.0]
-var _stats_bar_maxes: Array[float] = [10.0, 8.0, 6.0, 8.0]
+var _stats_bar_values: Array[float] = [50.0, 40.0, 30.0, 40.0]
+var _stats_bar_maxes: Array[float] = [100.0, 80.0, 60.0, 80.0]
 var _stats_bar_names: Array[String] = []
 # Rolling wave state per bar
 var _stats_gain_wave: Array[Dictionary] = []
@@ -556,17 +559,17 @@ func _build_stats_tab() -> Control:
 		var bar := ProgressBar.new()
 		bar.custom_minimum_size = Vector2(200, 20)
 		var bar_max: float = BAR_MAX_DEFAULTS[i]
+		var bar_start: float = bar_max * 0.5
 		bar.max_value = bar_max
-		bar.value = bar_max
+		bar.value = bar_start
 		bar.show_percentage = false
 		bar_hbox.add_child(bar)
 		var bar_name: String = str(spec["name"])
-		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, -1))
-		ThemeManager.apply_led_bar(bar, color, 1.0, seg)
+		ThemeManager.apply_led_bar(bar, color, bar_start / bar_max, 20)
 		_stats_preview_bars.append(bar)
 		_stats_bar_base_colors.append(color)
 		_stats_bar_names.append(bar_name)
-		_stats_bar_values[i] = bar_max
+		_stats_bar_values[i] = bar_start
 		_stats_bar_maxes[i] = bar_max
 		_stats_gain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
 		_stats_drain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
@@ -605,10 +608,10 @@ func _build_stats_tab() -> Control:
 		row.add_child(lbl)
 
 		var slider := HSlider.new()
-		slider.min_value = -10.0
-		slider.max_value = 10.0
+		slider.min_value = -100.0
+		slider.max_value = 100.0
 		slider.value = 0.0
-		slider.step = 0.05
+		slider.step = 0.5
 		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slider.custom_minimum_size.x = 150
 		row.add_child(slider)
@@ -715,6 +718,19 @@ func _build_stats_tab() -> Control:
 	_splash_radius_slider = splash_row[0]
 	_splash_radius_label = splash_row[1]
 	_splash_radius_slider.editable = false
+
+	_add_separator(form)
+
+	# Skips Shields
+	_add_section_header(form, "SKIPS SHIELDS")
+	_skips_shields_toggle = CheckBox.new()
+	_skips_shields_toggle.text = "BYPASS ENEMY SHIELDS"
+	_skips_shields_toggle.button_pressed = false
+	_skips_shields_toggle.toggled.connect(func(_on: bool) -> void:
+		_mark_dirty()
+		_update_preview()
+	)
+	form.add_child(_skips_shields_toggle)
 
 	return scroll
 
@@ -895,6 +911,7 @@ func _collect_weapon_data() -> Dictionary:
 		"pierce_count": int(_pierce_slider.value),
 		"splash_enabled": _splash_toggle.button_pressed,
 		"splash_radius": _splash_radius_slider.value if _splash_toggle.button_pressed else 0.0,
+		"skips_shields": _skips_shields_toggle.button_pressed,
 	}
 
 
@@ -1076,11 +1093,12 @@ func _on_new() -> void:
 	_transition_ms_slider.value = 200
 	_transition_ms_label.text = "200ms"
 
-	# Reset pierce / splash
+	# Reset pierce / splash / skips shields
 	_pierce_slider.value = 0
 	_splash_toggle.button_pressed = false
 	_on_splash_toggled(false)
 	_splash_radius_slider.value = 40
+	_skips_shields_toggle.button_pressed = false
 
 	_update_preview()
 	_populating = false
@@ -1164,11 +1182,12 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_transition_ms_slider.value = float(weapon.transition_ms)
 	_transition_ms_label.text = str(weapon.transition_ms) + "ms"
 
-	# Pierce / Splash
+	# Pierce / Splash / Skips Shields
 	_pierce_slider.value = weapon.pierce_count
 	_splash_toggle.button_pressed = weapon.splash_enabled
 	_on_splash_toggled(weapon.splash_enabled)
 	_splash_radius_slider.value = weapon.splash_radius if weapon.splash_radius > 0.0 else 40.0
+	_skips_shields_toggle.button_pressed = weapon.skips_shields
 
 	_update_preview()
 	_populating = false
@@ -1180,7 +1199,7 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 
 func _on_reset_bars() -> void:
 	for i in _stats_bar_values.size():
-		_stats_bar_values[i] = _stats_bar_maxes[i]
+		_stats_bar_values[i] = _stats_bar_maxes[i] * 0.5
 		_stats_gain_wave[i] = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
 		_stats_drain_wave[i] = {"active": false, "position": -1.0, "speed": WAVE_SPEED}
 	_refresh_stats_bars()
@@ -1233,13 +1252,6 @@ func _update_stats_preview(delta: float) -> void:
 		_advance_wave(_enemy_shield_gain_wave, delta, 1.0)
 		_advance_wave(_enemy_shield_drain_wave, delta, -1.0)
 		_advance_wave(_enemy_hull_drain_wave, delta, -1.0)
-		# Shield regen
-		if _enemy_shield_regen > 0.0 and _enemy_shield < _enemy_shield_max and _enemy_hull > 0.0:
-			var old_shield: float = _enemy_shield
-			_enemy_shield = minf(_enemy_shield + _enemy_shield_regen * delta, _enemy_shield_max)
-			if _enemy_shield - old_shield > WAVE_MIN_CHANGE:
-				_enemy_shield_gain_wave["active"] = true
-				_enemy_shield_gain_wave["position"] = 0.0
 		# TTK timer
 		if _enemy_ttk_active and not _enemy_ttk_done:
 			_enemy_ttk_timer += delta
@@ -1274,7 +1286,7 @@ func _on_trigger_fired() -> void:
 
 func _apply_enemy_damage(amount: float) -> void:
 	var remaining: float = amount
-	if _enemy_shield > 0.0:
+	if _enemy_shield > 0.0 and not _skips_shields_toggle.button_pressed:
 		var absorbed: float = minf(remaining, _enemy_shield)
 		var old_shield: float = _enemy_shield
 		_enemy_shield -= absorbed
@@ -1361,10 +1373,7 @@ func _refresh_stats_bars() -> void:
 		bar.max_value = bar_max
 		bar.value = _stats_bar_values[i]
 		var color: Color = _stats_bar_base_colors[i]
-		var seg: int = -1
-		if i < _stats_bar_names.size():
-			seg = int(ShipData.DEFAULT_SEGMENTS.get(_stats_bar_names[i], -1))
-		ThemeManager.apply_led_bar(bar, color, _stats_bar_values[i] / maxf(bar_max, 1.0), seg)
+		ThemeManager.apply_led_bar(bar, color, _stats_bar_values[i] / maxf(bar_max, 1.0), 20)
 
 
 # ── Enemy Damage Test ────────────────────────────────────────

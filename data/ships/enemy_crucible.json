@@ -1,7 +1,7 @@
 {
 	"burst_directions": 6,
 	"display_name": "Crucible",
-	"enemy_damage": 15,
+	"enemy_damage": 150,
 	"fire_pattern": "burst",
 	"fire_rate": 0.8,
 	"grid_size": [

@@ -160,9 +160,9 @@ func _spawn_explosion() -> void:
 		container.add_child(explosion)
 
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, skips_shields: bool = false) -> void:
 	var remaining: int = amount
-	if shield > 0:
+	if shield > 0 and not skips_shields:
 		var absorbed: int = mini(remaining, shield)
 		shield -= absorbed
 		remaining -= absorbed

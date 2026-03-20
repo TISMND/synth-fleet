@@ -1,7 +1,7 @@
 {
 	"bar_effects": {
-		"electric": 0.5,
-		"shield": 0.25
+		"electric": 5.0,
+		"shield": 2.5
 	},
 	"description": "",
 	"display_name": "FiddyFiddy",

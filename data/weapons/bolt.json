@@ -1,8 +1,8 @@
 {
 	"aim_mode": "fixed",
 	"bar_effects": {
-		"electric": -1.0,
-		"thermal": 0.0999999999999996
+		"electric": -10.0,
+		"thermal": 1.0
 	},
 	"damage": 30,
 	"description": "",

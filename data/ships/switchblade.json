@@ -5,12 +5,16 @@
 	"stats": {
 		"acceleration": 2000.0,
 		"device_slots": 2,
+		"electric_hp": 80.0,
 		"electric_segments": 8.0,
 		"generator_power": 12.0,
+		"hull_hp": 60.0,
 		"hull_segments": 6.0,
+		"shield_hp": 120.0,
 		"shield_regen": 1.2,
 		"shield_segments": 12.0,
 		"speed": 520.0,
+		"thermal_hp": 60.0,
 		"thermal_segments": 6.0
 	}
 }

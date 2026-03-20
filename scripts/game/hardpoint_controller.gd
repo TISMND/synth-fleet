@@ -296,6 +296,7 @@ func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trig
 	proj.pierce_count = weapon_data.pierce_count
 	proj.splash_enabled = weapon_data.splash_enabled
 	proj.splash_radius = weapon_data.splash_radius
+	proj.skips_shields = weapon_data.skips_shields
 	if style:
 		proj.projectile_style = style
 		proj.weapon_color = style.color
@@ -314,6 +315,7 @@ func _spawn_beam(pos: Vector2, style: ProjectileStyle) -> void:
 	beam.beam_duration = float(ap.get("beam_duration", 0.3))
 	beam.max_length = float(ap.get("max_length", 400.0))
 	beam.beam_width = float(ap.get("width", 16.0))
+	beam.skips_shields = weapon_data.skips_shields
 	_projectiles_container.add_child(beam)
 
 
@@ -328,6 +330,7 @@ func _spawn_pulse_wave(pos: Vector2, style: ProjectileStyle) -> void:
 	pulse.max_radius = float(ap.get("max_radius", 300.0))
 	pulse.lifetime = float(ap.get("lifetime", 1.0))
 	pulse.ring_width = float(ap.get("ring_width", 8.0))
+	pulse.skips_shields = weapon_data.skips_shields
 	_projectiles_container.add_child(pulse)
 
 

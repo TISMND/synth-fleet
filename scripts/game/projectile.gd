@@ -13,6 +13,7 @@ var projectile_style: ProjectileStyle = null
 var pierce_count: int = 0  # 0 = die on hit, N = pass through N enemies, -1 = infinite
 var splash_enabled: bool = false
 var splash_radius: float = 0.0
+var skips_shields: bool = false
 
 var _age: float = 0.0
 var _base_x: float = 0.0
@@ -210,7 +211,7 @@ func _on_area_entered(area: Area2D) -> void:
 		return
 
 	if area.has_method("take_damage"):
-		area.take_damage(damage)
+		area.take_damage(damage, skips_shields)
 	_pierced_enemies.append(area)
 
 	# Splash damage — hit all enemies within radius (except the direct target)
@@ -224,7 +225,7 @@ func _on_area_entered(area: Area2D) -> void:
 			var enemy: Node2D = node as Node2D
 			if global_position.distance_to(enemy.global_position) <= splash_radius:
 				if enemy.has_method("take_damage"):
-					enemy.take_damage(damage)
+					enemy.take_damage(damage, skips_shields)
 
 	# Pierce: keep going or die
 	if pierce_count == -1:

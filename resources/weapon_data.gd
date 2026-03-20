@@ -25,6 +25,7 @@ extends Resource
 @export var pierce_count: int = 0  # 0 = dies on hit, N = passes through N enemies, -1 = infinite
 @export var splash_enabled: bool = false
 @export var splash_radius: float = 0.0  # splash damage radius in pixels
+@export var skips_shields: bool = false  # bypasses shields, damages hull directly
 
 
 static func from_dict(data: Dictionary) -> WeaponData:
@@ -69,6 +70,7 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.pierce_count = int(data.get("pierce_count", 0))
 	w.splash_enabled = bool(data.get("splash_enabled", false))
 	w.splash_radius = float(data.get("splash_radius", 0.0))
+	w.skips_shields = bool(data.get("skips_shields", false))
 	return w
 
 
@@ -122,4 +124,5 @@ func to_dict() -> Dictionary:
 		"pierce_count": pierce_count,
 		"splash_enabled": splash_enabled,
 		"splash_radius": splash_radius,
+		"skips_shields": skips_shields,
 	}

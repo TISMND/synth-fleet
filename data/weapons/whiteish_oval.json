@@ -1,7 +1,7 @@
 {
 	"aim_mode": "fixed",
 	"bar_effects": {
-		"electric": -0.5
+		"electric": -5.0
 	},
 	"damage": 10,
 	"description": "",
