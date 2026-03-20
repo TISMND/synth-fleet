@@ -134,18 +134,14 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		panel.add_child(chrome_bg)
 		border = panel
 
-	# Fixed-position content container
-	var content := Control.new()
-	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(content)
-
-	# Layout constants
-	var mid_y: float = panel_height / 2.0
-	var label_h: float = 20.0
-	var bar_pad: float = 6.0
-	var bar_x: float = float(SIDE_PANEL_WIDTH - BAR_WIDTH) / 2.0
-	var seg_px: float = ThemeManager.get_float("led_segment_width_px")
-	var gap_px: float = ThemeManager.get_float("led_segment_gap_px")
+	# Use VBoxContainer layout — no manual position math.
+	# Structure per zone: spacer (fills top) → bar → pad → label → pad
+	# Container handles repositioning when segment count changes.
+	var main_vbox := VBoxContainer.new()
+	main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	main_vbox.add_theme_constant_override("separation", 0)
+	main_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(main_vbox)
 
 	var bars_result: Dictionary = {}
 	for i in bar_names.size():
@@ -156,33 +152,49 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		var color: Color = ThemeManager.resolve_bar_color(spec)
 		var seg: int = int(seg_overrides.get(bar_name, ShipData.DEFAULT_SEGMENTS.get(bar_name, 8)))
 
-		# Fixed bar height from segment count — no stretching
-		var bar_height: float = float(seg) * seg_px + float(seg - 1) * gap_px
-		# Label anchored to bottom of zone, bar centered in remaining space above
-		var zone_top: float = mid_y * float(i) + bar_pad
-		var zone_bottom: float = mid_y * float(i + 1)
-		var label_top: float = zone_bottom - bar_pad - label_h
-		var available_h: float = label_top - bar_pad - zone_top
-		var bar_top: float = zone_top + (available_h - bar_height) / 2.0
-		# Create bar
+		# Zone container — each zone gets equal share of panel height
+		var zone := VBoxContainer.new()
+		zone.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		zone.add_theme_constant_override("separation", 0)
+		zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		main_vbox.add_child(zone)
+
+		# Spacer pushes bar+label to bottom of zone
+		var spacer := Control.new()
+		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		zone.add_child(spacer)
+
+		# Bar — custom_minimum_size controls height, container handles position
 		var bar := ProgressBar.new()
 		bar.fill_mode = 3  # FILL_BOTTOM_TO_TOP
 		bar.max_value = seg
 		bar.value = seg
 		bar.show_percentage = false
-		content.add_child(bar)
+		bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		bar.custom_minimum_size.x = BAR_WIDTH
+		zone.add_child(bar)
 		ThemeManager.apply_led_bar(bar, color, 1.0, seg, true)
-		bar.size = Vector2(BAR_WIDTH, bar_height)
-		bar.position = Vector2(bar_x, bar_top)
 
-		# Create label BELOW bar
+		# Pad between bar and label
+		var pad := Control.new()
+		pad.custom_minimum_size.y = 6
+		pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		zone.add_child(pad)
+
+		# Label
 		var lbl := Label.new()
 		lbl.text = str(short_names.get(bar_name, bar_name))
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl.position = Vector2(0, label_top)
-		lbl.size = Vector2(SIDE_PANEL_WIDTH, label_h)
+		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-		content.add_child(lbl)
+		zone.add_child(lbl)
+
+		# Bottom pad
+		var bottom_pad := Control.new()
+		bottom_pad.custom_minimum_size.y = 8
+		bottom_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		zone.add_child(bottom_pad)
 
 		bars_result[bar_name] = {"bar": bar, "label": lbl, "vertical": true}
 
@@ -190,7 +202,7 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		"root": root,
 		"border": border,
 		"bars": bars_result,
-		"content": content,
+		"content": main_vbox,
 	}
 
 

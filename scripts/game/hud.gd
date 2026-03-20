@@ -20,13 +20,21 @@ var _bar_drain_wave: Dictionary = {}  # bar_name -> wave state dict
 const WAVE_SPEED: float = 2.5  # normalized units per second (wave traverses bar in ~0.4s)
 const WAVE_MIN_CHANGE: float = 0.01  # minimum ratio change to trigger a wave
 var _vhs_overlay: ColorRect = null
+var _debug_overlay: HudDebugOverlay = null
 
 
 func _ready() -> void:
 	_build_ui()
 	_setup_vhs_overlay()
+	_setup_debug_overlay()
 	_apply_theme()
 	ThemeManager.theme_changed.connect(_apply_theme)
+
+
+func _setup_debug_overlay() -> void:
+	_debug_overlay = HudDebugOverlay.new()
+	_debug_overlay.setup(self, _hud_result, _bars)
+	add_child(_debug_overlay)
 
 
 func _build_ui() -> void:
@@ -145,6 +153,7 @@ func _apply_theme() -> void:
 		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
 		var seg: int = int(_bar_segments.get(bar_name, -1))
 		var is_vertical: bool = entry.get("vertical", false) as bool
+		bar.custom_minimum_size.x = HudBuilder.BAR_WIDTH
 		ThemeManager.apply_led_bar(bar, color, ratio, seg, is_vertical)
 		_bar_base_colors[bar_name] = color
 
