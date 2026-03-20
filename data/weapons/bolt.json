@@ -84,7 +84,8 @@
 	"mirror_mode": "none",
 	"projectile_speed": 760.0,
 	"projectile_style_id": "rect_lightning",
-	"special_effect": "none",
 	"sweep_arc_deg": 60.0,
-	"sweep_duration": 1.2
+	"sweep_duration": 1.2,
+	"transition_mode": "fade",
+	"transition_ms": 200
 }

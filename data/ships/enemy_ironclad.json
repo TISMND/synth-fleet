@@ -11,6 +11,7 @@
 	"hardpoints": [],
 	"id": "enemy_ironclad",
 	"lines": [],
+	"presence_loop_path": "res://loop_zips/sorted/strings/Microdose Sleep - 120 BPM - 8 - Strings - BPM120_Gm_Sensitive_Cello_Ensemble.wav",
 	"projectile_speed": 260.0,
 	"render_mode": "sport",
 	"stats": {

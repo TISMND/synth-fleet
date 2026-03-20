@@ -40,6 +40,9 @@ var _enemy_ships: Array[ShipData] = []
 var _selected_enemy_index: int = -1
 var _working_enemy: ShipData = null
 var _enemy_idle_time: float = 0.0
+var _loop_popup: Panel = null
+var _loop_browser_popup: LoopBrowser = null
+var _presence_loop_label: Label = null
 
 
 func _ready() -> void:
@@ -221,11 +224,8 @@ func _input(event: InputEvent) -> void:
 					if slot >= 0 and slot < _ShipSelector.SHIP_COUNT:
 						_select_ship(slot)
 				elif _category == "ENEMIES":
-					# +1 because slot 0 is the "+ NEW" button
-					if slot == 0:
-						_create_new_enemy()
-					elif slot >= 1 and slot <= _enemy_ships.size():
-						_select_enemy(slot - 1)
+					if slot >= 0 and slot < _enemy_ships.size():
+						_select_enemy(slot)
 
 
 # ── Ship selection wiring ─────────────────────────────────────
@@ -459,6 +459,8 @@ func _build_right_panel() -> void:
 func _rebuild_right_panel() -> void:
 	if not _right_panel:
 		return
+	_close_loop_popup()
+	_presence_loop_label = null
 	for child in _right_panel.get_children():
 		_right_panel.remove_child(child)
 		child.queue_free()
@@ -631,17 +633,6 @@ func _build_enemy_right_panel() -> void:
 
 	_add_section_spacer(vbox)
 
-	# ── PROPULSION ──
-	var prop_label := Label.new()
-	prop_label.text = "PROPULSION"
-	prop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(prop_label)
-
-	_add_slider_row(vbox, "speed", "SPEED", 50, 400, 10)
-	_add_slider_row(vbox, "acceleration", "ACCEL", 200, 1600, 50)
-
-	_add_section_spacer(vbox)
-
 	# ── WEAPONS ──
 	var weap_label := Label.new()
 	weap_label.text = "WEAPONS"
@@ -730,20 +721,34 @@ func _build_enemy_right_panel() -> void:
 	audio_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(audio_label)
 
-	var loop_hbox := HBoxContainer.new()
-	loop_hbox.add_theme_constant_override("separation", 6)
-	vbox.add_child(loop_hbox)
-	var loop_lbl := Label.new()
-	loop_lbl.text = "LOOP"
-	loop_lbl.custom_minimum_size.x = 40
-	loop_hbox.add_child(loop_lbl)
-	var loop_edit := LineEdit.new()
-	loop_edit.name = "PresenceLoopEdit"
-	loop_edit.placeholder_text = "res://assets/audio/..."
-	loop_edit.text = _working_enemy.presence_loop_path if _working_enemy.presence_loop_path != "" else ""
-	loop_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	loop_edit.text_changed.connect(_on_enemy_presence_loop_changed)
-	loop_hbox.add_child(loop_edit)
+	# Current loop display
+	_presence_loop_label = Label.new()
+	_presence_loop_label.name = "PresenceLoopLabel"
+	_presence_loop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_presence_loop_label.add_theme_font_size_override("font_size", 11)
+	if _working_enemy.presence_loop_path != "":
+		_presence_loop_label.text = _working_enemy.presence_loop_path.get_file()
+	else:
+		_presence_loop_label.text = "(none)"
+		_presence_loop_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	vbox.add_child(_presence_loop_label)
+
+	var loop_btn_row := HBoxContainer.new()
+	loop_btn_row.add_theme_constant_override("separation", 6)
+	loop_btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(loop_btn_row)
+
+	var browse_btn := Button.new()
+	browse_btn.text = "BROWSE LOOPS"
+	browse_btn.pressed.connect(_open_loop_popup)
+	loop_btn_row.add_child(browse_btn)
+	ThemeManager.apply_button_style(browse_btn)
+
+	var clear_btn := Button.new()
+	clear_btn.text = "CLEAR"
+	clear_btn.pressed.connect(_clear_presence_loop)
+	loop_btn_row.add_child(clear_btn)
+	ThemeManager.apply_button_style(clear_btn)
 
 	# ── HP readout ──
 	_add_section_spacer(vbox)
@@ -772,12 +777,6 @@ func _build_enemy_right_panel() -> void:
 	del_btn.pressed.connect(_delete_enemy)
 	vbox.add_child(del_btn)
 	ThemeManager.apply_button_style(del_btn)
-
-	var new_btn := Button.new()
-	new_btn.text = "NEW ENEMY"
-	new_btn.pressed.connect(_create_new_enemy)
-	vbox.add_child(new_btn)
-	ThemeManager.apply_button_style(new_btn)
 
 	# Set slider values from working enemy
 	_updating_sliders = true
@@ -922,9 +921,112 @@ func _on_enemy_burst_dirs_changed(value: float) -> void:
 		_working_enemy.burst_directions = int(value)
 
 
-func _on_enemy_presence_loop_changed(new_path: String) -> void:
+func _open_loop_popup() -> void:
+	if _loop_popup:
+		_loop_popup.queue_free()
+		_loop_popup = null
+		_loop_browser_popup = null
+
+	var vp_size: Vector2 = get_viewport_rect().size
+	var popup_w: float = vp_size.x * 0.5
+	var popup_h: float = 280.0
+
+	_loop_popup = Panel.new()
+	_loop_popup.position = Vector2((vp_size.x - popup_w) * 0.5, (vp_size.y - popup_h) * 0.5)
+	_loop_popup.size = Vector2(popup_w, popup_h)
+	_loop_popup.clip_contents = true
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.03, 0.03, 0.08, 0.97)
+	panel_style.border_color = ThemeManager.get_color("accent")
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(4)
+	panel_style.content_margin_left = 12
+	panel_style.content_margin_right = 12
+	panel_style.content_margin_top = 10
+	panel_style.content_margin_bottom = 10
+	_loop_popup.add_theme_stylebox_override("panel", panel_style)
+	# Draw on top of everything
+	add_child(_loop_popup)
+	move_child(_loop_popup, get_child_count() - 1)
+
+	var vbox := VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.offset_left = 12
+	vbox.offset_right = -12
+	vbox.offset_top = 10
+	vbox.offset_bottom = -10
+	vbox.add_theme_constant_override("separation", 4)
+	_loop_popup.add_child(vbox)
+
+	# Header
+	var header := Label.new()
+	header.text = "SELECT PRESENCE LOOP"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ThemeManager.apply_text_glow(header, "header")
+	vbox.add_child(header)
+
+	# Loop browser
+	_loop_browser_popup = LoopBrowser.new()
+	_loop_browser_popup.refresh_usage()
+	if _working_enemy and _working_enemy.presence_loop_path != "":
+		_loop_browser_popup.call_deferred("select_path", _working_enemy.presence_loop_path)
+	_loop_browser_popup.loop_selected.connect(_on_popup_loop_selected)
+	vbox.add_child(_loop_browser_popup)
+
+	# Confirm / Cancel row
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 12)
+	vbox.add_child(btn_row)
+
+	var confirm_btn := Button.new()
+	confirm_btn.text = "CONFIRM"
+	confirm_btn.pressed.connect(_confirm_loop_popup)
+	btn_row.add_child(confirm_btn)
+	ThemeManager.apply_button_style(confirm_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "CANCEL"
+	cancel_btn.pressed.connect(_close_loop_popup)
+	btn_row.add_child(cancel_btn)
+	ThemeManager.apply_button_style(cancel_btn)
+
+
+func _on_popup_loop_selected(_path: String, _category: String) -> void:
+	# Preview only — don't apply until confirm
+	pass
+
+
+func _confirm_loop_popup() -> void:
+	if _loop_browser_popup and _working_enemy:
+		var path: String = _loop_browser_popup.get_selected_path()
+		_working_enemy.presence_loop_path = path
+		if _presence_loop_label:
+			if path != "":
+				_presence_loop_label.text = path.get_file()
+				_presence_loop_label.remove_theme_color_override("font_color")
+			else:
+				_presence_loop_label.text = "(none)"
+				_presence_loop_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	_close_loop_popup()
+
+
+func _close_loop_popup() -> void:
+	if _loop_popup:
+		# Stop audition playback
+		if _loop_browser_popup:
+			_loop_browser_popup._stop_playback()
+		_loop_popup.queue_free()
+		_loop_popup = null
+		_loop_browser_popup = null
+
+
+func _clear_presence_loop() -> void:
 	if _working_enemy:
-		_working_enemy.presence_loop_path = new_path
+		_working_enemy.presence_loop_path = ""
+	if _presence_loop_label:
+		_presence_loop_label.text = "(none)"
+		_presence_loop_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 
 
 func _on_save_pressed() -> void:
@@ -1108,7 +1210,7 @@ class _ShipSelector extends Node2D:
 
 	func _get_slot_count() -> int:
 		if category == "ENEMIES":
-			return enemy_ships.size() + 1  # +1 for "+ NEW" slot
+			return enemy_ships.size()
 		return SHIP_COUNT
 
 	func _draw() -> void:
@@ -1175,18 +1277,9 @@ class _ShipSelector extends Node2D:
 	func _draw_enemy_list() -> void:
 		var font: Font = ThemeDB.fallback_font
 
-		# Slot 0: "+ NEW" button
-		var new_slot_y: float = HEADER_HEIGHT
-		var new_cy: float = new_slot_y + SLOT_HEIGHT * 0.5
-		draw_rect(Rect2(4, new_slot_y + 4, PANEL_WIDTH - 8, SLOT_HEIGHT - 8), Color(cyan.r, cyan.g, cyan.b, 0.06))
-		draw_rect(Rect2(4, new_slot_y + 4, PANEL_WIDTH - 8, SLOT_HEIGHT - 8), Color(cyan.r, cyan.g, cyan.b, 0.2), false, 1.0)
-		var plus_text := "+ NEW ENEMY"
-		var pw: float = font.get_string_size(plus_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 14).x
-		draw_string(font, Vector2((PANEL_WIDTH - pw) * 0.5, new_cy + 5), plus_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, cyan)
-
 		# Enemy ship slots
 		for i in range(enemy_ships.size()):
-			var slot_y: float = HEADER_HEIGHT + SLOT_HEIGHT * (i + 1)
+			var slot_y: float = HEADER_HEIGHT + SLOT_HEIGHT * i
 			var cy: float = slot_y + SLOT_HEIGHT * 0.4
 			var selected: bool = (i == viewer._selected_enemy_index)
 

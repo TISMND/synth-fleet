@@ -2,7 +2,7 @@
 	"burst_directions": 4,
 	"display_name": "Dart",
 	"enemy_damage": 8,
-	"fire_pattern": "straight",
+	"fire_pattern": "turret",
 	"fire_rate": 2.0,
 	"grid_size": [
 		24,

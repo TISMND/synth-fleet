@@ -2,6 +2,7 @@ class_name LoopBrowser
 extends VBoxContainer
 ## Reusable loop browser — scans loop_zips/sorted/ by instrument folder,
 ## prev/next navigation with autoplay, category filtering.
+## Supports usage badges showing where each loop is already assigned.
 
 signal loop_selected(path: String, category: String)
 
@@ -19,9 +20,15 @@ var _next_button: Button
 var _song_label: Label
 var _file_label: Label
 var _count_label: Label
+var _usage_label: Label
+var _hide_used_button: CheckButton
 
 var _audition_id: String = "loop_browser_audition"
 var _is_playing: bool = false
+
+# Usage tracking — set externally via set_usage_data() or auto-scanned
+var _usage_data: Dictionary = {}  # path -> Array[String]
+var _hide_used: bool = false
 
 
 func _ready() -> void:
@@ -49,6 +56,14 @@ func _build_ui() -> void:
 	_file_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_file_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 	add_child(_file_label)
+
+	# Usage badges
+	_usage_label = Label.new()
+	_usage_label.text = ""
+	_usage_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_usage_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_usage_label.add_theme_font_size_override("font_size", 11)
+	add_child(_usage_label)
 
 	# Nav row
 	var nav_row := HBoxContainer.new()
@@ -89,6 +104,13 @@ func _build_ui() -> void:
 		_category_button.add_item(cat.to_upper())
 	_category_button.item_selected.connect(_on_category_changed)
 	cat_row.add_child(_category_button)
+
+	# Hide-used toggle
+	_hide_used_button = CheckButton.new()
+	_hide_used_button.text = "HIDE USED"
+	_hide_used_button.button_pressed = false
+	_hide_used_button.toggled.connect(_on_hide_used_toggled)
+	add_child(_hide_used_button)
 
 	# Set initial list
 	_on_category_changed(0)
@@ -149,15 +171,18 @@ func _parse_song_name(filename: String) -> String:
 
 
 func _on_category_changed(idx: int) -> void:
+	var raw_list: Array[Dictionary] = []
 	if idx == 0:
 		# ALL
-		_current_list = _all_loops.duplicate()
+		for loop in _all_loops:
+			raw_list.append(loop)
 	else:
 		var cat: String = _categories[idx - 1]
 		var cat_loops: Array = _loops_by_category.get(cat, [])
-		_current_list = []
 		for loop in cat_loops:
-			_current_list.append(loop)
+			raw_list.append(loop)
+
+	_current_list = _apply_filter(raw_list)
 
 	if _current_list.size() > 0:
 		_current_index = 0
@@ -165,6 +190,23 @@ func _on_category_changed(idx: int) -> void:
 	else:
 		_current_index = -1
 		_update_display_empty()
+
+
+func _apply_filter(source: Array[Dictionary]) -> Array[Dictionary]:
+	if not _hide_used or _usage_data.is_empty():
+		return source
+	var filtered: Array[Dictionary] = []
+	for loop in source:
+		var path: String = str(loop["path"])
+		if not _usage_data.has(path):
+			filtered.append(loop)
+	return filtered
+
+
+func _on_hide_used_toggled(pressed: bool) -> void:
+	_hide_used = pressed
+	# Re-apply current category with new filter
+	_on_category_changed(_category_button.selected)
 
 
 func _on_prev() -> void:
@@ -198,16 +240,29 @@ func _select_current() -> void:
 	_file_label.text = fname
 	_count_label.text = "%d / %d" % [_current_index + 1, _current_list.size()]
 
+	# Update usage badge
+	_update_usage_display(path)
+
 	# Autoplay
 	_start_playback(path)
 
 	loop_selected.emit(path, cat)
 
 
+func _update_usage_display(path: String) -> void:
+	if _usage_data.has(path):
+		var users: Array = _usage_data[path]
+		_usage_label.text = "USED BY: " + ", ".join(users)
+		_usage_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.2))
+	else:
+		_usage_label.text = ""
+
+
 func _update_display_empty() -> void:
-	_song_label.text = "(no loops in category)"
+	_song_label.text = "(no loops in category)" if not _hide_used else "(all loops in use)"
 	_file_label.text = ""
 	_count_label.text = "0 / 0"
+	_usage_label.text = ""
 
 
 func _start_playback(path: String) -> void:
@@ -221,6 +276,20 @@ func _stop_playback() -> void:
 	if _is_playing:
 		LoopMixer.remove_loop(_audition_id)
 		_is_playing = false
+
+
+## Set usage data from an external scan. Pass result of LoopUsageScanner.scan().
+func set_usage_data(data: Dictionary) -> void:
+	_usage_data = data
+	# Refresh display if we have a selection
+	if _current_index >= 0 and _current_index < _current_list.size():
+		var path: String = str(_current_list[_current_index]["path"])
+		_update_usage_display(path)
+
+
+## Refresh usage data by rescanning all data sources.
+func refresh_usage() -> void:
+	set_usage_data(LoopUsageScanner.scan())
 
 
 func get_selected_path() -> String:
@@ -246,11 +315,17 @@ func select_path(path: String) -> void:
 	for i in _all_loops.size():
 		if str(_all_loops[i]["path"]) == path:
 			_category_button.selected = 0
+			_current_list = _apply_filter(_all_loops)
+			# Find index in filtered list
+			for j in _current_list.size():
+				if str(_current_list[j]["path"]) == path:
+					_current_index = j
+					_select_current()
+					return
+			# If hidden by filter, temporarily show it anyway
 			_current_list = _all_loops.duplicate()
 			_current_index = i
-			_song_label.text = str(_all_loops[i]["song_name"])
-			_file_label.text = str(_all_loops[i]["filename"])
-			_count_label.text = "%d / %d" % [_current_index + 1, _current_list.size()]
+			_select_current()
 			return
 
 
@@ -276,3 +351,5 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_prev_button)
 	if _next_button:
 		ThemeManager.apply_button_style(_next_button)
+	if _hide_used_button:
+		_hide_used_button.add_theme_color_override("font_color", ThemeManager.get_color("text"))

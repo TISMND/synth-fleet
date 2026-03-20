@@ -13,7 +13,7 @@
 			"speed": 750.0,
 			"trigger_y": 493.827160493828,
 			"turn_speed": 90.0,
-			"weapons_active": false,
+			"weapons_active": true,
 			"x_offset": 8.54092526690391
 		},
 		{
