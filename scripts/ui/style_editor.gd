@@ -745,6 +745,35 @@ func _build_bars_tab() -> void:
 
 	_add_float_slider(root, "led_hdr_multiplier", 1.0, 4.0, ThemeManager.get_float("led_hdr_multiplier"))
 
+	# ── WorldEnvironment Glow ──
+	var glow_sep := HSeparator.new()
+	root.add_child(glow_sep)
+
+	var glow_header := Label.new()
+	glow_header.text = "Engine Glow (WorldEnvironment)"
+	glow_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	glow_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	root.add_child(glow_header)
+
+	_add_float_slider(root, "glow_hdr_threshold", 0.5, 1.5, ThemeManager.get_float("glow_hdr_threshold"))
+	_add_float_slider(root, "glow_intensity", 0.0, 2.0, ThemeManager.get_float("glow_intensity"))
+
+	var bloom_note := Label.new()
+	bloom_note.text = "Bloom Mix — affects ALL pixels, not just bright ones. Keep low."
+	bloom_note.add_theme_color_override("font_color", ThemeManager.get_color("warning"))
+	bloom_note.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	root.add_child(bloom_note)
+	_add_float_slider(root, "glow_bloom", 0.0, 0.2, ThemeManager.get_float("glow_bloom"))
+
+	var levels_lbl := Label.new()
+	levels_lbl.text = "Glow Levels (blur passes — 0=tight, 6=wide)"
+	levels_lbl.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+	root.add_child(levels_lbl)
+
+	for lvl in 7:
+		var level_key: String = "glow_level_%d" % lvl
+		_add_toggle(root, level_key, "Level %d" % lvl, ThemeManager.get_float(level_key))
+
 	# ── Smudge ──
 	var smudge_header := Label.new()
 	smudge_header.text = "Smudge"

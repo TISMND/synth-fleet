@@ -1,7 +1,9 @@
-extends CanvasLayer
+extends Control
 ## In-game HUD — bottom icon bar + vertical side bars for status.
 ## Fully themed via ThemeManager with theme_changed reactivity.
 ## Layout delegated to HudBuilder for single source of truth.
+## Extends Control (not CanvasLayer) so bars participate in WorldEnvironment
+## glow post-processing. CanvasLayer content renders after bloom and misses it.
 
 var _credits_label: Label = null
 var _menu_hint: Label = null
@@ -197,6 +199,10 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 	if bar.material is ShaderMaterial:
 		var mat: ShaderMaterial = bar.material as ShaderMaterial
 		mat.set_shader_parameter("fill_ratio", ratio)
+	# Update glow rect alpha to match fill
+	var glow_rect: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+	if glow_rect:
+		glow_rect.color.a = 0.15 * ratio
 	else:
 		# First time or after theme change — full rebuild
 		var seg: int = int(_bar_segments.get(bar_name, -1))

@@ -69,7 +69,7 @@ var _floats: Dictionary = {
 	"led_inner_softness": 1.0,
 	"led_smudge_blur": 0.008,
 	"led_segment_width_px": 10.0,
-	"led_hdr_multiplier": 1.8,
+	"led_hdr_multiplier": 2.5,
 	# Button globals
 	"btn_border_width": 1.0,
 	"btn_corner_radius": 1.0,
@@ -114,6 +114,17 @@ var _floats: Dictionary = {
 	"supercharged_speed": 1.5,
 	"supercharged_intensity": 1.0,
 	"supercharged_distortion": 0.15,
+	# WorldEnvironment glow controls
+	"glow_intensity": 0.8,
+	"glow_bloom": 0.0,
+	"glow_hdr_threshold": 0.8,
+	"glow_level_0": 1.0,
+	"glow_level_1": 1.0,
+	"glow_level_2": 1.0,
+	"glow_level_3": 0.0,
+	"glow_level_4": 0.0,
+	"glow_level_5": 0.0,
+	"glow_level_6": 0.0,
 }
 
 # ── Int keys (font sizes) ──
@@ -152,17 +163,23 @@ func _setup_world_environment() -> void:
 	_world_env = WorldEnvironment.new()
 	_env = Environment.new()
 	_env.background_mode = Environment.BG_CANVAS
-	_env.glow_enabled = true
-	_env.glow_intensity = 0.8
-	_env.glow_bloom = 0.1
-	_env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	_env.glow_hdr_threshold = 0.8
-	_env.set_glow_level(0, true)
-	_env.set_glow_level(1, true)
-	_env.set_glow_level(2, true)
-	_env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	_env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	_apply_glow_settings()
 	_world_env.environment = _env
 	add_child(_world_env)
+
+
+func _apply_glow_settings() -> void:
+	if not _env:
+		return
+	_env.glow_enabled = true
+	_env.glow_intensity = get_float("glow_intensity")
+	_env.glow_bloom = get_float("glow_bloom")
+	_env.glow_hdr_threshold = get_float("glow_hdr_threshold")
+	_env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	for i in 7:
+		var val: float = get_float("glow_level_%d" % i)
+		_env.set_glow_level(i, val > 0.5)
 
 
 func get_environment() -> Environment:
@@ -234,6 +251,8 @@ func set_font_size(key: String, value: int) -> void:
 
 func set_float(key: String, value: float) -> void:
 	_floats[key] = value
+	if key.begins_with("glow_"):
+		_apply_glow_settings()
 	theme_changed.emit()
 
 
@@ -380,6 +399,25 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 	mat.set_shader_parameter("fill_ratio", value_ratio)
 	mat.set_shader_parameter("hdr_multiplier", get_float("led_hdr_multiplier"))
 
+	# HDR glow source — a ColorRect child with color > 1.0 that WorldEnvironment
+	# bloom picks up. Shader output alone doesn't survive as HDR in Godot's 2D pipeline,
+	# but ColorRect.color does. This rect provides the bloom; the shader provides the detail.
+	var hdr_mult: float = get_float("led_hdr_multiplier")
+	var glow_rect: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+	if not glow_rect:
+		glow_rect = ColorRect.new()
+		glow_rect.name = "led_glow"
+		glow_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		glow_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bar.add_child(glow_rect)
+	# HDR color for bloom, low alpha so it doesn't overpower the shader visual
+	glow_rect.color = Color(
+		fill_color.r * hdr_mult,
+		fill_color.g * hdr_mult,
+		fill_color.b * hdr_mult,
+		0.15 * value_ratio
+	)
+
 
 # ── Supercharged LED Bar Helper ──────────────────────────────
 
@@ -438,6 +476,22 @@ func apply_supercharged_bar(bar: ProgressBar, fill_color: Color, value_ratio: fl
 	mat.set_shader_parameter("animation_speed", get_float("supercharged_speed"))
 	mat.set_shader_parameter("pulse_intensity", get_float("supercharged_intensity"))
 	mat.set_shader_parameter("energy_distortion", get_float("supercharged_distortion"))
+
+	# HDR glow source (same as apply_led_bar)
+	var hdr_mult: float = get_float("led_hdr_multiplier")
+	var glow_rect: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+	if not glow_rect:
+		glow_rect = ColorRect.new()
+		glow_rect.name = "led_glow"
+		glow_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		glow_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bar.add_child(glow_rect)
+	glow_rect.color = Color(
+		fill_color.r * hdr_mult,
+		fill_color.g * hdr_mult,
+		fill_color.b * hdr_mult,
+		0.15 * value_ratio
+	)
 
 
 # ── Text Glow Helper ─────────────────────────────────────────

@@ -20,7 +20,7 @@ var _core_data_per_slot: Array = []  # [{label, pc}]
 var _device_controllers: Array = []  # DeviceController instances
 var _device_data_per_slot: Array = []  # [{label, device}]
 var _player_area: Area2D = null
-var _hud: CanvasLayer = null
+var _hud: Control = null
 var _weapon_data_per_hp: Array = []
 var _space_state: int = 0  # 0=all off, 1=all on
 

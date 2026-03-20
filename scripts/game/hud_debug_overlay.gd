@@ -2,13 +2,13 @@ class_name HudDebugOverlay extends Control
 ## Toggle with F3 — draws outlines showing actual bar/label rects,
 ## zone boundaries, and panel edges so positioning issues are visible.
 
-var _hud: CanvasLayer = null
+var _hud: Control = null
 var _hud_result: Dictionary = {}
 var _bars: Dictionary = {}
 var _enabled: bool = false
 
 
-func setup(hud: CanvasLayer, hud_result: Dictionary, bars: Dictionary) -> void:
+func setup(hud: Control, hud_result: Dictionary, bars: Dictionary) -> void:
 	_hud = hud
 	_hud_result = hud_result
 	_bars = bars

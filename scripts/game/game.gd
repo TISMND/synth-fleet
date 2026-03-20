@@ -9,7 +9,7 @@ const WAVE_CONFIG: Array[Dictionary] = [
 
 var _player: Node2D = null
 var _wave_manager: WaveManager = null
-var _hud: CanvasLayer = null
+var _hud: Control = null
 var _projectiles: Node2D = null
 var _enemies: Node2D = null
 var _parallax_bg: ParallaxBackground = null
@@ -91,10 +91,13 @@ func _ready() -> void:
 	_wave_manager.all_waves_cleared.connect(_on_all_waves_cleared)
 	_wave_manager.presence_pre_trigger.connect(_on_presence_pre_trigger)
 
-	# HUD
-	_hud = CanvasLayer.new()
+	# HUD — Control (not CanvasLayer) so bars get WorldEnvironment glow
+	_hud = Control.new()
 	_hud.set_script(load("res://scripts/game/hud.gd"))
 	_hud.name = "HUD"
+	_hud.size = Vector2(1920, 1080)
+	_hud.z_index = 50  # Render on top of game elements
+	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hud)
 
 	# Pass ship segment counts to HUD
