@@ -162,8 +162,6 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		var zone_bottom: float = mid_y * float(i + 1)
 		var label_top: float = zone_bottom - bar_pad - label_h
 		var bar_top: float = label_top - bar_pad - bar_height
-		print("[HUD] %s: seg=%d seg_px=%.1f gap_px=%.1f bar_height=%.1f mid_y=%.1f zone_bottom=%.1f label_top=%.1f bar_top=%.1f panel_height=%.1f" % [bar_name, seg, seg_px, gap_px, bar_height, mid_y, zone_bottom, label_top, bar_top, panel_height])
-
 		# Create bar
 		var bar := ProgressBar.new()
 		bar.fill_mode = 3  # FILL_BOTTOM_TO_TOP
