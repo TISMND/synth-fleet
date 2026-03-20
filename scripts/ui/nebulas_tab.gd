@@ -847,6 +847,6 @@ func _apply_theme() -> void:
 				if sub is Label:
 					ThemeManager.apply_text_glow(sub, "body")
 		elif child is CheckBox:
-			ThemeManager.apply_text_glow(child, "body")
+			ThemeManager.apply_button_style(child)
 
 	ThemeManager.apply_text_glow(_empty_label, "body")

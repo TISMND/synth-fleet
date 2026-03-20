@@ -34,6 +34,9 @@ var _preview_bar_base_colors: Array[Color] = []  # Base colors per bar (from the
 var _preview_bar_brightness: Array[float] = [0.0, 0.0, 0.0, 0.0]  # 0.0=idle, 1.0=full pulse
 var _component_display: Control = null  # Ship component shapes display
 
+# Bar effect lane (Timing subtab)
+var _bar_effect_lane: BarEffectLane
+
 # Mechanics subtab
 var _mechanics_bar_effect_sliders: Dictionary = {}  # bar_type -> HSlider
 var _passive_effect_sliders: Dictionary = {}  # bar_type -> HSlider
@@ -68,6 +71,8 @@ func _ready() -> void:
 	_ui_ready = true
 	_refresh_load_list()
 	_waveform_editor.set_snap_mode(16)
+	if _bar_effect_lane:
+		_bar_effect_lane.set_snap_mode(16)
 	ThemeManager.theme_changed.connect(_apply_theme)
 
 
@@ -277,6 +282,14 @@ func _build_timing_tab() -> Control:
 	_waveform_editor.set_audition_loop_id("loop_browser_audition")
 	_waveform_editor.set_marker_color_callback(_get_trigger_color)
 	vbox.add_child(_waveform_editor)
+
+	# Thermal trigger lane — click to place thermal markers independently of pulse triggers
+	_bar_effect_lane = BarEffectLane.new()
+	_bar_effect_lane.custom_minimum_size = Vector2(400, 40)
+	_bar_effect_lane.set_waveform_ref(_waveform_editor)
+	_bar_effect_lane.setup("thermal", "THERMAL", ThemeManager.get_color("bar_thermal"), 5.0)
+	_bar_effect_lane.triggers_changed.connect(_on_bar_effect_triggers_changed)
+	vbox.add_child(_bar_effect_lane)
 
 	# Control row: Mute + Snap + Grid toggle + Bars
 	var control_row := HBoxContainer.new()
@@ -547,13 +560,12 @@ func _update_preview_bars(delta: float) -> void:
 	var progress: float = clampf(pos_sec / duration, 0.0, 1.0)
 	var prev: float = _prev_loop_progress
 
-	# Detect trigger crossings
+	# Detect pulse trigger crossings (visual pulse)
 	if prev >= 0.0:
 		for i in _merged_triggers.size():
 			var t: float = float(_merged_triggers[i])
 			var crossed: bool = false
 			if progress < prev:
-				# Wrap-around
 				crossed = t > prev or t <= progress
 			else:
 				crossed = t > prev and t <= progress
@@ -562,6 +574,25 @@ func _update_preview_bars(delta: float) -> void:
 				var bar_idx: int = BAR_TYPES.find(bar_type)
 				if bar_idx >= 0 and not _is_pulsing_disabled(bar_type):
 					_preview_bar_brightness[bar_idx] = 1.0
+
+		# Detect bar effect trigger crossings (bar value changes)
+		if _bar_effect_lane:
+			var bet_trigs: Array = _bar_effect_lane.get_triggers()
+			for bet in bet_trigs:
+				var d: Dictionary = bet as Dictionary
+				var t: float = float(d.get("time", 0.0))
+				var crossed: bool = false
+				if progress < prev:
+					crossed = t > prev or t <= progress
+				else:
+					crossed = t > prev and t <= progress
+				if crossed:
+					var effect_type: String = str(d.get("type", ""))
+					var effect_value: float = float(d.get("value", 0.0))
+					var bar_idx: int = BAR_TYPES.find(effect_type)
+					if bar_idx >= 0 and bar_idx < _preview_bars.size() and effect_value != 0.0:
+						var bar: ProgressBar = _preview_bars[bar_idx]
+						bar.value = clampf(bar.value + effect_value, 0.0, bar.max_value)
 
 	_prev_loop_progress = progress
 
@@ -724,6 +755,12 @@ func _split_triggers_to_dict() -> Dictionary:
 	return result
 
 
+# ── Bar Effect Lane Events ────────────────────────────────
+
+func _on_bar_effect_triggers_changed(_triggers: Array) -> void:
+	_mark_dirty()
+
+
 # ── Loop Browser Events ────────────────────────────────────
 
 func _on_loop_selected(path: String, _category: String) -> void:
@@ -736,6 +773,8 @@ func _on_loop_selected(path: String, _category: String) -> void:
 func _on_snap_changed(idx: int) -> void:
 	var mode: int = int(SNAP_MODES[idx]["value"])
 	_waveform_editor.set_snap_mode(mode)
+	if _bar_effect_lane:
+		_bar_effect_lane.set_snap_mode(mode)
 
 
 func _on_grid_toggled(pressed: bool) -> void:
@@ -749,6 +788,8 @@ func _on_bars_changed(idx: int) -> void:
 		_waveform_editor._auto_detect_bars()
 	else:
 		_waveform_editor.set_loop_length_bars(bars_val)
+	if _bar_effect_lane:
+		_bar_effect_lane.set_loop_length_bars(_waveform_editor._loop_length_bars)
 
 
 func _on_mute_toggle() -> void:
@@ -796,6 +837,7 @@ func _collect_power_core_data() -> Dictionary:
 		},
 		"pulse_settings": _collect_pulse_overrides(),
 		"bar_effects": _collect_bar_effects(),
+		"bar_effect_triggers": _bar_effect_lane.get_triggers() if _bar_effect_lane else [],
 		"passive_effects": _collect_passive_effects(),
 	}
 
@@ -906,6 +948,9 @@ func _on_new() -> void:
 			(data["brighten"] as HSlider).value = 0.05
 			(data["dim"] as HSlider).value = 0.3
 			(data["container"] as VBoxContainer).visible = false
+	# Reset bar effect lane
+	if _bar_effect_lane:
+		_bar_effect_lane.clear_triggers()
 	# Reset mechanics sliders
 	for bar_type in BAR_TYPES:
 		var be_slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
@@ -986,6 +1031,11 @@ func _populate_from_power_core(data: PowerCoreData) -> void:
 		var pe_slider: HSlider = _passive_effect_sliders.get(bar_type) as HSlider
 		if pe_slider:
 			pe_slider.value = float(data.passive_effects.get(bar_type, 0.0))
+
+	# Bar effect triggers (independent lane)
+	if _bar_effect_lane:
+		_bar_effect_lane.set_triggers(data.bar_effect_triggers)
+		_bar_effect_lane.set_loop_length_bars(_waveform_editor._loop_length_bars)
 
 	_populating = false
 	_mark_clean()

@@ -11,7 +11,8 @@ extends Resource
 @export var pulse_triggers: Dictionary = {}  # {"shield": [0.0, 0.5], "hull": [0.25], ...}
 @export var global_pulse_settings: Dictionary = {"brightness": 0.5, "brighten_duration": 0.05, "dim_duration": 0.3}
 @export var pulse_settings: Dictionary = {}  # Per-bar overrides keyed by bar type, same shape as global
-@export var bar_effects: Dictionary = {}  # {"shield": -0.5, "thermal": 1.2, ...} float delta per trigger hit
+@export var bar_effects: Dictionary = {}  # LEGACY — {"shield": -0.5, ...} flat delta per trigger (replaced by bar_effect_triggers)
+@export var bar_effect_triggers: Array = []  # [{time: float, type: String, value: float}, ...] per-beat bar effects
 @export var passive_effects: Dictionary = {}  # {"shield": 1.5, "thermal": -0.3, ...} float delta per second
 
 
@@ -62,6 +63,17 @@ static func from_dict(data: Dictionary) -> PowerCoreData:
 			"dim_duration": float(raw_bar.get("dim_duration", 0.3)),
 		}
 
+	# Bar effect triggers (independent per-beat bar effects)
+	var raw_bet: Array = data.get("bar_effect_triggers", []) as Array
+	pc.bar_effect_triggers = []
+	for entry in raw_bet:
+		var d: Dictionary = entry as Dictionary
+		pc.bar_effect_triggers.append({
+			"time": float(d.get("time", 0.0)),
+			"type": str(d.get("type", "thermal")),
+			"value": float(d.get("value", 0.0)),
+		})
+
 	return pc
 
 
@@ -76,5 +88,6 @@ func to_dict() -> Dictionary:
 		"global_pulse_settings": global_pulse_settings,
 		"pulse_settings": pulse_settings,
 		"bar_effects": bar_effects,
+		"bar_effect_triggers": bar_effect_triggers,
 		"passive_effects": passive_effects,
 	}

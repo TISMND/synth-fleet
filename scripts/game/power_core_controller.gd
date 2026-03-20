@@ -14,6 +14,7 @@ var _prev_loop_pos: float = -1.0
 
 # Flattened triggers for fast crossing detection
 var _sorted_triggers: Array = []       # Array of [float time, String bar_type]
+var _sorted_bar_effect_triggers: Array = []  # Array of {time, type, value} sorted by time
 
 
 func setup(pc: PowerCoreData, slot_index: int) -> void:
@@ -33,6 +34,14 @@ func _rebuild_triggers() -> void:
 		for t in triggers:
 			_sorted_triggers.append([float(t), str(bar_type)])
 	_sorted_triggers.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	# Build sorted bar effect triggers
+	_sorted_bar_effect_triggers.clear()
+	for bet in power_core_data.bar_effect_triggers:
+		var d: Dictionary = bet as Dictionary
+		_sorted_bar_effect_triggers.append(d.duplicate())
+	_sorted_bar_effect_triggers.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a.get("time", 0.0)) < float(b.get("time", 0.0))
+	)
 
 
 func activate() -> void:
@@ -80,7 +89,9 @@ func _process(delta: float) -> void:
 			bar_effect_fired.emit(passive_delta)
 
 	# Trigger crossing detection
-	if _sorted_triggers.is_empty():
+	var has_pulse: bool = not _sorted_triggers.is_empty()
+	var has_bar_effects: bool = not _sorted_bar_effect_triggers.is_empty()
+	if not has_pulse and not has_bar_effects:
 		return
 
 	var pos_sec: float = LoopMixer.get_playback_position(_loop_id)
@@ -97,8 +108,7 @@ func _process(delta: float) -> void:
 	var prev: float = _prev_loop_pos
 	_prev_loop_pos = curr
 
-	# Check each trigger for crossing, accumulate bar effects
-	var hit_effects: Dictionary = {}
+	# Check pulse triggers for crossing (visual pulse only)
 	var pulsed_bars: Array = []
 	for trigger_pair in _sorted_triggers:
 		var t: float = float(trigger_pair[0])
@@ -106,16 +116,31 @@ func _process(delta: float) -> void:
 			var bar_type: String = str(trigger_pair[1])
 			if not pulsed_bars.has(bar_type):
 				pulsed_bars.append(bar_type)
-			# Accumulate bar_effects for this hit
-			for effect_bar in power_core_data.bar_effects:
-				var val: float = float(power_core_data.bar_effects[effect_bar])
-				if val != 0.0:
-					var key: String = str(effect_bar)
-					var existing: float = float(hit_effects.get(key, 0.0))
-					hit_effects[key] = existing + val
 
 	if not pulsed_bars.is_empty():
 		pulse_triggered.emit(pulsed_bars)
+
+	# Check bar effect triggers (independent of pulse triggers)
+	var hit_effects: Dictionary = {}
+	for bet in _sorted_bar_effect_triggers:
+		var bet_dict: Dictionary = bet as Dictionary
+		var t: float = float(bet_dict.get("time", 0.0))
+		if _trigger_crossed(prev, curr, t):
+			var effect_type: String = str(bet_dict.get("type", ""))
+			var effect_value: float = float(bet_dict.get("value", 0.0))
+			if effect_type != "" and effect_value != 0.0:
+				var existing: float = float(hit_effects.get(effect_type, 0.0))
+				hit_effects[effect_type] = existing + effect_value
+
+	# Also apply legacy flat bar_effects on pulse trigger hits (backward compat)
+	if not pulsed_bars.is_empty() and not power_core_data.bar_effects.is_empty():
+		for effect_bar in power_core_data.bar_effects:
+			var val: float = float(power_core_data.bar_effects[effect_bar])
+			if val != 0.0:
+				var key: String = str(effect_bar)
+				var existing: float = float(hit_effects.get(key, 0.0))
+				hit_effects[key] = existing + val
+
 	if not hit_effects.is_empty():
 		bar_effect_fired.emit(hit_effects)
 
