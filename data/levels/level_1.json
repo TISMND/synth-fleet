@@ -13,6 +13,7 @@
 			"speed": 750.0,
 			"trigger_y": 493.827160493828,
 			"turn_speed": 90.0,
+			"weapons_active": false,
 			"x_offset": 8.54092526690391
 		},
 		{
@@ -26,6 +27,7 @@
 			"speed": 200.0,
 			"trigger_y": 2302.46913580247,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": -488.99750309003
 		},
 		{
@@ -39,6 +41,7 @@
 			"speed": 200.0,
 			"trigger_y": 2175.92592592592,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 513.790848492513
 		},
 		{
@@ -52,6 +55,7 @@
 			"speed": 200.0,
 			"trigger_y": 2817.9012345679,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 18.284524274372
 		},
 		{
@@ -65,6 +69,7 @@
 			"speed": 400.0,
 			"trigger_y": 4641.97530864198,
 			"turn_speed": 90.0,
+			"weapons_active": false,
 			"x_offset": 18.3969507018079
 		},
 		{
@@ -78,6 +83,7 @@
 			"speed": 800.0,
 			"trigger_y": 1425.92592592593,
 			"turn_speed": 90.0,
+			"weapons_active": false,
 			"x_offset": -0.861069069245048
 		},
 		{
@@ -91,6 +97,7 @@
 			"speed": 800.0,
 			"trigger_y": 1953.7037037037,
 			"turn_speed": 90.0,
+			"weapons_active": false,
 			"x_offset": 10.0814711779901
 		},
 		{
@@ -104,6 +111,7 @@
 			"speed": 200.0,
 			"trigger_y": 3620.37037037036,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": -590.797911736547
 		},
 		{
@@ -117,6 +125,7 @@
 			"speed": 200.0,
 			"trigger_y": 3416.66666666666,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": -292.030276207165
 		},
 		{
@@ -130,6 +139,7 @@
 			"speed": 200.0,
 			"trigger_y": 3447.53086419753,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 330.538143324241
 		},
 		{
@@ -143,6 +153,7 @@
 			"speed": 200.0,
 			"trigger_y": 3669.75308641975,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 608.431815307911
 		},
 		{
@@ -156,6 +167,7 @@
 			"speed": 210.0,
 			"trigger_y": 2345.67901234568,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 30.4958722474122
 		},
 		{
@@ -169,6 +181,7 @@
 			"speed": 200.0,
 			"trigger_y": 8731.48148148149,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 120.587459580541
 		},
 		{
@@ -182,6 +195,7 @@
 			"speed": 400.0,
 			"trigger_y": 4283.95061728395,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 27.3309608540927
 		},
 		{
@@ -195,6 +209,7 @@
 			"speed": 400.0,
 			"trigger_y": 7679.01234567901,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 75.1601423487548
 		},
 		{
@@ -208,6 +223,7 @@
 			"speed": 50.0,
 			"trigger_y": 9058.64197530864,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 10.2491103202849
 		},
 		{
@@ -221,6 +237,7 @@
 			"speed": 50.0,
 			"trigger_y": 9938.27160493827,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": 589.32384341637
 		},
 		{
@@ -234,6 +251,7 @@
 			"speed": 50.0,
 			"trigger_y": 9632.71604938272,
 			"turn_speed": 90.0,
+			"weapons_active": true,
 			"x_offset": -474.875444839858
 		}
 	],

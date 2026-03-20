@@ -21,11 +21,16 @@ var _resolved_layers: Dictionary = {}
 var _has_shader_shape: bool = false
 var _shader_sprite: Sprite2D = null
 var _gpu_trail_emitters: Array = []
+var _visual_rotation: float = 0.0  # rotate visuals to face travel direction
 
 
 func _ready() -> void:
 	collision_layer = 2
 	collision_mask = 4
+
+	# Store visual rotation for sprite/draw (don't rotate node — that breaks trails)
+	_visual_rotation = direction.angle() - PI / 2.0
+
 	var shape := CollisionShape2D.new()
 	var rect := RectangleShape2D.new()
 	rect.size = Vector2(4, 12)
@@ -53,6 +58,7 @@ func _setup_styled_sprite() -> void:
 	_has_shader_shape = true
 	_shader_sprite = VFXFactory.create_styled_sprite(projectile_style, weapon_color)
 	if _shader_sprite:
+		_shader_sprite.rotation = _visual_rotation
 		add_child(_shader_sprite)
 
 
@@ -66,6 +72,7 @@ func _setup_shader_sprite(shape_layers: Array) -> void:
 			var h: float = float(params.get("height", 32.0))
 			_shader_sprite = VFXFactory.create_shader_sprite(stype, weapon_color, w, h)
 			if _shader_sprite:
+				_shader_sprite.rotation = _visual_rotation
 				add_child(_shader_sprite)
 			break  # only one shader shape
 
@@ -117,11 +124,13 @@ func _draw() -> void:
 
 	# --- Draw shape stack (skip if shader sprite handles it) ---
 	if not _has_shader_shape:
+		draw_set_transform(Vector2.ZERO, _visual_rotation)
 		EffectLayerRenderer.draw_shape_stack(
 			self, Vector2.ZERO,
 			_resolved_layers.get("shape", []) as Array,
 			weapon_color, _age
 		)
+		draw_set_transform(Vector2.ZERO, 0.0)
 
 
 func _age_particles(particles: Array, delta: float) -> void:

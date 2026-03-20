@@ -31,7 +31,7 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# Simple glowing line/dot visual
+	# Draw along direction vector (no node rotation — keeps it simple)
 	var half_len: float = 6.0
 	var dir_norm: Vector2 = direction.normalized()
 	var start: Vector2 = -dir_norm * half_len

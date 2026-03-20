@@ -172,11 +172,26 @@ func _get_current_direction() -> float:
 		"track":
 			var nearest: Node2D = _find_nearest_enemy()
 			if nearest:
-				var to_enemy: Vector2 = nearest.global_position - global_position
-				return rad_to_deg(Vector2.UP.angle_to(to_enemy))
+				var target_pos: Vector2 = _predict_position(nearest)
+				var to_target: Vector2 = target_pos - global_position
+				return rad_to_deg(Vector2.UP.angle_to(to_target))
 			return direction_deg
 		_:  # "fixed"
 			return direction_deg
+
+
+func _predict_position(target: Node2D) -> Vector2:
+	var dist: float = global_position.distance_to(target.global_position)
+	var proj_speed: float = weapon_data.projectile_speed if weapon_data else 600.0
+	var time_to_hit: float = dist / proj_speed
+	# Estimate velocity from enemy's previous position
+	if target.has_meta("_prev_pos"):
+		var prev: Vector2 = target.get_meta("_prev_pos")
+		var dt: float = target.get_meta("_prev_dt")
+		if dt > 0.0:
+			var vel: Vector2 = (target.global_position - prev) / dt
+			return target.global_position + vel * time_to_hit
+	return target.global_position
 
 
 func _find_nearest_enemy() -> Node2D:

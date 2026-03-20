@@ -104,6 +104,10 @@ func set_melee_target(target: Node2D) -> void:
 
 
 func _process(delta: float) -> void:
+	# Store position before movement for lead prediction
+	set_meta("_prev_pos", global_position)
+	set_meta("_prev_dt", delta)
+
 	if is_melee:
 		# Melee chase mode — turn-rate-limited steering toward player
 		if is_instance_valid(_melee_target):
