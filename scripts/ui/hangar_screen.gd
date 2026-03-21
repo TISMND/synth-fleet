@@ -1017,10 +1017,10 @@ func _rebuild_controls_content() -> void:
 
 		# Small label: group name
 		var tab_name := Label.new()
-		tab_name.text = str(preset.get("label", "GROUP"))
+		tab_name.text = "GROUP " + str(i + 1)
 		tab_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		tab_name.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
-		tab_name.add_theme_color_override("font_color", accent if is_active_tab else ThemeManager.get_color("dimmed"))
+		tab_name.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.9) if is_active_tab else ThemeManager.get_color("dimmed"))
 		if body_font:
 			tab_name.add_theme_font_override("font", body_font)
 		tab_vbox.add_child(tab_name)
@@ -1136,29 +1136,49 @@ func _rebuild_controls_content() -> void:
 			name_lbl.add_theme_font_override("font", body_font)
 		row.add_child(name_lbl)
 
-		# Per-slot rates
+		# Per-slot rates — tiny boxed labels
 		var rate_label_refs: Array = []
 		if not slot_rates.is_empty():
 			var rates_hbox := HBoxContainer.new()
-			rates_hbox.add_theme_constant_override("separation", 8)
+			rates_hbox.add_theme_constant_override("separation", 4)
 			slot_vbox.add_child(rates_hbox)
 			var indent := Control.new()
 			indent.custom_minimum_size.x = 48
 			rates_hbox.add_child(indent)
+			var rate_font_size: int = ThemeManager.get_font_size("font_size_body") - 5
 			for bar_type in EffectRateCalculator.BAR_TYPES:
 				if not slot_rates.has(bar_type):
 					continue
 				var val: float = float(slot_rates[bar_type])
+				var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
+				var alpha: float = 0.8 if is_active else 0.25
+				# Mini box panel per rate value
+				var rate_box := PanelContainer.new()
+				var rbs := StyleBoxFlat.new()
+				rbs.bg_color = Color(bar_color.r * 0.15, bar_color.g * 0.15, bar_color.b * 0.15, alpha * 0.6)
+				rbs.corner_radius_top_left = 3
+				rbs.corner_radius_top_right = 3
+				rbs.corner_radius_bottom_left = 3
+				rbs.corner_radius_bottom_right = 3
+				rbs.content_margin_left = 4
+				rbs.content_margin_right = 4
+				rbs.content_margin_top = 1
+				rbs.content_margin_bottom = 1
+				rbs.border_width_left = 1
+				rbs.border_width_right = 1
+				rbs.border_width_top = 1
+				rbs.border_width_bottom = 1
+				rbs.border_color = Color(bar_color.r, bar_color.g, bar_color.b, alpha * 0.3)
+				rate_box.add_theme_stylebox_override("panel", rbs)
 				var rl := Label.new()
 				var rate_sign: String = "+" if val > 0 else ""
-				rl.text = rate_sign + str(int(val)) + " seg/m"
-				var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
-				var alpha: float = 0.7 if is_active else 0.25
+				rl.text = rate_sign + str(int(val))
 				rl.add_theme_color_override("font_color", Color(bar_color.r, bar_color.g, bar_color.b, alpha))
-				rl.add_theme_font_size_override("font_size", small_size)
+				rl.add_theme_font_size_override("font_size", rate_font_size)
 				if body_font:
 					rl.add_theme_font_override("font", body_font)
-				rates_hbox.add_child(rl)
+				rate_box.add_child(rl)
+				rates_hbox.add_child(rate_box)
 				rate_label_refs.append(rl)
 
 		_fg_slot_rows[slot_key] = {"toggle_btn": toggle_btn, "name_lbl": name_lbl, "rate_labels": rate_label_refs}
@@ -1228,6 +1248,11 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font) -> void:
 
 
 func _apply_power_toggle_style(btn: Button, is_on: bool) -> void:
+	# Desaturated pink/purple for ON, dark grey for OFF
+	var on_color := Color(0.65, 0.4, 0.7)       # muted lavender
+	var on_border := Color(0.75, 0.5, 0.85)      # slightly brighter border
+	var on_bg := Color(0.25, 0.12, 0.3, 0.9)     # dark purple fill
+	var on_bg_hover := Color(0.32, 0.18, 0.38, 0.9)
 	var r: int = 20  # half of 40px → circular
 	for state in ["normal", "hover", "pressed", "focus"]:
 		var sb := StyleBoxFlat.new()
@@ -1244,19 +1269,32 @@ func _apply_power_toggle_style(btn: Button, is_on: bool) -> void:
 		sb.border_width_top = 2
 		sb.border_width_bottom = 2
 		if is_on:
-			sb.bg_color = Color(0.12, 0.42, 0.18, 0.9) if state != "hover" else Color(0.18, 0.55, 0.25, 0.9)
-			sb.border_color = Color(0.2, 1.0, 0.3)
-			sb.shadow_color = Color(0.1, 0.7, 0.2, 0.35)
-			sb.shadow_size = 4
+			sb.bg_color = on_bg_hover if state == "hover" else on_bg
+			sb.border_color = on_border
+			sb.shadow_color = Color(0.4, 0.15, 0.5, 0.4)
+			sb.shadow_size = 5
 		else:
 			sb.bg_color = Color(0.06, 0.06, 0.06, 0.9) if state != "hover" else Color(0.12, 0.12, 0.12, 0.9)
 			sb.border_color = Color(0.25, 0.25, 0.25)
 			sb.shadow_color = Color(0.0, 0.0, 0.0, 0.3)
 			sb.shadow_size = 2
 		btn.add_theme_stylebox_override(state, sb)
-	btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3) if is_on else Color(0.3, 0.3, 0.3))
-	btn.add_theme_color_override("font_hover_color", Color(0.3, 1.0, 0.4) if is_on else Color(0.4, 0.4, 0.4))
+	btn.add_theme_color_override("font_color", on_color if is_on else Color(0.3, 0.3, 0.3))
+	btn.add_theme_color_override("font_hover_color", Color(0.8, 0.55, 0.9) if is_on else Color(0.4, 0.4, 0.4))
 	btn.add_theme_font_size_override("font_size", 18)
+	# HDR glow overlay for subtle bloom when ON
+	var existing_glow: ColorRect = btn.get_node_or_null("power_glow") as ColorRect
+	if is_on:
+		if not existing_glow:
+			existing_glow = ColorRect.new()
+			existing_glow.name = "power_glow"
+			existing_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			existing_glow.set_anchors_preset(Control.PRESET_FULL_RECT)
+			btn.add_child(existing_glow)
+		existing_glow.color = Color(1.2, 0.6, 1.4, 0.15)  # subtle HDR purple glow
+		existing_glow.visible = true
+	elif existing_glow:
+		existing_glow.visible = false
 
 
 func _select_fire_group(index: int) -> void:
@@ -1280,14 +1318,7 @@ func _on_fg_slot_toggle(slot_key: String) -> void:
 		for sk in _slot_active:
 			pattern[sk] = _slot_active[sk]
 		KeyBindingManager.update_combo_preset_pattern(_fg_active_index, pattern)
-	# Fast-path UI update
-	_update_fg_slot_visual(slot_key)
-	# Update tab label
-	if _fg_active_index >= 0 and _fg_active_index < _fg_tab_label_refs.size():
-		var presets: Array = KeyBindingManager.get_combo_presets()
-		if _fg_active_index < presets.size():
-			_fg_tab_label_refs[_fg_active_index].text = str(presets[_fg_active_index].get("label", "GROUP"))
-	# Rebuild totals (simple rebuild since totals are at bottom)
+	# Rebuild UI (totals need recalculating)
 	_rebuild_controls_content()
 	_show_fire_groups_panel()
 	_sync_preview_active_states()
