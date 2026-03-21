@@ -377,9 +377,9 @@ func _update_hud_hardpoints() -> void:
 	_hud.update_hardpoints(data)
 
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, skips_shields: bool = false) -> void:
 	var remaining: float = amount
-	if shield > 0.0:
+	if shield > 0.0 and not skips_shields:
 		var absorbed: float = minf(remaining, shield)
 		shield -= absorbed
 		remaining -= absorbed

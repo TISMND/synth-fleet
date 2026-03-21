@@ -212,26 +212,39 @@ func _update_beam_geometry(length_ratio: float, width_ratio: float) -> void:
 		_collision_shape.position = Vector2(0, -current_length / 2.0)
 
 
+func _resolve_damage_target(area: Area2D) -> Node:
+	## Returns the node that has take_damage — either the area itself or its parent.
+	## Enemies extend Area2D directly; player's Area2D is a child of PlayerShip.
+	if area.has_method("take_damage"):
+		return area
+	if area.get_parent() and area.get_parent().has_method("take_damage"):
+		return area.get_parent()
+	return null
+
+
 func _apply_damage_to_tracked(dmg: int) -> void:
 	var i: int = _overlapping_enemies.size() - 1
 	while i >= 0:
 		var area: Area2D = _overlapping_enemies[i]
 		if not is_instance_valid(area):
 			_overlapping_enemies.remove_at(i)
-		elif area.has_method("take_damage"):
-			area.take_damage(dmg, skips_shields)
+		else:
+			var target: Node = _resolve_damage_target(area)
+			if target:
+				target.take_damage(dmg, skips_shields)
 		i -= 1
 
 
 func _on_area_entered(area: Area2D) -> void:
 	if preview_mode:
 		return
-	if area.has_method("take_damage"):
+	var target: Node = _resolve_damage_target(area)
+	if target:
 		if area not in _overlapping_enemies:
 			_overlapping_enemies.append(area)
 		# Immediate first-hit damage
 		var initial_dmg: int = int(maxf(damage_per_tick * 0.1, 1.0))
-		area.take_damage(initial_dmg, skips_shields)
+		target.take_damage(initial_dmg, skips_shields)
 		# Spawn impact effect at enemy position
 		_spawn_impact_at(area.global_position)
 

@@ -92,6 +92,9 @@ var _controls_key_btns: Dictionary = {}  # slot_key -> Button (kept for keyboard
 var _fg_active_index: int = -1
 var _fg_slot_rows: Dictionary = {}  # slot_key -> {toggle_btn, name_lbl, rate_labels}
 var _fg_tab_label_refs: Array = []  # Label refs for tab name updates
+var _fg_total_labels: Dictionary = {}  # bar_type -> Label
+var _fg_total_current: Dictionary = {}  # bar_type -> float (displayed value, animating)
+var _fg_total_target: Dictionary = {}   # bar_type -> float (target value)
 
 
 func _ready() -> void:
@@ -1221,8 +1224,14 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font) -> void:
 
 	var abbrev: Dictionary = {"shield": "SHIELD", "hull": "HULL", "thermal": "THERMAL", "electric": "ELECTRIC"}
 	var section_size: int = ThemeManager.get_font_size("font_size_section")
+	_fg_total_labels.clear()
 	for bar_type in EffectRateCalculator.BAR_TYPES:
-		var val: float = float(active_totals.get(bar_type, 0.0))
+		var target_val: float = float(active_totals.get(bar_type, 0.0))
+		_fg_total_target[bar_type] = target_val
+		# Initialize current to target on first build, keep existing for animation
+		if not _fg_total_current.has(bar_type):
+			_fg_total_current[bar_type] = target_val
+		var display_val: float = float(_fg_total_current[bar_type])
 		var total_row := HBoxContainer.new()
 		total_row.add_theme_constant_override("separation", 8)
 		totals_vbox.add_child(total_row)
@@ -1236,15 +1245,49 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font) -> void:
 			type_lbl.add_theme_font_override("font", body_font)
 		total_row.add_child(type_lbl)
 		var val_lbl := Label.new()
-		var sign: String = "+" if val > 0 else ""
-		val_lbl.text = sign + str(int(val)) + " seg/min" if not is_zero_approx(val) else "\u2014"
 		val_lbl.add_theme_color_override("font_color", bar_color)
 		val_lbl.add_theme_font_size_override("font_size", section_size + 2)
 		if body_font:
 			val_lbl.add_theme_font_override("font", body_font)
+		_fg_total_format_label(val_lbl, display_val)
 		total_row.add_child(val_lbl)
+		_fg_total_labels[bar_type] = val_lbl
 
 	_controls_content.add_child(totals_panel)
+
+
+func _fg_total_format_label(lbl: Label, val: float) -> void:
+	if is_zero_approx(val):
+		lbl.text = "\u2014"
+	else:
+		var sign: String = "+" if val > 0 else ""
+		lbl.text = sign + str(int(val)) + " seg/min"
+
+
+func _animate_fg_totals(delta: float) -> void:
+	if _fg_total_labels.is_empty():
+		return
+	var speed: float = 120.0  # segments per second counting speed
+	for bar_type in _fg_total_target:
+		var target: float = float(_fg_total_target[bar_type])
+		var current: float = float(_fg_total_current.get(bar_type, target))
+		if is_equal_approx(current, target):
+			continue
+		# Move current toward target
+		var diff: float = target - current
+		var step: float = speed * delta
+		if absf(diff) <= step:
+			current = target
+		elif diff > 0:
+			current += step
+		else:
+			current -= step
+		_fg_total_current[bar_type] = current
+		# Update label
+		if _fg_total_labels.has(bar_type):
+			var lbl: Label = _fg_total_labels[bar_type]
+			if is_instance_valid(lbl):
+				_fg_total_format_label(lbl, current)
 
 
 func _apply_power_toggle_style(btn: Button, is_on: bool) -> void:
@@ -1282,19 +1325,6 @@ func _apply_power_toggle_style(btn: Button, is_on: bool) -> void:
 	btn.add_theme_color_override("font_color", on_color if is_on else Color(0.3, 0.3, 0.3))
 	btn.add_theme_color_override("font_hover_color", Color(0.8, 0.55, 0.9) if is_on else Color(0.4, 0.4, 0.4))
 	btn.add_theme_font_size_override("font_size", 18)
-	# HDR glow overlay for subtle bloom when ON
-	var existing_glow: ColorRect = btn.get_node_or_null("power_glow") as ColorRect
-	if is_on:
-		if not existing_glow:
-			existing_glow = ColorRect.new()
-			existing_glow.name = "power_glow"
-			existing_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			existing_glow.set_anchors_preset(Control.PRESET_FULL_RECT)
-			btn.add_child(existing_glow)
-		existing_glow.color = Color(1.2, 0.6, 1.4, 0.15)  # subtle HDR purple glow
-		existing_glow.visible = true
-	elif existing_glow:
-		existing_glow.visible = false
 
 
 func _select_fire_group(index: int) -> void:
@@ -2525,6 +2555,7 @@ func _advance_bar_waves(delta: float) -> void:
 
 func _process(_delta: float) -> void:
 	_advance_bar_waves(_delta)
+	_animate_fg_totals(_delta)
 	if not _is_playing:
 		return
 	_process_core_previews()

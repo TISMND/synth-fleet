@@ -33,6 +33,8 @@ static func _to_segments(points_per_min: float) -> float:
 
 
 ## Calculate segments/minute for a weapon.
+## Beams emit bar_effects every 0.25s for beam_duration per trigger (continuous draw).
+## Projectiles emit bar_effects once per trigger (one-shot).
 ## Returns { "shield": -3.0, "thermal": 4.5, ... }
 static func calc_weapon(weapon: WeaponData) -> Dictionary:
 	var result: Dictionary = {}
@@ -42,10 +44,14 @@ static func calc_weapon(weapon: WeaponData) -> Dictionary:
 	if duration <= 0.0:
 		return result
 	var triggers_per_min: float = float(weapon.fire_triggers.size()) / (duration / 60.0)
+	# Beams emit bar_effects repeatedly (every 0.25s) over beam_duration per trigger
+	var emissions_per_trigger: float = 1.0
+	if weapon.beam_style_id != "":
+		emissions_per_trigger = maxf(weapon.beam_duration / 0.25, 1.0)
 	for bar_type in weapon.bar_effects:
 		var val: float = float(weapon.bar_effects[bar_type])
 		if not is_zero_approx(val):
-			result[str(bar_type)] = _to_segments(val * triggers_per_min)
+			result[str(bar_type)] = _to_segments(val * triggers_per_min * emissions_per_trigger)
 	return result
 
 
