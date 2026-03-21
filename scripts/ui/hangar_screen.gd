@@ -30,6 +30,9 @@ var _right_panel_header: Label
 var _right_panel_scroll: ScrollContainer
 var _right_panel_list: VBoxContainer
 var _expanded_slot: String = ""
+var _picker_item_panels: Dictionary = {}  # item_id -> PanelContainer
+var _picker_desc_wrappers: Dictionary = {}  # item_id -> Control (clip wrapper for description)
+var _picker_desc_labels: Dictionary = {}  # item_id -> Label (description label inside wrapper)
 var _ext_slot_btns: Dictionary = {}  # slot_key -> Button (header)
 var _int_slot_btns: Dictionary = {}
 
@@ -209,15 +212,13 @@ func _apply_theme() -> void:
 							btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
 				slot_idx += 1
 
-	# Right panel header + item buttons
-	if _right_panel and _right_panel.visible:
-		_right_panel_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-		_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-		if body_font:
-			_right_panel_header.add_theme_font_override("font", body_font)
-		for child in _right_panel_list.get_children():
-			if child is Button:
-				ThemeManager.apply_button_style(child as Button)
+	# Right panel — re-highlight the currently selected panel
+	if _right_panel and _right_panel.visible and _expanded_slot != "":
+		_unhighlight_all_picker_panels()
+		var cur_sd: Dictionary = GameState.slot_config.get(_expanded_slot, {})
+		var cur_id: String = str(cur_sd.get("weapon_id", str(cur_sd.get("device_id", ""))))
+		if cur_id != "" and _picker_item_panels.has(cur_id):
+			_highlight_picker_panel(_picker_item_panels[cur_id])
 
 	# Device section header — handled in section_pairs loop above
 
@@ -358,7 +359,7 @@ func _rebuild_buttons() -> void:
 				else:
 					item_name = device_id
 
-		var row: HBoxContainer = _create_slot_row(slot_key, item_name)
+		var row: PanelContainer = _create_slot_row(slot_key, item_name)
 		_ext_section.add_child(row)
 
 	# Internal slots (power cores + internal/flexible devices)
@@ -384,7 +385,7 @@ func _rebuild_buttons() -> void:
 				else:
 					item_name = device_id
 
-		var row: HBoxContainer = _create_slot_row(slot_key, item_name)
+		var row: PanelContainer = _create_slot_row(slot_key, item_name)
 		_int_section.add_child(row)
 
 	_rebuild_audio_content()
@@ -432,9 +433,25 @@ func _get_slot_type_color(slot_key: String) -> Color:
 	return ThemeManager.get_color("accent")
 
 
-func _create_slot_row(slot_key: String, item_name: String) -> HBoxContainer:
+func _create_slot_row(slot_key: String, item_name: String) -> PanelContainer:
+	# Dark backing panel for readability over the BG
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+	panel_style.corner_radius_top_left = 4
+	panel_style.corner_radius_top_right = 4
+	panel_style.corner_radius_bottom_left = 4
+	panel_style.corner_radius_bottom_right = 4
+	panel_style.content_margin_left = 6
+	panel_style.content_margin_right = 6
+	panel_style.content_margin_top = 4
+	panel_style.content_margin_bottom = 4
+	panel.add_theme_stylebox_override("panel", panel_style)
+
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
+	panel.add_child(row)
 
 	# Toggle button
 	var toggle := Button.new()
@@ -475,7 +492,7 @@ func _create_slot_row(slot_key: String, item_name: String) -> HBoxContainer:
 	elif slot_key.begins_with("int_"):
 		_int_slot_btns[slot_key] = header
 
-	return row
+	return panel
 
 
 func _on_slot_toggle(slot_key: String) -> void:
@@ -540,17 +557,70 @@ func _get_equipped_ids() -> Array[String]:
 	return ids
 
 
-func _add_picker_item(item_id: String, label: String, slot_key: String, equipped_ids: Array[String], component_type: String) -> void:
-	var item_btn := Button.new()
-	item_btn.text = label
-	item_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	item_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	item_btn.custom_minimum_size.y = 36
-	ThemeManager.apply_button_style(item_btn)
+func _add_picker_item(item_id: String, label: String, description: String, slot_key: String, equipped_ids: Array[String], component_type: String) -> void:
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var accent: Color = ThemeManager.get_color("accent")
+	var bg_color: Color = ThemeManager.get_color("background")
+
+	# Filled panel container
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(bg_color.r + 0.08, bg_color.g + 0.08, bg_color.b + 0.08, 0.9)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(accent.r, accent.g, accent.b, 0.15)
+	panel.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	panel.add_child(vbox)
+
+	# Title label
+	var title_lbl := Label.new()
+	title_lbl.text = label
+	title_lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	title_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		title_lbl.add_theme_font_override("font", body_font)
+	vbox.add_child(title_lbl)
+
+	# Description label — starts collapsed, expands on selection
+	var desc_wrapper := Control.new()
+	desc_wrapper.clip_contents = true
+	desc_wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc_wrapper.custom_minimum_size = Vector2(0, 0)
+	vbox.add_child(desc_wrapper)
+
+	var desc_lbl := Label.new()
+	desc_lbl.text = description if description != "" else "No description."
+	desc_lbl.add_theme_color_override("font_color", Color(ThemeManager.get_color("body"), 0.5))
+	desc_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
+	if body_font:
+		desc_lbl.add_theme_font_override("font", body_font)
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Anchor label to fill wrapper width so autowrap works
+	desc_lbl.anchor_left = 0.0
+	desc_lbl.anchor_right = 1.0
+	desc_lbl.anchor_top = 0.0
+	desc_lbl.offset_right = 0.0
+	desc_wrapper.add_child(desc_lbl)
+
+	_picker_desc_wrappers[item_id] = desc_wrapper
+	_picker_desc_labels[item_id] = desc_lbl
 
 	# Grey out if already equipped elsewhere
 	var is_duplicate: bool = item_id in equipped_ids
-	# Check if it's equipped in THIS slot (allow re-selecting current item)
 	var current_sd: Dictionary = GameState.slot_config.get(slot_key, {})
 	var current_id: String = ""
 	if component_type == "weapon":
@@ -558,67 +628,123 @@ func _add_picker_item(item_id: String, label: String, slot_key: String, equipped
 	else:
 		current_id = str(current_sd.get("device_id", ""))
 	if is_duplicate and item_id != current_id:
-		item_btn.disabled = true
-		item_btn.modulate = Color(1, 1, 1, 0.3)
+		panel.modulate = Color(1, 1, 1, 0.3)
+		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	else:
+		# Clickable — use invisible button overlay
+		var click_btn := Button.new()
+		click_btn.flat = true
+		click_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		click_btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		click_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		# Transparent style so the panel shows through
+		var empty_sb := StyleBoxEmpty.new()
+		click_btn.add_theme_stylebox_override("normal", empty_sb)
+		click_btn.add_theme_stylebox_override("hover", empty_sb)
+		click_btn.add_theme_stylebox_override("pressed", empty_sb)
+		click_btn.add_theme_stylebox_override("focus", empty_sb)
+		var bound_key: String = slot_key
+		var bound_id: String = item_id
+		var bound_type: String = component_type
+		click_btn.pressed.connect(func() -> void: _select_item_typed(bound_key, bound_id, bound_type))
+		panel.add_child(click_btn)
 
-	var bound_key: String = slot_key
-	var bound_id: String = item_id
-	var bound_type: String = component_type
-	item_btn.pressed.connect(func() -> void: _select_item_typed(bound_key, bound_id, bound_type))
-	_right_panel_list.add_child(item_btn)
+	# Highlight + expand description if currently equipped in this slot
+	if item_id == current_id and item_id != "":
+		_highlight_picker_panel(panel)
+		# Deferred expand — label needs a frame to measure
+		var expand_id: String = item_id
+		(func() -> void: _expand_picker_description(expand_id)).call_deferred()
+
+	_picker_item_panels[item_id] = panel
+	_right_panel_list.add_child(panel)
+
+
+func _add_picker_category(title: String) -> void:
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var lbl := Label.new()
+	lbl.text = "── " + title + " ──"
+	lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		lbl.add_theme_font_override("font", body_font)
+	# Small top margin for spacing between categories
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_child(lbl)
+	_right_panel_list.add_child(margin)
 
 
 func _populate_right_panel(slot_key: String) -> void:
 	_clear_right_panel()
 	_right_panel.visible = true
+	_picker_item_panels.clear()
 
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var equipped_ids: Array[String] = _get_equipped_ids()
 
-	# "(none)" option — always first
-	var none_btn := Button.new()
-	none_btn.text = "(none)"
-	none_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	none_btn.custom_minimum_size.y = 36
-	ThemeManager.apply_button_style(none_btn)
-	var bound_key: String = slot_key
-	none_btn.pressed.connect(func() -> void: _select_item_typed(bound_key, "", ""))
-	_right_panel_list.add_child(none_btn)
-
 	if slot_key.begins_with("ext_"):
-		_right_panel_header.text = "━━ SELECT EXTERNAL ━━━━━━━━━"
-		# Weapons
+
+		# Beam Weapons
+		var has_beams: bool = false
 		for wid in _weapon_cache:
 			var w: WeaponData = _weapon_cache[wid]
-			var label: String = w.display_name if w.display_name != "" else w.id
-			_add_picker_item(wid, "[W] " + label, slot_key, equipped_ids, "weapon")
-		# Flexible devices (can go in external slots)
+			if w.beam_style_id != "":
+				if not has_beams:
+					_add_picker_category("BEAM WEAPONS")
+					has_beams = true
+				var label: String = w.display_name if w.display_name != "" else w.id
+				_add_picker_item(wid, label, w.description, slot_key, equipped_ids, "weapon")
+
+		# Projectile Weapons
+		var has_projectiles: bool = false
+		for wid in _weapon_cache:
+			var w: WeaponData = _weapon_cache[wid]
+			if w.beam_style_id == "":
+				if not has_projectiles:
+					_add_picker_category("PROJECTILE WEAPONS")
+					has_projectiles = true
+				var label: String = w.display_name if w.display_name != "" else w.id
+				_add_picker_item(wid, label, w.description, slot_key, equipped_ids, "weapon")
+
+		# Field Emitters (external/flexible only)
+		var has_fields: bool = false
 		for did in _device_cache:
 			var d: DeviceData = _device_cache[did]
+			if d.visual_mode != "field":
+				continue
 			if d.equip_slot == "flexible" or d.equip_slot == "external":
+				if not has_fields:
+					_add_picker_category("FIELD EMITTERS")
+					has_fields = true
 				var label: String = d.display_name if d.display_name != "" else d.id
-				_add_picker_item(did, "[D] " + label, slot_key, equipped_ids, "device")
+				_add_picker_item(did, label, d.description, slot_key, equipped_ids, "device")
 
 	elif slot_key.begins_with("int_"):
-		_right_panel_header.text = "━━ SELECT INTERNAL ━━━━━━━━━"
-		# Power cores
+
+		# Power Cores
+		var has_cores: bool = false
 		for pcid in _power_core_cache:
+			if not has_cores:
+				_add_picker_category("POWER CORES")
+				has_cores = true
 			var pc: PowerCoreData = _power_core_cache[pcid]
 			var label: String = pc.display_name if pc.display_name != "" else pc.id
-			_add_picker_item(pcid, "[C] " + label, slot_key, equipped_ids, "power_core")
-		# Internal/flexible devices
+			_add_picker_item(pcid, label, pc.description, slot_key, equipped_ids, "power_core")
+
+		# Field Emitters (internal/flexible only)
+		var has_fields: bool = false
 		for did in _device_cache:
 			var d: DeviceData = _device_cache[did]
+			if d.visual_mode != "field":
+				continue
 			if d.equip_slot == "flexible" or d.equip_slot == "internal":
+				if not has_fields:
+					_add_picker_category("FIELD EMITTERS")
+					has_fields = true
 				var label: String = d.display_name if d.display_name != "" else d.id
-				_add_picker_item(did, "[D] " + label, slot_key, equipped_ids, "device")
+				_add_picker_item(did, label, d.description, slot_key, equipped_ids, "device")
 
-	# Theme the header
-	_right_panel_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	if body_font:
-		_right_panel_header.add_theme_font_override("font", body_font)
 
 
 func _select_item_typed(slot_key: String, item_id: String, component_type: String) -> void:
@@ -634,16 +760,90 @@ func _select_item_typed(slot_key: String, item_id: String, component_type: Strin
 			GameState.set_slot_weapon(slot_key, "")
 		else:
 			GameState.set_slot_device(slot_key, "", "")
-	_clear_right_panel()
-	_expanded_slot = ""
-	_unhighlight_all_slot_btns()
+	# Update highlight + description — don't close the panel
+	_unhighlight_all_picker_panels()
+	_collapse_all_picker_descriptions()
+	if item_id != "" and _picker_item_panels.has(item_id):
+		_highlight_picker_panel(_picker_item_panels[item_id])
+	_expand_picker_description(item_id)
 	_rebuild_buttons()
 	_sync_preview()
+
+
+func _highlight_picker_panel(panel: PanelContainer) -> void:
+	var accent: Color = ThemeManager.get_color("accent")
+	var bg_color: Color = ThemeManager.get_color("background")
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(accent.r * 0.2 + bg_color.r * 0.8, accent.g * 0.2 + bg_color.g * 0.8, accent.b * 0.2 + bg_color.b * 0.8, 0.95)
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(accent.r, accent.g, accent.b, 0.8)
+	panel.add_theme_stylebox_override("panel", style)
+
+
+func _unhighlight_all_picker_panels() -> void:
+	var accent: Color = ThemeManager.get_color("accent")
+	var bg_color: Color = ThemeManager.get_color("background")
+	for key in _picker_item_panels:
+		var panel: PanelContainer = _picker_item_panels[key]
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(bg_color.r + 0.08, bg_color.g + 0.08, bg_color.b + 0.08, 0.9)
+		style.corner_radius_top_left = 4
+		style.corner_radius_top_right = 4
+		style.corner_radius_bottom_left = 4
+		style.corner_radius_bottom_right = 4
+		style.content_margin_left = 10
+		style.content_margin_right = 10
+		style.content_margin_top = 6
+		style.content_margin_bottom = 6
+		style.border_width_left = 1
+		style.border_width_right = 1
+		style.border_width_top = 1
+		style.border_width_bottom = 1
+		style.border_color = Color(accent.r, accent.g, accent.b, 0.15)
+		panel.add_theme_stylebox_override("panel", style)
+
+
+func _expand_picker_description(item_id: String) -> void:
+	if not _picker_desc_wrappers.has(item_id):
+		return
+	var wrapper: Control = _picker_desc_wrappers[item_id]
+	var desc_lbl: Label = _picker_desc_labels[item_id]
+	# Wait a frame so the label has computed its size within the panel width
+	await wrapper.get_tree().process_frame
+	var target_h: float = desc_lbl.get_combined_minimum_size().y
+	var tween: Tween = wrapper.create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(wrapper, "custom_minimum_size:y", target_h, 0.2)
+
+
+func _collapse_all_picker_descriptions() -> void:
+	for key in _picker_desc_wrappers:
+		var wrapper: Control = _picker_desc_wrappers[key]
+		# Kill any running tweens on this wrapper
+		var tween: Tween = wrapper.create_tween()
+		tween.set_trans(Tween.TRANS_CUBIC)
+		tween.set_ease(Tween.EASE_OUT)
+		tween.tween_property(wrapper, "custom_minimum_size:y", 0.0, 0.15)
 
 
 func _clear_right_panel() -> void:
 	for child in _right_panel_list.get_children():
 		child.queue_free()
+	_picker_item_panels.clear()
+	_picker_desc_wrappers.clear()
+	_picker_desc_labels.clear()
 	_right_panel.visible = false
 	_right_panel_header.text = ""
 
@@ -1340,14 +1540,43 @@ func _build_ui() -> void:
 	right_margin.add_theme_constant_override("margin_left", 10)
 	root.add_child(right_margin)
 
+	# Outer VBox to push content down from top
+	var right_outer := VBoxContainer.new()
+	right_outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_margin.add_child(right_outer)
+
+	# Top spacer — keeps list from hugging the top edge
+	var right_spacer := Control.new()
+	right_spacer.custom_minimum_size.y = 40
+	right_outer.add_child(right_spacer)
+
+	# Semi-transparent backing panel for readability
+	var right_backing := PanelContainer.new()
+	right_backing.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_backing.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var backing_style := StyleBoxFlat.new()
+	backing_style.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+	backing_style.corner_radius_top_left = 6
+	backing_style.corner_radius_top_right = 6
+	backing_style.corner_radius_bottom_left = 6
+	backing_style.corner_radius_bottom_right = 6
+	backing_style.content_margin_left = 8
+	backing_style.content_margin_right = 8
+	backing_style.content_margin_top = 8
+	backing_style.content_margin_bottom = 8
+	right_backing.add_theme_stylebox_override("panel", backing_style)
+	right_outer.add_child(right_backing)
+
 	_right_panel = VBoxContainer.new()
 	_right_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_right_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_right_panel.visible = false
-	right_margin.add_child(_right_panel)
+	right_backing.add_child(_right_panel)
 
 	_right_panel_header = Label.new()
 	_right_panel_header.text = ""
+	_right_panel_header.visible = false
 	_right_panel.add_child(_right_panel_header)
 
 	_right_panel_scroll = ScrollContainer.new()
