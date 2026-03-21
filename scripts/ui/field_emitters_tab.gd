@@ -124,6 +124,9 @@ func _update_visual_preview() -> void:
 	# Start invisible — active envelope will drive opacity when triggers fire
 	_preview_field_material.set_shader_parameter("opacity", 0.0)
 	_preview_field_sprite.material = _preview_field_material
+	var vp: Viewport = _preview_field_sprite.get_viewport()
+	var vp_size: String = str(vp.size) if vp else "null"
+	print("[FIELD-PREVIEW] shader=%s brightness=%.2f color=%s viewport=%s" % [style.field_shader, style.glow_intensity, str(style.color), vp_size])
 
 
 func _on_auto_pulse() -> void:

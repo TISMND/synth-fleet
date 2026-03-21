@@ -253,6 +253,20 @@ func _process(delta: float) -> void:
 	if _ship_renderer:
 		_ship_renderer.bank = _bank
 
+	# Composite ship tint from all active field devices
+	if _ship_renderer and not _device_controllers.is_empty():
+		var combined_r: float = 1.0
+		var combined_g: float = 1.0
+		var combined_b: float = 1.0
+		for dc in _device_controllers:
+			var controller: DeviceController = dc as DeviceController
+			if controller:
+				var tint: Color = controller.get_ship_tint()
+				combined_r *= tint.r
+				combined_g *= tint.g
+				combined_b *= tint.b
+		_ship_renderer.modulate = Color(combined_r, combined_g, combined_b, _ship_renderer.modulate.a)
+
 
 func _input(event: InputEvent) -> void:
 	# Per-slot toggles using dynamic action names from KeyBindingManager

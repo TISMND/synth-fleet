@@ -157,6 +157,7 @@ func _ready() -> void:
 	_grid_shader = load("res://assets/shaders/grid_background.gdshader") as Shader
 	_setup_world_environment()
 	load_settings()
+	_apply_glow_settings()  # Re-apply with loaded saved values (defaults are stale)
 
 
 func _setup_world_environment() -> void:

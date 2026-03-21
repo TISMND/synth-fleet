@@ -132,6 +132,7 @@ func _ready() -> void:
 	_player._hud = _hud
 	_player._update_hud_hardpoints()
 	_player._update_hud_cores()
+	_player._update_hud_devices()
 
 	# Store base speed for nebula slow effect restoration
 	_player_base_speed = _player.speed

@@ -22,6 +22,9 @@ func setup(style: FieldStyle, radius: float, anim_speed: float = 1.0) -> void:
 	# Create shader material
 	_material = VFXFactory.create_field_material(style, radius)
 	_material.set_shader_parameter("animation_speed", anim_speed)
+	var vp: Viewport = get_viewport()
+	var vp_size: String = str(vp.size) if vp else "null"
+	print("[FIELD] shader=%s brightness=%.2f color=%s viewport=%s" % [style.field_shader, style.glow_intensity, str(style.color), vp_size])
 
 	# Create sprite with white texture sized to radius * 2
 	_sprite = Sprite2D.new()

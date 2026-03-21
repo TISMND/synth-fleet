@@ -15,6 +15,7 @@ var splash_enabled: bool = false
 var splash_radius: float = 0.0
 var skips_shields: bool = false
 
+static var _debug_printed: bool = false
 var _age: float = 0.0
 var _base_x: float = 0.0
 var _trail_points: Array = []
@@ -55,6 +56,12 @@ func _ready() -> void:
 	_ribbon_max_points = EffectLayerRenderer.get_ribbon_max_points(
 		_resolved_layers.get("trail", []) as Array
 	)
+
+	if not _debug_printed:
+		_debug_printed = true
+		var vp: Viewport = get_viewport()
+		var vp_size: String = str(vp.size) if vp else "null"
+		print("[PROJECTILE] color=%s modulate=%s viewport=%s" % [str(weapon_color), str(modulate), vp_size])
 
 	# Setup styled sprite (ProjectileStyle takes priority over shape layers)
 	if projectile_style:

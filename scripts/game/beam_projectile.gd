@@ -20,6 +20,7 @@ var track_node: Node2D = null  # if set, beam follows this node's global_positio
 var _direction_source: Callable  # if set, called each frame to get aim direction (returns float degrees)
 var _has_direction_source: bool = false
 
+static var _debug_printed: bool = false
 var _age: float = 0.0
 var _damage_accumulator: float = 0.0
 var _sprite: Sprite2D = null
@@ -68,6 +69,11 @@ func _setup_visual() -> void:
 			mat.set_shader_parameter(str(param), float(beam_style.shader_params[param]))
 
 	_sprite.material = mat
+	if not _debug_printed:
+		_debug_printed = true
+		var vp: Viewport = get_viewport()
+		var vp_size: String = str(vp.size) if vp else "null"
+		print("[BEAM] shader=%s color=%s viewport=%s" % [shader_name, str(color), vp_size])
 
 	# Flip shader direction if requested (reverses UV.y scroll)
 	var should_flip: bool = flip_shader

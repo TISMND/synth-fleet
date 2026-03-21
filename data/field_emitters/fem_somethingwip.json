@@ -26,7 +26,7 @@
 		"electric": 20.35,
 		"hull": -0.100000000000001,
 		"shield": -0.350000000000001,
-		"thermal": 0.700000000000003
+		"thermal": 1.0
 	},
 	"pulse_fade_out": 0.87,
 	"pulse_fade_up": 0.11,

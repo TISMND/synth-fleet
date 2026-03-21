@@ -1,0 +1,72 @@
+{
+	"appearance_mode": "expand_out",
+	"beam_width": 16.0,
+	"color": [
+		0.0,
+		0.109375,
+		1.0,
+		1.0
+	],
+	"display_name": "Blue beam",
+	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"color": [
+						0.0,
+						0.083791695535183,
+						0.083791695535183,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.8,
+						"particle_count": 7.0,
+						"radius": 38.0
+					},
+					"type": "shatter_lines"
+				}
+			],
+			"muzzle": [
+				{
+					"color": [
+						0.0,
+						0.296875,
+						1.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 1.0,
+						"particle_count": 4.0,
+						"spread_angle": 30.0
+					},
+					"type": "directional_flash"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "beam",
+	"flip_shader": false,
+	"full_screen_length": true,
+	"glow_intensity": 1.7,
+	"id": "blue_beam",
+	"max_length": 400.0,
+	"secondary_color": [
+		0.90234375,
+		0.0,
+		0.258536517620087,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"beam_speed": 3.5,
+		"beam_width": 0.72,
+		"brightness": 1.5,
+		"color_mix": 0.0,
+		"edge_softness": 1.0,
+		"flicker_rate": 4.0
+	}
+}

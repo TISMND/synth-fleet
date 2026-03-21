@@ -9,7 +9,7 @@
 	"field_shader": "sun_rays",
 	"glow_intensity": 1.9,
 	"id": "sun_rays",
-	"pulse_brightness": 0.6,
+	"pulse_brightness": 0.7,
 	"pulse_tint": 1.0,
 	"radius_ratio": 0.0,
 	"shader_params": {
@@ -23,6 +23,6 @@
 		"width_variance": 1.0
 	},
 	"ship_active_hdr": 0.4,
-	"ship_pulse_hdr": 0.9,
-	"ship_tint_strength": 0.35
+	"ship_pulse_hdr": 0.7,
+	"ship_tint_strength": 0.2
 }

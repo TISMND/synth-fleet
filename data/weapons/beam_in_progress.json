@@ -1,18 +1,17 @@
 {
-	"aim_mode": "track",
+	"aim_mode": "sweep",
 	"bar_effects": {
-		"electric": -1.0,
-		"thermal": 0.200000000000003
+		"electric": -0.900000000000006
 	},
-	"beam_dps": 15.0,
-	"beam_duration": 1.6,
-	"beam_passthrough": false,
-	"beam_style_id": "beam_1",
-	"beam_transition_time": 0.26,
+	"beam_dps": 40.0,
+	"beam_duration": 1.8,
+	"beam_passthrough": true,
+	"beam_style_id": "blue_beam",
+	"beam_transition_time": 0.2,
 	"damage": 10,
 	"description": "",
 	"direction_deg": 0.0,
-	"display_name": "Beam 1",
+	"display_name": "beam in progress",
 	"effect_profile": {
 		"defaults": {
 
@@ -33,18 +32,18 @@
 		0.75,
 		0.875
 	],
-	"id": "beam_1",
-	"loop_file_path": "res://loop_zips/sorted/bass/Dreading Sphere - 120 BPM - 1 - Bass - cw_bass90_youthful_E.wav",
+	"id": "beam_in_progress",
+	"loop_file_path": "res://loop_zips/sorted/chords/NEW Salty Captain - 120 BPM - 6 - Chords - AU_MC_100_synth_pad_loop_fantastic_Dmin.wav",
 	"loop_length_bars": 8,
-	"mirror_mode": "mirror",
+	"mirror_mode": "none",
 	"pierce_count": 0,
 	"projectile_speed": 600.0,
 	"projectile_style_id": "",
 	"skips_shields": false,
 	"splash_enabled": false,
 	"splash_radius": 0.0,
-	"sweep_arc_deg": 127.0,
-	"sweep_duration": 1.0,
+	"sweep_arc_deg": 120.0,
+	"sweep_duration": 2.0,
 	"transition_mode": "instant",
 	"transition_ms": 200
 }

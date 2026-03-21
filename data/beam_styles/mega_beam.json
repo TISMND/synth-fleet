@@ -1,0 +1,56 @@
+{
+	"appearance_mode": "expand_out",
+	"beam_width": 64.0,
+	"color": [
+		1.0,
+		0.75,
+		0.0,
+		1.0
+	],
+	"display_name": "mega beam",
+	"effect_profile": {
+		"defaults": {
+			"muzzle": [
+				{
+					"color": [
+						0.640625,
+						0.0,
+						1.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.05,
+						"particle_count": 8.0,
+						"spread_angle": 360.0
+					},
+					"type": "spiral_burst"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "beam",
+	"flip_shader": false,
+	"full_screen_length": true,
+	"glow_intensity": 4.0,
+	"id": "mega_beam",
+	"max_length": 400.0,
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 0.4,
+		"beam_speed": 3.5,
+		"beam_width": 0.8,
+		"brightness": 3.8,
+		"color_mix": 0.0,
+		"edge_softness": 1.0,
+		"flicker_rate": 4.0
+	}
+}

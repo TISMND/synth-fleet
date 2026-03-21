@@ -13,6 +13,7 @@ var _prev_loop_pos: float = -1.0
 var _field_renderer: FieldRenderer = null
 var _orbiter_renderer: OrbiterRenderer = null
 var _collision_area: Area2D = null
+var _field_style: FieldStyle = null
 
 # Active envelope state (per-trigger field visibility)
 var _active_envelope_active: bool = false
@@ -47,6 +48,7 @@ func setup(device: DeviceData, slot_index: int, ship_node: Node2D) -> void:
 		if not style:
 			style = FieldStyle.new()
 			style.color = Color(0.0, 1.0, 1.0, 1.0)
+		_field_style = style
 
 		_field_renderer = FieldRenderer.new()
 		ship_node.add_child(_field_renderer)
@@ -216,6 +218,26 @@ func _process(delta: float) -> void:
 			if _trigger_crossed(prev, curr, tval):
 				_field_renderer.pulse()
 				break  # One pulse per frame is enough
+
+
+## Returns the ship tint Color this device wants to apply (RGB modulate).
+## Returns null-equivalent Color(1,1,1,1) if inactive or no field style.
+func get_ship_tint() -> Color:
+	if not _active or not _field_style or not _field_renderer:
+		return Color(1.0, 1.0, 1.0, 1.0)
+	var pulse_val: float = 0.0
+	if _field_renderer._material:
+		pulse_val = float(_field_renderer._material.get_shader_parameter("pulse_intensity"))
+	var active_hdr: float = _field_style.ship_active_hdr
+	var pulse_hdr: float = _field_style.ship_pulse_hdr
+	var bright: float = 1.0 + active_hdr + pulse_val * pulse_hdr
+	var field_col: Color = _field_style.color
+	var tint_strength: float = _field_style.ship_tint_strength
+	var tint_scaled: float = tint_strength * (_field_style.glow_intensity / 1.5)
+	var r: float = lerpf(bright, field_col.r * bright * 1.5, tint_scaled)
+	var g: float = lerpf(bright, field_col.g * bright * 1.5, tint_scaled)
+	var b: float = lerpf(bright, field_col.b * bright * 1.5, tint_scaled)
+	return Color(r, g, b, 1.0)
 
 
 func _trigger_crossed(prev: float, curr: float, trigger: float) -> bool:
