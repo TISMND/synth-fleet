@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://yky2x8j011yv"
+path="res://.godot/imported/NEW Salty Captain - 120 BPM - 1 - Drums - SOULSURPLUS_celestial_drum_loop_10_lofi_130_bpm.wav-7bf5434c9fcef668704ba71e80e748ab.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/drums/NEW Salty Captain - 120 BPM - 1 - Drums - SOULSURPLUS_celestial_drum_loop_10_lofi_130_bpm.wav"
+dest_files=["res://.godot/imported/NEW Salty Captain - 120 BPM - 1 - Drums - SOULSURPLUS_celestial_drum_loop_10_lofi_130_bpm.wav-7bf5434c9fcef668704ba71e80e748ab.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

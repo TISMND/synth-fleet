@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://crtkgiu4irba8"
+path="res://.godot/imported/NEW Echoey Ritual - 120 BPM - 6 - Pads - nw_ms_85_kit_loop_plastic_pad_Gmaj.wav-cc6f4ff3e9521f19e8f359706099862d.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/pads/NEW Echoey Ritual - 120 BPM - 6 - Pads - nw_ms_85_kit_loop_plastic_pad_Gmaj.wav"
+dest_files=["res://.godot/imported/NEW Echoey Ritual - 120 BPM - 6 - Pads - nw_ms_85_kit_loop_plastic_pad_Gmaj.wav-cc6f4ff3e9521f19e8f359706099862d.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://5tnl1ewimuhe"
+path="res://.godot/imported/NEW Overblown Choice - 120 BPM - 2 - Bass - SO_NE_114_songstarter_tonight_bass_Abmin.wav-f8b0f6df1bad4c8828a358847dda9408.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/bass/NEW Overblown Choice - 120 BPM - 2 - Bass - SO_NE_114_songstarter_tonight_bass_Abmin.wav"
+dest_files=["res://.godot/imported/NEW Overblown Choice - 120 BPM - 2 - Bass - SO_NE_114_songstarter_tonight_bass_Abmin.wav-f8b0f6df1bad4c8828a358847dda9408.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

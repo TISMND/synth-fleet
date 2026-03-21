@@ -1,6 +1,7 @@
 {
+	"accel_modifier": -70.0,
 	"active_always_on": true,
-	"active_fade_in": 0.17,
+	"active_fade_in": 0.42,
 	"active_fade_out": 0.2,
 	"active_total_duration": 4.0,
 	"animation_speed": 1.0,
@@ -22,18 +23,19 @@
 	"orbiter_lifetime": 4.0,
 	"orbiter_style_id": "",
 	"passive_effects": {
-		"electric": 10.0,
-		"hull": -0.0999999999999996,
-		"shield": -0.35,
-		"thermal": 0.699999999999999
+		"electric": 20.35,
+		"hull": -0.100000000000001,
+		"shield": -0.350000000000001,
+		"thermal": 0.700000000000003
 	},
 	"pulse_fade_out": 0.87,
 	"pulse_fade_up": 0.11,
-	"pulse_total_duration": 0.95,
+	"pulse_total_duration": 1.2,
 	"pulse_triggers": [
 		0.0
 	],
 	"radius": 100.0,
+	"speed_modifier": -70.0,
 	"transition_mode": "fade",
 	"transition_ms": 500,
 	"visual_mode": "field",

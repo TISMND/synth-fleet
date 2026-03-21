@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://wcigmtbapuqb"
+path="res://.godot/imported/NEW Salty Captain - 120 BPM - 8 - Strings - MNT_WC_120_Cello_Spruce_Staccato_Full_C#min.wav-aae71fe8e48fb1c819c198ee9de8bfed.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/strings/NEW Salty Captain - 120 BPM - 8 - Strings - MNT_WC_120_Cello_Spruce_Staccato_Full_C#min.wav"
+dest_files=["res://.godot/imported/NEW Salty Captain - 120 BPM - 8 - Strings - MNT_WC_120_Cello_Spruce_Staccato_Full_C#min.wav-aae71fe8e48fb1c819c198ee9de8bfed.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

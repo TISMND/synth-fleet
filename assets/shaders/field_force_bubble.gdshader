@@ -69,6 +69,7 @@ void fragment() {
 
 	if (raw_dist > 1.0) alpha = 0.0;
 
-	col = mix(col, field_color.rgb * length(col), pulse_tint * clamp(pulse_intensity, 0.0, 1.0));
+	float pt = pulse_tint * smoothstep(0.0, 0.3, pulse_intensity);
+	col = mix(col, field_color.rgb * max(max(col.r, col.g), col.b), pt);
 	COLOR = vec4(col, alpha * modulate_alpha);
 }

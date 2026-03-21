@@ -34,6 +34,9 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 6. Real sprite art to replace placeholder polygons
 7. Level atmosphere loops for background music layers
 
+## Core Rules
+- **PREVIEWS MUST = GAME REALITY.** Editor/dev studio previews must use the exact same rendering code, shaders, and node setup as the actual game. If something looks good in a preview but different in gameplay, that's a bug. Never create separate rendering paths for previews vs game — share the same components (e.g. `FieldRenderer`, `ShipRenderer`, `VFXFactory`). Previews exist to show what the player will actually see.
+
 ## Architecture
 
 ### Audio Model

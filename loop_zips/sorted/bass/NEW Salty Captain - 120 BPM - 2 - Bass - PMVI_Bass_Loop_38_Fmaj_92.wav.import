@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dadod6jlf6pjy"
+path="res://.godot/imported/NEW Salty Captain - 120 BPM - 2 - Bass - PMVI_Bass_Loop_38_Fmaj_92.wav-00f6e00141ad19ecd19b4bee478ffabc.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/bass/NEW Salty Captain - 120 BPM - 2 - Bass - PMVI_Bass_Loop_38_Fmaj_92.wav"
+dest_files=["res://.godot/imported/NEW Salty Captain - 120 BPM - 2 - Bass - PMVI_Bass_Loop_38_Fmaj_92.wav-00f6e00141ad19ecd19b4bee478ffabc.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

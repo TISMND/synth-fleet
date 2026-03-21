@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cv8onlecep2j5"
+path="res://.godot/imported/NEW Thin Addition - 120 BPM - 8 - Chords - NW_MECS_90_synth_loop_halcyon_Bbmin.wav-ff8a992b5d17a6f00b9c9cce1213b8ec.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/chords/NEW Thin Addition - 120 BPM - 8 - Chords - NW_MECS_90_synth_loop_halcyon_Bbmin.wav"
+dest_files=["res://.godot/imported/NEW Thin Addition - 120 BPM - 8 - Chords - NW_MECS_90_synth_loop_halcyon_Bbmin.wav-ff8a992b5d17a6f00b9c9cce1213b8ec.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

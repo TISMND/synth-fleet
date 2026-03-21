@@ -275,12 +275,6 @@
 			"radius": 450.0,
 			"trigger_y": 5493.82716049383,
 			"x_offset": 25.6227758007118
-		},
-		{
-			"nebula_id": "nebula_1",
-			"radius": 300.0,
-			"trigger_y": 2055.55555555556,
-			"x_offset": -288.683274021352
 		}
 	],
 	"scroll_speed": 140.0

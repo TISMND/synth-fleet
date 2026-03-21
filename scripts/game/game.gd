@@ -14,6 +14,7 @@ var _projectiles: Node2D = null
 var _enemies: Node2D = null
 var _parallax_bg: ParallaxBackground = null
 var _nebula_container: Node2D = null
+var _game_viewport: SubViewport = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
 var _scroll_speed: float = 80.0
@@ -70,34 +71,52 @@ func _ready() -> void:
 	if _level_data:
 		_scroll_speed = _level_data.scroll_speed
 
-	# Build scene tree
+	# Game content renders in its own SubViewport with HDR + ACES + bloom —
+	# the exact same pipeline that component tab previews use.
+	var svc := SubViewportContainer.new()
+	svc.name = "GameViewportContainer"
+	svc.position = Vector2.ZERO
+	svc.size = Vector2(1920, 1080)
+	svc.stretch = true
+	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(svc)
+
+	_game_viewport = SubViewport.new()
+	_game_viewport.name = "GameViewport"
+	_game_viewport.size = Vector2i(1920, 1080)
+	_game_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_game_viewport.transparent_bg = false
+	svc.add_child(_game_viewport)
+	VFXFactory.add_bloom_to_viewport(_game_viewport)
+
+	# Build scene tree inside the game viewport
 	_setup_parallax()
 	_setup_nebulas()
 
 	_projectiles = Node2D.new()
 	_projectiles.name = "Projectiles"
-	add_child(_projectiles)
+	_game_viewport.add_child(_projectiles)
 
 	_enemies = Node2D.new()
 	_enemies.name = "Enemies"
-	add_child(_enemies)
+	_game_viewport.add_child(_enemies)
 
 	# Player
 	_player = Node2D.new()
 	_player.set_script(load("res://scripts/game/player_ship.gd"))
 	_player.name = "PlayerShip"
-	add_child(_player)
+	_game_viewport.add_child(_player)
 	_player.setup(ship, loadout, _projectiles)
 	_player.position = Vector2(960, 850)
 
 	# Wave manager
 	_wave_manager = WaveManager.new()
 	_wave_manager.name = "WaveManager"
-	add_child(_wave_manager)
+	_game_viewport.add_child(_wave_manager)
 	_wave_manager.all_waves_cleared.connect(_on_all_waves_cleared)
 	_wave_manager.presence_pre_trigger.connect(_on_presence_pre_trigger)
 
-	# HUD — Control (not CanvasLayer) so bars get WorldEnvironment glow
+	# HUD stays on root viewport — not affected by ACES tonemapping
 	_hud = Control.new()
 	_hud.set_script(load("res://scripts/game/hud.gd"))
 	_hud.name = "HUD"
@@ -453,11 +472,11 @@ func _setup_parallax() -> void:
 	grid_bg.size = Vector2(1920, 1080)
 	grid_bg.z_index = -10
 	ThemeManager.apply_grid_background(grid_bg)
-	add_child(grid_bg)
+	_game_viewport.add_child(grid_bg)
 
 	_parallax_bg = ParallaxBackground.new()
 	_parallax_bg.name = "ParallaxBG"
-	add_child(_parallax_bg)
+	_game_viewport.add_child(_parallax_bg)
 	_add_star_layer(0.3, 80, Color(0.3, 0.3, 0.5, 0.5), 1)
 	_add_star_layer(0.7, 50, Color(0.5, 0.5, 0.8, 0.7), 2)
 
@@ -485,7 +504,7 @@ func _setup_nebulas() -> void:
 	_nebula_container = Node2D.new()
 	_nebula_container.name = "Nebulas"
 	_nebula_container.z_index = -5  # Behind gameplay, above stars
-	add_child(_nebula_container)
+	_game_viewport.add_child(_nebula_container)
 
 	for placement in _level_data.nebula_placements:
 		var nebula_id: String = str(placement.get("nebula_id", ""))

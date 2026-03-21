@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bvyalgkdr1l0x"
+path="res://.godot/imported/NEW Thin Addition - 120 BPM - 6 - Leads - 006_Synth2_90bpm_Cmin_-_RETROAESTHETICS1_Zenhiser.wav-1f9feeb8335b19e77ddeff9b77bb493d.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/leads/NEW Thin Addition - 120 BPM - 6 - Leads - 006_Synth2_90bpm_Cmin_-_RETROAESTHETICS1_Zenhiser.wav"
+dest_files=["res://.godot/imported/NEW Thin Addition - 120 BPM - 6 - Leads - 006_Synth2_90bpm_Cmin_-_RETROAESTHETICS1_Zenhiser.wav-1f9feeb8335b19e77ddeff9b77bb493d.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

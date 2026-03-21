@@ -41,6 +41,12 @@ func _get_type_label() -> String:
 func _get_id_prefix() -> String:
 	return "fem_"
 
+func _get_bar_effect_range() -> Vector2:
+	return Vector2(-50.0, 50.0)
+
+func _get_passive_effect_range() -> Vector2:
+	return Vector2(-50.0, 50.0)
+
 func _save_data(id: String, data: Dictionary) -> void:
 	FieldEmitterDataManager.save(id, data)
 

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://du8wj0vbxp37l"
+path="res://.godot/imported/NEW Overblown Choice - 120 BPM - 6 - Leads - nw_ntn_110_synth_loop_maul_Cmaj.wav-3450e8a2124a9493c1a86cab5865983b.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/leads/NEW Overblown Choice - 120 BPM - 6 - Leads - nw_ntn_110_synth_loop_maul_Cmaj.wav"
+dest_files=["res://.godot/imported/NEW Overblown Choice - 120 BPM - 6 - Leads - nw_ntn_110_synth_loop_maul_Cmaj.wav-3450e8a2124a9493c1a86cab5865983b.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

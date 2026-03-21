@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://c50fonikoj0yo"
+path="res://.godot/imported/NEW Echoey Ritual - 120 BPM - 1 - Drums - ps_122_drum_loop_fertile_full.wav-2bc1082be0a1e878db1f69b6879727c8.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/drums/NEW Echoey Ritual - 120 BPM - 1 - Drums - ps_122_drum_loop_fertile_full.wav"
+dest_files=["res://.godot/imported/NEW Echoey Ritual - 120 BPM - 1 - Drums - ps_122_drum_loop_fertile_full.wav-2bc1082be0a1e878db1f69b6879727c8.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

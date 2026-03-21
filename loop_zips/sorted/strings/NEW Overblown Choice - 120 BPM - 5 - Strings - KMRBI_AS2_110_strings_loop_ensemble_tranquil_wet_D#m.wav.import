@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dmxbie333j2e0"
+path="res://.godot/imported/NEW Overblown Choice - 120 BPM - 5 - Strings - KMRBI_AS2_110_strings_loop_ensemble_tranquil_wet_D#m.wav-f0b7e0d2c47bf2815fffc239689ef74a.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/strings/NEW Overblown Choice - 120 BPM - 5 - Strings - KMRBI_AS2_110_strings_loop_ensemble_tranquil_wet_D#m.wav"
+dest_files=["res://.godot/imported/NEW Overblown Choice - 120 BPM - 5 - Strings - KMRBI_AS2_110_strings_loop_ensemble_tranquil_wet_D#m.wav-f0b7e0d2c47bf2815fffc239689ef74a.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

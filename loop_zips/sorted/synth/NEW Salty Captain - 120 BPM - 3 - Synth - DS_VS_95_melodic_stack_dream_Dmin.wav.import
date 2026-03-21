@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://c0f6vin3f2fnn"
+path="res://.godot/imported/NEW Salty Captain - 120 BPM - 3 - Synth - DS_VS_95_melodic_stack_dream_Dmin.wav-6f8017fd7d7f8974d2a4f4cc618f1433.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/NEW Salty Captain - 120 BPM - 3 - Synth - DS_VS_95_melodic_stack_dream_Dmin.wav"
+dest_files=["res://.godot/imported/NEW Salty Captain - 120 BPM - 3 - Synth - DS_VS_95_melodic_stack_dream_Dmin.wav-6f8017fd7d7f8974d2a4f4cc618f1433.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

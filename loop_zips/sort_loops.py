@@ -10,7 +10,7 @@ import os
 import shutil
 import sys
 
-BATCH_DIR = os.path.join(os.path.dirname(__file__), "batch_alpha")
+BATCH_DIR = os.path.join(os.path.dirname(__file__), "batch_new")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "sorted")
 
 def extract_instrument(filename):

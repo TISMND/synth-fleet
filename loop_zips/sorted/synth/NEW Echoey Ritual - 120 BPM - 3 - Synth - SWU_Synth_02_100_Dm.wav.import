@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dntw4557ex1jd"
+path="res://.godot/imported/NEW Echoey Ritual - 120 BPM - 3 - Synth - SWU_Synth_02_100_Dm.wav-ce5baa6b7dbe6eeaac2a5c5106e85474.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/NEW Echoey Ritual - 120 BPM - 3 - Synth - SWU_Synth_02_100_Dm.wav"
+dest_files=["res://.godot/imported/NEW Echoey Ritual - 120 BPM - 3 - Synth - SWU_Synth_02_100_Dm.wav-ce5baa6b7dbe6eeaac2a5c5106e85474.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

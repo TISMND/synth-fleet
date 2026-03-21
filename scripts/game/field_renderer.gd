@@ -30,13 +30,8 @@ func setup(style: FieldStyle, radius: float, anim_speed: float = 1.0) -> void:
 	img.fill(Color.WHITE)
 	_sprite.texture = ImageTexture.create_from_image(img)
 	_sprite.material = _material
-
-	# Additive blending for glow
-	var canvas_mat := CanvasItemMaterial.new()
-	canvas_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	_sprite.material = _material
-
 	add_child(_sprite)
+
 	z_index = -1
 
 
@@ -70,9 +65,9 @@ func _process(delta: float) -> void:
 			var fade_out: float = _pulse_fade_out
 			# Clamp so fade_up + fade_out don't exceed total duration
 			if fade_up + fade_out > _pulse_total_duration:
-				var scale: float = _pulse_total_duration / maxf(fade_up + fade_out, 0.001)
-				fade_up *= scale
-				fade_out *= scale
+				var s: float = _pulse_total_duration / maxf(fade_up + fade_out, 0.001)
+				fade_up *= s
+				fade_out *= s
 			var fade_out_start: float = _pulse_total_duration - fade_out
 			var envelope: float
 			if _pulse_elapsed < fade_up:

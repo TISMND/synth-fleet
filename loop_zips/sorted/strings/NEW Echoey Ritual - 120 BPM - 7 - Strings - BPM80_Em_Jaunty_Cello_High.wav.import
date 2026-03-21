@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cipidnf3p7gjl"
+path="res://.godot/imported/NEW Echoey Ritual - 120 BPM - 7 - Strings - BPM80_Em_Jaunty_Cello_High.wav-5c69a0b9589c553ea44c81430250595b.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/strings/NEW Echoey Ritual - 120 BPM - 7 - Strings - BPM80_Em_Jaunty_Cello_High.wav"
+dest_files=["res://.godot/imported/NEW Echoey Ritual - 120 BPM - 7 - Strings - BPM80_Em_Jaunty_Cello_High.wav-5c69a0b9589c553ea44c81430250595b.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

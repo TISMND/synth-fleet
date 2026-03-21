@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cf4xtpql5gykf"
+path="res://.godot/imported/NEW Thin Addition - 120 BPM - 7 - Synth - spm_melodic_loop_malletbell_115_Am.wav-92e39687cb6bf0ca5fe6b3b5d88a69b1.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/NEW Thin Addition - 120 BPM - 7 - Synth - spm_melodic_loop_malletbell_115_Am.wav"
+dest_files=["res://.godot/imported/NEW Thin Addition - 120 BPM - 7 - Synth - spm_melodic_loop_malletbell_115_Am.wav-92e39687cb6bf0ca5fe6b3b5d88a69b1.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -128,6 +128,12 @@ func _on_auto_pulse() -> void:
 func _update_visual_preview_frame(_delta: float) -> void:
 	pass
 
+func _get_bar_effect_range() -> Vector2:
+	return Vector2(-10.0, 10.0)
+
+func _get_passive_effect_range() -> Vector2:
+	return Vector2(-10.0, 10.0)
+
 func _build_post_waveform_content(_parent: VBoxContainer) -> void:
 	pass
 
@@ -517,6 +523,7 @@ func _build_mechanics_tab() -> Control:
 	_add_separator(form)
 
 	# Bar Effects (per trigger hit)
+	var bar_range: Vector2 = _get_bar_effect_range()
 	_add_section_header(form, "BAR EFFECTS (per trigger hit)")
 	for i in BAR_TYPES.size():
 		var bar_type: String = BAR_TYPES[i]
@@ -533,8 +540,8 @@ func _build_mechanics_tab() -> Control:
 		row.add_child(lbl)
 
 		var slider := HSlider.new()
-		slider.min_value = -10.0
-		slider.max_value = 10.0
+		slider.min_value = bar_range.x
+		slider.max_value = bar_range.y
 		slider.value = 0.0
 		slider.step = 0.05
 		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -553,6 +560,7 @@ func _build_mechanics_tab() -> Control:
 	_add_separator(form)
 
 	# Passive Effects
+	var passive_range: Vector2 = _get_passive_effect_range()
 	_add_section_header(form, "PASSIVE EFFECTS (per second, while active)")
 	for i in BAR_TYPES.size():
 		var bar_type: String = BAR_TYPES[i]
@@ -569,8 +577,8 @@ func _build_mechanics_tab() -> Control:
 		row.add_child(lbl)
 
 		var slider := HSlider.new()
-		slider.min_value = -10.0
-		slider.max_value = 10.0
+		slider.min_value = passive_range.x
+		slider.max_value = passive_range.y
 		slider.value = 0.0
 		slider.step = 0.05
 		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL

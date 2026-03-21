@@ -43,6 +43,9 @@ var _preview_controllers: Array = []  # HardpointController instances
 # Power core preview — lightweight pulse trigger tracking
 var _core_previews: Array = []  # Array of Dicts: {pc, loop_id, prev_pos, triggers}
 
+# Device preview — field emitter / orbital generator pulse trigger tracking
+var _device_previews: Array = []  # Array of Dicts: {device, loop_id, slot_key, prev_pos}
+
 # Mode toggle: "functional", "audio", or "controls"
 var _mode: String = "functional"
 var _functional_btn: Button
@@ -684,6 +687,15 @@ func _sync_preview_active_states() -> void:
 		var loop_id: String = entry["loop_id"]
 		var slot_idx: String = loop_id.replace("core_", "")
 		var slot_key: String = "int_" + slot_idx
+		if _slot_active.get(slot_key, false):
+			LoopMixer.unmute(loop_id)
+		else:
+			LoopMixer.mute(loop_id)
+
+	# Sync device previews — mute/unmute loops
+	for entry in _device_previews:
+		var loop_id: String = entry["loop_id"]
+		var slot_key: String = entry["slot_key"]
 		if _slot_active.get(slot_key, false):
 			LoopMixer.unmute(loop_id)
 		else:
@@ -1447,6 +1459,12 @@ func _sync_preview() -> void:
 		LoopMixer.remove_loop(loop_id)
 	_core_previews.clear()
 
+	# Cleanup old device loops
+	for entry in _device_previews:
+		var loop_id: String = entry["loop_id"]
+		LoopMixer.remove_loop(loop_id)
+	_device_previews.clear()
+
 	# Create new controllers for each equipped ext slot with weapons
 	for i in GameState.get_external_slot_count():
 		var slot_key: String = "ext_" + str(i)
@@ -1497,6 +1515,30 @@ func _sync_preview() -> void:
 			LoopMixer.set_volume(loop_id, core_vol)
 		_core_previews.append({"pc": pc, "loop_id": loop_id, "prev_pos": -1.0, "triggers": merged})
 
+	# Register device loops (field emitters / orbital generators) from all slots
+	var _dev_slot_sources: Array = []
+	for i3 in GameState.get_internal_slot_count():
+		_dev_slot_sources.append("int_" + str(i3))
+	for i3 in GameState.get_external_slot_count():
+		_dev_slot_sources.append("ext_" + str(i3))
+	for slot_key in _dev_slot_sources:
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var comp_type: String = str(slot_data.get("component_type", ""))
+		if comp_type != "device":
+			continue
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id == "":
+			continue
+		var device: DeviceData = _device_cache.get(device_id)
+		if not device or device.loop_file_path == "":
+			continue
+		var loop_id: String = "dev_" + slot_key
+		LoopMixer.add_loop(loop_id, device.loop_file_path)
+		var dev_vol: float = KeyBindingManager.get_slot_volume(slot_key)
+		if dev_vol != 0.0:
+			LoopMixer.set_volume(loop_id, dev_vol)
+		_device_previews.append({"device": device, "loop_id": loop_id, "slot_key": slot_key, "prev_pos": -1.0})
+
 	# Apply stored volumes for weapon preview loops
 	var ext_ctrl_idx: int = 0
 	for i2 in GameState.get_external_slot_count():
@@ -1517,7 +1559,7 @@ func _sync_preview() -> void:
 	# If already playing, sync active states
 	if _is_playing:
 		_sync_preview_active_states()
-		if not _core_previews.is_empty():
+		if not _core_previews.is_empty() or not _device_previews.is_empty():
 			LoopMixer.start_all()
 
 
@@ -1531,6 +1573,10 @@ func _cleanup_preview() -> void:
 		var loop_id: String = entry["loop_id"]
 		LoopMixer.remove_loop(loop_id)
 	_core_previews.clear()
+	for entry in _device_previews:
+		var loop_id: String = entry["loop_id"]
+		LoopMixer.remove_loop(loop_id)
+	_device_previews.clear()
 	if _is_playing:
 		LoopMixer.stop_all()
 		_is_playing = false
@@ -1576,7 +1622,14 @@ func _on_bar_effect_fired(effects: Dictionary) -> void:
 
 
 func _process(_delta: float) -> void:
-	if not _is_playing or _core_previews.is_empty():
+	if not _is_playing:
+		return
+	_process_core_previews()
+	_process_device_previews()
+
+
+func _process_core_previews() -> void:
+	if _core_previews.is_empty():
 		return
 	for entry in _core_previews:
 		var pc: PowerCoreData = entry["pc"]
@@ -1605,6 +1658,35 @@ func _process(_delta: float) -> void:
 				crossed = tval > prev or tval <= curr
 			if crossed:
 				_on_bar_effect_fired(pc.bar_effects)
+
+
+func _process_device_previews() -> void:
+	if _device_previews.is_empty():
+		return
+	for entry in _device_previews:
+		var device: DeviceData = entry["device"]
+		var loop_id: String = entry["loop_id"]
+		var slot_key: String = entry["slot_key"]
+		var pos_sec: float = LoopMixer.get_playback_position(loop_id)
+		var duration: float = LoopMixer.get_stream_duration(loop_id)
+		if pos_sec < 0.0 or duration <= 0.0:
+			continue
+		var curr: float = pos_sec / duration
+		var prev: float = float(entry["prev_pos"])
+		entry["prev_pos"] = curr
+		if prev < 0.0:
+			continue
+		if not _slot_active.get(slot_key, false):
+			continue
+		for t in device.pulse_triggers:
+			var tval: float = float(t)
+			var crossed: bool = false
+			if curr >= prev:
+				crossed = tval > prev and tval <= curr
+			else:
+				crossed = tval > prev or tval <= curr
+			if crossed and not device.bar_effects.is_empty():
+				_on_bar_effect_fired(device.bar_effects)
 
 
 func _exit_tree() -> void:
