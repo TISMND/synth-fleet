@@ -15,7 +15,8 @@ extends Resource
 @export var pulse_fade_up: float = 0.05
 @export var pulse_fade_out: float = 0.4
 @export var ship_tint_strength: float = 0.15
-@export var ship_hdr_boost: float = 0.3
+@export var ship_active_hdr: float = 0.2
+@export var ship_pulse_hdr: float = 0.5
 
 
 static func from_dict(data: Dictionary) -> FieldStyle:
@@ -31,7 +32,8 @@ static func from_dict(data: Dictionary) -> FieldStyle:
 	s.pulse_fade_up = float(data.get("pulse_fade_up", 0.05))
 	s.pulse_fade_out = float(data.get("pulse_fade_out", data.get("pulse_duration", 0.4)))
 	s.ship_tint_strength = float(data.get("ship_tint_strength", 0.15))
-	s.ship_hdr_boost = float(data.get("ship_hdr_boost", 0.3))
+	s.ship_active_hdr = float(data.get("ship_active_hdr", data.get("ship_hdr_boost", 0.2)))
+	s.ship_pulse_hdr = float(data.get("ship_pulse_hdr", 0.5))
 	var color_data: Array = data.get("color", []) as Array
 	if color_data.size() >= 4:
 		s.color = Color(float(color_data[0]), float(color_data[1]), float(color_data[2]), float(color_data[3]))
@@ -54,5 +56,6 @@ func to_dict() -> Dictionary:
 		"pulse_fade_up": pulse_fade_up,
 		"pulse_fade_out": pulse_fade_out,
 		"ship_tint_strength": ship_tint_strength,
-		"ship_hdr_boost": ship_hdr_boost,
+		"ship_active_hdr": ship_active_hdr,
+		"ship_pulse_hdr": ship_pulse_hdr,
 	}

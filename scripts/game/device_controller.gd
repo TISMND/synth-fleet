@@ -76,6 +76,9 @@ func activate() -> void:
 	LoopMixer.unmute(_loop_id, fade_ms)
 	if _orbiter_renderer:
 		_orbiter_renderer.visible = true
+	# Always-on mode: field is permanently visible when device is active
+	if _field_renderer and device_data.active_always_on:
+		_field_renderer.set_opacity(1.0)
 	if _collision_area:
 		_collision_area.monitoring = true
 
@@ -127,8 +130,11 @@ func _get_audio_fade_ms() -> int:
 
 
 func _process(delta: float) -> void:
+	# Always-on mode: keep opacity at 1.0, skip envelope
+	if _field_renderer and device_data and device_data.active_always_on and _active:
+		_field_renderer.set_opacity(1.0)
 	# Drive active envelope (per-trigger field visibility)
-	if _active_envelope_active and _field_renderer and device_data:
+	elif _active_envelope_active and _field_renderer and device_data:
 		var total_dur: float = device_data.active_total_duration
 		var fade_in: float = device_data.active_fade_in
 		var fade_out: float = device_data.active_fade_out

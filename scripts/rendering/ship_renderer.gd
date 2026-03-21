@@ -42,19 +42,19 @@ const SOLAR_ENGINE := Color(1.0, 0.95, 0.5)
 const SOLAR_CANOPY := Color(0.9, 0.7, 0.1)
 const SOLAR_DETAIL := Color(1.0, 1.0, 0.6)
 
-# Gunmetal palette (dark steel + red stripes)
-const GUNMETAL_HULL := Color(0.35, 0.38, 0.42)
-const GUNMETAL_ACCENT := Color(0.85, 0.12, 0.1)
-const GUNMETAL_ENGINE := Color(1.0, 0.45, 0.15)
-const GUNMETAL_CANOPY := Color(0.15, 0.18, 0.25)
-const GUNMETAL_DETAIL := Color(0.6, 0.62, 0.65)
+# Gunmetal palette (dark steel, no color accents)
+const GUNMETAL_HULL := Color(0.2, 0.22, 0.25)
+const GUNMETAL_ACCENT := Color(0.35, 0.37, 0.4)
+const GUNMETAL_ENGINE := Color(0.7, 0.5, 0.2)
+const GUNMETAL_CANOPY := Color(0.1, 0.12, 0.16)
+const GUNMETAL_DETAIL := Color(0.45, 0.47, 0.5)
 
-# Militia palette (army olive drab + tan)
-const MILITIA_HULL := Color(0.28, 0.32, 0.15)
-const MILITIA_ACCENT := Color(0.72, 0.65, 0.42)
-const MILITIA_ENGINE := Color(0.9, 0.65, 0.2)
-const MILITIA_CANOPY := Color(0.2, 0.22, 0.1)
-const MILITIA_DETAIL := Color(0.55, 0.5, 0.32)
+# Militia palette (dark army green)
+const MILITIA_HULL := Color(0.12, 0.18, 0.08)
+const MILITIA_ACCENT := Color(0.22, 0.28, 0.14)
+const MILITIA_ENGINE := Color(0.7, 0.5, 0.15)
+const MILITIA_CANOPY := Color(0.08, 0.1, 0.05)
+const MILITIA_DETAIL := Color(0.3, 0.35, 0.2)
 
 # Stealth palette (matte black + blood red)
 const STEALTH_HULL := Color(0.1, 0.1, 0.12)
@@ -157,6 +157,9 @@ func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
 		RenderMode.VOID: _draw_void_polygon(points, width)
 		RenderMode.HIVEMIND: _draw_hivemind_polygon(points, width)
 		RenderMode.SPORE: _draw_spore_polygon(points, width)
+		RenderMode.GUNMETAL: _draw_gunmetal_polygon(points, color, width)
+		RenderMode.MILITIA: _draw_militia_polygon(points, width)
+		RenderMode.STEALTH: _draw_stealth_polygon(points, width)
 		_: _draw_neon_polygon(points, color, width)
 
 func _circle(center: Vector2, radius: float, color: Color, width: float) -> void:
@@ -168,6 +171,15 @@ func _circle(center: Vector2, radius: float, color: Color, width: float) -> void
 		RenderMode.VOID: _draw_void_circle(center, radius, width)
 		RenderMode.HIVEMIND: _draw_hivemind_circle(center, radius, width)
 		RenderMode.SPORE: _draw_spore_circle(center, radius, width)
+		RenderMode.GUNMETAL:
+			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
+			_draw_gunmetal_polygon(pts, color, width)
+		RenderMode.MILITIA:
+			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
+			_draw_militia_polygon(pts, width)
+		RenderMode.STEALTH:
+			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
+			_draw_stealth_polygon(pts, width)
 		_: _draw_neon_circle(center, radius, color, width)
 
 func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
@@ -178,6 +190,9 @@ func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
 		RenderMode.VOID: _draw_void_line(a, b, width)
 		RenderMode.HIVEMIND: _draw_hivemind_line(a, b, width)
 		RenderMode.SPORE: _draw_spore_line(a, b, width)
+		RenderMode.GUNMETAL: _draw_gunmetal_line(a, b, color, width)
+		RenderMode.MILITIA: _draw_militia_line(a, b, width)
+		RenderMode.STEALTH: _draw_stealth_line(a, b, width)
 		_: _draw_neon_line(a, b, color, width)
 
 ## Generate evenly-spaced points around a circle (for use with _poly).
@@ -198,10 +213,10 @@ func _arc(center: Vector2, radius: float, start_angle: float, end_angle: float, 
 		_line(center + Vector2(cos(a0) * radius, sin(a0) * radius), center + Vector2(cos(a1) * radius, sin(a1) * radius), color, width)
 
 func _canopy(points: PackedVector2Array) -> void:
-	if _is_chrome_based():
-		_draw_chrome_canopy(points, bank)
-		return
 	match render_mode:
+		RenderMode.CHROME, RenderMode.GUNMETAL, RenderMode.MILITIA, RenderMode.STEALTH:
+			_draw_chrome_canopy(points, bank)
+			return
 		RenderMode.VOID:
 			draw_colored_polygon(points, Color(0.0, 0.0, 0.0, 0.95))
 			var pulse: float = 0.7 + sin(time * 2.0) * 0.3
@@ -224,10 +239,10 @@ func _canopy(points: PackedVector2Array) -> void:
 			_draw_neon_lines(points, canopy_color, 1.2 * 1.4)
 
 func _exhaust_line(a: Vector2, b: Vector2, width: float) -> void:
-	if _is_chrome_based():
-		_draw_chrome_line(a, b, engine_color, width)
-		return
 	match render_mode:
+		RenderMode.CHROME, RenderMode.GUNMETAL, RenderMode.MILITIA, RenderMode.STEALTH:
+			_draw_chrome_line(a, b, engine_color, width)
+			return
 		RenderMode.VOID:
 			_draw_neon_line(a, b, Color(0.5, 0.0, 1.0, 0.6), width)
 		RenderMode.HIVEMIND:
@@ -271,20 +286,20 @@ func _apply_palette() -> void:
 			engine_color = GUNMETAL_ENGINE
 			canopy_color = GUNMETAL_CANOPY
 			detail_color = GUNMETAL_DETAIL
-			_chrome_dark = Color(0.14, 0.15, 0.18)
-			_chrome_mid = Color(0.30, 0.32, 0.38)
-			_chrome_light = Color(0.50, 0.52, 0.58)
-			_chrome_bright = Color(0.70, 0.72, 0.78)
+			_chrome_dark = Color(0.08, 0.09, 0.1)
+			_chrome_mid = Color(0.18, 0.19, 0.22)
+			_chrome_light = Color(0.3, 0.32, 0.36)
+			_chrome_bright = Color(0.42, 0.44, 0.48)
 		RenderMode.MILITIA:
 			hull_color = MILITIA_HULL
 			accent_color = MILITIA_ACCENT
 			engine_color = MILITIA_ENGINE
 			canopy_color = MILITIA_CANOPY
 			detail_color = MILITIA_DETAIL
-			_chrome_dark = Color(0.12, 0.14, 0.06)
-			_chrome_mid = Color(0.22, 0.26, 0.12)
-			_chrome_light = Color(0.34, 0.38, 0.20)
-			_chrome_bright = Color(0.46, 0.50, 0.28)
+			_chrome_dark = Color(0.06, 0.08, 0.04)
+			_chrome_mid = Color(0.12, 0.16, 0.08)
+			_chrome_light = Color(0.2, 0.25, 0.14)
+			_chrome_bright = Color(0.28, 0.32, 0.18)
 		RenderMode.STEALTH:
 			hull_color = STEALTH_HULL
 			accent_color = STEALTH_ACCENT
@@ -308,7 +323,7 @@ func _apply_palette() -> void:
 
 
 func _is_chrome_based() -> bool:
-	return render_mode == RenderMode.CHROME or render_mode == RenderMode.GUNMETAL or render_mode == RenderMode.MILITIA or render_mode == RenderMode.STEALTH
+	return render_mode == RenderMode.CHROME
 
 
 func _draw() -> void:
@@ -2035,6 +2050,152 @@ func _draw_spore_line(a: Vector2, b: Vector2, width: float) -> void:
 	var mid: Vector2 = (a + b) * 0.5
 	var mid_blend: float = sin(time * 0.3 + 2.5) * 0.5 + 0.5
 	draw_circle(mid, width * 0.6, SPORE_DOT.lerp(SPORE_DOT_ALT, mid_blend))
+
+# ── Gunmetal draw helpers (matte steel + racing stripes + rivet dots) ──
+
+func _draw_gunmetal_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
+	if points.size() < 3:
+		return
+	# Flat matte steel fill
+	draw_colored_polygon(points, GUNMETAL_HULL)
+
+	# Bounding box
+	var min_y := points[0].y
+	var max_y := points[0].y
+	var min_x := points[0].x
+	var max_x := points[0].x
+	for pt in points:
+		min_y = minf(min_y, pt.y)
+		max_y = maxf(max_y, pt.y)
+		min_x = minf(min_x, pt.x)
+		max_x = maxf(max_x, pt.x)
+	var height: float = max_y - min_y
+	var bwidth: float = max_x - min_x
+	if height < 1.0 or bwidth < 1.0:
+		return
+
+	# Diagonal racing stripes — bold accent color
+	var stripe_spacing: float = 18.0
+	var stripe_w: float = 5.0
+	var center_x: float = (min_x + max_x) * 0.5
+	var y_start: float = min_y - bwidth  # start above to cover diagonal
+	var y_pos: float = y_start
+	while y_pos < max_y + bwidth:
+		var stripe := PackedVector2Array([
+			Vector2(min_x - 5.0, y_pos),
+			Vector2(max_x + 5.0, y_pos + bwidth * 0.6),
+			Vector2(max_x + 5.0, y_pos + bwidth * 0.6 + stripe_w),
+			Vector2(min_x - 5.0, y_pos + stripe_w),
+		])
+		var clipped: Array = Geometry2D.intersect_polygons(points, stripe)
+		for clip_idx in range(clipped.size()):
+			var clip_poly: PackedVector2Array = clipped[clip_idx]
+			if clip_poly.size() >= 3:
+				draw_colored_polygon(clip_poly, Color(GUNMETAL_ACCENT.r, GUNMETAL_ACCENT.g, GUNMETAL_ACCENT.b, 0.5))
+		y_pos += stripe_spacing
+
+	# Subtle top-to-bottom gradient overlay for depth
+	var grad_rect := PackedVector2Array([
+		Vector2(min_x - 5.0, min_y),
+		Vector2(max_x + 5.0, min_y),
+		Vector2(max_x + 5.0, min_y + height * 0.4),
+		Vector2(min_x - 5.0, min_y + height * 0.4),
+	])
+	var grad_clips: Array = Geometry2D.intersect_polygons(points, grad_rect)
+	for clip_idx in range(grad_clips.size()):
+		var clip_poly: PackedVector2Array = grad_clips[clip_idx]
+		if clip_poly.size() >= 3:
+			draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, 0.06))
+
+	# Hard panel edges — thick dark outlines
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], Color(0.08, 0.08, 0.1), width * 1.8, true)
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], GUNMETAL_DETAIL, width * 0.6, true)
+	# Rivet dots at vertices
+	for pt in points:
+		draw_circle(pt, width * 0.7, Color(0.5, 0.52, 0.55))
+		draw_circle(pt, width * 0.35, Color(0.25, 0.26, 0.28))
+
+func _draw_gunmetal_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
+	# Dark border + bright core + rivet endpoints
+	draw_line(a, b, Color(0.08, 0.08, 0.1), width * 1.6, true)
+	draw_line(a, b, color, width, true)
+	draw_line(a, b, GUNMETAL_DETAIL, width * 0.4, true)
+	for pt in [a, b]:
+		draw_circle(pt, width * 0.8, Color(0.5, 0.52, 0.55))
+		draw_circle(pt, width * 0.4, Color(0.25, 0.26, 0.28))
+
+
+# ── Militia draw helpers (camo patches + stencil edges) ──
+
+func _draw_militia_polygon(points: PackedVector2Array, width: float) -> void:
+	if points.size() < 3:
+		return
+	# Dark army green fill
+	draw_colored_polygon(points, MILITIA_HULL)
+
+	# Hard stencil-style edges — flat, no glow, military crisp
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], Color(0.1, 0.1, 0.05), width * 1.5, true)
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], MILITIA_DETAIL, width * 0.5, true)
+
+func _draw_militia_line(a: Vector2, b: Vector2, width: float) -> void:
+	draw_line(a, b, Color(0.1, 0.1, 0.05), width * 1.4, true)
+	draw_line(a, b, MILITIA_ACCENT, width, true)
+	draw_line(a, b, MILITIA_DETAIL, width * 0.3, true)
+
+
+# ── Stealth draw helpers (near-black + angular facets + red heat glow) ──
+
+func _draw_stealth_polygon(points: PackedVector2Array, width: float) -> void:
+	if points.size() < 3:
+		return
+	# Near-black matte fill
+	draw_colored_polygon(points, STEALTH_HULL)
+
+	var min_y := points[0].y
+	var max_y := points[0].y
+	for pt in points:
+		min_y = minf(min_y, pt.y)
+		max_y = maxf(max_y, pt.y)
+	var height: float = max_y - min_y
+
+	# Angular facet shading — per-edge brightness based on edge angle
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		var edge_dir: Vector2 = (points[ni] - points[i]).normalized()
+		var facing: float = absf(edge_dir.x) * 0.6 + absf(edge_dir.y) * 0.4
+		# Facet fill — thin strip along each edge, brightness varies
+		var inward: Vector2 = Vector2(-edge_dir.y, edge_dir.x) * 3.0
+		var facet := PackedVector2Array([points[i], points[ni], points[ni] + inward, points[i] + inward])
+		var facet_clips: Array = Geometry2D.intersect_polygons(points, facet)
+		var facet_bright: float = 0.04 + facing * 0.08
+		for clip_idx in range(facet_clips.size()):
+			var clip_poly: PackedVector2Array = facet_clips[clip_idx]
+			if clip_poly.size() >= 3:
+				draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, facet_bright))
+
+	# Razor-sharp edges — very thin, dark with faint catch-light
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], Color(0.02, 0.02, 0.03), width * 1.2, true)
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		var edge_dir: Vector2 = (points[ni] - points[i]).normalized()
+		var catch_val: float = absf(edge_dir.x) * 0.5
+		if catch_val > 0.15:
+			draw_line(points[i], points[ni], Color(0.25, 0.25, 0.3, catch_val * 0.5), width * 0.4, true)
+
+func _draw_stealth_line(a: Vector2, b: Vector2, width: float) -> void:
+	draw_line(a, b, Color(0.02, 0.02, 0.03), width * 1.2, true)
+	draw_line(a, b, STEALTH_DETAIL, width * 0.5, true)
+
 
 # ── Neon drawing helpers ──
 

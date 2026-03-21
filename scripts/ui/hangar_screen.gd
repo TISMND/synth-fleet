@@ -23,8 +23,6 @@ var _is_muted: bool = false
 var _weapon_cache: Dictionary = {}
 var _power_core_cache: Dictionary = {}
 var _device_cache: Dictionary = {}
-var _dev_section: VBoxContainer
-var _dev_header: Label
 
 # Right panel (item picker)
 var _right_panel: VBoxContainer
@@ -34,7 +32,6 @@ var _right_panel_list: VBoxContainer
 var _expanded_slot: String = ""
 var _ext_slot_btns: Dictionary = {}  # slot_key -> Button (header)
 var _int_slot_btns: Dictionary = {}
-var _dev_slot_btns: Dictionary = {}
 
 # Live weapon preview
 var _viewport_container: SubViewportContainer
@@ -88,12 +85,10 @@ func _ready() -> void:
 
 
 func _init_slot_active() -> void:
-	for i in 3:
+	for i in GameState.get_external_slot_count():
 		_slot_active["ext_" + str(i)] = true
-	for i in 3:
+	for i in GameState.get_internal_slot_count():
 		_slot_active["int_" + str(i)] = true
-	for i in 2:
-		_slot_active["dev_" + str(i)] = true
 
 
 func _setup_vhs_overlay() -> void:
@@ -131,7 +126,6 @@ func _apply_theme() -> void:
 	var section_pairs: Array = [
 		[_ext_header, "ext_0"],
 		[_int_header, "int_0"],
-		[_dev_header, "dev_0"],
 	]
 	for pair in section_pairs:
 		var hdr: Label = pair[0]
@@ -192,7 +186,6 @@ func _apply_theme() -> void:
 	var section_prefixes: Array = [
 		[_ext_section, "ext_"],
 		[_int_section, "int_"],
-		[_dev_section, "dev_"],
 	]
 	for sp in section_prefixes:
 		var section: VBoxContainer = sp[0]
@@ -335,66 +328,71 @@ func _rebuild_buttons() -> void:
 		child.queue_free()
 	for child in _int_section.get_children():
 		child.queue_free()
-	for child in _dev_section.get_children():
-		child.queue_free()
 	_slot_toggle_btns.clear()
 	_ext_slot_btns.clear()
 	_int_slot_btns.clear()
-	_dev_slot_btns.clear()
 
-	# External weapon slots (3)
-	for i in 3:
+	# External slots (weapons + flexible devices)
+	for i in GameState.get_external_slot_count():
 		var slot_key: String = "ext_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var weapon_id: String = str(slot_data.get("weapon_id", ""))
-		var weapon_name: String = "empty"
+		var comp_type: String = str(slot_data.get("component_type", ""))
+		var item_name: String = "empty"
 		var bar_effect_text: String = ""
-		if weapon_id != "":
-			var w: WeaponData = _weapon_cache.get(weapon_id)
-			if w:
-				weapon_name = w.display_name if w.display_name != "" else w.id
-				bar_effect_text = _format_bar_effects(w.bar_effects)
-			else:
-				weapon_name = weapon_id
+		var type_label: String = "EXT " + str(i + 1)
 
-		var row: HBoxContainer = _create_slot_row(slot_key, "WEAPON " + str(i + 1), weapon_name, bar_effect_text)
+		if comp_type == "weapon":
+			var weapon_id: String = str(slot_data.get("weapon_id", ""))
+			if weapon_id != "":
+				var w: WeaponData = _weapon_cache.get(weapon_id)
+				if w:
+					item_name = w.display_name if w.display_name != "" else w.id
+					bar_effect_text = _format_bar_effects(w.bar_effects)
+				else:
+					item_name = weapon_id
+		elif comp_type == "device":
+			var device_id: String = str(slot_data.get("device_id", ""))
+			if device_id != "":
+				var d: DeviceData = _device_cache.get(device_id)
+				if d:
+					item_name = d.display_name if d.display_name != "" else d.id
+					bar_effect_text = _format_bar_effects(d.bar_effects)
+				else:
+					item_name = device_id
+
+		var row: HBoxContainer = _create_slot_row(slot_key, type_label, item_name, bar_effect_text)
 		_ext_section.add_child(row)
 
-	# Internal power core slots (3)
-	for i in 3:
+	# Internal slots (power cores + internal/flexible devices)
+	for i in GameState.get_internal_slot_count():
 		var slot_key: String = "int_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var device_id: String = str(slot_data.get("device_id", ""))
-		var core_name: String = "empty"
+		var comp_type: String = str(slot_data.get("component_type", ""))
+		var item_name: String = "empty"
 		var bar_effect_text: String = ""
-		if device_id != "":
-			var pc: PowerCoreData = _power_core_cache.get(device_id)
-			if pc:
-				core_name = pc.display_name if pc.display_name != "" else pc.id
-				bar_effect_text = _format_bar_effects(pc.bar_effects)
-			else:
-				core_name = device_id
+		var type_label: String = "INT " + str(i + 1)
 
-		var row: HBoxContainer = _create_slot_row(slot_key, "CORE " + str(i + 1), core_name, bar_effect_text)
+		if comp_type == "power_core":
+			var device_id: String = str(slot_data.get("device_id", ""))
+			if device_id != "":
+				var pc: PowerCoreData = _power_core_cache.get(device_id)
+				if pc:
+					item_name = pc.display_name if pc.display_name != "" else pc.id
+					bar_effect_text = _format_bar_effects(pc.bar_effects)
+				else:
+					item_name = device_id
+		elif comp_type == "device":
+			var device_id: String = str(slot_data.get("device_id", ""))
+			if device_id != "":
+				var d: DeviceData = _device_cache.get(device_id)
+				if d:
+					item_name = d.display_name if d.display_name != "" else d.id
+					bar_effect_text = _format_bar_effects(d.bar_effects)
+				else:
+					item_name = device_id
+
+		var row: HBoxContainer = _create_slot_row(slot_key, type_label, item_name, bar_effect_text)
 		_int_section.add_child(row)
-
-	# Device slots (2)
-	for i in 2:
-		var slot_key: String = "dev_" + str(i)
-		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var device_id: String = str(slot_data.get("device_id", ""))
-		var device_name: String = "empty"
-		var bar_effect_text: String = ""
-		if device_id != "":
-			var d: DeviceData = _device_cache.get(device_id)
-			if d:
-				device_name = d.display_name if d.display_name != "" else d.id
-				bar_effect_text = _format_bar_effects(d.bar_effects)
-			else:
-				device_name = device_id
-
-		var row: HBoxContainer = _create_slot_row(slot_key, "DEVICE " + str(i + 1), device_name, bar_effect_text)
-		_dev_section.add_child(row)
 
 	_rebuild_audio_content()
 	_rebuild_controls_content()
@@ -429,19 +427,15 @@ func _create_section_header_bar(title: String, section_prefix: String) -> PanelC
 		_ext_header = header_label
 	elif section_prefix == "int":
 		_int_header = header_label
-	elif section_prefix == "dev":
-		_dev_header = header_label
 
 	return panel
 
 
 func _get_slot_type_color(slot_key: String) -> Color:
 	if slot_key.begins_with("ext_"):
-		return ThemeManager.get_color("bar_shield")  # Cyan-ish for weapons
+		return ThemeManager.get_color("bar_shield")  # Cyan-ish for external
 	elif slot_key.begins_with("int_"):
-		return ThemeManager.get_color("bar_electric")  # Yellow for cores
-	elif slot_key.begins_with("dev_"):
-		return ThemeManager.get_color("bar_thermal")  # Orange for devices
+		return ThemeManager.get_color("bar_electric")  # Yellow for internal
 	return ThemeManager.get_color("accent")
 
 
@@ -488,8 +482,6 @@ func _create_slot_row(slot_key: String, type_label: String, item_name: String, b
 		_ext_slot_btns[slot_key] = header
 	elif slot_key.begins_with("int_"):
 		_int_slot_btns[slot_key] = header
-	elif slot_key.begins_with("dev_"):
-		_dev_slot_btns[slot_key] = header
 
 	return row
 
@@ -528,8 +520,7 @@ func _toggle_slot_list(slot_key: String) -> void:
 
 
 func _unhighlight_all_slot_btns() -> void:
-	var body_color: Color = ThemeManager.get_color("body")
-	for d in [_ext_slot_btns, _int_slot_btns, _dev_slot_btns]:
+	for d in [_ext_slot_btns, _int_slot_btns]:
 		for key in d:
 			var b: Button = d[key]
 			b.remove_theme_color_override("font_color")
@@ -540,9 +531,49 @@ func _get_slot_btn(slot_key: String) -> Button:
 		return _ext_slot_btns[slot_key]
 	if _int_slot_btns.has(slot_key):
 		return _int_slot_btns[slot_key]
-	if _dev_slot_btns.has(slot_key):
-		return _dev_slot_btns[slot_key]
 	return null
+
+
+func _get_equipped_ids() -> Array[String]:
+	## Collect all equipped item IDs across all slots for duplicate prevention.
+	var ids: Array[String] = []
+	for key in GameState.slot_config:
+		var sd: Dictionary = GameState.slot_config[key]
+		var wid: String = str(sd.get("weapon_id", ""))
+		if wid != "":
+			ids.append(wid)
+		var did: String = str(sd.get("device_id", ""))
+		if did != "":
+			ids.append(did)
+	return ids
+
+
+func _add_picker_item(item_id: String, label: String, slot_key: String, equipped_ids: Array[String], component_type: String) -> void:
+	var item_btn := Button.new()
+	item_btn.text = label
+	item_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	item_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	item_btn.custom_minimum_size.y = 36
+	ThemeManager.apply_button_style(item_btn)
+
+	# Grey out if already equipped elsewhere
+	var is_duplicate: bool = item_id in equipped_ids
+	# Check if it's equipped in THIS slot (allow re-selecting current item)
+	var current_sd: Dictionary = GameState.slot_config.get(slot_key, {})
+	var current_id: String = ""
+	if component_type == "weapon":
+		current_id = str(current_sd.get("weapon_id", ""))
+	else:
+		current_id = str(current_sd.get("device_id", ""))
+	if is_duplicate and item_id != current_id:
+		item_btn.disabled = true
+		item_btn.modulate = Color(1, 1, 1, 0.3)
+
+	var bound_key: String = slot_key
+	var bound_id: String = item_id
+	var bound_type: String = component_type
+	item_btn.pressed.connect(func() -> void: _select_item_typed(bound_key, bound_id, bound_type))
+	_right_panel_list.add_child(item_btn)
 
 
 func _populate_right_panel(slot_key: String) -> void:
@@ -550,80 +581,46 @@ func _populate_right_panel(slot_key: String) -> void:
 	_right_panel.visible = true
 
 	var body_font: Font = ThemeManager.get_font("font_body")
+	var equipped_ids: Array[String] = _get_equipped_ids()
+
+	# "(none)" option — always first
+	var none_btn := Button.new()
+	none_btn.text = "(none)"
+	none_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	none_btn.custom_minimum_size.y = 36
+	ThemeManager.apply_button_style(none_btn)
+	var bound_key: String = slot_key
+	none_btn.pressed.connect(func() -> void: _select_item_typed(bound_key, "", ""))
+	_right_panel_list.add_child(none_btn)
 
 	if slot_key.begins_with("ext_"):
-		_right_panel_header.text = "━━ SELECT WEAPON ━━━━━━━━━━━"
-		# "(none)" option
-		var none_btn := Button.new()
-		none_btn.text = "(none)"
-		none_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		none_btn.custom_minimum_size.y = 36
-		ThemeManager.apply_button_style(none_btn)
-		var bound_key: String = slot_key
-		none_btn.pressed.connect(func() -> void: _select_item(bound_key, ""))
-		_right_panel_list.add_child(none_btn)
-		# Weapon list
+		_right_panel_header.text = "━━ SELECT EXTERNAL ━━━━━━━━━"
+		# Weapons
 		for wid in _weapon_cache:
 			var w: WeaponData = _weapon_cache[wid]
-			var item_btn := Button.new()
 			var label: String = w.display_name if w.display_name != "" else w.id
-			item_btn.text = label
-			item_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			item_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			item_btn.custom_minimum_size.y = 36
-			ThemeManager.apply_button_style(item_btn)
-			var bound_wid: String = wid
-			item_btn.pressed.connect(func() -> void: _select_item(bound_key, bound_wid))
-			_right_panel_list.add_child(item_btn)
-
-	elif slot_key.begins_with("int_"):
-		_right_panel_header.text = "━━ SELECT CORE ━━━━━━━━━━━━━"
-		var none_btn := Button.new()
-		none_btn.text = "(none)"
-		none_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		none_btn.custom_minimum_size.y = 36
-		ThemeManager.apply_button_style(none_btn)
-		var bound_key: String = slot_key
-		none_btn.pressed.connect(func() -> void: _select_item(bound_key, ""))
-		_right_panel_list.add_child(none_btn)
-		for pcid in _power_core_cache:
-			var pc: PowerCoreData = _power_core_cache[pcid]
-			var item_btn := Button.new()
-			var label: String = pc.display_name if pc.display_name != "" else pc.id
-			item_btn.text = label
-			item_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			item_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			item_btn.custom_minimum_size.y = 36
-			ThemeManager.apply_button_style(item_btn)
-			var bound_pcid: String = pcid
-			item_btn.pressed.connect(func() -> void: _select_item(bound_key, bound_pcid))
-			_right_panel_list.add_child(item_btn)
-
-	elif slot_key.begins_with("dev_"):
-		_right_panel_header.text = "━━ SELECT DEVICE ━━━━━━━━━━━"
-		var none_btn := Button.new()
-		none_btn.text = "(none)"
-		none_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		none_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		none_btn.custom_minimum_size.y = 36
-		ThemeManager.apply_button_style(none_btn)
-		var bound_key: String = slot_key
-		none_btn.pressed.connect(func() -> void: _select_item(bound_key, ""))
-		_right_panel_list.add_child(none_btn)
+			_add_picker_item(wid, "[W] " + label, slot_key, equipped_ids, "weapon")
+		# Flexible devices (can go in external slots)
 		for did in _device_cache:
 			var d: DeviceData = _device_cache[did]
-			var item_btn := Button.new()
-			var label: String = d.display_name if d.display_name != "" else d.id
-			item_btn.text = label
-			item_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			item_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			item_btn.custom_minimum_size.y = 36
-			ThemeManager.apply_button_style(item_btn)
-			var bound_did: String = did
-			item_btn.pressed.connect(func() -> void: _select_item(bound_key, bound_did))
-			_right_panel_list.add_child(item_btn)
+			if d.equip_slot == "flexible" or d.equip_slot == "external":
+				var label: String = d.display_name if d.display_name != "" else d.id
+				_add_picker_item(did, "[D] " + label, slot_key, equipped_ids, "device")
+
+	elif slot_key.begins_with("int_"):
+		_right_panel_header.text = "━━ SELECT INTERNAL ━━━━━━━━━"
+		# Power cores
+		for pcid in _power_core_cache:
+			var pc: PowerCoreData = _power_core_cache[pcid]
+			var label: String = pc.display_name if pc.display_name != "" else pc.id
+			_add_picker_item(pcid, "[C] " + label, slot_key, equipped_ids, "power_core")
+		# Internal/flexible devices
+		for did in _device_cache:
+			var d: DeviceData = _device_cache[did]
+			if d.equip_slot == "flexible" or d.equip_slot == "internal":
+				var label: String = d.display_name if d.display_name != "" else d.id
+				_add_picker_item(did, "[D] " + label, slot_key, equipped_ids, "device")
 
 	# Theme the header
 	_right_panel_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
@@ -632,11 +629,19 @@ func _populate_right_panel(slot_key: String) -> void:
 		_right_panel_header.add_theme_font_override("font", body_font)
 
 
-func _select_item(slot_key: String, item_id: String) -> void:
-	if slot_key.begins_with("ext_"):
+func _select_item_typed(slot_key: String, item_id: String, component_type: String) -> void:
+	if component_type == "weapon":
 		GameState.set_slot_weapon(slot_key, item_id)
+	elif component_type == "power_core":
+		GameState.set_slot_device(slot_key, item_id, "power_core")
+	elif component_type == "device":
+		GameState.set_slot_device(slot_key, item_id, "device")
 	else:
-		GameState.set_slot_device(slot_key, item_id)
+		# Clear slot
+		if slot_key.begins_with("ext_"):
+			GameState.set_slot_weapon(slot_key, "")
+		else:
+			GameState.set_slot_device(slot_key, "", "")
 	_clear_right_panel()
 	_expanded_slot = ""
 	_unhighlight_all_slot_btns()
@@ -655,11 +660,14 @@ func _sync_preview_active_states() -> void:
 	if not _is_playing:
 		return
 
-	# Sync weapon controllers (ext slots)
+	# Sync weapon controllers (ext slots with weapon component_type)
 	var ext_controller_idx: int = 0
-	for i in 3:
+	for i in GameState.get_external_slot_count():
 		var slot_key: String = "ext_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var comp_type: String = str(slot_data.get("component_type", ""))
+		if comp_type != "weapon":
+			continue
 		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		if weapon_id == "":
 			continue
@@ -674,7 +682,6 @@ func _sync_preview_active_states() -> void:
 	# Sync core previews (int slots) — mute/unmute loops
 	for entry in _core_previews:
 		var loop_id: String = entry["loop_id"]
-		# Extract slot index from loop_id "core_N"
 		var slot_idx: String = loop_id.replace("core_", "")
 		var slot_key: String = "int_" + slot_idx
 		if _slot_active.get(slot_key, false):
@@ -770,13 +777,17 @@ func _rebuild_controls_content() -> void:
 		bindings_header.add_theme_font_override("font", body_font)
 	_controls_content.add_child(bindings_header)
 
-	# Binding rows
-	var slot_labels: Dictionary = {
-		"ext_0": "WEAPON 1", "ext_1": "WEAPON 2", "ext_2": "WEAPON 3",
-		"int_0": "CORE 1", "int_1": "CORE 2", "int_2": "CORE 3",
-		"dev_0": "DEVICE 1", "dev_1": "DEVICE 2",
-	}
-	var all_slots: Array = ["ext_0", "ext_1", "ext_2", "int_0", "int_1", "int_2", "dev_0", "dev_1"]
+	# Binding rows — built dynamically from slot counts
+	var all_slots: Array = []
+	var slot_labels: Dictionary = {}
+	for i in GameState.get_external_slot_count():
+		var sk: String = "ext_" + str(i)
+		all_slots.append(sk)
+		slot_labels[sk] = "EXT " + str(i + 1)
+	for i in GameState.get_internal_slot_count():
+		var sk: String = "int_" + str(i)
+		all_slots.append(sk)
+		slot_labels[sk] = "INT " + str(i + 1)
 	for slot_key in all_slots:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -859,8 +870,12 @@ func _rebuild_presets() -> void:
 		var pattern: Dictionary = preset.get("pattern", {})
 		var dots_lbl := Label.new()
 		var dots_text: String = ""
-		var all_slots: Array = ["ext_0", "ext_1", "ext_2", "int_0", "int_1", "int_2", "dev_0", "dev_1"]
-		for sk in all_slots:
+		var dot_slots: Array = []
+		for ei in GameState.get_external_slot_count():
+			dot_slots.append("ext_" + str(ei))
+		for ii in GameState.get_internal_slot_count():
+			dot_slots.append("int_" + str(ii))
+		for sk in dot_slots:
 			var on: bool = pattern.get(sk, false)
 			dots_text += "●" if on else "○"
 		dots_lbl.text = dots_text
@@ -928,7 +943,6 @@ func _finish_save_combo(physical_keycode: int, key_label: String) -> void:
 func _generate_combo_label(pattern: Dictionary) -> String:
 	var ext_count: int = 0
 	var int_count: int = 0
-	var dev_count: int = 0
 	for slot_key in pattern:
 		var on: bool = pattern[slot_key]
 		if not on:
@@ -937,15 +951,11 @@ func _generate_combo_label(pattern: Dictionary) -> String:
 			ext_count += 1
 		elif str(slot_key).begins_with("int_"):
 			int_count += 1
-		elif str(slot_key).begins_with("dev_"):
-			dev_count += 1
 	var parts: Array[String] = []
 	if ext_count > 0:
-		parts.append(str(ext_count) + "W")
+		parts.append(str(ext_count) + "E")
 	if int_count > 0:
-		parts.append(str(int_count) + "C")
-	if dev_count > 0:
-		parts.append(str(dev_count) + "D")
+		parts.append(str(int_count) + "I")
 	if parts.is_empty():
 		return "EMPTY"
 	return "+".join(parts)
@@ -976,20 +986,24 @@ func _rebuild_audio_content() -> void:
 		sep_lbl.add_theme_font_override("font", body_font)
 	_audio_content.add_child(sep_lbl)
 
-	# Per-slot volume slider rows
-	var all_slots: Array = ["ext_0", "ext_1", "ext_2", "int_0", "int_1", "int_2", "dev_0", "dev_1"]
-	var slot_labels: Dictionary = {
-		"ext_0": "WEAPON 1", "ext_1": "WEAPON 2", "ext_2": "WEAPON 3",
-		"int_0": "CORE 1", "int_1": "CORE 2", "int_2": "CORE 3",
-		"dev_0": "DEVICE 1", "dev_1": "DEVICE 2",
-	}
-	for slot_key in all_slots:
+	# Per-slot volume slider rows — built dynamically from slot counts
+	var audio_slots: Array = []
+	var audio_slot_labels: Dictionary = {}
+	for i in GameState.get_external_slot_count():
+		var sk: String = "ext_" + str(i)
+		audio_slots.append(sk)
+		audio_slot_labels[sk] = "EXT " + str(i + 1)
+	for i in GameState.get_internal_slot_count():
+		var sk: String = "int_" + str(i)
+		audio_slots.append(sk)
+		audio_slot_labels[sk] = "INT " + str(i + 1)
+	for slot_key in audio_slots:
 		var item_name: String = _get_slot_item_name(slot_key)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 
 		var name_lbl := Label.new()
-		var type_text: String = str(slot_labels.get(slot_key, slot_key))
+		var type_text: String = str(audio_slot_labels.get(slot_key, slot_key))
 		name_lbl.text = type_text + " — " + item_name
 		name_lbl.custom_minimum_size.x = 180
 		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
@@ -1079,35 +1093,43 @@ func _on_volume_slider_changed(slot_key: String, volume_db: float) -> void:
 
 func _get_slot_item_name(slot_key: String) -> String:
 	var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-	if slot_key.begins_with("ext_"):
+	var comp_type: String = str(slot_data.get("component_type", ""))
+	if comp_type == "weapon":
 		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		if weapon_id != "":
 			var w: WeaponData = _weapon_cache.get(weapon_id)
 			if w:
 				return w.display_name if w.display_name != "" else w.id
 			return weapon_id
-	else:
+	elif comp_type == "power_core":
 		var device_id: String = str(slot_data.get("device_id", ""))
 		if device_id != "":
-			if slot_key.begins_with("int_"):
-				var pc: PowerCoreData = _power_core_cache.get(device_id)
-				if pc:
-					return pc.display_name if pc.display_name != "" else pc.id
-			else:
-				var d: DeviceData = _device_cache.get(device_id)
-				if d:
-					return d.display_name if d.display_name != "" else d.id
+			var pc: PowerCoreData = _power_core_cache.get(device_id)
+			if pc:
+				return pc.display_name if pc.display_name != "" else pc.id
+			return device_id
+	elif comp_type == "device":
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id != "":
+			var d: DeviceData = _device_cache.get(device_id)
+			if d:
+				return d.display_name if d.display_name != "" else d.id
 			return device_id
 	return "empty"
 
 
 func _get_loop_id_for_slot(slot_key: String) -> String:
-	if slot_key.begins_with("ext_"):
+	var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+	var comp_type: String = str(slot_data.get("component_type", ""))
+	if comp_type == "weapon":
 		return "weapon_" + slot_key.replace("ext_", "")
-	elif slot_key.begins_with("int_"):
+	elif comp_type == "power_core":
 		return "core_" + slot_key.replace("int_", "")
-	elif slot_key.begins_with("dev_"):
-		return "device_" + slot_key.replace("dev_", "")
+	elif comp_type == "device":
+		if slot_key.begins_with("ext_"):
+			return "device_ext_" + slot_key.replace("ext_", "")
+		else:
+			return "device_int_" + slot_key.replace("int_", "")
 	return ""
 
 
@@ -1258,8 +1280,8 @@ func _build_ui() -> void:
 	_functional_content.add_theme_constant_override("separation", 4)
 	_center_vbox.add_child(_functional_content)
 
-	# Weapons section
-	var ext_header_bar: PanelContainer = _create_section_header_bar("WEAPONS", "ext")
+	# External section
+	var ext_header_bar: PanelContainer = _create_section_header_bar("EXTERNAL", "ext")
 	_functional_content.add_child(ext_header_bar)
 
 	_ext_section = VBoxContainer.new()
@@ -1271,26 +1293,13 @@ func _build_ui() -> void:
 	spacer_1.custom_minimum_size.y = 8
 	_functional_content.add_child(spacer_1)
 
-	# Cores section
-	var int_header_bar: PanelContainer = _create_section_header_bar("CORES", "int")
+	# Internal section
+	var int_header_bar: PanelContainer = _create_section_header_bar("INTERNAL", "int")
 	_functional_content.add_child(int_header_bar)
 
 	_int_section = VBoxContainer.new()
 	_int_section.add_theme_constant_override("separation", 6)
 	_functional_content.add_child(_int_section)
-
-	# Add spacer between sections
-	var spacer_2 := Control.new()
-	spacer_2.custom_minimum_size.y = 8
-	_functional_content.add_child(spacer_2)
-
-	# Devices section
-	var dev_header_bar: PanelContainer = _create_section_header_bar("DEVICES", "dev")
-	_functional_content.add_child(dev_header_bar)
-
-	_dev_section = VBoxContainer.new()
-	_dev_section.add_theme_constant_override("separation", 6)
-	_functional_content.add_child(_dev_section)
 
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1438,10 +1447,13 @@ func _sync_preview() -> void:
 		LoopMixer.remove_loop(loop_id)
 	_core_previews.clear()
 
-	# Create new controllers for each equipped ext slot
-	for i in 3:
+	# Create new controllers for each equipped ext slot with weapons
+	for i in GameState.get_external_slot_count():
 		var slot_key: String = "ext_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var comp_type: String = str(slot_data.get("component_type", ""))
+		if comp_type != "weapon":
+			continue
 		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		if weapon_id == "":
 			continue
@@ -1454,10 +1466,13 @@ func _sync_preview() -> void:
 		controller.bar_effect_fired.connect(_on_bar_effect_fired)
 		_preview_controllers.append(controller)
 
-	# Register power core loops for each equipped int slot
-	for i in 3:
+	# Register power core loops for each equipped int slot with power_core type
+	for i in GameState.get_internal_slot_count():
 		var slot_key: String = "int_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var comp_type: String = str(slot_data.get("component_type", ""))
+		if comp_type != "power_core":
+			continue
 		var device_id: String = str(slot_data.get("device_id", ""))
 		if device_id == "":
 			continue
@@ -1484,9 +1499,11 @@ func _sync_preview() -> void:
 
 	# Apply stored volumes for weapon preview loops
 	var ext_ctrl_idx: int = 0
-	for i2 in 3:
+	for i2 in GameState.get_external_slot_count():
 		var sk: String = "ext_" + str(i2)
 		var sd: Dictionary = GameState.slot_config.get(sk, {})
+		if str(sd.get("component_type", "")) != "weapon":
+			continue
 		var wid: String = str(sd.get("weapon_id", ""))
 		if wid == "":
 			continue

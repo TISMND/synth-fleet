@@ -82,6 +82,7 @@ func _ready() -> void:
 	_waveform_editor.set_snap_mode(16)
 	for lane in _bar_effect_lanes.values():
 		(lane as BarEffectLane).set_snap_mode(16)
+		(lane as BarEffectLane).set_loop_length_bars(2)
 	ThemeManager.theme_changed.connect(_apply_theme)
 
 
@@ -491,14 +492,10 @@ func _build_stats_tab() -> Control:
 		slider.custom_minimum_size.x = 150
 		row.add_child(slider)
 
-		var val_label := Label.new()
-		val_label.text = "0.00"
-		val_label.custom_minimum_size.x = 60
-		val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(val_label)
+		var val_edit: SliderValueEdit = SliderValueEdit.create(slider)
+		row.add_child(val_edit)
 
-		slider.value_changed.connect(func(val: float) -> void:
-			val_label.text = "%.2f" % val
+		slider.value_changed.connect(func(_val: float) -> void:
 			_mark_dirty()
 		)
 
@@ -531,14 +528,10 @@ func _build_stats_tab() -> Control:
 		slider.custom_minimum_size.x = 150
 		row.add_child(slider)
 
-		var val_label := Label.new()
-		val_label.text = "0.00"
-		val_label.custom_minimum_size.x = 60
-		val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(val_label)
+		var val_edit: SliderValueEdit = SliderValueEdit.create(slider)
+		row.add_child(val_edit)
 
-		slider.value_changed.connect(func(val: float) -> void:
-			val_label.text = "%.2f" % val
+		slider.value_changed.connect(func(_val: float) -> void:
 			_mark_dirty()
 		)
 

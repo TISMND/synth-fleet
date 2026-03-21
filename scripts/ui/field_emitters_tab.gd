@@ -3,11 +3,10 @@ extends DeviceTabBase
 ## Field Emitters tab — editor for field-type devices (force fields, shields, auras).
 
 # Visual subtab controls
-var _radius_slider: HSlider
-var _radius_label: Label
 var _field_style_button: OptionButton
 
 # Active envelope (per-trigger field visibility)
+var _active_always_on_toggle: CheckButton
 var _active_total_dur_slider: HSlider
 var _active_total_dur_label: Label
 var _active_fade_in_slider: HSlider
@@ -64,14 +63,6 @@ func _build_visual_tab() -> Control:
 	var form := VBoxContainer.new()
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(form)
-
-	# Radius
-	_add_section_header(form, "RADIUS")
-	var radius_row: Array = _add_slider_row(form, "Radius:", 20.0, 300.0, 100.0, 5.0)
-	_radius_slider = radius_row[0]
-	_radius_label = radius_row[1]
-
-	_add_separator(form)
 
 	# Field Style selector
 	_add_section_header(form, "FIELD STYLE")
@@ -137,8 +128,10 @@ func _on_auto_pulse() -> void:
 
 func _on_trigger_crossed() -> void:
 	# Functional triggers → field visual appears (active envelope) + bar effects (base class)
-	_active_envelope_active = true
-	_active_envelope_elapsed = 0.0
+	# In always-on mode, field is permanently visible — triggers just fire bar effects
+	if not _active_always_on_toggle or not _active_always_on_toggle.button_pressed:
+		_active_envelope_active = true
+		_active_envelope_elapsed = 0.0
 	if not _preview_field_material:
 		_update_visual_preview()
 
@@ -174,15 +167,32 @@ func _build_post_waveform_content(parent: VBoxContainer) -> void:
 	# Active envelope — per-trigger field visibility (fade in → sustain → fade out)
 	_add_section_header(parent, "ACTIVE ENVELOPE")
 
-	var atd_row: Array = _add_slider_row(parent, "Total Dur:", 0.1, 4.0, 1.0, 0.05)
+	_active_always_on_toggle = CheckButton.new()
+	_active_always_on_toggle.text = "Always On"
+	_active_always_on_toggle.toggled.connect(func(pressed: bool) -> void:
+		var dim: float = 0.3 if pressed else 1.0
+		_active_total_dur_slider.editable = not pressed
+		_active_total_dur_slider.modulate = Color(1, 1, 1, dim)
+		_active_fade_out_slider.editable = not pressed
+		_active_fade_out_slider.modulate = Color(1, 1, 1, dim)
+		if pressed:
+			_active_envelope_active = true
+			_active_envelope_elapsed = 0.0
+			if _preview_field_material:
+				_preview_field_material.set_shader_parameter("opacity", 1.0)
+		_mark_dirty()
+	)
+	parent.add_child(_active_always_on_toggle)
+
+	var atd_row: Array = _add_slider_row(parent, "Total Dur:", 0.0, 10.0, 1.0, 0.05)
 	_active_total_dur_slider = atd_row[0]
 	_active_total_dur_label = atd_row[1]
 
-	var afi_row: Array = _add_slider_row(parent, "Fade In:", 0.01, 2.0, 0.2, 0.01)
+	var afi_row: Array = _add_slider_row(parent, "Fade In:", 0.0, 2.0, 0.2, 0.01)
 	_active_fade_in_slider = afi_row[0]
 	_active_fade_in_label = afi_row[1]
 
-	var afo_row: Array = _add_slider_row(parent, "Fade Out:", 0.01, 2.0, 0.5, 0.01)
+	var afo_row: Array = _add_slider_row(parent, "Fade Out:", 0.0, 2.0, 0.5, 0.01)
 	_active_fade_out_slider = afo_row[0]
 	_active_fade_out_label = afo_row[1]
 
@@ -221,8 +231,12 @@ func _update_visual_preview_frame(delta: float) -> void:
 	if _preview_field_sprite and _preview_field_sprite.material != _preview_field_material:
 		_preview_field_sprite.material = _preview_field_material
 
+	# ── Always-on mode: field permanently visible ──
+	var is_always_on: bool = _active_always_on_toggle and _active_always_on_toggle.button_pressed
+	if is_always_on:
+		_preview_field_material.set_shader_parameter("opacity", 1.0)
 	# ── Active envelope: drives field opacity (fade in → sustain → fade out) ──
-	if _active_envelope_active:
+	elif _active_envelope_active:
 		var total_dur: float = _active_total_dur_slider.value if _active_total_dur_slider else 1.0
 		var fade_in: float = _active_fade_in_slider.value if _active_fade_in_slider else 0.2
 		var fade_out: float = _active_fade_out_slider.value if _active_fade_out_slider else 0.5
@@ -287,14 +301,16 @@ func _update_visual_preview_frame(delta: float) -> void:
 			pulse_val = float(_preview_field_material.get_shader_parameter("pulse_intensity"))
 		# Read ship effect params from loaded field style
 		var tint_strength: float = 0.15
-		var hdr_boost: float = 0.3
+		var active_hdr: float = 0.2
+		var pulse_hdr: float = 0.5
 		if _field_style_button and _field_style_button.selected > 0:
 			var sid: String = _field_style_button.get_item_text(_field_style_button.selected)
 			var st: FieldStyle = FieldStyleManager.load_by_id(sid)
 			if st:
 				tint_strength = st.ship_tint_strength
-				hdr_boost = st.ship_hdr_boost
-		var bright: float = 1.0 + active_opacity * hdr_boost + pulse_val * hdr_boost
+				active_hdr = st.ship_active_hdr
+				pulse_hdr = st.ship_pulse_hdr
+		var bright: float = 1.0 + active_opacity * active_hdr + pulse_val * pulse_hdr
 		var field_col: Color = _color_override_picker.color
 		var tint_scaled: float = tint_strength * active_opacity
 		var r: float = lerpf(bright, field_col.r * bright * 1.5, tint_scaled)
@@ -304,13 +320,14 @@ func _update_visual_preview_frame(delta: float) -> void:
 
 
 func _collect_visual_data(data: Dictionary) -> void:
-	data["radius"] = _radius_slider.value
+	data["radius"] = 100.0
 	data["field_style_id"] = ""
 	if _field_style_button.selected > 0:
 		data["field_style_id"] = _field_style_button.get_item_text(_field_style_button.selected)
 	data["orbiter_style_id"] = ""
 	data["orbiter_lifetime"] = 4.0
 	# Active envelope
+	data["active_always_on"] = _active_always_on_toggle.button_pressed if _active_always_on_toggle else false
 	data["active_total_duration"] = _active_total_dur_slider.value if _active_total_dur_slider else 1.0
 	data["active_fade_in"] = _active_fade_in_slider.value if _active_fade_in_slider else 0.2
 	data["active_fade_out"] = _active_fade_out_slider.value if _active_fade_out_slider else 0.5
@@ -322,8 +339,6 @@ func _collect_visual_data(data: Dictionary) -> void:
 
 
 func _populate_visual_fields(device: DeviceData) -> void:
-	_radius_slider.value = device.radius
-
 	_refresh_field_style_list()
 	if device.field_style_id != "":
 		for i in _field_style_button.get_item_count():
@@ -332,6 +347,8 @@ func _populate_visual_fields(device: DeviceData) -> void:
 				break
 
 	# Active envelope
+	if _active_always_on_toggle:
+		_active_always_on_toggle.button_pressed = device.active_always_on
 	if _active_total_dur_slider:
 		_active_total_dur_slider.value = device.active_total_duration
 	if _active_fade_in_slider:
@@ -351,8 +368,9 @@ func _populate_visual_fields(device: DeviceData) -> void:
 
 
 func _reset_visual_defaults() -> void:
-	_radius_slider.value = 100.0
 	_field_style_button.selected = 0
+	if _active_always_on_toggle:
+		_active_always_on_toggle.button_pressed = false
 	if _active_total_dur_slider:
 		_active_total_dur_slider.value = 1.0
 	if _active_fade_in_slider:

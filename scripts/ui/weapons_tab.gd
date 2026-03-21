@@ -107,7 +107,7 @@ const WAVE_SPEED: float = 2.5
 const WAVE_MIN_CHANGE: float = 0.01
 var _reset_bars_button: Button
 var _bar_effect_sliders: Dictionary = {}   # "shield" -> HSlider
-var _bar_effect_labels: Dictionary = {}    # "shield" -> Label
+var _bar_effect_labels: Dictionary = {}    # "shield" -> SliderValueEdit
 var _stats_prev_loop_progress: float = -1.0
 # Beam sustained simulation — tracks active beam timers for continuous DPS + bar effects
 var _beam_active_remaining: float = 0.0
@@ -692,25 +692,21 @@ func _build_stats_tab() -> Control:
 		slider.min_value = -100.0
 		slider.max_value = 100.0
 		slider.value = 0.0
-		slider.step = 0.5
+		slider.step = 0.1
 		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slider.custom_minimum_size.x = 150
 		row.add_child(slider)
 
-		var val_label := Label.new()
-		val_label.text = "0.00"
-		val_label.custom_minimum_size.x = 50
-		val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(val_label)
+		var val_edit: SliderValueEdit = SliderValueEdit.create(slider, 50)
+		row.add_child(val_edit)
 
-		slider.value_changed.connect(func(val: float) -> void:
-			val_label.text = "%.2f" % val
+		slider.value_changed.connect(func(_val: float) -> void:
 			_mark_dirty()
 			_update_preview()
 		)
 
 		_bar_effect_sliders[bar_type] = slider
-		_bar_effect_labels[bar_type] = val_label
+		_bar_effect_labels[bar_type] = val_edit
 
 	_add_separator(form)
 
@@ -1266,11 +1262,8 @@ func _on_new() -> void:
 	# Reset bar effect sliders
 	for bar_type in BAR_TYPES:
 		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
-		var val_label: Label = _bar_effect_labels.get(bar_type) as Label
 		if slider:
 			slider.value = 0.0
-		if val_label:
-			val_label.text = "0.0"
 	_on_reset_bars()
 	_stats_prev_loop_progress = -1.0
 	_beam_active_remaining = 0.0
@@ -1368,12 +1361,8 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	# Bar effects
 	for bar_type in BAR_TYPES:
 		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
-		var val_label: Label = _bar_effect_labels.get(bar_type) as Label
 		if slider:
-			var val: float = float(weapon.bar_effects.get(bar_type, 0.0))
-			slider.value = val
-			if val_label:
-				val_label.text = "%.2f" % val
+			slider.value = float(weapon.bar_effects.get(bar_type, 0.0))
 	_stats_prev_loop_progress = -1.0
 
 	# Transition settings

@@ -6,29 +6,23 @@ signal bindings_changed
 
 const SAVE_PATH := "user://settings/keybindings.json"
 
-# Slot key -> action name mapping
-const SLOT_ACTIONS: Dictionary = {
-	"ext_0": "hardpoint_1",
-	"ext_1": "hardpoint_2",
-	"ext_2": "hardpoint_3",
-	"int_0": "core_1",
-	"int_1": "core_2",
-	"int_2": "core_3",
-	"dev_0": "device_1",
-	"dev_1": "device_2",
-}
-
-# Default physical keycodes per slot
-const DEFAULT_BINDINGS: Dictionary = {
-	"ext_0": {"physical_keycode": 49, "label": "1"},
-	"ext_1": {"physical_keycode": 50, "label": "2"},
-	"ext_2": {"physical_keycode": 51, "label": "3"},
-	"int_0": {"physical_keycode": 69, "label": "E"},
-	"int_1": {"physical_keycode": 82, "label": "R"},
-	"int_2": {"physical_keycode": 70, "label": "F"},
-	"dev_0": {"physical_keycode": 84, "label": "T"},
-	"dev_1": {"physical_keycode": 71, "label": "G"},
-}
+# Default physical keycodes for ext and int slots (indexed)
+const EXT_DEFAULT_KEYS: Array = [
+	{"physical_keycode": 49, "label": "1"},  # 1
+	{"physical_keycode": 50, "label": "2"},  # 2
+	{"physical_keycode": 51, "label": "3"},  # 3
+	{"physical_keycode": 52, "label": "4"},  # 4
+	{"physical_keycode": 53, "label": "5"},  # 5
+	{"physical_keycode": 54, "label": "6"},  # 6
+]
+const INT_DEFAULT_KEYS: Array = [
+	{"physical_keycode": 69, "label": "E"},  # E
+	{"physical_keycode": 82, "label": "R"},  # R
+	{"physical_keycode": 70, "label": "F"},  # F
+	{"physical_keycode": 84, "label": "T"},  # T
+	{"physical_keycode": 71, "label": "G"},  # G
+	{"physical_keycode": 86, "label": "V"},  # V
+]
 
 # Reserved physical keycodes (WASD, arrows, Escape, Space, C)
 const RESERVED_KEYS: Array = [
@@ -49,8 +43,44 @@ func _ready() -> void:
 	apply_to_input_map()
 
 
+func get_slot_action(slot_key: String) -> String:
+	## Returns the InputMap action name for a slot key (e.g. "ext_0" -> "slot_ext_0").
+	return "slot_" + slot_key
+
+
+func get_default_binding(slot_key: String) -> Dictionary:
+	## Returns the default key binding for a given slot key.
+	if slot_key.begins_with("ext_"):
+		var idx: int = int(slot_key.replace("ext_", ""))
+		if idx < EXT_DEFAULT_KEYS.size():
+			return EXT_DEFAULT_KEYS[idx]
+	elif slot_key.begins_with("int_"):
+		var idx: int = int(slot_key.replace("int_", ""))
+		if idx < INT_DEFAULT_KEYS.size():
+			return INT_DEFAULT_KEYS[idx]
+	return {"physical_keycode": 0, "label": "?"}
+
+
+func _build_default_bindings() -> Dictionary:
+	var defaults: Dictionary = {}
+	# Build from GameState slot counts if available, else use 3+3
+	var ext_count: int = 3
+	var int_count: int = 3
+	if Engine.has_singleton("GameState") or is_inside_tree():
+		# GameState may not be ready yet at autoload init, use safe defaults
+		ext_count = mini(6, EXT_DEFAULT_KEYS.size())
+		int_count = mini(6, INT_DEFAULT_KEYS.size())
+	for i in ext_count:
+		var key: String = "ext_" + str(i)
+		defaults[key] = EXT_DEFAULT_KEYS[i].duplicate()
+	for i in int_count:
+		var key: String = "int_" + str(i)
+		defaults[key] = INT_DEFAULT_KEYS[i].duplicate()
+	return defaults
+
+
 func load_bindings() -> void:
-	_bindings = DEFAULT_BINDINGS.duplicate(true)
+	_bindings = _build_default_bindings()
 	_combo_presets.clear()
 
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -67,12 +97,15 @@ func load_bindings() -> void:
 
 	var data: Dictionary = json.data as Dictionary if json.data is Dictionary else {}
 
-	# Load slot bindings
+	# Load slot bindings (skip old dev_N keys)
 	var saved_bindings: Dictionary = data.get("bindings", {}) as Dictionary if data.get("bindings") is Dictionary else {}
 	for slot_key in saved_bindings:
+		var sk: String = str(slot_key)
+		if sk.begins_with("dev_"):
+			continue  # Old 3-category system — skip
 		var entry: Dictionary = saved_bindings[slot_key] as Dictionary if saved_bindings[slot_key] is Dictionary else {}
 		if entry.has("physical_keycode") and entry.has("label"):
-			_bindings[str(slot_key)] = {
+			_bindings[sk] = {
 				"physical_keycode": int(entry["physical_keycode"]),
 				"label": str(entry["label"]),
 			}
@@ -116,11 +149,11 @@ func save_bindings() -> void:
 
 func apply_to_input_map() -> void:
 	for slot_key in _bindings:
-		var action: String = str(SLOT_ACTIONS.get(slot_key, ""))
-		if action == "":
-			continue
+		var action: String = get_slot_action(slot_key)
 		var binding: Dictionary = _bindings[slot_key]
 		var pkc: int = int(binding["physical_keycode"])
+		if pkc == 0:
+			continue
 		_remap_action(action, pkc)
 
 	# Register combo preset actions
@@ -226,4 +259,4 @@ func get_slot_volume(slot_key: String) -> float:
 
 
 func get_all_slot_keys() -> Array:
-	return SLOT_ACTIONS.keys()
+	return _bindings.keys()

@@ -1,0 +1,27 @@
+{
+	"color": [
+		1.0,
+		0.8480224609375,
+		0.02734375,
+		1.0
+	],
+	"display_name": "sun rays",
+	"field_shader": "sun_rays",
+	"glow_intensity": 1.9,
+	"id": "sun_rays",
+	"pulse_brightness": 0.6,
+	"radius_ratio": 0.0,
+	"shader_params": {
+		"brightness_variance": 1.0,
+		"chaos_speed": 3.0,
+		"length_variance": 0.95,
+		"outer_radius": 0.96,
+		"ray_count": 8.0,
+		"ray_rotation_speed": 1.0,
+		"ray_width": 0.32,
+		"width_variance": 1.0
+	},
+	"ship_active_hdr": 0.4,
+	"ship_pulse_hdr": 0.95,
+	"ship_tint_strength": 0.25
+}

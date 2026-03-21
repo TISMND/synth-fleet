@@ -19,6 +19,13 @@
 	],
 	"id": "level_2",
 	"level_length": 10000.0,
-	"nebula_placements": [],
+	"nebula_placements": [
+		{
+			"nebula_id": "nebula_5",
+			"radius": 675.0,
+			"trigger_y": 1620.37037037037,
+			"x_offset": 46.1209964412811
+		}
+	],
 	"scroll_speed": 80.0
 }

@@ -1,16 +1,17 @@
 shader_type canvas_item;
 
 uniform vec4 field_color : source_color = vec4(0.0, 1.0, 1.0, 1.0);
-uniform float brightness : hint_range(0.5, 4.0) = 1.0;
-uniform float animation_speed : hint_range(0.1, 3.0) = 1.0;
+uniform float brightness : hint_range(0.0, 4.0) = 1.0;
+uniform float animation_speed : hint_range(0.0, 3.0) = 1.0;
 uniform float radius_ratio : hint_range(0.0, 1.0) = 0.8;
 uniform float pulse_intensity : hint_range(0.0, 4.0) = 0.0;
 uniform float opacity : hint_range(0.0, 1.0) = 1.0;
 
 // Per-shader params
-uniform float turbulence_speed : hint_range(0.1, 4.0) = 1.5;
-uniform float plasma_density : hint_range(1.0, 8.0) = 4.0;
-uniform float edge_glow : hint_range(0.5, 3.0) = 1.5;
+uniform float turbulence_speed : hint_range(0.0, 4.0) = 1.5;
+uniform float plasma_density : hint_range(0.0, 8.0) = 4.0;
+uniform float edge_glow : hint_range(0.0, 3.0) = 1.5;
+uniform float outer_radius : hint_range(0.0, 1.0) = 0.95;
 
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -44,7 +45,8 @@ void fragment() {
 	float modulate_alpha = COLOR.a;
 	float t = TIME * animation_speed;
 	vec2 uv = UV - 0.5;
-	float dist = length(uv) * 2.0;
+	float raw_dist = length(uv) * 2.0;
+	float dist = raw_dist / max(outer_radius, 0.01);
 	float angle = atan(uv.y, uv.x);
 
 	// Ring mask
@@ -53,7 +55,8 @@ void fragment() {
 	float ring = outer * inner;
 
 	// Turbulent plasma noise
-	vec2 plasma_uv = vec2(angle * plasma_density / 3.14159, dist * 3.0);
+	float pd = max(plasma_density, 0.001);
+	vec2 plasma_uv = vec2(angle * pd / 3.14159, dist * 3.0);
 	plasma_uv += vec2(t * turbulence_speed * 0.3, t * turbulence_speed * 0.5);
 	float plasma = fbm(plasma_uv * 2.0);
 	float plasma2 = fbm(plasma_uv * 3.0 + vec2(5.0, 3.0));
@@ -70,7 +73,7 @@ void fragment() {
 
 	float alpha = clamp((ring * 0.7 + rim * 0.5) * opacity, 0.0, 1.0);
 
-	if (dist > 1.02) alpha = 0.0;
+	if (raw_dist > 1.0) alpha = 0.0;
 
 	COLOR = vec4(col, alpha * modulate_alpha);
 }

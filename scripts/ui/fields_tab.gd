@@ -5,16 +5,16 @@ extends MarginContainer
 const FIELD_SHADERS: Array[String] = ["force_bubble", "hex_grid", "energy_ripple", "plasma_shield", "particle_ring", "pulse_barrier", "inner_glow", "sun_rays", "shimmer", "hologram"]
 
 const FIELD_SHADER_PARAM_DEFS: Dictionary = {
-	"force_bubble": {"refraction_strength": [0.0, 0.3, 0.05, 0.01], "edge_width": [0.02, 0.3, 0.1, 0.01], "wobble_speed": [0.1, 4.0, 1.0, 0.1]},
-	"hex_grid": {"hex_size": [0.02, 0.2, 0.08, 0.01], "line_thickness": [0.01, 0.15, 0.06, 0.01], "scroll_speed": [0.1, 3.0, 0.5, 0.1], "edge_density": [0.0, 1.0, 0.5, 0.05], "outer_radius": [0.5, 1.0, 0.95, 0.01]},
-	"energy_ripple": {"ring_count": [2.0, 12.0, 5.0, 1.0], "ring_width": [0.01, 0.1, 0.03, 0.01], "expansion_speed": [0.1, 3.0, 1.0, 0.1]},
-	"plasma_shield": {"turbulence_speed": [0.1, 4.0, 1.5, 0.1], "plasma_density": [1.0, 8.0, 4.0, 0.5], "edge_glow": [0.5, 3.0, 1.5, 0.1]},
-	"particle_ring": {"particle_count": [4.0, 32.0, 12.0, 1.0], "orbit_speed": [0.1, 4.0, 1.0, 0.1], "particle_size": [0.01, 0.1, 0.04, 0.01]},
-	"pulse_barrier": {"barrier_width": [0.02, 0.2, 0.08, 0.01], "pulse_decay": [0.1, 2.0, 0.5, 0.1], "flash_intensity": [0.5, 4.0, 2.0, 0.1], "outer_radius": [0.5, 1.0, 0.95, 0.01]},
-	"inner_glow": {"glow_falloff": [1.0, 6.0, 2.5, 0.1], "core_size": [0.05, 0.5, 0.15, 0.01], "flicker_speed": [0.0, 4.0, 1.0, 0.1]},
-	"sun_rays": {"ray_count": [4.0, 24.0, 8.0, 1.0], "ray_width": [0.05, 0.5, 0.2, 0.01], "ray_rotation_speed": [0.0, 3.0, 0.5, 0.1], "length_variance": [0.0, 1.0, 0.4, 0.05], "width_variance": [0.0, 1.0, 0.3, 0.05], "brightness_variance": [0.0, 1.0, 0.5, 0.05], "chaos_speed": [0.0, 3.0, 0.8, 0.1], "outer_radius": [0.5, 1.0, 0.95, 0.01]},
-	"shimmer": {"wave_frequency": [2.0, 12.0, 5.0, 0.5], "distortion_strength": [0.01, 0.15, 0.05, 0.01], "rainbow_intensity": [0.0, 1.0, 0.5, 0.05]},
-	"hologram": {"scan_frequency": [4.0, 40.0, 20.0, 1.0], "scan_speed": [1.0, 10.0, 4.0, 0.5], "jitter_intensity": [0.0, 1.0, 0.5, 0.05], "jitter_rate": [0.0, 8.0, 3.0, 0.5], "aberration": [0.0, 0.1, 0.03, 0.005], "outer_radius": [0.5, 1.0, 0.95, 0.01]},
+	"force_bubble": {"refraction_strength": [0.0, 0.3, 0.05, 0.01], "edge_width": [0.0, 0.3, 0.1, 0.01], "wobble_speed": [0.0, 4.0, 1.0, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"hex_grid": {"hex_size": [0.0, 0.2, 0.08, 0.01], "line_thickness": [0.0, 0.15, 0.06, 0.01], "scroll_speed": [0.0, 3.0, 0.5, 0.1], "edge_density": [0.0, 1.0, 0.5, 0.05], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"energy_ripple": {"ring_count": [0.0, 12.0, 5.0, 1.0], "ring_width": [0.0, 0.1, 0.03, 0.01], "expansion_speed": [0.0, 3.0, 1.0, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"plasma_shield": {"turbulence_speed": [0.0, 4.0, 1.5, 0.1], "plasma_density": [0.0, 8.0, 4.0, 0.5], "edge_glow": [0.0, 3.0, 1.5, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"particle_ring": {"particle_count": [0.0, 32.0, 12.0, 1.0], "orbit_speed": [0.0, 4.0, 1.0, 0.1], "particle_size": [0.0, 0.1, 0.04, 0.01], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"pulse_barrier": {"barrier_width": [0.0, 0.2, 0.08, 0.01], "pulse_decay": [0.0, 2.0, 0.5, 0.1], "flash_intensity": [0.0, 4.0, 2.0, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"inner_glow": {"glow_falloff": [0.0, 6.0, 2.5, 0.1], "core_size": [0.0, 0.5, 0.15, 0.01], "flicker_speed": [0.0, 4.0, 1.0, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"sun_rays": {"ray_count": [0.0, 24.0, 8.0, 1.0], "ray_width": [0.0, 0.5, 0.2, 0.01], "ray_rotation_speed": [0.0, 3.0, 0.5, 0.1], "length_variance": [0.0, 1.0, 0.4, 0.05], "width_variance": [0.0, 1.0, 0.3, 0.05], "brightness_variance": [0.0, 1.0, 0.5, 0.05], "chaos_speed": [0.0, 3.0, 0.8, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"shimmer": {"wave_frequency": [0.0, 12.0, 5.0, 0.5], "distortion_strength": [0.0, 0.15, 0.05, 0.01], "rainbow_intensity": [0.0, 1.0, 0.5, 0.05], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"hologram": {"scan_frequency": [0.0, 40.0, 20.0, 1.0], "scan_speed": [0.0, 10.0, 4.0, 0.5], "jitter_intensity": [0.0, 1.0, 0.5, 0.05], "jitter_rate": [0.0, 8.0, 3.0, 0.5], "aberration": [0.0, 0.1, 0.03, 0.005], "outer_radius": [0.0, 1.0, 0.95, 0.01], "blink_interval": [0.0, 8.0, 3.0, 0.1], "blink_duration": [0.0, 1.0, 0.1, 0.01], "blink_irregularity": [0.0, 1.0, 0.5, 0.05]},
 }
 
 # UI references
@@ -38,8 +38,10 @@ var _pulse_brightness_label: Label
 # Ship effect controls
 var _ship_tint_strength_slider: HSlider
 var _ship_tint_strength_label: Label
-var _ship_hdr_boost_slider: HSlider
-var _ship_hdr_boost_label: Label
+var _ship_active_hdr_slider: HSlider
+var _ship_active_hdr_label: Label
+var _ship_pulse_hdr_slider: HSlider
+var _ship_pulse_hdr_label: Label
 
 # Dynamic shader params
 var _shader_params_container: VBoxContainer
@@ -113,8 +115,9 @@ func _process(delta: float) -> void:
 		var pulse_val: float = 0.0
 		if _pulse_active and _preview_material:
 			pulse_val = float(_preview_material.get_shader_parameter("pulse_intensity"))
-		var hdr_boost: float = _ship_hdr_boost_slider.value if _ship_hdr_boost_slider else 0.3
-		var bright: float = 1.0 + pulse_val * hdr_boost
+		var active_hdr: float = _ship_active_hdr_slider.value if _ship_active_hdr_slider else 0.2
+		var pulse_hdr: float = _ship_pulse_hdr_slider.value if _ship_pulse_hdr_slider else 0.5
+		var bright: float = 1.0 + active_hdr + pulse_val * pulse_hdr
 		var field_col: Color = _color_picker.color
 		var tint_strength: float = _ship_tint_strength_slider.value if _ship_tint_strength_slider else 0.15
 		var tint_scaled: float = tint_strength * (_brightness_slider.value / 1.5)
@@ -276,11 +279,11 @@ func _build_controls(parent: VBoxContainer) -> void:
 
 	# Common params
 	_add_section_header(parent, "COMMON")
-	var brightness_row: Array = _add_slider_row(parent, "HDR Brightness:", 0.5, 4.0, 1.5, 0.1)
+	var brightness_row: Array = _add_slider_row(parent, "HDR Brightness:", 0.0, 4.0, 1.5, 0.1)
 	_brightness_slider = brightness_row[0]
 	_brightness_label = brightness_row[1]
 
-	var anim_row: Array = _add_slider_row(parent, "Time Scale:", 0.1, 3.0, 1.0, 0.1)
+	var anim_row: Array = _add_slider_row(parent, "Time Scale:", 0.0, 3.0, 1.0, 0.1)
 	_anim_speed_slider = anim_row[0]
 	_anim_speed_label = anim_row[1]
 
@@ -327,9 +330,13 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_ship_tint_strength_slider = tint_row[0]
 	_ship_tint_strength_label = tint_row[1]
 
-	var hdr_row: Array = _add_slider_row(parent, "HDR Boost:", 0.0, 2.0, 0.3, 0.05)
-	_ship_hdr_boost_slider = hdr_row[0]
-	_ship_hdr_boost_label = hdr_row[1]
+	var active_hdr_row: Array = _add_slider_row(parent, "Active HDR:", 0.0, 2.0, 0.2, 0.05)
+	_ship_active_hdr_slider = active_hdr_row[0]
+	_ship_active_hdr_label = active_hdr_row[1]
+
+	var pulse_hdr_row: Array = _add_slider_row(parent, "Pulse HDR:", 0.0, 2.0, 0.5, 0.05)
+	_ship_pulse_hdr_slider = pulse_hdr_row[0]
+	_ship_pulse_hdr_label = pulse_hdr_row[1]
 
 
 func _rebuild_shader_params(shader_name: String) -> void:
@@ -374,7 +381,8 @@ func _collect_style_data() -> Dictionary:
 		"radius_ratio": _radius_ratio_slider.value,
 		"pulse_brightness": _pulse_brightness_slider.value,
 		"ship_tint_strength": _ship_tint_strength_slider.value if _ship_tint_strength_slider else 0.15,
-		"ship_hdr_boost": _ship_hdr_boost_slider.value if _ship_hdr_boost_slider else 0.3,
+		"ship_active_hdr": _ship_active_hdr_slider.value if _ship_active_hdr_slider else 0.2,
+		"ship_pulse_hdr": _ship_pulse_hdr_slider.value if _ship_pulse_hdr_slider else 0.5,
 	}
 
 
@@ -450,8 +458,10 @@ func _on_new() -> void:
 	_pulse_brightness_slider.value = 2.0
 	if _ship_tint_strength_slider:
 		_ship_tint_strength_slider.value = 0.15
-	if _ship_hdr_boost_slider:
-		_ship_hdr_boost_slider.value = 0.3
+	if _ship_active_hdr_slider:
+		_ship_active_hdr_slider.value = 0.2
+	if _ship_pulse_hdr_slider:
+		_ship_pulse_hdr_slider.value = 0.5
 	_color_picker.color = Color(0.0, 1.0, 1.0, 1.0)
 	_rebuild_shader_params("force_bubble")
 	_update_preview()
@@ -486,8 +496,10 @@ func _populate_from_style(style: FieldStyle) -> void:
 	_pulse_brightness_slider.value = style.pulse_brightness
 	if _ship_tint_strength_slider:
 		_ship_tint_strength_slider.value = style.ship_tint_strength
-	if _ship_hdr_boost_slider:
-		_ship_hdr_boost_slider.value = style.ship_hdr_boost
+	if _ship_active_hdr_slider:
+		_ship_active_hdr_slider.value = style.ship_active_hdr
+	if _ship_pulse_hdr_slider:
+		_ship_pulse_hdr_slider.value = style.ship_pulse_hdr
 
 	_update_preview()
 

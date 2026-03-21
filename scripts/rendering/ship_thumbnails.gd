@@ -118,18 +118,18 @@ class _DrawCtx:
 				orange = ShipRenderer.GUNMETAL_ENGINE
 				purple = ShipRenderer.GUNMETAL_CANOPY
 				teal = ShipRenderer.GUNMETAL_DETAIL
-				_chrome_dark = Color(0.14, 0.15, 0.18)
-				_chrome_mid = Color(0.30, 0.32, 0.38)
-				_chrome_bright = Color(0.70, 0.72, 0.78)
+				_chrome_dark = Color(0.08, 0.09, 0.1)
+				_chrome_mid = Color(0.18, 0.19, 0.22)
+				_chrome_bright = Color(0.42, 0.44, 0.48)
 			ShipRenderer.RenderMode.MILITIA:
 				cyan = ShipRenderer.MILITIA_HULL
 				magenta = ShipRenderer.MILITIA_ACCENT
 				orange = ShipRenderer.MILITIA_ENGINE
 				purple = ShipRenderer.MILITIA_CANOPY
 				teal = ShipRenderer.MILITIA_DETAIL
-				_chrome_dark = Color(0.12, 0.14, 0.06)
-				_chrome_mid = Color(0.22, 0.26, 0.12)
-				_chrome_bright = Color(0.46, 0.50, 0.28)
+				_chrome_dark = Color(0.06, 0.08, 0.04)
+				_chrome_mid = Color(0.12, 0.16, 0.08)
+				_chrome_bright = Color(0.28, 0.32, 0.18)
 			ShipRenderer.RenderMode.STEALTH:
 				cyan = ShipRenderer.STEALTH_HULL
 				magenta = ShipRenderer.STEALTH_ACCENT
@@ -158,32 +158,31 @@ class _DrawCtx:
 	func mpoly(points: PackedVector2Array, color: Color) -> void:
 		ci.draw_colored_polygon(_scale_pts(points), color)
 
-	func _is_chrome_based_mode() -> bool:
-		return mode == ShipRenderer.RenderMode.CHROME or mode == ShipRenderer.RenderMode.GUNMETAL or mode == ShipRenderer.RenderMode.MILITIA or mode == ShipRenderer.RenderMode.STEALTH
-
 	func mp(points: PackedVector2Array, color: Color, w: float) -> void:
 		var scaled: PackedVector2Array = _scale_pts(points)
 		var sw: float = w * sc
-		if _is_chrome_based_mode():
-			mp_chrome(scaled, sw)
-			return
 		match mode:
+			ShipRenderer.RenderMode.CHROME: mp_chrome(scaled, sw)
 			ShipRenderer.RenderMode.VOID: mp_void(scaled, sw)
 			ShipRenderer.RenderMode.HIVEMIND: mp_hivemind(scaled, sw)
 			ShipRenderer.RenderMode.SPORE: mp_spore(scaled, sw)
+			ShipRenderer.RenderMode.GUNMETAL: mp_gunmetal(scaled, sw)
+			ShipRenderer.RenderMode.MILITIA: mp_militia(scaled, sw)
+			ShipRenderer.RenderMode.STEALTH: mp_stealth(scaled, sw)
 			_: mp_neon(scaled, color, sw)
 
 	func ml(a: Vector2, b: Vector2, color: Color, w: float) -> void:
 		var sa: Vector2 = _sp(a)
 		var sb: Vector2 = _sp(b)
 		var sw: float = w * sc
-		if _is_chrome_based_mode():
-			ml_chrome(sa, sb, sw)
-			return
 		match mode:
+			ShipRenderer.RenderMode.CHROME: ml_chrome(sa, sb, sw)
 			ShipRenderer.RenderMode.VOID: ml_void(sa, sb, sw)
 			ShipRenderer.RenderMode.HIVEMIND: ml_hivemind(sa, sb, sw)
 			ShipRenderer.RenderMode.SPORE: ml_spore(sa, sb, sw)
+			ShipRenderer.RenderMode.GUNMETAL: ml_gunmetal(sa, sb, sw)
+			ShipRenderer.RenderMode.MILITIA: ml_militia(sa, sb, sw)
+			ShipRenderer.RenderMode.STEALTH: ml_stealth(sa, sb, sw)
 			_: ml_neon(sa, sb, color, sw)
 
 	func mp_neon(points: PackedVector2Array, color: Color, w: float) -> void:
@@ -285,6 +284,65 @@ class _DrawCtx:
 		ci.draw_circle(b, w * 0.6, ShipRenderer.SPORE_DOT)
 		var mid: Vector2 = (a + b) * 0.5
 		ci.draw_circle(mid, w * 0.4, ShipRenderer.SPORE_DOT_ALT)
+
+	# ── Gunmetal thumbnail helpers ──
+
+	func mp_gunmetal(points: PackedVector2Array, w: float) -> void:
+		if points.size() < 3:
+			return
+		ci.draw_colored_polygon(points, ShipRenderer.GUNMETAL_HULL)
+		# Dark heavy border
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], Color(0.08, 0.08, 0.1), w * 1.6, true)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], ShipRenderer.GUNMETAL_DETAIL, w * 0.5, true)
+		# Rivet dots
+		for pt in points:
+			ci.draw_circle(pt, w * 0.5, Color(0.5, 0.52, 0.55))
+
+	func ml_gunmetal(a: Vector2, b: Vector2, w: float) -> void:
+		ci.draw_line(a, b, Color(0.08, 0.08, 0.1), w * 1.4, true)
+		ci.draw_line(a, b, ShipRenderer.GUNMETAL_ACCENT, w, true)
+		ci.draw_circle(a, w * 0.5, Color(0.5, 0.52, 0.55))
+		ci.draw_circle(b, w * 0.5, Color(0.5, 0.52, 0.55))
+
+	# ── Militia thumbnail helpers ──
+
+	func mp_militia(points: PackedVector2Array, w: float) -> void:
+		if points.size() < 3:
+			return
+		ci.draw_colored_polygon(points, ShipRenderer.MILITIA_HULL)
+		# Hard stencil edges
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], Color(0.1, 0.1, 0.05), w * 1.3, true)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], ShipRenderer.MILITIA_DETAIL, w * 0.4, true)
+
+	func ml_militia(a: Vector2, b: Vector2, w: float) -> void:
+		ci.draw_line(a, b, Color(0.1, 0.1, 0.05), w * 1.3, true)
+		ci.draw_line(a, b, ShipRenderer.MILITIA_ACCENT, w, true)
+
+	# ── Stealth thumbnail helpers ──
+
+	func mp_stealth(points: PackedVector2Array, w: float) -> void:
+		if points.size() < 3:
+			return
+		ci.draw_colored_polygon(points, ShipRenderer.STEALTH_HULL)
+		# Near-invisible edges with faint catch-light
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], Color(0.02, 0.02, 0.03), w * 1.0, true)
+		for j in range(points.size()):
+			var nj: int = (j + 1) % points.size()
+			ci.draw_line(points[j], points[nj], Color(0.2, 0.2, 0.24, 0.4), w * 0.3, true)
+
+	func ml_stealth(a: Vector2, b: Vector2, w: float) -> void:
+		ci.draw_line(a, b, Color(0.02, 0.02, 0.03), w * 1.0, true)
+		ci.draw_line(a, b, ShipRenderer.STEALTH_DETAIL, w * 0.4, true)
 
 	# ── Mini ship thumbnails ──
 

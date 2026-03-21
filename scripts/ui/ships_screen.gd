@@ -555,6 +555,20 @@ func _build_player_right_panel() -> void:
 	spacer3.custom_minimum_size.y = 12
 	vbox.add_child(spacer3)
 
+	# Section: Slots
+	var slots_label := Label.new()
+	slots_label.text = "SLOTS"
+	slots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(slots_label)
+
+	_add_slider_row(vbox, "external_slots", "EXT", 1, 6, 1)
+	_add_slider_row(vbox, "internal_slots", "INT", 1, 6, 1)
+
+	# Spacer
+	var spacer3b := Control.new()
+	spacer3b.custom_minimum_size.y = 12
+	vbox.add_child(spacer3b)
+
 	# Section: Skin
 	var skin_label := Label.new()
 	skin_label.text = "SKIN"
@@ -1176,7 +1190,7 @@ func _apply_right_panel_theme() -> void:
 			vbox = sc.get_child(0) as VBoxContainer
 	if not vbox:
 		return
-	var section_names: Array[String] = ["ATTRIBUTES", "BAR SEGMENTS", "PROPULSION", "SKIN",
+	var section_names: Array[String] = ["ATTRIBUTES", "BAR SEGMENTS", "PROPULSION", "SLOTS", "SKIN",
 		"ENEMY ATTRIBUTES", "IDENTITY", "HEALTH", "WEAPONS", "AUDIO", "EXPLOSION", "BOSSES"]
 	for child in vbox.get_children():
 		if child is Label:

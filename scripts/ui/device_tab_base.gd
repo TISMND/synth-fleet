@@ -151,6 +151,10 @@ func _ready() -> void:
 	_ui_ready = true
 	_refresh_load_list()
 	_waveform_editor.set_snap_mode(16)
+	_on_snap_mode_updated(16)
+	# Sync lanes with waveform's detected bars (default 2 if auto/unknown)
+	var init_bars: int = _waveform_editor._loop_length_bars if _waveform_editor._loop_length_bars > 0 else 2
+	_on_bars_updated(init_bars)
 	ThemeManager.theme_changed.connect(_apply_theme)
 
 
@@ -502,14 +506,10 @@ func _build_mechanics_tab() -> Control:
 		slider.custom_minimum_size.x = 150
 		row.add_child(slider)
 
-		var val_label := Label.new()
-		val_label.text = "0.00"
-		val_label.custom_minimum_size.x = 60
-		val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(val_label)
+		var val_edit: SliderValueEdit = SliderValueEdit.create(slider)
+		row.add_child(val_edit)
 
-		slider.value_changed.connect(func(val: float) -> void:
-			val_label.text = "%.2f" % val
+		slider.value_changed.connect(func(_val: float) -> void:
 			_mark_dirty()
 		)
 
@@ -542,14 +542,10 @@ func _build_mechanics_tab() -> Control:
 		slider.custom_minimum_size.x = 150
 		row.add_child(slider)
 
-		var val_label := Label.new()
-		val_label.text = "0.00"
-		val_label.custom_minimum_size.x = 60
-		val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(val_label)
+		var val_edit: SliderValueEdit = SliderValueEdit.create(slider)
+		row.add_child(val_edit)
 
-		slider.value_changed.connect(func(val: float) -> void:
-			val_label.text = "%.2f" % val
+		slider.value_changed.connect(func(_val: float) -> void:
 			_mark_dirty()
 		)
 
@@ -945,7 +941,9 @@ func _on_bars_changed(idx: int) -> void:
 	if idx < BARS_OPTIONS.size():
 		var bars_val: int = int(BARS_OPTIONS[idx]["value"])
 		_waveform_editor.set_loop_length_bars(bars_val)
-		_on_bars_updated(bars_val)
+		# Lanes need a real bar count for snap math — use waveform's detected value if auto
+		var lane_bars: int = _waveform_editor._loop_length_bars if _waveform_editor._loop_length_bars > 0 else 2
+		_on_bars_updated(lane_bars)
 
 
 func _on_transition_mode_changed(idx: int) -> void:

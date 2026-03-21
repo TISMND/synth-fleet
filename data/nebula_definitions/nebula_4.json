@@ -20,7 +20,9 @@
 			1.0
 		],
 		"seed_offset": 0.0,
-		"top_opacity": 0.5
+		"top_opacity": 0.5,
+		"veil_contrast": 0.33,
+		"wash_opacity": 0.35
 	},
 	"style_id": "electric_filaments"
 }

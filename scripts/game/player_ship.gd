@@ -108,31 +108,52 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_player_area.area_entered.connect(_on_contact)
 	add_child(_player_area)
 
-	# Create power core controllers from GameState internal slots
-	for i in 3:
+	# Create controllers from GameState internal slots
+	var device_slot_idx: int = 0
+	for i in GameState.get_internal_slot_count():
 		var slot_key: String = "int_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var comp_type: String = str(slot_data.get("component_type", ""))
 		var device_id: String = str(slot_data.get("device_id", ""))
 		if device_id == "":
 			continue
-		var pc: PowerCoreData = PowerCoreDataManager.load_by_id(device_id)
-		if not pc or pc.loop_file_path == "":
-			continue
-		var controller := PowerCoreController.new()
-		add_child(controller)
-		controller.setup(pc, i)
-		controller.bar_effect_fired.connect(apply_bar_effects)
-		controller.pulse_triggered.connect(_on_core_pulse)
-		_core_controllers.append(controller)
-		_core_data_per_slot.append({
-			"label": "CORE " + str(i + 1),
-			"pc": pc,
-		})
 
-	# Create device controllers from GameState dev slots
-	for i in 2:
-		var slot_key: String = "dev_" + str(i)
+		if comp_type == "power_core":
+			var pc: PowerCoreData = PowerCoreDataManager.load_by_id(device_id)
+			if not pc or pc.loop_file_path == "":
+				continue
+			var controller := PowerCoreController.new()
+			add_child(controller)
+			controller.setup(pc, i)
+			controller.bar_effect_fired.connect(apply_bar_effects)
+			controller.pulse_triggered.connect(_on_core_pulse)
+			_core_controllers.append(controller)
+			_core_data_per_slot.append({
+				"label": "INT " + str(i + 1),
+				"pc": pc,
+			})
+		elif comp_type == "device":
+			var device: DeviceData = DeviceDataManager.load_by_id(device_id)
+			if not device or device.loop_file_path == "":
+				continue
+			var controller := DeviceController.new()
+			add_child(controller)
+			controller.setup(device, device_slot_idx, self)
+			controller.bar_effect_fired.connect(apply_bar_effects)
+			_device_controllers.append(controller)
+			_device_data_per_slot.append({
+				"label": "INT " + str(i + 1),
+				"device": device,
+			})
+			device_slot_idx += 1
+
+	# Create device controllers from external slots with device component_type
+	for i in GameState.get_external_slot_count():
+		var slot_key: String = "ext_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var comp_type: String = str(slot_data.get("component_type", ""))
+		if comp_type != "device":
+			continue
 		var device_id: String = str(slot_data.get("device_id", ""))
 		if device_id == "":
 			continue
@@ -141,24 +162,27 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 			continue
 		var controller := DeviceController.new()
 		add_child(controller)
-		controller.setup(device, i, self)
+		controller.setup(device, device_slot_idx, self)
 		controller.bar_effect_fired.connect(apply_bar_effects)
 		_device_controllers.append(controller)
 		_device_data_per_slot.append({
-			"label": "DEV " + str(i + 1),
+			"label": "EXT " + str(i + 1),
 			"device": device,
 		})
+		device_slot_idx += 1
 
 	# Apply persisted per-slot volumes from hangar settings
 	_apply_stored_volumes()
 
 
 func _apply_stored_volumes() -> void:
-	# Weapon slots (ext_N)
+	# Weapon slots (ext_N with weapon component_type)
 	var hp_idx: int = 0
-	for i in 3:
+	for i in GameState.get_external_slot_count():
 		var slot_key: String = "ext_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		if str(slot_data.get("component_type", "")) != "weapon":
+			continue
 		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		if weapon_id == "":
 			continue
@@ -169,13 +193,12 @@ func _apply_stored_volumes() -> void:
 				LoopMixer.set_volume(loop_id, vol)
 		hp_idx += 1
 
-	# Core slots (int_N)
+	# Core slots (int_N with power_core component_type)
 	var core_idx: int = 0
-	for i in 3:
+	for i in GameState.get_internal_slot_count():
 		var slot_key: String = "int_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var device_id: String = str(slot_data.get("device_id", ""))
-		if device_id == "":
+		if str(slot_data.get("component_type", "")) != "power_core":
 			continue
 		if core_idx < _core_controllers.size():
 			var loop_id: String = _core_controllers[core_idx]._loop_id
@@ -184,17 +207,15 @@ func _apply_stored_volumes() -> void:
 				LoopMixer.set_volume(loop_id, vol)
 		core_idx += 1
 
-	# Device slots (dev_N)
+	# Device slots (any slot with device component_type)
 	var dev_idx: int = 0
-	for i in 2:
-		var slot_key: String = "dev_" + str(i)
-		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var device_id_val: String = str(slot_data.get("device_id", ""))
-		if device_id_val == "":
+	for slot_key in GameState.slot_config:
+		var slot_data: Dictionary = GameState.slot_config[slot_key]
+		if str(slot_data.get("component_type", "")) != "device":
 			continue
 		if dev_idx < _device_controllers.size():
 			var loop_id: String = _device_controllers[dev_idx]._loop_id
-			var vol: float = KeyBindingManager.get_slot_volume(slot_key)
+			var vol: float = KeyBindingManager.get_slot_volume(str(slot_key))
 			if loop_id != "" and vol != 0.0:
 				LoopMixer.set_volume(loop_id, vol)
 		dev_idx += 1
@@ -227,29 +248,50 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# Individual hardpoint toggles (1-9)
-	for i in mini(_hardpoint_controllers.size(), 9):
-		var action: String = "hardpoint_" + str(i + 1)
+	# Per-slot toggles using dynamic action names from KeyBindingManager
+	# External slots — weapons and devices
+	var hp_idx: int = 0
+	var ext_dev_idx: int = 0
+	for i in GameState.get_external_slot_count():
+		var slot_key: String = "ext_" + str(i)
+		var action: String = KeyBindingManager.get_slot_action(slot_key)
 		if event.is_action_pressed(action):
-			_hardpoint_controllers[i].toggle()
-			_update_hud_hardpoints()
+			var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+			var comp_type: String = str(slot_data.get("component_type", ""))
+			if comp_type == "weapon" and hp_idx < _hardpoint_controllers.size():
+				_hardpoint_controllers[hp_idx].toggle()
+				_update_hud_hardpoints()
+			elif comp_type == "device":
+				# Find the device controller for this ext slot
+				var dev_ctrl_idx: int = _find_device_controller_for_slot(slot_key)
+				if dev_ctrl_idx >= 0 and dev_ctrl_idx < _device_controllers.size():
+					_device_controllers[dev_ctrl_idx].toggle()
+					_update_hud_devices()
 			return
+		var sd: Dictionary = GameState.slot_config.get(slot_key, {})
+		if str(sd.get("component_type", "")) == "weapon":
+			hp_idx += 1
 
-	# Power core toggles (E=core_1, R=core_2, F=core_3)
-	for i in mini(_core_controllers.size(), 3):
-		var action: String = "core_" + str(i + 1)
+	# Internal slots — power cores and devices
+	var core_idx: int = 0
+	for i in GameState.get_internal_slot_count():
+		var slot_key: String = "int_" + str(i)
+		var action: String = KeyBindingManager.get_slot_action(slot_key)
 		if event.is_action_pressed(action):
-			_core_controllers[i].toggle()
-			_update_hud_cores()
+			var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+			var comp_type: String = str(slot_data.get("component_type", ""))
+			if comp_type == "power_core" and core_idx < _core_controllers.size():
+				_core_controllers[core_idx].toggle()
+				_update_hud_cores()
+			elif comp_type == "device":
+				var dev_ctrl_idx: int = _find_device_controller_for_slot(slot_key)
+				if dev_ctrl_idx >= 0 and dev_ctrl_idx < _device_controllers.size():
+					_device_controllers[dev_ctrl_idx].toggle()
+					_update_hud_devices()
 			return
-
-	# Device toggles (T=device_1, G=device_2)
-	for i in mini(_device_controllers.size(), 2):
-		var action: String = "device_" + str(i + 1)
-		if event.is_action_pressed(action):
-			_device_controllers[i].toggle()
-			_update_hud_devices()
-			return
+		var sd: Dictionary = GameState.slot_config.get(slot_key, {})
+		if str(sd.get("component_type", "")) == "power_core":
+			core_idx += 1
 
 	# Space: toggle all on/off (weapons + cores)
 	if event.is_action_pressed("hardpoints_max"):
@@ -296,54 +338,74 @@ func _input(event: InputEvent) -> void:
 			return
 
 
+func _slot_key_from_label(label: String) -> String:
+	## Converts a label like "INT 2" or "EXT 3" back to a slot key like "int_1" or "ext_2".
+	if label.begins_with("INT "):
+		return "int_" + str(int(label.replace("INT ", "")) - 1)
+	elif label.begins_with("EXT "):
+		return "ext_" + str(int(label.replace("EXT ", "")) - 1)
+	return ""
+
+
+func _find_device_controller_for_slot(slot_key: String) -> int:
+	## Finds the device controller index for a given slot key by matching label.
+	var label: String = ""
+	if slot_key.begins_with("ext_"):
+		label = "EXT " + str(int(slot_key.replace("ext_", "")) + 1)
+	else:
+		label = "INT " + str(int(slot_key.replace("int_", "")) + 1)
+	for i in _device_data_per_slot.size():
+		if _device_data_per_slot[i]["label"] == label:
+			return i
+	return -1
+
+
 func _apply_combo_pattern(pattern: Dictionary) -> void:
-	# Apply ext slots to hardpoint controllers
+	# Apply ext slots to hardpoint and device controllers
 	var hp_idx: int = 0
-	for i in 3:
+	for i in GameState.get_external_slot_count():
 		var slot_key: String = "ext_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var weapon_id: String = str(slot_data.get("weapon_id", ""))
-		if weapon_id == "":
-			continue
-		if hp_idx < _hardpoint_controllers.size():
-			var on: bool = pattern.get(slot_key, false)
-			if on:
-				_hardpoint_controllers[hp_idx].activate()
-			else:
-				_hardpoint_controllers[hp_idx].deactivate()
-		hp_idx += 1
+		var comp_type: String = str(slot_data.get("component_type", ""))
+		var on: bool = pattern.get(slot_key, false)
 
-	# Apply int slots to core controllers
+		if comp_type == "weapon":
+			if hp_idx < _hardpoint_controllers.size():
+				if on:
+					_hardpoint_controllers[hp_idx].activate()
+				else:
+					_hardpoint_controllers[hp_idx].deactivate()
+			hp_idx += 1
+		elif comp_type == "device":
+			var dev_ctrl_idx: int = _find_device_controller_for_slot(slot_key)
+			if dev_ctrl_idx >= 0 and dev_ctrl_idx < _device_controllers.size():
+				if on:
+					_device_controllers[dev_ctrl_idx].activate()
+				else:
+					_device_controllers[dev_ctrl_idx].deactivate()
+
+	# Apply int slots to core and device controllers
 	var core_idx: int = 0
-	for i in 3:
+	for i in GameState.get_internal_slot_count():
 		var slot_key: String = "int_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var device_id: String = str(slot_data.get("device_id", ""))
-		if device_id == "":
-			continue
-		if core_idx < _core_controllers.size():
-			var on: bool = pattern.get(slot_key, false)
-			if on:
-				_core_controllers[core_idx].activate()
-			else:
-				_core_controllers[core_idx].deactivate()
-		core_idx += 1
+		var comp_type: String = str(slot_data.get("component_type", ""))
+		var on: bool = pattern.get(slot_key, false)
 
-	# Apply dev slots to device controllers
-	var dev_idx: int = 0
-	for i in 2:
-		var slot_key: String = "dev_" + str(i)
-		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var device_id: String = str(slot_data.get("device_id", ""))
-		if device_id == "":
-			continue
-		if dev_idx < _device_controllers.size():
-			var on: bool = pattern.get(slot_key, false)
-			if on:
-				_device_controllers[dev_idx].activate()
-			else:
-				_device_controllers[dev_idx].deactivate()
-		dev_idx += 1
+		if comp_type == "power_core":
+			if core_idx < _core_controllers.size():
+				if on:
+					_core_controllers[core_idx].activate()
+				else:
+					_core_controllers[core_idx].deactivate()
+			core_idx += 1
+		elif comp_type == "device":
+			var dev_ctrl_idx: int = _find_device_controller_for_slot(slot_key)
+			if dev_ctrl_idx >= 0 and dev_ctrl_idx < _device_controllers.size():
+				if on:
+					_device_controllers[dev_ctrl_idx].activate()
+				else:
+					_device_controllers[dev_ctrl_idx].deactivate()
 
 	_update_hud_hardpoints()
 	_update_hud_cores()
@@ -394,7 +456,8 @@ func _update_hud_cores() -> void:
 		var controller: PowerCoreController = _core_controllers[i]
 		var core_info: Dictionary = _core_data_per_slot[i]
 		var pc: PowerCoreData = core_info["pc"]
-		var key_label: String = KeyBindingManager.get_key_label_for_slot("int_" + str(i))
+		var slot_key: String = _slot_key_from_label(core_info["label"])
+		var key_label: String = KeyBindingManager.get_key_label_for_slot(slot_key)
 		data.append({
 			"label": core_info["label"],
 			"core_name": pc.display_name if pc.display_name != "" else pc.id,
@@ -420,7 +483,8 @@ func _update_hud_devices() -> void:
 		var controller: DeviceController = _device_controllers[i]
 		var dev_info: Dictionary = _device_data_per_slot[i]
 		var device: DeviceData = dev_info["device"]
-		var key_label: String = KeyBindingManager.get_key_label_for_slot("dev_" + str(i))
+		var slot_key: String = _slot_key_from_label(dev_info["label"])
+		var key_label: String = KeyBindingManager.get_key_label_for_slot(slot_key)
 		data.append({
 			"label": dev_info["label"],
 			"device_name": device.display_name if device.display_name != "" else device.id,

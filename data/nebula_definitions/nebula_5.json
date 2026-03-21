@@ -20,7 +20,9 @@
 			1.0
 		],
 		"seed_offset": 0.0,
-		"top_opacity": 0.1
+		"top_opacity": 2.0,
+		"veil_contrast": 0.5,
+		"wash_opacity": 0.0
 	},
 	"style_id": "lightning_strike"
 }

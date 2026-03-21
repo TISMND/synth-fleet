@@ -14,6 +14,7 @@ extends Resource
 @export var bar_effects: Dictionary = {}  # LEGACY — {"shield": -0.5, ...} flat delta per trigger (replaced by bar_effect_triggers)
 @export var bar_effect_triggers: Array = []  # [{time: float, type: String, value: float}, ...] per-beat bar effects
 @export var passive_effects: Dictionary = {}  # {"shield": 1.5, "thermal": -0.3, ...} float delta per second
+@export var equip_slot: String = "internal"  # always "internal"
 
 
 static func from_dict(data: Dictionary) -> PowerCoreData:

@@ -2,17 +2,17 @@
 	"display_name": "Hull Healer",
 	"id": "nebula_3",
 	"shader_params": {
-		"animation_speed": 0.6,
+		"animation_speed": 0.65,
 		"bottom_opacity": 1.0,
 		"brightness": 2.45,
 		"density": 0.95,
 		"nebula_color": [
-			0.474884033203125,
-			0.506433844566345,
-			0.66796875,
+			0.548159122467041,
+			0.55078125,
+			0.52496337890625,
 			1.0
 		],
-		"radial_spread": 0.4,
+		"radial_spread": 0.45,
 		"secondary_color": [
 			0.59375,
 			0.465242862701416,
@@ -20,7 +20,9 @@
 			1.0
 		],
 		"seed_offset": 0.0,
-		"top_opacity": 0.5
+		"top_opacity": 2.0,
+		"veil_contrast": 0.14,
+		"wash_opacity": 0.46
 	},
 	"style_id": "dual_voronoi"
 }
