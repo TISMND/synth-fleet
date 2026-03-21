@@ -11,7 +11,7 @@
 	"damage": 3,
 	"description": "",
 	"direction_deg": 0.0,
-	"display_name": "green_tickle",
+	"display_name": "Eko Pulse Turret",
 	"effect_profile": {
 		"defaults": {
 
@@ -152,7 +152,7 @@
 		0.984375,
 		0.9921875
 	],
-	"id": "green_tickle",
+	"id": "eko_pulse_turret",
 	"loop_file_path": "res://loop_zips/sorted/synth/Tired Robot - 120 BPM - 3 - Synth - 003_Arp_90bpm_Cmin_-_RETROAESTHETICS1_Zenhiser.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",

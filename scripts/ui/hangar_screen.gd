@@ -1,7 +1,7 @@
 extends MarginContainer
-## Hangar Screen — ship thumbnail + stats on left, FUNCTIONAL/AUDIO/CONTROLS tabs center.
+## Hangar Screen — ship thumbnail + stats on left, LOADOUT/ASSIGN FIRE GROUPS/AUDIO MIX tabs center.
 
-var _ship_thumb: ShipThumbnails
+var _ship_renderer: ShipRenderer
 var _ship_name_label: Label
 var _center_vbox: VBoxContainer
 var _ext_section: VBoxContainer
@@ -92,9 +92,9 @@ func _ready() -> void:
 
 func _init_slot_active() -> void:
 	for i in GameState.get_external_slot_count():
-		_slot_active["ext_" + str(i)] = true
+		_slot_active["ext_" + str(i)] = false
 	for i in GameState.get_internal_slot_count():
-		_slot_active["int_" + str(i)] = true
+		_slot_active["int_" + str(i)] = false
 
 
 func _setup_vhs_overlay() -> void:
@@ -280,7 +280,10 @@ func _load_ship() -> void:
 	var idx: int = GameState.current_ship_index
 	var info: Dictionary = ShipRegistry.get_ship(idx)
 	_ship_name_label.text = str(info["name"])
-	_ship_thumb.ship_index = idx
+	_ship_renderer.ship_id = idx
+	var ship_scale: float = float(info.get("scale", 1.4))
+	_ship_renderer.scale = Vector2(ship_scale, ship_scale)
+	_ship_renderer.queue_redraw()
 	call_deferred("_position_hangar_thumb")
 	_update_stats(info["stats"])
 	_rebuild_buttons()
@@ -288,10 +291,10 @@ func _load_ship() -> void:
 
 
 func _position_hangar_thumb() -> void:
-	var panel_size: Vector2 = _ship_thumb.size
-	var center := Vector2(panel_size.x / 2.0, panel_size.y * 0.75)
-	_ship_thumb.origin = center
-	_ship_thumb.queue_redraw()
+	var vp_size: Vector2 = Vector2(_sub_viewport.size)
+	var center := Vector2(vp_size.x / 2.0, vp_size.y * 0.55)
+	_ship_renderer.position = center
+	_ship_renderer.queue_redraw()
 	_preview_node.position = center
 
 
@@ -458,7 +461,7 @@ func _create_slot_row(slot_key: String, item_name: String) -> PanelContainer:
 	toggle.custom_minimum_size = Vector2(150, 38)
 	toggle.clip_text = true
 	toggle.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var is_active: bool = _slot_active.get(slot_key, true)
+	var is_active: bool = _slot_active.get(slot_key, false)
 	toggle.text = "PREVIEWING" if is_active else "PAUSED"
 	ThemeManager.apply_button_style(toggle)
 	if is_active:
@@ -969,67 +972,79 @@ func _rebuild_controls_content() -> void:
 
 	var body_font: Font = ThemeManager.get_font("font_body")
 
-	# Slot bindings header
-	var bindings_header := Label.new()
-	bindings_header.text = "━━ SLOT BINDINGS ━━━━━━━━━━━━━━━━━"
-	bindings_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	bindings_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	if body_font:
-		bindings_header.add_theme_font_override("font", body_font)
-	_controls_content.add_child(bindings_header)
-
 	# Binding rows — built dynamically from slot counts
 	var all_slots: Array = []
-	var slot_labels: Dictionary = {}
 	for i in GameState.get_external_slot_count():
-		var sk: String = "ext_" + str(i)
-		all_slots.append(sk)
-		slot_labels[sk] = _get_slot_item_name(sk)
+		all_slots.append("ext_" + str(i))
 	for i in GameState.get_internal_slot_count():
-		var sk: String = "int_" + str(i)
-		all_slots.append(sk)
-		slot_labels[sk] = _get_slot_item_name(sk)
+		all_slots.append("int_" + str(i))
+
 	for slot_key in all_slots:
+		var item_name: String = _get_slot_item_name(slot_key)
+		# Dark backing panel — matches loadout row style
+		var panel := PanelContainer.new()
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var ps := StyleBoxFlat.new()
+		ps.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+		ps.corner_radius_top_left = 4
+		ps.corner_radius_top_right = 4
+		ps.corner_radius_bottom_left = 4
+		ps.corner_radius_bottom_right = 4
+		ps.content_margin_left = 8
+		ps.content_margin_right = 8
+		ps.content_margin_top = 6
+		ps.content_margin_bottom = 6
+		panel.add_theme_stylebox_override("panel", ps)
+
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
+		panel.add_child(row)
 
-		var name_lbl := Label.new()
-		name_lbl.text = str(slot_labels.get(slot_key, slot_key))
-		name_lbl.custom_minimum_size.x = 120
-		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
-		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-		if body_font:
-			name_lbl.add_theme_font_override("font", body_font)
-		row.add_child(name_lbl)
-
+		# Key binding button on the left (like PREVIEWING/PAUSED toggle position)
 		var key_btn := Button.new()
 		key_btn.text = "[" + KeyBindingManager.get_key_label_for_slot(slot_key) + "]"
-		key_btn.custom_minimum_size = Vector2(60, 30)
+		key_btn.custom_minimum_size = Vector2(70, 38)
+		key_btn.clip_text = true
+		key_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		ThemeManager.apply_button_style(key_btn)
+		key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		var bound_key: String = slot_key
 		key_btn.pressed.connect(func() -> void: _start_key_capture(bound_key))
 		row.add_child(key_btn)
 		_controls_key_btns[slot_key] = key_btn
 
-		_controls_content.add_child(row)
+		# Item name label — fills remaining space
+		var name_lbl := Label.new()
+		name_lbl.text = item_name
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var slot_color: Color = _get_slot_type_color(slot_key)
+		name_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.7))
+		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
+		if body_font:
+			name_lbl.add_theme_font_override("font", body_font)
+		row.add_child(name_lbl)
 
-	# Combo presets header
-	var presets_header := Label.new()
-	presets_header.text = "━━ COMBO PRESETS ━━━━━━━━━━━━━━━━━"
-	presets_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	presets_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	if body_font:
-		presets_header.add_theme_font_override("font", body_font)
-	_controls_content.add_child(presets_header)
+		_controls_content.add_child(panel)
 
+	# Spacer before presets
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 12
+	_controls_content.add_child(spacer)
+
+	# Combo presets section
 	_preset_list = VBoxContainer.new()
+	_preset_list.add_theme_constant_override("separation", 4)
 	_controls_content.add_child(_preset_list)
 
 	_rebuild_presets()
 
+	var save_spacer := Control.new()
+	save_spacer.custom_minimum_size.y = 6
+	_controls_content.add_child(save_spacer)
+
 	var save_combo_btn := Button.new()
 	save_combo_btn.text = "SAVE CURRENT COMBO"
-	save_combo_btn.custom_minimum_size.y = 34
+	save_combo_btn.custom_minimum_size.y = 38
 	save_combo_btn.pressed.connect(_on_save_combo)
 	ThemeManager.apply_button_style(save_combo_btn)
 	_controls_content.add_child(save_combo_btn)
@@ -1045,14 +1060,32 @@ func _rebuild_presets() -> void:
 	var presets: Array = KeyBindingManager.get_combo_presets()
 	for i in presets.size():
 		var preset: Dictionary = presets[i]
+
+		# Dark backing panel
+		var panel := PanelContainer.new()
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var ps := StyleBoxFlat.new()
+		ps.bg_color = Color(0.0, 0.0, 0.0, 0.45)
+		ps.corner_radius_top_left = 4
+		ps.corner_radius_top_right = 4
+		ps.corner_radius_bottom_left = 4
+		ps.corner_radius_bottom_right = 4
+		ps.content_margin_left = 8
+		ps.content_margin_right = 8
+		ps.content_margin_top = 4
+		ps.content_margin_bottom = 4
+		panel.add_theme_stylebox_override("panel", ps)
+
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
+		panel.add_child(row)
 
 		# Key label button (rebindable)
 		var key_btn := Button.new()
 		key_btn.text = "[" + str(preset.get("key_label", "?")) + "]"
-		key_btn.custom_minimum_size = Vector2(50, 30)
+		key_btn.custom_minimum_size = Vector2(50, 34)
 		ThemeManager.apply_button_style(key_btn)
+		key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		var bound_idx: int = i
 		key_btn.pressed.connect(func() -> void: _start_key_capture("combo_" + str(bound_idx)))
 		row.add_child(key_btn)
@@ -1060,7 +1093,7 @@ func _rebuild_presets() -> void:
 		# Label
 		var name_lbl := Label.new()
 		name_lbl.text = str(preset.get("label", "COMBO"))
-		name_lbl.custom_minimum_size.x = 100
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
 		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
 		if body_font:
@@ -1082,13 +1115,12 @@ func _rebuild_presets() -> void:
 		dots_lbl.text = dots_text
 		dots_lbl.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		dots_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-		dots_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(dots_lbl)
 
 		# Load button
 		var load_btn := Button.new()
 		load_btn.text = "LOAD"
-		load_btn.custom_minimum_size = Vector2(50, 28)
+		load_btn.custom_minimum_size = Vector2(60, 34)
 		ThemeManager.apply_button_style(load_btn)
 		load_btn.pressed.connect(func() -> void: _load_combo_pattern(bound_idx))
 		row.add_child(load_btn)
@@ -1096,12 +1128,12 @@ func _rebuild_presets() -> void:
 		# Delete button
 		var del_btn := Button.new()
 		del_btn.text = "X"
-		del_btn.custom_minimum_size = Vector2(30, 28)
+		del_btn.custom_minimum_size = Vector2(34, 34)
 		ThemeManager.apply_button_style(del_btn)
 		del_btn.pressed.connect(func() -> void: _delete_combo(bound_idx))
 		row.add_child(del_btn)
 
-		_preset_list.add_child(row)
+		_preset_list.add_child(panel)
 
 
 func _load_combo_pattern(index: int) -> void:
@@ -1178,94 +1210,158 @@ func _rebuild_audio_content() -> void:
 
 	var body_font: Font = ThemeManager.get_font("font_body")
 
-	# Header
-	var sep_lbl := Label.new()
-	sep_lbl.text = "━━ LOOP VOLUMES ━━━━━━━━━━━━━━━━━━"
-	sep_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	sep_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	if body_font:
-		sep_lbl.add_theme_font_override("font", body_font)
-	_audio_content.add_child(sep_lbl)
-
 	# Per-slot volume slider rows — built dynamically from slot counts
 	var audio_slots: Array = []
-	var audio_slot_labels: Dictionary = {}
 	for i in GameState.get_external_slot_count():
-		var sk: String = "ext_" + str(i)
-		audio_slots.append(sk)
-		audio_slot_labels[sk] = _get_slot_item_name(sk)
+		audio_slots.append("ext_" + str(i))
 	for i in GameState.get_internal_slot_count():
-		var sk: String = "int_" + str(i)
-		audio_slots.append(sk)
-		audio_slot_labels[sk] = _get_slot_item_name(sk)
+		audio_slots.append("int_" + str(i))
+
 	for slot_key in audio_slots:
 		var item_name: String = _get_slot_item_name(slot_key)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
 
+		# Dark backing panel — matches loadout row style
+		var panel := PanelContainer.new()
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var ps := StyleBoxFlat.new()
+		ps.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+		ps.corner_radius_top_left = 4
+		ps.corner_radius_top_right = 4
+		ps.corner_radius_bottom_left = 4
+		ps.corner_radius_bottom_right = 4
+		ps.content_margin_left = 8
+		ps.content_margin_right = 8
+		ps.content_margin_top = 6
+		ps.content_margin_bottom = 6
+		panel.add_theme_stylebox_override("panel", ps)
+
+		var vbox := VBoxContainer.new()
+		vbox.add_theme_constant_override("separation", 4)
+		panel.add_child(vbox)
+
+		# Item name at top of each card
 		var name_lbl := Label.new()
 		name_lbl.text = item_name
-		name_lbl.custom_minimum_size.x = 180
-		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
-		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		var slot_color: Color = _get_slot_type_color(slot_key)
+		name_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.7))
+		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
 		if body_font:
 			name_lbl.add_theme_font_override("font", body_font)
-		row.add_child(name_lbl)
+		vbox.add_child(name_lbl)
 
 		if item_name != "empty":
 			var stored_vol: float = KeyBindingManager.get_slot_volume(slot_key)
 
-			var slider := HSlider.new()
-			slider.min_value = -40.0
-			slider.max_value = 6.0
-			slider.step = 0.5
-			slider.value = stored_vol
-			slider.custom_minimum_size = Vector2(160, 20)
-			slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			# LED volume meter row
+			var meter_row := HBoxContainer.new()
+			meter_row.add_theme_constant_override("separation", 8)
+			vbox.add_child(meter_row)
+
+			# Fine segmented LED bar as volume control
+			var vol_bar := ProgressBar.new()
+			vol_bar.min_value = -40.0
+			vol_bar.max_value = 6.0
+			vol_bar.value = stored_vol
+			vol_bar.show_percentage = false
+			vol_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			vol_bar.custom_minimum_size = Vector2(0, 20)
+			vol_bar.mouse_filter = Control.MOUSE_FILTER_PASS
+			meter_row.add_child(vol_bar)
+
+			# Apply LED shader with fine segments
+			var vol_ratio: float = (stored_vol - (-40.0)) / 46.0
+			var slot_col: Color = _get_slot_type_color(slot_key)
+			_apply_fine_led(vol_bar, slot_col, vol_ratio)
+
+			# Click/drag handler overlay
+			var click_area := Control.new()
+			click_area.set_anchors_preset(Control.PRESET_FULL_RECT)
+			click_area.mouse_filter = Control.MOUSE_FILTER_STOP
+			vol_bar.add_child(click_area)
+
 			var bound_key: String = slot_key
-			row.add_child(slider)
+			var is_dragging: Array = [false]  # mutable ref for closures
+			click_area.gui_input.connect(func(event: InputEvent) -> void:
+				if event is InputEventMouseButton:
+					var mb: InputEventMouseButton = event as InputEventMouseButton
+					if mb.button_index == MOUSE_BUTTON_LEFT:
+						if mb.pressed:
+							is_dragging[0] = true
+							_on_vol_bar_click(bound_key, vol_bar, mb.position.x)
+						else:
+							is_dragging[0] = false
+				elif event is InputEventMouseMotion and is_dragging[0]:
+					var mm: InputEventMouseMotion = event as InputEventMouseMotion
+					_on_vol_bar_click(bound_key, vol_bar, mm.position.x)
+			)
 
 			var val_lbl := Label.new()
 			val_lbl.text = _format_db(stored_vol)
-			val_lbl.custom_minimum_size.x = 55
+			val_lbl.custom_minimum_size.x = 65
 			val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			val_lbl.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 			val_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
 			if body_font:
 				val_lbl.add_theme_font_override("font", body_font)
-			row.add_child(val_lbl)
+			meter_row.add_child(val_lbl)
 
-			slider.value_changed.connect(func(new_val: float) -> void: _on_volume_slider_changed(bound_key, new_val))
-			_audio_sliders[slot_key] = {"slider": slider, "label": val_lbl}
+			_audio_sliders[slot_key] = {"bar": vol_bar, "label": val_lbl}
 
-		_audio_content.add_child(row)
+		_audio_content.add_child(panel)
 
-	# Global controls at bottom
-	var global_hbox := HBoxContainer.new()
-	global_hbox.add_theme_constant_override("separation", 10)
 
-	var play_btn := Button.new()
-	play_btn.text = "PLAY" if not _is_playing else "PAUSE"
-	play_btn.custom_minimum_size = Vector2(80, 34)
-	play_btn.pressed.connect(_on_play_toggle)
-	ThemeManager.apply_button_style(play_btn)
-	global_hbox.add_child(play_btn)
 
-	var mute_all_btn := Button.new()
-	mute_all_btn.text = "MUTE ALL" if not _is_muted else "UNMUTE ALL"
-	mute_all_btn.custom_minimum_size = Vector2(100, 34)
-	mute_all_btn.pressed.connect(_on_mute_toggle)
-	ThemeManager.apply_button_style(mute_all_btn)
-	global_hbox.add_child(mute_all_btn)
+func _apply_fine_led(bar: ProgressBar, color: Color, ratio: float) -> void:
+	## Apply LED shader with fine/thin segments for volume meters.
+	var led_shader: Shader = load("res://assets/shaders/led_bar_hdr.gdshader") as Shader
+	if not led_shader:
+		return
+	var seg_count: int = 46  # 1 segment per dB (-40 to +6)
+	var seg_px: float = 4.0
+	var gap_px: float = 1.5
 
-	var reset_btn := Button.new()
-	reset_btn.text = "RESET BARS"
-	reset_btn.custom_minimum_size = Vector2(100, 34)
-	reset_btn.pressed.connect(_on_reset_bars)
-	ThemeManager.apply_button_style(reset_btn)
-	global_hbox.add_child(reset_btn)
+	bar.custom_minimum_size.x = float(seg_count) * seg_px + float(seg_count - 1) * gap_px
 
-	_audio_content.add_child(global_hbox)
+	var fill_style := StyleBoxFlat.new()
+	fill_style.bg_color = Color(0, 0, 0, 0)
+	bar.add_theme_stylebox_override("fill", fill_style)
+	var bg_style := StyleBoxFlat.new()
+	bg_style.bg_color = Color(0, 0, 0, 1)
+	bar.add_theme_stylebox_override("background", bg_style)
+
+	var long_axis: float = maxf(bar.custom_minimum_size.x, 20.0)
+	var gap_uv: float = gap_px / maxf(long_axis, 1.0)
+
+	var mat := ShaderMaterial.new()
+	mat.shader = led_shader
+	bar.material = mat
+	mat.set_shader_parameter("segment_count", seg_count)
+	mat.set_shader_parameter("segment_gap", gap_uv)
+	mat.set_shader_parameter("vertical", 0)
+	mat.set_shader_parameter("inner_intensity", ThemeManager.get_float("led_inner_intensity"))
+	mat.set_shader_parameter("inner_softness", ThemeManager.get_float("led_inner_softness"))
+	mat.set_shader_parameter("smudge_blur", ThemeManager.get_float("led_smudge_blur"))
+	mat.set_shader_parameter("fill_color", color)
+	mat.set_shader_parameter("bg_color", ThemeManager.get_color("panel"))
+	mat.set_shader_parameter("fill_ratio", ratio)
+	mat.set_shader_parameter("hdr_multiplier", ThemeManager.get_float("led_hdr_multiplier"))
+
+
+func _on_vol_bar_click(slot_key: String, bar: ProgressBar, click_x: float) -> void:
+	## Convert click position to dB value and update volume.
+	var ratio: float = clampf(click_x / maxf(bar.size.x, 1.0), 0.0, 1.0)
+	var db: float = lerpf(-40.0, 6.0, ratio)
+	# Snap to 0.5 dB steps
+	db = roundf(db * 2.0) / 2.0
+	bar.value = db
+
+	# Update LED shader fill
+	var new_ratio: float = (db - (-40.0)) / 46.0
+	var mat: ShaderMaterial = bar.material as ShaderMaterial
+	if mat:
+		mat.set_shader_parameter("fill_ratio", new_ratio)
+
+	_on_volume_slider_changed(slot_key, db)
 
 
 func _format_db(db: float) -> String:
@@ -1322,14 +1418,25 @@ func _get_loop_id_for_slot(slot_key: String) -> String:
 	var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
 	var comp_type: String = str(slot_data.get("component_type", ""))
 	if comp_type == "weapon":
-		return "weapon_" + slot_key.replace("ext_", "")
+		# Match HardpointController's loop_id format: weapon.id + "_hp_" + hp_index
+		# Find the matching controller by slot index
+		var ext_idx: int = int(slot_key.replace("ext_", ""))
+		var ctrl_idx: int = 0
+		for i in GameState.get_external_slot_count():
+			var sk: String = "ext_" + str(i)
+			var sd: Dictionary = GameState.slot_config.get(sk, {})
+			if str(sd.get("component_type", "")) != "weapon":
+				continue
+			if sk == slot_key:
+				if ctrl_idx < _preview_controllers.size():
+					return _preview_controllers[ctrl_idx]._loop_id
+				return ""
+			ctrl_idx += 1
+		return ""
 	elif comp_type == "power_core":
 		return "core_" + slot_key.replace("int_", "")
 	elif comp_type == "device":
-		if slot_key.begins_with("ext_"):
-			return "device_ext_" + slot_key.replace("ext_", "")
-		else:
-			return "device_int_" + slot_key.replace("int_", "")
+		return "dev_" + slot_key
 	return ""
 
 
@@ -1360,6 +1467,8 @@ func _build_ui() -> void:
 	left_vbox.add_child(_ship_name_label)
 
 	# Ship thumbnail display — SubViewport for live weapon preview
+	# Fixed render size (400×500) so bloom matches dev studio previews exactly.
+	# SubViewportContainer with stretch=true scales the output up for display.
 	_viewport_container = SubViewportContainer.new()
 	_viewport_container.stretch = true
 	_viewport_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1367,11 +1476,12 @@ func _build_ui() -> void:
 	left_vbox.add_child(_viewport_container)
 
 	_sub_viewport = SubViewport.new()
+	_sub_viewport.size = Vector2i(400, 500)
 	_sub_viewport.transparent_bg = false
 	_sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport_container.add_child(_sub_viewport)
 
-	# Bloom for projectile glow
+	# Bloom for projectile glow — runs at fixed 400px, identical to dev studio
 	VFXFactory.add_bloom_to_viewport(_sub_viewport)
 
 	# Dark background for the viewport
@@ -1380,13 +1490,9 @@ func _build_ui() -> void:
 	vp_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_sub_viewport.add_child(vp_bg)
 
-	_ship_thumb = ShipThumbnails.new()
-	_ship_thumb.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_ship_thumb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_ship_thumb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_ship_thumb.render_mode = ShipRenderer.RenderMode.CHROME
-	_ship_thumb.draw_scale = 3.0
-	_sub_viewport.add_child(_ship_thumb)
+	_ship_renderer = ShipRenderer.new()
+	_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	_sub_viewport.add_child(_ship_renderer)
 
 	_preview_node = Node2D.new()
 	_sub_viewport.add_child(_preview_node)
@@ -1456,22 +1562,22 @@ func _build_ui() -> void:
 	_center_vbox.add_child(mode_spacer)
 
 	_functional_btn = Button.new()
-	_functional_btn.text = "FUNCTIONAL"
-	_functional_btn.custom_minimum_size = Vector2(110, 36)
+	_functional_btn.text = "LOADOUT"
+	_functional_btn.custom_minimum_size = Vector2(100, 36)
 	_functional_btn.pressed.connect(func() -> void: _on_mode_toggle("functional"))
 	mode_hbox.add_child(_functional_btn)
 
-	_audio_btn = Button.new()
-	_audio_btn.text = "AUDIO"
-	_audio_btn.custom_minimum_size = Vector2(80, 36)
-	_audio_btn.pressed.connect(func() -> void: _on_mode_toggle("audio"))
-	mode_hbox.add_child(_audio_btn)
-
 	_controls_btn = Button.new()
-	_controls_btn.text = "CONTROLS"
-	_controls_btn.custom_minimum_size = Vector2(100, 36)
+	_controls_btn.text = "ASSIGN FIRE GROUPS"
+	_controls_btn.custom_minimum_size = Vector2(160, 36)
 	_controls_btn.pressed.connect(func() -> void: _on_mode_toggle("controls"))
 	mode_hbox.add_child(_controls_btn)
+
+	_audio_btn = Button.new()
+	_audio_btn.text = "AUDIO MIX"
+	_audio_btn.custom_minimum_size = Vector2(100, 36)
+	_audio_btn.pressed.connect(func() -> void: _on_mode_toggle("audio"))
+	mode_hbox.add_child(_audio_btn)
 
 	# FUNCTIONAL content
 	_functional_content = VBoxContainer.new()
@@ -1754,7 +1860,24 @@ func _sync_preview() -> void:
 		var dev_vol: float = KeyBindingManager.get_slot_volume(slot_key)
 		if dev_vol != 0.0:
 			LoopMixer.set_volume(loop_id, dev_vol)
-		_device_previews.append({"device": device, "loop_id": loop_id, "slot_key": slot_key, "prev_pos": -1.0})
+
+		# Create FieldRenderer for field-mode devices
+		var field_renderer: FieldRenderer = null
+		if device.visual_mode == "field" and device.field_style_id != "":
+			var style: FieldStyle = FieldStyleManager.load_by_id(device.field_style_id)
+			if not style:
+				style = FieldStyle.new()
+				style.color = Color(0.0, 1.0, 1.0, 1.0)
+			field_renderer = FieldRenderer.new()
+			_preview_node.add_child(field_renderer)
+			field_renderer.setup(style, device.radius, device.animation_speed)
+			# Override z_index — default -1 renders behind SubViewport background
+			field_renderer.z_index = 1
+			field_renderer.set_pulse_timing(device.pulse_total_duration, device.pulse_fade_up, device.pulse_fade_out)
+			# Always start hidden — slot must be toggled on + PLAY to see fields
+			field_renderer.set_opacity(0.0)
+
+		_device_previews.append({"device": device, "loop_id": loop_id, "slot_key": slot_key, "prev_pos": -1.0, "field_renderer": field_renderer})
 
 	# Apply stored volumes for weapon preview loops
 	var ext_ctrl_idx: int = 0
@@ -1793,6 +1916,9 @@ func _cleanup_preview() -> void:
 	for entry in _device_previews:
 		var loop_id: String = entry["loop_id"]
 		LoopMixer.remove_loop(loop_id)
+		var fr: FieldRenderer = entry.get("field_renderer") as FieldRenderer
+		if fr and is_instance_valid(fr):
+			fr.queue_free()
 	_device_previews.clear()
 	if _is_playing:
 		LoopMixer.stop_all()
@@ -1843,6 +1969,7 @@ func _process(_delta: float) -> void:
 		return
 	_process_core_previews()
 	_process_device_previews()
+	_update_ship_field_tint()
 
 
 func _process_core_previews() -> void:
@@ -1884,6 +2011,17 @@ func _process_device_previews() -> void:
 		var device: DeviceData = entry["device"]
 		var loop_id: String = entry["loop_id"]
 		var slot_key: String = entry["slot_key"]
+		var fr: FieldRenderer = entry.get("field_renderer") as FieldRenderer
+		var is_active: bool = _slot_active.get(slot_key, false)
+
+		# Manage field visibility based on active state
+		if fr:
+			if is_active:
+				if device.active_always_on:
+					fr.set_opacity(1.0)
+			else:
+				fr.set_opacity(0.0)
+
 		var pos_sec: float = LoopMixer.get_playback_position(loop_id)
 		var duration: float = LoopMixer.get_stream_duration(loop_id)
 		if pos_sec < 0.0 or duration <= 0.0:
@@ -1893,8 +2031,10 @@ func _process_device_previews() -> void:
 		entry["prev_pos"] = curr
 		if prev < 0.0:
 			continue
-		if not _slot_active.get(slot_key, false):
+		if not is_active:
 			continue
+
+		# Check pulse triggers
 		for t in device.pulse_triggers:
 			var tval: float = float(t)
 			var crossed: bool = false
@@ -1902,8 +2042,59 @@ func _process_device_previews() -> void:
 				crossed = tval > prev and tval <= curr
 			else:
 				crossed = tval > prev or tval <= curr
-			if crossed and not device.bar_effects.is_empty():
-				_on_bar_effect_fired(device.bar_effects)
+			if crossed:
+				if fr:
+					fr.set_opacity(1.0)
+					fr.pulse()
+				if not device.bar_effects.is_empty():
+					_on_bar_effect_fired(device.bar_effects)
+
+		# Check visual-only pulse triggers
+		if fr:
+			for t in device.visual_pulse_triggers:
+				var tval: float = float(t)
+				var crossed: bool = false
+				if curr >= prev:
+					crossed = tval > prev and tval <= curr
+				else:
+					crossed = tval > prev or tval <= curr
+				if crossed:
+					fr.pulse()
+
+
+func _update_ship_field_tint() -> void:
+	## Combine tints from all active field devices and apply to ship renderer modulate.
+	## Mirrors DeviceController.get_ship_tint() logic.
+	var combined := Color(1.0, 1.0, 1.0, 1.0)
+	for entry in _device_previews:
+		var device: DeviceData = entry["device"]
+		var slot_key: String = entry["slot_key"]
+		var fr: FieldRenderer = entry.get("field_renderer") as FieldRenderer
+		if not fr or not _slot_active.get(slot_key, false):
+			continue
+		if device.visual_mode != "field" or device.field_style_id == "":
+			continue
+		var style: FieldStyle = FieldStyleManager.load_by_id(device.field_style_id)
+		if not style:
+			continue
+		# Read pulse intensity from the field renderer's shader
+		var pulse_val: float = 0.0
+		if fr._material:
+			pulse_val = float(fr._material.get_shader_parameter("pulse_intensity"))
+		var active_hdr: float = style.ship_active_hdr
+		var pulse_hdr: float = style.ship_pulse_hdr
+		var bright: float = 1.0 + active_hdr + pulse_val * pulse_hdr
+		var field_col: Color = style.color
+		var tint_strength: float = style.ship_tint_strength
+		var tint_scaled: float = tint_strength * (style.glow_intensity / 1.5)
+		var r: float = lerpf(bright, field_col.r * bright * 1.5, tint_scaled)
+		var g: float = lerpf(bright, field_col.g * bright * 1.5, tint_scaled)
+		var b: float = lerpf(bright, field_col.b * bright * 1.5, tint_scaled)
+		# Multiply into combined tint
+		combined.r *= r
+		combined.g *= g
+		combined.b *= b
+	_ship_renderer.modulate = combined
 
 
 func _exit_tree() -> void:

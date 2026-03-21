@@ -12,7 +12,7 @@
 	"damage": 10,
 	"description": "",
 	"direction_deg": 0.0,
-	"display_name": "Beam 1",
+	"display_name": "Laser Turret",
 	"effect_profile": {
 		"defaults": {
 
@@ -33,7 +33,7 @@
 		0.75,
 		0.875
 	],
-	"id": "beam_1",
+	"id": "laser_turret",
 	"loop_file_path": "res://loop_zips/sorted/bass/Dreading Sphere - 120 BPM - 1 - Bass - cw_bass90_youthful_E.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "mirror",
