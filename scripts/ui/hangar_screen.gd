@@ -305,7 +305,7 @@ func _update_stats(s: Dictionary) -> void:
 	_bar_segments["ELECTRIC"] = electric_seg
 	_set_bar("SHIELD", shield_seg, shield_seg)
 	_set_bar("HULL", hull_seg, hull_seg)
-	_set_bar("THERMAL", thermal_seg, thermal_seg)
+	_set_bar("THERMAL", 0, thermal_seg)
 	_set_bar("ELECTRIC", electric_seg, electric_seg)
 
 
@@ -341,16 +341,12 @@ func _rebuild_buttons() -> void:
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
 		var comp_type: String = str(slot_data.get("component_type", ""))
 		var item_name: String = "empty"
-		var bar_effect_text: String = ""
-		var type_label: String = "EXT " + str(i + 1)
-
 		if comp_type == "weapon":
 			var weapon_id: String = str(slot_data.get("weapon_id", ""))
 			if weapon_id != "":
 				var w: WeaponData = _weapon_cache.get(weapon_id)
 				if w:
 					item_name = w.display_name if w.display_name != "" else w.id
-					bar_effect_text = _format_bar_effects(w.bar_effects)
 				else:
 					item_name = weapon_id
 		elif comp_type == "device":
@@ -359,11 +355,10 @@ func _rebuild_buttons() -> void:
 				var d: DeviceData = _device_cache.get(device_id)
 				if d:
 					item_name = d.display_name if d.display_name != "" else d.id
-					bar_effect_text = _format_bar_effects(d.bar_effects)
 				else:
 					item_name = device_id
 
-		var row: HBoxContainer = _create_slot_row(slot_key, type_label, item_name, bar_effect_text)
+		var row: HBoxContainer = _create_slot_row(slot_key, item_name)
 		_ext_section.add_child(row)
 
 	# Internal slots (power cores + internal/flexible devices)
@@ -372,16 +367,12 @@ func _rebuild_buttons() -> void:
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
 		var comp_type: String = str(slot_data.get("component_type", ""))
 		var item_name: String = "empty"
-		var bar_effect_text: String = ""
-		var type_label: String = "INT " + str(i + 1)
-
 		if comp_type == "power_core":
 			var device_id: String = str(slot_data.get("device_id", ""))
 			if device_id != "":
 				var pc: PowerCoreData = _power_core_cache.get(device_id)
 				if pc:
 					item_name = pc.display_name if pc.display_name != "" else pc.id
-					bar_effect_text = _format_bar_effects(pc.bar_effects)
 				else:
 					item_name = device_id
 		elif comp_type == "device":
@@ -390,11 +381,10 @@ func _rebuild_buttons() -> void:
 				var d: DeviceData = _device_cache.get(device_id)
 				if d:
 					item_name = d.display_name if d.display_name != "" else d.id
-					bar_effect_text = _format_bar_effects(d.bar_effects)
 				else:
 					item_name = device_id
 
-		var row: HBoxContainer = _create_slot_row(slot_key, type_label, item_name, bar_effect_text)
+		var row: HBoxContainer = _create_slot_row(slot_key, item_name)
 		_int_section.add_child(row)
 
 	_rebuild_audio_content()
@@ -442,15 +432,17 @@ func _get_slot_type_color(slot_key: String) -> Color:
 	return ThemeManager.get_color("accent")
 
 
-func _create_slot_row(slot_key: String, type_label: String, item_name: String, bar_effect_text: String) -> HBoxContainer:
+func _create_slot_row(slot_key: String, item_name: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
 	# Toggle button
 	var toggle := Button.new()
-	toggle.custom_minimum_size = Vector2(44, 38)
+	toggle.custom_minimum_size = Vector2(150, 38)
+	toggle.clip_text = true
+	toggle.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	var is_active: bool = _slot_active.get(slot_key, true)
-	toggle.text = "ON" if is_active else "OFF"
+	toggle.text = "PREVIEWING" if is_active else "PAUSED"
 	ThemeManager.apply_button_style(toggle)
 	if is_active:
 		toggle.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
@@ -463,10 +455,7 @@ func _create_slot_row(slot_key: String, type_label: String, item_name: String, b
 
 	# Slot button (clickable) — shows equipped item info, opens picker
 	var header := Button.new()
-	var header_text: String = type_label + "  —  " + item_name
-	if bar_effect_text != "":
-		header_text += "  " + bar_effect_text
-	header.text = header_text
+	header.text = item_name
 	header.custom_minimum_size.y = 54
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -496,7 +485,7 @@ func _on_slot_toggle(slot_key: String) -> void:
 	# Update toggle button appearance
 	if _slot_toggle_btns.has(slot_key):
 		var btn: Button = _slot_toggle_btns[slot_key]
-		btn.text = "ON" if new_state else "OFF"
+		btn.text = "PREVIEWING" if new_state else "PAUSED"
 		if new_state:
 			btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
 		else:
@@ -795,11 +784,11 @@ func _rebuild_controls_content() -> void:
 	for i in GameState.get_external_slot_count():
 		var sk: String = "ext_" + str(i)
 		all_slots.append(sk)
-		slot_labels[sk] = "EXT " + str(i + 1)
+		slot_labels[sk] = _get_slot_item_name(sk)
 	for i in GameState.get_internal_slot_count():
 		var sk: String = "int_" + str(i)
 		all_slots.append(sk)
-		slot_labels[sk] = "INT " + str(i + 1)
+		slot_labels[sk] = _get_slot_item_name(sk)
 	for slot_key in all_slots:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -927,7 +916,7 @@ func _load_combo_pattern(index: int) -> void:
 	for slot_key in _slot_toggle_btns:
 		var btn: Button = _slot_toggle_btns[slot_key]
 		var is_on: bool = _slot_active.get(slot_key, false)
-		btn.text = "ON" if is_on else "OFF"
+		btn.text = "PREVIEWING" if is_on else "PAUSED"
 		if is_on:
 			btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
 		else:
@@ -1004,19 +993,18 @@ func _rebuild_audio_content() -> void:
 	for i in GameState.get_external_slot_count():
 		var sk: String = "ext_" + str(i)
 		audio_slots.append(sk)
-		audio_slot_labels[sk] = "EXT " + str(i + 1)
+		audio_slot_labels[sk] = _get_slot_item_name(sk)
 	for i in GameState.get_internal_slot_count():
 		var sk: String = "int_" + str(i)
 		audio_slots.append(sk)
-		audio_slot_labels[sk] = "INT " + str(i + 1)
+		audio_slot_labels[sk] = _get_slot_item_name(sk)
 	for slot_key in audio_slots:
 		var item_name: String = _get_slot_item_name(slot_key)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 
 		var name_lbl := Label.new()
-		var type_text: String = str(audio_slot_labels.get(slot_key, slot_key))
-		name_lbl.text = type_text + " — " + item_name
+		name_lbl.text = item_name
 		name_lbl.custom_minimum_size.x = 180
 		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
 		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
