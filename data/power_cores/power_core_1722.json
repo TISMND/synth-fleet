@@ -147,7 +147,7 @@
 		}
 	],
 	"bar_effects": {
-		"electric": 1.0,
+		"electric": 0.75,
 		"thermal": 0.35
 	},
 	"description": "",
