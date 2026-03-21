@@ -753,15 +753,16 @@ func _apply_stats_bar_effect_for_type(bar_type: String) -> void:
 func _apply_single_stats_bar_effect(bar_idx: int, effect_value: float) -> void:
 	if bar_idx < 0 or bar_idx >= _stats_preview_bars.size():
 		return
-	var old_val: float = _stats_bar_values[bar_idx]
-	_stats_bar_values[bar_idx] = clampf(old_val + effect_value, 0.0, _stats_bar_maxes[bar_idx])
-	var actual_change: float = _stats_bar_values[bar_idx] - old_val
-	if actual_change > 0.0:
+	_stats_bar_values[bar_idx] = clampf(_stats_bar_values[bar_idx] + effect_value, 0.0, _stats_bar_maxes[bar_idx])
+	# Trigger wave based on intended delta, not clamped result
+	if effect_value > 0.0:
+		if not bool(_stats_gain_wave[bar_idx].get("active", false)):
+			_stats_gain_wave[bar_idx]["position"] = 0.0
 		_stats_gain_wave[bar_idx]["active"] = true
-		_stats_gain_wave[bar_idx]["position"] = 0.0
-	elif actual_change < 0.0:
+	elif effect_value < 0.0:
+		if not bool(_stats_drain_wave[bar_idx].get("active", false)):
+			_stats_drain_wave[bar_idx]["position"] = 1.0
 		_stats_drain_wave[bar_idx]["active"] = true
-		_stats_drain_wave[bar_idx]["position"] = 1.0
 
 
 func _advance_wave(wave: Dictionary, delta: float, direction: float) -> void:
@@ -1103,6 +1104,7 @@ func _on_new() -> void:
 	_on_reset_stats_bars()
 	_populating = false
 	_mark_clean()
+	_update_effect_rate_label()
 	_status_label.text = "New power core — ready to edit."
 
 
@@ -1173,6 +1175,7 @@ func _populate_from_power_core(data: PowerCoreData) -> void:
 
 	_populating = false
 	_mark_clean()
+	_update_effect_rate_label()
 
 
 func _generate_id(display_name: String) -> String:
@@ -1248,10 +1251,10 @@ func _add_slider_row(parent: Control, label_text: String, min_val: float, max_va
 func _mark_dirty() -> void:
 	if not _ui_ready or _populating:
 		return
+	_update_effect_rate_label()
 	if not _dirty:
 		_dirty = true
 		_update_dirty_display()
-	_update_effect_rate_label()
 
 
 func _update_effect_rate_label() -> void:

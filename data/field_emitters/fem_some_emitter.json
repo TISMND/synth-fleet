@@ -1,0 +1,38 @@
+{
+	"accel_modifier": 0.0,
+	"active_always_on": false,
+	"active_fade_in": 0.0,
+	"active_fade_out": 1.0,
+	"active_total_duration": 1.0,
+	"animation_speed": 1.0,
+	"bar_effects": {
+
+	},
+	"description": "",
+	"device_type": "shield_aura",
+	"display_name": "Some Emitter",
+	"fade_in_duration": 0.3,
+	"fade_out_duration": 0.3,
+	"field_style_id": "",
+	"id": "fem_some_emitter",
+	"loop_file_path": "res://loop_zips/sorted/synth/NEW Overblown Choice - 120 BPM - 3 - Synth - FL_MSW_97_Synth_Loop_D.wav",
+	"loop_length_bars": 8,
+	"mechanic_params": {
+
+	},
+	"orbiter_lifetime": 4.0,
+	"orbiter_style_id": "",
+	"passive_effects": {
+
+	},
+	"pulse_fade_out": 0.01,
+	"pulse_fade_up": 0.01,
+	"pulse_total_duration": 0.1,
+	"pulse_triggers": [],
+	"radius": 100.0,
+	"speed_modifier": 0.0,
+	"transition_mode": "instant",
+	"transition_ms": 200,
+	"visual_mode": "field",
+	"visual_pulse_triggers": []
+}

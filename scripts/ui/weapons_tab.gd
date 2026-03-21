@@ -1438,7 +1438,7 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_update_preview()
 	_populating = false
 	_mark_clean()
-
+	_update_effect_rate_label(_collect_weapon_data())
 
 
 # ── Stats Bar Preview ────────────────────────────────────────
@@ -1539,15 +1539,17 @@ func _apply_bar_effects_once() -> void:
 		var bar_type: String = BAR_TYPES[bi]
 		var slider: HSlider = _bar_effect_sliders.get(bar_type) as HSlider
 		if slider and slider.value != 0.0:
-			var old_val: float = _stats_bar_values[bi]
-			_stats_bar_values[bi] = clampf(old_val + slider.value * hits, 0.0, _stats_bar_maxes[bi])
-			var delta_ratio: float = (_stats_bar_values[bi] - old_val) / maxf(_stats_bar_maxes[bi], 1.0)
-			if delta_ratio > WAVE_MIN_CHANGE:
+			var effect_delta: float = slider.value * hits
+			_stats_bar_values[bi] = clampf(_stats_bar_values[bi] + effect_delta, 0.0, _stats_bar_maxes[bi])
+			# Trigger wave based on intended delta, not clamped result
+			if effect_delta > 0.0:
+				if not bool(_stats_gain_wave[bi].get("active", false)):
+					_stats_gain_wave[bi]["position"] = 0.0
 				_stats_gain_wave[bi]["active"] = true
-				_stats_gain_wave[bi]["position"] = 0.0
-			elif delta_ratio < -WAVE_MIN_CHANGE:
+			elif effect_delta < 0.0:
+				if not bool(_stats_drain_wave[bi].get("active", false)):
+					_stats_drain_wave[bi]["position"] = 1.0
 				_stats_drain_wave[bi]["active"] = true
-				_stats_drain_wave[bi]["position"] = 1.0
 
 
 func _update_beam_sustain(delta: float) -> void:

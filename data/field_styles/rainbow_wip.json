@@ -1,0 +1,24 @@
+{
+	"color": [
+		0.0,
+		1.0,
+		1.0,
+		1.0
+	],
+	"display_name": "Rainbow WIP Needs more Params",
+	"field_shader": "shimmer",
+	"glow_intensity": 1.4,
+	"id": "rainbow_wip",
+	"pulse_brightness": 0.4,
+	"pulse_tint": 0.35,
+	"radius_ratio": 0.25,
+	"shader_params": {
+		"distortion_strength": 0.13,
+		"outer_radius": 0.47,
+		"rainbow_intensity": 1.0,
+		"wave_frequency": 5.0
+	},
+	"ship_active_hdr": 0.0,
+	"ship_pulse_hdr": 0.2,
+	"ship_tint_strength": 0.2
+}

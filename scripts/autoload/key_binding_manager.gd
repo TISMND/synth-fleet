@@ -255,7 +255,20 @@ func get_key_label_for_slot(slot_key: String) -> String:
 
 func get_slot_for_keycode(pkc: int) -> String:
 	## Returns the slot_key bound to the given physical keycode, or "" if none.
+	## Searches ALL bindings including phantom slots (e.g. core_1 when no ship has 2 cores).
 	for slot_key in _bindings:
+		var binding: Dictionary = _bindings[slot_key]
+		if int(binding["physical_keycode"]) == pkc:
+			return str(slot_key)
+	return ""
+
+
+func get_slot_for_keycode_filtered(pkc: int, valid_slots: Dictionary) -> String:
+	## Returns the slot_key bound to the given physical keycode, only if it exists in valid_slots.
+	## Use this to avoid phantom bindings (e.g. core_1) blocking real slot keys.
+	for slot_key in _bindings:
+		if not valid_slots.has(slot_key):
+			continue
 		var binding: Dictionary = _bindings[slot_key]
 		if int(binding["physical_keycode"]) == pkc:
 			return str(slot_key)
@@ -301,6 +314,39 @@ func remove_combo_preset(index: int) -> void:
 	apply_to_input_map()
 	save_bindings()
 	bindings_changed.emit()
+
+
+func update_combo_preset_pattern(index: int, pattern: Dictionary) -> void:
+	if index < 0 or index >= _combo_presets.size():
+		return
+	_combo_presets[index]["pattern"] = pattern
+	_combo_presets[index]["label"] = generate_combo_label(pattern)
+	save_bindings()
+
+
+static func generate_combo_label(pattern: Dictionary) -> String:
+	var weapon_count: int = 0
+	var core_count: int = 0
+	var field_count: int = 0
+	for slot_key in pattern:
+		if not bool(pattern[slot_key]):
+			continue
+		if str(slot_key).begins_with("weapon_"):
+			weapon_count += 1
+		elif str(slot_key).begins_with("core_"):
+			core_count += 1
+		elif str(slot_key).begins_with("field_"):
+			field_count += 1
+	var parts: Array[String] = []
+	if weapon_count > 0:
+		parts.append(str(weapon_count) + "W")
+	if core_count > 0:
+		parts.append(str(core_count) + "C")
+	if field_count > 0:
+		parts.append(str(field_count) + "F")
+	if parts.is_empty():
+		return "EMPTY"
+	return "+".join(parts)
 
 
 func get_combo_presets() -> Array:

@@ -87,9 +87,11 @@ var _audio_reset_btn: Button
 var _master_vol_bar: ProgressBar
 var _master_vol_label: Label
 
-# Controls tab key binding buttons
-var _controls_key_btns: Dictionary = {}  # slot_key -> Button
-var _controls_total_labels: Dictionary = {}  # bar_type -> Label
+# Fire groups tab state
+var _controls_key_btns: Dictionary = {}  # slot_key -> Button (kept for keyboard input handler)
+var _fg_active_index: int = -1
+var _fg_slot_rows: Dictionary = {}  # slot_key -> {toggle_btn, name_lbl, rate_labels}
+var _fg_tab_label_refs: Array = []  # Label refs for tab name updates
 
 
 func _ready() -> void:
@@ -615,7 +617,7 @@ func _add_picker_item(item_id: String, label: String, description: String, slot_
 			var val: float = float(rates[bar_type])
 			var rate_lbl := Label.new()
 			var sign: String = "+" if val > 0 else ""
-			rate_lbl.text = sign + str(int(val)) + "/m"
+			rate_lbl.text = sign + str(int(val)) + " seg/m"
 			var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
 			if val < 0:
 				bar_color = Color(bar_color.r, bar_color.g, bar_color.b, 0.7)
@@ -897,6 +899,16 @@ func _on_mode_toggle(new_mode: String) -> void:
 		_clear_right_panel()
 		_expanded_slot = ""
 		_unhighlight_all_slot_btns()
+		# Auto-select first fire group if none selected
+		if _fg_active_index < 0:
+			var presets: Array = KeyBindingManager.get_combo_presets()
+			if not presets.is_empty():
+				_fg_active_index = 0
+				var pattern: Dictionary = presets[0].get("pattern", {})
+				for slot_key in _slot_active:
+					_slot_active[slot_key] = pattern.get(slot_key, false)
+				_sync_preview_active_states()
+		_rebuild_controls_content()
 		_show_fire_groups_panel()
 	elif _mode != "functional":
 		_clear_right_panel()
@@ -957,7 +969,7 @@ func _end_key_capture() -> void:
 		_capture_overlay.visible = false
 
 
-# ── Controls tab content ─────────────────────────────────────────────────────
+# ── Fire Groups tab content ──────────────────────────────────────────────────
 
 func _rebuild_controls_content() -> void:
 	if not _controls_content:
@@ -965,26 +977,103 @@ func _rebuild_controls_content() -> void:
 	for child in _controls_content.get_children():
 		child.queue_free()
 	_controls_key_btns.clear()
+	_fg_slot_rows.clear()
+	_fg_tab_label_refs.clear()
 
 	var body_font: Font = ThemeManager.get_font("font_body")
+	var button_font: Font = ThemeManager.get_font("font_button")
+	var presets: Array = KeyBindingManager.get_combo_presets()
+	var accent: Color = ThemeManager.get_color("accent")
 
-	# Tooltip at top
-	var tip := Label.new()
-	tip.text = "Press a slot's key to toggle it on/off. Save combos as fire groups on the right."
-	tip.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.5))
-	tip.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	if body_font:
-		tip.add_theme_font_override("font", body_font)
-	_controls_content.add_child(tip)
+	# ── TAB BAR ──
+	var tab_bar := HBoxContainer.new()
+	tab_bar.add_theme_constant_override("separation", 4)
+	tab_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_controls_content.add_child(tab_bar)
 
-	var tip_spacer := Control.new()
-	tip_spacer.custom_minimum_size.y = 6
-	_controls_content.add_child(tip_spacer)
+	for i in presets.size():
+		var preset: Dictionary = presets[i]
+		var is_active_tab: bool = (i == _fg_active_index)
 
-	# Slot rows — matching loadout button format (key label + name, non-clickable)
+		var tab_panel := PanelContainer.new()
+		var tps := StyleBoxFlat.new()
+		if is_active_tab:
+			tps.bg_color = Color(accent.r * 0.15, accent.g * 0.15, accent.b * 0.15, 0.8)
+			tps.border_width_bottom = 2
+			tps.border_color = accent
+		else:
+			tps.bg_color = Color(0.08, 0.08, 0.08, 0.7)
+		tps.corner_radius_top_left = 4
+		tps.corner_radius_top_right = 4
+		tps.content_margin_left = 10
+		tps.content_margin_right = 10
+		tps.content_margin_top = 4
+		tps.content_margin_bottom = 4
+		tab_panel.add_theme_stylebox_override("panel", tps)
+
+		var tab_vbox := VBoxContainer.new()
+		tab_vbox.add_theme_constant_override("separation", 0)
+		tab_panel.add_child(tab_vbox)
+
+		# Small label: group name
+		var tab_name := Label.new()
+		tab_name.text = str(preset.get("label", "GROUP"))
+		tab_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tab_name.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
+		tab_name.add_theme_color_override("font_color", accent if is_active_tab else ThemeManager.get_color("dimmed"))
+		if body_font:
+			tab_name.add_theme_font_override("font", body_font)
+		tab_vbox.add_child(tab_name)
+		_fg_tab_label_refs.append(tab_name)
+
+		# Large label: bound key
+		var tab_key := Label.new()
+		tab_key.text = str(preset.get("key_label", "?"))
+		tab_key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tab_key.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+		tab_key.add_theme_color_override("font_color", accent if is_active_tab else ThemeManager.get_color("text"))
+		if button_font:
+			tab_key.add_theme_font_override("font", button_font)
+		tab_vbox.add_child(tab_key)
+
+		# Click handler
+		tab_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		var bound_idx: int = i
+		tab_panel.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+				_select_fire_group(bound_idx)
+		)
+		tab_bar.add_child(tab_panel)
+
+	# "+" button to add new fire group
+	var add_btn := Button.new()
+	add_btn.text = "+"
+	add_btn.custom_minimum_size = Vector2(44, 0)
+	add_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	_darken_button(add_btn)
+	add_btn.pressed.connect(_on_add_fire_group)
+	tab_bar.add_child(add_btn)
+
+	var tab_spacer := Control.new()
+	tab_spacer.custom_minimum_size.y = 6
+	_controls_content.add_child(tab_spacer)
+
+	# ── EMPTY STATE ──
+	var has_group: bool = _fg_active_index >= 0 and _fg_active_index < presets.size()
+	if presets.is_empty():
+		var empty_lbl := Label.new()
+		empty_lbl.text = "Create your first fire group with the + button above."
+		empty_lbl.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+		empty_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		empty_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if body_font:
+			empty_lbl.add_theme_font_override("font", body_font)
+		_controls_content.add_child(empty_lbl)
+		return
+
+	# ── SLOT ROWS ──
 	var all_slots: Array = _get_all_slot_keys()
-	var active_totals: Dictionary = {}  # bar_type -> float
+	var active_totals: Dictionary = {}
 	var small_size: int = ThemeManager.get_font_size("font_size_body") - 4
 
 	for slot_key in all_slots:
@@ -992,12 +1081,10 @@ func _rebuild_controls_content() -> void:
 		var is_active: bool = _slot_active.get(slot_key, true)
 		var slot_rates: Dictionary = _get_slot_rates(slot_key)
 
-		# Accumulate totals for active slots
 		if is_active:
 			for bar_type in slot_rates:
 				active_totals[str(bar_type)] = float(active_totals.get(str(bar_type), 0.0)) + float(slot_rates[bar_type])
 
-		# Same panel style as loadout rows
 		var panel := PanelContainer.new()
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var ps := StyleBoxFlat.new()
@@ -1020,24 +1107,24 @@ func _rebuild_controls_content() -> void:
 		row.add_theme_constant_override("separation", 8)
 		slot_vbox.add_child(row)
 
-		# Key label (clickable to rebind)
-		var key_btn := Button.new()
-		key_btn.text = "[" + KeyBindingManager.get_key_label_for_slot(slot_key) + "]"
-		key_btn.custom_minimum_size = Vector2(70, 44)
-		key_btn.clip_text = true
-		key_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		_darken_button(key_btn)
-		key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent") if is_active else Color(0.4, 0.4, 0.4))
-		var bound_key: String = slot_key
-		key_btn.pressed.connect(func() -> void: _start_key_capture(bound_key))
-		row.add_child(key_btn)
-		_controls_key_btns[slot_key] = key_btn
+		# Power toggle button (circular)
+		var toggle_btn := Button.new()
+		toggle_btn.text = "\u23fb"
+		toggle_btn.custom_minimum_size = Vector2(40, 40)
+		toggle_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_apply_power_toggle_style(toggle_btn, is_active)
+		if has_group:
+			var bound_slot: String = slot_key
+			toggle_btn.pressed.connect(func() -> void: _on_fg_slot_toggle(bound_slot))
+		else:
+			toggle_btn.disabled = true
+		row.add_child(toggle_btn)
 
 		# Slot name label
 		var name_lbl := Label.new()
 		name_lbl.text = item_name
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_lbl.custom_minimum_size.y = 44
+		name_lbl.custom_minimum_size.y = 40
 		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		var slot_color: Color = _get_slot_type_color(slot_key)
 		if is_active:
@@ -1049,22 +1136,22 @@ func _rebuild_controls_content() -> void:
 			name_lbl.add_theme_font_override("font", body_font)
 		row.add_child(name_lbl)
 
-		# Per-slot rates — small colored values under the name
+		# Per-slot rates
+		var rate_label_refs: Array = []
 		if not slot_rates.is_empty():
 			var rates_hbox := HBoxContainer.new()
 			rates_hbox.add_theme_constant_override("separation", 8)
 			slot_vbox.add_child(rates_hbox)
-			# Indent to align with name (past key button)
 			var indent := Control.new()
-			indent.custom_minimum_size.x = 78
+			indent.custom_minimum_size.x = 48
 			rates_hbox.add_child(indent)
 			for bar_type in EffectRateCalculator.BAR_TYPES:
 				if not slot_rates.has(bar_type):
 					continue
 				var val: float = float(slot_rates[bar_type])
 				var rl := Label.new()
-				var sign: String = "+" if val > 0 else ""
-				rl.text = sign + str(int(val)) + "/m"
+				var rate_sign: String = "+" if val > 0 else ""
+				rl.text = rate_sign + str(int(val)) + " seg/m"
 				var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
 				var alpha: float = 0.7 if is_active else 0.25
 				rl.add_theme_color_override("font_color", Color(bar_color.r, bar_color.g, bar_color.b, alpha))
@@ -1072,10 +1159,16 @@ func _rebuild_controls_content() -> void:
 				if body_font:
 					rl.add_theme_font_override("font", body_font)
 				rates_hbox.add_child(rl)
+				rate_label_refs.append(rl)
 
+		_fg_slot_rows[slot_key] = {"toggle_btn": toggle_btn, "name_lbl": name_lbl, "rate_labels": rate_label_refs}
 		_controls_content.add_child(panel)
 
 	# ── TOTALS ──
+	_build_fg_totals(active_totals, body_font)
+
+
+func _build_fg_totals(active_totals: Dictionary, body_font: Font) -> void:
 	var totals_spacer := Control.new()
 	totals_spacer.custom_minimum_size.y = 10
 	_controls_content.add_child(totals_spacer)
@@ -1108,7 +1201,6 @@ func _rebuild_controls_content() -> void:
 
 	var abbrev: Dictionary = {"shield": "SHIELD", "hull": "HULL", "thermal": "THERMAL", "electric": "ELECTRIC"}
 	var section_size: int = ThemeManager.get_font_size("font_size_section")
-	_controls_total_labels.clear()
 	for bar_type in EffectRateCalculator.BAR_TYPES:
 		var val: float = float(active_totals.get(bar_type, 0.0))
 		var total_row := HBoxContainer.new()
@@ -1125,255 +1217,207 @@ func _rebuild_controls_content() -> void:
 		total_row.add_child(type_lbl)
 		var val_lbl := Label.new()
 		var sign: String = "+" if val > 0 else ""
-		val_lbl.text = sign + str(int(val)) + " / min" if not is_zero_approx(val) else "—"
+		val_lbl.text = sign + str(int(val)) + " seg/min" if not is_zero_approx(val) else "\u2014"
 		val_lbl.add_theme_color_override("font_color", bar_color)
 		val_lbl.add_theme_font_size_override("font_size", section_size + 2)
 		if body_font:
 			val_lbl.add_theme_font_override("font", body_font)
 		total_row.add_child(val_lbl)
-		_controls_total_labels[bar_type] = val_lbl
 
 	_controls_content.add_child(totals_panel)
 
 
-func _show_fire_groups_panel() -> void:
-	## Populate the right panel with fire group columns when controls tab is active.
-	if not _right_panel:
-		return
-	_right_panel.visible = true
-	_right_panel_header.text = "FIRE GROUPS"
-	_right_panel_header.visible = true
-	_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
-	ThemeManager.apply_text_glow(_right_panel_header, "header")
-
-	# Clear existing content
-	for child in _right_panel_list.get_children():
-		child.queue_free()
-
-	var body_font: Font = ThemeManager.get_font("font_body")
-	var all_slots: Array = _get_all_slot_keys()
-
-	# Match controls-tab top offset: tip label (~20px) + spacer (6px) = ~26px
-	# Fire group cards start at the same vertical position as slot rows
-	var top_pad := Control.new()
-	top_pad.custom_minimum_size.y = 26
-	_right_panel_list.add_child(top_pad)
-
-	# Existing fire group presets
-	var presets: Array = KeyBindingManager.get_combo_presets()
-	for i in presets.size():
-		var preset: Dictionary = presets[i]
-		_add_fire_group_column(preset, i, all_slots, body_font)
-
-	# "SAVE CURRENT AS NEW GROUP" button
-	var save_spacer := Control.new()
-	save_spacer.custom_minimum_size.y = 8
-	_right_panel_list.add_child(save_spacer)
-
-	var save_btn := Button.new()
-	save_btn.text = "SAVE CURRENT AS NEW GROUP"
-	save_btn.custom_minimum_size.y = 42
-	save_btn.pressed.connect(_on_save_combo)
-	_darken_button(save_btn)
-	_right_panel_list.add_child(save_btn)
-
-	# Tip at bottom
-	var tip_spacer := Control.new()
-	tip_spacer.custom_minimum_size.y = 12
-	_right_panel_list.add_child(tip_spacer)
-
-	var tip := Label.new()
-	tip.text = "Toggle slots with their keys, then SAVE to create a fire group. Press the group's key in-game to activate that combo."
-	tip.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.35))
-	tip.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 1)
-	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	if body_font:
-		tip.add_theme_font_override("font", body_font)
-	_right_panel_list.add_child(tip)
-
-
-func _add_fire_group_column(preset: Dictionary, index: int, all_slots: Array, body_font: Font) -> void:
-	## Add a single fire group card to the right panel.
-	## Uses the same slot-row template as the controls tab for horizontal alignment.
-	var pattern: Dictionary = preset.get("pattern", {})
-	var bound_idx: int = index
-
-	# Header row: key button + group label + delete — outside slot rows
-	var header_panel := PanelContainer.new()
-	header_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var hps := StyleBoxFlat.new()
-	hps.bg_color = Color(0.0, 0.0, 0.0, 0.4)
-	hps.corner_radius_top_left = 4
-	hps.corner_radius_top_right = 4
-	hps.corner_radius_bottom_left = 4
-	hps.corner_radius_bottom_right = 4
-	hps.content_margin_left = 8
-	hps.content_margin_right = 8
-	hps.content_margin_top = 4
-	hps.content_margin_bottom = 4
-	header_panel.add_theme_stylebox_override("panel", hps)
-
-	var header_row := HBoxContainer.new()
-	header_row.add_theme_constant_override("separation", 8)
-	header_panel.add_child(header_row)
-
-	var key_btn := Button.new()
-	key_btn.text = "[" + str(preset.get("key_label", "?")) + "]"
-	key_btn.custom_minimum_size = Vector2(50, 34)
-	_darken_button(key_btn)
-	key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	key_btn.pressed.connect(func() -> void: _start_key_capture("combo_" + str(bound_idx)))
-	header_row.add_child(key_btn)
-
-	var name_lbl := Label.new()
-	name_lbl.text = str(preset.get("label", "COMBO"))
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
-	name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-	if body_font:
-		name_lbl.add_theme_font_override("font", body_font)
-	header_row.add_child(name_lbl)
-
-	var load_btn := Button.new()
-	load_btn.text = "LOAD"
-	load_btn.custom_minimum_size = Vector2(54, 34)
-	_darken_button(load_btn)
-	load_btn.pressed.connect(func() -> void: _load_combo_pattern(bound_idx))
-	header_row.add_child(load_btn)
-
-	var del_btn := Button.new()
-	del_btn.text = "X"
-	del_btn.custom_minimum_size = Vector2(34, 34)
-	_darken_button(del_btn)
-	del_btn.pressed.connect(func() -> void: _delete_combo(bound_idx))
-	header_row.add_child(del_btn)
-
-	_right_panel_list.add_child(header_panel)
-
-	# Slot rows — same template as controls tab rows for horizontal alignment
-	for slot_key in all_slots:
-		var on: bool = pattern.get(slot_key, false)
-		var item_name: String = _get_slot_item_name(slot_key)
-		var slot_color: Color = _get_slot_type_color(slot_key)
-
-		# Same dark panel as controls tab slot rows
-		var panel := PanelContainer.new()
-		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var ps := StyleBoxFlat.new()
-		ps.bg_color = Color(0.0, 0.0, 0.0, 0.55)
-		ps.corner_radius_top_left = 4
-		ps.corner_radius_top_right = 4
-		ps.corner_radius_bottom_left = 4
-		ps.corner_radius_bottom_right = 4
-		ps.content_margin_left = 8
-		ps.content_margin_right = 8
-		ps.content_margin_top = 6
-		ps.content_margin_bottom = 6
-		panel.add_theme_stylebox_override("panel", ps)
-
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		panel.add_child(row)
-
-		# Power button — prominent on/off indicator
-		var power_lbl := Label.new()
-		power_lbl.text = "\u23fb"  # Power symbol ⏻
-		power_lbl.custom_minimum_size = Vector2(36, 54)
-		power_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		power_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		power_lbl.add_theme_font_size_override("font_size", 22)
-		if on:
-			power_lbl.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
+func _apply_power_toggle_style(btn: Button, is_on: bool) -> void:
+	var r: int = 20  # half of 40px → circular
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var sb := StyleBoxFlat.new()
+		sb.corner_radius_top_left = r
+		sb.corner_radius_top_right = r
+		sb.corner_radius_bottom_left = r
+		sb.corner_radius_bottom_right = r
+		sb.content_margin_left = 4
+		sb.content_margin_right = 4
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 4
+		sb.border_width_left = 2
+		sb.border_width_right = 2
+		sb.border_width_top = 2
+		sb.border_width_bottom = 2
+		if is_on:
+			sb.bg_color = Color(0.12, 0.42, 0.18, 0.9) if state != "hover" else Color(0.18, 0.55, 0.25, 0.9)
+			sb.border_color = Color(0.2, 1.0, 0.3)
+			sb.shadow_color = Color(0.1, 0.7, 0.2, 0.35)
+			sb.shadow_size = 4
 		else:
-			power_lbl.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
-		row.add_child(power_lbl)
-
-		# Slot name — same style as controls tab
-		var slot_lbl := Label.new()
-		slot_lbl.text = item_name
-		slot_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		slot_lbl.custom_minimum_size.y = 54
-		slot_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		slot_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
-		if body_font:
-			slot_lbl.add_theme_font_override("font", body_font)
-		if on:
-			slot_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.9))
-		else:
-			slot_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.25))
-		row.add_child(slot_lbl)
-
-		_right_panel_list.add_child(panel)
-
-	# Spacer between fire groups
-	var group_spacer := Control.new()
-	group_spacer.custom_minimum_size.y = 10
-	_right_panel_list.add_child(group_spacer)
+			sb.bg_color = Color(0.06, 0.06, 0.06, 0.9) if state != "hover" else Color(0.12, 0.12, 0.12, 0.9)
+			sb.border_color = Color(0.25, 0.25, 0.25)
+			sb.shadow_color = Color(0.0, 0.0, 0.0, 0.3)
+			sb.shadow_size = 2
+		btn.add_theme_stylebox_override(state, sb)
+	btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3) if is_on else Color(0.3, 0.3, 0.3))
+	btn.add_theme_color_override("font_hover_color", Color(0.3, 1.0, 0.4) if is_on else Color(0.4, 0.4, 0.4))
+	btn.add_theme_font_size_override("font_size", 18)
 
 
-func _load_combo_pattern(index: int) -> void:
+func _select_fire_group(index: int) -> void:
 	var presets: Array = KeyBindingManager.get_combo_presets()
 	if index < 0 or index >= presets.size():
 		return
-	var preset: Dictionary = presets[index]
-	var pattern: Dictionary = preset.get("pattern", {})
+	_fg_active_index = index
+	var pattern: Dictionary = presets[index].get("pattern", {})
 	for slot_key in _slot_active:
 		_slot_active[slot_key] = pattern.get(slot_key, false)
-	# Refresh controls tab visuals if on that tab
+	_rebuild_controls_content()
+	_show_fire_groups_panel()
+	_sync_preview_active_states()
+
+
+func _on_fg_slot_toggle(slot_key: String) -> void:
+	_slot_active[slot_key] = not _slot_active.get(slot_key, false)
+	# Auto-save to current fire group
+	if _fg_active_index >= 0:
+		var pattern: Dictionary = {}
+		for sk in _slot_active:
+			pattern[sk] = _slot_active[sk]
+		KeyBindingManager.update_combo_preset_pattern(_fg_active_index, pattern)
+	# Fast-path UI update
+	_update_fg_slot_visual(slot_key)
+	# Update tab label
+	if _fg_active_index >= 0 and _fg_active_index < _fg_tab_label_refs.size():
+		var presets: Array = KeyBindingManager.get_combo_presets()
+		if _fg_active_index < presets.size():
+			_fg_tab_label_refs[_fg_active_index].text = str(presets[_fg_active_index].get("label", "GROUP"))
+	# Rebuild totals (simple rebuild since totals are at bottom)
+	_rebuild_controls_content()
+	_show_fire_groups_panel()
+	_sync_preview_active_states()
+
+
+func _update_fg_slot_visual(slot_key: String) -> void:
+	if not _fg_slot_rows.has(slot_key):
+		return
+	var row_data: Dictionary = _fg_slot_rows[slot_key]
+	var is_on: bool = _slot_active.get(slot_key, false)
+	_apply_power_toggle_style(row_data["toggle_btn"], is_on)
+	var slot_color: Color = _get_slot_type_color(slot_key)
+	row_data["name_lbl"].add_theme_color_override("font_color",
+		Color(slot_color.r, slot_color.g, slot_color.b, 0.9 if is_on else 0.35))
+	for rl in row_data["rate_labels"]:
+		var c: Color = rl.get_theme_color("font_color")
+		rl.add_theme_color_override("font_color", Color(c.r, c.g, c.b, 0.7 if is_on else 0.25))
+
+
+func _on_add_fire_group() -> void:
+	_start_key_capture("combo_new")
+
+
+func _finish_save_combo(physical_keycode: int, key_label: String) -> void:
+	# New fire groups start with all slots ON
+	var pattern: Dictionary = {}
+	for slot_key in _slot_active:
+		pattern[slot_key] = true
+	var label: String = KeyBindingManager.generate_combo_label(pattern)
+	KeyBindingManager.add_combo_preset(label, pattern, physical_keycode, key_label)
+	# Select the newly created group
+	_fg_active_index = KeyBindingManager.get_combo_presets().size() - 1
+	for slot_key in _slot_active:
+		_slot_active[slot_key] = true
 	if _mode == "controls":
 		_rebuild_controls_content()
 		_show_fire_groups_panel()
 	_sync_preview_active_states()
 
 
-func _on_save_combo() -> void:
-	# Start key capture for the new combo
-	_start_key_capture("combo_new")
-
-
-func _finish_save_combo(physical_keycode: int, key_label: String) -> void:
-	# Build pattern from current slot_active
-	var pattern: Dictionary = {}
-	for slot_key in _slot_active:
-		pattern[slot_key] = _slot_active[slot_key]
-
-	# Generate label from active slots
-	var label: String = _generate_combo_label(pattern)
-	KeyBindingManager.add_combo_preset(label, pattern, physical_keycode, key_label)
-	if _mode == "controls":
-		_show_fire_groups_panel()
-
-
-func _generate_combo_label(pattern: Dictionary) -> String:
-	var weapon_count: int = 0
-	var core_count: int = 0
-	var field_count: int = 0
-	for slot_key in pattern:
-		var on: bool = pattern[slot_key]
-		if not on:
-			continue
-		if str(slot_key).begins_with("weapon_"):
-			weapon_count += 1
-		elif str(slot_key).begins_with("core_"):
-			core_count += 1
-		elif str(slot_key).begins_with("field_"):
-			field_count += 1
-	var parts: Array[String] = []
-	if weapon_count > 0:
-		parts.append(str(weapon_count) + "W")
-	if core_count > 0:
-		parts.append(str(core_count) + "C")
-	if field_count > 0:
-		parts.append(str(field_count) + "F")
-	if parts.is_empty():
-		return "EMPTY"
-	return "+".join(parts)
-
-
-func _delete_combo(index: int) -> void:
+func _delete_fire_group(index: int) -> void:
 	KeyBindingManager.remove_combo_preset(index)
-	if _mode == "controls":
-		_show_fire_groups_panel()
+	var presets: Array = KeyBindingManager.get_combo_presets()
+	if presets.is_empty():
+		_fg_active_index = -1
+		for slot_key in _slot_active:
+			_slot_active[slot_key] = true
+	else:
+		_fg_active_index = mini(index, presets.size() - 1)
+		var pattern: Dictionary = presets[_fg_active_index].get("pattern", {})
+		for slot_key in _slot_active:
+			_slot_active[slot_key] = pattern.get(slot_key, false)
+	_rebuild_controls_content()
+	_show_fire_groups_panel()
+	_sync_preview_active_states()
+
+
+func _show_fire_groups_panel() -> void:
+	## Right panel: fire group details (key binding + delete) for the active group.
+	if not _right_panel:
+		return
+	_right_panel.visible = true
+	_right_panel_header.text = "FIRE GROUP"
+	_right_panel_header.visible = true
+	_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
+	ThemeManager.apply_text_glow(_right_panel_header, "header")
+
+	for child in _right_panel_list.get_children():
+		child.queue_free()
+
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var presets: Array = KeyBindingManager.get_combo_presets()
+
+	if _fg_active_index < 0 or _fg_active_index >= presets.size():
+		var hint := Label.new()
+		hint.text = "Select or create a fire group."
+		hint.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+		hint.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if body_font:
+			hint.add_theme_font_override("font", body_font)
+		_right_panel_list.add_child(hint)
+		return
+
+	var preset: Dictionary = presets[_fg_active_index]
+	var bound_idx: int = _fg_active_index
+
+	# Group name
+	var name_lbl := Label.new()
+	name_lbl.text = str(preset.get("label", "GROUP"))
+	name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
+	if body_font:
+		name_lbl.add_theme_font_override("font", body_font)
+	_right_panel_list.add_child(name_lbl)
+
+	var spacer1 := Control.new()
+	spacer1.custom_minimum_size.y = 12
+	_right_panel_list.add_child(spacer1)
+
+	# Key binding section
+	var key_header := Label.new()
+	key_header.text = "KEY BINDING"
+	key_header.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.5))
+	key_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		key_header.add_theme_font_override("font", body_font)
+	_right_panel_list.add_child(key_header)
+
+	var key_btn := Button.new()
+	key_btn.text = "[" + str(preset.get("key_label", "?")) + "]"
+	key_btn.custom_minimum_size = Vector2(70, 42)
+	_darken_button(key_btn)
+	key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	key_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
+	key_btn.pressed.connect(func() -> void: _start_key_capture("combo_" + str(bound_idx)))
+	_right_panel_list.add_child(key_btn)
+
+	var spacer2 := Control.new()
+	spacer2.custom_minimum_size.y = 20
+	_right_panel_list.add_child(spacer2)
+
+	# Delete button
+	var del_btn := Button.new()
+	del_btn.text = "DELETE FIRE GROUP"
+	del_btn.custom_minimum_size.y = 38
+	_darken_button(del_btn)
+	del_btn.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	del_btn.pressed.connect(func() -> void: _delete_fire_group(bound_idx))
+	_right_panel_list.add_child(del_btn)
 
 
 # ── Audio mode content ───────────────────────────────────────────────────────
@@ -1420,7 +1464,7 @@ func _rebuild_audio_content() -> void:
 
 	var master_stored: float = KeyBindingManager.get_slot_volume("mix_level")
 	_master_vol_bar = ProgressBar.new()
-	_master_vol_bar.min_value = -40.0
+	_master_vol_bar.min_value = -80.0
 	_master_vol_bar.max_value = 6.0
 	_master_vol_bar.value = master_stored
 	_master_vol_bar.show_percentage = false
@@ -1522,7 +1566,7 @@ func _rebuild_audio_content() -> void:
 
 			# Fine segmented LED bar as volume control
 			var vol_bar := ProgressBar.new()
-			vol_bar.min_value = -40.0
+			vol_bar.min_value = -80.0
 			vol_bar.max_value = 6.0
 			vol_bar.value = stored_vol
 			vol_bar.show_percentage = false
@@ -2398,17 +2442,17 @@ func _on_bar_effect_fired(effects: Dictionary) -> void:
 		# Scale effect so it feels proportional regardless of bar segment count.
 		var raw_delta: float = float(effects[key])
 		var delta: float = raw_delta * (bar.max_value / 80.0)
-		var old_val: float = bar.value
 		bar.value = clampf(bar.value + delta, 0.0, bar.max_value)
-		var actual_change: float = bar.value - old_val
-		# Trigger rolling wave
-		var change_ratio: float = actual_change / maxf(bar.max_value, 1.0)
-		if change_ratio > BAR_WAVE_MIN_CHANGE:
+		# Trigger rolling wave based on intended delta (not clamped result)
+		# Only reset position if wave isn't already rolling (passive effects fire every frame)
+		if delta > 0.0:
+			if not bool(_bar_gain_waves[bar_name].get("active", false)):
+				_bar_gain_waves[bar_name]["position"] = 0.0
 			_bar_gain_waves[bar_name]["active"] = true
-			_bar_gain_waves[bar_name]["position"] = 0.0
-		elif change_ratio < -BAR_WAVE_MIN_CHANGE:
+		elif delta < 0.0:
+			if not bool(_bar_drain_waves[bar_name].get("active", false)):
+				_bar_drain_waves[bar_name]["position"] = 1.0
 			_bar_drain_waves[bar_name]["active"] = true
-			_bar_drain_waves[bar_name]["position"] = 1.0
 		# Update fill ratio on shader (don't rebuild the whole bar)
 		if bar.material is ShaderMaterial:
 			var mat: ShaderMaterial = bar.material as ShaderMaterial
@@ -2650,6 +2694,7 @@ func _input(event: InputEvent) -> void:
 				KeyBindingManager.save_bindings()
 			_end_key_capture()
 			if _mode == "controls":
+				_rebuild_controls_content()
 				_show_fire_groups_panel()
 		else:
 			# Rebinding a slot key
@@ -2661,15 +2706,13 @@ func _input(event: InputEvent) -> void:
 				btn.text = "[" + label + "]"
 		return
 
-	# Slot key toggling on controls tab
-	if _mode == "controls" and event is InputEventKey and event.is_pressed() and not event.is_echo():
+	# Slot key toggling on controls tab — routes through fire group auto-save
+	if _mode == "controls" and _fg_active_index >= 0 and event is InputEventKey and event.is_pressed() and not event.is_echo():
 		var key_event: InputEventKey = event as InputEventKey
 		var pkc: int = key_event.physical_keycode as int
-		var toggled_slot: String = KeyBindingManager.get_slot_for_keycode(pkc)
-		if toggled_slot != "" and _slot_active.has(toggled_slot):
-			_on_slot_toggle(toggled_slot)
-			_rebuild_controls_content()
-			_show_fire_groups_panel()
+		var toggled_slot: String = KeyBindingManager.get_slot_for_keycode_filtered(pkc, _slot_active)
+		if toggled_slot != "":
+			_on_fg_slot_toggle(toggled_slot)
 			get_viewport().set_input_as_handled()
 			return
 

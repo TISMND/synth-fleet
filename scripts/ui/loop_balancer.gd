@@ -191,7 +191,7 @@ func _add_loop_row(parent: VBoxContainer, loop_path: String, usage_arr: Array) -
 
 	# Volume slider (wide for fine control)
 	var vol_slider := HSlider.new()
-	vol_slider.min_value = -10.0
+	vol_slider.min_value = -40.0
 	vol_slider.max_value = 5.0
 	vol_slider.step = 0.1
 	vol_slider.value = LoopConfigManager.get_volume(loop_path)

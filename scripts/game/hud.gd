@@ -217,21 +217,25 @@ func pulse_bar(bar_name: String) -> void:
 
 func trigger_gain_wave(bar_name: String) -> void:
 	## Start an upward-rolling gain wave from bottom (0.0) to top (1.0).
+	## If already rolling, keep it going without resetting position.
 	if not _bar_gain_wave.has(bar_name):
 		return
 	var wave: Dictionary = _bar_gain_wave[bar_name]
+	if not bool(wave.get("active", false)):
+		wave["position"] = 0.0
 	wave["active"] = true
-	wave["position"] = 0.0
 	wave["speed"] = WAVE_SPEED
 
 
 func trigger_drain_wave(bar_name: String) -> void:
 	## Start a downward-rolling drain wave from top (1.0) to bottom (0.0).
+	## If already rolling, keep it going without resetting position.
 	if not _bar_drain_wave.has(bar_name):
 		return
 	var wave: Dictionary = _bar_drain_wave[bar_name]
+	if not bool(wave.get("active", false)):
+		wave["position"] = 1.0
 	wave["active"] = true
-	wave["position"] = 1.0
 	wave["speed"] = WAVE_SPEED
 
 

@@ -44,6 +44,7 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	shield = shield_max
 	thermal_max = float(stats.get("thermal_hp", float(stats.get("thermal_segments", 6)) * 10.0))
 	electric_max = float(stats.get("electric_hp", float(stats.get("electric_segments", 8)) * 10.0))
+	electric = electric_max
 	speed = float(stats.get("speed", 400))
 	acceleration = float(stats.get("acceleration", 1200))
 	_base_speed = speed
@@ -494,6 +495,13 @@ func apply_bar_effects(effects: Dictionary) -> void:
 				thermal = clampf(thermal + delta_val, 0.0, thermal_max)
 			"electric":
 				electric = clampf(electric + delta_val, 0.0, electric_max)
+		# Trigger HUD wave based on intended delta, even when clamped at min/max
+		if _hud and delta_val != 0.0:
+			var hud_bar_name: String = str(bar_type).to_upper()
+			if delta_val > 0.0 and _hud.has_method("trigger_gain_wave"):
+				_hud.trigger_gain_wave(hud_bar_name)
+			elif delta_val < 0.0 and _hud.has_method("trigger_drain_wave"):
+				_hud.trigger_drain_wave(hud_bar_name)
 
 
 func _on_contact(area: Area2D) -> void:

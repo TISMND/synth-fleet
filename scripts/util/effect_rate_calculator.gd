@@ -1,9 +1,11 @@
 class_name EffectRateCalculator
 extends RefCounted
-## Calculates "effects per minute" stats for any component with bar_effects + triggers.
+## Calculates "segments per minute" stats for any component with bar_effects + triggers.
 ## Works for weapons, power cores, and devices.
+## Values are in segments/min (10 points = 1 segment).
 
 const BAR_TYPES: Array[String] = ["shield", "hull", "thermal", "electric"]
+const POINTS_PER_SEGMENT: float = 10.0
 
 
 ## Get the duration of a WAV file in seconds (without loading into LoopMixer).
@@ -25,8 +27,13 @@ static func get_loop_duration(loop_path: String) -> float:
 	return stream.get_length()
 
 
-## Calculate effects/minute for a weapon.
-## Returns { "shield": -30.0, "hull": 0.0, ... } — negative = drain, positive = regen.
+## Convert raw points/min to segments/min.
+static func _to_segments(points_per_min: float) -> float:
+	return points_per_min / POINTS_PER_SEGMENT
+
+
+## Calculate segments/minute for a weapon.
+## Returns { "shield": -3.0, "thermal": 4.5, ... }
 static func calc_weapon(weapon: WeaponData) -> Dictionary:
 	var result: Dictionary = {}
 	if weapon.bar_effects.is_empty() or weapon.fire_triggers.is_empty():
@@ -38,20 +45,23 @@ static func calc_weapon(weapon: WeaponData) -> Dictionary:
 	for bar_type in weapon.bar_effects:
 		var val: float = float(weapon.bar_effects[bar_type])
 		if not is_zero_approx(val):
-			result[str(bar_type)] = val * triggers_per_min
+			result[str(bar_type)] = _to_segments(val * triggers_per_min)
 	return result
 
 
-## Calculate effects/minute for a power core.
-## Handles both bar_effect_triggers (new) and legacy bar_effects.
+## Calculate segments/minute for a power core.
+## Both bar_effect_triggers AND legacy bar_effects apply simultaneously
+## (matching PowerCoreController game logic).
 ## Also includes passive_effects (converted to per-minute).
 static func calc_power_core(core: PowerCoreData) -> Dictionary:
 	var result: Dictionary = {}
 	var duration: float = get_loop_duration(core.loop_file_path)
 
 	if duration > 0.0:
+		var loops_per_min: float = 60.0 / duration
+
+		# bar_effect_triggers: independent per-beat effects (sum per type per loop, × loops/min)
 		if not core.bar_effect_triggers.is_empty():
-			# New format: independent per-beat effects
 			var per_type: Dictionary = {}
 			for entry in core.bar_effect_triggers:
 				var d: Dictionary = entry as Dictionary
@@ -59,32 +69,32 @@ static func calc_power_core(core: PowerCoreData) -> Dictionary:
 				var v: float = float(d.get("value", 0.0))
 				if t != "" and not is_zero_approx(v):
 					per_type[t] = float(per_type.get(t, 0.0)) + v
-			var loops_per_min: float = 60.0 / duration
 			for bar_type in per_type:
-				result[str(bar_type)] = float(per_type[bar_type]) * loops_per_min
-		elif not core.bar_effects.is_empty():
-			# Legacy: bar_effects fire on each pulse_trigger
-			var total_triggers: int = 0
+				result[str(bar_type)] = _to_segments(float(per_type[bar_type]) * loops_per_min)
+
+		# Legacy bar_effects: fire on each pulse_trigger per bar type
+		if not core.bar_effects.is_empty():
 			for bar_type in core.pulse_triggers:
 				var triggers: Array = core.pulse_triggers[bar_type] as Array
-				total_triggers = maxi(total_triggers, triggers.size())
-			if total_triggers > 0:
-				var triggers_per_min: float = float(total_triggers) / (duration / 60.0)
-				for bar_type in core.bar_effects:
-					var val: float = float(core.bar_effects[bar_type])
-					if not is_zero_approx(val):
-						result[str(bar_type)] = val * triggers_per_min
+				if triggers.is_empty():
+					continue
+				var effect_val: float = float(core.bar_effects.get(str(bar_type), 0.0))
+				if is_zero_approx(effect_val):
+					continue
+				var triggers_per_min: float = float(triggers.size()) * loops_per_min
+				var seg_per_min: float = _to_segments(effect_val * triggers_per_min)
+				result[str(bar_type)] = float(result.get(str(bar_type), 0.0)) + seg_per_min
 
-	# Add passive effects (per-second → per-minute)
+	# Add passive effects (per-second → per-minute → segments)
 	for bar_type in core.passive_effects:
-		var val: float = float(core.passive_effects[bar_type]) * 60.0
+		var val: float = _to_segments(float(core.passive_effects[bar_type]) * 60.0)
 		if not is_zero_approx(val):
 			result[str(bar_type)] = float(result.get(str(bar_type), 0.0)) + val
 
 	return result
 
 
-## Calculate effects/minute for a device (field emitter, etc.).
+## Calculate segments/minute for a device (field emitter, etc.).
 static func calc_device(device: DeviceData) -> Dictionary:
 	var result: Dictionary = {}
 	var duration: float = get_loop_duration(device.loop_file_path)
@@ -94,19 +104,19 @@ static func calc_device(device: DeviceData) -> Dictionary:
 		for bar_type in device.bar_effects:
 			var val: float = float(device.bar_effects[bar_type])
 			if not is_zero_approx(val):
-				result[str(bar_type)] = val * triggers_per_min
+				result[str(bar_type)] = _to_segments(val * triggers_per_min)
 
-	# Add passive effects (per-second → per-minute)
+	# Add passive effects (per-second → per-minute → segments)
 	for bar_type in device.passive_effects:
-		var val: float = float(device.passive_effects[bar_type]) * 60.0
+		var val: float = _to_segments(float(device.passive_effects[bar_type]) * 60.0)
 		if not is_zero_approx(val):
 			result[str(bar_type)] = float(result.get(str(bar_type), 0.0)) + val
 
 	return result
 
 
-## Format an effects/minute dictionary into a display string.
-## Returns something like "SHD -30/m  HUL +12/m  THR +45/m"
+## Format a rates dictionary into a compact display string.
+## Returns something like "SHD -3  HUL +1  THR +4"
 static func format_rates(rates: Dictionary) -> String:
 	if rates.is_empty():
 		return ""
@@ -118,7 +128,7 @@ static func format_rates(rates: Dictionary) -> String:
 		var val: float = float(rates[bar_type])
 		var label: String = str(abbrev.get(bar_type, bar_type.to_upper()))
 		var sign: String = "+" if val > 0 else ""
-		parts.append(label + " " + sign + str(int(val)) + "/m")
+		parts.append(label + " " + sign + str(int(val)) + " seg/m")
 	return "  ".join(parts)
 
 
