@@ -222,8 +222,10 @@ func set_pitch_shift(semitones: float, fade_sec: float = 0.5) -> void:
 					AudioServer.set_bus_effect_enabled(bus_idx, i, false)
 				else:
 					AudioServer.set_bus_effect_enabled(bus_idx, i, true)
-					if fade_sec > 0.0:
+					if fade_sec > 0.0 and not is_equal_approx(pitch_fx.pitch_scale, target_scale):
 						var tween: Tween = get_tree().create_tween()
+						tween.set_ease(Tween.EASE_IN_OUT)
+						tween.set_trans(Tween.TRANS_SINE)
 						tween.tween_property(pitch_fx, "pitch_scale", target_scale, fade_sec)
 					else:
 						pitch_fx.pitch_scale = target_scale

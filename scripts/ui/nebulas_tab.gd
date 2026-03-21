@@ -58,9 +58,9 @@ var _effects_container: VBoxContainer
 var _special_effect_checks: Dictionary = {}  # effect_id -> CheckBox
 const KNOWN_SPECIAL_EFFECTS: Array[String] = ["cloak", "slow", "damage_boost"]
 
-# Music effects
-var _key_shift_slider: HSlider
-var _key_shift_value: Label
+# Key change preset
+var _key_change_option: OptionButton
+var _key_change_ids: Array[String] = []
 
 # Preview layering refs
 var _preview_container: Control  # Holds bottom nebula, ship, top veil
@@ -404,36 +404,34 @@ func _build_effects_controls() -> void:
 		_effects_container.add_child(check)
 		_special_effect_checks[effect_id] = check
 
-	# Music effects
-	var music_label := Label.new()
-	music_label.text = "Music Effects"
-	music_label.name = "MusicEffectsLabel"
-	_effects_container.add_child(music_label)
+	# Key change preset
+	var kc_label := Label.new()
+	kc_label.text = "Key Change Preset"
+	kc_label.name = "KeyChangeLabel"
+	_effects_container.add_child(kc_label)
 
-	var key_row := HBoxContainer.new()
-	key_row.add_theme_constant_override("separation", 8)
-	_effects_container.add_child(key_row)
+	var kc_row := HBoxContainer.new()
+	kc_row.add_theme_constant_override("separation", 8)
+	_effects_container.add_child(kc_row)
 
-	var key_lbl := Label.new()
-	key_lbl.text = "Key Shift"
-	key_lbl.custom_minimum_size.x = 100
-	key_row.add_child(key_lbl)
+	var kc_lbl := Label.new()
+	kc_lbl.text = "Preset"
+	kc_lbl.custom_minimum_size.x = 100
+	kc_row.add_child(kc_lbl)
 
-	_key_shift_slider = HSlider.new()
-	_key_shift_slider.min_value = -6
-	_key_shift_slider.max_value = 6
-	_key_shift_slider.step = 1
-	_key_shift_slider.value = 0
-	_key_shift_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_key_shift_slider.custom_minimum_size.x = 200
-	_key_shift_slider.value_changed.connect(_on_key_shift_changed)
-	key_row.add_child(_key_shift_slider)
-
-	_key_shift_value = Label.new()
-	_key_shift_value.text = "0 st"
-	_key_shift_value.custom_minimum_size.x = 60
-	_key_shift_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	key_row.add_child(_key_shift_value)
+	_key_change_option = OptionButton.new()
+	_key_change_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_key_change_option.add_item("(none)")
+	_key_change_ids.clear()
+	var all_presets: Array[KeyChangeData] = KeyChangeDataManager.load_all()
+	for kc in all_presets:
+		_key_change_ids.append(kc.id)
+		var suffix: String = ""
+		if kc.semitones != 0:
+			suffix = " (" + (("+" + str(kc.semitones)) if kc.semitones > 0 else str(kc.semitones)) + " st)"
+		_key_change_option.add_item(kc.display_name + suffix)
+	_key_change_option.item_selected.connect(_on_key_change_selected)
+	kc_row.add_child(_key_change_option)
 
 
 func _rebuild_list() -> void:
@@ -549,9 +547,11 @@ func _select_nebula(id: String) -> void:
 		var check: CheckBox = _special_effect_checks[effect_id]
 		check.button_pressed = data.special_effects.has(effect_id)
 
-	# Load key shift
-	_key_shift_slider.value = data.key_shift_semitones
-	_key_shift_value.text = _format_semitones(data.key_shift_semitones)
+	# Load key change preset selection
+	if data.key_change_id == "" or data.key_change_id not in _key_change_ids:
+		_key_change_option.selected = 0
+	else:
+		_key_change_option.selected = _key_change_ids.find(data.key_change_id) + 1
 
 	_suppressing_signals = false
 
@@ -838,24 +838,17 @@ func _on_special_effect_toggled(toggled_on: bool, effect_id: String) -> void:
 	_auto_save()
 
 
-func _on_key_shift_changed(val: float) -> void:
-	_key_shift_value.text = _format_semitones(int(val))
+func _on_key_change_selected(idx: int) -> void:
 	if _suppressing_signals:
 		return
 	var data: NebulaData = _get_nebula_by_id(_selected_id)
 	if not data:
 		return
-	data.key_shift_semitones = int(val)
-	_auto_save()
-
-
-static func _format_semitones(st: int) -> String:
-	if st == 0:
-		return "0 st"
-	elif st > 0:
-		return "+" + str(st) + " st"
+	if idx <= 0:
+		data.key_change_id = ""
 	else:
-		return str(st) + " st"
+		data.key_change_id = _key_change_ids[idx - 1]
+	_auto_save()
 
 
 func _center_preview_ship() -> void:

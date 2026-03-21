@@ -60,16 +60,20 @@ func _process(delta: float) -> void:
 			if _material:
 				_material.set_shader_parameter("pulse_intensity", 0.0)
 		elif _material:
-			var fade_out_start: float = _pulse_total_duration - _pulse_fade_out
-			var intensity: float
-			if _pulse_elapsed < _pulse_fade_up:
-				# Fade up phase
-				intensity = _pulse_elapsed / maxf(_pulse_fade_up, 0.001)
+			var fade_up: float = _pulse_fade_up
+			var fade_out: float = _pulse_fade_out
+			# Clamp so fade_up + fade_out don't exceed total duration
+			if fade_up + fade_out > _pulse_total_duration:
+				var scale: float = _pulse_total_duration / maxf(fade_up + fade_out, 0.001)
+				fade_up *= scale
+				fade_out *= scale
+			var fade_out_start: float = _pulse_total_duration - fade_out
+			var envelope: float
+			if _pulse_elapsed < fade_up:
+				envelope = _pulse_elapsed / maxf(fade_up, 0.001)
 			elif _pulse_elapsed < fade_out_start:
-				# Sustain phase (full brightness)
-				intensity = 1.0
+				envelope = 1.0
 			else:
-				# Fade out phase
 				var remaining: float = _pulse_total_duration - _pulse_elapsed
-				intensity = remaining / maxf(_pulse_fade_out, 0.001)
-			_material.set_shader_parameter("pulse_intensity", clampf(intensity, 0.0, 1.0))
+				envelope = remaining / maxf(fade_out, 0.001)
+			_material.set_shader_parameter("pulse_intensity", clampf(envelope * _pulse_brightness, 0.0, _pulse_brightness))

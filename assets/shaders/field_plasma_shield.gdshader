@@ -4,7 +4,7 @@ uniform vec4 field_color : source_color = vec4(0.0, 1.0, 1.0, 1.0);
 uniform float brightness : hint_range(0.5, 4.0) = 1.0;
 uniform float animation_speed : hint_range(0.1, 3.0) = 1.0;
 uniform float radius_ratio : hint_range(0.0, 1.0) = 0.8;
-uniform float pulse_intensity : hint_range(0.0, 1.0) = 0.0;
+uniform float pulse_intensity : hint_range(0.0, 4.0) = 0.0;
 uniform float opacity : hint_range(0.0, 1.0) = 1.0;
 
 // Per-shader params

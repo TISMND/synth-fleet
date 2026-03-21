@@ -28,7 +28,10 @@ var _player_base_speed: float = 400.0
 var _player_base_modulate_a: float = 1.0
 var _current_key_shift: int = 0
 var _pending_key_shift: int = 0
+var _active_fade_duration: float = 0.15
 var _prev_loop_pos: float = -1.0  # For bar-boundary detection
+var _key_change_presets: Dictionary = {}  # nebula_id -> KeyChangeData
+var _reversed_stream_cache: Dictionary = {}  # sfx_path -> AudioStreamWAV (reversed)
 
 const NEBULA_STYLES: Dictionary = {
 	"classic_fbm": {"shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "dual": false},
@@ -236,11 +239,22 @@ func _on_nebula_entered(_area: Area2D, ndata: NebulaData) -> void:
 	if ndata not in _active_nebula_effects:
 		_active_nebula_effects.append(ndata)
 		_apply_special_effects()
+		# Schedule enter SFX from key change preset
+		if _key_change_presets.has(ndata.id):
+			var kc: KeyChangeData = _key_change_presets[ndata.id]
+			if kc.enter_sfx_path != "":
+				_schedule_key_change_sfx(kc.enter_sfx_path, kc.enter_sfx_volume_db, kc.enter_sfx_offset, false)
 
 
 func _on_nebula_exited(_area: Area2D, ndata: NebulaData) -> void:
 	_active_nebula_effects.erase(ndata)
 	_apply_special_effects()
+	if _active_nebula_effects.is_empty():
+		# Schedule exit SFX from key change preset
+		if _key_change_presets.has(ndata.id):
+			var kc: KeyChangeData = _key_change_presets[ndata.id]
+			if kc.exit_sfx_path != "":
+				_schedule_key_change_sfx(kc.exit_sfx_path, kc.exit_sfx_volume_db, kc.exit_sfx_offset, kc.reverse_exit_sfx)
 
 
 func _apply_nebula_bar_effects(delta: float) -> void:
@@ -293,9 +307,14 @@ func _apply_special_effects() -> void:
 		_player.set_meta("nebula_damage_boost", true)
 	# Key shift: queue pitch change — applied at next measure boundary
 	var total_shift: int = 0
+	var max_fade: float = 0.15
 	for ndata in _active_nebula_effects:
-		total_shift += ndata.key_shift_semitones
+		if _key_change_presets.has(ndata.id):
+			var kc: KeyChangeData = _key_change_presets[ndata.id]
+			total_shift += kc.semitones
+			max_fade = maxf(max_fade, kc.fade_duration)
 	_pending_key_shift = clampi(total_shift, -12, 12)
+	_active_fade_duration = max_fade
 
 
 func _check_measure_boundary_key_shift() -> void:
@@ -329,7 +348,7 @@ func _check_measure_boundary_key_shift() -> void:
 	if ref_loop_id == "":
 		# No reference loop available — apply immediately as fallback
 		_current_key_shift = _pending_key_shift
-		LoopMixer.set_pitch_shift(float(_current_key_shift), 0.1)
+		LoopMixer.set_pitch_shift(float(_current_key_shift), 0.15)
 		return
 	var pos_sec: float = LoopMixer.get_playback_position(ref_loop_id)
 	var duration: float = LoopMixer.get_stream_duration(ref_loop_id)
@@ -353,7 +372,62 @@ func _check_measure_boundary_key_shift() -> void:
 	_prev_loop_pos = curr_norm
 	if crossed:
 		_current_key_shift = _pending_key_shift
-		LoopMixer.set_pitch_shift(float(_current_key_shift), 0.1)
+		LoopMixer.set_pitch_shift(float(_current_key_shift), _active_fade_duration)
+
+
+func _schedule_key_change_sfx(sfx_path: String, volume_db: float, offset_sec: float, reverse: bool) -> void:
+	## Schedule a key change SFX. If offset > 0, plays with a timer so the peak aligns with
+	## the measure boundary. Otherwise plays immediately.
+	var stream: AudioStream = load(sfx_path) as AudioStream
+	if not stream:
+		return
+	if reverse and stream is AudioStreamWAV:
+		var wav: AudioStreamWAV = stream as AudioStreamWAV
+		if _reversed_stream_cache.has(sfx_path):
+			stream = _reversed_stream_cache[sfx_path]
+		else:
+			stream = KeyChangeData.make_reversed_stream(wav)
+			_reversed_stream_cache[sfx_path] = stream
+	if offset_sec > 0.0:
+		# Calculate time to next measure boundary and schedule SFX to fire early
+		var delay: float = _get_time_to_next_measure() - offset_sec
+		if delay > 0.0:
+			var captured_stream: AudioStream = stream
+			var captured_vol: float = volume_db
+			get_tree().create_timer(delay).timeout.connect(func() -> void:
+				AudioManager.play_sample(captured_stream, 1.0, captured_vol)
+			)
+		else:
+			AudioManager.play_sample(stream, 1.0, volume_db)
+	else:
+		AudioManager.play_sample(stream, 1.0, volume_db)
+
+
+func _get_time_to_next_measure() -> float:
+	## Estimate seconds until the next measure (4-beat) boundary from the first available loop.
+	if not _player:
+		return 0.0
+	for c in _player._core_controllers:
+		var ctrl: PowerCoreController = c as PowerCoreController
+		if ctrl and ctrl.power_core_data and LoopMixer.has_loop(ctrl._loop_id):
+			var pos: float = LoopMixer.get_playback_position(ctrl._loop_id)
+			var dur: float = LoopMixer.get_stream_duration(ctrl._loop_id)
+			if dur > 0.0 and pos >= 0.0:
+				var bars: int = maxi(ctrl.power_core_data.loop_length_bars, 1)
+				var measure_sec: float = dur / float(bars)
+				var pos_in_measure: float = fmod(pos, measure_sec)
+				return measure_sec - pos_in_measure
+	for c in _player._hardpoint_controllers:
+		var ctrl: HardpointController = c as HardpointController
+		if ctrl and ctrl.weapon_data and ctrl._loop_id != "" and LoopMixer.has_loop(ctrl._loop_id):
+			var pos: float = LoopMixer.get_playback_position(ctrl._loop_id)
+			var dur: float = LoopMixer.get_stream_duration(ctrl._loop_id)
+			if dur > 0.0 and pos >= 0.0:
+				var bars: int = maxi(ctrl.weapon_data.loop_length_bars, 1)
+				var measure_sec: float = dur / float(bars)
+				var pos_in_measure: float = fmod(pos, measure_sec)
+				return measure_sec - pos_in_measure
+	return 0.0
 
 
 func _return_to_menu() -> void:
@@ -419,6 +493,12 @@ func _setup_nebulas() -> void:
 		var ndata: NebulaData = NebulaDataManager.load_by_id(nebula_id)
 		if not ndata:
 			continue
+
+		# Cache key change preset if assigned
+		if ndata.key_change_id != "":
+			var kc: KeyChangeData = KeyChangeDataManager.load_by_id(ndata.key_change_id)
+			if kc:
+				_key_change_presets[ndata.id] = kc
 
 		var style_info: Dictionary = NEBULA_STYLES.get(ndata.style_id, {})
 		var shader_path: String = style_info.get("shader", "") as String
@@ -489,7 +569,7 @@ func _setup_nebulas() -> void:
 		_nebula_container.add_child(debug_ring)
 
 		# Collision area for status effects (if nebula has any effects defined)
-		if ndata.bar_effects.size() > 0 or ndata.special_effects.size() > 0 or ndata.key_shift_semitones != 0:
+		if ndata.bar_effects.size() > 0 or ndata.special_effects.size() > 0 or ndata.key_change_id != "":
 			var area := Area2D.new()
 			area.collision_layer = 0
 			area.collision_mask = 1  # Detects player (layer 1)

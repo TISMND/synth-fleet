@@ -8,7 +8,7 @@ extends Resource
 @export var shader_params: Dictionary = {}
 @export var bar_effects: Dictionary = {}  # bar_name -> float rate per second (negative = drain, positive = fill)
 @export var special_effects: Array[String] = []  # e.g. "cloak", "slow", "damage_boost"
-@export var key_shift_semitones: int = 0  # pitch shift for all audio loops (-6 to +6)
+@export var key_change_id: String = ""  # references a KeyChangeData preset
 
 
 static func default_params() -> Dictionary:
@@ -51,8 +51,8 @@ static func from_dict(data: Dictionary) -> NebulaData:
 		typed_specials.append(str(s))
 	n.special_effects = typed_specials
 
-	# Key shift
-	n.key_shift_semitones = int(data.get("key_shift_semitones", 0))
+	# Key change preset
+	n.key_change_id = str(data.get("key_change_id", ""))
 
 	return n
 
@@ -68,6 +68,6 @@ func to_dict() -> Dictionary:
 		d["bar_effects"] = bar_effects
 	if special_effects.size() > 0:
 		d["special_effects"] = special_effects
-	if key_shift_semitones != 0:
-		d["key_shift_semitones"] = key_shift_semitones
+	if key_change_id != "":
+		d["key_change_id"] = key_change_id
 	return d

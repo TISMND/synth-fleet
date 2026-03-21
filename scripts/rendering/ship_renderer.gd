@@ -602,23 +602,24 @@ func _draw_obelisk() -> void:
 # ── Large enemy ships ──
 
 func _draw_leviathan() -> void:
-	# Organic jellyfish — dome bell with trailing tentacles
+	# Organic jellyfish — dome cap pointing forward (+Y), tentacles trailing behind (-Y)
 	var s := 3.2
 	var breath: float = sin(time * 1.2) * 0.08
-
-	# Bell dome — half-circle arc at top, flat bottom
-	var dome := PackedVector2Array()
 	var dome_r: float = 16.0 * s
+	var dome_base_y: float = 4.0 * s  # flat opening where tentacles attach
+
+	# Bell dome — semicircle with rounded cap forward (+Y)
+	var dome := PackedVector2Array()
 	for i in range(17):
-		var angle: float = PI + PI * float(i) / 16.0  # bottom half-circle (PI to TAU)
-		dome.append(Vector2(cos(angle) * dome_r, sin(angle) * dome_r * 0.7 - 8.0 * s))
+		var angle: float = PI + PI * float(i) / 16.0  # PI to TAU = right-to-left across bottom
+		dome.append(Vector2(cos(angle) * dome_r, dome_base_y + sin(angle) * dome_r * -0.7))
 	_poly(dome, hull_color, 2.0 * s)
 
-	# Internal organ glow — pulsing clusters inside the bell
+	# Internal organ glow — inside the bell (between base and cap)
 	var organ_pulse: float = 0.3 + sin(time * 1.8) * 0.2
-	draw_circle(Vector2(-4 * s, -14 * s), 5.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, organ_pulse * 0.4))
-	draw_circle(Vector2(3 * s, -10 * s), 4.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, organ_pulse * 0.5))
-	draw_circle(Vector2(-1 * s, -18 * s), 3.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, organ_pulse * 0.6))
+	draw_circle(Vector2(-4 * s, dome_base_y + 6 * s), 5.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, organ_pulse * 0.4))
+	draw_circle(Vector2(3 * s, dome_base_y + 10 * s), 4.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, organ_pulse * 0.5))
+	draw_circle(Vector2(-1 * s, dome_base_y + 14 * s), 3.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, organ_pulse * 0.6))
 
 	# Bioluminescent vein lines inside bell
 	for i in range(5):
@@ -626,23 +627,23 @@ func _draw_leviathan() -> void:
 		var vein_wave: float = sin(time * 1.5 + float(i) * 0.8) * 2.0 * s
 		var vein_alpha: float = 0.2 + sin(time * 2.0 + float(i)) * 0.15
 		_line(
-			Vector2(vx + vein_wave, -6 * s),
-			Vector2(vx * 0.7 + vein_wave * 0.5, -22 * s),
+			Vector2(vx + vein_wave, dome_base_y + 4 * s),
+			Vector2(vx * 0.7 + vein_wave * 0.5, dome_base_y + 16 * s),
 			Color(detail_color.r, detail_color.g, detail_color.b, vein_alpha), 0.6 * s
 		)
 
-	# Trailing tentacles — sinusoidal wave animation
+	# Trailing tentacles — trail behind (-Y), fast propulsion wave
 	var tentacle_count: int = 7
 	for t in range(tentacle_count):
 		var tx: float = lerpf(-14.0, 14.0, float(t) / float(tentacle_count - 1)) * s
-		var phase: float = float(t) * 0.9 + time * 2.5
+		var phase: float = float(t) * 0.9 + time * 4.0
 		var length: float = (20.0 + sin(time * 0.7 + float(t)) * 4.0) * s
 		var seg_count: int = 8
-		var prev := Vector2(tx, -4.0 * s)
+		var prev := Vector2(tx, dome_base_y)
 		for seg in range(1, seg_count + 1):
 			var frac: float = float(seg) / float(seg_count)
-			var wave_x: float = sin(phase + frac * 3.0) * (4.0 + frac * 6.0) * s * (1.0 + breath)
-			var ny: float = -4.0 * s + frac * length
+			var wave_x: float = sin(phase + frac * 4.0) * (4.0 + frac * 6.0) * s * (1.0 + breath)
+			var ny: float = dome_base_y - frac * length
 			var curr := Vector2(tx + wave_x, ny)
 			var seg_alpha: float = 1.0 - frac * 0.6
 			var w: float = (1.4 - frac * 0.8) * s
@@ -652,11 +653,11 @@ func _draw_leviathan() -> void:
 		var tip_pulse: float = 0.4 + sin(time * 3.0 + float(t) * 1.3) * 0.4
 		draw_circle(prev, 1.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, tip_pulse))
 
-	# Bell rim highlight
+	# Bell rim highlight — along the flat opening edge
 	for i in range(16):
 		var angle: float = PI + PI * float(i) / 15.0
 		var rim_pulse: float = 0.3 + sin(time * 2.0 + float(i) * 0.5) * 0.3
-		var pt := Vector2(cos(angle) * dome_r, sin(angle) * dome_r * 0.7 - 8.0 * s)
+		var pt := Vector2(cos(angle) * dome_r, dome_base_y)
 		draw_circle(pt, 1.2 * s, Color(detail_color.r, detail_color.g, detail_color.b, rim_pulse))
 
 
@@ -725,77 +726,92 @@ func _draw_marauder() -> void:
 
 
 func _draw_ironclad() -> void:
-	# Organic scarab beetle — segmented carapace, twitching mandibles, legs
+	# Organic manta ray — wide undulating wings, whip tail, bioluminescent patterns
 	var s := 3.4
-	var breath: float = sin(time * 1.0) * 0.06
+	var flap: float = sin(time * 1.6)
+	var flap_fast: float = sin(time * 1.6 + 0.3)
 
-	# Abdomen (rear/top) — oval
-	var abd := PackedVector2Array()
-	var abd_rx: float = 14.0 * s
-	var abd_ry: float = 12.0 * s
-	for i in range(16):
-		var angle: float = TAU * float(i) / 16.0
-		abd.append(Vector2(cos(angle) * abd_rx, sin(angle) * abd_ry - 14.0 * s))
-	_poly(abd, hull_color, 2.0 * s)
+	# Wing shape — wide curved body built from points
+	# +Y = forward (mouth), -Y = tail
+	var body := PackedVector2Array()
+	var wing_pts: int = 24
+	for i in range(wing_pts):
+		var t: float = float(i) / float(wing_pts - 1)  # 0 to 1 around the perimeter
+		var angle: float = -PI * 0.15 + t * (PI + PI * 0.3)  # sweep from rear-right around to rear-left
+		var base_rx: float = 22.0 * s
+		var base_ry: float = 16.0 * s
+		# Wing curvature — wider at mid, tapered at tips
+		var wing_mod: float = 1.0 + sin(angle) * 0.3
+		# Undulation — wingtips flap more than center
+		var dist_from_center: float = absf(cos(angle))
+		var flap_offset: float = flap * dist_from_center * 3.0 * s
+		var rx: float = base_rx * wing_mod
+		var ry: float = base_ry
+		body.append(Vector2(cos(angle) * rx, sin(angle) * ry + flap_offset * 0.3))
+	_poly(body, hull_color, 2.0 * s)
 
-	# Thorax (mid) — smaller oval, overlapping
-	var thx := PackedVector2Array()
-	var thx_rx: float = 10.0 * s * (1.0 + breath)
-	var thx_ry: float = 8.0 * s
+	# Dorsal ridge — central spine
+	_line(Vector2(0, 14.0 * s), Vector2(0, -10.0 * s), accent_color, 1.2 * s)
+
+	# Gill slits — angled lines on underside
+	for side in [-1.0, 1.0]:
+		for i in range(3):
+			var gy: float = (6.0 - float(i) * 4.0) * s
+			var gx1: float = side * 3.0 * s
+			var gx2: float = side * (10.0 + float(i) * 2.0) * s
+			var gill_alpha: float = 0.25 + sin(time * 2.0 + float(i) * 0.8 + side) * 0.15
+			_line(Vector2(gx1, gy), Vector2(gx2, gy - 1.5 * s), Color(detail_color.r, detail_color.g, detail_color.b, gill_alpha), 0.6 * s)
+
+	# Bioluminescent wing patterns — flowing spots along wing edges
+	for side in [-1.0, 1.0]:
+		for i in range(6):
+			var frac: float = float(i) / 5.0
+			var pattern_angle: float = PI * 0.2 + frac * PI * 0.6
+			var pr: float = (18.0 + sin(pattern_angle) * 4.0) * s
+			var px: float = cos(pattern_angle) * pr * side
+			var py: float = sin(pattern_angle) * 14.0 * s
+			var bio_pulse: float = 0.2 + sin(time * 2.5 + float(i) * 1.0 + side * 2.0) * 0.25
+			draw_circle(Vector2(px, py), (1.5 + sin(time * 1.5 + float(i)) * 0.5) * s, Color(accent_color.r, accent_color.g, accent_color.b, bio_pulse))
+
+	# Wing-edge undulation highlight — animated glow running along the edges
 	for i in range(12):
-		var angle: float = TAU * float(i) / 12.0
-		thx.append(Vector2(cos(angle) * thx_rx, sin(angle) * thx_ry + 2.0 * s))
-	_poly(thx, hull_color, 1.8 * s)
-
-	# Head — forward small oval
-	var head := PackedVector2Array()
-	var head_r: float = 7.0 * s
-	for i in range(10):
-		var angle: float = TAU * float(i) / 10.0
-		head.append(Vector2(cos(angle) * head_r * 0.9, sin(angle) * head_r * 0.7 + 14.0 * s))
-	_poly(head, accent_color, 1.6 * s)
-
-	# Carapace segment lines on abdomen
-	for i in range(4):
-		var sy: float = (-8.0 - float(i) * 5.0) * s
-		var sx: float = (12.0 - float(i) * 1.5) * s
-		var seg_alpha: float = 0.3 + sin(time * 1.5 + float(i) * 0.7) * 0.15
-		_line(Vector2(-sx, sy), Vector2(sx, sy), Color(detail_color.r, detail_color.g, detail_color.b, seg_alpha), 0.7 * s)
-
-	# Mandibles — twitching pincers extending forward from head
-	var mandible_angle: float = 0.15 + sin(time * 3.5) * 0.12
-	for side in [-1.0, 1.0]:
-		var base := Vector2(side * 5.0 * s, 18.0 * s)
-		var mid_pt := Vector2(side * (8.0 + mandible_angle * 20.0) * s, 22.0 * s)
-		var tip := Vector2(side * (4.0 + mandible_angle * 8.0) * s, 28.0 * s)
-		_line(base, mid_pt, accent_color, 1.4 * s)
-		_line(mid_pt, tip, accent_color, 1.0 * s)
-		# Mandible tip glow
-		var tip_pulse: float = 0.5 + sin(time * 4.0 + side) * 0.4
-		draw_circle(tip, 1.5 * s, Color(accent_color.r, accent_color.g, accent_color.b, tip_pulse))
-
-	# Legs — 3 pairs, animated with walking-like movement
-	for pair in range(3):
-		var attach_y: float = (4.0 - float(pair) * 6.0) * s
-		var leg_phase: float = time * 2.0 + float(pair) * 1.0
+		var t: float = float(i) / 11.0
+		var edge_angle: float = PI * 0.1 + t * PI * 0.8
+		var edge_r: float = 22.0 * s * (1.0 + sin(edge_angle) * 0.3)
 		for side in [-1.0, 1.0]:
-			var leg_swing: float = sin(leg_phase + side * 0.5) * 4.0 * s
-			var hip := Vector2(side * thx_rx * 0.85, attach_y)
-			var knee := Vector2(side * (thx_rx + 8.0 * s), attach_y + leg_swing)
-			var foot := Vector2(side * (thx_rx + 14.0 * s), attach_y + leg_swing + 4.0 * s)
-			_line(hip, knee, hull_color, 1.0 * s)
-			_line(knee, foot, hull_color, 0.7 * s)
+			var ex: float = cos(edge_angle) * edge_r * side
+			var ey: float = sin(edge_angle) * 15.0 * s
+			var wave_phase: float = time * 3.0 - float(i) * 0.4
+			var edge_alpha: float = 0.15 + sin(wave_phase) * 0.15
+			draw_circle(Vector2(ex, ey), 1.0 * s, Color(hull_color.r, hull_color.g, hull_color.b, edge_alpha))
 
-	# Eyes — two dots on head, independent twitching
+	# Whip tail — wide at base, tapering to thin whip, trailing behind (-Y)
+	var tail_segs: int = 12
+	var prev_tail := Vector2(0, -10.0 * s)
+	for seg in range(1, tail_segs + 1):
+		var frac: float = float(seg) / float(tail_segs)
+		var tail_wave: float = sin(time * 3.0 + frac * 5.0) * (2.0 + frac * 5.0) * s
+		var ty: float = -10.0 * s - frac * 24.0 * s
+		var curr_tail := Vector2(tail_wave, ty)
+		var tail_alpha: float = 1.0 - frac * 0.5
+		# Wide base (6.0) tapering sharply to thin tip (0.4) via power curve
+		var taper: float = 1.0 - frac
+		var tw: float = (0.4 + 5.6 * taper * taper) * s
+		_line(prev_tail, curr_tail, Color(hull_color.r, hull_color.g, hull_color.b, tail_alpha), tw)
+		prev_tail = curr_tail
+	# Tail tip sting
+	var sting_pulse: float = 0.4 + sin(time * 4.0) * 0.4
+	draw_circle(prev_tail, 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, sting_pulse))
+
+	# Eyes — small, forward-set
 	for side in [-1.0, 1.0]:
-		var eye_jitter := Vector2(sin(time * 5.0 + side * 3.0) * 1.0 * s, cos(time * 4.0 + side) * 0.5 * s)
-		var eye_pos := Vector2(side * 3.0 * s, 15.0 * s) + eye_jitter
-		draw_circle(eye_pos, 2.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, 0.3))
-		draw_circle(eye_pos, 1.2 * s, Color(1.0, 1.0, 1.0, 0.9))
+		var eye_pos := Vector2(side * 6.0 * s, 12.0 * s)
+		draw_circle(eye_pos, 2.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, 0.4))
+		draw_circle(eye_pos, 1.0 * s, Color(1.0, 1.0, 1.0, 0.8))
 
-	# Bioluminescent dorsal stripe
-	var stripe_pulse: float = 0.3 + sin(time * 2.0) * 0.2
-	_line(Vector2(0, 10.0 * s), Vector2(0, -24.0 * s), Color(detail_color.r, detail_color.g, detail_color.b, stripe_pulse), 0.8 * s)
+	# Mouth slit
+	var mouth_open: float = 0.3 + sin(time * 1.0) * 0.15
+	_line(Vector2(-4.0 * s, 15.0 * s), Vector2(4.0 * s, 15.0 * s), Color(accent_color.r, accent_color.g, accent_color.b, mouth_open), 0.8 * s)
 
 
 func _draw_wraith() -> void:
