@@ -11,23 +11,23 @@ const SHIP_NAMES: Array[String] = [
 # Per-ship stats for gameplay variety
 const SHIP_STATS: Array[Dictionary] = [
 	# 0 Switchblade — fast, fragile interceptor
-	{"hull_segments": 6, "hull_hp": 60, "shield_segments": 8, "shield_hp": 80, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 520, "acceleration": 1800, "shield_regen": 1.2},
+	{"hull_segments": 6, "hull_hp": 60, "shield_segments": 8, "shield_hp": 80, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 520, "acceleration": 1800, "shield_regen": 1.2, "weapon_slots": 2, "core_slots": 1, "field_slots": 1, "particle_slots": 1},
 	# 1 Phantom — stealth, balanced
-	{"hull_segments": 7, "hull_hp": 70, "shield_segments": 12, "shield_hp": 120, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 460, "acceleration": 1400, "shield_regen": 1.4},
+	{"hull_segments": 7, "hull_hp": 70, "shield_segments": 12, "shield_hp": 120, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 460, "acceleration": 1400, "shield_regen": 1.4, "weapon_slots": 3, "core_slots": 1, "field_slots": 1, "particle_slots": 1},
 	# 2 Mantis — wide wings, good shields
-	{"hull_segments": 8, "hull_hp": 80, "shield_segments": 14, "shield_hp": 140, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 400, "acceleration": 1200, "shield_regen": 1.0},
+	{"hull_segments": 8, "hull_hp": 80, "shield_segments": 14, "shield_hp": 140, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 400, "acceleration": 1200, "shield_regen": 1.0, "weapon_slots": 3, "core_slots": 1, "field_slots": 2, "particle_slots": 1},
 	# 3 Corsair — asymmetric, high power
-	{"hull_segments": 9, "hull_hp": 90, "shield_segments": 10, "shield_hp": 100, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 440, "acceleration": 1600, "shield_regen": 0.8},
+	{"hull_segments": 9, "hull_hp": 90, "shield_segments": 10, "shield_hp": 100, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 440, "acceleration": 1600, "shield_regen": 0.8, "weapon_slots": 4, "core_slots": 1, "field_slots": 1, "particle_slots": 1},
 	# 4 Stiletto — default all-rounder
-	{"hull_segments": 8, "hull_hp": 80, "shield_segments": 10, "shield_hp": 100, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 400, "acceleration": 1200, "shield_regen": 1.0},
+	{"hull_segments": 8, "hull_hp": 80, "shield_segments": 10, "shield_hp": 100, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 400, "acceleration": 1200, "shield_regen": 1.0, "weapon_slots": 3, "core_slots": 1, "field_slots": 2, "particle_slots": 1},
 	# 5 Trident — 3-prong, good hardpoints
-	{"hull_segments": 10, "hull_hp": 100, "shield_segments": 11, "shield_hp": 110, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 380, "acceleration": 1000, "shield_regen": 0.9},
-	# 6 Orrery — exotic, high shields
-	{"hull_segments": 7, "hull_hp": 70, "shield_segments": 18, "shield_hp": 180, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 360, "acceleration": 900, "shield_regen": 1.6},
-	# 7 Dreadnought — heavy capital, slow
-	{"hull_segments": 16, "hull_hp": 160, "shield_segments": 16, "shield_hp": 160, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 280, "acceleration": 600, "shield_regen": 0.6},
-	# 8 Bastion — fortress, max hull
-	{"hull_segments": 20, "hull_hp": 200, "shield_segments": 12, "shield_hp": 120, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 240, "acceleration": 500, "shield_regen": 0.5},
+	{"hull_segments": 10, "hull_hp": 100, "shield_segments": 11, "shield_hp": 110, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 380, "acceleration": 1000, "shield_regen": 0.9, "weapon_slots": 3, "core_slots": 1, "field_slots": 2, "particle_slots": 1},
+	# 6 Orrery — exotic, high shields, field-focused
+	{"hull_segments": 7, "hull_hp": 70, "shield_segments": 18, "shield_hp": 180, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 360, "acceleration": 900, "shield_regen": 1.6, "weapon_slots": 2, "core_slots": 1, "field_slots": 3, "particle_slots": 1},
+	# 7 Dreadnought — heavy capital, slow, weapon-heavy
+	{"hull_segments": 16, "hull_hp": 160, "shield_segments": 16, "shield_hp": 160, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 280, "acceleration": 600, "shield_regen": 0.6, "weapon_slots": 4, "core_slots": 2, "field_slots": 2, "particle_slots": 1},
+	# 8 Bastion — fortress, max hull, tanky
+	{"hull_segments": 20, "hull_hp": 200, "shield_segments": 12, "shield_hp": 120, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 240, "acceleration": 500, "shield_regen": 0.5, "weapon_slots": 3, "core_slots": 2, "field_slots": 3, "particle_slots": 1},
 ]
 
 const SHIP_SCALES: Array[float] = [

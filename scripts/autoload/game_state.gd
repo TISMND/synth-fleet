@@ -14,16 +14,15 @@ var stats: Dictionary = {}
 # Ship/slot system
 var current_ship_index: int = 4  # default Stiletto
 var slot_config: Dictionary = {}
-# slot_config structure (2-category: external + internal):
+# slot_config structure (typed categories):
 # {
-#   "ext_0": {"weapon_id": "", "device_id": "", "component_type": ""},
-#   "ext_1": {"weapon_id": "", "device_id": "", "component_type": ""},
-#   "ext_2": {"weapon_id": "", "device_id": "", "component_type": ""},
-#   "int_0": {"device_id": "", "component_type": ""},
-#   "int_1": {"device_id": "", "component_type": ""},
-#   "int_2": {"device_id": "", "component_type": ""},
+#   "weapon_0": {"weapon_id": ""},
+#   "weapon_1": {"weapon_id": ""},
+#   "core_0":   {"device_id": ""},
+#   "field_0":  {"device_id": ""},
+#   "field_1":  {"device_id": ""},
+#   "particle_0": {"device_id": ""},
 # }
-# component_type: "weapon", "power_core", "device", or "" (empty)
 
 # Transient — not saved. Used to pass context between screens.
 var _editing_slot_key: String = ""
@@ -38,22 +37,42 @@ func _ready() -> void:
 
 func _init_slot_config() -> void:
 	slot_config = {}
-	var ext_count: int = get_external_slot_count()
-	var int_count: int = get_internal_slot_count()
-	for i in ext_count:
-		slot_config["ext_" + str(i)] = {"weapon_id": "", "device_id": "", "component_type": ""}
-	for i in int_count:
-		slot_config["int_" + str(i)] = {"device_id": "", "component_type": ""}
+	for i in get_weapon_slot_count():
+		slot_config["weapon_" + str(i)] = {"weapon_id": ""}
+	for i in get_core_slot_count():
+		slot_config["core_" + str(i)] = {"device_id": ""}
+	for i in get_field_slot_count():
+		slot_config["field_" + str(i)] = {"device_id": ""}
+	for i in get_particle_slot_count():
+		slot_config["particle_" + str(i)] = {"device_id": ""}
 
 
-func get_external_slot_count() -> int:
+func get_weapon_slot_count() -> int:
 	var ship_stats: Dictionary = _get_current_ship_stats()
-	return int(ship_stats.get("external_slots", 3))
+	return int(ship_stats.get("weapon_slots", 3))
 
+
+func get_core_slot_count() -> int:
+	var ship_stats: Dictionary = _get_current_ship_stats()
+	return int(ship_stats.get("core_slots", 1))
+
+
+func get_field_slot_count() -> int:
+	var ship_stats: Dictionary = _get_current_ship_stats()
+	return int(ship_stats.get("field_slots", 2))
+
+
+func get_particle_slot_count() -> int:
+	var ship_stats: Dictionary = _get_current_ship_stats()
+	return int(ship_stats.get("particle_slots", 1))
+
+
+# Deprecated — return 0 so any missed call sites break obviously
+func get_external_slot_count() -> int:
+	return 0
 
 func get_internal_slot_count() -> int:
-	var ship_stats: Dictionary = _get_current_ship_stats()
-	return int(ship_stats.get("internal_slots", 3))
+	return 0
 
 
 func _get_current_ship_stats() -> Dictionary:
@@ -159,98 +178,99 @@ func set_ship_index(idx: int) -> void:
 
 func set_slot_weapon(slot_key: String, weapon_id: String) -> void:
 	if not slot_config.has(slot_key):
-		slot_config[slot_key] = {"weapon_id": "", "device_id": "", "component_type": ""}
+		slot_config[slot_key] = {"weapon_id": ""}
 	slot_config[slot_key]["weapon_id"] = weapon_id
-	slot_config[slot_key]["device_id"] = ""
-	slot_config[slot_key]["component_type"] = "weapon" if weapon_id != "" else ""
 	save_game()
 
 
-func set_slot_device(slot_key: String, device_id: String, component_type: String = "device") -> void:
+func set_slot_device(slot_key: String, device_id: String, _component_type: String = "") -> void:
 	if not slot_config.has(slot_key):
-		if slot_key.begins_with("ext_"):
-			slot_config[slot_key] = {"weapon_id": "", "device_id": "", "component_type": ""}
-		else:
-			slot_config[slot_key] = {"device_id": "", "component_type": ""}
+		slot_config[slot_key] = {"device_id": ""}
 	slot_config[slot_key]["device_id"] = device_id
-	if slot_key.begins_with("ext_"):
-		slot_config[slot_key]["weapon_id"] = ""
-	slot_config[slot_key]["component_type"] = component_type if device_id != "" else ""
 	save_game()
 
 
 func _migrate_slot_config() -> void:
-	## Migrate old 3-category slot_config (ext/int/dev) to 2-category (ext/int).
-	## Moves dev_N items into first available int_N slots, then removes dev_N keys.
-	var dev_items: Array[String] = []
-	var dev_keys_to_remove: Array[String] = []
+	## Migrate old ext_/int_/dev_ slot_config to typed slots (weapon_/core_/field_).
+	var has_old_keys: bool = false
 	for key in slot_config:
-		if str(key).begins_with("dev_"):
-			var device_id: String = str(slot_config[key].get("device_id", ""))
-			if device_id != "":
-				dev_items.append(device_id)
-			dev_keys_to_remove.append(str(key))
+		if str(key).begins_with("ext_") or str(key).begins_with("int_") or str(key).begins_with("dev_"):
+			has_old_keys = true
+			break
+	if not has_old_keys:
+		# Already in new format — just ensure all slots exist
+		_pad_missing_slots()
+		return
 
-	if dev_keys_to_remove.is_empty():
-		return  # No migration needed
+	# Collect items from old format
+	var weapons: Array[String] = []
+	var cores: Array[String] = []
+	var fields: Array[String] = []
+	for key in slot_config:
+		var sk: String = str(key)
+		var sd: Dictionary = slot_config[key]
+		var comp_type: String = str(sd.get("component_type", ""))
+		if comp_type == "weapon":
+			var wid: String = str(sd.get("weapon_id", ""))
+			if wid != "":
+				weapons.append(wid)
+		elif comp_type == "power_core":
+			var did: String = str(sd.get("device_id", ""))
+			if did != "":
+				cores.append(did)
+		elif comp_type == "device":
+			var did: String = str(sd.get("device_id", ""))
+			if did != "":
+				fields.append(did)
 
-	# Place dev items into available int slots
-	var int_count: int = get_internal_slot_count()
-	for device_id in dev_items:
-		for i in int_count:
-			var int_key: String = "int_" + str(i)
-			if not slot_config.has(int_key):
-				slot_config[int_key] = {"device_id": "", "component_type": ""}
-			var existing_id: String = str(slot_config[int_key].get("device_id", ""))
-			if existing_id == "":
-				slot_config[int_key]["device_id"] = device_id
-				slot_config[int_key]["component_type"] = "device"
-				break
-
-	# Remove old dev keys
-	for key in dev_keys_to_remove:
-		slot_config.erase(key)
-
-	# Ensure ext slots have the full schema
-	var ext_count: int = get_external_slot_count()
-	for i in ext_count:
-		var ext_key: String = "ext_" + str(i)
-		if slot_config.has(ext_key):
-			var sd: Dictionary = slot_config[ext_key]
-			if not sd.has("device_id"):
-				sd["device_id"] = ""
-			if not sd.has("component_type"):
-				var wid: String = str(sd.get("weapon_id", ""))
-				sd["component_type"] = "weapon" if wid != "" else ""
-
-	# Ensure int slots have component_type
-	for i in int_count:
-		var int_key: String = "int_" + str(i)
-		if slot_config.has(int_key):
-			var sd: Dictionary = slot_config[int_key]
-			if not sd.has("component_type"):
-				var did: String = str(sd.get("device_id", ""))
-				sd["component_type"] = "power_core" if did != "" else ""
+	# Build new slot_config
+	slot_config = {}
+	for i in get_weapon_slot_count():
+		var wid: String = weapons[i] if i < weapons.size() else ""
+		slot_config["weapon_" + str(i)] = {"weapon_id": wid}
+	for i in get_core_slot_count():
+		var did: String = cores[i] if i < cores.size() else ""
+		slot_config["core_" + str(i)] = {"device_id": did}
+	for i in get_field_slot_count():
+		var did: String = fields[i] if i < fields.size() else ""
+		slot_config["field_" + str(i)] = {"device_id": did}
+	for i in get_particle_slot_count():
+		slot_config["particle_" + str(i)] = {"device_id": ""}
 
 	save_game()
 
 
+func _pad_missing_slots() -> void:
+	## Ensure all typed slots exist up to the current ship's counts.
+	for i in get_weapon_slot_count():
+		var k: String = "weapon_" + str(i)
+		if not slot_config.has(k):
+			slot_config[k] = {"weapon_id": ""}
+	for i in get_core_slot_count():
+		var k: String = "core_" + str(i)
+		if not slot_config.has(k):
+			slot_config[k] = {"device_id": ""}
+	for i in get_field_slot_count():
+		var k: String = "field_" + str(i)
+		if not slot_config.has(k):
+			slot_config[k] = {"device_id": ""}
+	for i in get_particle_slot_count():
+		var k: String = "particle_" + str(i)
+		if not slot_config.has(k):
+			slot_config[k] = {"device_id": ""}
+
+
 func get_loadout_data() -> LoadoutData:
-	## Constructs a LoadoutData from current_ship_index + slot_config
-	## Maps ext slots with weapon component_type → hp_N in hardpoint_assignments.
+	## Constructs a LoadoutData from current_ship_index + slot_config.
+	## Maps weapon slots → hp_N in hardpoint_assignments.
 	var l := LoadoutData.new()
 	l.id = "live"
 	l.ship_id = ShipRegistry.get_ship_name(current_ship_index).to_lower()
 	l.hardpoint_assignments = {}
-	var hp_index: int = 0
-	for i in get_external_slot_count():
-		var slot_key: String = "ext_" + str(i)
-		var hp_id: String = "hp_" + str(hp_index)
+	for i in get_weapon_slot_count():
+		var slot_key: String = "weapon_" + str(i)
+		var hp_id: String = "hp_" + str(i)
 		var slot_data: Dictionary = slot_config.get(slot_key, {})
-		var comp_type: String = str(slot_data.get("component_type", ""))
-		var weapon_id: String = ""
-		if comp_type == "weapon":
-			weapon_id = str(slot_data.get("weapon_id", ""))
+		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		l.hardpoint_assignments[hp_id] = {"weapon_id": weapon_id}
-		hp_index += 1
 	return l

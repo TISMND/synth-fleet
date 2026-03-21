@@ -6,8 +6,8 @@ signal bindings_changed
 
 const SAVE_PATH := "user://settings/keybindings.json"
 
-# Default physical keycodes for ext and int slots (indexed)
-const EXT_DEFAULT_KEYS: Array = [
+# Default physical keycodes per slot type (indexed)
+const WEAPON_DEFAULT_KEYS: Array = [
 	{"physical_keycode": 49, "label": "1"},  # 1
 	{"physical_keycode": 50, "label": "2"},  # 2
 	{"physical_keycode": 51, "label": "3"},  # 3
@@ -15,13 +15,19 @@ const EXT_DEFAULT_KEYS: Array = [
 	{"physical_keycode": 53, "label": "5"},  # 5
 	{"physical_keycode": 54, "label": "6"},  # 6
 ]
-const INT_DEFAULT_KEYS: Array = [
+const CORE_DEFAULT_KEYS: Array = [
 	{"physical_keycode": 69, "label": "E"},  # E
 	{"physical_keycode": 82, "label": "R"},  # R
+]
+const FIELD_DEFAULT_KEYS: Array = [
 	{"physical_keycode": 70, "label": "F"},  # F
-	{"physical_keycode": 84, "label": "T"},  # T
 	{"physical_keycode": 71, "label": "G"},  # G
+	{"physical_keycode": 84, "label": "T"},  # T
 	{"physical_keycode": 86, "label": "V"},  # V
+]
+const PARTICLE_DEFAULT_KEYS: Array = [
+	{"physical_keycode": 72, "label": "H"},  # H
+	{"physical_keycode": 74, "label": "J"},  # J
 ]
 
 # Reserved physical keycodes (WASD, arrows, Escape, Space, C)
@@ -37,6 +43,9 @@ var _bindings: Dictionary = {}  # slot_key -> {physical_keycode, label}
 var _combo_presets: Array = []  # [{label, physical_keycode, key_label, pattern}]
 var _slot_volumes: Dictionary = {}  # slot_key -> float (dB, default 0.0)
 
+# Old-to-new key migration map (built once during load)
+var _old_key_remap: Dictionary = {}
+
 
 func _ready() -> void:
 	load_bindings()
@@ -44,39 +53,58 @@ func _ready() -> void:
 
 
 func get_slot_action(slot_key: String) -> String:
-	## Returns the InputMap action name for a slot key (e.g. "ext_0" -> "slot_ext_0").
+	## Returns the InputMap action name for a slot key (e.g. "weapon_0" -> "slot_weapon_0").
 	return "slot_" + slot_key
 
 
 func get_default_binding(slot_key: String) -> Dictionary:
 	## Returns the default key binding for a given slot key.
-	if slot_key.begins_with("ext_"):
-		var idx: int = int(slot_key.replace("ext_", ""))
-		if idx < EXT_DEFAULT_KEYS.size():
-			return EXT_DEFAULT_KEYS[idx]
-	elif slot_key.begins_with("int_"):
-		var idx: int = int(slot_key.replace("int_", ""))
-		if idx < INT_DEFAULT_KEYS.size():
-			return INT_DEFAULT_KEYS[idx]
+	if slot_key.begins_with("weapon_"):
+		var idx: int = int(slot_key.replace("weapon_", ""))
+		if idx < WEAPON_DEFAULT_KEYS.size():
+			return WEAPON_DEFAULT_KEYS[idx]
+	elif slot_key.begins_with("core_"):
+		var idx: int = int(slot_key.replace("core_", ""))
+		if idx < CORE_DEFAULT_KEYS.size():
+			return CORE_DEFAULT_KEYS[idx]
+	elif slot_key.begins_with("field_"):
+		var idx: int = int(slot_key.replace("field_", ""))
+		if idx < FIELD_DEFAULT_KEYS.size():
+			return FIELD_DEFAULT_KEYS[idx]
+	elif slot_key.begins_with("particle_"):
+		var idx: int = int(slot_key.replace("particle_", ""))
+		if idx < PARTICLE_DEFAULT_KEYS.size():
+			return PARTICLE_DEFAULT_KEYS[idx]
 	return {"physical_keycode": 0, "label": "?"}
 
 
 func _build_default_bindings() -> Dictionary:
 	var defaults: Dictionary = {}
-	# Build from GameState slot counts if available, else use 3+3
-	var ext_count: int = 3
-	var int_count: int = 3
-	if Engine.has_singleton("GameState") or is_inside_tree():
-		# GameState may not be ready yet at autoload init, use safe defaults
-		ext_count = mini(6, EXT_DEFAULT_KEYS.size())
-		int_count = mini(6, INT_DEFAULT_KEYS.size())
-	for i in ext_count:
-		var key: String = "ext_" + str(i)
-		defaults[key] = EXT_DEFAULT_KEYS[i].duplicate()
-	for i in int_count:
-		var key: String = "int_" + str(i)
-		defaults[key] = INT_DEFAULT_KEYS[i].duplicate()
+	for i in mini(6, WEAPON_DEFAULT_KEYS.size()):
+		defaults["weapon_" + str(i)] = WEAPON_DEFAULT_KEYS[i].duplicate()
+	for i in mini(3, CORE_DEFAULT_KEYS.size()):
+		defaults["core_" + str(i)] = CORE_DEFAULT_KEYS[i].duplicate()
+	for i in mini(4, FIELD_DEFAULT_KEYS.size()):
+		defaults["field_" + str(i)] = FIELD_DEFAULT_KEYS[i].duplicate()
+	for i in mini(2, PARTICLE_DEFAULT_KEYS.size()):
+		defaults["particle_" + str(i)] = PARTICLE_DEFAULT_KEYS[i].duplicate()
 	return defaults
+
+
+func _remap_old_slot_key(old_key: String) -> String:
+	## Convert old ext_/int_ slot keys to new typed keys. Returns "" if not migratable.
+	if old_key.begins_with("ext_"):
+		# ext slots were weapons
+		return "weapon_" + old_key.replace("ext_", "")
+	elif old_key.begins_with("int_"):
+		# int_0 was typically core, int_1+ were fields, but we can't perfectly
+		# distinguish. Map int_0 -> core_0, int_1 -> field_0, int_2 -> field_1, etc.
+		var idx: int = int(old_key.replace("int_", ""))
+		if idx == 0:
+			return "core_0"
+		else:
+			return "field_" + str(idx - 1)
+	return ""
 
 
 func load_bindings() -> void:
@@ -97,35 +125,57 @@ func load_bindings() -> void:
 
 	var data: Dictionary = json.data as Dictionary if json.data is Dictionary else {}
 
-	# Load slot bindings (skip old dev_N keys)
+	# Load slot bindings — migrate old ext_/int_/dev_ keys to typed keys
 	var saved_bindings: Dictionary = data.get("bindings", {}) as Dictionary if data.get("bindings") is Dictionary else {}
 	for slot_key in saved_bindings:
 		var sk: String = str(slot_key)
 		if sk.begins_with("dev_"):
 			continue  # Old 3-category system — skip
+		# Migrate old keys
+		var target_key: String = sk
+		if sk.begins_with("ext_") or sk.begins_with("int_"):
+			target_key = _remap_old_slot_key(sk)
+			if target_key == "":
+				continue
 		var entry: Dictionary = saved_bindings[slot_key] as Dictionary if saved_bindings[slot_key] is Dictionary else {}
 		if entry.has("physical_keycode") and entry.has("label"):
-			_bindings[sk] = {
+			_bindings[target_key] = {
 				"physical_keycode": int(entry["physical_keycode"]),
 				"label": str(entry["label"]),
 			}
 
-	# Load slot volumes
+	# Load slot volumes — migrate old keys
 	_slot_volumes.clear()
 	var saved_volumes: Dictionary = data.get("slot_volumes", {}) as Dictionary if data.get("slot_volumes") is Dictionary else {}
 	for slot_key in saved_volumes:
-		_slot_volumes[str(slot_key)] = float(saved_volumes[slot_key])
+		var sk: String = str(slot_key)
+		var target_key: String = sk
+		if sk.begins_with("ext_") or sk.begins_with("int_"):
+			target_key = _remap_old_slot_key(sk)
+			if target_key == "":
+				continue
+		_slot_volumes[target_key] = float(saved_volumes[slot_key])
 
-	# Load combo presets
+	# Load combo presets — migrate pattern keys
 	var saved_presets: Array = data.get("combo_presets", []) as Array if data.get("combo_presets") is Array else []
 	for preset in saved_presets:
 		var p: Dictionary = preset as Dictionary if preset is Dictionary else {}
 		if p.has("label") and p.has("pattern"):
+			var old_pattern: Dictionary = p["pattern"] as Dictionary if p["pattern"] is Dictionary else {}
+			var new_pattern: Dictionary = {}
+			for pk in old_pattern:
+				var psk: String = str(pk)
+				if psk.begins_with("ext_") or psk.begins_with("int_"):
+					var mapped: String = _remap_old_slot_key(psk)
+					if mapped != "":
+						new_pattern[mapped] = old_pattern[pk]
+				else:
+					new_pattern[psk] = old_pattern[pk]
 			_combo_presets.append({
 				"label": str(p.get("label", "")),
 				"physical_keycode": int(p.get("physical_keycode", 0)),
 				"key_label": str(p.get("key_label", "")),
-				"pattern": p["pattern"] as Dictionary if p["pattern"] is Dictionary else {},
+				"pattern": new_pattern,
 			})
 
 

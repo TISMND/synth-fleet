@@ -37,7 +37,7 @@
 	"radius": 100.0,
 	"speed_modifier": -70.0,
 	"transition_mode": "fade",
-	"transition_ms": 500,
+	"transition_ms": 750,
 	"visual_mode": "field",
 	"visual_pulse_triggers": [
 		0.0,

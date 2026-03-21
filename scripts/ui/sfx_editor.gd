@@ -1,5 +1,5 @@
 extends Control
-## SFX Editor screen — assign one-shot WAVs to game events, adjust volume/clip/fade, preview.
+## SFX Editor screen — two tabs: SFX (one-shot event sounds) and LOOPS (loop balancing).
 
 var _config: SfxConfig
 var _vhs_overlay: ColorRect
@@ -8,6 +8,13 @@ var _title_label: Label
 var _back_button: Button
 var _preview_player: AudioStreamPlayer
 var _preview_tween: Tween
+
+# Tab system
+var _tab_sfx_btn: Button
+var _tab_loops_btn: Button
+var _sfx_content: ScrollContainer
+var _loops_content: Control  # LoopBalancer instance
+var _active_tab: int = 0  # 0 = SFX, 1 = LOOPS
 
 # Per-event UI refs keyed by event ID
 var _file_buttons: Dictionary = {}      # OptionButton
@@ -51,42 +58,66 @@ func _build_ui() -> void:
 	vhs_layer.add_child(_vhs_overlay)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
-	# Preview audio player
+	# Preview audio player (for SFX tab)
 	_preview_player = AudioStreamPlayer.new()
 	add_child(_preview_player)
 
-	# Top bar
+	# Top bar with title, tabs, and back button
 	var top_bar := HBoxContainer.new()
 	top_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top_bar.offset_left = 20.0
 	top_bar.offset_top = 10.0
 	top_bar.offset_right = -20.0
 	top_bar.offset_bottom = 50.0
+	top_bar.add_theme_constant_override("separation", 12)
 	add_child(top_bar)
 
 	_title_label = Label.new()
 	_title_label.text = "SFX EDITOR"
-	_title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top_bar.add_child(_title_label)
+
+	# Tab buttons
+	var tab_spacer := Control.new()
+	tab_spacer.custom_minimum_size = Vector2(20, 0)
+	top_bar.add_child(tab_spacer)
+
+	_tab_sfx_btn = Button.new()
+	_tab_sfx_btn.text = "SFX"
+	_tab_sfx_btn.toggle_mode = true
+	_tab_sfx_btn.button_pressed = true
+	_tab_sfx_btn.pressed.connect(_on_tab_sfx)
+	top_bar.add_child(_tab_sfx_btn)
+
+	_tab_loops_btn = Button.new()
+	_tab_loops_btn.text = "LOOPS"
+	_tab_loops_btn.toggle_mode = true
+	_tab_loops_btn.button_pressed = false
+	_tab_loops_btn.pressed.connect(_on_tab_loops)
+	top_bar.add_child(_tab_loops_btn)
+
+	# Spacer to push BACK to the right
+	var right_spacer := Control.new()
+	right_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top_bar.add_child(right_spacer)
 
 	_back_button = Button.new()
 	_back_button.text = "BACK"
 	_back_button.pressed.connect(_on_back)
 	top_bar.add_child(_back_button)
 
-	# Scroll container
-	var scroll := ScrollContainer.new()
-	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
-	scroll.offset_top = 60.0
-	scroll.offset_left = 20.0
-	scroll.offset_right = -20.0
-	scroll.offset_bottom = -20.0
-	add_child(scroll)
+	# SFX content (scroll container)
+	_sfx_content = ScrollContainer.new()
+	_sfx_content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sfx_content.offset_top = 60.0
+	_sfx_content.offset_left = 20.0
+	_sfx_content.offset_right = -20.0
+	_sfx_content.offset_bottom = -20.0
+	add_child(_sfx_content)
 
 	var vbox := VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_theme_constant_override("separation", 6)
-	scroll.add_child(vbox)
+	_sfx_content.add_child(vbox)
 
 	# Hit Sounds section
 	_add_section_header(vbox, "HIT SOUNDS")
@@ -102,6 +133,49 @@ func _build_ui() -> void:
 	_add_section_header(vbox, "EXPLOSIONS")
 	for event_id in ["explosion_1", "explosion_2", "explosion_3"]:
 		_add_event_row(vbox, event_id)
+
+	# Loops content (LoopBalancer panel — built from script)
+	var loop_balancer_script: GDScript = load("res://scripts/ui/loop_balancer.gd") as GDScript
+	_loops_content = Control.new()
+	_loops_content.set_script(loop_balancer_script)
+	_loops_content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_loops_content.offset_top = 60.0
+	_loops_content.offset_left = 20.0
+	_loops_content.offset_right = -20.0
+	_loops_content.offset_bottom = -20.0
+	_loops_content.visible = false
+	add_child(_loops_content)
+
+
+# --- Tab switching ---
+
+func _on_tab_sfx() -> void:
+	if _active_tab == 0:
+		_tab_sfx_btn.button_pressed = true
+		return
+	_active_tab = 0
+	_tab_sfx_btn.button_pressed = true
+	_tab_loops_btn.button_pressed = false
+	_sfx_content.visible = true
+	_loops_content.visible = false
+	# Stop loops preview when switching away
+	if _loops_content.has_method("stop_preview"):
+		_loops_content.stop_preview()
+
+
+func _on_tab_loops() -> void:
+	if _active_tab == 1:
+		_tab_loops_btn.button_pressed = true
+		return
+	_active_tab = 1
+	_tab_sfx_btn.button_pressed = false
+	_tab_loops_btn.button_pressed = true
+	_sfx_content.visible = false
+	_loops_content.visible = true
+	# Stop SFX preview when switching away
+	if _preview_tween and _preview_tween.is_valid():
+		_preview_tween.kill()
+	_preview_player.stop()
 
 
 func _add_section_header(parent: VBoxContainer, text: String) -> void:
@@ -205,7 +279,7 @@ func _add_event_row(parent: VBoxContainer, event_id: String) -> void:
 
 	# Preview button
 	var preview_btn := Button.new()
-	preview_btn.text = "▶"
+	preview_btn.text = "\u25b6"
 	preview_btn.disabled = true
 	preview_btn.pressed.connect(_on_preview.bind(event_id))
 	row.add_child(preview_btn)
@@ -408,6 +482,8 @@ func _on_back() -> void:
 	if _preview_tween and _preview_tween.is_valid():
 		_preview_tween.kill()
 	_preview_player.stop()
+	if _loops_content and _loops_content.has_method("stop_preview"):
+		_loops_content.stop_preview()
 	get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
 
 
@@ -426,6 +502,10 @@ func _apply_theme() -> void:
 		ThemeManager.apply_text_glow(_title_label, "header")
 	if _back_button:
 		ThemeManager.apply_button_style(_back_button)
+	if _tab_sfx_btn:
+		ThemeManager.apply_button_style(_tab_sfx_btn)
+	if _tab_loops_btn:
+		ThemeManager.apply_button_style(_tab_loops_btn)
 	for header in _section_headers:
 		if is_instance_valid(header):
 			ThemeManager.apply_text_glow(header, "header")
@@ -436,6 +516,9 @@ func _apply_theme() -> void:
 		if _preview_buttons.has(event_id):
 			var btn: Button = _preview_buttons[event_id]
 			ThemeManager.apply_button_style(btn)
+	# Theme the loops tab content
+	if _loops_content and _loops_content.has_method("apply_theme"):
+		_loops_content.apply_theme()
 
 
 func _input(event: InputEvent) -> void:

@@ -1,6 +1,6 @@
 extends MarginContainer
-## Hardpoint Edit Screen — weapon selection for an external slot.
-## Reads GameState._editing_slot_key (ext_0, ext_1, ext_2).
+## Hardpoint Edit Screen — weapon selection for a weapon slot.
+## Reads GameState._editing_slot_key (weapon_0, weapon_1, weapon_2).
 
 # UI refs
 var _firing_preview: ShipFiringPreview
@@ -26,8 +26,8 @@ func _ready() -> void:
 	if _slot_key == "":
 		get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
 		return
-	# Map slot key to hp_index: ext_0→0, ext_1→1, ext_2→2
-	_hp_index = int(_slot_key.replace("ext_", ""))
+	# Map slot key to hp_index: weapon_0→0, weapon_1→1, weapon_2→2
+	_hp_index = int(_slot_key.replace("weapon_", ""))
 	_cache_weapons()
 	_build_ui()
 	_load_data()
@@ -52,7 +52,7 @@ func _load_data() -> void:
 
 	# Title from slot key
 	var slot_num: int = _hp_index + 1
-	_hp_title.text = "EXTERNAL SLOT " + str(slot_num)
+	_hp_title.text = "WEAPON SLOT " + str(slot_num)
 
 	# Setup firing preview with ship
 	_firing_preview.set_ship(_ship)

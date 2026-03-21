@@ -17,6 +17,9 @@ var _active_tweens: Dictionary = {}
 func add_loop(loop_id: String, stream_path: String, bus: String = "Master", volume_db: float = 0.0, start_muted: bool = true) -> void:
 	if _loops.has(loop_id):
 		return
+	# Apply base volume from LoopConfigManager (additive with caller's volume_db)
+	var base_vol: float = LoopConfigManager.get_volume(stream_path)
+	volume_db += base_vol
 	var stream: AudioStream = load(stream_path) as AudioStream
 	if not stream:
 		push_warning("LoopMixer: failed to load stream: " + stream_path)

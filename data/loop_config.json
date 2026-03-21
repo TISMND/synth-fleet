@@ -1,0 +1,342 @@
+{
+	"res://loop_zips/sorted/bass/Dreading Sphere - 120 BPM - 1 - Bass - cw_bass90_youthful_E.wav": {
+		"display_name": "cw_bass90_youthful_E",
+		"volume_db": -5.5
+	},
+	"res://loop_zips/sorted/bass/Globular Barnyard - 120 BPM - 2 - Bass - RF2_90_melodic_loop_confession_Amin.wav": {
+		"display_name": "RF2_90_melodic_loop_confession_Amin",
+		"volume_db": 1.0
+	},
+	"res://loop_zips/sorted/bass/Microdose Sleep - 120 BPM - 7 - Bass - NW_ND2_80_bass_riskybusiness_Emin.wav": {
+		"display_name": "NW_ND2_80_bass_riskybusiness_Emin",
+		"volume_db": -0.5
+	},
+	"res://loop_zips/sorted/bass/NEW Salty Captain - 120 BPM - 2 - Bass - PMVI_Bass_Loop_38_Fmaj_92.wav": {
+		"display_name": "PMVI_Bass_Loop_38_Fmaj_92",
+		"volume_db": -2.5
+	},
+	"res://loop_zips/sorted/bass/NEW Thin Addition - 120 BPM - 2 - Bass - LEX_NW_95_Bass_Loop_Overdrived_C#m.wav": {
+		"display_name": "LEX_NW_95_Bass_Loop_Overdrived_C#m",
+		"volume_db": -2.0
+	},
+	"res://loop_zips/sorted/bass/NEW Thin Addition - 120 BPM - 5 - Bass - RW3_100_bass_loop_hawkeye_Gmaj.wav": {
+		"display_name": "RW3_100_bass_loop_hawkeye_Gmaj",
+		"volume_db": -3.0
+	},
+	"res://loop_zips/sorted/bass/Oscillating Spoons - 120 BPM - 2 - Bass - 013_b__Bass_Stab_110bpm_D_-_80ST_Zenhiser.wav": {
+		"display_name": "013_b__Bass_Stab_110bpm_D_-_80ST_Zenhiser",
+		"volume_db": 0.5
+	},
+	"res://loop_zips/sorted/bass/Please Don't Interest - 120 BPM - 2 - Bass - PMRW2_bassline_loop_115_Emin_wreckless.wav": {
+		"display_name": "PMRW2_bassline_loop_115_Emin_wreckless",
+		"volume_db": -0.5
+	},
+	"res://loop_zips/sorted/bass/Please Don't Interest - 120 BPM - 4 - Bass - nn_music_120_kruger_bass_Fm.wav": {
+		"display_name": "nn_music_120_kruger_bass_Fm",
+		"volume_db": -4.1
+	},
+	"res://loop_zips/sorted/bass/Sleeping Symphony - 120 BPM - 2 - Bass - AU_PC_94_bass_synth_loop_tax_F#min.wav": {
+		"display_name": "AU_PC_94_bass_synth_loop_tax_F#min",
+		"volume_db": -0.5
+	},
+	"res://loop_zips/sorted/bass/Sleeping Symphony - 120 BPM - 4 - Bass - BOS_IEV_90_Synth_Bass_Loop_Future_F.wav": {
+		"display_name": "BOS_IEV_90_Synth_Bass_Loop_Future_F",
+		"volume_db": -4.0
+	},
+	"res://loop_zips/sorted/bass/Sleepy The Tea - 120 BPM - 2 - Bass - NW_SYS_105_kit_loop_arnie_bass_sub_Dmin.wav": {
+		"display_name": "NW_SYS_105_kit_loop_arnie_bass_sub_Dmin",
+		"volume_db": 5.0
+	},
+	"res://loop_zips/sorted/bass/Thinking About Reaction - 120 BPM - 2 - Bass - STCR2_RF_120_Synth_Bass_Dover_WET_Emin.wav": {
+		"display_name": "STCR2_RF_120_Synth_Bass_Dover_WET_Emin",
+		"volume_db": 1.1
+	},
+	"res://loop_zips/sorted/bass/Tired Robot - 120 BPM - 7 - Bass - ZEN_S80F_115_bass_synth_loop_alabaster_Amin.wav": {
+		"display_name": "ZEN_S80F_115_bass_synth_loop_alabaster_Amin",
+		"volume_db": -2.4
+	},
+	"res://loop_zips/sorted/brass_and_winds/Dreading Sphere - 120 BPM - 5 - Brass & Winds - nw_vhs_124_kit_loop_eightieshigh_horns_Fmaj.wav": {
+		"display_name": "nw_vhs_124_kit_loop_eightieshigh_horns_Fmaj",
+		"volume_db": -3.0
+	},
+	"res://loop_zips/sorted/brass_and_winds/Fortunate Interval - 120 BPM - 5 - Brass & Winds - SC_NDH_110_horn_section_melody_warm_cruncher_Emin.wav": {
+		"display_name": "SC_NDH_110_horn_section_melody_warm_cruncher_Emin",
+		"volume_db": -3.8
+	},
+	"res://loop_zips/sorted/brass_and_winds/Thinking About Reaction - 120 BPM - 4 - Brass & Winds - NW_CDFI_110_synth_brass_nova_Cmin.wav": {
+		"display_name": "NW_CDFI_110_synth_brass_nova_Cmin",
+		"volume_db": -2.1
+	},
+	"res://loop_zips/sorted/chords/Fortunate Interval - 120 BPM - 6 - Chords - PMNF_Chord_Loop_88_Fmin_Lost_In_Space.wav": {
+		"display_name": "PMNF_Chord_Loop_88_Fmin_Lost_In_Space",
+		"volume_db": -3.4
+	},
+	"res://loop_zips/sorted/chords/NEW Overblown Choice - 120 BPM - 4 - Chords - PMMN_Pad_Loop_23_118_B.wav": {
+		"display_name": "PMMN_Pad_Loop_23_118_B",
+		"volume_db": -4.4
+	},
+	"res://loop_zips/sorted/chords/NEW Salty Captain - 120 BPM - 6 - Chords - AU_MC_100_synth_pad_loop_fantastic_Dmin.wav": {
+		"display_name": "AU_MC_100_synth_pad_loop_fantastic_Dmin",
+		"volume_db": -4.2
+	},
+	"res://loop_zips/sorted/chords/NEW Thin Addition - 120 BPM - 8 - Chords - NW_MECS_90_synth_loop_halcyon_Bbmin.wav": {
+		"display_name": "NW_MECS_90_synth_loop_halcyon_Bbmin",
+		"volume_db": -2.3
+	},
+	"res://loop_zips/sorted/drums/Dreading Sphere - 120 BPM - 7 - Drums - ct_drm128_fraggle_ful.wav": {
+		"display_name": "ct_drm128_fraggle_ful",
+		"volume_db": -2.4
+	},
+	"res://loop_zips/sorted/drums/Fortunate Interval - 120 BPM - 1 - Drums - PM_RW3_Full_Drum_Loop_115Bpm_Cliff.wav": {
+		"display_name": "PM_RW3_Full_Drum_Loop_115Bpm_Cliff",
+		"volume_db": -1.2
+	},
+	"res://loop_zips/sorted/drums/Globular Barnyard - 120 BPM - 1 - Drums - SC_EAS_105_melodic_loop_synth_bass_drums_blue_lofi_Fmin.wav": {
+		"display_name": "SC_EAS_105_melodic_loop_synth_bass_drums_blue_lofi_Fmin",
+		"volume_db": -1.1
+	},
+	"res://loop_zips/sorted/drums/Microdose Sleep - 120 BPM - 1 - Drums - 012_a__Drum_Beat_100bpm_Am_-_80SCYBERPUNK_Zenhiser.wav": {
+		"display_name": "012_a__Drum_Beat_100bpm_Am_-_80SCYBERPUNK_Zenhiser",
+		"volume_db": -2.9
+	},
+	"res://loop_zips/sorted/drums/NEW Echoey Ritual - 120 BPM - 1 - Drums - ps_122_drum_loop_fertile_full.wav": {
+		"display_name": "ps_122_drum_loop_fertile_full",
+		"volume_db": -2.4
+	},
+	"res://loop_zips/sorted/drums/NEW Overblown Choice - 120 BPM - 1 - Drums - STCR2_FPN_140_Drum_Loop_Trapped_Full.wav": {
+		"display_name": "STCR2_FPN_140_Drum_Loop_Trapped_Full",
+		"volume_db": -2.0
+	},
+	"res://loop_zips/sorted/drums/NEW Salty Captain - 120 BPM - 1 - Drums - SOULSURPLUS_celestial_drum_loop_10_lofi_130_bpm.wav": {
+		"display_name": "SOULSURPLUS_celestial_drum_loop_10_lofi_130_bpm",
+		"volume_db": -1.3
+	},
+	"res://loop_zips/sorted/drums/Oscillating Spoons - 120 BPM - 1 - Drums - or_drum_loop_space_full_130.wav": {
+		"display_name": "or_drum_loop_space_full_130",
+		"volume_db": -1.3
+	},
+	"res://loop_zips/sorted/drums/Sleepy The Tea - 120 BPM - 1 - Drums - rw_drm120_wolf_ful.wav": {
+		"display_name": "rw_drm120_wolf_ful",
+		"volume_db": -4.0
+	},
+	"res://loop_zips/sorted/drums/Thinking About Reaction - 120 BPM - 1 - Drums - MA_RN_130_Drums_Full_TimeLapse.wav": {
+		"display_name": "MA_RN_130_Drums_Full_TimeLapse",
+		"volume_db": -3.6
+	},
+	"res://loop_zips/sorted/drums/Tired Robot - 120 BPM - 4 - Drums - NW_NDRE_110_drum_stick_shift_full.wav": {
+		"display_name": "NW_NDRE_110_drum_stick_shift_full",
+		"volume_db": -2.5
+	},
+	"res://loop_zips/sorted/fx/Dreading Sphere - 120 BPM - 3 - FX - vw2_war80_consciousness_Am.wav": {
+		"display_name": "vw2_war80_consciousness_Am",
+		"volume_db": -2.1
+	},
+	"res://loop_zips/sorted/fx/Globular Barnyard - 120 BPM - 8 - FX - NW_NR_80_atmosphere_loop_praise_Dmin.wav": {
+		"display_name": "NW_NR_80_atmosphere_loop_praise_Dmin",
+		"volume_db": -2.1
+	},
+	"res://loop_zips/sorted/guitar/Dreading Sphere - 120 BPM - 4 - Guitar - sg_ac90_chilledsteel4_em.wav": {
+		"display_name": "sg_ac90_chilledsteel4_em",
+		"volume_db": 1.9
+	},
+	"res://loop_zips/sorted/guitar/Oscillating Spoons - 120 BPM - 8 - Guitar - ida2_kit02_mute_guitar_116_d#.wav": {
+		"display_name": "ida2_kit02_mute_guitar_116_d#",
+		"volume_db": -3.5
+	},
+	"res://loop_zips/sorted/keys/Oscillating Spoons - 120 BPM - 7 - Keys - FRANCMOODY_115_sh101_loop_pulse_F#maj.wav": {
+		"display_name": "FRANCMOODY_115_sh101_loop_pulse_F#maj",
+		"volume_db": 2.1
+	},
+	"res://loop_zips/sorted/keys/Please Don't Interest - 120 BPM - 8 - Keys - dhnd_mus122_kyotonights1_G.wav": {
+		"display_name": "dhnd_mus122_kyotonights1_G",
+		"volume_db": -7.3
+	},
+	"res://loop_zips/sorted/leads/Fortunate Interval - 120 BPM - 8 - Leads - BOS_IEV_90_Synth_Lead_Loop_Flux_F#.wav": {
+		"display_name": "BOS_IEV_90_Synth_Lead_Loop_Flux_F#",
+		"volume_db": -9.8
+	},
+	"res://loop_zips/sorted/leads/Globular Barnyard - 120 BPM - 6 - Leads - NW_CT_115_synth_loop_spirit_Amin.wav": {
+		"display_name": "NW_CT_115_synth_loop_spirit_Amin",
+		"volume_db": -4.1
+	},
+	"res://loop_zips/sorted/leads/NEW Echoey Ritual - 120 BPM - 5 - Leads - ip_gtr115_shoot2_C.wav": {
+		"display_name": "ip_gtr115_shoot2_C",
+		"volume_db": -4.6
+	},
+	"res://loop_zips/sorted/leads/NEW Overblown Choice - 120 BPM - 6 - Leads - nw_ntn_110_synth_loop_maul_Cmaj.wav": {
+		"display_name": "nw_ntn_110_synth_loop_maul_Cmaj",
+		"volume_db": -4.9
+	},
+	"res://loop_zips/sorted/leads/NEW Overblown Choice - 120 BPM - 8 - Leads - DS_NS_100_synth_lead_down_middle_Gmin.wav": {
+		"display_name": "DS_NS_100_synth_lead_down_middle_Gmin",
+		"volume_db": -8.3
+	},
+	"res://loop_zips/sorted/leads/NEW Salty Captain - 120 BPM - 7 - Leads - 026_Looped_Arp_Synth_Loop_91bpm_F_-_80SW1_Zenhiser.wav": {
+		"display_name": "026_Looped_Arp_Synth_Loop_91bpm_F_-_80SW1_Zenhiser",
+		"volume_db": -5.0
+	},
+	"res://loop_zips/sorted/leads/NEW Thin Addition - 120 BPM - 6 - Leads - 006_Synth2_90bpm_Cmin_-_RETROAESTHETICS1_Zenhiser.wav": {
+		"display_name": "006_Synth2_90bpm_Cmin_-_RETROAESTHETICS1_Zenhiser",
+		"volume_db": -5.3
+	},
+	"res://loop_zips/sorted/leads/Oscillating Spoons - 120 BPM - 6 - Leads - grum_127_kit_loop_club_synth_Gmin.wav": {
+		"display_name": "grum_127_kit_loop_club_synth_Gmin",
+		"volume_db": 5.0
+	},
+	"res://loop_zips/sorted/leads/Please Don't Interest - 120 BPM - 6 - Leads - ZEN_LCS_90_synth_lead_loop_cascade_Fmaj.wav": {
+		"display_name": "ZEN_LCS_90_synth_lead_loop_cascade_Fmaj",
+		"volume_db": -1.8
+	},
+	"res://loop_zips/sorted/leads/Thinking About Reaction - 120 BPM - 5 - Leads - NW_NTN2_115_synth_loop_repeat_F#maj.wav": {
+		"display_name": "NW_NTN2_115_synth_loop_repeat_F#maj",
+		"volume_db": -5.4
+	},
+	"res://loop_zips/sorted/leads/Tired Robot - 120 BPM - 5 - Leads - NW_SFST_128_synth_small_Emin.wav": {
+		"display_name": "NW_SFST_128_synth_small_Emin",
+		"volume_db": -5.7
+	},
+	"res://loop_zips/sorted/others/Thinking About Reaction - 120 BPM - 8 - Others - NW_NTN2_90_kit_loop_outsider_full_D#maj.wav": {
+		"display_name": "NW_NTN2_90_kit_loop_outsider_full_D#maj",
+		"volume_db": -3.1
+	},
+	"res://loop_zips/sorted/pads/Dreading Sphere - 120 BPM - 6 - Pads - cw_pad90_youthful_E.wav": {
+		"display_name": "cw_pad90_youthful_E",
+		"volume_db": -10.0
+	},
+	"res://loop_zips/sorted/pads/Fortunate Interval - 120 BPM - 7 - Pads - AU_PC_94_synth_pad_loop_supersaw_C#min.wav": {
+		"display_name": "AU_PC_94_synth_pad_loop_supersaw_C#min",
+		"volume_db": -6.8
+	},
+	"res://loop_zips/sorted/pads/Globular Barnyard - 120 BPM - 7 - Pads - nc_kit07_progressive_pad_loop_100_Am.wav": {
+		"display_name": "nc_kit07_progressive_pad_loop_100_Am",
+		"volume_db": -3.4
+	},
+	"res://loop_zips/sorted/pads/Microdose Sleep - 120 BPM - 6 - Pads - NW_ND2_80_pad_riskybusiness_Emin.wav": {
+		"display_name": "NW_ND2_80_pad_riskybusiness_Emin",
+		"volume_db": -2.3
+	},
+	"res://loop_zips/sorted/pads/NEW Thin Addition - 120 BPM - 4 - Pads - NW_CSRW_90_kit_loop_sensory_synth_Fmin.wav": {
+		"display_name": "NW_CSRW_90_kit_loop_sensory_synth_Fmin",
+		"volume_db": 1.3
+	},
+	"res://loop_zips/sorted/pads/Tired Robot - 120 BPM - 8 - Pads - nc_kit05_heartbreaker_pad_loop_100_Am.wav": {
+		"display_name": "nc_kit05_heartbreaker_pad_loop_100_Am",
+		"volume_db": -3.2
+	},
+	"res://loop_zips/sorted/percussion/NEW Salty Captain - 120 BPM - 5 - Percussion - NW_NR_80_percussion_loop_mech.wav": {
+		"display_name": "NW_NR_80_percussion_loop_mech",
+		"volume_db": 1.4
+	},
+	"res://loop_zips/sorted/strings/Fortunate Interval - 120 BPM - 4 - Strings - AS_120_strings_longing_cello_mid_Emaj.wav": {
+		"display_name": "AS_120_strings_longing_cello_mid_Emaj",
+		"volume_db": -5.0
+	},
+	"res://loop_zips/sorted/strings/Microdose Sleep - 120 BPM - 8 - Strings - BPM120_Gm_Sensitive_Cello_Ensemble.wav": {
+		"display_name": "BPM120_Gm_Sensitive_Cello_Ensemble",
+		"volume_db": -2.3
+	},
+	"res://loop_zips/sorted/strings/NEW Echoey Ritual - 120 BPM - 7 - Strings - BPM80_Em_Jaunty_Cello_High.wav": {
+		"display_name": "BPM80_Em_Jaunty_Cello_High",
+		"volume_db": 0.0999999999999996
+	},
+	"res://loop_zips/sorted/strings/NEW Overblown Choice - 120 BPM - 5 - Strings - KMRBI_AS2_110_strings_loop_ensemble_tranquil_wet_D#m.wav": {
+		"display_name": "KMRBI_AS2_110_strings_loop_ensemble_tranquil_wet_D#m",
+		"volume_db": -2.0
+	},
+	"res://loop_zips/sorted/strings/NEW Salty Captain - 120 BPM - 8 - Strings - MNT_WC_120_Cello_Spruce_Staccato_Full_C#min.wav": {
+		"display_name": "MNT_WC_120_Cello_Spruce_Staccato_Full_C#min",
+		"volume_db": -3.0
+	},
+	"res://loop_zips/sorted/strings/Please Don't Interest - 120 BPM - 7 - Strings - MNT_WC_120_Cello_Spruce_Legato_Full_Variation_C#min.wav": {
+		"display_name": "MNT_WC_120_Cello_Spruce_Legato_Full_Variation_C#min",
+		"volume_db": -1.5
+	},
+	"res://loop_zips/sorted/strings/Sleeping Symphony - 120 BPM - 8 - Strings - VOX_NSV_70_strings_midnight_Gmin.wav": {
+		"display_name": "VOX_NSV_70_strings_midnight_Gmin",
+		"volume_db": -3.7
+	},
+	"res://loop_zips/sorted/strings/Thinking About Reaction - 120 BPM - 7 - Strings - jc_sc_85_quartet_stack_heroic_full_F#maj.wav": {
+		"display_name": "jc_sc_85_quartet_stack_heroic_full_F#maj",
+		"volume_db": -2.9
+	},
+	"res://loop_zips/sorted/strings/Tired Robot - 120 BPM - 6 - Strings - PL_SYM_80_Cello_Loop_Low_Cautious_Em.wav": {
+		"display_name": "PL_SYM_80_Cello_Loop_Low_Cautious_Em",
+		"volume_db": 0.9
+	},
+	"res://loop_zips/sorted/synth/Dreading Sphere - 120 BPM - 2 - Synth - cw_mus90_youthful_E.wav": {
+		"display_name": "cw_mus90_youthful_E",
+		"volume_db": -10.0
+	},
+	"res://loop_zips/sorted/synth/Fortunate Interval - 120 BPM - 3 - Synth - rw_insp100_asabove_ful_C#m.wav": {
+		"display_name": "rw_insp100_asabove_ful_C#m",
+		"volume_db": -4.4
+	},
+	"res://loop_zips/sorted/synth/Globular Barnyard - 120 BPM - 3 - Synth - xpsw_synth_90_xmas_Am.wav": {
+		"display_name": "xpsw_synth_90_xmas_Am",
+		"volume_db": -4.0
+	},
+	"res://loop_zips/sorted/synth/Microdose Sleep - 120 BPM - 3 - Synth - sp_ins120_angelos1_Em.wav": {
+		"display_name": "sp_ins120_angelos1_Em",
+		"volume_db": -8.2
+	},
+	"res://loop_zips/sorted/synth/Microdose Sleep - 120 BPM - 4 - Synth - sp_syn120_secondhand_Em.wav": {
+		"display_name": "sp_syn120_secondhand_Em",
+		"volume_db": -7.3
+	},
+	"res://loop_zips/sorted/synth/NEW Echoey Ritual - 120 BPM - 3 - Synth - SWU_Synth_02_100_Dm.wav": {
+		"display_name": "SWU_Synth_02_100_Dm",
+		"volume_db": -7.1
+	},
+	"res://loop_zips/sorted/synth/NEW Echoey Ritual - 120 BPM - 8 - Synth - PMMN_Arp_Loop_04_92_Bmin.wav": {
+		"display_name": "PMMN_Arp_Loop_04_92_Bmin",
+		"volume_db": -4.9
+	},
+	"res://loop_zips/sorted/synth/NEW Overblown Choice - 120 BPM - 3 - Synth - FL_MSW_97_Synth_Loop_D.wav": {
+		"display_name": "FL_MSW_97_Synth_Loop_D",
+		"volume_db": -2.2
+	},
+	"res://loop_zips/sorted/synth/NEW Salty Captain - 120 BPM - 3 - Synth - DS_VS_95_melodic_stack_dream_Dmin.wav": {
+		"display_name": "DS_VS_95_melodic_stack_dream_Dmin",
+		"volume_db": -5.2
+	},
+	"res://loop_zips/sorted/synth/NEW Salty Captain - 120 BPM - 4 - Synth - cw_mus100_streets_C.wav": {
+		"display_name": "cw_mus100_streets_C",
+		"volume_db": -6.3
+	},
+	"res://loop_zips/sorted/synth/NEW Thin Addition - 120 BPM - 7 - Synth - spm_melodic_loop_malletbell_115_Am.wav": {
+		"display_name": "spm_melodic_loop_malletbell_115_Am",
+		"volume_db": -3.0
+	},
+	"res://loop_zips/sorted/synth/Oscillating Spoons - 120 BPM - 3 - Synth - FL_MSW_110_Synth_Loop_Atmosphere_G.wav": {
+		"display_name": "FL_MSW_110_Synth_Loop_Atmosphere_G",
+		"volume_db": 5.0
+	},
+	"res://loop_zips/sorted/synth/Please Don't Interest - 120 BPM - 3 - Synth - spm_melodic_loop_thehammer_115_Dm.wav": {
+		"display_name": "spm_melodic_loop_thehammer_115_Dm",
+		"volume_db": -5.8
+	},
+	"res://loop_zips/sorted/synth/Sleeping Symphony - 120 BPM - 7 - Synth - AU_VM15_110_bright_synth_arp_i_need_you_imbued_wet_Gmin.wav": {
+		"display_name": "AU_VM15_110_bright_synth_arp_i_need_you_imbued_wet_Gmin",
+		"volume_db": -3.5
+	},
+	"res://loop_zips/sorted/synth/Thinking About Reaction - 120 BPM - 3 - Synth - sp_ins120_plans1_Fm.wav": {
+		"display_name": "sp_ins120_plans1_Fm",
+		"volume_db": -6.1
+	},
+	"res://loop_zips/sorted/synth/Tired Robot - 120 BPM - 2 - Synth - NW_EID_115_synth_arp_zazo_Cmaj.wav": {
+		"display_name": "NW_EID_115_synth_arp_zazo_Cmaj",
+		"volume_db": -7.4
+	},
+	"res://loop_zips/sorted/synth/Tired Robot - 120 BPM - 3 - Synth - 003_Arp_90bpm_Cmin_-_RETROAESTHETICS1_Zenhiser.wav": {
+		"display_name": "003_Arp_90bpm_Cmin_-_RETROAESTHETICS1_Zenhiser",
+		"volume_db": -4.3
+	},
+	"res://loop_zips/sorted/vocals/Globular Barnyard - 120 BPM - 4 - Vocals - 91V_SFV_Vocoder_130_Westfield_Am.wav": {
+		"display_name": "91V_SFV_Vocoder_130_Westfield_Am",
+		"volume_db": -2.9
+	},
+	"res://loop_zips/sorted/vocals/Sleepy The Tea - 120 BPM - 6 - Vocals - dp_117_vocal_loop_oslo_stab_harmony_Emin.wav": {
+		"display_name": "dp_117_vocal_loop_oslo_stab_harmony_Emin",
+		"volume_db": -1.7
+	}
+}

@@ -23,8 +23,10 @@ const DEFAULT_HP: Dictionary = {
 	"electric_segments": 8,
 	"speed": 400,
 	"acceleration": 1200,
-	"external_slots": 3,
-	"internal_slots": 3,
+	"weapon_slots": 3,
+	"core_slots": 1,
+	"field_slots": 2,
+	"particle_slots": 1,
 	"shield_regen": 1.0,
 }
 

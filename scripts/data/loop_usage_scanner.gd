@@ -51,6 +51,49 @@ static func scan() -> Dictionary:
 	return usage
 
 
+static func rename_loop_path(old_path: String, new_path: String) -> void:
+	## Update all data files that reference old_path to use new_path instead.
+	## Covers weapons, ships (presence), power cores, field emitters, orbital generators.
+
+	# Weapons
+	var weapons: Array[WeaponData] = WeaponDataManager.load_all()
+	for w in weapons:
+		if w.loop_file_path == old_path:
+			w.loop_file_path = new_path
+			WeaponDataManager.save(w.id, w.to_dict())
+
+	# Enemy ships (presence loops)
+	var ships: Array[ShipData] = ShipDataManager.load_all()
+	for s in ships:
+		if s.presence_loop_path == old_path:
+			s.presence_loop_path = new_path
+			ShipDataManager.save(s.id, s.to_dict())
+
+	# Power cores
+	var cores: Array = PowerCoreDataManager.load_all()
+	for pc in cores:
+		if pc.loop_file_path == old_path:
+			pc.loop_file_path = new_path
+			PowerCoreDataManager.save(pc.id, pc.to_dict())
+
+	# Field emitters
+	var emitters: Array = FieldEmitterDataManager.load_all()
+	for d in emitters:
+		if d.loop_file_path == old_path:
+			d.loop_file_path = new_path
+			FieldEmitterDataManager.save(d.id, d.to_dict())
+
+	# Orbital generators
+	var orbiters: Array = OrbitalGeneratorDataManager.load_all()
+	for d in orbiters:
+		if d.loop_file_path == old_path:
+			d.loop_file_path = new_path
+			OrbitalGeneratorDataManager.save(d.id, d.to_dict())
+
+	# Invalidate cache
+	_cache_frame = -1
+
+
 static func _add_usage(usage: Dictionary, path: String, label: String) -> void:
 	if not usage.has(path):
 		usage[path] = []

@@ -4,19 +4,19 @@
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/thunk.wav",
-			"volume_db": -7.5
+			"volume_db": -18.0
 		},
 		"enemy_shield_hit": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/doom.wav",
-			"volume_db": -6.0
+			"volume_db": -18.0
 		},
 		"explosion_1": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/explosion_1.wav",
-			"volume_db": -22.0
+			"volume_db": -25.5
 		},
 		"explosion_2": {
 			"clip_end_time": 0.0,
@@ -34,13 +34,13 @@
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/thunk.wav",
-			"volume_db": -9.0
+			"volume_db": -16.0
 		},
 		"player_shield_hit": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/doom.wav",
-			"volume_db": -6.5
+			"volume_db": -17.0
 		}
 	}
 }

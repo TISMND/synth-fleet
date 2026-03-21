@@ -4,11 +4,15 @@ extends MarginContainer
 var _ship_renderer: ShipRenderer
 var _ship_name_label: Label
 var _center_vbox: VBoxContainer
-var _ext_section: VBoxContainer
-var _int_section: VBoxContainer
+var _weapon_section: VBoxContainer
+var _core_section: VBoxContainer
+var _field_section: VBoxContainer
+var _particle_section: VBoxContainer
 var _title: Label
-var _ext_header: Label
-var _int_header: Label
+var _weapon_header: Label
+var _core_header: Label
+var _field_header: Label
+var _particle_header: Label
 var _change_ship_btn: Button
 var _back_btn: Button
 var _reset_btn: Button
@@ -37,8 +41,7 @@ var _expanded_slot: String = ""
 var _picker_item_panels: Dictionary = {}  # item_id -> PanelContainer
 var _picker_desc_wrappers: Dictionary = {}  # item_id -> Control (clip wrapper for description)
 var _picker_desc_labels: Dictionary = {}  # item_id -> Label (description label inside wrapper)
-var _ext_slot_btns: Dictionary = {}  # slot_key -> Button (header)
-var _int_slot_btns: Dictionary = {}
+var _slot_btns: Dictionary = {}  # slot_key -> Button (header)
 
 # Live weapon preview
 var _viewport_container: SubViewportContainer
@@ -78,6 +81,10 @@ var _is_capturing: bool = false
 
 # Audio mode per-slot sliders
 var _audio_sliders: Dictionary = {}  # slot_key -> {slider: HSlider, label: Label}
+var _audio_play_btn: Button
+var _audio_reset_btn: Button
+var _master_vol_bar: ProgressBar
+var _master_vol_label: Label
 
 # Controls tab key binding buttons
 var _controls_key_btns: Dictionary = {}  # slot_key -> Button
@@ -95,10 +102,14 @@ func _ready() -> void:
 
 
 func _init_slot_active() -> void:
-	for i in GameState.get_external_slot_count():
-		_slot_active["ext_" + str(i)] = false
-	for i in GameState.get_internal_slot_count():
-		_slot_active["int_" + str(i)] = false
+	for i in GameState.get_weapon_slot_count():
+		_slot_active["weapon_" + str(i)] = false
+	for i in GameState.get_core_slot_count():
+		_slot_active["core_" + str(i)] = false
+	for i in GameState.get_field_slot_count():
+		_slot_active["field_" + str(i)] = false
+	for i in GameState.get_particle_slot_count():
+		_slot_active["particle_" + str(i)] = false
 
 
 func _setup_vhs_overlay() -> void:
@@ -134,8 +145,10 @@ func _apply_theme() -> void:
 
 	# Section headers — larger, color-coded, with glow
 	var section_pairs: Array = [
-		[_ext_header, "ext_0"],
-		[_int_header, "int_0"],
+		[_weapon_header, "weapon_0"],
+		[_core_header, "core_0"],
+		[_field_header, "field_0"],
+		[_particle_header, "particle_0"],
 	]
 	for pair in section_pairs:
 		var hdr: Label = pair[0]
@@ -183,19 +196,21 @@ func _apply_theme() -> void:
 		ThemeManager.apply_led_bar(bar, color, ratio, seg)
 
 	# Buttons
-	ThemeManager.apply_button_style(_play_btn)
-	ThemeManager.apply_button_style(_mute_btn)
-	ThemeManager.apply_button_style(_reset_btn)
-	ThemeManager.apply_button_style(_change_ship_btn)
-	ThemeManager.apply_button_style(_back_btn)
-	ThemeManager.apply_button_style(_functional_btn)
-	ThemeManager.apply_button_style(_audio_btn)
-	ThemeManager.apply_button_style(_controls_btn)
+	_darken_button(_play_btn)
+	_darken_button(_mute_btn)
+	_darken_button(_reset_btn)
+	_darken_button(_change_ship_btn)
+	_darken_button(_back_btn)
+	_darken_button(_functional_btn)
+	_darken_button(_audio_btn)
+	_darken_button(_controls_btn)
 
 	# Slot buttons in all sections — re-apply base style then color-coding
 	var section_prefixes: Array = [
-		[_ext_section, "ext_"],
-		[_int_section, "int_"],
+		[_weapon_section, "weapon_"],
+		[_core_section, "core_"],
+		[_field_section, "field_"],
+		[_particle_section, "particle_"],
 	]
 	for sp in section_prefixes:
 		var section: VBoxContainer = sp[0]
@@ -207,7 +222,7 @@ func _apply_theme() -> void:
 				for sub in child.get_children():
 					if sub is Button:
 						var btn: Button = sub as Button
-						ThemeManager.apply_button_style(btn)
+						_darken_button(btn)
 						# Re-apply color-coding for the slot header button (the wide one)
 						if btn.size_flags_horizontal & Control.SIZE_EXPAND_FILL:
 							var slot_color: Color = _get_slot_type_color(slot_key)
@@ -235,7 +250,7 @@ func _apply_theme() -> void:
 			if child is HBoxContainer:
 				for sub in child.get_children():
 					if sub is Button:
-						ThemeManager.apply_button_style(sub as Button)
+						_darken_button(sub as Button)
 
 	# Audio content children
 	if _audio_content:
@@ -243,9 +258,9 @@ func _apply_theme() -> void:
 			if child is HBoxContainer:
 				for sub in child.get_children():
 					if sub is Button:
-						ThemeManager.apply_button_style(sub as Button)
+						_darken_button(sub as Button)
 			elif child is Button:
-				ThemeManager.apply_button_style(child as Button)
+				_darken_button(child as Button)
 
 	# Controls content children
 	if _controls_content:
@@ -253,9 +268,9 @@ func _apply_theme() -> void:
 			if child is HBoxContainer:
 				for sub in child.get_children():
 					if sub is Button:
-						ThemeManager.apply_button_style(sub as Button)
+						_darken_button(sub as Button)
 			elif child is Button:
-				ThemeManager.apply_button_style(child as Button)
+				_darken_button(child as Button)
 
 
 
@@ -332,66 +347,63 @@ func _set_bar(bar_name: String, value: int, max_val: int) -> void:
 
 
 func _rebuild_buttons() -> void:
-	# Clear sections
-	for child in _ext_section.get_children():
-		child.queue_free()
-	for child in _int_section.get_children():
-		child.queue_free()
+	# Clear all sections
+	for section in [_weapon_section, _core_section, _field_section, _particle_section]:
+		for child in section.get_children():
+			child.queue_free()
 	_slot_toggle_btns.clear()
-	_ext_slot_btns.clear()
-	_int_slot_btns.clear()
+	_slot_btns.clear()
 
-	# External slots (weapons + flexible devices)
-	for i in GameState.get_external_slot_count():
-		var slot_key: String = "ext_" + str(i)
+	# Weapon slots
+	for i in GameState.get_weapon_slot_count():
+		var slot_key: String = "weapon_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var comp_type: String = str(slot_data.get("component_type", ""))
 		var item_name: String = "empty"
-		if comp_type == "weapon":
-			var weapon_id: String = str(slot_data.get("weapon_id", ""))
-			if weapon_id != "":
-				var w: WeaponData = _weapon_cache.get(weapon_id)
-				if w:
-					item_name = w.display_name if w.display_name != "" else w.id
-				else:
-					item_name = weapon_id
-		elif comp_type == "device":
-			var device_id: String = str(slot_data.get("device_id", ""))
-			if device_id != "":
-				var d: DeviceData = _device_cache.get(device_id)
-				if d:
-					item_name = d.display_name if d.display_name != "" else d.id
-				else:
-					item_name = device_id
-
+		var weapon_id: String = str(slot_data.get("weapon_id", ""))
+		if weapon_id != "":
+			var w: WeaponData = _weapon_cache.get(weapon_id)
+			if w:
+				item_name = w.display_name if w.display_name != "" else w.id
+			else:
+				item_name = weapon_id
 		var row: PanelContainer = _create_slot_row(slot_key, item_name)
-		_ext_section.add_child(row)
+		_weapon_section.add_child(row)
 
-	# Internal slots (power cores + internal/flexible devices)
-	for i in GameState.get_internal_slot_count():
-		var slot_key: String = "int_" + str(i)
+	# Core slots
+	for i in GameState.get_core_slot_count():
+		var slot_key: String = "core_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var comp_type: String = str(slot_data.get("component_type", ""))
 		var item_name: String = "empty"
-		if comp_type == "power_core":
-			var device_id: String = str(slot_data.get("device_id", ""))
-			if device_id != "":
-				var pc: PowerCoreData = _power_core_cache.get(device_id)
-				if pc:
-					item_name = pc.display_name if pc.display_name != "" else pc.id
-				else:
-					item_name = device_id
-		elif comp_type == "device":
-			var device_id: String = str(slot_data.get("device_id", ""))
-			if device_id != "":
-				var d: DeviceData = _device_cache.get(device_id)
-				if d:
-					item_name = d.display_name if d.display_name != "" else d.id
-				else:
-					item_name = device_id
-
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id != "":
+			var pc: PowerCoreData = _power_core_cache.get(device_id)
+			if pc:
+				item_name = pc.display_name if pc.display_name != "" else pc.id
+			else:
+				item_name = device_id
 		var row: PanelContainer = _create_slot_row(slot_key, item_name)
-		_int_section.add_child(row)
+		_core_section.add_child(row)
+
+	# Field slots
+	for i in GameState.get_field_slot_count():
+		var slot_key: String = "field_" + str(i)
+		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+		var item_name: String = "empty"
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id != "":
+			var d: DeviceData = _device_cache.get(device_id)
+			if d:
+				item_name = d.display_name if d.display_name != "" else d.id
+			else:
+				item_name = device_id
+		var row: PanelContainer = _create_slot_row(slot_key, item_name)
+		_field_section.add_child(row)
+
+	# Particle slots (coming soon)
+	for i in GameState.get_particle_slot_count():
+		var slot_key: String = "particle_" + str(i)
+		var row: PanelContainer = _create_slot_row(slot_key, "COMING SOON", true)
+		_particle_section.add_child(row)
 
 	_rebuild_audio_content()
 	_rebuild_controls_content()
@@ -422,23 +434,31 @@ func _create_section_header_bar(title: String, section_prefix: String) -> PanelC
 	panel.add_child(header_label)
 
 	# Store reference for theming
-	if section_prefix == "ext":
-		_ext_header = header_label
-	elif section_prefix == "int":
-		_int_header = header_label
+	if section_prefix == "weapon":
+		_weapon_header = header_label
+	elif section_prefix == "core":
+		_core_header = header_label
+	elif section_prefix == "field":
+		_field_header = header_label
+	elif section_prefix == "particle":
+		_particle_header = header_label
 
 	return panel
 
 
 func _get_slot_type_color(slot_key: String) -> Color:
-	if slot_key.begins_with("ext_"):
-		return ThemeManager.get_color("bar_shield")  # Cyan-ish for external
-	elif slot_key.begins_with("int_"):
-		return ThemeManager.get_color("bar_electric")  # Yellow for internal
+	if slot_key.begins_with("weapon_"):
+		return ThemeManager.get_color("bar_shield")  # Cyan for weapons
+	elif slot_key.begins_with("core_"):
+		return ThemeManager.get_color("bar_electric")  # Yellow for cores
+	elif slot_key.begins_with("field_"):
+		return Color(0.2, 0.8, 1.0)  # Teal for fields
+	elif slot_key.begins_with("particle_"):
+		return Color(0.5, 0.5, 0.5)  # Grey for particles
 	return ThemeManager.get_color("accent")
 
 
-func _create_slot_row(slot_key: String, item_name: String) -> PanelContainer:
+func _create_slot_row(slot_key: String, item_name: String, disabled: bool = false) -> PanelContainer:
 	# Dark backing panel for readability over the BG
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -463,15 +483,20 @@ func _create_slot_row(slot_key: String, item_name: String) -> PanelContainer:
 	toggle.custom_minimum_size = Vector2(150, 38)
 	toggle.clip_text = true
 	toggle.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var is_active: bool = _slot_active.get(slot_key, false)
-	toggle.text = "PREVIEWING" if is_active else "PAUSED"
-	ThemeManager.apply_button_style(toggle)
-	if is_active:
-		toggle.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
+	if disabled:
+		toggle.text = "N/A"
+		toggle.disabled = true
+		toggle.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
 	else:
-		toggle.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
-	var bound_key: String = slot_key
-	toggle.pressed.connect(func() -> void: _on_slot_toggle(bound_key))
+		var is_active: bool = _slot_active.get(slot_key, false)
+		toggle.text = "PREVIEWING" if is_active else "PAUSED"
+		if is_active:
+			toggle.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
+		else:
+			toggle.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+		var bound_key: String = slot_key
+		toggle.pressed.connect(func() -> void: _on_slot_toggle(bound_key))
+	_darken_button(toggle)
 	row.add_child(toggle)
 	_slot_toggle_btns[slot_key] = toggle
 
@@ -481,21 +506,21 @@ func _create_slot_row(slot_key: String, item_name: String) -> PanelContainer:
 	header.custom_minimum_size.y = 54
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	ThemeManager.apply_button_style(header)
+	_darken_button(header)
 	# Apply slot type color tint to the button font
 	var slot_color: Color = _get_slot_type_color(slot_key)
 	header.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.7))
 	header.add_theme_color_override("font_hover_color", Color(slot_color.r, slot_color.g, slot_color.b, 1.0))
 	header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
-	var bound_slot: String = slot_key
-	header.pressed.connect(func() -> void: _toggle_slot_list(bound_slot))
+	if disabled:
+		header.disabled = true
+	else:
+		var bound_slot: String = slot_key
+		header.pressed.connect(func() -> void: _toggle_slot_list(bound_slot))
 	row.add_child(header)
 
 	# Track header button for highlight
-	if slot_key.begins_with("ext_"):
-		_ext_slot_btns[slot_key] = header
-	elif slot_key.begins_with("int_"):
-		_int_slot_btns[slot_key] = header
+	_slot_btns[slot_key] = header
 
 	return panel
 
@@ -534,17 +559,14 @@ func _toggle_slot_list(slot_key: String) -> void:
 
 
 func _unhighlight_all_slot_btns() -> void:
-	for d in [_ext_slot_btns, _int_slot_btns]:
-		for key in d:
-			var b: Button = d[key]
-			b.remove_theme_color_override("font_color")
+	for key in _slot_btns:
+		var b: Button = _slot_btns[key]
+		b.remove_theme_color_override("font_color")
 
 
 func _get_slot_btn(slot_key: String) -> Button:
-	if _ext_slot_btns.has(slot_key):
-		return _ext_slot_btns[slot_key]
-	if _int_slot_btns.has(slot_key):
-		return _int_slot_btns[slot_key]
+	if _slot_btns.has(slot_key):
+		return _slot_btns[slot_key]
 	return null
 
 
@@ -628,7 +650,7 @@ func _add_picker_item(item_id: String, label: String, description: String, slot_
 	var is_duplicate: bool = item_id in equipped_ids
 	var current_sd: Dictionary = GameState.slot_config.get(slot_key, {})
 	var current_id: String = ""
-	if component_type == "weapon":
+	if slot_key.begins_with("weapon_"):
 		current_id = str(current_sd.get("weapon_id", ""))
 	else:
 		current_id = str(current_sd.get("device_id", ""))
@@ -688,83 +710,46 @@ func _populate_right_panel(slot_key: String) -> void:
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var equipped_ids: Array[String] = _get_equipped_ids()
 
-	if slot_key.begins_with("ext_"):
-
-		# Beam Weapons
-		var has_beams: bool = false
+	if slot_key.begins_with("weapon_"):
+		# Show all weapons — no sub-category headers needed
 		for wid in _weapon_cache:
 			var w: WeaponData = _weapon_cache[wid]
-			if w.beam_style_id != "":
-				if not has_beams:
-					_add_picker_category("BEAM WEAPONS")
-					has_beams = true
-				var label: String = w.display_name if w.display_name != "" else w.id
-				_add_picker_item(wid, label, w.description, slot_key, equipped_ids, "weapon")
+			var label: String = w.display_name if w.display_name != "" else w.id
+			_add_picker_item(wid, label, w.description, slot_key, equipped_ids, "weapon")
 
-		# Projectile Weapons
-		var has_projectiles: bool = false
-		for wid in _weapon_cache:
-			var w: WeaponData = _weapon_cache[wid]
-			if w.beam_style_id == "":
-				if not has_projectiles:
-					_add_picker_category("PROJECTILE WEAPONS")
-					has_projectiles = true
-				var label: String = w.display_name if w.display_name != "" else w.id
-				_add_picker_item(wid, label, w.description, slot_key, equipped_ids, "weapon")
-
-		# Field Emitters (external/flexible only)
-		var has_fields: bool = false
-		for did in _device_cache:
-			var d: DeviceData = _device_cache[did]
-			if d.visual_mode != "field":
-				continue
-			if d.equip_slot == "flexible" or d.equip_slot == "external":
-				if not has_fields:
-					_add_picker_category("FIELD EMITTERS")
-					has_fields = true
-				var label: String = d.display_name if d.display_name != "" else d.id
-				_add_picker_item(did, label, d.description, slot_key, equipped_ids, "device")
-
-	elif slot_key.begins_with("int_"):
-
-		# Power Cores
-		var has_cores: bool = false
+	elif slot_key.begins_with("core_"):
+		# Show all power cores
 		for pcid in _power_core_cache:
-			if not has_cores:
-				_add_picker_category("POWER CORES")
-				has_cores = true
 			var pc: PowerCoreData = _power_core_cache[pcid]
 			var label: String = pc.display_name if pc.display_name != "" else pc.id
-			_add_picker_item(pcid, label, pc.description, slot_key, equipped_ids, "power_core")
+			_add_picker_item(pcid, label, pc.description, slot_key, equipped_ids, "device")
 
-		# Field Emitters (internal/flexible only)
-		var has_fields: bool = false
+	elif slot_key.begins_with("field_"):
+		# Show all field-mode devices
 		for did in _device_cache:
 			var d: DeviceData = _device_cache[did]
 			if d.visual_mode != "field":
 				continue
-			if d.equip_slot == "flexible" or d.equip_slot == "internal":
-				if not has_fields:
-					_add_picker_category("FIELD EMITTERS")
-					has_fields = true
-				var label: String = d.display_name if d.display_name != "" else d.id
-				_add_picker_item(did, label, d.description, slot_key, equipped_ids, "device")
+			var label: String = d.display_name if d.display_name != "" else d.id
+			_add_picker_item(did, label, d.description, slot_key, equipped_ids, "device")
+
+	elif slot_key.begins_with("particle_"):
+		# Coming soon — show message, no items
+		var lbl := Label.new()
+		lbl.text = "COMING SOON"
+		lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		if body_font:
+			lbl.add_theme_font_override("font", body_font)
+		_right_panel_list.add_child(lbl)
 
 
 
-func _select_item_typed(slot_key: String, item_id: String, component_type: String) -> void:
-	if component_type == "weapon":
+func _select_item_typed(slot_key: String, item_id: String, _component_type: String) -> void:
+	if slot_key.begins_with("weapon_"):
 		GameState.set_slot_weapon(slot_key, item_id)
-	elif component_type == "power_core":
-		GameState.set_slot_device(slot_key, item_id, "power_core")
-	elif component_type == "device":
-		GameState.set_slot_device(slot_key, item_id, "device")
 	else:
-		# Clear slot
-		if slot_key.begins_with("ext_"):
-			GameState.set_slot_weapon(slot_key, "")
-		else:
-			GameState.set_slot_device(slot_key, "", "")
+		GameState.set_slot_device(slot_key, item_id)
 	# Update highlight + description — don't close the panel
 	_unhighlight_all_picker_panels()
 	_collapse_all_picker_descriptions()
@@ -857,30 +842,27 @@ func _sync_preview_active_states() -> void:
 	if not _is_playing:
 		return
 
-	# Sync weapon controllers (ext slots with weapon component_type)
-	var ext_controller_idx: int = 0
-	for i in GameState.get_external_slot_count():
-		var slot_key: String = "ext_" + str(i)
+	# Sync weapon controllers
+	var weapon_ctrl_idx: int = 0
+	for i in GameState.get_weapon_slot_count():
+		var slot_key: String = "weapon_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var comp_type: String = str(slot_data.get("component_type", ""))
-		if comp_type != "weapon":
-			continue
 		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		if weapon_id == "":
 			continue
-		if ext_controller_idx < _preview_controllers.size():
-			var controller: Node2D = _preview_controllers[ext_controller_idx]
+		if weapon_ctrl_idx < _preview_controllers.size():
+			var controller: Node2D = _preview_controllers[weapon_ctrl_idx]
 			if _slot_active.get(slot_key, false):
 				controller.activate()
 			else:
 				controller.deactivate()
-		ext_controller_idx += 1
+		weapon_ctrl_idx += 1
 
-	# Sync core previews (int slots) — mute/unmute loops
+	# Sync core previews — mute/unmute loops
 	for entry in _core_previews:
 		var loop_id: String = entry["loop_id"]
 		var slot_idx: String = loop_id.replace("core_", "")
-		var slot_key: String = "int_" + slot_idx
+		var slot_key: String = "core_" + slot_idx
 		if _slot_active.get(slot_key, false):
 			LoopMixer.unmute(loop_id)
 		else:
@@ -921,9 +903,9 @@ func _update_mode_buttons() -> void:
 		_audio_btn.add_theme_color_override("font_color", accent)
 	else:
 		_controls_btn.add_theme_color_override("font_color", accent)
-	ThemeManager.apply_button_style(_functional_btn)
-	ThemeManager.apply_button_style(_audio_btn)
-	ThemeManager.apply_button_style(_controls_btn)
+	_darken_button(_functional_btn)
+	_darken_button(_audio_btn)
+	_darken_button(_controls_btn)
 
 
 # ── Key capture ──────────────────────────────────────────────────────────────
@@ -974,12 +956,14 @@ func _rebuild_controls_content() -> void:
 
 	var body_font: Font = ThemeManager.get_font("font_body")
 
-	# Binding rows — built dynamically from slot counts
+	# Binding rows — built dynamically from slot counts (skip particle)
 	var all_slots: Array = []
-	for i in GameState.get_external_slot_count():
-		all_slots.append("ext_" + str(i))
-	for i in GameState.get_internal_slot_count():
-		all_slots.append("int_" + str(i))
+	for i in GameState.get_weapon_slot_count():
+		all_slots.append("weapon_" + str(i))
+	for i in GameState.get_core_slot_count():
+		all_slots.append("core_" + str(i))
+	for i in GameState.get_field_slot_count():
+		all_slots.append("field_" + str(i))
 
 	for slot_key in all_slots:
 		var item_name: String = _get_slot_item_name(slot_key)
@@ -1008,7 +992,7 @@ func _rebuild_controls_content() -> void:
 		key_btn.custom_minimum_size = Vector2(70, 38)
 		key_btn.clip_text = true
 		key_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		ThemeManager.apply_button_style(key_btn)
+		_darken_button(key_btn)
 		key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		var bound_key: String = slot_key
 		key_btn.pressed.connect(func() -> void: _start_key_capture(bound_key))
@@ -1048,7 +1032,7 @@ func _rebuild_controls_content() -> void:
 	save_combo_btn.text = "SAVE CURRENT COMBO"
 	save_combo_btn.custom_minimum_size.y = 38
 	save_combo_btn.pressed.connect(_on_save_combo)
-	ThemeManager.apply_button_style(save_combo_btn)
+	_darken_button(save_combo_btn)
 	_controls_content.add_child(save_combo_btn)
 
 
@@ -1086,7 +1070,7 @@ func _rebuild_presets() -> void:
 		var key_btn := Button.new()
 		key_btn.text = "[" + str(preset.get("key_label", "?")) + "]"
 		key_btn.custom_minimum_size = Vector2(50, 34)
-		ThemeManager.apply_button_style(key_btn)
+		_darken_button(key_btn)
 		key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
 		var bound_idx: int = i
 		key_btn.pressed.connect(func() -> void: _start_key_capture("combo_" + str(bound_idx)))
@@ -1107,10 +1091,12 @@ func _rebuild_presets() -> void:
 		var dots_lbl := Label.new()
 		var dots_text: String = ""
 		var dot_slots: Array = []
-		for ei in GameState.get_external_slot_count():
-			dot_slots.append("ext_" + str(ei))
-		for ii in GameState.get_internal_slot_count():
-			dot_slots.append("int_" + str(ii))
+		for ei in GameState.get_weapon_slot_count():
+			dot_slots.append("weapon_" + str(ei))
+		for ci in GameState.get_core_slot_count():
+			dot_slots.append("core_" + str(ci))
+		for fi in GameState.get_field_slot_count():
+			dot_slots.append("field_" + str(fi))
 		for sk in dot_slots:
 			var on: bool = pattern.get(sk, false)
 			dots_text += "●" if on else "○"
@@ -1123,7 +1109,7 @@ func _rebuild_presets() -> void:
 		var load_btn := Button.new()
 		load_btn.text = "LOAD"
 		load_btn.custom_minimum_size = Vector2(60, 34)
-		ThemeManager.apply_button_style(load_btn)
+		_darken_button(load_btn)
 		load_btn.pressed.connect(func() -> void: _load_combo_pattern(bound_idx))
 		row.add_child(load_btn)
 
@@ -1131,7 +1117,7 @@ func _rebuild_presets() -> void:
 		var del_btn := Button.new()
 		del_btn.text = "X"
 		del_btn.custom_minimum_size = Vector2(34, 34)
-		ThemeManager.apply_button_style(del_btn)
+		_darken_button(del_btn)
 		del_btn.pressed.connect(func() -> void: _delete_combo(bound_idx))
 		row.add_child(del_btn)
 
@@ -1176,21 +1162,26 @@ func _finish_save_combo(physical_keycode: int, key_label: String) -> void:
 
 
 func _generate_combo_label(pattern: Dictionary) -> String:
-	var ext_count: int = 0
-	var int_count: int = 0
+	var weapon_count: int = 0
+	var core_count: int = 0
+	var field_count: int = 0
 	for slot_key in pattern:
 		var on: bool = pattern[slot_key]
 		if not on:
 			continue
-		if str(slot_key).begins_with("ext_"):
-			ext_count += 1
-		elif str(slot_key).begins_with("int_"):
-			int_count += 1
+		if str(slot_key).begins_with("weapon_"):
+			weapon_count += 1
+		elif str(slot_key).begins_with("core_"):
+			core_count += 1
+		elif str(slot_key).begins_with("field_"):
+			field_count += 1
 	var parts: Array[String] = []
-	if ext_count > 0:
-		parts.append(str(ext_count) + "E")
-	if int_count > 0:
-		parts.append(str(int_count) + "I")
+	if weapon_count > 0:
+		parts.append(str(weapon_count) + "W")
+	if core_count > 0:
+		parts.append(str(core_count) + "C")
+	if field_count > 0:
+		parts.append(str(field_count) + "F")
 	if parts.is_empty():
 		return "EMPTY"
 	return "+".join(parts)
@@ -1212,12 +1203,98 @@ func _rebuild_audio_content() -> void:
 
 	var body_font: Font = ThemeManager.get_font("font_body")
 
-	# Per-slot volume slider rows — built dynamically from slot counts
+	# Master volume bar — larger, white, controls overall level
+	var master_panel := PanelContainer.new()
+	master_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var mps := StyleBoxFlat.new()
+	mps.bg_color = Color(0.0, 0.0, 0.0, 0.65)
+	mps.corner_radius_top_left = 4
+	mps.corner_radius_top_right = 4
+	mps.corner_radius_bottom_left = 4
+	mps.corner_radius_bottom_right = 4
+	mps.content_margin_left = 10
+	mps.content_margin_right = 10
+	mps.content_margin_top = 8
+	mps.content_margin_bottom = 8
+	master_panel.add_theme_stylebox_override("panel", mps)
+
+	var master_vbox := VBoxContainer.new()
+	master_vbox.add_theme_constant_override("separation", 6)
+	master_panel.add_child(master_vbox)
+
+	var master_lbl := Label.new()
+	master_lbl.text = "MIX LEVEL"
+	master_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.9))
+	master_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
+	if body_font:
+		master_lbl.add_theme_font_override("font", body_font)
+	master_vbox.add_child(master_lbl)
+
+	var master_row := HBoxContainer.new()
+	master_row.add_theme_constant_override("separation", 8)
+	master_vbox.add_child(master_row)
+
+	var master_stored: float = KeyBindingManager.get_slot_volume("mix_level")
+	_master_vol_bar = ProgressBar.new()
+	_master_vol_bar.min_value = -40.0
+	_master_vol_bar.max_value = 6.0
+	_master_vol_bar.value = master_stored
+	_master_vol_bar.show_percentage = false
+	_master_vol_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_master_vol_bar.custom_minimum_size = Vector2(0, 26)
+	_master_vol_bar.mouse_filter = Control.MOUSE_FILTER_PASS
+	master_row.add_child(_master_vol_bar)
+
+	_apply_fine_led(_master_vol_bar, Color(1.0, 1.0, 1.0), (master_stored - (-40.0)) / 46.0)
+
+	# Click/drag handler for master bar
+	var master_click := Control.new()
+	master_click.set_anchors_preset(Control.PRESET_FULL_RECT)
+	master_click.mouse_filter = Control.MOUSE_FILTER_STOP
+	_master_vol_bar.add_child(master_click)
+	var master_dragging: Array = [false]
+	master_click.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton:
+			var mb: InputEventMouseButton = event as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT:
+				if mb.pressed:
+					master_dragging[0] = true
+					_on_master_vol_click(mb.position.x)
+				else:
+					master_dragging[0] = false
+		elif event is InputEventMouseMotion and master_dragging[0]:
+			var mm: InputEventMouseMotion = event as InputEventMouseMotion
+			_on_master_vol_click(mm.position.x)
+	)
+
+	_master_vol_label = Label.new()
+	_master_vol_label.text = _format_db(master_stored)
+	_master_vol_label.custom_minimum_size.x = 65
+	_master_vol_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_master_vol_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.9))
+	_master_vol_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") + 2)
+	if body_font:
+		_master_vol_label.add_theme_font_override("font", body_font)
+	master_row.add_child(_master_vol_label)
+
+	_audio_content.add_child(master_panel)
+
+	# Apply mix level offset to all loop volumes
+	_apply_mix_level(master_stored)
+
+	# Spacer between master and slots
+	var master_spacer := Control.new()
+	master_spacer.custom_minimum_size = Vector2(0, 4)
+	_audio_content.add_child(master_spacer)
+
+	# Per-slot volume slider rows — built dynamically from slot counts (skip particle)
 	var audio_slots: Array = []
-	for i in GameState.get_external_slot_count():
-		audio_slots.append("ext_" + str(i))
-	for i in GameState.get_internal_slot_count():
-		audio_slots.append("int_" + str(i))
+	for i in GameState.get_weapon_slot_count():
+		audio_slots.append("weapon_" + str(i))
+	for i in GameState.get_core_slot_count():
+		audio_slots.append("core_" + str(i))
+	for i in GameState.get_field_slot_count():
+		audio_slots.append("field_" + str(i))
 
 	for slot_key in audio_slots:
 		var item_name: String = _get_slot_item_name(slot_key)
@@ -1311,6 +1388,26 @@ func _rebuild_audio_content() -> void:
 
 		_audio_content.add_child(panel)
 
+	# Bottom controls row: play/stop symbol + reset — centered below the mixer bars
+	var bottom_row := HBoxContainer.new()
+	bottom_row.add_theme_constant_override("separation", 10)
+	bottom_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_audio_content.add_child(bottom_row)
+
+	_audio_play_btn = Button.new()
+	_audio_play_btn.text = "\u25b6" if not _is_playing else "\u25a0"
+	_audio_play_btn.custom_minimum_size = Vector2(48, 38)
+	_audio_play_btn.pressed.connect(_on_audio_play_toggle)
+	bottom_row.add_child(_audio_play_btn)
+	_darken_button(_audio_play_btn)
+
+	_audio_reset_btn = Button.new()
+	_audio_reset_btn.text = "RESET TO DEFAULT"
+	_audio_reset_btn.custom_minimum_size = Vector2(0, 38)
+	_audio_reset_btn.pressed.connect(_on_audio_reset_volumes)
+	bottom_row.add_child(_audio_reset_btn)
+	_darken_button(_audio_reset_btn)
+
 
 
 func _apply_fine_led(bar: ProgressBar, color: Color, ratio: float) -> void:
@@ -1349,6 +1446,40 @@ func _apply_fine_led(bar: ProgressBar, color: Color, ratio: float) -> void:
 	mat.set_shader_parameter("hdr_multiplier", ThemeManager.get_float("led_hdr_multiplier"))
 
 
+func _apply_mix_level(mix_db: float) -> void:
+	## Apply mix level offset to all slot loop volumes in LoopMixer.
+	for slot_key in _audio_sliders:
+		var slot_vol: float = KeyBindingManager.get_slot_volume(slot_key)
+		var loop_id: String = _get_loop_id_for_slot(slot_key)
+		if loop_id != "" and LoopMixer.has_loop(loop_id):
+			LoopMixer.set_volume(loop_id, slot_vol + mix_db)
+
+
+func _on_master_vol_click(click_x: float) -> void:
+	if not _master_vol_bar:
+		return
+	var ratio: float = clampf(click_x / maxf(_master_vol_bar.size.x, 1.0), 0.0, 1.0)
+	var db: float = lerpf(-40.0, 6.0, ratio)
+	db = roundf(db * 2.0) / 2.0
+	_master_vol_bar.value = db
+
+	# Update LED shader fill
+	var new_ratio: float = (db - (-40.0)) / 46.0
+	var mat: ShaderMaterial = _master_vol_bar.material as ShaderMaterial
+	if mat:
+		mat.set_shader_parameter("fill_ratio", new_ratio)
+
+	# Update label
+	if _master_vol_label:
+		_master_vol_label.text = _format_db(db)
+
+	# Apply offset to all loop volumes
+	_apply_mix_level(db)
+
+	# Persist
+	KeyBindingManager.set_slot_volume("mix_level", db)
+
+
 func _on_vol_bar_click(slot_key: String, bar: ProgressBar, click_x: float) -> void:
 	## Convert click position to dB value and update volume.
 	var ratio: float = clampf(click_x / maxf(bar.size.x, 1.0), 0.0, 1.0)
@@ -1380,10 +1511,11 @@ func _on_volume_slider_changed(slot_key: String, volume_db: float) -> void:
 		var lbl: Label = entry["label"]
 		lbl.text = _format_db(volume_db)
 
-	# Apply to LoopMixer live
+	# Apply to LoopMixer live (with mix level offset)
+	var mix_offset: float = KeyBindingManager.get_slot_volume("mix_level")
 	var loop_id: String = _get_loop_id_for_slot(slot_key)
 	if loop_id != "" and LoopMixer.has_loop(loop_id):
-		LoopMixer.set_volume(loop_id, volume_db)
+		LoopMixer.set_volume(loop_id, volume_db + mix_offset)
 
 	# Persist
 	KeyBindingManager.set_slot_volume(slot_key, volume_db)
@@ -1391,43 +1523,41 @@ func _on_volume_slider_changed(slot_key: String, volume_db: float) -> void:
 
 func _get_slot_item_name(slot_key: String) -> String:
 	var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-	var comp_type: String = str(slot_data.get("component_type", ""))
-	if comp_type == "weapon":
+	if slot_key.begins_with("weapon_"):
 		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		if weapon_id != "":
 			var w: WeaponData = _weapon_cache.get(weapon_id)
 			if w:
 				return w.display_name if w.display_name != "" else w.id
 			return weapon_id
-	elif comp_type == "power_core":
+	elif slot_key.begins_with("core_"):
 		var device_id: String = str(slot_data.get("device_id", ""))
 		if device_id != "":
 			var pc: PowerCoreData = _power_core_cache.get(device_id)
 			if pc:
 				return pc.display_name if pc.display_name != "" else pc.id
 			return device_id
-	elif comp_type == "device":
+	elif slot_key.begins_with("field_"):
 		var device_id: String = str(slot_data.get("device_id", ""))
 		if device_id != "":
 			var d: DeviceData = _device_cache.get(device_id)
 			if d:
 				return d.display_name if d.display_name != "" else d.id
 			return device_id
+	elif slot_key.begins_with("particle_"):
+		return "COMING SOON"
 	return "empty"
 
 
 func _get_loop_id_for_slot(slot_key: String) -> String:
-	var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-	var comp_type: String = str(slot_data.get("component_type", ""))
-	if comp_type == "weapon":
-		# Match HardpointController's loop_id format: weapon.id + "_hp_" + hp_index
-		# Find the matching controller by slot index
-		var ext_idx: int = int(slot_key.replace("ext_", ""))
+	if slot_key.begins_with("weapon_"):
+		# Match HardpointController's loop_id format
 		var ctrl_idx: int = 0
-		for i in GameState.get_external_slot_count():
-			var sk: String = "ext_" + str(i)
+		for i in GameState.get_weapon_slot_count():
+			var sk: String = "weapon_" + str(i)
 			var sd: Dictionary = GameState.slot_config.get(sk, {})
-			if str(sd.get("component_type", "")) != "weapon":
+			var wid: String = str(sd.get("weapon_id", ""))
+			if wid == "":
 				continue
 			if sk == slot_key:
 				if ctrl_idx < _preview_controllers.size():
@@ -1435,10 +1565,12 @@ func _get_loop_id_for_slot(slot_key: String) -> String:
 				return ""
 			ctrl_idx += 1
 		return ""
-	elif comp_type == "power_core":
-		return "core_" + slot_key.replace("int_", "")
-	elif comp_type == "device":
-		return "dev_" + slot_key
+	elif slot_key.begins_with("core_"):
+		var idx: String = slot_key.replace("core_", "")
+		return "core_" + idx
+	elif slot_key.begins_with("field_"):
+		var idx: String = slot_key.replace("field_", "")
+		return "dev_field_" + idx
 	return ""
 
 
@@ -1590,26 +1722,50 @@ func _build_ui() -> void:
 	_functional_content.add_theme_constant_override("separation", 4)
 	_center_vbox.add_child(_functional_content)
 
-	# External section
-	var ext_header_bar: PanelContainer = _create_section_header_bar("EXTERNAL", "ext")
-	_functional_content.add_child(ext_header_bar)
+	# Weapons section
+	var weapon_header_bar: PanelContainer = _create_section_header_bar("WEAPONS", "weapon")
+	_functional_content.add_child(weapon_header_bar)
 
-	_ext_section = VBoxContainer.new()
-	_ext_section.add_theme_constant_override("separation", 6)
-	_functional_content.add_child(_ext_section)
+	_weapon_section = VBoxContainer.new()
+	_weapon_section.add_theme_constant_override("separation", 6)
+	_functional_content.add_child(_weapon_section)
 
-	# Add spacer between sections
+	# Spacer between sections
 	var spacer_1 := Control.new()
 	spacer_1.custom_minimum_size.y = 8
 	_functional_content.add_child(spacer_1)
 
-	# Internal section
-	var int_header_bar: PanelContainer = _create_section_header_bar("INTERNAL", "int")
-	_functional_content.add_child(int_header_bar)
+	# Power Cores section
+	var core_header_bar: PanelContainer = _create_section_header_bar("POWER CORES", "core")
+	_functional_content.add_child(core_header_bar)
 
-	_int_section = VBoxContainer.new()
-	_int_section.add_theme_constant_override("separation", 6)
-	_functional_content.add_child(_int_section)
+	_core_section = VBoxContainer.new()
+	_core_section.add_theme_constant_override("separation", 6)
+	_functional_content.add_child(_core_section)
+
+	var spacer_2 := Control.new()
+	spacer_2.custom_minimum_size.y = 8
+	_functional_content.add_child(spacer_2)
+
+	# Field Emitters section
+	var field_header_bar: PanelContainer = _create_section_header_bar("FIELD EMITTERS", "field")
+	_functional_content.add_child(field_header_bar)
+
+	_field_section = VBoxContainer.new()
+	_field_section.add_theme_constant_override("separation", 6)
+	_functional_content.add_child(_field_section)
+
+	var spacer_3 := Control.new()
+	spacer_3.custom_minimum_size.y = 8
+	_functional_content.add_child(spacer_3)
+
+	# Particle Generators section
+	var particle_header_bar: PanelContainer = _create_section_header_bar("PARTICLE GENERATORS", "particle")
+	_functional_content.add_child(particle_header_bar)
+
+	_particle_section = VBoxContainer.new()
+	_particle_section.add_theme_constant_override("separation", 6)
+	_functional_content.add_child(_particle_section)
 
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1740,6 +1896,48 @@ func _on_play_toggle() -> void:
 		_is_playing = true
 		_sync_preview_active_states()
 		_play_btn.text = "PAUSE"
+	_sync_audio_play_btn()
+
+
+func _on_audio_play_toggle() -> void:
+	## Play/stop from the audio mix tab — same as main play toggle.
+	_on_play_toggle()
+
+
+func _on_audio_reset_volumes() -> void:
+	## Reset all slot volumes and master to 0.0 dB (default).
+	# Reset master
+	if _master_vol_bar:
+		_master_vol_bar.value = 0.0
+		var mat: ShaderMaterial = _master_vol_bar.material as ShaderMaterial
+		if mat:
+			mat.set_shader_parameter("fill_ratio", (0.0 - (-40.0)) / 46.0)
+	if _master_vol_label:
+		_master_vol_label.text = _format_db(0.0)
+	_apply_mix_level(0.0)
+	KeyBindingManager.set_slot_volume("mix_level", 0.0)
+
+	# Reset per-slot
+	for slot_key in _audio_sliders:
+		KeyBindingManager.set_slot_volume(slot_key, 0.0)
+		# Update the LoopMixer live volume
+		var loop_id: String = _get_loop_id_for_slot(slot_key)
+		if loop_id != "" and LoopMixer.has_loop(loop_id):
+			LoopMixer.set_volume(loop_id, 0.0)
+		# Update the UI bar and label
+		var entry: Dictionary = _audio_sliders[slot_key]
+		var bar: ProgressBar = entry["bar"]
+		bar.value = 0.0
+		var mat: ShaderMaterial = bar.material as ShaderMaterial
+		if mat:
+			mat.set_shader_parameter("fill_ratio", (0.0 - (-40.0)) / 46.0)
+		var lbl: Label = entry["label"]
+		lbl.text = _format_db(0.0)
+
+
+func _sync_audio_play_btn() -> void:
+	if _audio_play_btn and is_instance_valid(_audio_play_btn):
+		_audio_play_btn.text = "\u25a0" if _is_playing else "\u25b6"
 
 
 func _on_mute_toggle() -> void:
@@ -1762,6 +1960,22 @@ func _on_reset_bars() -> void:
 func _on_change_ship() -> void:
 	_cleanup_preview()
 	get_tree().change_scene_to_file("res://scenes/ui/ship_select_screen.tscn")
+
+
+func _darken_button(btn: Button) -> void:
+	## Apply theme style then darken the background for better visibility on this screen.
+	ThemeManager.apply_button_style(btn)
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var sb: StyleBox = btn.get_theme_stylebox(state)
+		if sb and sb is StyleBoxFlat:
+			var dark: StyleBoxFlat = (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
+			if state == "hover":
+				dark.bg_color = Color(0.18, 0.18, 0.18, 0.9)
+			elif state == "pressed":
+				dark.bg_color = Color(0.12, 0.12, 0.12, 0.9)
+			else:
+				dark.bg_color = Color(0.08, 0.08, 0.08, 0.9)
+			btn.add_theme_stylebox_override(state, dark)
 
 
 func _on_back() -> void:
@@ -1792,13 +2006,10 @@ func _sync_preview() -> void:
 		LoopMixer.remove_loop(loop_id)
 	_device_previews.clear()
 
-	# Create new controllers for each equipped ext slot with weapons
-	for i in GameState.get_external_slot_count():
-		var slot_key: String = "ext_" + str(i)
+	# Create new controllers for each equipped weapon slot
+	for i in GameState.get_weapon_slot_count():
+		var slot_key: String = "weapon_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var comp_type: String = str(slot_data.get("component_type", ""))
-		if comp_type != "weapon":
-			continue
 		var weapon_id: String = str(slot_data.get("weapon_id", ""))
 		if weapon_id == "":
 			continue
@@ -1811,13 +2022,10 @@ func _sync_preview() -> void:
 		controller.bar_effect_fired.connect(_on_bar_effect_fired)
 		_preview_controllers.append(controller)
 
-	# Register power core loops for each equipped int slot with power_core type
-	for i in GameState.get_internal_slot_count():
-		var slot_key: String = "int_" + str(i)
+	# Register power core loops for each equipped core slot
+	for i in GameState.get_core_slot_count():
+		var slot_key: String = "core_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var comp_type: String = str(slot_data.get("component_type", ""))
-		if comp_type != "power_core":
-			continue
 		var device_id: String = str(slot_data.get("device_id", ""))
 		if device_id == "":
 			continue
@@ -1842,24 +2050,17 @@ func _sync_preview() -> void:
 			LoopMixer.set_volume(loop_id, core_vol)
 		_core_previews.append({"pc": pc, "loop_id": loop_id, "prev_pos": -1.0, "triggers": merged})
 
-	# Register device loops (field emitters / orbital generators) from all slots
-	var _dev_slot_sources: Array = []
-	for i3 in GameState.get_internal_slot_count():
-		_dev_slot_sources.append("int_" + str(i3))
-	for i3 in GameState.get_external_slot_count():
-		_dev_slot_sources.append("ext_" + str(i3))
-	for slot_key in _dev_slot_sources:
+	# Register device loops for field emitter slots
+	for i in GameState.get_field_slot_count():
+		var slot_key: String = "field_" + str(i)
 		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var comp_type: String = str(slot_data.get("component_type", ""))
-		if comp_type != "device":
-			continue
 		var device_id: String = str(slot_data.get("device_id", ""))
 		if device_id == "":
 			continue
 		var device: DeviceData = _device_cache.get(device_id)
 		if not device or device.loop_file_path == "":
 			continue
-		var loop_id: String = "dev_" + slot_key
+		var loop_id: String = "dev_field_" + str(i)
 		LoopMixer.add_loop(loop_id, device.loop_file_path)
 		var dev_vol: float = KeyBindingManager.get_slot_volume(slot_key)
 		if dev_vol != 0.0:
@@ -1884,21 +2085,19 @@ func _sync_preview() -> void:
 		_device_previews.append({"device": device, "loop_id": loop_id, "slot_key": slot_key, "prev_pos": -1.0, "field_renderer": field_renderer})
 
 	# Apply stored volumes for weapon preview loops
-	var ext_ctrl_idx: int = 0
-	for i2 in GameState.get_external_slot_count():
-		var sk: String = "ext_" + str(i2)
+	var weapon_ctrl_idx: int = 0
+	for i2 in GameState.get_weapon_slot_count():
+		var sk: String = "weapon_" + str(i2)
 		var sd: Dictionary = GameState.slot_config.get(sk, {})
-		if str(sd.get("component_type", "")) != "weapon":
-			continue
 		var wid: String = str(sd.get("weapon_id", ""))
 		if wid == "":
 			continue
-		if ext_ctrl_idx < _preview_controllers.size():
-			var ctrl_loop_id: String = _preview_controllers[ext_ctrl_idx]._loop_id
-			var ext_vol: float = KeyBindingManager.get_slot_volume(sk)
-			if ctrl_loop_id != "" and ext_vol != 0.0:
-				LoopMixer.set_volume(ctrl_loop_id, ext_vol)
-		ext_ctrl_idx += 1
+		if weapon_ctrl_idx < _preview_controllers.size():
+			var ctrl_loop_id: String = _preview_controllers[weapon_ctrl_idx]._loop_id
+			var weapon_vol: float = KeyBindingManager.get_slot_volume(sk)
+			if ctrl_loop_id != "" and weapon_vol != 0.0:
+				LoopMixer.set_volume(ctrl_loop_id, weapon_vol)
+		weapon_ctrl_idx += 1
 
 	# If already playing, sync active states
 	if _is_playing:
@@ -2036,7 +2235,7 @@ func _process_core_previews() -> void:
 			continue
 		# Only fire effects if slot is active
 		var slot_idx: String = loop_id.replace("core_", "")
-		var slot_key: String = "int_" + slot_idx
+		var slot_key: String = "core_" + slot_idx
 		if not _slot_active.get(slot_key, false):
 			continue
 		# Passive effects — apply per-second rate * delta while active

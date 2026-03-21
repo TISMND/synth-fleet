@@ -561,8 +561,10 @@ func _build_player_right_panel() -> void:
 	slots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(slots_label)
 
-	_add_slider_row(vbox, "external_slots", "EXT", 1, 6, 1)
-	_add_slider_row(vbox, "internal_slots", "INT", 1, 6, 1)
+	_add_slider_row(vbox, "weapon_slots", "WEAPONS", 1, 6, 1)
+	_add_slider_row(vbox, "core_slots", "CORES", 1, 3, 1)
+	_add_slider_row(vbox, "field_slots", "FIELDS", 0, 4, 1)
+	_add_slider_row(vbox, "particle_slots", "PARTICLES", 0, 2, 1)
 
 	# Spacer
 	var spacer3b := Control.new()
