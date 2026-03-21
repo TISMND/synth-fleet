@@ -26,6 +26,7 @@ var _sweep_time: float = 0.0
 var _alternate_flip: bool = false
 var _enemies_group: String = "enemies"
 var _external_loop: bool = false  # if true, skip loop add/remove
+var is_enemy: bool = false  # if true, projectiles use enemy collision layers
 var _beam_bar_remaining: float = 0.0  # tracks beam bar-effect duration for continuous emission
 var _beam_bar_emit_cooldown: float = 0.0  # throttle emission interval
 
@@ -123,6 +124,10 @@ func toggle() -> void:
 
 func is_active() -> bool:
 	return _active
+
+
+func get_loop_id() -> String:
+	return _loop_id
 
 
 func cleanup() -> void:
@@ -345,6 +350,7 @@ func _spawn_projectile(pos: Vector2, dir: Vector2, speed_mult: float = 1.0, trig
 		proj.weapon_color = style.color
 	else:
 		proj.weapon_color = Color.CYAN
+	proj.is_enemy = is_enemy
 	_projectiles_container.add_child(proj)
 
 
@@ -361,6 +367,7 @@ func _spawn_beam_v2(pos: Vector2, dir: Vector2, bstyle: BeamStyle) -> void:
 	beam.skips_shields = weapon_data.skips_shields
 	beam.passthrough = weapon_data.beam_passthrough
 	beam.track_node = self  # beam follows hardpoint position
+	beam.is_enemy = is_enemy
 	# Rotate beam to match firing direction (Vector2.UP = 0 rotation)
 	beam.rotation = Vector2.UP.angle_to(dir)
 	# For sweep/track aim modes, beam continuously follows current direction
@@ -452,6 +459,9 @@ func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:
 		var layer_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, color)
 		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, layer_color)
 		emitter.position = origin
+		# Flip muzzle direction for enemies (they fire downward)
+		if is_enemy:
+			emitter.rotation = PI
 		_projectiles_container.add_child(emitter)
 
 

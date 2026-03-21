@@ -1,19 +1,29 @@
 {
+	"collision_height": 150.0,
+	"collision_shape": "capsule",
+	"collision_width": 118.0,
 	"display_name": "Bastion",
 	"id": "bastion",
 	"render_mode": "chrome",
 	"stats": {
 		"acceleration": 400.0,
-		"device_slots": 2,
+		"collision_height": 150.0,
+		"collision_shape": "capsule",
+		"collision_width": 118.0,
+		"core_slots": 1,
+		"device_slots": 2.0,
 		"electric_hp": 80.0,
 		"electric_segments": 18.0,
+		"field_slots": 2,
 		"hull_hp": 200.0,
 		"hull_segments": 20.0,
+		"particle_slots": 1,
 		"shield_hp": 120.0,
 		"shield_regen": 0.5,
 		"shield_segments": 18.0,
 		"speed": 230.0,
 		"thermal_hp": 60.0,
-		"thermal_segments": 19.0
+		"thermal_segments": 19.0,
+		"weapon_slots": 3
 	}
 }

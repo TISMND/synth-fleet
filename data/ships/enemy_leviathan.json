@@ -1,8 +1,9 @@
 {
-	"burst_directions": 6,
+	"collision_height": 120.0,
+	"collision_shape": "circle",
+	"collision_width": 120.0,
 	"display_name": "Leviathan",
 	"enable_screen_shake": false,
-	"enemy_damage": 13,
 	"explosion_color": [
 		1.0,
 		0.300000011920929,
@@ -10,8 +11,6 @@
 		1.0
 	],
 	"explosion_size": 1.0,
-	"fire_pattern": "burst",
-	"fire_rate": 2.0,
 	"grid_size": [
 		96,
 		96
@@ -19,22 +18,24 @@
 	"hardpoints": [],
 	"id": "enemy_leviathan",
 	"lines": [],
-	"presence_loop_path": "res://loop_zips/sorted/strings/Please Don't Interest - 120 BPM - 7 - Strings - MNT_WC_120_Cello_Spruce_Legato_Full_Variation_C#min.wav",
-	"projectile_speed": 250.0,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 200.0,
+		"core_slots": 1.0,
 		"device_slots": 4.0,
 		"electric_segments": 10.0,
-		"external_slots": 3,
+		"external_slots": 3.0,
+		"field_slots": 2.0,
 		"hull_hp": 200.0,
 		"hull_segments": 12.0,
-		"internal_slots": 3,
+		"internal_slots": 3.0,
+		"particle_slots": 1.0,
 		"shield_hp": 80.0,
 		"shield_regen": 3.0,
 		"shield_segments": 8.0,
 		"speed": 60.0,
-		"thermal_segments": 10.0
+		"thermal_segments": 10.0,
+		"weapon_slots": 3.0
 	},
 	"type": "enemy",
 	"visual_id": "leviathan",

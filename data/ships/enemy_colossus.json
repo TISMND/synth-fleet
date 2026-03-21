@@ -1,17 +1,16 @@
 {
-	"burst_directions": 8,
+	"collision_height": 30.0,
+	"collision_shape": "circle",
+	"collision_width": 260.0,
 	"display_name": "Colossus",
 	"enable_screen_shake": false,
-	"enemy_damage": 20,
 	"explosion_color": [
 		1.0,
 		0.300000011920929,
 		0.5,
 		1.0
 	],
-	"explosion_size": 1.0,
-	"fire_pattern": "burst",
-	"fire_rate": 2.5,
+	"explosion_size": 1.1,
 	"grid_size": [
 		104,
 		112
@@ -19,24 +18,26 @@
 	"hardpoints": [],
 	"id": "enemy_colossus",
 	"lines": [],
-	"presence_loop_path": "res://loop_zips/sorted/strings/NEW Overblown Choice - 120 BPM - 5 - Strings - KMRBI_AS2_110_strings_loop_ensemble_tranquil_wet_D#m.wav",
-	"projectile_speed": 220.0,
 	"render_mode": "sport",
 	"stats": {
 		"acceleration": 120.0,
+		"core_slots": 1.0,
 		"device_slots": 6.0,
 		"electric_segments": 14.0,
-		"external_slots": 3,
+		"external_slots": 3.0,
+		"field_slots": 2.0,
 		"hull_hp": 350.0,
 		"hull_segments": 16.0,
-		"internal_slots": 3,
+		"internal_slots": 3.0,
+		"particle_slots": 1.0,
 		"shield_hp": 150.0,
 		"shield_regen": 5.0,
 		"shield_segments": 12.0,
 		"speed": 35.0,
-		"thermal_segments": 14.0
+		"thermal_segments": 14.0,
+		"weapon_slots": 3.0
 	},
 	"type": "enemy",
 	"visual_id": "colossus",
-	"weapon_id": ""
+	"weapon_id": "enemy_slender_beam"
 }

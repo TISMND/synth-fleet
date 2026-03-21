@@ -1,19 +1,29 @@
 {
+	"collision_height": 126.0,
+	"collision_shape": "capsule",
+	"collision_width": 68.0,
 	"display_name": "Trident",
 	"id": "trident",
 	"render_mode": "chrome",
 	"stats": {
 		"acceleration": 2450.0,
+		"collision_height": 126.0,
+		"collision_shape": "capsule",
+		"collision_width": 68.0,
+		"core_slots": 1,
 		"device_slots": 2.0,
 		"electric_hp": 80.0,
 		"electric_segments": 10.0,
+		"field_slots": 2,
 		"hull_hp": 100.0,
 		"hull_segments": 7.0,
+		"particle_slots": 1,
 		"shield_hp": 110.0,
 		"shield_regen": 0.9,
 		"shield_segments": 10.0,
 		"speed": 460.0,
 		"thermal_hp": 60.0,
-		"thermal_segments": 14.0
+		"thermal_segments": 14.0,
+		"weapon_slots": 3
 	}
 }

@@ -45,7 +45,15 @@ var _loop_popup: Panel = null
 var _loop_browser_popup: LoopBrowser = null
 var _presence_loop_label: Label = null
 var _explosion_color_rect: ColorRect = null
+var _enemy_weapon_dropdown: OptionButton = null
 var _explosion_preview: Node2D = null
+var _hitbox_overlay: Node2D = null
+var _hitbox_shape_dropdown: OptionButton = null
+var _weapon_preview_btn: Button = null
+var _weapon_preview_active: bool = false
+var _weapon_preview_container: Node2D = null
+var _weapon_preview_fire_point: Node2D = null
+var _weapon_preview_controller: HardpointController = null
 
 
 func _ready() -> void:
@@ -60,6 +68,13 @@ func _ready() -> void:
 
 	_ship_draw = ShipRenderer.new()
 	add_child(_ship_draw)
+
+	_weapon_preview_container = Node2D.new()
+	add_child(_weapon_preview_container)
+
+	_hitbox_overlay = _HitboxOverlay.new()
+	_hitbox_overlay.viewer = self
+	add_child(_hitbox_overlay)
 
 	_ship_selector = _ShipSelector.new()
 	_ship_selector.viewer = self
@@ -91,6 +106,10 @@ func _ready() -> void:
 	_build_hud_replica()
 	_load_enemy_ships()
 	_select_ship(0)
+
+
+func _exit_tree() -> void:
+	_stop_weapon_preview()
 
 
 func _process(delta: float) -> void:
@@ -137,6 +156,7 @@ func _process(delta: float) -> void:
 		_spawn_exhaust()
 	_update_exhaust(delta)
 	_exhaust_draw.queue_redraw()
+	_hitbox_overlay.queue_redraw()
 
 
 func _process_enemy(delta: float) -> void:
@@ -149,6 +169,12 @@ func _process_enemy(delta: float) -> void:
 	_ship_draw.ship_id = -1  # Signal enemy drawing mode
 	_exhaust_particles.clear()
 	_exhaust_draw.queue_redraw()
+
+	# Keep weapon preview fire point synced to ship position
+	if _weapon_preview_fire_point and is_instance_valid(_weapon_preview_fire_point):
+		_weapon_preview_fire_point.position = _ship_draw.position + Vector2(0, 20)
+
+	_hitbox_overlay.queue_redraw()
 
 
 func _spawn_exhaust() -> void:
@@ -245,9 +271,16 @@ func _select_ship(index: int) -> void:
 	if override:
 		stats = override.stats.duplicate()
 		_working_render_mode = override.render_mode
+		# Load collision hitbox from override
+		stats["collision_width"] = override.collision_width
+		stats["collision_height"] = override.collision_height
+		stats["collision_shape"] = override.collision_shape
 	else:
 		stats = ShipRegistry.SHIP_STATS[index].duplicate()
 		_working_render_mode = "chrome"
+		stats["collision_width"] = 30.0
+		stats["collision_height"] = 30.0
+		stats["collision_shape"] = "circle"
 
 	_working_stats = stats
 	_accel = float(stats.get("acceleration", 1200))
@@ -263,6 +296,13 @@ func _select_ship(index: int) -> void:
 	if _skin_dropdown:
 		var skin_idx: int = SKIN_KEYS.find(_working_render_mode)
 		_skin_dropdown.selected = maxi(skin_idx, 0)
+	# Update hitbox shape dropdown
+	if _hitbox_shape_dropdown:
+		var cs: String = str(stats.get("collision_shape", "circle"))
+		match cs:
+			"rectangle": _hitbox_shape_dropdown.selected = 1
+			"capsule": _hitbox_shape_dropdown.selected = 2
+			_: _hitbox_shape_dropdown.selected = 0
 	_updating_sliders = false
 
 	# Apply render mode to preview
@@ -306,11 +346,6 @@ func _create_new_enemy() -> void:
 		"type": "enemy",
 		"render_mode": "neon",
 		"visual_id": "sentinel",
-		"fire_pattern": "straight",
-		"burst_directions": 4,
-		"fire_rate": 1.5,
-		"enemy_damage": 10,
-		"projectile_speed": 300.0,
 		"weapon_id": "",
 		"stats": {
 			"hull_hp": 50,
@@ -332,6 +367,7 @@ func _create_new_enemy() -> void:
 func _select_enemy(index: int) -> void:
 	if index < 0 or index >= _enemy_ships.size():
 		return
+	_stop_weapon_preview()
 	_selected_enemy_index = index
 	_working_enemy = _enemy_ships[index]
 	_working_render_mode = _working_enemy.render_mode
@@ -350,6 +386,7 @@ func _select_enemy(index: int) -> void:
 
 
 func _on_category_changed(index: int) -> void:
+	_stop_weapon_preview()
 	match index:
 		0: _category = "PLAYER"
 		1: _category = "ENEMIES"
@@ -571,6 +608,14 @@ func _build_player_right_panel() -> void:
 	spacer3b.custom_minimum_size.y = 12
 	vbox.add_child(spacer3b)
 
+	# Section: Hitbox
+	_build_hitbox_section(vbox, _working_stats)
+
+	# Spacer
+	var spacer3c := Control.new()
+	spacer3c.custom_minimum_size.y = 12
+	vbox.add_child(spacer3c)
+
 	# Section: Skin
 	var skin_label := Label.new()
 	skin_label.text = "SKIN"
@@ -667,56 +712,18 @@ func _build_enemy_right_panel() -> void:
 
 	_add_section_spacer(vbox)
 
-	# ── WEAPONS ──
+	# ── HITBOX ──
+	_build_hitbox_section(vbox, _working_enemy)
+
+	_add_section_spacer(vbox)
+
+	# ── WEAPON ──
 	var weap_label := Label.new()
-	weap_label.text = "WEAPONS"
+	weap_label.text = "WEAPON"
 	weap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(weap_label)
 
-	# Fire Pattern dropdown
-	var fp_hbox := HBoxContainer.new()
-	fp_hbox.add_theme_constant_override("separation", 6)
-	vbox.add_child(fp_hbox)
-	var fp_lbl := Label.new()
-	fp_lbl.text = "FIRE"
-	fp_lbl.custom_minimum_size.x = 40
-	fp_hbox.add_child(fp_lbl)
-	var fp_dd := OptionButton.new()
-	fp_dd.clip_text = true
-	fp_dd.add_item("Straight", 0)
-	fp_dd.add_item("Turret", 1)
-	fp_dd.add_item("Burst", 2)
-	match _working_enemy.fire_pattern:
-		"turret": fp_dd.selected = 1
-		"burst": fp_dd.selected = 2
-		_: fp_dd.selected = 0
-	fp_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fp_dd.item_selected.connect(_on_enemy_fire_pattern_changed)
-	fp_hbox.add_child(fp_dd)
-
-	# Burst directions (only visible for burst)
-	if _working_enemy.fire_pattern == "burst":
-		var bd_hbox := HBoxContainer.new()
-		bd_hbox.add_theme_constant_override("separation", 6)
-		vbox.add_child(bd_hbox)
-		var bd_lbl := Label.new()
-		bd_lbl.text = "DIRS"
-		bd_lbl.custom_minimum_size.x = 40
-		bd_hbox.add_child(bd_lbl)
-		var bd_spin := SpinBox.new()
-		bd_spin.min_value = 2
-		bd_spin.max_value = 16
-		bd_spin.step = 1
-		bd_spin.value = _working_enemy.burst_directions
-		bd_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bd_spin.value_changed.connect(_on_enemy_burst_dirs_changed)
-		bd_hbox.add_child(bd_spin)
-
-	_add_slider_row(vbox, "fire_rate", "RATE", 0.3, 5.0, 0.1)
-	_add_slider_row(vbox, "enemy_damage", "DMG", 5, 50, 1)
-	_add_slider_row(vbox, "projectile_speed", "PROJ", 100, 600, 10)
-
-	# Weapon dropdown (placeholder)
+	# Weapon dropdown — shows only enemy weapons (is_enemy_weapon == true)
 	var wd_hbox := HBoxContainer.new()
 	wd_hbox.add_theme_constant_override("separation", 6)
 	vbox.add_child(wd_hbox)
@@ -724,12 +731,34 @@ func _build_enemy_right_panel() -> void:
 	wd_lbl.text = "WPN"
 	wd_lbl.custom_minimum_size.x = 40
 	wd_hbox.add_child(wd_lbl)
-	var wd_dd := OptionButton.new()
-	wd_dd.clip_text = true
-	wd_dd.add_item("None (built-in)", 0)
-	wd_dd.selected = 0
-	wd_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wd_hbox.add_child(wd_dd)
+	_enemy_weapon_dropdown = OptionButton.new()
+	_enemy_weapon_dropdown.clip_text = true
+	_enemy_weapon_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_enemy_weapon_dropdown.add_item("(none)", 0)
+	var enemy_weapons: Array[WeaponData] = WeaponDataManager.load_all()
+	var selected_idx: int = 0
+	var item_idx: int = 1
+	for w in enemy_weapons:
+		if not w.is_enemy_weapon:
+			continue
+		var label: String = w.display_name if w.display_name != "" else w.id
+		_enemy_weapon_dropdown.add_item(label, item_idx)
+		_enemy_weapon_dropdown.set_item_metadata(item_idx, w.id)
+		if w.id == _working_enemy.weapon_id:
+			selected_idx = item_idx
+		item_idx += 1
+	_enemy_weapon_dropdown.selected = selected_idx
+	_enemy_weapon_dropdown.item_selected.connect(_on_enemy_weapon_changed)
+	wd_hbox.add_child(_enemy_weapon_dropdown)
+
+	# Preview button
+	_weapon_preview_btn = Button.new()
+	_weapon_preview_btn.text = "PREVIEW"
+	_weapon_preview_btn.custom_minimum_size = Vector2(0, 34)
+	_weapon_preview_btn.pressed.connect(_on_weapon_preview_toggle)
+	_weapon_preview_btn.disabled = (_working_enemy.weapon_id == "")
+	ThemeManager.apply_button_style(_weapon_preview_btn)
+	vbox.add_child(_weapon_preview_btn)
 
 	_add_section_spacer(vbox)
 
@@ -870,7 +899,7 @@ func _build_enemy_right_panel() -> void:
 	for key in _sliders:
 		var slider: HSlider = _sliders[key]
 		var val: float = 0.0
-		if key in ["fire_rate", "enemy_damage", "projectile_speed", "explosion_size"]:
+		if key in ["explosion_size", "collision_width", "collision_height"]:
 			val = float(_working_enemy.get(key))
 		else:
 			val = float(_working_enemy.stats.get(key, slider.min_value))
@@ -903,6 +932,57 @@ func _build_bosses_right_panel() -> void:
 	coming.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	coming.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 	vbox.add_child(coming)
+
+
+func _build_hitbox_section(vbox: VBoxContainer, source: Variant) -> void:
+	var hitbox_label := Label.new()
+	hitbox_label.text = "HITBOX"
+	hitbox_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(hitbox_label)
+
+	# Shape dropdown
+	var shape_hbox := HBoxContainer.new()
+	shape_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(shape_hbox)
+	var shape_lbl := Label.new()
+	shape_lbl.text = "SHAPE"
+	shape_lbl.custom_minimum_size.x = 40
+	shape_hbox.add_child(shape_lbl)
+	_hitbox_shape_dropdown = OptionButton.new()
+	_hitbox_shape_dropdown.clip_text = true
+	_hitbox_shape_dropdown.add_item("Circle", 0)
+	_hitbox_shape_dropdown.add_item("Rectangle", 1)
+	_hitbox_shape_dropdown.add_item("Capsule", 2)
+	var current_shape: String = ""
+	if source is ShipData:
+		current_shape = (source as ShipData).collision_shape
+	elif source is Dictionary:
+		current_shape = str((source as Dictionary).get("collision_shape", "circle"))
+	match current_shape:
+		"rectangle": _hitbox_shape_dropdown.selected = 1
+		"capsule": _hitbox_shape_dropdown.selected = 2
+		_: _hitbox_shape_dropdown.selected = 0
+	_hitbox_shape_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hitbox_shape_dropdown.item_selected.connect(_on_hitbox_shape_changed)
+	shape_hbox.add_child(_hitbox_shape_dropdown)
+
+	# Width/Height sliders
+	_add_slider_row(vbox, "collision_width", "W", 6, 300, 2)
+	_add_slider_row(vbox, "collision_height", "H", 6, 300, 2)
+
+
+func _on_hitbox_shape_changed(index: int) -> void:
+	if _updating_sliders:
+		return
+	var shape_name: String = "circle"
+	match index:
+		1: shape_name = "rectangle"
+		2: shape_name = "capsule"
+	if _category == "ENEMIES" and _working_enemy:
+		_working_enemy.collision_shape = shape_name
+	elif _category == "PLAYER":
+		_working_stats["collision_shape"] = shape_name
+	_hitbox_overlay.queue_redraw()
 
 
 func _add_section_spacer(parent: VBoxContainer) -> void:
@@ -950,13 +1030,14 @@ func _on_attr_changed(value: float, key: String) -> void:
 		_slider_labels[key].text = str(int(value))
 
 	if _category == "ENEMIES" and _working_enemy:
-		if key in ["fire_rate", "enemy_damage", "projectile_speed"]:
-			if key == "enemy_damage":
-				_working_enemy.set(key, int(value))
-			else:
-				_working_enemy.set(key, value)
-		elif key == "explosion_size":
+		if key == "explosion_size":
 			_working_enemy.explosion_size = value
+		elif key == "collision_width":
+			_working_enemy.collision_width = value
+			_hitbox_overlay.queue_redraw()
+		elif key == "collision_height":
+			_working_enemy.collision_height = value
+			_hitbox_overlay.queue_redraw()
 		else:
 			_working_enemy.stats[key] = value
 		# Update HP readout
@@ -973,6 +1054,8 @@ func _on_attr_changed(value: float, key: String) -> void:
 		_top_speed = value
 	elif key == "acceleration":
 		_accel = value
+	elif key in ["collision_width", "collision_height"]:
+		_hitbox_overlay.queue_redraw()
 
 	_update_hud_from_stats()
 
@@ -994,20 +1077,71 @@ func _on_enemy_name_changed(new_name: String) -> void:
 		_ship_selector.queue_redraw()
 
 
-func _on_enemy_fire_pattern_changed(index: int) -> void:
+func _on_enemy_weapon_changed(index: int) -> void:
 	if not _working_enemy:
 		return
-	match index:
-		0: _working_enemy.fire_pattern = "straight"
-		1: _working_enemy.fire_pattern = "turret"
-		2: _working_enemy.fire_pattern = "burst"
-	# Rebuild to show/hide burst directions
-	_rebuild_right_panel()
+	_stop_weapon_preview()
+	if index <= 0:
+		_working_enemy.weapon_id = ""
+	else:
+		var wid: String = str(_enemy_weapon_dropdown.get_item_metadata(index))
+		_working_enemy.weapon_id = wid
+	if _weapon_preview_btn:
+		_weapon_preview_btn.disabled = (_working_enemy.weapon_id == "")
 
 
-func _on_enemy_burst_dirs_changed(value: float) -> void:
-	if _working_enemy:
-		_working_enemy.burst_directions = int(value)
+func _on_weapon_preview_toggle() -> void:
+	if _weapon_preview_active:
+		_stop_weapon_preview()
+	else:
+		_start_weapon_preview()
+
+
+func _start_weapon_preview() -> void:
+	if not _working_enemy or _working_enemy.weapon_id == "":
+		return
+	var weapon: WeaponData = WeaponDataManager.load_by_id(_working_enemy.weapon_id)
+	if not weapon:
+		return
+
+	_weapon_preview_active = true
+	_weapon_preview_btn.text = "STOP"
+
+	# Create fire point that follows ship position
+	_weapon_preview_fire_point = Node2D.new()
+	_weapon_preview_fire_point.position = _ship_draw.position + Vector2(0, 20)
+	add_child(_weapon_preview_fire_point)
+
+	# Create HardpointController — same system as player/enemy gameplay
+	_weapon_preview_controller = HardpointController.new()
+	_weapon_preview_controller.is_enemy = true  # enemy collision layers
+	_weapon_preview_fire_point.add_child(_weapon_preview_controller)
+	_weapon_preview_controller.setup(weapon, 180.0 + weapon.direction_deg, _weapon_preview_container)
+
+	# Start playback and activate (unmute loop)
+	LoopMixer.start_all()
+	_weapon_preview_controller.activate()
+
+
+func _stop_weapon_preview() -> void:
+	_weapon_preview_active = false
+	if _weapon_preview_btn:
+		_weapon_preview_btn.text = "PREVIEW"
+
+	# Cleanup controller (removes loop from LoopMixer)
+	if _weapon_preview_controller:
+		_weapon_preview_controller.cleanup()
+		_weapon_preview_controller = null
+
+	# Remove fire point
+	if _weapon_preview_fire_point and is_instance_valid(_weapon_preview_fire_point):
+		_weapon_preview_fire_point.queue_free()
+		_weapon_preview_fire_point = null
+
+	# Clear any remaining projectiles
+	if _weapon_preview_container:
+		for child in _weapon_preview_container.get_children():
+			child.queue_free()
 
 
 func _on_explosion_color_changed(color: Color) -> void:
@@ -1147,11 +1281,19 @@ func _clear_presence_loop() -> void:
 
 func _on_save_pressed() -> void:
 	var ship_id: String = ShipRegistry.get_ship_name(_selected_ship).to_lower()
+	var col_shape: String = "circle"
+	if _hitbox_shape_dropdown:
+		match _hitbox_shape_dropdown.selected:
+			1: col_shape = "rectangle"
+			2: col_shape = "capsule"
 	var data: Dictionary = {
 		"id": ship_id,
 		"display_name": ShipRegistry.get_ship_name(_selected_ship),
 		"render_mode": _working_render_mode,
 		"stats": _working_stats.duplicate(),
+		"collision_shape": col_shape,
+		"collision_width": float(_working_stats.get("collision_width", 30.0)),
+		"collision_height": float(_working_stats.get("collision_height", 30.0)),
 	}
 	ShipDataManager.save(ship_id, data)
 
@@ -1361,6 +1503,87 @@ func _apply_compact_bar_theme() -> void:
 
 
 # ── Exhaust Drawing (inner class) ────────────────────────────
+
+class _HitboxOverlay extends Node2D:
+	## Draws the collision hitbox shape over the ship preview.
+	var viewer: Control
+
+	func _draw() -> void:
+		if not viewer:
+			return
+		var ship_pos: Vector2 = viewer._ship_draw.position
+		var col_shape: String = "circle"
+		var col_w: float = 30.0
+		var col_h: float = 30.0
+
+		if viewer._category == "ENEMIES" and viewer._working_enemy:
+			col_shape = viewer._working_enemy.collision_shape
+			col_w = viewer._working_enemy.collision_width
+			col_h = viewer._working_enemy.collision_height
+		elif viewer._category == "PLAYER":
+			col_shape = str(viewer._working_stats.get("collision_shape", "circle"))
+			col_w = float(viewer._working_stats.get("collision_width", 30.0))
+			col_h = float(viewer._working_stats.get("collision_height", 30.0))
+		else:
+			return
+
+		var outline_color := Color(0.2, 1.0, 0.4, 0.6)
+		var fill_color := Color(0.2, 1.0, 0.4, 0.08)
+
+		match col_shape:
+			"rectangle":
+				var rect := Rect2(ship_pos - Vector2(col_w, col_h) * 0.5, Vector2(col_w, col_h))
+				draw_rect(rect, fill_color, true)
+				draw_rect(rect, outline_color, false, 1.5)
+			"capsule":
+				# Draw capsule — vertical when height >= width, horizontal when width > height
+				var is_horizontal: bool = col_w > col_h
+				var cap_radius: float = minf(col_w, col_h) * 0.5
+				var long_half: float = maxf(col_w, col_h) * 0.5
+				var body_half: float = maxf(long_half - cap_radius, 0.0)
+				if is_horizontal:
+					# Horizontal capsule: caps on left/right
+					var body_rect := Rect2(ship_pos.x - body_half, ship_pos.y - cap_radius, body_half * 2.0, col_h)
+					draw_rect(body_rect, fill_color, true)
+					_draw_circle_fill(ship_pos + Vector2(-body_half, 0), cap_radius, fill_color)
+					_draw_circle_fill(ship_pos + Vector2(body_half, 0), cap_radius, fill_color)
+					_draw_arc_outline(ship_pos + Vector2(-body_half, 0), cap_radius, PI * 0.5, PI * 1.5, outline_color)
+					_draw_arc_outline(ship_pos + Vector2(body_half, 0), cap_radius, -PI * 0.5, PI * 0.5, outline_color)
+					draw_line(ship_pos + Vector2(-body_half, -cap_radius), ship_pos + Vector2(body_half, -cap_radius), outline_color, 1.5)
+					draw_line(ship_pos + Vector2(-body_half, cap_radius), ship_pos + Vector2(body_half, cap_radius), outline_color, 1.5)
+				else:
+					# Vertical capsule: caps on top/bottom
+					var body_rect := Rect2(ship_pos.x - cap_radius, ship_pos.y - body_half, col_w, body_half * 2.0)
+					draw_rect(body_rect, fill_color, true)
+					_draw_circle_fill(ship_pos + Vector2(0, -body_half), cap_radius, fill_color)
+					_draw_circle_fill(ship_pos + Vector2(0, body_half), cap_radius, fill_color)
+					_draw_arc_outline(ship_pos + Vector2(0, -body_half), cap_radius, PI, TAU, outline_color)
+					_draw_arc_outline(ship_pos + Vector2(0, body_half), cap_radius, 0, PI, outline_color)
+					draw_line(ship_pos + Vector2(-cap_radius, -body_half), ship_pos + Vector2(-cap_radius, body_half), outline_color, 1.5)
+					draw_line(ship_pos + Vector2(cap_radius, -body_half), ship_pos + Vector2(cap_radius, body_half), outline_color, 1.5)
+			_:  # "circle"
+				var radius: float = col_w * 0.5
+				_draw_circle_fill(ship_pos, radius, fill_color)
+				_draw_arc_outline(ship_pos, radius, 0, TAU, outline_color)
+
+	func _draw_circle_fill(center: Vector2, radius: float, color: Color) -> void:
+		var points: PackedVector2Array = PackedVector2Array()
+		var segments: int = 32
+		for i in segments + 1:
+			var angle: float = float(i) / float(segments) * TAU
+			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+		draw_colored_polygon(points, color)
+
+	func _draw_arc_outline(center: Vector2, radius: float, start_angle: float, end_angle: float, color: Color) -> void:
+		var points: PackedVector2Array = PackedVector2Array()
+		var segments: int = 32
+		var arc_span: float = end_angle - start_angle
+		for i in segments + 1:
+			var angle: float = start_angle + float(i) / float(segments) * arc_span
+			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+		for i in points.size() - 1:
+			draw_line(points[i], points[i + 1], color, 1.5)
+
 
 class _ExhaustDraw extends Node2D:
 	var viewer: Control

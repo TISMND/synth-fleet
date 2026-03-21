@@ -1,5 +1,5 @@
 extends MarginContainer
-## Hangar Screen — ship thumbnail + stats on left, LOADOUT/ASSIGN FIRE GROUPS/AUDIO MIX tabs center.
+## Hangar Screen — ship thumbnail + stats on left, LOADOUT/FIRE GROUPS/AUDIO MIX tabs center.
 
 var _ship_renderer: ShipRenderer
 var _ship_name_label: Label
@@ -89,6 +89,7 @@ var _master_vol_label: Label
 
 # Controls tab key binding buttons
 var _controls_key_btns: Dictionary = {}  # slot_key -> Button
+var _controls_total_labels: Dictionary = {}  # bar_type -> Label
 
 
 func _ready() -> void:
@@ -564,7 +565,7 @@ func _get_equipped_ids() -> Array[String]:
 	return ids
 
 
-func _add_picker_item(item_id: String, label: String, description: String, slot_key: String, equipped_ids: Array[String], component_type: String) -> void:
+func _add_picker_item(item_id: String, label: String, description: String, slot_key: String, equipped_ids: Array[String], component_type: String, rates: Dictionary = {}) -> void:
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var accent: Color = ThemeManager.get_color("accent")
 	var bg_color: Color = ThemeManager.get_color("background")
@@ -601,6 +602,28 @@ func _add_picker_item(item_id: String, label: String, description: String, slot_
 	if body_font:
 		title_lbl.add_theme_font_override("font", body_font)
 	vbox.add_child(title_lbl)
+
+	# Effect rates — colored inline values, no labels
+	if not rates.is_empty():
+		var rates_hbox := HBoxContainer.new()
+		rates_hbox.add_theme_constant_override("separation", 8)
+		vbox.add_child(rates_hbox)
+		var small_size: int = ThemeManager.get_font_size("font_size_body") - 4
+		for bar_type in EffectRateCalculator.BAR_TYPES:
+			if not rates.has(bar_type):
+				continue
+			var val: float = float(rates[bar_type])
+			var rate_lbl := Label.new()
+			var sign: String = "+" if val > 0 else ""
+			rate_lbl.text = sign + str(int(val)) + "/m"
+			var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
+			if val < 0:
+				bar_color = Color(bar_color.r, bar_color.g, bar_color.b, 0.7)
+			rate_lbl.add_theme_color_override("font_color", bar_color)
+			rate_lbl.add_theme_font_size_override("font_size", small_size)
+			if body_font:
+				rate_lbl.add_theme_font_override("font", body_font)
+			rates_hbox.add_child(rate_lbl)
 
 	# Description label — starts collapsed, expands on selection
 	var desc_wrapper := Control.new()
@@ -691,18 +714,22 @@ func _populate_right_panel(slot_key: String) -> void:
 	var equipped_ids: Array[String] = _get_equipped_ids()
 
 	if slot_key.begins_with("weapon_"):
-		# Show all weapons — no sub-category headers needed
+		# Show player weapons only (skip enemy-flagged weapons)
 		for wid in _weapon_cache:
 			var w: WeaponData = _weapon_cache[wid]
+			if w.is_enemy_weapon:
+				continue
 			var label: String = w.display_name if w.display_name != "" else w.id
-			_add_picker_item(wid, label, w.description, slot_key, equipped_ids, "weapon")
+			var rates: Dictionary = EffectRateCalculator.calc_weapon(w)
+			_add_picker_item(wid, label, w.description, slot_key, equipped_ids, "weapon", rates)
 
 	elif slot_key.begins_with("core_"):
 		# Show all power cores
 		for pcid in _power_core_cache:
 			var pc: PowerCoreData = _power_core_cache[pcid]
 			var label: String = pc.display_name if pc.display_name != "" else pc.id
-			_add_picker_item(pcid, label, pc.description, slot_key, equipped_ids, "device")
+			var rates: Dictionary = EffectRateCalculator.calc_power_core(pc)
+			_add_picker_item(pcid, label, pc.description, slot_key, equipped_ids, "device", rates)
 
 	elif slot_key.begins_with("field_"):
 		# Show all field-mode devices
@@ -711,7 +738,8 @@ func _populate_right_panel(slot_key: String) -> void:
 			if d.visual_mode != "field":
 				continue
 			var label: String = d.display_name if d.display_name != "" else d.id
-			_add_picker_item(did, label, d.description, slot_key, equipped_ids, "device")
+			var rates: Dictionary = EffectRateCalculator.calc_device(d)
+			_add_picker_item(did, label, d.description, slot_key, equipped_ids, "device", rates)
 
 	elif slot_key.begins_with("particle_"):
 		# Coming soon — show message, no items
@@ -956,10 +984,18 @@ func _rebuild_controls_content() -> void:
 
 	# Slot rows — matching loadout button format (key label + name, non-clickable)
 	var all_slots: Array = _get_all_slot_keys()
+	var active_totals: Dictionary = {}  # bar_type -> float
+	var small_size: int = ThemeManager.get_font_size("font_size_body") - 4
 
 	for slot_key in all_slots:
 		var item_name: String = _get_slot_item_name(slot_key)
 		var is_active: bool = _slot_active.get(slot_key, true)
+		var slot_rates: Dictionary = _get_slot_rates(slot_key)
+
+		# Accumulate totals for active slots
+		if is_active:
+			for bar_type in slot_rates:
+				active_totals[str(bar_type)] = float(active_totals.get(str(bar_type), 0.0)) + float(slot_rates[bar_type])
 
 		# Same panel style as loadout rows
 		var panel := PanelContainer.new()
@@ -972,32 +1008,36 @@ func _rebuild_controls_content() -> void:
 		ps.corner_radius_bottom_right = 4
 		ps.content_margin_left = 8
 		ps.content_margin_right = 8
-		ps.content_margin_top = 6
-		ps.content_margin_bottom = 6
+		ps.content_margin_top = 4
+		ps.content_margin_bottom = 4
 		panel.add_theme_stylebox_override("panel", ps)
+
+		var slot_vbox := VBoxContainer.new()
+		slot_vbox.add_theme_constant_override("separation", 0)
+		panel.add_child(slot_vbox)
 
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		panel.add_child(row)
+		slot_vbox.add_child(row)
 
 		# Key label (clickable to rebind)
 		var key_btn := Button.new()
 		key_btn.text = "[" + KeyBindingManager.get_key_label_for_slot(slot_key) + "]"
-		key_btn.custom_minimum_size = Vector2(70, 54)
+		key_btn.custom_minimum_size = Vector2(70, 44)
 		key_btn.clip_text = true
 		key_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		_darken_button(key_btn)
-		key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+		key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent") if is_active else Color(0.4, 0.4, 0.4))
 		var bound_key: String = slot_key
 		key_btn.pressed.connect(func() -> void: _start_key_capture(bound_key))
 		row.add_child(key_btn)
 		_controls_key_btns[slot_key] = key_btn
 
-		# Slot name label — same style as loadout header buttons but non-clickable
+		# Slot name label
 		var name_lbl := Label.new()
 		name_lbl.text = item_name
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_lbl.custom_minimum_size.y = 54
+		name_lbl.custom_minimum_size.y = 44
 		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		var slot_color: Color = _get_slot_type_color(slot_key)
 		if is_active:
@@ -1009,14 +1049,91 @@ func _rebuild_controls_content() -> void:
 			name_lbl.add_theme_font_override("font", body_font)
 		row.add_child(name_lbl)
 
-		# Active indicator dot
-		var dot_lbl := Label.new()
-		dot_lbl.text = "\u25cf" if is_active else "\u25cb"
-		dot_lbl.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3) if is_active else Color(0.4, 0.4, 0.4))
-		dot_lbl.add_theme_font_size_override("font_size", 18)
-		row.add_child(dot_lbl)
+		# Per-slot rates — small colored values under the name
+		if not slot_rates.is_empty():
+			var rates_hbox := HBoxContainer.new()
+			rates_hbox.add_theme_constant_override("separation", 8)
+			slot_vbox.add_child(rates_hbox)
+			# Indent to align with name (past key button)
+			var indent := Control.new()
+			indent.custom_minimum_size.x = 78
+			rates_hbox.add_child(indent)
+			for bar_type in EffectRateCalculator.BAR_TYPES:
+				if not slot_rates.has(bar_type):
+					continue
+				var val: float = float(slot_rates[bar_type])
+				var rl := Label.new()
+				var sign: String = "+" if val > 0 else ""
+				rl.text = sign + str(int(val)) + "/m"
+				var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
+				var alpha: float = 0.7 if is_active else 0.25
+				rl.add_theme_color_override("font_color", Color(bar_color.r, bar_color.g, bar_color.b, alpha))
+				rl.add_theme_font_size_override("font_size", small_size)
+				if body_font:
+					rl.add_theme_font_override("font", body_font)
+				rates_hbox.add_child(rl)
 
 		_controls_content.add_child(panel)
+
+	# ── TOTALS ──
+	var totals_spacer := Control.new()
+	totals_spacer.custom_minimum_size.y = 10
+	_controls_content.add_child(totals_spacer)
+
+	var totals_panel := PanelContainer.new()
+	totals_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var tps := StyleBoxFlat.new()
+	tps.bg_color = Color(0.0, 0.0, 0.0, 0.7)
+	tps.corner_radius_top_left = 4
+	tps.corner_radius_top_right = 4
+	tps.corner_radius_bottom_left = 4
+	tps.corner_radius_bottom_right = 4
+	tps.content_margin_left = 12
+	tps.content_margin_right = 12
+	tps.content_margin_top = 8
+	tps.content_margin_bottom = 8
+	totals_panel.add_theme_stylebox_override("panel", tps)
+
+	var totals_vbox := VBoxContainer.new()
+	totals_vbox.add_theme_constant_override("separation", 4)
+	totals_panel.add_child(totals_vbox)
+
+	var totals_header := Label.new()
+	totals_header.text = "EFFECT TOTALS (active components)"
+	totals_header.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.6))
+	totals_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		totals_header.add_theme_font_override("font", body_font)
+	totals_vbox.add_child(totals_header)
+
+	var abbrev: Dictionary = {"shield": "SHIELD", "hull": "HULL", "thermal": "THERMAL", "electric": "ELECTRIC"}
+	var section_size: int = ThemeManager.get_font_size("font_size_section")
+	_controls_total_labels.clear()
+	for bar_type in EffectRateCalculator.BAR_TYPES:
+		var val: float = float(active_totals.get(bar_type, 0.0))
+		var total_row := HBoxContainer.new()
+		total_row.add_theme_constant_override("separation", 8)
+		totals_vbox.add_child(total_row)
+		var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
+		var type_lbl := Label.new()
+		type_lbl.text = str(abbrev.get(bar_type, bar_type.to_upper()))
+		type_lbl.custom_minimum_size.x = 80
+		type_lbl.add_theme_color_override("font_color", Color(bar_color.r, bar_color.g, bar_color.b, 0.6))
+		type_lbl.add_theme_font_size_override("font_size", section_size)
+		if body_font:
+			type_lbl.add_theme_font_override("font", body_font)
+		total_row.add_child(type_lbl)
+		var val_lbl := Label.new()
+		var sign: String = "+" if val > 0 else ""
+		val_lbl.text = sign + str(int(val)) + " / min" if not is_zero_approx(val) else "—"
+		val_lbl.add_theme_color_override("font_color", bar_color)
+		val_lbl.add_theme_font_size_override("font_size", section_size + 2)
+		if body_font:
+			val_lbl.add_theme_font_override("font", body_font)
+		total_row.add_child(val_lbl)
+		_controls_total_labels[bar_type] = val_lbl
+
+	_controls_content.add_child(totals_panel)
 
 
 func _show_fire_groups_panel() -> void:
@@ -1036,19 +1153,11 @@ func _show_fire_groups_panel() -> void:
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var all_slots: Array = _get_all_slot_keys()
 
-	# Tip
-	var tip := Label.new()
-	tip.text = "Toggle slots with their keys, then SAVE to create a fire group. Press the group's key in-game to activate that combo."
-	tip.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.45))
-	tip.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 1)
-	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	if body_font:
-		tip.add_theme_font_override("font", body_font)
-	_right_panel_list.add_child(tip)
-
-	var tip_spacer := Control.new()
-	tip_spacer.custom_minimum_size.y = 8
-	_right_panel_list.add_child(tip_spacer)
+	# Match controls-tab top offset: tip label (~20px) + spacer (6px) = ~26px
+	# Fire group cards start at the same vertical position as slot rows
+	var top_pad := Control.new()
+	top_pad.custom_minimum_size.y = 26
+	_right_panel_list.add_child(top_pad)
 
 	# Existing fire group presets
 	var presets: Array = KeyBindingManager.get_combo_presets()
@@ -1056,7 +1165,7 @@ func _show_fire_groups_panel() -> void:
 		var preset: Dictionary = presets[i]
 		_add_fire_group_column(preset, i, all_slots, body_font)
 
-	# "SAVE CURRENT AS NEW GROUP" button at the bottom
+	# "SAVE CURRENT AS NEW GROUP" button
 	var save_spacer := Control.new()
 	save_spacer.custom_minimum_size.y = 8
 	_right_panel_list.add_child(save_spacer)
@@ -1068,40 +1177,51 @@ func _show_fire_groups_panel() -> void:
 	_darken_button(save_btn)
 	_right_panel_list.add_child(save_btn)
 
+	# Tip at bottom
+	var tip_spacer := Control.new()
+	tip_spacer.custom_minimum_size.y = 12
+	_right_panel_list.add_child(tip_spacer)
+
+	var tip := Label.new()
+	tip.text = "Toggle slots with their keys, then SAVE to create a fire group. Press the group's key in-game to activate that combo."
+	tip.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.35))
+	tip.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 1)
+	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if body_font:
+		tip.add_theme_font_override("font", body_font)
+	_right_panel_list.add_child(tip)
+
 
 func _add_fire_group_column(preset: Dictionary, index: int, all_slots: Array, body_font: Font) -> void:
 	## Add a single fire group card to the right panel.
+	## Uses the same slot-row template as the controls tab for horizontal alignment.
 	var pattern: Dictionary = preset.get("pattern", {})
+	var bound_idx: int = index
 
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var ps := StyleBoxFlat.new()
-	ps.bg_color = Color(0.0, 0.0, 0.0, 0.5)
-	ps.corner_radius_top_left = 4
-	ps.corner_radius_top_right = 4
-	ps.corner_radius_bottom_left = 4
-	ps.corner_radius_bottom_right = 4
-	ps.content_margin_left = 10
-	ps.content_margin_right = 10
-	ps.content_margin_top = 8
-	ps.content_margin_bottom = 8
-	panel.add_theme_stylebox_override("panel", ps)
+	# Header row: key button + group label + delete — outside slot rows
+	var header_panel := PanelContainer.new()
+	header_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var hps := StyleBoxFlat.new()
+	hps.bg_color = Color(0.0, 0.0, 0.0, 0.4)
+	hps.corner_radius_top_left = 4
+	hps.corner_radius_top_right = 4
+	hps.corner_radius_bottom_left = 4
+	hps.corner_radius_bottom_right = 4
+	hps.content_margin_left = 8
+	hps.content_margin_right = 8
+	hps.content_margin_top = 4
+	hps.content_margin_bottom = 4
+	header_panel.add_theme_stylebox_override("panel", hps)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
-	panel.add_child(vbox)
-
-	# Header row: key button + label + delete
 	var header_row := HBoxContainer.new()
 	header_row.add_theme_constant_override("separation", 8)
-	vbox.add_child(header_row)
+	header_panel.add_child(header_row)
 
 	var key_btn := Button.new()
 	key_btn.text = "[" + str(preset.get("key_label", "?")) + "]"
 	key_btn.custom_minimum_size = Vector2(50, 34)
 	_darken_button(key_btn)
 	key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	var bound_idx: int = index
 	key_btn.pressed.connect(func() -> void: _start_key_capture("combo_" + str(bound_idx)))
 	header_row.add_child(key_btn)
 
@@ -1114,6 +1234,13 @@ func _add_fire_group_column(preset: Dictionary, index: int, all_slots: Array, bo
 		name_lbl.add_theme_font_override("font", body_font)
 	header_row.add_child(name_lbl)
 
+	var load_btn := Button.new()
+	load_btn.text = "LOAD"
+	load_btn.custom_minimum_size = Vector2(54, 34)
+	_darken_button(load_btn)
+	load_btn.pressed.connect(func() -> void: _load_combo_pattern(bound_idx))
+	header_row.add_child(load_btn)
+
 	var del_btn := Button.new()
 	del_btn.text = "X"
 	del_btn.custom_minimum_size = Vector2(34, 34)
@@ -1121,44 +1248,67 @@ func _add_fire_group_column(preset: Dictionary, index: int, all_slots: Array, bo
 	del_btn.pressed.connect(func() -> void: _delete_combo(bound_idx))
 	header_row.add_child(del_btn)
 
-	# Slot dots — one row per slot, aligned with the left panel slots
+	_right_panel_list.add_child(header_panel)
+
+	# Slot rows — same template as controls tab rows for horizontal alignment
 	for slot_key in all_slots:
 		var on: bool = pattern.get(slot_key, false)
-		var dot_row := HBoxContainer.new()
-		dot_row.add_theme_constant_override("separation", 6)
-		vbox.add_child(dot_row)
-
-		var dot := Label.new()
-		dot.text = "\u25cf" if on else "\u25cb"
-		dot.custom_minimum_size = Vector2(20, 0)
-		if on:
-			dot.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
-		else:
-			dot.add_theme_color_override("font_color", Color(0.35, 0.35, 0.35))
-		dot.add_theme_font_size_override("font_size", 16)
-		dot_row.add_child(dot)
-
-		var slot_lbl := Label.new()
-		slot_lbl.text = _get_slot_item_name(slot_key)
+		var item_name: String = _get_slot_item_name(slot_key)
 		var slot_color: Color = _get_slot_type_color(slot_key)
+
+		# Same dark panel as controls tab slot rows
+		var panel := PanelContainer.new()
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var ps := StyleBoxFlat.new()
+		ps.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+		ps.corner_radius_top_left = 4
+		ps.corner_radius_top_right = 4
+		ps.corner_radius_bottom_left = 4
+		ps.corner_radius_bottom_right = 4
+		ps.content_margin_left = 8
+		ps.content_margin_right = 8
+		ps.content_margin_top = 6
+		ps.content_margin_bottom = 6
+		panel.add_theme_stylebox_override("panel", ps)
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		panel.add_child(row)
+
+		# Power button — prominent on/off indicator
+		var power_lbl := Label.new()
+		power_lbl.text = "\u23fb"  # Power symbol ⏻
+		power_lbl.custom_minimum_size = Vector2(36, 54)
+		power_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		power_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		power_lbl.add_theme_font_size_override("font_size", 22)
 		if on:
-			slot_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.8))
+			power_lbl.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
 		else:
-			slot_lbl.add_theme_color_override("font_color", Color(0.35, 0.35, 0.35))
-		slot_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+			power_lbl.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
+		row.add_child(power_lbl)
+
+		# Slot name — same style as controls tab
+		var slot_lbl := Label.new()
+		slot_lbl.text = item_name
+		slot_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slot_lbl.custom_minimum_size.y = 54
+		slot_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		slot_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
 		if body_font:
 			slot_lbl.add_theme_font_override("font", body_font)
-		dot_row.add_child(slot_lbl)
+		if on:
+			slot_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.9))
+		else:
+			slot_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.25))
+		row.add_child(slot_lbl)
 
-	# Load button at bottom of group
-	var load_btn := Button.new()
-	load_btn.text = "LOAD"
-	load_btn.custom_minimum_size.y = 30
-	_darken_button(load_btn)
-	load_btn.pressed.connect(func() -> void: _load_combo_pattern(bound_idx))
-	vbox.add_child(load_btn)
+		_right_panel_list.add_child(panel)
 
-	_right_panel_list.add_child(panel)
+	# Spacer between fire groups
+	var group_spacer := Control.new()
+	group_spacer.custom_minimum_size.y = 10
+	_right_panel_list.add_child(group_spacer)
 
 
 func _load_combo_pattern(index: int) -> void:
@@ -1567,6 +1717,29 @@ func _get_all_slot_keys() -> Array:
 	return slots
 
 
+func _get_slot_rates(slot_key: String) -> Dictionary:
+	var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+	if slot_key.begins_with("weapon_"):
+		var weapon_id: String = str(slot_data.get("weapon_id", ""))
+		if weapon_id != "":
+			var w: WeaponData = _weapon_cache.get(weapon_id)
+			if w:
+				return EffectRateCalculator.calc_weapon(w)
+	elif slot_key.begins_with("core_"):
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id != "":
+			var pc: PowerCoreData = _power_core_cache.get(device_id)
+			if pc:
+				return EffectRateCalculator.calc_power_core(pc)
+	elif slot_key.begins_with("field_"):
+		var device_id: String = str(slot_data.get("device_id", ""))
+		if device_id != "":
+			var d: DeviceData = _device_cache.get(device_id)
+			if d:
+				return EffectRateCalculator.calc_device(d)
+	return {}
+
+
 func _get_slot_item_name(slot_key: String) -> String:
 	var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
 	if slot_key.begins_with("weapon_"):
@@ -1750,8 +1923,8 @@ func _build_ui() -> void:
 	mode_hbox.add_child(_functional_btn)
 
 	_controls_btn = Button.new()
-	_controls_btn.text = "ASSIGN FIRE GROUPS"
-	_controls_btn.custom_minimum_size = Vector2(160, 36)
+	_controls_btn.text = "FIRE GROUPS"
+	_controls_btn.custom_minimum_size = Vector2(120, 36)
 	_controls_btn.pressed.connect(func() -> void: _on_mode_toggle("controls"))
 	mode_hbox.add_child(_controls_btn)
 

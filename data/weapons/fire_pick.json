@@ -100,6 +100,7 @@
 		0.984375
 	],
 	"id": "fire_pick",
+	"is_enemy_weapon": false,
 	"loop_file_path": "res://loop_zips/sorted/synth/Tired Robot - 120 BPM - 2 - Synth - NW_EID_115_synth_arp_zazo_Cmaj.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
@@ -111,6 +112,6 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
-	"transition_mode": "instant",
-	"transition_ms": 200
+	"transition_mode": "fade",
+	"transition_ms": 320
 }

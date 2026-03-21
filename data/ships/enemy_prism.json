@@ -1,8 +1,9 @@
 {
-	"burst_directions": 4,
+	"collision_height": 30.0,
+	"collision_shape": "circle",
+	"collision_width": 52.0,
 	"display_name": "Prism",
 	"enable_screen_shake": false,
-	"enemy_damage": 14,
 	"explosion_color": [
 		1.0,
 		0.300000011920929,
@@ -10,8 +11,6 @@
 		1.0
 	],
 	"explosion_size": 1.0,
-	"fire_pattern": "straight",
-	"fire_rate": 1.2,
 	"grid_size": [
 		36,
 		36
@@ -19,19 +18,22 @@
 	"hardpoints": [],
 	"id": "enemy_prism",
 	"lines": [],
-	"projectile_speed": 280.0,
 	"render_mode": "spore",
 	"stats": {
 		"acceleration": 500.0,
+		"core_slots": 1.0,
 		"device_slots": 2.0,
 		"electric_segments": 6.0,
+		"field_slots": 2.0,
 		"hull_hp": 40.0,
 		"hull_segments": 6.0,
+		"particle_slots": 1.0,
 		"shield_hp": 20.0,
 		"shield_regen": 2.0,
 		"shield_segments": 6.0,
 		"speed": 120.0,
-		"thermal_segments": 6.0
+		"thermal_segments": 6.0,
+		"weapon_slots": 3.0
 	},
 	"type": "enemy",
 	"visual_id": "prism",

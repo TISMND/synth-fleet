@@ -31,6 +31,7 @@ extends Resource
 @export var beam_transition_time: float = 0.1 # seconds for appear/disappear
 @export var beam_dps: float = 50.0            # sustained damage per second
 @export var beam_passthrough: bool = true      # if false, beam stops at first enemy
+@export var is_enemy_weapon: bool = false      # if true, only available for enemy ships
 
 
 static func from_dict(data: Dictionary) -> WeaponData:
@@ -81,6 +82,7 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	w.beam_transition_time = float(data.get("beam_transition_time", 0.1))
 	w.beam_dps = float(data.get("beam_dps", 50.0))
 	w.beam_passthrough = bool(data.get("beam_passthrough", true))
+	w.is_enemy_weapon = bool(data.get("is_enemy_weapon", false))
 	return w
 
 
@@ -140,4 +142,5 @@ func to_dict() -> Dictionary:
 		"beam_transition_time": beam_transition_time,
 		"beam_dps": beam_dps,
 		"beam_passthrough": beam_passthrough,
+		"is_enemy_weapon": is_enemy_weapon,
 	}

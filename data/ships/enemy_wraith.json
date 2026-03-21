@@ -1,8 +1,9 @@
 {
-	"burst_directions": 4,
+	"collision_height": 30.0,
+	"collision_shape": "circle",
+	"collision_width": 142.0,
 	"display_name": "Wraith",
 	"enable_screen_shake": false,
-	"enemy_damage": 17,
 	"explosion_color": [
 		1.0,
 		0.300000011920929,
@@ -10,8 +11,6 @@
 		1.0
 	],
 	"explosion_size": 1.0,
-	"fire_pattern": "straight",
-	"fire_rate": 1.0,
 	"grid_size": [
 		92,
 		100
@@ -19,19 +18,22 @@
 	"hardpoints": [],
 	"id": "enemy_wraith",
 	"lines": [],
-	"projectile_speed": 340.0,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 350.0,
+		"core_slots": 1.0,
 		"device_slots": 3.0,
 		"electric_segments": 10.0,
+		"field_slots": 2.0,
 		"hull_hp": 140.0,
 		"hull_segments": 10.0,
+		"particle_slots": 1.0,
 		"shield_hp": 60.0,
 		"shield_regen": 5.0,
 		"shield_segments": 8.0,
 		"speed": 90.0,
-		"thermal_segments": 8.0
+		"thermal_segments": 8.0,
+		"weapon_slots": 3.0
 	},
 	"type": "enemy",
 	"visual_id": "wraith",

@@ -11,7 +11,7 @@
 	"damage": 10,
 	"description": "",
 	"direction_deg": 0.0,
-	"display_name": "beam in progress",
+	"display_name": "Ion Sweep",
 	"effect_profile": {
 		"defaults": {
 
@@ -32,7 +32,8 @@
 		0.75,
 		0.875
 	],
-	"id": "beam_in_progress",
+	"id": "ion_sweep",
+	"is_enemy_weapon": false,
 	"loop_file_path": "res://loop_zips/sorted/chords/NEW Salty Captain - 120 BPM - 6 - Chords - AU_MC_100_synth_pad_loop_fantastic_Dmin.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
@@ -44,6 +45,6 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 120.0,
 	"sweep_duration": 2.0,
-	"transition_mode": "instant",
-	"transition_ms": 200
+	"transition_mode": "fade",
+	"transition_ms": 370
 }

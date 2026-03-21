@@ -1,0 +1,47 @@
+{
+	"aim_mode": "fixed",
+	"bar_effects": {
+
+	},
+	"beam_dps": 10.0,
+	"beam_duration": 1.8,
+	"beam_passthrough": false,
+	"beam_style_id": "alien_beauty_beam",
+	"beam_transition_time": 0.31,
+	"damage": 10,
+	"description": "",
+	"direction_deg": 0.0,
+	"display_name": "Enemy Beauty Beam",
+	"effect_profile": {
+		"defaults": {
+
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fire_pattern": "single",
+	"fire_triggers": [
+		0.0625,
+		0.25,
+		0.5703125,
+		0.75,
+		0.875
+	],
+	"id": "enemy_beauty_beam",
+	"is_enemy_weapon": true,
+	"loop_file_path": "res://loop_zips/sorted/strings/NEW Overblown Choice - 120 BPM - 5 - Strings - KMRBI_AS2_110_strings_loop_ensemble_tranquil_wet_D#m.wav",
+	"loop_length_bars": 8,
+	"mirror_mode": "none",
+	"pierce_count": 0,
+	"projectile_speed": 600.0,
+	"projectile_style_id": "enemy_orb",
+	"skips_shields": false,
+	"splash_enabled": false,
+	"splash_radius": 0.0,
+	"sweep_arc_deg": 60.0,
+	"sweep_duration": 1.0,
+	"transition_mode": "fade",
+	"transition_ms": 760
+}

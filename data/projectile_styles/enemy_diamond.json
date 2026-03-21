@@ -1,0 +1,40 @@
+{
+	"archetype": "bullet",
+	"base_scale": [
+		24.0,
+		62.0
+	],
+	"color": [
+		1.0,
+		0.375,
+		0.0,
+		1.0
+	],
+	"display_name": "Enemy Diamond",
+	"effect_profile": {
+
+	},
+	"fill_shader": "hologram",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "enemy_diamond",
+	"mask_path": "",
+	"procedural_mask_feather": 0.27,
+	"procedural_mask_shape": "diamond",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"aberration": 0.1,
+		"animation_speed": 1.3,
+		"brightness": 1.1,
+		"color_mix": 0.0,
+		"edge_softness": 0.3,
+		"flicker_rate": 0.0,
+		"scan_density": 4.0,
+		"scan_speed": 4.0
+	}
+}

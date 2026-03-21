@@ -1,8 +1,9 @@
 {
-	"burst_directions": 4,
+	"collision_height": 30.0,
+	"collision_shape": "circle",
+	"collision_width": 54.0,
 	"display_name": "Scythe",
 	"enable_screen_shake": false,
-	"enemy_damage": 14,
 	"explosion_color": [
 		1.0,
 		0.300000011920929,
@@ -10,8 +11,6 @@
 		1.0
 	],
 	"explosion_size": 1.0,
-	"fire_pattern": "straight",
-	"fire_rate": 1.8,
 	"grid_size": [
 		36,
 		36
@@ -19,19 +18,22 @@
 	"hardpoints": [],
 	"id": "enemy_scythe",
 	"lines": [],
-	"projectile_speed": 320.0,
 	"render_mode": "sport",
 	"stats": {
 		"acceleration": 700.0,
+		"core_slots": 1.0,
 		"device_slots": 2.0,
 		"electric_segments": 6.0,
+		"field_slots": 2.0,
 		"hull_hp": 35.0,
 		"hull_segments": 6.0,
+		"particle_slots": 1.0,
 		"shield_hp": 0.0,
 		"shield_regen": 0.0,
 		"shield_segments": 0.0,
 		"speed": 200.0,
-		"thermal_segments": 6.0
+		"thermal_segments": 6.0,
+		"weapon_slots": 3.0
 	},
 	"type": "enemy",
 	"visual_id": "scythe",

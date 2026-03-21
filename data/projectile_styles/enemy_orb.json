@@ -1,0 +1,39 @@
+{
+	"archetype": "bullet",
+	"base_scale": [
+		32.0,
+		32.0
+	],
+	"color": [
+		0.080322265625,
+		0.673057556152344,
+		0.734375,
+		1.0
+	],
+	"display_name": "Enemy Orb",
+	"effect_profile": {
+
+	},
+	"fill_shader": "toxic",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "enemy_orb",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 0.8,
+		"brightness": 0.7,
+		"bubble_density": 5.0,
+		"bubble_speed": 2.5,
+		"color_mix": 0.19,
+		"drip_intensity": 0.55,
+		"edge_softness": 0.63
+	}
+}

@@ -14,6 +14,7 @@ var pierce_count: int = 0  # 0 = die on hit, N = pass through N enemies, -1 = in
 var splash_enabled: bool = false
 var splash_radius: float = 0.0
 var skips_shields: bool = false
+var is_enemy: bool = false  # if true, use enemy collision layers (layer 8, mask 1)
 
 static var _debug_printed: bool = false
 var _age: float = 0.0
@@ -33,8 +34,12 @@ var _visual_rotation: float = 0.0  # rotate visuals to face travel direction
 
 
 func _ready() -> void:
-	collision_layer = 2
-	collision_mask = 4
+	if is_enemy:
+		collision_layer = 8
+		collision_mask = 1
+	else:
+		collision_layer = 2
+		collision_mask = 4
 
 	# Store visual rotation for sprite/draw (don't rotate node — that breaks trails)
 	_visual_rotation = direction.angle() - PI / 2.0

@@ -1,20 +1,30 @@
 {
+	"collision_height": 90.0,
+	"collision_shape": "capsule",
+	"collision_width": 60.0,
 	"display_name": "Stiletto",
 	"id": "stiletto",
 	"render_mode": "chrome",
 	"stats": {
 		"acceleration": 2750.0,
+		"collision_height": 90.0,
+		"collision_shape": "capsule",
+		"collision_width": 60.0,
+		"core_slots": 1,
 		"device_slots": 2.0,
 		"electric_hp": 120.0,
 		"electric_segments": 8.0,
+		"field_slots": 2,
 		"generator_power": 15.0,
 		"hull_hp": 240.0,
 		"hull_segments": 9.0,
+		"particle_slots": 1,
 		"shield_hp": 240.0,
 		"shield_regen": 1.0,
 		"shield_segments": 13.0,
 		"speed": 500.0,
 		"thermal_hp": 120.0,
-		"thermal_segments": 9.0
+		"thermal_segments": 9.0,
+		"weapon_slots": 3
 	}
 }

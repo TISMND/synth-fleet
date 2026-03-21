@@ -153,6 +153,7 @@
 		0.9921875
 	],
 	"id": "eko_pulse_turret",
+	"is_enemy_weapon": false,
 	"loop_file_path": "res://loop_zips/sorted/synth/Tired Robot - 120 BPM - 3 - Synth - 003_Arp_90bpm_Cmin_-_RETROAESTHETICS1_Zenhiser.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
@@ -164,6 +165,6 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.0,
-	"transition_mode": "instant",
-	"transition_ms": 200
+	"transition_mode": "fade",
+	"transition_ms": 250
 }

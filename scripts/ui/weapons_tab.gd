@@ -85,6 +85,7 @@ var _splash_section: VBoxContainer
 
 # Skips Shields (Stats subtab)
 var _skips_shields_toggle: CheckBox
+var _is_enemy_weapon_toggle: CheckBox
 
 # Stats subtab
 var _name_input: LineEdit
@@ -108,6 +109,7 @@ const WAVE_MIN_CHANGE: float = 0.01
 var _reset_bars_button: Button
 var _bar_effect_sliders: Dictionary = {}   # "shield" -> HSlider
 var _bar_effect_labels: Dictionary = {}    # "shield" -> SliderValueEdit
+var _effect_rate_label: Label = null       # "SHD -30/m  HUL +12/m" readout
 var _stats_prev_loop_progress: float = -1.0
 # Beam sustained simulation — tracks active beam timers for continuous DPS + bar effects
 var _beam_active_remaining: float = 0.0
@@ -708,6 +710,14 @@ func _build_stats_tab() -> Control:
 		_bar_effect_sliders[bar_type] = slider
 		_bar_effect_labels[bar_type] = val_edit
 
+	# Effect rate readout (updates dynamically)
+	_effect_rate_label = Label.new()
+	_effect_rate_label.text = ""
+	_effect_rate_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.6))
+	_effect_rate_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 1)
+	_effect_rate_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	form.add_child(_effect_rate_label)
+
 	_add_separator(form)
 
 	# Enemy Damage Test
@@ -819,6 +829,18 @@ func _build_stats_tab() -> Control:
 		_update_preview()
 	)
 	form.add_child(_skips_shields_toggle)
+
+	_add_separator(form)
+
+	# Enemy Weapon toggle
+	_add_section_header(form, "ENEMY WEAPON")
+	_is_enemy_weapon_toggle = CheckBox.new()
+	_is_enemy_weapon_toggle.text = "ENEMY ONLY (hidden from player loadout)"
+	_is_enemy_weapon_toggle.button_pressed = false
+	_is_enemy_weapon_toggle.toggled.connect(func(_on: bool) -> void:
+		_mark_dirty()
+	)
+	form.add_child(_is_enemy_weapon_toggle)
 
 	return scroll
 
@@ -1095,6 +1117,7 @@ func _collect_weapon_data() -> Dictionary:
 		"beam_transition_time": _beam_transition_slider.value,
 		"beam_dps": _beam_dps_slider.value,
 		"beam_passthrough": _beam_passthrough_toggle.button_pressed,
+		"is_enemy_weapon": _is_enemy_weapon_toggle.button_pressed,
 	}
 
 
@@ -1119,7 +1142,18 @@ func _generate_id(display_name: String) -> String:
 func _update_preview() -> void:
 	if not _ui_ready or not _preview_controller:
 		return
-	_preview_controller.update_from_dict(_collect_weapon_data())
+	var data: Dictionary = _collect_weapon_data()
+	_preview_controller.update_from_dict(data)
+	_update_effect_rate_label(data)
+
+
+func _update_effect_rate_label(data: Dictionary) -> void:
+	if not _effect_rate_label:
+		return
+	var weapon: WeaponData = WeaponData.from_dict(data)
+	var rates: Dictionary = EffectRateCalculator.calc_weapon(weapon)
+	var text: String = EffectRateCalculator.format_rates(rates)
+	_effect_rate_label.text = text if text != "" else "No bar effects"
 
 
 # ── Loop Browser Events ────────────────────────────────────
@@ -1281,6 +1315,7 @@ func _on_new() -> void:
 	_on_splash_toggled(false)
 	_splash_radius_slider.value = 40
 	_skips_shields_toggle.button_pressed = false
+	_is_enemy_weapon_toggle.button_pressed = false
 
 	# Reset hits per trigger
 	_hits_per_trigger_slider.max_value = 6
@@ -1380,6 +1415,7 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_on_splash_toggled(weapon.splash_enabled)
 	_splash_radius_slider.value = weapon.splash_radius if weapon.splash_radius > 0.0 else 40.0
 	_skips_shields_toggle.button_pressed = weapon.skips_shields
+	_is_enemy_weapon_toggle.button_pressed = weapon.is_enemy_weapon
 
 	# Auto-set hits per trigger from fire pattern
 	_update_hits_from_pattern()

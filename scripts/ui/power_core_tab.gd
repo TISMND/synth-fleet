@@ -37,6 +37,7 @@ var _bar_effect_lanes: Dictionary = {}  # bar_type -> BarEffectLane
 # Stats subtab
 var _mechanics_bar_effect_sliders: Dictionary = {}  # bar_type -> HSlider
 var _passive_effect_sliders: Dictionary = {}  # bar_type -> HSlider
+var _effect_rate_label: Label = null
 # Stats bar preview (LED bars with rolling wave animation)
 var _stats_preview_bars: Array[ProgressBar] = []
 var _stats_bar_base_colors: Array[Color] = []
@@ -536,6 +537,14 @@ func _build_stats_tab() -> Control:
 		)
 
 		_passive_effect_sliders[bar_type] = slider
+
+	# Effect rate readout
+	_effect_rate_label = Label.new()
+	_effect_rate_label.text = "No bar effects"
+	_effect_rate_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.6))
+	_effect_rate_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 1)
+	_effect_rate_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	form.add_child(_effect_rate_label)
 
 	return scroll
 
@@ -1242,6 +1251,17 @@ func _mark_dirty() -> void:
 	if not _dirty:
 		_dirty = true
 		_update_dirty_display()
+	_update_effect_rate_label()
+
+
+func _update_effect_rate_label() -> void:
+	if not _effect_rate_label:
+		return
+	var data: Dictionary = _collect_power_core_data()
+	var core: PowerCoreData = PowerCoreData.from_dict(data)
+	var rates: Dictionary = EffectRateCalculator.calc_power_core(core)
+	var text: String = EffectRateCalculator.format_rates(rates)
+	_effect_rate_label.text = text if text != "" else "No bar effects"
 
 
 func _mark_clean() -> void:

@@ -1,8 +1,9 @@
 {
-	"burst_directions": 4,
+	"collision_height": 30.0,
+	"collision_shape": "circle",
+	"collision_width": 66.0,
 	"display_name": "Obelisk",
 	"enable_screen_shake": false,
-	"enemy_damage": 17,
 	"explosion_color": [
 		1.0,
 		0.300000011920929,
@@ -10,8 +11,6 @@
 		1.0
 	],
 	"explosion_size": 1.0,
-	"fire_pattern": "straight",
-	"fire_rate": 0.5,
 	"grid_size": [
 		40,
 		48
@@ -19,20 +18,22 @@
 	"hardpoints": [],
 	"id": "enemy_obelisk",
 	"lines": [],
-	"presence_loop_path": "res://loop_zips/sorted/strings/Sleeping Symphony - 120 BPM - 8 - Strings - VOX_NSV_70_strings_midnight_Gmin.wav",
-	"projectile_speed": 180.0,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 150.0,
+		"core_slots": 1.0,
 		"device_slots": 4.0,
 		"electric_segments": 10.0,
+		"field_slots": 2.0,
 		"hull_hp": 120.0,
 		"hull_segments": 14.0,
+		"particle_slots": 1.0,
 		"shield_hp": 40.0,
 		"shield_regen": 3.0,
 		"shield_segments": 8.0,
 		"speed": 50.0,
-		"thermal_segments": 8.0
+		"thermal_segments": 8.0,
+		"weapon_slots": 3.0
 	},
 	"type": "enemy",
 	"visual_id": "obelisk",

@@ -209,7 +209,7 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 			enemy.ship_id = sid
 			enemy.presence_loop_path = ship.presence_loop_path
 			# Pass weapon data for EnemyWeaponController
-			if ship.type == "enemy" and ship.fire_rate > 0.0:
+			if ship.type == "enemy" and ship.weapon_id != "":
 				enemy.ship_data_ref = ship
 				enemy.player_ref = _player_ref
 				enemy.projectiles_container = _projectiles_container

@@ -1,20 +1,30 @@
 {
+	"collision_height": 86.0,
+	"collision_shape": "capsule",
+	"collision_width": 56.0,
 	"display_name": "Switchblade",
 	"id": "switchblade",
 	"render_mode": "chrome",
 	"stats": {
 		"acceleration": 4100.0,
+		"collision_height": 86.0,
+		"collision_shape": "capsule",
+		"collision_width": 56.0,
+		"core_slots": 1.0,
 		"device_slots": 2.0,
 		"electric_hp": 80.0,
 		"electric_segments": 8.0,
+		"field_slots": 2.0,
 		"generator_power": 12.0,
 		"hull_hp": 60.0,
 		"hull_segments": 5.0,
+		"particle_slots": 1.0,
 		"shield_hp": 120.0,
 		"shield_regen": 1.2,
 		"shield_segments": 9.0,
 		"speed": 600.0,
 		"thermal_hp": 60.0,
-		"thermal_segments": 9.0
+		"thermal_segments": 9.0,
+		"weapon_slots": 3.0
 	}
 }

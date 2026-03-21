@@ -10,7 +10,7 @@
 	},
 	"description": "",
 	"device_type": "shield_aura",
-	"display_name": "somethingWIP",
+	"display_name": "Inverted Crystal Capacitors",
 	"fade_in_duration": 0.3,
 	"fade_out_duration": 0.3,
 	"field_style_id": "sun_rays",
@@ -37,7 +37,7 @@
 	"radius": 100.0,
 	"speed_modifier": -70.0,
 	"transition_mode": "fade",
-	"transition_ms": 750,
+	"transition_ms": 830,
 	"visual_mode": "field",
 	"visual_pulse_triggers": [
 		0.0,

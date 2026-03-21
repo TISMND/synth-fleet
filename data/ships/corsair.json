@@ -1,0 +1,28 @@
+{
+	"collision_height": 106.0,
+	"collision_shape": "capsule",
+	"collision_width": 58.0,
+	"display_name": "Corsair",
+	"id": "corsair",
+	"render_mode": "chrome",
+	"stats": {
+		"acceleration": 1600,
+		"collision_height": 106.0,
+		"collision_shape": "capsule",
+		"collision_width": 58.0,
+		"core_slots": 1,
+		"electric_hp": 80,
+		"electric_segments": 8,
+		"field_slots": 1,
+		"hull_hp": 90,
+		"hull_segments": 9,
+		"particle_slots": 1,
+		"shield_hp": 100,
+		"shield_regen": 0.8,
+		"shield_segments": 10,
+		"speed": 440,
+		"thermal_hp": 60,
+		"thermal_segments": 6,
+		"weapon_slots": 4
+	}
+}

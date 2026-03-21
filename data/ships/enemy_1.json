@@ -1,17 +1,16 @@
 {
-	"burst_directions": 4,
+	"collision_height": 30.0,
+	"collision_shape": "circle",
+	"collision_width": 80.0,
 	"display_name": "Sentinel",
 	"enable_screen_shake": false,
-	"enemy_damage": 15,
 	"explosion_color": [
 		0.945465683937073,
 		0.301960825920105,
 		1.0,
 		1.0
 	],
-	"explosion_size": 1.4,
-	"fire_pattern": "turret",
-	"fire_rate": 1.5,
+	"explosion_size": 1.1,
 	"grid_size": [
 		32,
 		32
@@ -19,23 +18,25 @@
 	"hardpoints": [],
 	"id": "enemy_1",
 	"lines": [],
-	"presence_loop_path": "res://loop_zips/sorted/strings/Thinking About Reaction - 120 BPM - 7 - Strings - jc_sc_85_quartet_stack_heroic_full_F#maj.wav",
-	"projectile_speed": 300.0,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 600.0,
+		"core_slots": 1.0,
 		"device_slots": 2.0,
 		"electric_segments": 8.0,
-		"external_slots": 3,
+		"external_slots": 3.0,
+		"field_slots": 2.0,
 		"generator_power": 10.0,
 		"hull_hp": 50.0,
 		"hull_segments": 8.0,
-		"internal_slots": 3,
+		"internal_slots": 3.0,
+		"particle_slots": 1.0,
 		"shield_hp": 0.0,
 		"shield_regen": 1.0,
 		"shield_segments": 10.0,
 		"speed": 150.0,
-		"thermal_segments": 6.0
+		"thermal_segments": 6.0,
+		"weapon_slots": 3.0
 	},
 	"type": "enemy",
 	"visual_id": "sentinel",

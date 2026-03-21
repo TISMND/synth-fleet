@@ -53,11 +53,16 @@ func _ready() -> void:
 
 	collision_layer = 4
 	collision_mask = 0
-	var shape := CollisionShape2D.new()
-	var circle := CircleShape2D.new()
-	circle.radius = maxf(float(maxi(grid_size.x, grid_size.y)) * 0.4, 12.0)
-	shape.shape = circle
-	add_child(shape)
+	var col_shape := CollisionShape2D.new()
+	if ship_data_ref:
+		var col_result: Dictionary = _make_collision_shape(ship_data_ref)
+		col_shape.shape = col_result["shape"]
+		col_shape.rotation = float(col_result["rotation"])
+	else:
+		var circle := CircleShape2D.new()
+		circle.radius = maxf(float(maxi(grid_size.x, grid_size.y)) * 0.4, 12.0)
+		col_shape.shape = circle
+	add_child(col_shape)
 
 	# Add ShipRenderer for visual drawing instead of hardcoded _draw()
 	_renderer = ShipRenderer.new()
@@ -81,13 +86,41 @@ func _ready() -> void:
 	_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(-1) * 50.0
 	add_child(_shield_bubble)
 
-	# Setup weapon controller if ship data has weapon fields
-	if ship_data_ref and ship_data_ref.fire_rate > 0.0 and projectiles_container:
+	# Setup weapon controller if ship has a weapon assigned
+	if ship_data_ref and ship_data_ref.weapon_id != "" and projectiles_container:
 		_weapon_controller = EnemyWeaponController.new()
 		_weapon_controller.projectile_color = enemy_color
 		_weapon_controller.weapons_enabled = weapons_active
 		add_child(_weapon_controller)
 		_weapon_controller.setup(ship_data_ref, self, player_ref, projectiles_container)
+
+	# Always clean up weapon controller when leaving tree (death, off-screen, etc.)
+	tree_exiting.connect(_on_weapon_cleanup)
+
+
+static func _make_collision_shape(ship: ShipData) -> Dictionary:
+	## Returns {"shape": Shape2D, "rotation": float} — rotation needed for horizontal capsules.
+	var w: float = ship.collision_width
+	var h: float = ship.collision_height
+	match ship.collision_shape:
+		"rectangle":
+			var rect := RectangleShape2D.new()
+			rect.size = Vector2(w, h)
+			return {"shape": rect, "rotation": 0.0}
+		"capsule":
+			var cap := CapsuleShape2D.new()
+			if w > h:
+				cap.radius = h * 0.5
+				cap.height = maxf(w, h)
+				return {"shape": cap, "rotation": PI * 0.5}
+			else:
+				cap.radius = w * 0.5
+				cap.height = maxf(h, w)
+				return {"shape": cap, "rotation": 0.0}
+		_:  # "circle"
+			var circle := CircleShape2D.new()
+			circle.radius = w * 0.5
+			return {"shape": circle, "rotation": 0.0}
 
 
 func _find_game_node() -> Node:
@@ -105,6 +138,12 @@ func _on_presence_exit() -> void:
 	var game_node: Node = _find_game_node()
 	if game_node:
 		game_node.unregister_enemy_presence(ship_id)
+
+
+func _on_weapon_cleanup() -> void:
+	if _weapon_controller:
+		_weapon_controller.cleanup()
+		_weapon_controller = null
 
 
 func set_melee_target(target: Node2D) -> void:

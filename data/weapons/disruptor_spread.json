@@ -11,7 +11,7 @@
 	"damage": 25,
 	"description": "",
 	"direction_deg": 0.0,
-	"display_name": "Whiteish Oval",
+	"display_name": "Disruptor Spread",
 	"effect_profile": {
 		"defaults": {
 
@@ -84,7 +84,8 @@
 		0.9453125,
 		0.953125
 	],
-	"id": "whiteish_oval",
+	"id": "disruptor_spread",
+	"is_enemy_weapon": false,
 	"loop_file_path": "res://loop_zips/sorted/leads/Tired Robot - 120 BPM - 5 - Leads - NW_SFST_128_synth_small_Emin.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
@@ -96,6 +97,6 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 24.0,
 	"sweep_duration": 0.5,
-	"transition_mode": "instant",
-	"transition_ms": 200
+	"transition_mode": "fade",
+	"transition_ms": 280
 }

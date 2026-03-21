@@ -67,10 +67,10 @@
 			"ship_id": "enemy_dart",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 8555.55555555556,
+			"trigger_y": 9743.82716049383,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 120.888053904655
+			"x_offset": 127.720794118178
 		},
 		{
 			"count": 7,
@@ -179,10 +179,10 @@
 			"ship_id": "enemy_ironclad",
 			"spacing": 50.0,
 			"speed": 50.0,
-			"trigger_y": 15015.4320987654,
+			"trigger_y": 14058.6419753086,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": -73.4519572953735
+			"x_offset": -83.7010676156582
 		},
 		{
 			"count": 1,
@@ -193,10 +193,10 @@
 			"ship_id": "enemy_colossus",
 			"spacing": 200.0,
 			"speed": 50.0,
-			"trigger_y": 16589.5061728395,
+			"trigger_y": 15061.7283950617,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 509.039145907473
+			"x_offset": 480.0
 		},
 		{
 			"count": 1,
@@ -207,24 +207,24 @@
 			"ship_id": "enemy_colossus",
 			"spacing": 200.0,
 			"speed": 50.0,
-			"trigger_y": 17425.9259259259,
+			"trigger_y": 16067.9012345679,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": -471.459074733096
+			"x_offset": -384.341637010676
 		},
 		{
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
-			"path_id": "path_2",
+			"path_id": "path_5",
 			"rotate_with_path": true,
 			"ship_id": "enemy_ironclad",
 			"spacing": 50.0,
 			"speed": 50.0,
-			"trigger_y": 14169.7530864197,
+			"trigger_y": 13104.9382716049,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 213.523131672598
+			"x_offset": 275.017793594306
 		},
 		{
 			"count": 1,
@@ -239,6 +239,20 @@
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 81.9928825622776
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_ironclad",
+			"spacing": 200.0,
+			"speed": 50.0,
+			"trigger_y": 1774.69135802469,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -184.483985765125
 		}
 	],
 	"id": "level_1",

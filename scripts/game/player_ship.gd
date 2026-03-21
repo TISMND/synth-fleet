@@ -104,11 +104,11 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_player_area = Area2D.new()
 	_player_area.collision_layer = 1
 	_player_area.collision_mask = 4 | 8  # Enemies (4) + Enemy projectiles (8)
-	var shape := CollisionShape2D.new()
-	var circle := CircleShape2D.new()
-	circle.radius = 15.0
-	shape.shape = circle
-	_player_area.add_child(shape)
+	var col_result: Dictionary = _make_collision_shape(ship_data)
+	var col_shape := CollisionShape2D.new()
+	col_shape.shape = col_result["shape"]
+	col_shape.rotation = float(col_result["rotation"])
+	_player_area.add_child(col_shape)
 	_player_area.area_entered.connect(_on_contact)
 	add_child(_player_area)
 
@@ -501,6 +501,32 @@ func _on_contact(area: Area2D) -> void:
 	if area is EnemyProjectile:
 		return
 	take_damage(15.0)
+
+
+static func _make_collision_shape(ship: ShipData) -> Dictionary:
+	## Returns {"shape": Shape2D, "rotation": float} — rotation needed for horizontal capsules.
+	var w: float = ship.collision_width if ship else 30.0
+	var h: float = ship.collision_height if ship else 30.0
+	match ship.collision_shape if ship else "circle":
+		"rectangle":
+			var rect := RectangleShape2D.new()
+			rect.size = Vector2(w, h)
+			return {"shape": rect, "rotation": 0.0}
+		"capsule":
+			var cap := CapsuleShape2D.new()
+			if w > h:
+				# Horizontal capsule: build vertical then rotate 90°
+				cap.radius = h * 0.5
+				cap.height = maxf(w, h)
+				return {"shape": cap, "rotation": PI * 0.5}
+			else:
+				cap.radius = w * 0.5
+				cap.height = maxf(h, w)
+				return {"shape": cap, "rotation": 0.0}
+		_:  # "circle"
+			var circle := CircleShape2D.new()
+			circle.radius = w * 0.5
+			return {"shape": circle, "rotation": 0.0}
 
 
 static func _resolve_ship_id(ship: ShipData) -> int:

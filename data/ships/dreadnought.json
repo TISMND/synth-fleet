@@ -1,19 +1,29 @@
 {
+	"collision_height": 180.0,
+	"collision_shape": "capsule",
+	"collision_width": 90.0,
 	"display_name": "Dreadnought",
 	"id": "dreadnought",
 	"render_mode": "chrome",
 	"stats": {
 		"acceleration": 900.0,
+		"collision_height": 180.0,
+		"collision_shape": "capsule",
+		"collision_width": 90.0,
+		"core_slots": 1.0,
 		"device_slots": 2.0,
 		"electric_hp": 80.0,
 		"electric_segments": 13.0,
+		"field_slots": 2.0,
 		"hull_hp": 160.0,
 		"hull_segments": 14.0,
+		"particle_slots": 1.0,
 		"shield_hp": 160.0,
 		"shield_regen": 0.6,
 		"shield_segments": 14.0,
 		"speed": 300.0,
 		"thermal_hp": 60.0,
-		"thermal_segments": 11.0
+		"thermal_segments": 11.0,
+		"weapon_slots": 3.0
 	}
 }

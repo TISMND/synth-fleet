@@ -1,8 +1,9 @@
 {
-	"burst_directions": 6,
+	"collision_height": 30.0,
+	"collision_shape": "circle",
+	"collision_width": 68.0,
 	"display_name": "Crucible",
 	"enable_screen_shake": false,
-	"enemy_damage": 12,
 	"explosion_color": [
 		1.0,
 		0.300000011920929,
@@ -10,8 +11,6 @@
 		1.0
 	],
 	"explosion_size": 1.0,
-	"fire_pattern": "burst",
-	"fire_rate": 0.8,
 	"grid_size": [
 		48,
 		40
@@ -19,19 +18,22 @@
 	"hardpoints": [],
 	"id": "enemy_crucible",
 	"lines": [],
-	"projectile_speed": 220.0,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 300.0,
+		"core_slots": 1.0,
 		"device_slots": 3.0,
 		"electric_segments": 8.0,
+		"field_slots": 2.0,
 		"hull_hp": 80.0,
 		"hull_segments": 10.0,
+		"particle_slots": 1.0,
 		"shield_hp": 30.0,
 		"shield_regen": 3.0,
 		"shield_segments": 8.0,
 		"speed": 80.0,
-		"thermal_segments": 8.0
+		"thermal_segments": 8.0,
+		"weapon_slots": 3.0
 	},
 	"type": "enemy",
 	"visual_id": "crucible",

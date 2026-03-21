@@ -1,0 +1,48 @@
+{
+	"aim_mode": "fixed",
+	"bar_effects": {
+
+	},
+	"beam_dps": 5.0,
+	"beam_duration": 1.7,
+	"beam_passthrough": true,
+	"beam_style_id": "enemy_slender_beam",
+	"beam_transition_time": 0.34,
+	"damage": 10,
+	"description": "",
+	"direction_deg": 60.0,
+	"display_name": "Enemy Slender Beam",
+	"effect_profile": {
+		"defaults": {
+
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fire_pattern": "spread",
+	"fire_triggers": [
+		0.0,
+		0.25,
+		0.375,
+		0.5,
+		0.75,
+		0.875
+	],
+	"id": "enemy_slender_beam",
+	"is_enemy_weapon": true,
+	"loop_file_path": "res://loop_zips/sorted/strings/Please Don't Interest - 120 BPM - 7 - Strings - MNT_WC_120_Cello_Spruce_Legato_Full_Variation_C#min.wav",
+	"loop_length_bars": 8,
+	"mirror_mode": "mirror",
+	"pierce_count": 0,
+	"projectile_speed": 600.0,
+	"projectile_style_id": "enemy_diamond",
+	"skips_shields": false,
+	"splash_enabled": false,
+	"splash_radius": 0.0,
+	"sweep_arc_deg": 60.0,
+	"sweep_duration": 1.0,
+	"transition_mode": "fade",
+	"transition_ms": 300
+}

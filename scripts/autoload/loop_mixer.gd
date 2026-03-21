@@ -149,6 +149,25 @@ func start_all() -> void:
 		player.play(0.0)
 
 
+func start_loop(loop_id: String) -> void:
+	## Start a single loop, synced to any already-playing loop's position.
+	if not _loops.has(loop_id):
+		return
+	var entry: Dictionary = _loops[loop_id]
+	var player: AudioStreamPlayer = entry["player"]
+	# Find current position from any playing loop to sync
+	var sync_pos: float = 0.0
+	for other_id in _loops:
+		if other_id == loop_id:
+			continue
+		var other: Dictionary = _loops[other_id]
+		var other_player: AudioStreamPlayer = other["player"]
+		if other_player.playing:
+			sync_pos = other_player.get_playback_position()
+			break
+	player.play(sync_pos)
+
+
 func stop_all() -> void:
 	for loop_id in _loops:
 		var entry: Dictionary = _loops[loop_id]

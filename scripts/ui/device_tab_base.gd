@@ -51,6 +51,7 @@ var _mechanic_params_container: VBoxContainer
 var _mechanic_param_sliders: Dictionary = {}
 var _bar_effect_sliders: Dictionary = {}
 var _passive_effect_sliders: Dictionary = {}
+var _effect_rate_label: Label = null
 var _speed_modifier_slider: HSlider
 var _accel_modifier_slider: HSlider
 
@@ -594,6 +595,14 @@ func _build_mechanics_tab() -> Control:
 
 		_passive_effect_sliders[bar_type] = slider
 
+	# Effect rate readout
+	_effect_rate_label = Label.new()
+	_effect_rate_label.text = "No bar effects"
+	_effect_rate_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.6))
+	_effect_rate_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 1)
+	_effect_rate_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	form.add_child(_effect_rate_label)
+
 	_add_separator(form)
 
 	# Ship Modifiers
@@ -1078,6 +1087,17 @@ func _mark_dirty() -> void:
 	if _populating:
 		return
 	_dirty = true
+	_update_effect_rate_label()
+
+
+func _update_effect_rate_label() -> void:
+	if not _effect_rate_label:
+		return
+	var data: Dictionary = _collect_device_data()
+	var device: DeviceData = DeviceData.from_dict(data)
+	var rates: Dictionary = EffectRateCalculator.calc_device(device)
+	var text: String = EffectRateCalculator.format_rates(rates)
+	_effect_rate_label.text = text if text != "" else "No bar effects"
 
 
 # ── UI Helpers ─────────────────────────────────────────────

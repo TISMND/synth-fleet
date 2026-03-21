@@ -10,7 +10,7 @@
 	},
 	"description": "",
 	"device_type": "shield_aura",
-	"display_name": "Blue Ripple Shields",
+	"display_name": "Field Modulation Tuner",
 	"fade_in_duration": 0.3,
 	"fade_out_duration": 0.3,
 	"field_style_id": "blue_ripple",
@@ -34,7 +34,7 @@
 	"radius": 100.0,
 	"speed_modifier": 0.0,
 	"transition_mode": "fade",
-	"transition_ms": 530,
+	"transition_ms": 810,
 	"visual_mode": "field",
 	"visual_pulse_triggers": [
 		0.0,

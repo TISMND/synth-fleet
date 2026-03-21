@@ -15,6 +15,7 @@ var skips_shields: bool = false
 var passthrough: bool = true
 var appearance_mode: String = "flow_in"
 var preview_mode: bool = false
+var is_enemy: bool = false  # if true, use enemy collision layers (layer 8, mask 1)
 var flip_shader: bool = false
 var track_node: Node2D = null  # if set, beam follows this node's global_position each frame
 var _direction_source: Callable  # if set, called each frame to get aim direction (returns float degrees)
@@ -94,8 +95,12 @@ func _setup_visual() -> void:
 
 func _setup_collision() -> void:
 	_collision_area = Area2D.new()
-	_collision_area.collision_layer = 2
-	_collision_area.collision_mask = 4
+	if is_enemy:
+		_collision_area.collision_layer = 8
+		_collision_area.collision_mask = 1
+	else:
+		_collision_area.collision_layer = 2
+		_collision_area.collision_mask = 4
 	_collision_shape = CollisionShape2D.new()
 	_rect_shape = RectangleShape2D.new()
 	_rect_shape.size = Vector2(beam_width, max_length)

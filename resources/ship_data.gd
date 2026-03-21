@@ -32,16 +32,16 @@ const DEFAULT_HP: Dictionary = {
 
 # Enemy-specific fields (inert for player ships)
 @export var visual_id: String = ""          # Drawing template: "sentinel"
-@export var fire_pattern: String = "straight"  # "straight", "turret", "burst"
-@export var burst_directions: int = 4       # Only used when fire_pattern == "burst"
-@export var fire_rate: float = 1.5          # Seconds between shots
-@export var enemy_damage: int = 10          # Damage per enemy projectile
-@export var projectile_speed: float = 300.0
-@export var weapon_id: String = ""          # Future: enemy weapon definitions
+@export var weapon_id: String = ""          # References a WeaponData id (must have is_enemy_weapon=true)
 @export var presence_loop_path: String = "" # Audio loop that plays while this enemy type is on screen
 @export var explosion_color: Color = Color(1.0, 0.3, 0.5)  # Explosion VFX color
 @export var explosion_size: float = 1.0                      # Explosion size multiplier
 @export var enable_screen_shake: bool = false                 # Screen shake on death (bosses)
+
+# Collision hitbox (shared by player and enemy ships)
+@export var collision_shape: String = "circle"  # "circle", "rectangle", "capsule"
+@export var collision_width: float = 30.0       # Width (or diameter for circle)
+@export var collision_height: float = 30.0      # Height (ignored for circle)
 
 
 static func from_dict(data: Dictionary) -> ShipData:
@@ -63,11 +63,6 @@ static func from_dict(data: Dictionary) -> ShipData:
 
 	# Enemy-specific fields
 	s.visual_id = data.get("visual_id", "")
-	s.fire_pattern = data.get("fire_pattern", "straight")
-	s.burst_directions = int(data.get("burst_directions", 4))
-	s.fire_rate = float(data.get("fire_rate", 1.5))
-	s.enemy_damage = int(data.get("enemy_damage", 10))
-	s.projectile_speed = float(data.get("projectile_speed", 300.0))
 	s.weapon_id = data.get("weapon_id", "")
 	s.presence_loop_path = data.get("presence_loop_path", "")
 	# Explosion settings
@@ -77,6 +72,10 @@ static func from_dict(data: Dictionary) -> ShipData:
 		s.explosion_color = Color(float(exp_color[0]), float(exp_color[1]), float(exp_color[2]), a)
 	s.explosion_size = float(data.get("explosion_size", 1.0))
 	s.enable_screen_shake = bool(data.get("enable_screen_shake", false))
+	# Collision hitbox
+	s.collision_shape = data.get("collision_shape", "circle")
+	s.collision_width = float(data.get("collision_width", 30.0))
+	s.collision_height = float(data.get("collision_height", 30.0))
 	return s
 
 
@@ -93,15 +92,14 @@ func to_dict() -> Dictionary:
 	}
 	if type == "enemy":
 		d["visual_id"] = visual_id
-		d["fire_pattern"] = fire_pattern
-		d["burst_directions"] = burst_directions
-		d["fire_rate"] = fire_rate
-		d["enemy_damage"] = enemy_damage
-		d["projectile_speed"] = projectile_speed
 		d["weapon_id"] = weapon_id
 		if presence_loop_path != "":
 			d["presence_loop_path"] = presence_loop_path
 		d["explosion_color"] = [explosion_color.r, explosion_color.g, explosion_color.b, explosion_color.a]
 		d["explosion_size"] = explosion_size
 		d["enable_screen_shake"] = enable_screen_shake
+	# Collision hitbox (saved for all ship types)
+	d["collision_shape"] = collision_shape
+	d["collision_width"] = collision_width
+	d["collision_height"] = collision_height
 	return d

@@ -1,0 +1,39 @@
+{
+	"archetype": "bullet",
+	"base_scale": [
+		10.0,
+		10.0
+	],
+	"color": [
+		0.8984375,
+		1.0,
+		0.0,
+		1.0
+	],
+	"display_name": "Enemy Speck",
+	"effect_profile": {
+
+	},
+	"fill_shader": "toxic",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "enemy_speck",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"brightness": 2.7,
+		"bubble_density": 4.0,
+		"bubble_speed": 3.3,
+		"color_mix": 0.14,
+		"drip_intensity": 1.0,
+		"edge_softness": 1.0
+	}
+}

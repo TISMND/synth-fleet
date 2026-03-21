@@ -1,8 +1,9 @@
 {
-	"burst_directions": 4,
+	"collision_height": 30.0,
+	"collision_shape": "circle",
+	"collision_width": 120.0,
 	"display_name": "Marauder",
 	"enable_screen_shake": false,
-	"enemy_damage": 16,
 	"explosion_color": [
 		1.0,
 		0.300000011920929,
@@ -10,8 +11,6 @@
 		1.0
 	],
 	"explosion_size": 1.0,
-	"fire_pattern": "burst",
-	"fire_rate": 1.6,
 	"grid_size": [
 		88,
 		96
@@ -19,21 +18,24 @@
 	"hardpoints": [],
 	"id": "enemy_marauder",
 	"lines": [],
-	"projectile_speed": 280.0,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 300.0,
+		"core_slots": 1.0,
 		"device_slots": 3.0,
 		"electric_segments": 8.0,
-		"external_slots": 3,
+		"external_slots": 3.0,
+		"field_slots": 2.0,
 		"hull_hp": 160.0,
 		"hull_segments": 10.0,
-		"internal_slots": 3,
+		"internal_slots": 3.0,
+		"particle_slots": 1.0,
 		"shield_hp": 40.0,
 		"shield_regen": 2.0,
 		"shield_segments": 6.0,
 		"speed": 80.0,
-		"thermal_segments": 8.0
+		"thermal_segments": 8.0,
+		"weapon_slots": 3.0
 	},
 	"type": "enemy",
 	"visual_id": "marauder",

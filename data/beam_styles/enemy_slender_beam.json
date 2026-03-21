@@ -1,0 +1,56 @@
+{
+	"appearance_mode": "expand_out",
+	"beam_width": 6.0,
+	"color": [
+		1.0,
+		0.9609375,
+		0.0,
+		1.0
+	],
+	"display_name": "Enemy Slender Beam",
+	"effect_profile": {
+		"defaults": {
+			"muzzle": [
+				{
+					"color": [
+						0.45748308300972,
+						0.289846211671829,
+						0.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.95,
+						"particle_count": 2.0,
+						"spread_angle": 15.0
+					},
+					"type": "directional_flash"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "beam",
+	"flip_shader": true,
+	"full_screen_length": true,
+	"glow_intensity": 2.1,
+	"id": "enemy_slender_beam",
+	"max_length": 400.0,
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"beam_speed": 3.5,
+		"beam_width": 0.12,
+		"brightness": 3.1,
+		"color_mix": 0.16,
+		"edge_softness": 1.0,
+		"flicker_rate": 1.5
+	}
+}

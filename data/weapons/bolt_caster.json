@@ -12,7 +12,7 @@
 	"damage": 50,
 	"description": "",
 	"direction_deg": 0.0,
-	"display_name": "Bolt",
+	"display_name": "Bolt Caster",
 	"effect_profile": {
 		"defaults": {
 
@@ -37,7 +37,8 @@
 		0.78125,
 		0.8125
 	],
-	"id": "bolt",
+	"id": "bolt_caster",
+	"is_enemy_weapon": false,
 	"loop_file_path": "res://loop_zips/sorted/chords/Fortunate Interval - 120 BPM - 6 - Chords - PMNF_Chord_Loop_88_Fmin_Lost_In_Space.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
@@ -50,5 +51,5 @@
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
 	"transition_mode": "fade",
-	"transition_ms": 200
+	"transition_ms": 290
 }
