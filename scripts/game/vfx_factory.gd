@@ -740,6 +740,7 @@ static func create_field_material(style: FieldStyle, radius: float) -> ShaderMat
 	mat.set_shader_parameter("brightness", style.glow_intensity)
 	mat.set_shader_parameter("radius_ratio", style.radius_ratio)
 	mat.set_shader_parameter("pulse_intensity", 0.0)
+	mat.set_shader_parameter("pulse_tint", style.pulse_tint)
 	mat.set_shader_parameter("opacity", 1.0)
 	# Apply per-shader params
 	for param_name in style.shader_params:

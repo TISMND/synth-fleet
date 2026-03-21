@@ -33,6 +33,8 @@ extends Resource
 @export var pulse_fade_out: float = 0.4  # fade-out time per pulse
 @export var transition_mode: String = "instant"  # "instant" or "fade"
 @export var transition_ms: int = 200  # fade duration in milliseconds (50–2000)
+@export var speed_modifier: float = 0.0  # percentage of base speed (+25 = 25% faster)
+@export var accel_modifier: float = 0.0  # percentage of base acceleration
 @export var equip_slot: String = "flexible"  # "internal", "external", or "flexible"
 
 
@@ -95,6 +97,10 @@ static func from_dict(data: Dictionary) -> DeviceData:
 	d.transition_mode = str(data.get("transition_mode", "instant"))
 	d.transition_ms = int(data.get("transition_ms", 200))
 
+	# Ship modifiers
+	d.speed_modifier = float(data.get("speed_modifier", 0.0))
+	d.accel_modifier = float(data.get("accel_modifier", 0.0))
+
 	# Equip slot
 	d.equip_slot = str(data.get("equip_slot", "flexible"))
 
@@ -139,5 +145,7 @@ func to_dict() -> Dictionary:
 		"pulse_fade_out": pulse_fade_out,
 		"transition_mode": transition_mode,
 		"transition_ms": transition_ms,
+		"speed_modifier": speed_modifier,
+		"accel_modifier": accel_modifier,
 		"equip_slot": equip_slot,
 	}

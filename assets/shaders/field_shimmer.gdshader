@@ -5,6 +5,7 @@ uniform float brightness : hint_range(0.0, 4.0) = 1.0;
 uniform float animation_speed : hint_range(0.0, 3.0) = 1.0;
 uniform float radius_ratio : hint_range(0.0, 1.0) = 0.8;
 uniform float pulse_intensity : hint_range(0.0, 4.0) = 0.0;
+uniform float pulse_tint : hint_range(0.0, 1.0) = 0.0;
 uniform float opacity : hint_range(0.0, 1.0) = 1.0;
 
 // Per-shader params
@@ -86,5 +87,6 @@ void fragment() {
 
 	if (raw_dist > 1.0) alpha = 0.0;
 
+	col = mix(col, field_color.rgb * length(col), pulse_tint * clamp(pulse_intensity, 0.0, 1.0));
 	COLOR = vec4(col, alpha * modulate_alpha);
 }

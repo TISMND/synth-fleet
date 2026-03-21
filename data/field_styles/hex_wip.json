@@ -15,7 +15,7 @@
 		"edge_density": 0.5,
 		"hex_size": 0.11,
 		"line_thickness": 0.06,
-		"outer_radius": 0.85,
+		"outer_radius": 0.63,
 		"scroll_speed": 0.2
 	},
 	"ship_active_hdr": 1.1,

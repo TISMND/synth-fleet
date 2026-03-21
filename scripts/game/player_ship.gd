@@ -15,6 +15,8 @@ var electric: float = 8.0
 var electric_max: float = 8.0
 var speed: float = 400.0
 var acceleration: float = 1200.0
+var _base_speed: float = 400.0
+var _base_accel: float = 1200.0
 var _velocity: Vector2 = Vector2.ZERO
 var _hardpoint_controllers: Array = []
 var _core_controllers: Array = []  # PowerCoreController instances
@@ -44,6 +46,8 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	electric_max = float(stats.get("electric_hp", float(stats.get("electric_segments", 8)) * 10.0))
 	speed = float(stats.get("speed", 400))
 	acceleration = float(stats.get("acceleration", 1200))
+	_base_speed = speed
+	_base_accel = acceleration
 	shield_regen = float(stats.get("shield_regen", 1.0))
 
 	# Ship renderer
@@ -222,6 +226,9 @@ func _apply_stored_volumes() -> void:
 
 
 func _process(delta: float) -> void:
+	# Apply device modifiers to speed/accel
+	_apply_device_modifiers()
+
 	# Acceleration-based movement
 	var input_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_velocity: Vector2 = input_dir * speed
@@ -488,11 +495,33 @@ func _update_hud_devices() -> void:
 		data.append({
 			"label": dev_info["label"],
 			"device_name": device.display_name if device.display_name != "" else device.id,
-			"color": device.color_override if device.color_override != Color.WHITE else Color(0.0, 0.8, 1.0),
+			"color": _get_device_color(device),
 			"active": controller.is_active(),
 			"key": key_label,
 		})
 	_hud.update_devices(data)
+
+
+func _get_device_color(device: DeviceData) -> Color:
+	if device.field_style_id != "":
+		var style: FieldStyle = FieldStyleManager.load_by_id(device.field_style_id)
+		if style:
+			return style.color
+	return Color(0.0, 0.8, 1.0)
+
+
+func _apply_device_modifiers() -> void:
+	var speed_pct: float = 0.0
+	var accel_pct: float = 0.0
+	for i in _device_controllers.size():
+		var controller: DeviceController = _device_controllers[i]
+		if not controller.is_active():
+			continue
+		var device: DeviceData = _device_data_per_slot[i]["device"]
+		speed_pct += device.speed_modifier
+		accel_pct += device.accel_modifier
+	speed = _base_speed * maxf(1.0 + speed_pct / 100.0, 0.1)
+	acceleration = _base_accel * maxf(1.0 + accel_pct / 100.0, 0.1)
 
 
 func stop_all() -> void:

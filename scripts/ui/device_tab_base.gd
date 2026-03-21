@@ -51,6 +51,8 @@ var _mechanic_params_container: VBoxContainer
 var _mechanic_param_sliders: Dictionary = {}
 var _bar_effect_sliders: Dictionary = {}
 var _passive_effect_sliders: Dictionary = {}
+var _speed_modifier_slider: HSlider
+var _accel_modifier_slider: HSlider
 
 # Transition controls
 var _transition_mode_button: OptionButton
@@ -69,8 +71,6 @@ const WAVE_SPEED: float = 2.5
 const WAVE_MIN_CHANGE: float = 0.01
 const BAR_MAX_DEFAULTS: Array[float] = [100.0, 80.0, 60.0, 80.0]
 
-# Color override
-var _color_override_picker: ColorPickerButton
 
 # Component name
 var _name_input: LineEdit
@@ -472,6 +472,50 @@ func _build_mechanics_tab() -> Control:
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(form)
 
+	# Bar Effect Preview
+	_add_section_header(form, "BAR EFFECT PREVIEW")
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for i in specs.size():
+		var spec: Dictionary = specs[i]
+		var bar_hbox := HBoxContainer.new()
+		bar_hbox.add_theme_constant_override("separation", 6)
+		form.add_child(bar_hbox)
+
+		var bar_label := Label.new()
+		bar_label.text = str(spec["name"])
+		bar_label.custom_minimum_size.x = 70
+		bar_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var color: Color = ThemeManager.resolve_bar_color(spec)
+		bar_label.add_theme_color_override("font_color", color)
+		bar_hbox.add_child(bar_label)
+
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size = Vector2(200, 20)
+		var bar_max: float = BAR_MAX_DEFAULTS[i]
+		var bar_start: float = bar_max * 0.5
+		bar.max_value = bar_max
+		bar.value = bar_start
+		bar.show_percentage = false
+		bar_hbox.add_child(bar)
+
+		ThemeManager.apply_led_bar(bar, color, bar_start / bar_max, 20)
+		_stats_preview_bars.append(bar)
+		_stats_bar_base_colors.append(color)
+		_stats_bar_names.append(str(spec["name"]))
+		_stats_bar_values[i] = bar_start
+		_stats_bar_maxes[i] = bar_max
+		_stats_gain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
+		_stats_drain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
+
+	var reset_btn := Button.new()
+	reset_btn.text = "RESET BARS"
+	reset_btn.custom_minimum_size.x = 120
+	reset_btn.pressed.connect(_on_reset_stats_bars)
+	ThemeManager.apply_button_style(reset_btn)
+	form.add_child(reset_btn)
+
+	_add_separator(form)
+
 	# Bar Effects (per trigger hit)
 	_add_section_header(form, "BAR EFFECTS (per trigger hit)")
 	for i in BAR_TYPES.size():
@@ -544,64 +588,12 @@ func _build_mechanics_tab() -> Control:
 
 	_add_separator(form)
 
-	# Bar Effect Preview
-	_add_section_header(form, "BAR EFFECT PREVIEW")
-	var specs: Array = ThemeManager.get_status_bar_specs()
-	for i in specs.size():
-		var spec: Dictionary = specs[i]
-		var bar_hbox := HBoxContainer.new()
-		bar_hbox.add_theme_constant_override("separation", 6)
-		form.add_child(bar_hbox)
-
-		var bar_label := Label.new()
-		bar_label.text = str(spec["name"])
-		bar_label.custom_minimum_size.x = 70
-		bar_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		var color: Color = ThemeManager.resolve_bar_color(spec)
-		bar_label.add_theme_color_override("font_color", color)
-		bar_hbox.add_child(bar_label)
-
-		var bar := ProgressBar.new()
-		bar.custom_minimum_size = Vector2(200, 20)
-		var bar_max: float = BAR_MAX_DEFAULTS[i]
-		var bar_start: float = bar_max * 0.5
-		bar.max_value = bar_max
-		bar.value = bar_start
-		bar.show_percentage = false
-		bar_hbox.add_child(bar)
-
-		ThemeManager.apply_led_bar(bar, color, bar_start / bar_max, 20)
-		_stats_preview_bars.append(bar)
-		_stats_bar_base_colors.append(color)
-		_stats_bar_names.append(str(spec["name"]))
-		_stats_bar_values[i] = bar_start
-		_stats_bar_maxes[i] = bar_max
-		_stats_gain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
-		_stats_drain_wave.append({"active": false, "position": -1.0, "speed": WAVE_SPEED})
-
-	var reset_btn := Button.new()
-	reset_btn.text = "RESET BARS"
-	reset_btn.custom_minimum_size.x = 120
-	reset_btn.pressed.connect(_on_reset_stats_bars)
-	ThemeManager.apply_button_style(reset_btn)
-	form.add_child(reset_btn)
-
-	_add_separator(form)
-
-	# Color Override
-	_add_section_header(form, "COLOR OVERRIDE")
-	var color_row := HBoxContainer.new()
-	form.add_child(color_row)
-	var color_label := Label.new()
-	color_label.text = "Color:"
-	color_label.custom_minimum_size.x = 130
-	color_row.add_child(color_label)
-	_color_override_picker = ColorPickerButton.new()
-	_color_override_picker.color = Color.WHITE
-	_color_override_picker.custom_minimum_size = Vector2(80, 30)
-	_color_override_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_color_override_picker.color_changed.connect(func(_c: Color) -> void: _mark_dirty())
-	color_row.add_child(_color_override_picker)
+	# Ship Modifiers
+	_add_section_header(form, "SHIP MODIFIERS (while active)")
+	var speed_row: Array = _add_slider_row(form, "Speed %:", -75.0, 200.0, 0.0, 5.0)
+	_speed_modifier_slider = speed_row[0]
+	var accel_row: Array = _add_slider_row(form, "Accel %:", -75.0, 200.0, 0.0, 5.0)
+	_accel_modifier_slider = accel_row[0]
 
 	return scroll
 
@@ -822,8 +814,6 @@ func _collect_device_data() -> Dictionary:
 		var slider: HSlider = _mechanic_param_sliders[param_name]
 		mechanic_params[param_name] = slider.value
 
-	var color: Color = _color_override_picker.color
-
 	var data: Dictionary = {
 		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
 		"display_name": _name_input.text,
@@ -840,9 +830,10 @@ func _collect_device_data() -> Dictionary:
 		"mechanic_params": mechanic_params,
 		"bar_effects": bar_effects,
 		"passive_effects": passive_effects,
-		"color_override": [color.r, color.g, color.b, color.a],
 		"transition_mode": "fade" if _transition_mode_button.selected == 1 else "instant",
 		"transition_ms": int(_transition_ms_slider.value),
+		"speed_modifier": _speed_modifier_slider.value if _speed_modifier_slider else 0.0,
+		"accel_modifier": _accel_modifier_slider.value if _accel_modifier_slider else 0.0,
 	}
 
 	# Let subclass add its visual-mode-specific fields
@@ -897,7 +888,6 @@ func _on_new() -> void:
 	if _device_type_button:
 		_device_type_button.selected = 0
 		_rebuild_mechanic_params("shield_aura")
-	_color_override_picker.color = Color.WHITE
 	for bar_type in _bar_effect_sliders:
 		var slider: HSlider = _bar_effect_sliders[bar_type]
 		slider.value = 0.0
@@ -910,6 +900,10 @@ func _on_new() -> void:
 	_on_transition_mode_changed(0)
 	_transition_ms_slider.value = 200
 	_transition_ms_label.text = "200ms"
+	if _speed_modifier_slider:
+		_speed_modifier_slider.value = 0.0
+	if _accel_modifier_slider:
+		_accel_modifier_slider.value = 0.0
 	_reset_visual_defaults()
 	if not _stats_preview_bars.is_empty():
 		_on_reset_stats_bars()
@@ -962,8 +956,11 @@ func _populate_from_device(device: DeviceData) -> void:
 			var slider: HSlider = _passive_effect_sliders[bar_type]
 			slider.value = float(device.passive_effects.get(bar_type, 0.0))
 
-	# Effects
-	_color_override_picker.color = device.color_override
+	# Ship modifiers
+	if _speed_modifier_slider:
+		_speed_modifier_slider.value = device.speed_modifier
+	if _accel_modifier_slider:
+		_accel_modifier_slider.value = device.accel_modifier
 
 	# Transition settings
 	if device.transition_mode == "fade":

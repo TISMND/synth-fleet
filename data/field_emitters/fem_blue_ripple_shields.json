@@ -1,0 +1,45 @@
+{
+	"active_always_on": true,
+	"active_fade_in": 0.2,
+	"active_fade_out": 0.5,
+	"active_total_duration": 1.0,
+	"animation_speed": 1.0,
+	"bar_effects": {
+
+	},
+	"description": "",
+	"device_type": "shield_aura",
+	"display_name": "Blue Ripple Shields",
+	"fade_in_duration": 0.3,
+	"fade_out_duration": 0.3,
+	"field_style_id": "blue_ripple",
+	"id": "fem_blue_ripple_shields",
+	"loop_file_path": "res://loop_zips/sorted/pads/Dreading Sphere - 120 BPM - 6 - Pads - cw_pad90_youthful_E.wav",
+	"loop_length_bars": 8,
+	"mechanic_params": {
+
+	},
+	"orbiter_lifetime": 4.0,
+	"orbiter_style_id": "",
+	"passive_effects": {
+		"shield": 10.0
+	},
+	"pulse_fade_out": 0.99,
+	"pulse_fade_up": 0.11,
+	"pulse_total_duration": 1.05,
+	"pulse_triggers": [],
+	"radius": 100.0,
+	"transition_mode": "instant",
+	"transition_ms": 200,
+	"visual_mode": "field",
+	"visual_pulse_triggers": [
+		0.0,
+		0.125,
+		0.25,
+		0.375,
+		0.5,
+		0.625,
+		0.75,
+		0.875
+	]
+}

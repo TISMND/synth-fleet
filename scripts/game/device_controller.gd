@@ -46,7 +46,7 @@ func setup(device: DeviceData, slot_index: int, ship_node: Node2D) -> void:
 			style = FieldStyleManager.load_by_id(device.field_style_id)
 		if not style:
 			style = FieldStyle.new()
-			style.color = device.color_override if device.color_override != Color.WHITE else Color(0.0, 1.0, 1.0, 1.0)
+			style.color = Color(0.0, 1.0, 1.0, 1.0)
 
 		_field_renderer = FieldRenderer.new()
 		ship_node.add_child(_field_renderer)

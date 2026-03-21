@@ -34,6 +34,8 @@ var _radius_ratio_slider: HSlider
 var _radius_ratio_label: Label
 var _pulse_brightness_slider: HSlider
 var _pulse_brightness_label: Label
+var _pulse_tint_slider: HSlider
+var _pulse_tint_label: Label
 
 # Ship effect controls
 var _ship_tint_strength_slider: HSlider
@@ -321,6 +323,9 @@ func _build_controls(parent: VBoxContainer) -> void:
 	var pb_row: Array = _add_slider_row(parent, "Pulse Bright:", 0.0, 4.0, 2.0, 0.1)
 	_pulse_brightness_slider = pb_row[0]
 	_pulse_brightness_label = pb_row[1]
+	var pt_row: Array = _add_slider_row(parent, "Pulse Tint:", 0.0, 1.0, 0.0, 0.05)
+	_pulse_tint_slider = pt_row[0]
+	_pulse_tint_label = pt_row[1]
 
 	_add_separator(parent)
 
@@ -380,6 +385,7 @@ func _collect_style_data() -> Dictionary:
 		"glow_intensity": _brightness_slider.value,
 		"radius_ratio": _radius_ratio_slider.value,
 		"pulse_brightness": _pulse_brightness_slider.value,
+		"pulse_tint": _pulse_tint_slider.value,
 		"ship_tint_strength": _ship_tint_strength_slider.value if _ship_tint_strength_slider else 0.15,
 		"ship_active_hdr": _ship_active_hdr_slider.value if _ship_active_hdr_slider else 0.2,
 		"ship_pulse_hdr": _ship_pulse_hdr_slider.value if _ship_pulse_hdr_slider else 0.5,
@@ -402,6 +408,7 @@ func _update_preview() -> void:
 	_preview_material.set_shader_parameter("radius_ratio", _radius_ratio_slider.value)
 	_preview_material.set_shader_parameter("opacity", 1.0)
 	_preview_material.set_shader_parameter("pulse_intensity", 0.0)
+	_preview_material.set_shader_parameter("pulse_tint", _pulse_tint_slider.value)
 
 	for param_name in _shader_param_sliders:
 		var slider: HSlider = _shader_param_sliders[param_name]
@@ -456,6 +463,7 @@ func _on_new() -> void:
 	_anim_speed_slider.value = 1.0
 	_radius_ratio_slider.value = 0.8
 	_pulse_brightness_slider.value = 2.0
+	_pulse_tint_slider.value = 0.0
 	if _ship_tint_strength_slider:
 		_ship_tint_strength_slider.value = 0.15
 	if _ship_active_hdr_slider:
@@ -494,6 +502,7 @@ func _populate_from_style(style: FieldStyle) -> void:
 	_brightness_slider.value = style.glow_intensity
 	_radius_ratio_slider.value = style.radius_ratio
 	_pulse_brightness_slider.value = style.pulse_brightness
+	_pulse_tint_slider.value = style.pulse_tint
 	if _ship_tint_strength_slider:
 		_ship_tint_strength_slider.value = style.ship_tint_strength
 	if _ship_active_hdr_slider:

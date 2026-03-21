@@ -102,7 +102,7 @@ func _update_visual_preview() -> void:
 		if shader:
 			_preview_field_material = ShaderMaterial.new()
 			_preview_field_material.shader = shader
-			_preview_field_material.set_shader_parameter("field_color", _color_override_picker.color)
+			_preview_field_material.set_shader_parameter("field_color", Color.WHITE)
 			_preview_field_material.set_shader_parameter("brightness", 1.0)
 			_preview_field_material.set_shader_parameter("opacity", 0.0)
 			_preview_field_material.set_shader_parameter("pulse_intensity", 0.0)
@@ -303,6 +303,7 @@ func _update_visual_preview_frame(delta: float) -> void:
 		var tint_strength: float = 0.15
 		var active_hdr: float = 0.2
 		var pulse_hdr: float = 0.5
+		var field_col: Color = Color.WHITE
 		if _field_style_button and _field_style_button.selected > 0:
 			var sid: String = _field_style_button.get_item_text(_field_style_button.selected)
 			var st: FieldStyle = FieldStyleManager.load_by_id(sid)
@@ -310,8 +311,8 @@ func _update_visual_preview_frame(delta: float) -> void:
 				tint_strength = st.ship_tint_strength
 				active_hdr = st.ship_active_hdr
 				pulse_hdr = st.ship_pulse_hdr
+				field_col = st.color
 		var bright: float = 1.0 + active_opacity * active_hdr + pulse_val * pulse_hdr
-		var field_col: Color = _color_override_picker.color
 		var tint_scaled: float = tint_strength * active_opacity
 		var r: float = lerpf(bright, field_col.r * bright * 1.5, tint_scaled)
 		var g: float = lerpf(bright, field_col.g * bright * 1.5, tint_scaled)
