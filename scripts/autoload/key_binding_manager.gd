@@ -253,6 +253,15 @@ func get_key_label_for_slot(slot_key: String) -> String:
 	return "?"
 
 
+func get_slot_for_keycode(pkc: int) -> String:
+	## Returns the slot_key bound to the given physical keycode, or "" if none.
+	for slot_key in _bindings:
+		var binding: Dictionary = _bindings[slot_key]
+		if int(binding["physical_keycode"]) == pkc:
+			return str(slot_key)
+	return ""
+
+
 func is_key_reserved(physical_keycode: int) -> bool:
 	return physical_keycode in RESERVED_KEYS
 

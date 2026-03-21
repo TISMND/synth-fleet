@@ -17,7 +17,7 @@ func _ready() -> void:
 
 
 func _on_play() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/play_menu.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
 
 
 func _on_options() -> void:

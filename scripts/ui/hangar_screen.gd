@@ -14,6 +14,7 @@ var _core_header: Label
 var _field_header: Label
 var _particle_header: Label
 var _change_ship_btn: Button
+var _launch_btn: Button
 var _back_btn: Button
 var _reset_btn: Button
 var _vhs_overlay: ColorRect = null
@@ -103,13 +104,13 @@ func _ready() -> void:
 
 func _init_slot_active() -> void:
 	for i in GameState.get_weapon_slot_count():
-		_slot_active["weapon_" + str(i)] = false
+		_slot_active["weapon_" + str(i)] = true
 	for i in GameState.get_core_slot_count():
-		_slot_active["core_" + str(i)] = false
+		_slot_active["core_" + str(i)] = true
 	for i in GameState.get_field_slot_count():
-		_slot_active["field_" + str(i)] = false
+		_slot_active["field_" + str(i)] = true
 	for i in GameState.get_particle_slot_count():
-		_slot_active["particle_" + str(i)] = false
+		_slot_active["particle_" + str(i)] = true
 
 
 func _setup_vhs_overlay() -> void:
@@ -200,6 +201,7 @@ func _apply_theme() -> void:
 	_darken_button(_mute_btn)
 	_darken_button(_reset_btn)
 	_darken_button(_change_ship_btn)
+	_darken_button(_launch_btn)
 	_darken_button(_back_btn)
 	_darken_button(_functional_btn)
 	_darken_button(_audio_btn)
@@ -477,28 +479,6 @@ func _create_slot_row(slot_key: String, item_name: String, disabled: bool = fals
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	panel.add_child(row)
-
-	# Toggle button
-	var toggle := Button.new()
-	toggle.custom_minimum_size = Vector2(150, 38)
-	toggle.clip_text = true
-	toggle.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	if disabled:
-		toggle.text = "N/A"
-		toggle.disabled = true
-		toggle.add_theme_color_override("font_color", Color(0.3, 0.3, 0.3))
-	else:
-		var is_active: bool = _slot_active.get(slot_key, false)
-		toggle.text = "PREVIEWING" if is_active else "PAUSED"
-		if is_active:
-			toggle.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
-		else:
-			toggle.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
-		var bound_key: String = slot_key
-		toggle.pressed.connect(func() -> void: _on_slot_toggle(bound_key))
-	_darken_button(toggle)
-	row.add_child(toggle)
-	_slot_toggle_btns[slot_key] = toggle
 
 	# Slot button (clickable) — shows equipped item info, opens picker
 	var header := Button.new()
@@ -885,8 +865,12 @@ func _on_mode_toggle(new_mode: String) -> void:
 	_functional_content.visible = (_mode == "functional")
 	_audio_content.visible = (_mode == "audio")
 	_controls_content.visible = (_mode == "controls")
-	# Hide right panel when not on functional tab
-	if _mode != "functional":
+	if _mode == "controls":
+		_clear_right_panel()
+		_expanded_slot = ""
+		_unhighlight_all_slot_btns()
+		_show_fire_groups_panel()
+	elif _mode != "functional":
 		_clear_right_panel()
 		_expanded_slot = ""
 		_unhighlight_all_slot_btns()
@@ -956,18 +940,28 @@ func _rebuild_controls_content() -> void:
 
 	var body_font: Font = ThemeManager.get_font("font_body")
 
-	# Binding rows — built dynamically from slot counts (skip particle)
-	var all_slots: Array = []
-	for i in GameState.get_weapon_slot_count():
-		all_slots.append("weapon_" + str(i))
-	for i in GameState.get_core_slot_count():
-		all_slots.append("core_" + str(i))
-	for i in GameState.get_field_slot_count():
-		all_slots.append("field_" + str(i))
+	# Tooltip at top
+	var tip := Label.new()
+	tip.text = "Press a slot's key to toggle it on/off. Save combos as fire groups on the right."
+	tip.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.5))
+	tip.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if body_font:
+		tip.add_theme_font_override("font", body_font)
+	_controls_content.add_child(tip)
+
+	var tip_spacer := Control.new()
+	tip_spacer.custom_minimum_size.y = 6
+	_controls_content.add_child(tip_spacer)
+
+	# Slot rows — matching loadout button format (key label + name, non-clickable)
+	var all_slots: Array = _get_all_slot_keys()
 
 	for slot_key in all_slots:
 		var item_name: String = _get_slot_item_name(slot_key)
-		# Dark backing panel — matches loadout row style
+		var is_active: bool = _slot_active.get(slot_key, true)
+
+		# Same panel style as loadout rows
 		var panel := PanelContainer.new()
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var ps := StyleBoxFlat.new()
@@ -986,10 +980,10 @@ func _rebuild_controls_content() -> void:
 		row.add_theme_constant_override("separation", 8)
 		panel.add_child(row)
 
-		# Key binding button on the left (like PREVIEWING/PAUSED toggle position)
+		# Key label (clickable to rebind)
 		var key_btn := Button.new()
 		key_btn.text = "[" + KeyBindingManager.get_key_label_for_slot(slot_key) + "]"
-		key_btn.custom_minimum_size = Vector2(70, 38)
+		key_btn.custom_minimum_size = Vector2(70, 54)
 		key_btn.clip_text = true
 		key_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		_darken_button(key_btn)
@@ -999,129 +993,172 @@ func _rebuild_controls_content() -> void:
 		row.add_child(key_btn)
 		_controls_key_btns[slot_key] = key_btn
 
-		# Item name label — fills remaining space
+		# Slot name label — same style as loadout header buttons but non-clickable
 		var name_lbl := Label.new()
 		name_lbl.text = item_name
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lbl.custom_minimum_size.y = 54
+		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		var slot_color: Color = _get_slot_type_color(slot_key)
-		name_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.7))
+		if is_active:
+			name_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.9))
+		else:
+			name_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.35))
 		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
 		if body_font:
 			name_lbl.add_theme_font_override("font", body_font)
 		row.add_child(name_lbl)
 
+		# Active indicator dot
+		var dot_lbl := Label.new()
+		dot_lbl.text = "\u25cf" if is_active else "\u25cb"
+		dot_lbl.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3) if is_active else Color(0.4, 0.4, 0.4))
+		dot_lbl.add_theme_font_size_override("font_size", 18)
+		row.add_child(dot_lbl)
+
 		_controls_content.add_child(panel)
 
-	# Spacer before presets
-	var spacer := Control.new()
-	spacer.custom_minimum_size.y = 12
-	_controls_content.add_child(spacer)
 
-	# Combo presets section
-	_preset_list = VBoxContainer.new()
-	_preset_list.add_theme_constant_override("separation", 4)
-	_controls_content.add_child(_preset_list)
-
-	_rebuild_presets()
-
-	var save_spacer := Control.new()
-	save_spacer.custom_minimum_size.y = 6
-	_controls_content.add_child(save_spacer)
-
-	var save_combo_btn := Button.new()
-	save_combo_btn.text = "SAVE CURRENT COMBO"
-	save_combo_btn.custom_minimum_size.y = 38
-	save_combo_btn.pressed.connect(_on_save_combo)
-	_darken_button(save_combo_btn)
-	_controls_content.add_child(save_combo_btn)
-
-
-func _rebuild_presets() -> void:
-	if not _preset_list:
+func _show_fire_groups_panel() -> void:
+	## Populate the right panel with fire group columns when controls tab is active.
+	if not _right_panel:
 		return
-	for child in _preset_list.get_children():
+	_right_panel.visible = true
+	_right_panel_header.text = "FIRE GROUPS"
+	_right_panel_header.visible = true
+	_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
+	ThemeManager.apply_text_glow(_right_panel_header, "header")
+
+	# Clear existing content
+	for child in _right_panel_list.get_children():
 		child.queue_free()
 
 	var body_font: Font = ThemeManager.get_font("font_body")
+	var all_slots: Array = _get_all_slot_keys()
+
+	# Tip
+	var tip := Label.new()
+	tip.text = "Toggle slots with their keys, then SAVE to create a fire group. Press the group's key in-game to activate that combo."
+	tip.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.45))
+	tip.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 1)
+	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if body_font:
+		tip.add_theme_font_override("font", body_font)
+	_right_panel_list.add_child(tip)
+
+	var tip_spacer := Control.new()
+	tip_spacer.custom_minimum_size.y = 8
+	_right_panel_list.add_child(tip_spacer)
+
+	# Existing fire group presets
 	var presets: Array = KeyBindingManager.get_combo_presets()
 	for i in presets.size():
 		var preset: Dictionary = presets[i]
+		_add_fire_group_column(preset, i, all_slots, body_font)
 
-		# Dark backing panel
-		var panel := PanelContainer.new()
-		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var ps := StyleBoxFlat.new()
-		ps.bg_color = Color(0.0, 0.0, 0.0, 0.45)
-		ps.corner_radius_top_left = 4
-		ps.corner_radius_top_right = 4
-		ps.corner_radius_bottom_left = 4
-		ps.corner_radius_bottom_right = 4
-		ps.content_margin_left = 8
-		ps.content_margin_right = 8
-		ps.content_margin_top = 4
-		ps.content_margin_bottom = 4
-		panel.add_theme_stylebox_override("panel", ps)
+	# "SAVE CURRENT AS NEW GROUP" button at the bottom
+	var save_spacer := Control.new()
+	save_spacer.custom_minimum_size.y = 8
+	_right_panel_list.add_child(save_spacer)
 
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
-		panel.add_child(row)
+	var save_btn := Button.new()
+	save_btn.text = "SAVE CURRENT AS NEW GROUP"
+	save_btn.custom_minimum_size.y = 42
+	save_btn.pressed.connect(_on_save_combo)
+	_darken_button(save_btn)
+	_right_panel_list.add_child(save_btn)
 
-		# Key label button (rebindable)
-		var key_btn := Button.new()
-		key_btn.text = "[" + str(preset.get("key_label", "?")) + "]"
-		key_btn.custom_minimum_size = Vector2(50, 34)
-		_darken_button(key_btn)
-		key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-		var bound_idx: int = i
-		key_btn.pressed.connect(func() -> void: _start_key_capture("combo_" + str(bound_idx)))
-		row.add_child(key_btn)
 
-		# Label
-		var name_lbl := Label.new()
-		name_lbl.text = str(preset.get("label", "COMBO"))
-		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
-		name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+func _add_fire_group_column(preset: Dictionary, index: int, all_slots: Array, body_font: Font) -> void:
+	## Add a single fire group card to the right panel.
+	var pattern: Dictionary = preset.get("pattern", {})
+
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = Color(0.0, 0.0, 0.0, 0.5)
+	ps.corner_radius_top_left = 4
+	ps.corner_radius_top_right = 4
+	ps.corner_radius_bottom_left = 4
+	ps.corner_radius_bottom_right = 4
+	ps.content_margin_left = 10
+	ps.content_margin_right = 10
+	ps.content_margin_top = 8
+	ps.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", ps)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	panel.add_child(vbox)
+
+	# Header row: key button + label + delete
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(header_row)
+
+	var key_btn := Button.new()
+	key_btn.text = "[" + str(preset.get("key_label", "?")) + "]"
+	key_btn.custom_minimum_size = Vector2(50, 34)
+	_darken_button(key_btn)
+	key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	var bound_idx: int = index
+	key_btn.pressed.connect(func() -> void: _start_key_capture("combo_" + str(bound_idx)))
+	header_row.add_child(key_btn)
+
+	var name_lbl := Label.new()
+	name_lbl.text = str(preset.get("label", "COMBO"))
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("text"))
+	name_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+	if body_font:
+		name_lbl.add_theme_font_override("font", body_font)
+	header_row.add_child(name_lbl)
+
+	var del_btn := Button.new()
+	del_btn.text = "X"
+	del_btn.custom_minimum_size = Vector2(34, 34)
+	_darken_button(del_btn)
+	del_btn.pressed.connect(func() -> void: _delete_combo(bound_idx))
+	header_row.add_child(del_btn)
+
+	# Slot dots — one row per slot, aligned with the left panel slots
+	for slot_key in all_slots:
+		var on: bool = pattern.get(slot_key, false)
+		var dot_row := HBoxContainer.new()
+		dot_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(dot_row)
+
+		var dot := Label.new()
+		dot.text = "\u25cf" if on else "\u25cb"
+		dot.custom_minimum_size = Vector2(20, 0)
+		if on:
+			dot.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
+		else:
+			dot.add_theme_color_override("font_color", Color(0.35, 0.35, 0.35))
+		dot.add_theme_font_size_override("font_size", 16)
+		dot_row.add_child(dot)
+
+		var slot_lbl := Label.new()
+		slot_lbl.text = _get_slot_item_name(slot_key)
+		var slot_color: Color = _get_slot_type_color(slot_key)
+		if on:
+			slot_lbl.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.8))
+		else:
+			slot_lbl.add_theme_color_override("font_color", Color(0.35, 0.35, 0.35))
+		slot_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
 		if body_font:
-			name_lbl.add_theme_font_override("font", body_font)
-		row.add_child(name_lbl)
+			slot_lbl.add_theme_font_override("font", body_font)
+		dot_row.add_child(slot_lbl)
 
-		# Dot pattern
-		var pattern: Dictionary = preset.get("pattern", {})
-		var dots_lbl := Label.new()
-		var dots_text: String = ""
-		var dot_slots: Array = []
-		for ei in GameState.get_weapon_slot_count():
-			dot_slots.append("weapon_" + str(ei))
-		for ci in GameState.get_core_slot_count():
-			dot_slots.append("core_" + str(ci))
-		for fi in GameState.get_field_slot_count():
-			dot_slots.append("field_" + str(fi))
-		for sk in dot_slots:
-			var on: bool = pattern.get(sk, false)
-			dots_text += "●" if on else "○"
-		dots_lbl.text = dots_text
-		dots_lbl.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-		dots_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-		row.add_child(dots_lbl)
+	# Load button at bottom of group
+	var load_btn := Button.new()
+	load_btn.text = "LOAD"
+	load_btn.custom_minimum_size.y = 30
+	_darken_button(load_btn)
+	load_btn.pressed.connect(func() -> void: _load_combo_pattern(bound_idx))
+	vbox.add_child(load_btn)
 
-		# Load button
-		var load_btn := Button.new()
-		load_btn.text = "LOAD"
-		load_btn.custom_minimum_size = Vector2(60, 34)
-		_darken_button(load_btn)
-		load_btn.pressed.connect(func() -> void: _load_combo_pattern(bound_idx))
-		row.add_child(load_btn)
-
-		# Delete button
-		var del_btn := Button.new()
-		del_btn.text = "X"
-		del_btn.custom_minimum_size = Vector2(34, 34)
-		_darken_button(del_btn)
-		del_btn.pressed.connect(func() -> void: _delete_combo(bound_idx))
-		row.add_child(del_btn)
-
-		_preset_list.add_child(panel)
+	_right_panel_list.add_child(panel)
 
 
 func _load_combo_pattern(index: int) -> void:
@@ -1132,15 +1169,10 @@ func _load_combo_pattern(index: int) -> void:
 	var pattern: Dictionary = preset.get("pattern", {})
 	for slot_key in _slot_active:
 		_slot_active[slot_key] = pattern.get(slot_key, false)
-	# Update toggle button visuals
-	for slot_key in _slot_toggle_btns:
-		var btn: Button = _slot_toggle_btns[slot_key]
-		var is_on: bool = _slot_active.get(slot_key, false)
-		btn.text = "PREVIEWING" if is_on else "PAUSED"
-		if is_on:
-			btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.3))
-		else:
-			btn.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+	# Refresh controls tab visuals if on that tab
+	if _mode == "controls":
+		_rebuild_controls_content()
+		_show_fire_groups_panel()
 	_sync_preview_active_states()
 
 
@@ -1158,7 +1190,8 @@ func _finish_save_combo(physical_keycode: int, key_label: String) -> void:
 	# Generate label from active slots
 	var label: String = _generate_combo_label(pattern)
 	KeyBindingManager.add_combo_preset(label, pattern, physical_keycode, key_label)
-	_rebuild_presets()
+	if _mode == "controls":
+		_show_fire_groups_panel()
 
 
 func _generate_combo_label(pattern: Dictionary) -> String:
@@ -1189,7 +1222,8 @@ func _generate_combo_label(pattern: Dictionary) -> String:
 
 func _delete_combo(index: int) -> void:
 	KeyBindingManager.remove_combo_preset(index)
-	_rebuild_presets()
+	if _mode == "controls":
+		_show_fire_groups_panel()
 
 
 # ── Audio mode content ───────────────────────────────────────────────────────
@@ -1521,6 +1555,18 @@ func _on_volume_slider_changed(slot_key: String, volume_db: float) -> void:
 	KeyBindingManager.set_slot_volume(slot_key, volume_db)
 
 
+func _get_all_slot_keys() -> Array:
+	## Returns all active slot keys in order (weapons, cores, fields). Skips particles.
+	var slots: Array = []
+	for i in GameState.get_weapon_slot_count():
+		slots.append("weapon_" + str(i))
+	for i in GameState.get_core_slot_count():
+		slots.append("core_" + str(i))
+	for i in GameState.get_field_slot_count():
+		slots.append("field_" + str(i))
+	return slots
+
+
 func _get_slot_item_name(slot_key: String) -> String:
 	var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
 	if slot_key.begins_with("weapon_"):
@@ -1786,17 +1832,30 @@ func _build_ui() -> void:
 	_center_vbox.add_child(_controls_content)
 
 	# Bottom buttons (always visible, below all content areas)
+	var bottom_btns := HBoxContainer.new()
+	bottom_btns.add_theme_constant_override("separation", 10)
+	_center_vbox.add_child(bottom_btns)
+
 	_change_ship_btn = Button.new()
 	_change_ship_btn.text = "CHANGE SHIP"
 	_change_ship_btn.custom_minimum_size.y = 40
+	_change_ship_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_change_ship_btn.pressed.connect(_on_change_ship)
-	_center_vbox.add_child(_change_ship_btn)
+	bottom_btns.add_child(_change_ship_btn)
+
+	_launch_btn = Button.new()
+	_launch_btn.text = "LAUNCH"
+	_launch_btn.custom_minimum_size.y = 40
+	_launch_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_launch_btn.pressed.connect(_on_launch)
+	bottom_btns.add_child(_launch_btn)
 
 	_back_btn = Button.new()
 	_back_btn.text = "BACK"
 	_back_btn.custom_minimum_size.y = 40
+	_back_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_back_btn.pressed.connect(_on_back)
-	_center_vbox.add_child(_back_btn)
+	bottom_btns.add_child(_back_btn)
 
 	# RIGHT — item picker panel
 	var right_margin := MarginContainer.new()
@@ -1978,9 +2037,16 @@ func _darken_button(btn: Button) -> void:
 			btn.add_theme_stylebox_override(state, dark)
 
 
+func _on_launch() -> void:
+	_cleanup_preview()
+	GameState.current_level_id = "level_1"
+	GameState.return_scene = "res://scenes/ui/hangar_screen.tscn"
+	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
+
+
 func _on_back() -> void:
 	_cleanup_preview()
-	get_tree().change_scene_to_file("res://scenes/ui/play_menu.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 
 # ── Preview management ───────────────────────────────────────────────────────
@@ -2410,7 +2476,8 @@ func _input(event: InputEvent) -> void:
 				KeyBindingManager.apply_to_input_map()
 				KeyBindingManager.save_bindings()
 			_end_key_capture()
-			_rebuild_presets()
+			if _mode == "controls":
+				_show_fire_groups_panel()
 		else:
 			# Rebinding a slot key
 			KeyBindingManager.set_slot_key(_capturing_for, pkc, label)
@@ -2420,6 +2487,18 @@ func _input(event: InputEvent) -> void:
 				var btn: Button = _controls_key_btns[_capturing_for]
 				btn.text = "[" + label + "]"
 		return
+
+	# Slot key toggling on controls tab
+	if _mode == "controls" and event is InputEventKey and event.is_pressed() and not event.is_echo():
+		var key_event: InputEventKey = event as InputEventKey
+		var pkc: int = key_event.physical_keycode as int
+		var toggled_slot: String = KeyBindingManager.get_slot_for_keycode(pkc)
+		if toggled_slot != "" and _slot_active.has(toggled_slot):
+			_on_slot_toggle(toggled_slot)
+			_rebuild_controls_content()
+			_show_fire_groups_panel()
+			get_viewport().set_input_as_handled()
+			return
 
 	if event.is_action_pressed("ui_cancel") and not _is_capturing:
 		_on_back()
