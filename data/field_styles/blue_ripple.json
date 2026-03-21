@@ -7,9 +7,9 @@
 	],
 	"display_name": "blue ripple",
 	"field_shader": "energy_ripple",
-	"glow_intensity": 2.6,
+	"glow_intensity": 2.8,
 	"id": "blue_ripple",
-	"pulse_brightness": 0.2,
+	"pulse_brightness": 0.1,
 	"pulse_tint": 0.0,
 	"radius_ratio": 0.2,
 	"shader_params": {
@@ -18,7 +18,7 @@
 		"ring_count": 5.0,
 		"ring_width": 0.03
 	},
-	"ship_active_hdr": 0.7,
-	"ship_pulse_hdr": 0.25,
+	"ship_active_hdr": 0.45,
+	"ship_pulse_hdr": 0.1,
 	"ship_tint_strength": 0.15
 }

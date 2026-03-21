@@ -281,8 +281,6 @@ func _load_ship() -> void:
 	var info: Dictionary = ShipRegistry.get_ship(idx)
 	_ship_name_label.text = str(info["name"])
 	_ship_renderer.ship_id = idx
-	var ship_scale: float = float(info.get("scale", 1.4))
-	_ship_renderer.scale = Vector2(ship_scale, ship_scale)
 	_ship_renderer.queue_redraw()
 	call_deferred("_position_hangar_thumb")
 	_update_stats(info["stats"])
@@ -1953,7 +1951,11 @@ func _on_bar_effect_fired(effects: Dictionary) -> void:
 			continue
 		var entry: Dictionary = _bars[bar_name]
 		var bar: ProgressBar = entry["bar"]
-		var delta: float = float(effects[key])
+		# Scale effect so it feels proportional regardless of bar segment count.
+		# Raw bar_effects values are authored for ~60-100 max bars (dev studio).
+		# Hangar bars use segment counts (6-10) as max, so scale down accordingly.
+		var raw_delta: float = float(effects[key])
+		var delta: float = raw_delta * (bar.max_value / 80.0)
 		bar.value = clampf(bar.value + delta, 0.0, bar.max_value)
 		var bar_specs: Array = ThemeManager.get_status_bar_specs()
 		for spec in bar_specs:
@@ -2019,8 +2021,14 @@ func _process_device_previews() -> void:
 			if is_active:
 				if device.active_always_on:
 					fr.set_opacity(1.0)
+				fr.visible = true
 			else:
 				fr.set_opacity(0.0)
+				# Kill any running pulse so it doesn't keep driving brightness
+				fr._pulse_active = false
+				if fr._material:
+					fr._material.set_shader_parameter("pulse_intensity", 0.0)
+				fr.visible = false
 
 		var pos_sec: float = LoopMixer.get_playback_position(loop_id)
 		var duration: float = LoopMixer.get_stream_duration(loop_id)

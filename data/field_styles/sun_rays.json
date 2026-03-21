@@ -22,7 +22,7 @@
 		"ray_width": 0.32,
 		"width_variance": 1.0
 	},
-	"ship_active_hdr": 0.4,
-	"ship_pulse_hdr": 0.7,
+	"ship_active_hdr": 0.3,
+	"ship_pulse_hdr": 0.3,
 	"ship_tint_strength": 0.2
 }
