@@ -13,7 +13,7 @@ var _pulse_brightness: float = 2.0
 var _pulse_active: bool = false
 
 
-func setup(style: FieldStyle, radius: float, anim_speed: float) -> void:
+func setup(style: FieldStyle, radius: float, anim_speed: float = 1.0) -> void:
 	_pulse_total_duration = style.pulse_total_duration
 	_pulse_fade_up = style.pulse_fade_up
 	_pulse_fade_out = style.pulse_fade_out
@@ -45,6 +45,12 @@ func pulse() -> void:
 	_pulse_active = true
 	if _material:
 		_material.set_shader_parameter("pulse_intensity", 0.0)
+
+
+func set_pulse_timing(total: float, up: float, out: float) -> void:
+	_pulse_total_duration = total
+	_pulse_fade_up = up
+	_pulse_fade_out = out
 
 
 func set_opacity(val: float) -> void:

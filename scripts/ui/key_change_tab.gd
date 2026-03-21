@@ -52,11 +52,8 @@ var _sfx_files: Array[String] = []
 # Preview state
 var _preview_player: AudioStreamPlayer
 var _preview_playing: bool = false
-var _pending_shift: int = 0
 var _current_shift: int = 0
-var _prev_loop_pos: float = -1.0
 var _detected_bars: int = 2
-var _sfx_scheduled: bool = false
 
 
 func _ready() -> void:
@@ -74,16 +71,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	# Clean up audio state
 	LoopMixer.set_pitch_shift(0.0, 0.0)
 	_current_shift = 0
-	_pending_shift = 0
-
-
-func _process(_delta: float) -> void:
-	if _pending_shift == _current_shift:
-		return
-	_check_measure_boundary()
 
 
 func _build_ui() -> void:
@@ -180,7 +169,7 @@ func _build_ui() -> void:
 	_enter_vol_slider = _add_slider_row("Volume", -40.0, 6.0, 0.5, 0.0)
 	_enter_vol_slider.value_changed.connect(_on_enter_vol_changed)
 
-	_enter_offset_slider = _add_slider_row("Offset", 0.0, 1.0, 0.01, 0.0)
+	_enter_offset_slider = _add_slider_row("Offset", -5.0, 5.0, 0.01, 0.0)
 	_enter_offset_slider.value_changed.connect(_on_enter_offset_changed)
 
 	var enter_preview_row := HBoxContainer.new()
@@ -206,7 +195,7 @@ func _build_ui() -> void:
 	_exit_vol_slider = _add_slider_row("Volume", -40.0, 6.0, 0.5, 0.0)
 	_exit_vol_slider.value_changed.connect(_on_exit_vol_changed)
 
-	_exit_offset_slider = _add_slider_row("Offset", 0.0, 1.0, 0.01, 0.0)
+	_exit_offset_slider = _add_slider_row("Offset", -5.0, 5.0, 0.01, 0.0)
 	_exit_offset_slider.value_changed.connect(_on_exit_offset_changed)
 
 	_exit_reverse_check = CheckBox.new()
@@ -521,53 +510,63 @@ func _auto_detect_bars_from_duration(duration_sec: float) -> int:
 	return best
 
 
-func _check_measure_boundary() -> void:
+func _get_time_to_next_measure() -> float:
+	## Returns seconds until the next measure boundary from the audition loop.
 	var audition_id: String = "loop_browser_audition"
 	if not LoopMixer.has_loop(audition_id):
-		# No loop playing — apply immediately as fallback
-		_apply_shift_now()
-		return
+		return 0.0
 	var pos_sec: float = LoopMixer.get_playback_position(audition_id)
 	var duration: float = LoopMixer.get_stream_duration(audition_id)
 	if duration <= 0.0 or pos_sec < 0.0:
-		return
-	var curr_norm: float = pos_sec / duration
-	if _prev_loop_pos < 0.0:
-		_prev_loop_pos = curr_norm
-		return
-	var measure_size: float = 1.0 / float(maxi(_detected_bars, 1))
-	var crossed: bool = false
-	if curr_norm >= _prev_loop_pos:
-		var prev_measure: int = int(_prev_loop_pos / measure_size)
-		var curr_measure: int = int(curr_norm / measure_size)
-		crossed = curr_measure > prev_measure
-	else:
-		crossed = true
-
-	# Schedule SFX before the boundary if not already done
-	if not _sfx_scheduled and not crossed:
-		var time_in_measure: float = fmod(curr_norm, measure_size)
-		var time_to_boundary_sec: float = (measure_size - time_in_measure) * duration
-		var data: KeyChangeData = _get_preset_by_id(_selected_id)
-		if data and data.enter_sfx_path != "" and time_to_boundary_sec <= data.enter_sfx_offset:
-			_play_sfx(data.enter_sfx_path, data.enter_sfx_volume_db, false)
-			_sfx_scheduled = true
-
-	_prev_loop_pos = curr_norm
-	if crossed:
-		_apply_shift_now()
+		return 0.0
+	var bars: int = maxi(_detected_bars, 1)
+	var measure_sec: float = duration / float(bars)
+	var pos_in_measure: float = fmod(pos_sec, measure_sec)
+	return measure_sec - pos_in_measure
 
 
-func _apply_shift_now() -> void:
+func _schedule_trigger(entering: bool) -> void:
+	## Calculate time to next measure boundary, schedule SFX + pitch shift via timers.
 	var data: KeyChangeData = _get_preset_by_id(_selected_id)
-	var fade: float = data.fade_duration if data else 0.15
-	_current_shift = _pending_shift
-	LoopMixer.set_pitch_shift(float(_current_shift), fade)
-	_sfx_scheduled = false
-	if _current_shift == 0:
-		_status_label.text = "Pitch reset to normal"
+	if not data:
+		return
+
+	var time_to_boundary: float = _get_time_to_next_measure()
+
+	# Determine SFX params based on direction
+	var sfx_path: String = data.enter_sfx_path if entering else data.exit_sfx_path
+	var sfx_vol: float = data.enter_sfx_volume_db if entering else data.exit_sfx_volume_db
+	var sfx_offset: float = data.enter_sfx_offset if entering else data.exit_sfx_offset
+	var sfx_reverse: bool = false if entering else data.reverse_exit_sfx
+
+	# Schedule pitch shift at boundary
+	var target_shift: int = data.semitones if entering else 0
+	var fade: float = data.fade_duration
+	if time_to_boundary > 0.01:
+		get_tree().create_timer(time_to_boundary).timeout.connect(func() -> void:
+			_current_shift = target_shift
+			LoopMixer.set_pitch_shift(float(_current_shift), fade)
+			_status_label.text = ("Key shifted " + _format_semitones(_current_shift)) if _current_shift != 0 else "Pitch reset to normal"
+		)
 	else:
-		_status_label.text = "Key shifted " + _format_semitones(_current_shift)
+		_current_shift = target_shift
+		LoopMixer.set_pitch_shift(float(_current_shift), fade)
+		_status_label.text = ("Key shifted " + _format_semitones(_current_shift)) if _current_shift != 0 else "Pitch reset to normal"
+
+	# Schedule SFX relative to boundary
+	# Positive offset = SFX starts before the key change (lead-in)
+	# Negative offset = SFX starts after the key change (trail)
+	if sfx_path != "":
+		var sfx_delay: float = maxf(0.0, time_to_boundary - sfx_offset)
+		if sfx_delay > 0.01:
+			var cap_path: String = sfx_path
+			var cap_vol: float = sfx_vol
+			var cap_rev: bool = sfx_reverse
+			get_tree().create_timer(sfx_delay).timeout.connect(func() -> void:
+				_play_sfx(cap_path, cap_vol, cap_rev)
+			)
+		else:
+			_play_sfx(sfx_path, sfx_vol, sfx_reverse)
 
 
 func _play_sfx(path: String, volume_db: float, reverse: bool) -> void:
@@ -575,7 +574,9 @@ func _play_sfx(path: String, volume_db: float, reverse: bool) -> void:
 	if not stream:
 		return
 	if reverse and stream is AudioStreamWAV:
-		stream = KeyChangeData.make_reversed_stream(stream as AudioStreamWAV)
+		var rev: AudioStreamWAV = KeyChangeData.make_reversed_stream(stream as AudioStreamWAV)
+		if rev:
+			stream = rev
 	AudioManager.play_sample(stream, 1.0, volume_db)
 
 
@@ -738,7 +739,6 @@ func _on_loop_selected(path: String, _category: String) -> void:
 	_preview_playing = true
 	_play_btn.button_pressed = true
 	_play_btn.text = "STOP"
-	_prev_loop_pos = -1.0
 
 
 func _on_play_toggle() -> void:
@@ -763,24 +763,15 @@ func _on_trigger() -> void:
 	var data: KeyChangeData = _get_preset_by_id(_selected_id)
 	if not data:
 		return
-	if _current_shift == 0:
-		# Shift into the key change
-		_pending_shift = data.semitones
-		_status_label.text = "Waiting for measure boundary..."
-		_sfx_scheduled = false
-		_prev_loop_pos = -1.0
-	else:
-		# Shift back to normal
-		_pending_shift = 0
-		_status_label.text = "Waiting for measure boundary (reset)..."
-		_sfx_scheduled = false
-		_prev_loop_pos = -1.0
+	var entering: bool = (_current_shift == 0)
+	# Mark shift direction immediately so rapid presses toggle correctly
+	_current_shift = data.semitones if entering else 0
+	_status_label.text = "Waiting for measure boundary..."
+	_schedule_trigger(entering)
 
 
 func _on_reset() -> void:
-	_pending_shift = 0
 	_current_shift = 0
-	_sfx_scheduled = false
 	LoopMixer.set_pitch_shift(0.0, 0.05)
 	_status_label.text = "Pitch reset to normal"
 

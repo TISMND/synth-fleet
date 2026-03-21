@@ -14,11 +14,9 @@ var _field_renderer: FieldRenderer = null
 var _orbiter_renderer: OrbiterRenderer = null
 var _collision_area: Area2D = null
 
-# Fade state
-var _fading: bool = false
-var _fade_target: float = 0.0
-var _fade_speed: float = 0.0
-var _current_opacity: float = 0.0
+# Active envelope state (per-trigger field visibility)
+var _active_envelope_active: bool = false
+var _active_envelope_elapsed: float = 0.0
 
 
 func setup(device: DeviceData, slot_index: int, ship_node: Node2D) -> void:
@@ -52,7 +50,8 @@ func setup(device: DeviceData, slot_index: int, ship_node: Node2D) -> void:
 
 		_field_renderer = FieldRenderer.new()
 		ship_node.add_child(_field_renderer)
-		_field_renderer.setup(style, device.radius, device.animation_speed)
+		_field_renderer.setup(style, device.radius)
+		_field_renderer.set_pulse_timing(device.pulse_total_duration, device.pulse_fade_up, device.pulse_fade_out)
 		_field_renderer.set_opacity(0.0)
 
 	# Create collision Area2D on layer 8
@@ -77,8 +76,6 @@ func activate() -> void:
 	LoopMixer.unmute(_loop_id, fade_ms)
 	if _orbiter_renderer:
 		_orbiter_renderer.visible = true
-	else:
-		_start_fade(1.0, device_data.fade_in_duration)
 	if _collision_area:
 		_collision_area.monitoring = true
 
@@ -92,8 +89,10 @@ func deactivate() -> void:
 	if _orbiter_renderer:
 		_orbiter_renderer.remove_all()
 		_orbiter_renderer.visible = false
-	else:
-		_start_fade(0.0, device_data.fade_out_duration)
+	# Kill active envelope and hide field immediately
+	_active_envelope_active = false
+	if _field_renderer:
+		_field_renderer.set_opacity(0.0)
 	if _collision_area:
 		_collision_area.monitoring = false
 
@@ -127,30 +126,31 @@ func _get_audio_fade_ms() -> int:
 	return 0
 
 
-func _start_fade(target: float, duration: float) -> void:
-	_fade_target = target
-	if duration <= 0.0:
-		_current_opacity = target
-		if _field_renderer:
-			_field_renderer.set_opacity(target)
-		_fading = false
-	else:
-		_fade_speed = absf(target - _current_opacity) / duration
-		_fading = true
-
-
 func _process(delta: float) -> void:
-	# Drive fade
-	if _fading:
-		if _current_opacity < _fade_target:
-			_current_opacity = minf(_current_opacity + _fade_speed * delta, _fade_target)
+	# Drive active envelope (per-trigger field visibility)
+	if _active_envelope_active and _field_renderer and device_data:
+		var total_dur: float = device_data.active_total_duration
+		var fade_in: float = device_data.active_fade_in
+		var fade_out: float = device_data.active_fade_out
+		if fade_in + fade_out > total_dur:
+			var ratio: float = total_dur / maxf(fade_in + fade_out, 0.001)
+			fade_in *= ratio
+			fade_out *= ratio
+		_active_envelope_elapsed += delta
+		if _active_envelope_elapsed >= total_dur:
+			_active_envelope_active = false
+			_field_renderer.set_opacity(0.0)
 		else:
-			_current_opacity = maxf(_current_opacity - _fade_speed * delta, _fade_target)
-		if _field_renderer:
-			_field_renderer.set_opacity(_current_opacity)
-		if absf(_current_opacity - _fade_target) < 0.001:
-			_current_opacity = _fade_target
-			_fading = false
+			var fade_out_start: float = total_dur - fade_out
+			var envelope: float
+			if _active_envelope_elapsed < fade_in:
+				envelope = _active_envelope_elapsed / maxf(fade_in, 0.001)
+			elif _active_envelope_elapsed < fade_out_start:
+				envelope = 1.0
+			else:
+				var remaining: float = total_dur - _active_envelope_elapsed
+				envelope = remaining / maxf(fade_out, 0.001)
+			_field_renderer.set_opacity(clampf(envelope, 0.0, 1.0))
 
 	if not _active or not device_data:
 		return
@@ -165,8 +165,10 @@ func _process(delta: float) -> void:
 		if not passive_delta.is_empty():
 			bar_effect_fired.emit(passive_delta)
 
-	# Trigger crossing detection (flat pulse_triggers array)
-	if device_data.pulse_triggers.is_empty():
+	# Trigger crossing detection
+	var has_functional: bool = not device_data.pulse_triggers.is_empty()
+	var has_cosmetic: bool = _field_renderer != null and not device_data.visual_pulse_triggers.is_empty()
+	if not has_functional and not has_cosmetic:
 		return
 
 	var pos_sec: float = LoopMixer.get_playback_position(_loop_id)
@@ -183,21 +185,31 @@ func _process(delta: float) -> void:
 	var prev: float = _prev_loop_pos
 	_prev_loop_pos = curr
 
-	# Check each trigger for crossing
-	var any_crossed: bool = false
-	for t in device_data.pulse_triggers:
-		var tval: float = float(t)
-		if _trigger_crossed(prev, curr, tval):
-			any_crossed = true
+	# Pass 1: Functional triggers (pulse_triggers) — bar_effects, signal, orbiter spawns
+	if has_functional:
+		var any_crossed: bool = false
+		for t in device_data.pulse_triggers:
+			var tval: float = float(t)
+			if _trigger_crossed(prev, curr, tval):
+				any_crossed = true
+		if any_crossed:
+			pulse_triggered.emit()
+			# Start active envelope — field becomes visible
+			if _field_renderer:
+				_active_envelope_active = true
+				_active_envelope_elapsed = 0.0
+			if _orbiter_renderer:
+				_orbiter_renderer.spawn_batch()
+			if not device_data.bar_effects.is_empty():
+				bar_effect_fired.emit(device_data.bar_effects)
 
-	if any_crossed:
-		pulse_triggered.emit()
-		if _field_renderer:
-			_field_renderer.pulse()
-		if _orbiter_renderer:
-			_orbiter_renderer.spawn_batch()
-		if not device_data.bar_effects.is_empty():
-			bar_effect_fired.emit(device_data.bar_effects)
+	# Pass 2: Cosmetic triggers (visual_pulse_triggers) — field shader pulse only
+	if has_cosmetic:
+		for t in device_data.visual_pulse_triggers:
+			var tval: float = float(t)
+			if _trigger_crossed(prev, curr, tval):
+				_field_renderer.pulse()
+				break  # One pulse per frame is enough
 
 
 func _trigger_crossed(prev: float, curr: float, trigger: float) -> bool:

@@ -716,197 +716,155 @@ class _DrawCtx:
 
 	func draw_ironclad(o: Vector2) -> void:
 		var s := 0.35
-		# Boxy armored hull
-		var hull := PackedVector2Array([
-			o + Vector2(-6, 28) * s, o + Vector2(6, 28) * s,
-			o + Vector2(16, 18) * s, o + Vector2(18, 6) * s,
-			o + Vector2(18, -18) * s, o + Vector2(14, -24) * s,
-			o + Vector2(-14, -24) * s, o + Vector2(-18, -18) * s,
-			o + Vector2(-18, 6) * s, o + Vector2(-16, 18) * s,
-		])
-		mp(hull, cyan, 0.8)
-		# Armor plate lines
-		for y_off in [14.0, 4.0, -6.0, -16.0]:
-			ml(o + Vector2(-17, y_off) * s, o + Vector2(17, y_off) * s, teal, 0.4)
-		# Forward turret
-		var fwd := PackedVector2Array([
-			o + Vector2(-5, 20) * s, o + Vector2(5, 20) * s,
-			o + Vector2(6, 14) * s, o + Vector2(-6, 14) * s,
-		])
-		mp(fwd, magenta, 0.6)
-		ml(o + Vector2(0, 20) * s, o + Vector2(0, 28) * s, magenta, 0.7)
-		# Shield dome
-		mc(o + Vector2(4, -2) * s, 3.0 * s, Color(teal.r, teal.g, teal.b, 0.3))
-		# Side sponsons
-		var rs := PackedVector2Array([
-			o + Vector2(18, 2) * s, o + Vector2(22, 4) * s,
-			o + Vector2(22, -8) * s, o + Vector2(18, -10) * s,
-		])
-		mp(rs, cyan, 0.5)
-		var ls := PackedVector2Array([
-			o + Vector2(-18, -4) * s, o + Vector2(-22, -2) * s,
-			o + Vector2(-22, -14) * s, o + Vector2(-18, -16) * s,
-		])
-		mp(ls, cyan, 0.5)
-		# Keel line
-		ml(o + Vector2(0, 26) * s, o + Vector2(0, -22) * s, teal, 0.3)
-		# Engines
-		for x_off in [-8.0, 0.0, 8.0]:
-			mc(o + Vector2(x_off, -24) * s, 1.5, orange)
+		# Cuttlefish — torpedo mantle with side fins and front tendrils
+		var mantle := PackedVector2Array()
+		for i in range(16):
+			var angle: float = TAU * float(i) / 16.0
+			var rx: float = 8.0 * s
+			var ry: float = 16.0 * s
+			var y_raw: float = sin(angle)
+			if y_raw < 0.0:
+				rx *= (1.0 + y_raw * 0.5)
+			mantle.append(o + Vector2(cos(angle) * rx, y_raw * ry))
+		mp(mantle, cyan, 0.8)
+		# Side fins — wavy outline
+		for side_val in [-1.0, 1.0]:
+			var fin := PackedVector2Array()
+			for i in range(8):
+				var frac: float = float(i) / 7.0
+				var fy: float = lerpf(12.0, -12.0, frac) * s
+				var fw: float = sin(frac * PI) * 10.0 * s
+				fin.append(o + Vector2(side_val * (7.0 * s + fw), fy))
+			# Return along body edge
+			for i in range(7, -1, -1):
+				var frac: float = float(i) / 7.0
+				var fy: float = lerpf(12.0, -12.0, frac) * s
+				fin.append(o + Vector2(side_val * 7.0 * s, fy))
+			mp(fin, cyan, 0.5)
+		# Cuttlebone line
+		ml(o + Vector2(0, 12) * s, o + Vector2(0, -12) * s, teal, 0.4)
+		# Front tendrils
+		for side_val in [-1.0, 1.0]:
+			for t in range(3):
+				var bx: float = side_val * (1.5 + float(t) * 1.5) * s
+				ml(o + Vector2(bx, 16) * s, o + Vector2(bx + side_val * 2.0 * s, 24 * s), magenta, 0.4)
+		# Eyes
+		mc(o + Vector2(-6, 6) * s, 1.8 * s, teal)
+		mc(o + Vector2(6, 6) * s, 1.8 * s, teal)
 
 	func draw_colossus(o: Vector2) -> void:
 		var s := 0.30
-		# 3-section hull: prow, mid, aft
-		var prow := PackedVector2Array([
-			o + Vector2(-4, 32) * s, o + Vector2(4, 32) * s,
-			o + Vector2(12, 22) * s, o + Vector2(12, 14) * s,
-			o + Vector2(-12, 14) * s, o + Vector2(-12, 22) * s,
-		])
-		mp(prow, cyan, 0.7)
-		var mid := PackedVector2Array([
-			o + Vector2(-16, 14) * s, o + Vector2(16, 14) * s,
-			o + Vector2(20, 4) * s, o + Vector2(20, -12) * s,
-			o + Vector2(16, -18) * s, o + Vector2(-16, -18) * s,
-			o + Vector2(-20, -12) * s, o + Vector2(-20, 4) * s,
-		])
-		mp(mid, cyan, 0.8)
-		var aft := PackedVector2Array([
-			o + Vector2(-14, -18) * s, o + Vector2(14, -18) * s,
-			o + Vector2(16, -28) * s, o + Vector2(-16, -28) * s,
-		])
-		mp(aft, cyan, 0.7)
-		# Section dividers
-		ml(o + Vector2(-16, 14) * s, o + Vector2(16, 14) * s, magenta, 0.5)
-		ml(o + Vector2(-16, -18) * s, o + Vector2(16, -18) * s, magenta, 0.5)
-		# Command bridge
-		var bridge := PackedVector2Array([
-			o + Vector2(2, 10) * s, o + Vector2(12, 8) * s,
-			o + Vector2(14, 0) * s, o + Vector2(10, -4) * s,
-			o + Vector2(2, -2) * s,
-		])
-		mp(bridge, magenta, 0.6)
-		# Port gun battery
-		ml(o + Vector2(-14, 8) * s, o + Vector2(-18, 14) * s, magenta, 0.6)
-		ml(o + Vector2(-12, 7) * s, o + Vector2(-16, 13) * s, magenta, 0.6)
-		# Starboard gun
-		ml(o + Vector2(20, -5) * s, o + Vector2(24, 1) * s, magenta, 0.6)
-		# Keel line
-		ml(o + Vector2(0, 30) * s, o + Vector2(0, -26) * s, teal, 0.3)
-		# Engines
-		for x_off in [-10.0, -5.0, 0.0, 5.0, 10.0]:
-			mc(o + Vector2(x_off, -28) * s, 1.3, orange)
+		# Eldritch eye creature — blobby body, central eye, radiating tendrils
+		var body := PackedVector2Array()
+		for i in range(16):
+			var angle: float = TAU * float(i) / 16.0
+			var r: float = 18.0 * s + sin(angle * 3.0) * 3.0 * s
+			body.append(o + Vector2(cos(angle) * r, sin(angle) * r))
+		mp(body, cyan, 0.8)
+		# Inner membrane ring
+		var membrane := PackedVector2Array()
+		for i in range(12):
+			var angle: float = TAU * float(i) / 12.0
+			var r: float = 10.0 * s
+			membrane.append(o + Vector2(cos(angle) * r, sin(angle) * r))
+		mp(membrane, Color(magenta.r, magenta.g, magenta.b, 0.3), 0.4)
+		# Central eye
+		mc(o, 5.0 * s, Color(magenta.r, magenta.g, magenta.b, 0.4))
+		mc(o, 3.0 * s, Color(0.0, 0.0, 0.0, 0.8))
+		mc(o + Vector2(1, -1) * s, 1.0 * s, Color(1.0, 1.0, 1.0, 0.8))
+		# Radiating tendrils
+		for i in range(9):
+			var angle: float = TAU * float(i) / 9.0
+			var base_pt: Vector2 = o + Vector2(cos(angle) * 16.0 * s, sin(angle) * 16.0 * s)
+			var tip: Vector2 = o + Vector2(cos(angle) * 30.0 * s, sin(angle) * 30.0 * s)
+			ml(base_pt, tip, cyan, 0.5)
+			mc(tip, 1.2 * s, teal)
 
 	func draw_leviathan(o: Vector2) -> void:
 		var s := 0.30
-		# Wide blocky carrier hull
-		var hull := PackedVector2Array([
-			o + Vector2(-18, 22) * s, o + Vector2(-8, 28) * s,
-			o + Vector2(10, 28) * s, o + Vector2(20, 20) * s,
-			o + Vector2(22, 0) * s, o + Vector2(20, -20) * s,
-			o + Vector2(8, -26) * s, o + Vector2(-10, -26) * s,
-			o + Vector2(-20, -18) * s, o + Vector2(-22, 2) * s,
-		])
-		mp(hull, cyan, 0.8)
-		# Bridge tower — starboard
-		var bridge := PackedVector2Array([
-			o + Vector2(10, 18) * s, o + Vector2(17, 16) * s,
-			o + Vector2(18, 6) * s, o + Vector2(14, 4) * s,
-			o + Vector2(10, 6) * s,
-		])
-		mp(bridge, magenta, 0.6)
-		# Hangar slit — port side
-		ml(o + Vector2(-16, 4) * s, o + Vector2(-16, -10) * s, magenta, 0.7)
-		# Hull seams
-		ml(o + Vector2(-6, 24) * s, o + Vector2(-6, -22) * s, teal, 0.3)
-		ml(o + Vector2(4, 26) * s, o + Vector2(4, -24) * s, teal, 0.3)
-		# Side weapon bumps
-		for y_off in [12.0, 0.0, -12.0]:
-			ml(o + Vector2(22, y_off) * s, o + Vector2(26, y_off + 1) * s, cyan, 0.5)
-		# Engines
-		for x_off in [-7.0, -2.0, 3.0, 8.0]:
-			mc(o + Vector2(x_off, -26) * s, 1.3, orange)
-		# Forward sensor
-		mc(o + Vector2(1, 26) * s, 1.5, teal)
+		# Jellyfish — dome cap forward (+Y), tentacles trailing behind (-Y)
+		var dome := PackedVector2Array()
+		var dome_r: float = 16.0 * s
+		for i in range(13):
+			var angle: float = PI * float(i) / 12.0  # 0 to PI = top semicircle
+			dome.append(o + Vector2(cos(angle) * dome_r, 4.0 * s + sin(angle) * dome_r * 0.7))
+		mp(dome, cyan, 0.8)
+		# Organ glow inside bell
+		mc(o + Vector2(-3, 14) * s, 3.0 * s, Color(magenta.r, magenta.g, magenta.b, 0.3))
+		mc(o + Vector2(2, 10) * s, 2.5 * s, Color(teal.r, teal.g, teal.b, 0.4))
+		# Trailing tentacles
+		for t in range(5):
+			var tx: float = lerpf(-12.0, 12.0, float(t) / 4.0) * s
+			var base_pt: Vector2 = o + Vector2(tx, 4.0 * s)
+			var tip: Vector2 = o + Vector2(tx + sin(float(t) * 1.5) * 4.0 * s, -20.0 * s)
+			ml(base_pt, tip, cyan, 0.5)
+			mc(tip, 1.0 * s, magenta)
+		# Bell rim dots
+		for i in range(8):
+			var angle: float = PI * float(i) / 7.0
+			var pt: Vector2 = o + Vector2(cos(angle) * dome_r, 4.0 * s)
+			mc(pt, 1.0 * s, teal)
 
 	func draw_marauder(o: Vector2) -> void:
 		var s := 0.35
-		# Aggressive forward-heavy hull
-		var hull := PackedVector2Array([
-			o + Vector2(-4, 26) * s, o + Vector2(6, 26) * s,
-			o + Vector2(18, 14) * s, o + Vector2(16, -8) * s,
-			o + Vector2(12, -22) * s, o + Vector2(-10, -22) * s,
-			o + Vector2(-14, -8) * s, o + Vector2(-16, 12) * s,
-		])
-		mp(hull, cyan, 0.8)
-		# Port weapon pylon
-		var pp := PackedVector2Array([
-			o + Vector2(-16, 12) * s, o + Vector2(-22, 18) * s,
-			o + Vector2(-20, 22) * s, o + Vector2(-14, 16) * s,
-		])
-		mp(pp, cyan, 0.6)
-		# Starboard weapon cluster
-		var sp := PackedVector2Array([
-			o + Vector2(18, 14) * s, o + Vector2(24, 20) * s,
-			o + Vector2(26, 18) * s, o + Vector2(22, 10) * s,
-		])
-		mp(sp, cyan, 0.6)
-		ml(o + Vector2(22, 14) * s, o + Vector2(26, 22) * s, magenta, 0.6)
-		# Cockpit
-		var cp := PackedVector2Array([
-			o + Vector2(2, 20) * s, o + Vector2(8, 18) * s,
-			o + Vector2(8, 12) * s, o + Vector2(2, 14) * s,
-		])
-		mp(cp, magenta, 0.5)
-		# Spine
-		ml(o + Vector2(1, 22) * s, o + Vector2(1, -18) * s, teal, 0.4)
-		# Battle scars
-		ml(o + Vector2(-10, 4) * s, o + Vector2(-6, -4) * s, teal, 0.3)
-		# Engines
-		mc(o + Vector2(-6, -22) * s, 1.5, orange)
-		mc(o + Vector2(4, -22) * s, 1.8, orange)
-		mc(o + Vector2(10, -21) * s, 1.3, orange)
-		# Weapon pylon tips
-		mc(o + Vector2(-20, 22) * s, 1.5, magenta)
-		mc(o + Vector2(25, 21) * s, 1.8, magenta)
+		# Concentric pentagons with orbiting satellites
+		for ring in range(3):
+			var ring_r: float = (18.0 - float(ring) * 6.0) * s
+			var ring_col: Color = cyan if ring == 0 else (magenta if ring == 1 else teal)
+			var pts := PackedVector2Array()
+			for i in range(5):
+				var angle: float = TAU * float(i) / 5.0 + float(ring) * 0.3
+				pts.append(o + Vector2(cos(angle) * ring_r, sin(angle) * ring_r))
+			mp(pts, ring_col, 0.6 + float(ring) * 0.1)
+		# Spokes connecting outer to mid
+		for i in range(5):
+			var a_out: float = TAU * float(i) / 5.0
+			var a_mid: float = TAU * float(i) / 5.0 + 0.3
+			var p1: Vector2 = o + Vector2(cos(a_out) * 18.0 * s, sin(a_out) * 18.0 * s)
+			var p2: Vector2 = o + Vector2(cos(a_mid) * 12.0 * s, sin(a_mid) * 12.0 * s)
+			ml(p1, p2, Color(teal.r, teal.g, teal.b, 0.3), 0.3)
+		# Orbiting satellites — 3 small triangles
+		for sat in range(3):
+			var orbit_angle: float = TAU * float(sat) / 3.0
+			var sat_pos: Vector2 = o + Vector2(cos(orbit_angle) * 24.0 * s, sin(orbit_angle) * 24.0 * s)
+			var tri := PackedVector2Array()
+			for i in range(3):
+				var a: float = TAU * float(i) / 3.0
+				tri.append(sat_pos + Vector2(cos(a) * 3.0 * s, sin(a) * 3.0 * s))
+			mp(tri, magenta, 0.4)
+			ml(o, sat_pos, Color(cyan.r, cyan.g, cyan.b, 0.15), 0.2)
+		# Center core
+		mc(o, 2.0 * s, Color(1.0, 1.0, 1.0, 0.7))
 
 	func draw_wraith(o: Vector2) -> void:
 		var s := 0.35
-		# Sleek angular stealth hull
-		var hull := PackedVector2Array([
-			o + Vector2(0, 30) * s, o + Vector2(8, 22) * s,
-			o + Vector2(14, 8) * s, o + Vector2(16, -6) * s,
-			o + Vector2(12, -20) * s, o + Vector2(4, -24) * s,
-			o + Vector2(-6, -24) * s, o + Vector2(-12, -18) * s,
-			o + Vector2(-14, -4) * s, o + Vector2(-12, 10) * s,
-			o + Vector2(-6, 24) * s,
-		])
-		mp(hull, cyan, 0.7)
-		# Sensor fin — port side
-		var fin := PackedVector2Array([
-			o + Vector2(-8, 16) * s, o + Vector2(-6, 20) * s,
-			o + Vector2(-4, 16) * s, o + Vector2(-4, 4) * s,
-			o + Vector2(-8, 2) * s,
-		])
-		mp(fin, magenta, 0.5)
-		# Wing stubs
-		var rw := PackedVector2Array([
-			o + Vector2(14, 4) * s, o + Vector2(22, -2) * s,
-			o + Vector2(20, -6) * s, o + Vector2(14, -4) * s,
-		])
-		mp(rw, cyan, 0.6)
-		var lw := PackedVector2Array([
-			o + Vector2(-12, 2) * s, o + Vector2(-18, -4) * s,
-			o + Vector2(-16, -8) * s, o + Vector2(-12, -6) * s,
-		])
-		mp(lw, cyan, 0.6)
-		# Cockpit slit
-		ml(o + Vector2(-2, 22) * s, o + Vector2(4, 20) * s, magenta, 0.5)
-		# Hull seams
-		ml(o + Vector2(0, 28) * s, o + Vector2(4, 0) * s, teal, 0.3)
-		ml(o + Vector2(4, 0) * s, o + Vector2(2, -22) * s, teal, 0.3)
-		# Engines — recessed
-		mc(o + Vector2(-2, -23) * s, 1.2, orange)
-		mc(o + Vector2(6, -23) * s, 1.2, orange)
-		# Wingtip lights
-		mc(o + Vector2(21, -4) * s, 1.2, magenta)
-		mc(o + Vector2(-17, -6) * s, 1.0, magenta)
+		# Phase-shifting diamond lattice — nested diamonds with node dots
+		for ring in range(4):
+			var ring_r: float = (6.0 + float(ring) * 6.0) * s
+			var ring_col: Color
+			if ring == 0:
+				ring_col = teal
+			elif ring % 2 == 0:
+				ring_col = magenta
+			else:
+				ring_col = cyan
+			ring_col.a = 0.4 + float(3 - ring) * 0.15
+			var diamond := PackedVector2Array()
+			for i in range(4):
+				var angle: float = TAU * float(i) / 4.0 + float(ring) * 0.15
+				diamond.append(o + Vector2(cos(angle) * ring_r, sin(angle) * ring_r))
+			mp(diamond, ring_col, 0.5 + float(ring) * 0.1)
+			# Corner node dots
+			for i in range(4):
+				var angle: float = TAU * float(i) / 4.0 + float(ring) * 0.15
+				var pt: Vector2 = o + Vector2(cos(angle) * ring_r, sin(angle) * ring_r)
+				mc(pt, 1.0 * s, teal)
+		# Cross-lattice connections
+		for i in range(4):
+			var a: float = TAU * float(i) / 4.0
+			var inner_pt: Vector2 = o + Vector2(cos(a) * 6.0 * s, sin(a) * 6.0 * s)
+			var outer_pt: Vector2 = o + Vector2(cos(a + 0.45) * 24.0 * s, sin(a + 0.45) * 24.0 * s)
+			ml(inner_pt, outer_pt, Color(magenta.r, magenta.g, magenta.b, 0.15), 0.3)
+		# Dark center void
+		mc(o, 3.0 * s, Color(0.0, 0.0, 0.0, 0.5))
+		mc(o, 1.5 * s, Color(1.0, 1.0, 1.0, 0.7))

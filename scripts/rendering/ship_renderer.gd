@@ -183,8 +183,9 @@ func _canopy(points: PackedVector2Array) -> void:
 		RenderMode.SPORE:
 			draw_colored_polygon(points, Color(SPORE_CORE.r, SPORE_CORE.g, SPORE_CORE.b, 0.2))
 			for i in range(points.size()):
-				var dot_pulse: float = 0.5 + sin(time * 1.5 + float(i) * 2.3) * 0.5
-				draw_circle(points[i], 2.0 * dot_pulse, SPORE_DOT_ALT)
+				var dot_pulse: float = 0.5 + sin(time * 1.2 + float(i) * 2.3) * 0.5
+				var dot_blend: float = sin(time * 0.3 + float(i) * 1.4) * 0.5 + 0.5
+				draw_circle(points[i], 2.0 * dot_pulse, SPORE_DOT.lerp(SPORE_DOT_ALT, dot_blend))
 		_:
 			var cf := canopy_color
 			cf.a = 0.3
@@ -227,7 +228,7 @@ func _apply_palette() -> void:
 			canopy_color = SOLAR_CANOPY
 			detail_color = SOLAR_DETAIL
 		RenderMode.SPORT:
-			var hue: float = fmod(time * 0.6, 1.0)
+			var hue: float = fmod(time * 0.15, 1.0)
 			hull_color = Color.from_hsv(hue, 0.9, 1.0)
 			accent_color = Color.from_hsv(fmod(hue + 0.3, 1.0), 0.85, 1.0)
 			engine_color = Color.from_hsv(fmod(hue + 0.15, 1.0), 0.8, 1.0)
@@ -726,92 +727,97 @@ func _draw_marauder() -> void:
 
 
 func _draw_ironclad() -> void:
-	# Organic manta ray — wide undulating wings, whip tail, bioluminescent patterns
+	# Cuttlefish-inspired — torpedo body with rippling side fins and front tendrils
 	var s := 3.4
-	var flap: float = sin(time * 1.6)
-	var flap_fast: float = sin(time * 1.6 + 0.3)
 
-	# Wing shape — wide curved body built from points
-	# +Y = forward (mouth), -Y = tail
-	var body := PackedVector2Array()
-	var wing_pts: int = 24
-	for i in range(wing_pts):
-		var t: float = float(i) / float(wing_pts - 1)  # 0 to 1 around the perimeter
-		var angle: float = -PI * 0.15 + t * (PI + PI * 0.3)  # sweep from rear-right around to rear-left
-		var base_rx: float = 22.0 * s
-		var base_ry: float = 16.0 * s
-		# Wing curvature — wider at mid, tapered at tips
-		var wing_mod: float = 1.0 + sin(angle) * 0.3
-		# Undulation — wingtips flap more than center
-		var dist_from_center: float = absf(cos(angle))
-		var flap_offset: float = flap * dist_from_center * 3.0 * s
-		var rx: float = base_rx * wing_mod
-		var ry: float = base_ry
-		body.append(Vector2(cos(angle) * rx, sin(angle) * ry + flap_offset * 0.3))
-	_poly(body, hull_color, 2.0 * s)
+	# Central mantle — tapered oval, pointed aft, rounded forward
+	var mantle := PackedVector2Array()
+	var mantle_pts: int = 20
+	for i in range(mantle_pts):
+		var angle: float = TAU * float(i) / float(mantle_pts)
+		# Elongated vertically, narrower horizontally, tapered toward -Y (aft)
+		var rx: float = 8.0 * s
+		var ry: float = 16.0 * s
+		# Taper the aft end narrower
+		var y_raw: float = sin(angle)
+		if y_raw < 0.0:
+			rx *= (1.0 + y_raw * 0.5)  # narrows toward aft
+		mantle.append(Vector2(cos(angle) * rx, y_raw * ry))
+	_poly(mantle, hull_color, 2.0 * s)
 
-	# Dorsal ridge — central spine
-	_line(Vector2(0, 14.0 * s), Vector2(0, -10.0 * s), accent_color, 1.2 * s)
-
-	# Gill slits — angled lines on underside
+	# Rippling side fins — undulating wave traveling front-to-back along each side
 	for side in [-1.0, 1.0]:
-		for i in range(3):
-			var gy: float = (6.0 - float(i) * 4.0) * s
-			var gx1: float = side * 3.0 * s
-			var gx2: float = side * (10.0 + float(i) * 2.0) * s
-			var gill_alpha: float = 0.25 + sin(time * 2.0 + float(i) * 0.8 + side) * 0.15
-			_line(Vector2(gx1, gy), Vector2(gx2, gy - 1.5 * s), Color(detail_color.r, detail_color.g, detail_color.b, gill_alpha), 0.6 * s)
+		var fin_segs: int = 14
+		var prev_fin := Vector2(side * 7.5 * s, 14.0 * s)
+		for seg in range(1, fin_segs + 1):
+			var frac: float = float(seg) / float(fin_segs)
+			var fy: float = lerpf(14.0, -14.0, frac) * s
+			# Traveling wave — ripples move from front to back
+			var wave: float = sin(time * 4.0 - frac * 6.0) * (4.0 + sin(frac * PI) * 4.0) * s
+			# Fin width peaks at mid-body, tapers at both ends
+			var fin_width: float = sin(frac * PI) * 10.0 * s
+			var fx: float = side * (7.5 * s + fin_width + wave * 0.5)
+			var curr_fin := Vector2(fx, fy)
+			var fin_alpha: float = 0.6 + sin(frac * PI) * 0.3
+			_line(prev_fin, curr_fin, Color(hull_color.r, hull_color.g, hull_color.b, fin_alpha), 1.2 * s)
+			prev_fin = curr_fin
+			# Fin membrane — connecting line back to body edge
+			if seg % 2 == 0:
+				var body_x: float = side * 7.5 * s * (1.0 - absf(lerpf(-1.0, 1.0, frac)) * 0.3)
+				_line(Vector2(body_x, fy), curr_fin, Color(detail_color.r, detail_color.g, detail_color.b, 0.15), 0.4 * s)
 
-	# Bioluminescent wing patterns — flowing spots along wing edges
-	for side in [-1.0, 1.0]:
-		for i in range(6):
-			var frac: float = float(i) / 5.0
-			var pattern_angle: float = PI * 0.2 + frac * PI * 0.6
-			var pr: float = (18.0 + sin(pattern_angle) * 4.0) * s
-			var px: float = cos(pattern_angle) * pr * side
-			var py: float = sin(pattern_angle) * 14.0 * s
-			var bio_pulse: float = 0.2 + sin(time * 2.5 + float(i) * 1.0 + side * 2.0) * 0.25
-			draw_circle(Vector2(px, py), (1.5 + sin(time * 1.5 + float(i)) * 0.5) * s, Color(accent_color.r, accent_color.g, accent_color.b, bio_pulse))
-
-	# Wing-edge undulation highlight — animated glow running along the edges
-	for i in range(12):
-		var t: float = float(i) / 11.0
-		var edge_angle: float = PI * 0.1 + t * PI * 0.8
-		var edge_r: float = 22.0 * s * (1.0 + sin(edge_angle) * 0.3)
+	# Chromatophore patterns — color-shifting spots along the mantle
+	for i in range(6):
+		var spot_y: float = lerpf(10.0, -10.0, float(i) / 5.0) * s
 		for side in [-1.0, 1.0]:
-			var ex: float = cos(edge_angle) * edge_r * side
-			var ey: float = sin(edge_angle) * 15.0 * s
-			var wave_phase: float = time * 3.0 - float(i) * 0.4
-			var edge_alpha: float = 0.15 + sin(wave_phase) * 0.15
-			draw_circle(Vector2(ex, ey), 1.0 * s, Color(hull_color.r, hull_color.g, hull_color.b, edge_alpha))
+			var spot_x: float = side * (2.0 + sin(float(i) * 1.5) * 2.0) * s
+			# Color shifts between accent and detail over time
+			var shift: float = sin(time * 1.5 + float(i) * 0.9 + side) * 0.5 + 0.5
+			var spot_col := Color(
+				lerpf(accent_color.r, detail_color.r, shift),
+				lerpf(accent_color.g, detail_color.g, shift),
+				lerpf(accent_color.b, detail_color.b, shift)
+			)
+			var spot_pulse: float = 0.2 + sin(time * 2.5 + float(i) * 1.2) * 0.2
+			draw_circle(Vector2(spot_x, spot_y), 1.8 * s, Color(spot_col.r, spot_col.g, spot_col.b, spot_pulse))
 
-	# Whip tail — wide at base, tapering to thin whip, trailing behind (-Y)
-	var tail_segs: int = 12
-	var prev_tail := Vector2(0, -10.0 * s)
-	for seg in range(1, tail_segs + 1):
-		var frac: float = float(seg) / float(tail_segs)
-		var tail_wave: float = sin(time * 3.0 + frac * 5.0) * (2.0 + frac * 5.0) * s
-		var ty: float = -10.0 * s - frac * 24.0 * s
-		var curr_tail := Vector2(tail_wave, ty)
-		var tail_alpha: float = 1.0 - frac * 0.5
-		# Wide base (6.0) tapering sharply to thin tip (0.4) via power curve
-		var taper: float = 1.0 - frac
-		var tw: float = (0.4 + 5.6 * taper * taper) * s
-		_line(prev_tail, curr_tail, Color(hull_color.r, hull_color.g, hull_color.b, tail_alpha), tw)
-		prev_tail = curr_tail
-	# Tail tip sting
-	var sting_pulse: float = 0.4 + sin(time * 4.0) * 0.4
-	draw_circle(prev_tail, 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, sting_pulse))
+	# Internal cuttlebone line — faint central structure
+	var bone_alpha: float = 0.2 + sin(time * 0.8) * 0.1
+	_line(Vector2(0, 12.0 * s), Vector2(0, -12.0 * s), Color(detail_color.r, detail_color.g, detail_color.b, bone_alpha), 0.8 * s)
+	for i in range(5):
+		var by: float = lerpf(10.0, -10.0, float(i) / 4.0) * s
+		var bw: float = (4.0 - absf(lerpf(-1.0, 1.0, float(i) / 4.0)) * 2.0) * s
+		_line(Vector2(-bw, by), Vector2(bw, by), Color(detail_color.r, detail_color.g, detail_color.b, bone_alpha * 0.7), 0.4 * s)
 
-	# Eyes — small, forward-set
+	# Front tendrils — 4 pairs, short, animated
+	var tendril_pairs: int = 4
+	for t in range(tendril_pairs):
+		var spread: float = (float(t) + 0.5) / float(tendril_pairs)  # 0.125 to 0.875
+		for side in [-1.0, 1.0]:
+			var base_x: float = side * spread * 6.0 * s
+			var base_y: float = 16.0 * s
+			var phase: float = time * 3.5 + float(t) * 1.2 + side * 0.7
+			var seg_count: int = 5
+			var prev := Vector2(base_x, base_y)
+			for seg in range(1, seg_count + 1):
+				var frac: float = float(seg) / float(seg_count)
+				var wave_x: float = sin(phase + frac * 3.0) * (1.0 + frac * 2.5) * s * side
+				var ny: float = base_y + frac * 12.0 * s
+				var curr := Vector2(base_x + wave_x, ny)
+				var seg_alpha: float = 0.8 - frac * 0.4
+				var tw: float = (1.0 - frac * 0.6) * s
+				_line(prev, curr, Color(accent_color.r, accent_color.g, accent_color.b, seg_alpha), tw)
+				prev = curr
+
+	# Eyes — large, set back on mantle sides
 	for side in [-1.0, 1.0]:
-		var eye_pos := Vector2(side * 6.0 * s, 12.0 * s)
+		var eye_pos := Vector2(side * 6.5 * s, 6.0 * s)
+		draw_circle(eye_pos, 3.0 * s, Color(hull_color.r, hull_color.g, hull_color.b, 0.5))
 		draw_circle(eye_pos, 2.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, 0.4))
-		draw_circle(eye_pos, 1.0 * s, Color(1.0, 1.0, 1.0, 0.8))
-
-	# Mouth slit
-	var mouth_open: float = 0.3 + sin(time * 1.0) * 0.15
-	_line(Vector2(-4.0 * s, 15.0 * s), Vector2(4.0 * s, 15.0 * s), Color(accent_color.r, accent_color.g, accent_color.b, mouth_open), 0.8 * s)
+		# W-shaped cuttlefish pupil — two dots
+		var pupil_spread: float = 0.8 * s
+		draw_circle(eye_pos + Vector2(-pupil_spread * 0.5, 0), 0.8 * s, Color(0.0, 0.0, 0.0, 0.9))
+		draw_circle(eye_pos + Vector2(pupil_spread * 0.5, 0), 0.8 * s, Color(0.0, 0.0, 0.0, 0.9))
 
 
 func _draw_wraith() -> void:
@@ -1925,17 +1931,18 @@ func _draw_spore_polygon(points: PackedVector2Array, width: float) -> void:
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
 		draw_line(points[i], points[ni], Color(SPORE_DOT.r, SPORE_DOT.g, SPORE_DOT.b, 0.15), width * 2.0, true)
-	# Alternating edge segments swap visibility
+	# Edge segments — slow smooth fade between teal and purple
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
-		var vis: int = (i + int(time * 2.4)) % 2
-		var seg_col: Color = SPORE_DOT if vis == 0 else SPORE_DOT_ALT
+		var blend: float = sin(time * 0.4 + float(i) * 0.9) * 0.5 + 0.5
+		var seg_col: Color = SPORE_DOT.lerp(SPORE_DOT_ALT, blend)
 		seg_col.a = 0.7
 		draw_line(points[i], points[ni], seg_col, width, true)
-	# Pulsing vertex dots
+	# Pulsing vertex dots — slow fade between colors
 	for i in range(points.size()):
-		var dot_pulse: float = 0.4 + sin(time * 4.5 + float(i) * 2.3) * 0.4
-		draw_circle(points[i], width * 1.0 * dot_pulse + 1.0, SPORE_DOT)
+		var dot_pulse: float = 0.4 + sin(time * 1.2 + float(i) * 2.3) * 0.4
+		var dot_blend: float = sin(time * 0.3 + float(i) * 1.4) * 0.5 + 0.5
+		draw_circle(points[i], width * 1.0 * dot_pulse + 1.0, SPORE_DOT.lerp(SPORE_DOT_ALT, dot_blend))
 	# Wandering highlight orbiting centroid
 	if points.size() >= 3:
 		var centroid := Vector2.ZERO
@@ -1946,14 +1953,19 @@ func _draw_spore_polygon(points: PackedVector2Array, width: float) -> void:
 		draw_circle(wander, 3.0, Color(1, 1, 1, 0.3 + sin(time * 2.0) * 0.2))
 
 func _draw_spore_line(a: Vector2, b: Vector2, width: float) -> void:
-	# Faint underglow
-	draw_line(a, b, Color(SPORE_DOT.r, SPORE_DOT.g, SPORE_DOT.b, 0.2), width * 2.0, true)
-	# Bright endpoint node circles
-	draw_circle(a, width * 0.8, SPORE_DOT)
-	draw_circle(b, width * 0.8, SPORE_DOT)
-	# Purple midpoint dot
+	# Faint underglow — slow color fade
+	var line_blend: float = sin(time * 0.35) * 0.5 + 0.5
+	var line_col: Color = SPORE_DOT.lerp(SPORE_DOT_ALT, line_blend)
+	draw_line(a, b, Color(line_col.r, line_col.g, line_col.b, 0.2), width * 2.0, true)
+	# Endpoint node circles — slow fade
+	var end_blend: float = sin(time * 0.3 + 1.0) * 0.5 + 0.5
+	var end_col: Color = SPORE_DOT.lerp(SPORE_DOT_ALT, end_blend)
+	draw_circle(a, width * 0.8, end_col)
+	draw_circle(b, width * 0.8, end_col)
+	# Midpoint dot — offset phase
 	var mid: Vector2 = (a + b) * 0.5
-	draw_circle(mid, width * 0.6, SPORE_DOT_ALT)
+	var mid_blend: float = sin(time * 0.3 + 2.5) * 0.5 + 0.5
+	draw_circle(mid, width * 0.6, SPORE_DOT.lerp(SPORE_DOT_ALT, mid_blend))
 
 # ── Neon drawing helpers ──
 
@@ -2070,13 +2082,13 @@ func _draw_spore_circle(center: Vector2, radius: float, width: float) -> void:
 	draw_circle(center, radius, SPORE_CORE)
 	# Faint continuous underglow
 	draw_arc(center, radius, 0.0, TAU, 128, Color(SPORE_DOT.r, SPORE_DOT.g, SPORE_DOT.b, 0.15), width * 2.0, true)
-	# Alternating arc segments swap visibility
+	# Arc segments — slow smooth fade between teal and purple
 	var arc_steps: int = 24
 	var arc_len: float = TAU / float(arc_steps)
 	for i in range(arc_steps):
 		var a0: float = arc_len * float(i)
-		var vis: int = (i + int(time * 2.4)) % 2
-		var seg_col: Color = SPORE_DOT if vis == 0 else SPORE_DOT_ALT
+		var blend: float = sin(time * 0.4 + float(i) * 0.9) * 0.5 + 0.5
+		var seg_col: Color = SPORE_DOT.lerp(SPORE_DOT_ALT, blend)
 		seg_col.a = 0.7
 		draw_arc(center, radius, a0, a0 + arc_len * 1.1, 8, seg_col, width, true)
 	# Wandering highlight

@@ -15,14 +15,21 @@ extends Resource
 @export var orbiter_style_id: String = ""
 @export var orbiter_lifetime: float = 4.0  # seconds before orbiters fade out (0 = infinite)
 @export var radius: float = 100.0
-@export var fade_in_duration: float = 0.3
-@export var fade_out_duration: float = 0.3
-@export var animation_speed: float = 1.0
+@export var fade_in_duration: float = 0.3  # orbiter fade in
+@export var fade_out_duration: float = 0.3  # orbiter fade out
+@export var animation_speed: float = 1.0  # shader animation speed (field style override)
+@export var active_total_duration: float = 1.0  # per-trigger active envelope duration
+@export var active_fade_in: float = 0.2  # fade-in time per active envelope
+@export var active_fade_out: float = 0.5  # fade-out time per active envelope
 @export var device_type: String = "shield_aura"
 @export var mechanic_params: Dictionary = {}
 @export var bar_effects: Dictionary = {}  # {"shield": 0.5, ...} float delta per trigger hit
 @export var passive_effects: Dictionary = {}  # {"shield": 1.5, ...} float delta per second
 @export var color_override: Color = Color.WHITE
+@export var visual_pulse_triggers: Array = []  # Array[float] 0.0–1.0, cosmetic pulse times
+@export var pulse_total_duration: float = 0.5  # per-pulse envelope duration
+@export var pulse_fade_up: float = 0.05  # fade-in time per pulse
+@export var pulse_fade_out: float = 0.4  # fade-out time per pulse
 @export var transition_mode: String = "instant"  # "instant" or "fade"
 @export var transition_ms: int = 200  # fade duration in milliseconds (50–2000)
 
@@ -42,6 +49,10 @@ static func from_dict(data: Dictionary) -> DeviceData:
 	d.fade_in_duration = float(data.get("fade_in_duration", 0.3))
 	d.fade_out_duration = float(data.get("fade_out_duration", 0.3))
 	d.animation_speed = float(data.get("animation_speed", 1.0))
+	# Active envelope — per-trigger field visibility
+	d.active_total_duration = float(data.get("active_total_duration", 1.0))
+	d.active_fade_in = float(data.get("active_fade_in", 0.2))
+	d.active_fade_out = float(data.get("active_fade_out", 0.5))
 	d.device_type = str(data.get("device_type", "shield_aura"))
 	# Parse pulse_triggers — flat array of floats
 	var raw_triggers: Array = data.get("pulse_triggers", []) as Array
@@ -64,6 +75,18 @@ static func from_dict(data: Dictionary) -> DeviceData:
 	d.passive_effects = {}
 	for key in raw_passive:
 		d.passive_effects[str(key)] = float(raw_passive[key])
+
+	# Parse visual_pulse_triggers — flat array of floats
+	var raw_visual_triggers: Array = data.get("visual_pulse_triggers", []) as Array
+	d.visual_pulse_triggers = []
+	for vt in raw_visual_triggers:
+		d.visual_pulse_triggers.append(float(vt))
+	d.visual_pulse_triggers.sort()
+
+	# Pulse envelope timing
+	d.pulse_total_duration = float(data.get("pulse_total_duration", 0.5))
+	d.pulse_fade_up = float(data.get("pulse_fade_up", 0.05))
+	d.pulse_fade_out = float(data.get("pulse_fade_out", 0.4))
 
 	# Transition settings
 	d.transition_mode = str(data.get("transition_mode", "instant"))
@@ -95,11 +118,18 @@ func to_dict() -> Dictionary:
 		"fade_in_duration": fade_in_duration,
 		"fade_out_duration": fade_out_duration,
 		"animation_speed": animation_speed,
+		"active_total_duration": active_total_duration,
+		"active_fade_in": active_fade_in,
+		"active_fade_out": active_fade_out,
 		"device_type": device_type,
 		"mechanic_params": mechanic_params,
 		"bar_effects": bar_effects,
 		"passive_effects": passive_effects,
 		"color_override": [color_override.r, color_override.g, color_override.b, color_override.a],
+		"visual_pulse_triggers": visual_pulse_triggers,
+		"pulse_total_duration": pulse_total_duration,
+		"pulse_fade_up": pulse_fade_up,
+		"pulse_fade_out": pulse_fade_out,
 		"transition_mode": transition_mode,
 		"transition_ms": transition_ms,
 	}

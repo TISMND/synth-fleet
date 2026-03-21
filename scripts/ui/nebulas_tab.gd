@@ -49,6 +49,8 @@ var _bottom_opacity_slider: HSlider
 var _bottom_opacity_value: Label
 var _top_opacity_slider: HSlider
 var _top_opacity_value: Label
+var _veil_contrast_slider: HSlider
+var _veil_contrast_value: Label
 
 # Bar effects spinboxes
 var _bar_effect_spinboxes: Dictionary = {}  # bar_name -> SpinBox
@@ -308,8 +310,12 @@ func _build_param_controls() -> void:
 	_bottom_opacity_slider.value_changed.connect(_on_bottom_opacity_changed)
 
 	# Top veil opacity
-	_top_opacity_slider = _add_slider_row("Top Veil", 0.0, 0.5, 0.01, 0.1)
+	_top_opacity_slider = _add_slider_row("Top Veil", 0.0, 2.0, 0.01, 0.1)
 	_top_opacity_slider.value_changed.connect(_on_top_opacity_changed)
+
+	# Veil contrast — edge emphasis
+	_veil_contrast_slider = _add_slider_row("Veil Edge", 0.0, 1.0, 0.01, 0.5)
+	_veil_contrast_slider.value_changed.connect(_on_veil_contrast_changed)
 
 
 func _add_slider_row(label_text: String, min_val: float, max_val: float, step: float, default_val: float) -> HSlider:
@@ -352,6 +358,8 @@ func _add_slider_row(label_text: String, min_val: float, max_val: float, step: f
 		_bottom_opacity_value = value_label
 	elif label_text == "Top Veil":
 		_top_opacity_value = value_label
+	elif label_text == "Veil Edge":
+		_veil_contrast_value = value_label
 
 	return slider
 
@@ -536,6 +544,10 @@ func _select_nebula(id: String) -> void:
 	_top_opacity_slider.value = top_val
 	_top_opacity_value.text = str(snapped(top_val, 0.01))
 
+	var veil_contrast_val: float = float(params.get("veil_contrast", defaults["veil_contrast"]))
+	_veil_contrast_slider.value = veil_contrast_val
+	_veil_contrast_value.text = str(snapped(veil_contrast_val, 0.01))
+
 	# Load bar effects into spinboxes
 	for bar_name in _bar_effect_spinboxes:
 		var spin: SpinBox = _bar_effect_spinboxes[bar_name]
@@ -615,9 +627,22 @@ func _update_preview() -> void:
 	_preview_bottom.material = mat
 	_preview_bottom.modulate.a = float(params.get("bottom_opacity", defaults["bottom_opacity"]))
 
-	# Top veil — same shader over ship
-	var top_mat := mat.duplicate() as ShaderMaterial
-	_preview_top.material = top_mat
+	# Top veil — dedicated veil shader with edge contrast
+	var veil_shader: Shader = load("res://assets/shaders/nebula_veil.gdshader") as Shader
+	if veil_shader:
+		var top_mat := ShaderMaterial.new()
+		top_mat.shader = veil_shader
+		top_mat.set_shader_parameter("nebula_color", mat.get_shader_parameter("nebula_color"))
+		top_mat.set_shader_parameter("brightness", float(params.get("brightness", defaults["brightness"])))
+		top_mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
+		top_mat.set_shader_parameter("density", float(params.get("density", defaults["density"])))
+		top_mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+		top_mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
+		top_mat.set_shader_parameter("veil_contrast", float(params.get("veil_contrast", defaults["veil_contrast"])))
+		_preview_top.material = top_mat
+	else:
+		var top_mat := mat.duplicate() as ShaderMaterial
+		_preview_top.material = top_mat
 	_preview_top.modulate.a = float(params.get("top_opacity", defaults["top_opacity"]))
 
 
@@ -808,6 +833,17 @@ func _on_top_opacity_changed(val: float) -> void:
 	var data: NebulaData = _get_nebula_by_id(_selected_id)
 	if data:
 		data.shader_params["top_opacity"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_veil_contrast_changed(val: float) -> void:
+	_veil_contrast_value.text = str(snapped(val, 0.01))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["veil_contrast"] = val
 		_update_preview()
 		_auto_save()
 

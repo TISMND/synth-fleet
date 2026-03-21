@@ -1,13 +1,13 @@
 {
 	"display_name": "Key Change 1",
-	"enter_sfx_offset": 0.0,
-	"enter_sfx_path": "res://assets/audio/sfx/Whoosh Whispy.wav",
-	"enter_sfx_volume_db": 6.0,
+	"enter_sfx_offset": 0.47,
+	"enter_sfx_path": "res://assets/audio/sfx/Woosh with a charge up.wav",
+	"enter_sfx_volume_db": -1.0,
 	"exit_sfx_offset": 0.0,
-	"exit_sfx_path": "res://assets/audio/sfx/Woosh Debris.wav",
+	"exit_sfx_path": "res://assets/audio/sfx/Woosh mutara.wav",
 	"exit_sfx_volume_db": 0.0,
-	"fade_duration": 1.0,
+	"fade_duration": 0.32,
 	"id": "key_change_1",
 	"reverse_exit_sfx": true,
-	"semitones": 2
+	"semitones": -2
 }

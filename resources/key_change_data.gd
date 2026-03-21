@@ -53,14 +53,16 @@ func to_dict() -> Dictionary:
 
 static func make_reversed_stream(stream: AudioStreamWAV) -> AudioStreamWAV:
 	## Create a reversed copy of an AudioStreamWAV (for exit SFX reverse).
-	var rev := AudioStreamWAV.new()
-	rev.format = stream.format
-	rev.mix_rate = stream.mix_rate
-	rev.stereo = stream.stereo
+	## Returns null if the stream has no accessible PCM data.
 	var src_data: PackedByteArray = stream.data
+	if src_data.is_empty():
+		push_warning("KeyChangeData: cannot reverse stream — .data is empty")
+		return null
 	var bytes_per_sample: int = 2 if stream.format == AudioStreamWAV.FORMAT_16_BITS else 1
 	var channels: int = 2 if stream.stereo else 1
 	var frame_size: int = bytes_per_sample * channels
+	if frame_size == 0:
+		return null
 	var frame_count: int = src_data.size() / frame_size
 	var reversed_data := PackedByteArray()
 	reversed_data.resize(src_data.size())
@@ -69,5 +71,9 @@ static func make_reversed_stream(stream: AudioStreamWAV) -> AudioStreamWAV:
 		var dst_offset: int = (frame_count - 1 - i) * frame_size
 		for b in frame_size:
 			reversed_data[dst_offset + b] = src_data[src_offset + b]
+	var rev := AudioStreamWAV.new()
+	rev.format = stream.format
+	rev.mix_rate = stream.mix_rate
+	rev.stereo = stream.stereo
 	rev.data = reversed_data
 	return rev

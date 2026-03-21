@@ -237,20 +237,22 @@ func unregister_enemy_presence(sid: String) -> void:
 
 func _on_nebula_entered(_area: Area2D, ndata: NebulaData) -> void:
 	if ndata not in _active_nebula_effects:
+		# Check if already key-shifted before adding this nebula
+		var was_shifted: bool = _current_key_shift != 0
 		_active_nebula_effects.append(ndata)
 		_apply_special_effects()
-		# Schedule enter SFX from key change preset
-		if _key_change_presets.has(ndata.id):
+		# Only play enter SFX if this is the first nebula to apply a key shift
+		if not was_shifted and _key_change_presets.has(ndata.id):
 			var kc: KeyChangeData = _key_change_presets[ndata.id]
-			if kc.enter_sfx_path != "":
+			if kc.enter_sfx_path != "" and kc.semitones != 0:
 				_schedule_key_change_sfx(kc.enter_sfx_path, kc.enter_sfx_volume_db, kc.enter_sfx_offset, false)
 
 
 func _on_nebula_exited(_area: Area2D, ndata: NebulaData) -> void:
 	_active_nebula_effects.erase(ndata)
 	_apply_special_effects()
-	if _active_nebula_effects.is_empty():
-		# Schedule exit SFX from key change preset
+	# Only play exit SFX when leaving all key-shifting nebulas (pending shift back to 0)
+	if _pending_key_shift == 0 and _current_key_shift != 0:
 		if _key_change_presets.has(ndata.id):
 			var kc: KeyChangeData = _key_change_presets[ndata.id]
 			if kc.exit_sfx_path != "":
@@ -382,12 +384,13 @@ func _schedule_key_change_sfx(sfx_path: String, volume_db: float, offset_sec: fl
 	if not stream:
 		return
 	if reverse and stream is AudioStreamWAV:
-		var wav: AudioStreamWAV = stream as AudioStreamWAV
 		if _reversed_stream_cache.has(sfx_path):
 			stream = _reversed_stream_cache[sfx_path]
 		else:
-			stream = KeyChangeData.make_reversed_stream(wav)
-			_reversed_stream_cache[sfx_path] = stream
+			var rev: AudioStreamWAV = KeyChangeData.make_reversed_stream(stream as AudioStreamWAV)
+			if rev:
+				_reversed_stream_cache[sfx_path] = rev
+				stream = rev
 	if offset_sec > 0.0:
 		# Calculate time to next measure boundary and schedule SFX to fire early
 		var delay: float = _get_time_to_next_measure() - offset_sec
@@ -547,12 +550,27 @@ func _setup_nebulas() -> void:
 		sprite.modulate.a = bottom_opacity
 		_nebula_container.add_child(sprite)
 
-		# Top veil layer — same visual, reduced opacity, renders above ships
+		# Top veil layer — dedicated veil shader with edge contrast, renders above ships
 		var top_opacity: float = float(params.get("top_opacity", defaults["top_opacity"]))
 		if top_opacity > 0.0:
+			var veil_shader: Shader = load("res://assets/shaders/nebula_veil.gdshader") as Shader
+			var top_mat := ShaderMaterial.new()
+			if veil_shader:
+				top_mat.shader = veil_shader
+			else:
+				top_mat.shader = mat.shader
+			var color_arr2: Array = params.get("nebula_color", defaults["nebula_color"]) as Array
+			if color_arr2.size() >= 4:
+				top_mat.set_shader_parameter("nebula_color", Color(float(color_arr2[0]), float(color_arr2[1]), float(color_arr2[2]), float(color_arr2[3])))
+			top_mat.set_shader_parameter("brightness", float(params.get("brightness", defaults["brightness"])))
+			top_mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
+			top_mat.set_shader_parameter("density", float(params.get("density", defaults["density"])))
+			top_mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+			top_mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
+			top_mat.set_shader_parameter("veil_contrast", float(params.get("veil_contrast", defaults.get("veil_contrast", 0.5))))
 			var top_sprite := Sprite2D.new()
 			top_sprite.texture = sprite.texture
-			top_sprite.material = mat
+			top_sprite.material = top_mat
 			top_sprite.scale = sprite.scale
 			top_sprite.position = sprite.position
 			top_sprite.z_index = 10  # Relative to container at -5, so effective z = +5

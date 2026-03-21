@@ -22,6 +22,7 @@ static func default_params() -> Dictionary:
 		"radial_spread": 0.2,
 		"bottom_opacity": 1.0,
 		"top_opacity": 0.1,
+		"veil_contrast": 0.5,
 	}
 
 

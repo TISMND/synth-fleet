@@ -115,6 +115,21 @@ func _on_auto_pulse() -> void:
 func _update_visual_preview_frame(_delta: float) -> void:
 	pass
 
+func _build_post_waveform_content(_parent: VBoxContainer) -> void:
+	pass
+
+func _on_snap_mode_updated(_mode: int) -> void:
+	pass
+
+func _on_bars_updated(_bars: int) -> void:
+	pass
+
+func _get_visual_pulse_triggers() -> Array:
+	return []
+
+func _on_visual_pulse_crossed() -> void:
+	pass
+
 func _save_data(id: String, data: Dictionary) -> void:
 	pass
 
@@ -377,6 +392,9 @@ func _build_timing_tab() -> Control:
 	_bars_button.item_selected.connect(_on_bars_changed)
 	control_row.add_child(_bars_button)
 
+	# Subclass hook for post-waveform content (e.g. cosmetic pulse lane)
+	_build_post_waveform_content(vbox)
+
 	_add_separator(vbox)
 
 	# Audio Transition
@@ -635,6 +653,17 @@ func _update_preview(delta: float) -> void:
 						_on_trigger_crossed()
 						for i in _preview_bar_brightness.size():
 							_preview_bar_brightness[i] = 1.0
+				# Cosmetic trigger crossing (visual pulse lane)
+				var vis_triggers: Array = _get_visual_pulse_triggers()
+				for vt in vis_triggers:
+					var vtval: float = float(vt)
+					var vis_crossed: bool = false
+					if progress < prev:
+						vis_crossed = vtval > prev or vtval <= progress
+					else:
+						vis_crossed = vtval > prev and vtval <= progress
+					if vis_crossed:
+						_on_visual_pulse_crossed()
 			_prev_loop_progress = progress
 
 	# Decay bar brightness
@@ -901,6 +930,7 @@ func _on_snap_changed(idx: int) -> void:
 	if idx < SNAP_MODES.size():
 		var snap_val: int = int(SNAP_MODES[idx]["value"])
 		_waveform_editor.set_snap_mode(snap_val)
+		_on_snap_mode_updated(snap_val)
 
 
 func _on_grid_toggled(pressed: bool) -> void:
@@ -912,6 +942,7 @@ func _on_bars_changed(idx: int) -> void:
 	if idx < BARS_OPTIONS.size():
 		var bars_val: int = int(BARS_OPTIONS[idx]["value"])
 		_waveform_editor.set_loop_length_bars(bars_val)
+		_on_bars_updated(bars_val)
 
 
 func _on_transition_mode_changed(idx: int) -> void:
