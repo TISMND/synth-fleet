@@ -51,6 +51,8 @@ var _top_opacity_slider: HSlider
 var _top_opacity_value: Label
 var _veil_contrast_slider: HSlider
 var _veil_contrast_value: Label
+var _wash_opacity_slider: HSlider
+var _wash_opacity_value: Label
 
 # Bar effects spinboxes
 var _bar_effect_spinboxes: Dictionary = {}  # bar_name -> SpinBox
@@ -65,9 +67,10 @@ var _key_change_option: OptionButton
 var _key_change_ids: Array[String] = []
 
 # Preview layering refs
-var _preview_container: Control  # Holds bottom nebula, ship, top veil
+var _preview_container: Control  # Holds bottom nebula, ship, wash, top veil
 var _preview_bottom: ColorRect
 var _preview_ship: ShipRenderer
+var _preview_wash: ColorRect  # Full-coverage tint layer
 var _preview_top: ColorRect
 
 
@@ -172,7 +175,14 @@ func _build_ui() -> void:
 	_preview_ship.scale = Vector2(1.5, 1.5)
 	_preview_container.add_child(_preview_ship)
 
-	# Top nebula veil (over the ship)
+	# Wash layer — flat full-coverage tint so the ship always looks "inside" the nebula
+	_preview_wash = ColorRect.new()
+	_preview_wash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_preview_wash.color = Color.WHITE
+	_preview_wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_preview_container.add_child(_preview_wash)
+
+	# Top nebula veil — scattered tufts (over the ship)
 	_preview_top = ColorRect.new()
 	_preview_top.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_preview_top.color = Color.WHITE
@@ -317,6 +327,10 @@ func _build_param_controls() -> void:
 	_veil_contrast_slider = _add_slider_row("Veil Edge", 0.0, 1.0, 0.01, 0.5)
 	_veil_contrast_slider.value_changed.connect(_on_veil_contrast_changed)
 
+	# Wash — full-coverage subtle tint over the ship
+	_wash_opacity_slider = _add_slider_row("Wash", 0.0, 1.0, 0.01, 0.0)
+	_wash_opacity_slider.value_changed.connect(_on_wash_opacity_changed)
+
 
 func _add_slider_row(label_text: String, min_val: float, max_val: float, step: float, default_val: float) -> HSlider:
 	var row := HBoxContainer.new()
@@ -360,6 +374,8 @@ func _add_slider_row(label_text: String, min_val: float, max_val: float, step: f
 		_top_opacity_value = value_label
 	elif label_text == "Veil Edge":
 		_veil_contrast_value = value_label
+	elif label_text == "Wash":
+		_wash_opacity_value = value_label
 
 	return slider
 
@@ -548,6 +564,10 @@ func _select_nebula(id: String) -> void:
 	_veil_contrast_slider.value = veil_contrast_val
 	_veil_contrast_value.text = str(snapped(veil_contrast_val, 0.01))
 
+	var wash_val: float = float(params.get("wash_opacity", defaults["wash_opacity"]))
+	_wash_opacity_slider.value = wash_val
+	_wash_opacity_value.text = str(snapped(wash_val, 0.01))
+
 	# Load bar effects into spinboxes
 	for bar_name in _bar_effect_spinboxes:
 		var spin: SpinBox = _bar_effect_spinboxes[bar_name]
@@ -644,6 +664,21 @@ func _update_preview() -> void:
 		var top_mat := mat.duplicate() as ShaderMaterial
 		_preview_top.material = top_mat
 	_preview_top.modulate.a = float(params.get("top_opacity", defaults["top_opacity"]))
+
+	# Wash layer — flat tint with radial falloff matching nebula shape
+	var wash_opacity: float = float(params.get("wash_opacity", defaults["wash_opacity"]))
+	var wash_shader: Shader = load("res://assets/shaders/nebula_wash.gdshader") as Shader
+	if wash_shader:
+		var wash_mat := ShaderMaterial.new()
+		wash_mat.shader = wash_shader
+		var wash_color_arr: Array = params.get("nebula_color", defaults["nebula_color"])
+		wash_mat.set_shader_parameter("nebula_color", Color(float(wash_color_arr[0]), float(wash_color_arr[1]), float(wash_color_arr[2]), 1.0))
+		wash_mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
+		_preview_wash.material = wash_mat
+	else:
+		_preview_wash.material = null
+	_preview_wash.color = Color.WHITE
+	_preview_wash.modulate.a = wash_opacity
 
 
 func _get_nebula_by_id(id: String) -> NebulaData:
@@ -844,6 +879,17 @@ func _on_veil_contrast_changed(val: float) -> void:
 	var data: NebulaData = _get_nebula_by_id(_selected_id)
 	if data:
 		data.shader_params["veil_contrast"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_wash_opacity_changed(val: float) -> void:
+	_wash_opacity_value.text = str(snapped(val, 0.01))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["wash_opacity"] = val
 		_update_preview()
 		_auto_save()
 

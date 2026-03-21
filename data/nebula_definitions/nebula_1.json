@@ -6,7 +6,7 @@
 		"animation_speed": 0.4,
 		"bottom_opacity": 0.95,
 		"brightness": 1.35,
-		"density": 2.95,
+		"density": 1.2,
 		"nebula_color": [
 			0.0666666477918625,
 			0.564705908298492,
@@ -21,8 +21,9 @@
 			1.0
 		],
 		"seed_offset": 0.0,
-		"top_opacity": 0.78,
-		"veil_contrast": 1.0
+		"top_opacity": 1.28,
+		"veil_contrast": 0.38,
+		"wash_opacity": 0.1
 	},
 	"style_id": "dual_color"
 }

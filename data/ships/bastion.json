@@ -3,16 +3,17 @@
 	"id": "bastion",
 	"render_mode": "chrome",
 	"stats": {
-		"acceleration": 550.0,
-		"electric_hp": 80,
-		"electric_segments": 15.0,
-		"hull_hp": 200,
-		"hull_segments": 20,
-		"shield_hp": 120,
+		"acceleration": 400.0,
+		"device_slots": 2,
+		"electric_hp": 80.0,
+		"electric_segments": 18.0,
+		"hull_hp": 200.0,
+		"hull_segments": 20.0,
+		"shield_hp": 120.0,
 		"shield_regen": 0.5,
 		"shield_segments": 18.0,
-		"speed": 320.0,
-		"thermal_hp": 60,
-		"thermal_segments": 15.0
+		"speed": 230.0,
+		"thermal_hp": 60.0,
+		"thermal_segments": 19.0
 	}
 }

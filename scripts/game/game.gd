@@ -577,6 +577,26 @@ func _setup_nebulas() -> void:
 			top_sprite.modulate.a = top_opacity
 			_nebula_container.add_child(top_sprite)
 
+		# Wash layer — flat tint with radial falloff, between ship and tufts
+		var wash_opacity: float = float(params.get("wash_opacity", defaults.get("wash_opacity", 0.0)))
+		if wash_opacity > 0.0:
+			var wash_shader: Shader = load("res://assets/shaders/nebula_wash.gdshader") as Shader
+			if wash_shader:
+				var wash_mat := ShaderMaterial.new()
+				wash_mat.shader = wash_shader
+				var wash_color_arr: Array = params.get("nebula_color", defaults["nebula_color"]) as Array
+				if wash_color_arr.size() >= 4:
+					wash_mat.set_shader_parameter("nebula_color", Color(float(wash_color_arr[0]), float(wash_color_arr[1]), float(wash_color_arr[2]), 1.0))
+				wash_mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
+				var wash_sprite := Sprite2D.new()
+				wash_sprite.texture = sprite.texture
+				wash_sprite.material = wash_mat
+				wash_sprite.scale = sprite.scale
+				wash_sprite.position = sprite.position
+				wash_sprite.z_index = 8  # Between ship layer and tufts layer
+				wash_sprite.modulate.a = wash_opacity
+				_nebula_container.add_child(wash_sprite)
+
 		# Debug hitbox outline — shrink to where nebula is ~50% visible
 		var spread: float = float(params.get("radial_spread", defaults["radial_spread"]))
 		var effective_radius: float = radius * (1.0 - spread / 2.0)

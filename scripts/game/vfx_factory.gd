@@ -34,7 +34,7 @@ const FILL_SHADERS: PackedStringArray = ["energy", "plasma", "beam", "fire", "el
 
 # Field shader cache + names
 static var _field_shaders: Dictionary = {}  # name -> Shader
-const FIELD_SHADERS: PackedStringArray = ["force_bubble", "hex_grid", "energy_ripple", "plasma_shield", "particle_ring", "pulse_barrier"]
+const FIELD_SHADERS: PackedStringArray = ["force_bubble", "hex_grid", "energy_ripple", "plasma_shield", "particle_ring", "pulse_barrier", "inner_glow", "sun_rays", "shimmer", "hologram"]
 
 
 # ── Texture Generation ──────────────────────────────────────

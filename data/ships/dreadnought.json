@@ -3,16 +3,17 @@
 	"id": "dreadnought",
 	"render_mode": "chrome",
 	"stats": {
-		"acceleration": 600,
-		"electric_hp": 80,
+		"acceleration": 900.0,
+		"device_slots": 2.0,
+		"electric_hp": 80.0,
 		"electric_segments": 13.0,
-		"hull_hp": 160,
+		"hull_hp": 160.0,
 		"hull_segments": 14.0,
-		"shield_hp": 160,
+		"shield_hp": 160.0,
 		"shield_regen": 0.6,
 		"shield_segments": 14.0,
-		"speed": 280,
-		"thermal_hp": 60,
+		"speed": 300.0,
+		"thermal_hp": 60.0,
 		"thermal_segments": 11.0
 	}
 }

@@ -39,6 +39,7 @@ var _grid_toggle: Button
 var _bars_button: OptionButton
 
 # Preview panel
+var _preview_ship_renderer: ShipRenderer = null
 var _preview_bars: Array[ProgressBar] = []
 var _preview_bar_base_colors: Array[Color] = []
 var _preview_bar_brightness: Array[float] = [0.0, 0.0, 0.0, 0.0]
@@ -274,12 +275,14 @@ func _build_preview_panel() -> Control:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_preview_viewport.add_child(bg)
 
-	# Ship silhouette
-	var ship_dot := ColorRect.new()
-	ship_dot.color = Color(0.3, 0.3, 0.4)
-	ship_dot.size = Vector2(16, 24)
-	ship_dot.position = Vector2(142, 138)
-	_preview_viewport.add_child(ship_dot)
+	# Ship preview
+	_preview_ship_renderer = ShipRenderer.new()
+	_preview_ship_renderer.ship_id = 0
+	_preview_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	_preview_ship_renderer.animate = true
+	_preview_ship_renderer.position = Vector2(150, 150)
+	_preview_ship_renderer.scale = Vector2(0.7, 0.7)
+	_preview_viewport.add_child(_preview_ship_renderer)
 
 	# Let subclass add its preview nodes
 	_setup_visual_preview(_preview_viewport)

@@ -23,6 +23,7 @@ static func default_params() -> Dictionary:
 		"bottom_opacity": 1.0,
 		"top_opacity": 0.1,
 		"veil_contrast": 0.5,
+		"wash_opacity": 0.0,
 	}
 
 

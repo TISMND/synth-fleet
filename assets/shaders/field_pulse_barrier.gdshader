@@ -11,6 +11,7 @@ uniform float opacity : hint_range(0.0, 1.0) = 1.0;
 uniform float barrier_width : hint_range(0.02, 0.2) = 0.08;
 uniform float pulse_decay : hint_range(0.1, 2.0) = 0.5;
 uniform float flash_intensity : hint_range(0.5, 4.0) = 2.0;
+uniform float outer_radius : hint_range(0.5, 1.0) = 0.95;
 
 void fragment() {
 	float modulate_alpha = COLOR.a;
@@ -18,8 +19,14 @@ void fragment() {
 	vec2 uv = UV - 0.5;
 	float dist = length(uv) * 2.0;
 
-	// Ring center position (average of inner and outer)
-	float ring_center = (1.0 + radius_ratio) * 0.5;
+	// Kill pixels outside circle FIRST — no square border
+	if (dist > 1.0) {
+		COLOR = vec4(0.0, 0.0, 0.0, 0.0);
+		return;
+	}
+
+	// Ring center between inner radius_ratio and outer_radius
+	float ring_center = (outer_radius + radius_ratio) * 0.5;
 
 	// Pulse contracts the ring slightly
 	float pulse_contract = pulse_intensity * 0.05;
@@ -47,9 +54,9 @@ void fragment() {
 	vec3 col = field_color.rgb * intensity;
 	col += vec3(1.0) * flash * ring * 0.3;
 
-	float alpha = clamp((ring * 0.9 + inner_glow) * opacity, 0.0, 1.0);
-
-	if (dist > 1.05) alpha = 0.0;
+	// Soft circular edge fade
+	float edge_fade = smoothstep(1.0, 0.92, dist);
+	float alpha = clamp((ring * 0.9 + inner_glow) * opacity * edge_fade, 0.0, 1.0);
 
 	COLOR = vec4(col, alpha * modulate_alpha);
 }

@@ -76,6 +76,9 @@ class _DrawCtx:
 	var orange := Color(1.0, 0.5, 0.1)
 	var purple := Color(0.4, 0.2, 1.0)
 	var teal := Color(0.0, 1.0, 0.7)
+	var _chrome_dark := ShipRenderer.CHROME_DARK
+	var _chrome_mid := ShipRenderer.CHROME_MID
+	var _chrome_bright := ShipRenderer.CHROME_BRIGHT
 
 	func _init(canvas_item: CanvasItem, render_mode: int, scale: float = 1.0, at_origin: Vector2 = Vector2.ZERO) -> void:
 		ci = canvas_item
@@ -109,6 +112,33 @@ class _DrawCtx:
 				orange = Color(1.0, 0.8, 0.0)
 				purple = Color(0.5, 0.0, 1.0)
 				teal = Color(0.0, 0.8, 1.0)
+			ShipRenderer.RenderMode.GUNMETAL:
+				cyan = ShipRenderer.GUNMETAL_HULL
+				magenta = ShipRenderer.GUNMETAL_ACCENT
+				orange = ShipRenderer.GUNMETAL_ENGINE
+				purple = ShipRenderer.GUNMETAL_CANOPY
+				teal = ShipRenderer.GUNMETAL_DETAIL
+				_chrome_dark = Color(0.14, 0.15, 0.18)
+				_chrome_mid = Color(0.30, 0.32, 0.38)
+				_chrome_bright = Color(0.70, 0.72, 0.78)
+			ShipRenderer.RenderMode.MILITIA:
+				cyan = ShipRenderer.MILITIA_HULL
+				magenta = ShipRenderer.MILITIA_ACCENT
+				orange = ShipRenderer.MILITIA_ENGINE
+				purple = ShipRenderer.MILITIA_CANOPY
+				teal = ShipRenderer.MILITIA_DETAIL
+				_chrome_dark = Color(0.12, 0.14, 0.06)
+				_chrome_mid = Color(0.22, 0.26, 0.12)
+				_chrome_bright = Color(0.46, 0.50, 0.28)
+			ShipRenderer.RenderMode.STEALTH:
+				cyan = ShipRenderer.STEALTH_HULL
+				magenta = ShipRenderer.STEALTH_ACCENT
+				orange = ShipRenderer.STEALTH_ENGINE
+				purple = ShipRenderer.STEALTH_CANOPY
+				teal = ShipRenderer.STEALTH_DETAIL
+				_chrome_dark = Color(0.04, 0.04, 0.05)
+				_chrome_mid = Color(0.09, 0.09, 0.11)
+				_chrome_bright = Color(0.20, 0.20, 0.24)
 
 	func _scale_pts(points: PackedVector2Array) -> PackedVector2Array:
 		if sc == 1.0:
@@ -128,11 +158,16 @@ class _DrawCtx:
 	func mpoly(points: PackedVector2Array, color: Color) -> void:
 		ci.draw_colored_polygon(_scale_pts(points), color)
 
+	func _is_chrome_based_mode() -> bool:
+		return mode == ShipRenderer.RenderMode.CHROME or mode == ShipRenderer.RenderMode.GUNMETAL or mode == ShipRenderer.RenderMode.MILITIA or mode == ShipRenderer.RenderMode.STEALTH
+
 	func mp(points: PackedVector2Array, color: Color, w: float) -> void:
 		var scaled: PackedVector2Array = _scale_pts(points)
 		var sw: float = w * sc
+		if _is_chrome_based_mode():
+			mp_chrome(scaled, sw)
+			return
 		match mode:
-			ShipRenderer.RenderMode.CHROME: mp_chrome(scaled, sw)
 			ShipRenderer.RenderMode.VOID: mp_void(scaled, sw)
 			ShipRenderer.RenderMode.HIVEMIND: mp_hivemind(scaled, sw)
 			ShipRenderer.RenderMode.SPORE: mp_spore(scaled, sw)
@@ -142,8 +177,10 @@ class _DrawCtx:
 		var sa: Vector2 = _sp(a)
 		var sb: Vector2 = _sp(b)
 		var sw: float = w * sc
+		if _is_chrome_based_mode():
+			ml_chrome(sa, sb, sw)
+			return
 		match mode:
-			ShipRenderer.RenderMode.CHROME: ml_chrome(sa, sb, sw)
 			ShipRenderer.RenderMode.VOID: ml_void(sa, sb, sw)
 			ShipRenderer.RenderMode.HIVEMIND: ml_hivemind(sa, sb, sw)
 			ShipRenderer.RenderMode.SPORE: ml_spore(sa, sb, sw)
@@ -179,7 +216,7 @@ class _DrawCtx:
 	func mp_chrome(points: PackedVector2Array, w: float) -> void:
 		if points.size() < 3:
 			return
-		ci.draw_colored_polygon(points, ShipRenderer.CHROME_MID)
+		ci.draw_colored_polygon(points, _chrome_mid)
 		var min_y := points[0].y
 		var max_y := points[0].y
 		for pt in points:
@@ -191,13 +228,13 @@ class _DrawCtx:
 				var nj: int = (j + 1) % points.size()
 				var mid_y: float = (points[j].y + points[nj].y) * 0.5
 				var t: float = 1.0 - (mid_y - min_y) / height
-				var edge_col: Color = ShipRenderer.CHROME_DARK.lerp(ShipRenderer.CHROME_BRIGHT, t)
+				var edge_col: Color = _chrome_dark.lerp(_chrome_bright, t)
 				edge_col.a = 0.8
 				ci.draw_line(points[j], points[nj], edge_col, w, true)
 
 	func ml_chrome(a: Vector2, b: Vector2, w: float) -> void:
-		ci.draw_line(a, b, ShipRenderer.CHROME_MID, w * 1.2, true)
-		ci.draw_line(a, b, ShipRenderer.CHROME_BRIGHT, w * 0.6, true)
+		ci.draw_line(a, b, _chrome_mid, w * 1.2, true)
+		ci.draw_line(a, b, _chrome_bright, w * 0.6, true)
 
 	# ── Void thumbnail helpers ──
 

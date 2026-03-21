@@ -277,6 +277,31 @@ func _update_visual_preview_frame(delta: float) -> void:
 					pulse_bright = style.pulse_brightness
 			_preview_field_material.set_shader_parameter("pulse_intensity", clampf(envelope * pulse_bright, 0.0, pulse_bright))
 
+	# Ship modulation: HDR brightness + color tint from field style
+	if _preview_ship_renderer:
+		var active_opacity: float = 0.0
+		if _preview_field_material:
+			active_opacity = float(_preview_field_material.get_shader_parameter("opacity"))
+		var pulse_val: float = 0.0
+		if _preview_field_material:
+			pulse_val = float(_preview_field_material.get_shader_parameter("pulse_intensity"))
+		# Read ship effect params from loaded field style
+		var tint_strength: float = 0.15
+		var hdr_boost: float = 0.3
+		if _field_style_button and _field_style_button.selected > 0:
+			var sid: String = _field_style_button.get_item_text(_field_style_button.selected)
+			var st: FieldStyle = FieldStyleManager.load_by_id(sid)
+			if st:
+				tint_strength = st.ship_tint_strength
+				hdr_boost = st.ship_hdr_boost
+		var bright: float = 1.0 + active_opacity * hdr_boost + pulse_val * hdr_boost
+		var field_col: Color = _color_override_picker.color
+		var tint_scaled: float = tint_strength * active_opacity
+		var r: float = lerpf(bright, field_col.r * bright * 1.5, tint_scaled)
+		var g: float = lerpf(bright, field_col.g * bright * 1.5, tint_scaled)
+		var b: float = lerpf(bright, field_col.b * bright * 1.5, tint_scaled)
+		_preview_ship_renderer.modulate = Color(r, g, b, 1.0)
+
 
 func _collect_visual_data(data: Dictionary) -> void:
 	data["radius"] = _radius_slider.value

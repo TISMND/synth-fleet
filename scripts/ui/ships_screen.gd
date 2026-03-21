@@ -3,8 +3,8 @@ extends Control
 ## Left panel: ship selection. Center: ship preview (WASD movement).
 ## Right panel: attribute sliders + skin dropdown + save. Bottom: HUD replica.
 
-const SKIN_NAMES: Array[String] = ["CHROME", "NEON", "VOID", "HIVEMIND", "SPORE", "EMBER", "FROST", "SOLAR", "SPORT"]
-const SKIN_KEYS: Array[String] = ["chrome", "neon", "void", "hivemind", "spore", "ember", "frost", "solar", "sport"]
+const SKIN_NAMES: Array[String] = ["CHROME", "NEON", "VOID", "HIVEMIND", "SPORE", "EMBER", "FROST", "SOLAR", "SPORT", "GUNMETAL", "MILITIA", "STEALTH"]
+const SKIN_KEYS: Array[String] = ["chrome", "neon", "void", "hivemind", "spore", "ember", "frost", "solar", "sport", "gunmetal", "militia", "stealth"]
 
 const BANK_LERP := 6.0
 const LEFT_PANEL_W := 200.0
@@ -283,6 +283,9 @@ func _apply_render_mode() -> void:
 		"frost": mode = ShipRenderer.RenderMode.FROST
 		"solar": mode = ShipRenderer.RenderMode.SOLAR
 		"sport": mode = ShipRenderer.RenderMode.SPORT
+		"gunmetal": mode = ShipRenderer.RenderMode.GUNMETAL
+		"militia": mode = ShipRenderer.RenderMode.MILITIA
+		"stealth": mode = ShipRenderer.RenderMode.STEALTH
 	_ship_draw.render_mode = mode
 	_ship_selector.render_mode = mode
 	_ship_draw.queue_redraw()
@@ -1508,6 +1511,9 @@ class _ShipSelector extends Node2D:
 			"frost": return ShipRenderer.RenderMode.FROST
 			"solar": return ShipRenderer.RenderMode.SOLAR
 			"sport": return ShipRenderer.RenderMode.SPORT
+			"gunmetal": return ShipRenderer.RenderMode.GUNMETAL
+			"militia": return ShipRenderer.RenderMode.MILITIA
+			"stealth": return ShipRenderer.RenderMode.STEALTH
 		return ShipRenderer.RenderMode.NEON
 
 	func _draw_bosses_placeholder() -> void:

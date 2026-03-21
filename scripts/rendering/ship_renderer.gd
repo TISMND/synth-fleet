@@ -3,7 +3,7 @@ extends Node2D
 ## Full-size ship renderer with banking, chrome+neon modes, all ships.
 ## Extracted from ships_screen.gd _ShipDraw for reuse across the codebase.
 
-enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT }
+enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT, GUNMETAL, MILITIA, STEALTH }
 
 const CHROME_DARK := Color(0.12, 0.13, 0.18)
 const CHROME_MID := Color(0.35, 0.38, 0.45)
@@ -42,6 +42,27 @@ const SOLAR_ENGINE := Color(1.0, 0.95, 0.5)
 const SOLAR_CANOPY := Color(0.9, 0.7, 0.1)
 const SOLAR_DETAIL := Color(1.0, 1.0, 0.6)
 
+# Gunmetal palette (dark steel + red stripes)
+const GUNMETAL_HULL := Color(0.35, 0.38, 0.42)
+const GUNMETAL_ACCENT := Color(0.85, 0.12, 0.1)
+const GUNMETAL_ENGINE := Color(1.0, 0.45, 0.15)
+const GUNMETAL_CANOPY := Color(0.15, 0.18, 0.25)
+const GUNMETAL_DETAIL := Color(0.6, 0.62, 0.65)
+
+# Militia palette (army olive drab + tan)
+const MILITIA_HULL := Color(0.28, 0.32, 0.15)
+const MILITIA_ACCENT := Color(0.72, 0.65, 0.42)
+const MILITIA_ENGINE := Color(0.9, 0.65, 0.2)
+const MILITIA_CANOPY := Color(0.2, 0.22, 0.1)
+const MILITIA_DETAIL := Color(0.55, 0.5, 0.32)
+
+# Stealth palette (matte black + blood red)
+const STEALTH_HULL := Color(0.1, 0.1, 0.12)
+const STEALTH_ACCENT := Color(0.7, 0.05, 0.05)
+const STEALTH_ENGINE := Color(0.5, 0.08, 0.03)
+const STEALTH_CANOPY := Color(0.06, 0.06, 0.08)
+const STEALTH_DETAIL := Color(0.3, 0.08, 0.08)
+
 # Spore palette
 const SPORE_CORE := Color(0.0, 0.8, 0.5, 0.12)
 const SPORE_DOT := Color(0.2, 1.0, 0.7)
@@ -52,6 +73,11 @@ var accent_color := Color(1.0, 0.2, 0.6)
 var engine_color := Color(1.0, 0.5, 0.1)
 var canopy_color := Color(0.4, 0.2, 1.0)
 var detail_color := Color(0.0, 1.0, 0.7)
+# Tintable chrome band colors — overridden per-skin in _apply_palette()
+var _chrome_dark := CHROME_DARK
+var _chrome_mid := CHROME_MID
+var _chrome_light := CHROME_LIGHT
+var _chrome_bright := CHROME_BRIGHT
 var bank := 0.0
 var ship_id := 0
 var render_mode: int = RenderMode.NEON
@@ -124,27 +150,31 @@ static func get_engine_offsets(id: int) -> Array[Vector2]:
 # ── Dispatch helpers ──
 
 func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
+	if _is_chrome_based():
+		_draw_chrome_polygon(points, color, bank)
+		return
 	match render_mode:
-		RenderMode.CHROME: _draw_chrome_polygon(points, color, bank)
 		RenderMode.VOID: _draw_void_polygon(points, width)
 		RenderMode.HIVEMIND: _draw_hivemind_polygon(points, width)
 		RenderMode.SPORE: _draw_spore_polygon(points, width)
 		_: _draw_neon_polygon(points, color, width)
 
 func _circle(center: Vector2, radius: float, color: Color, width: float) -> void:
+	if _is_chrome_based():
+		var pts: PackedVector2Array = _make_circle_points(center, radius, 64)
+		_draw_chrome_polygon(pts, color, bank)
+		return
 	match render_mode:
-		RenderMode.CHROME:
-			# Chrome needs polygon points for gradient band clipping
-			var pts: PackedVector2Array = _make_circle_points(center, radius, 64)
-			_draw_chrome_polygon(pts, color, bank)
 		RenderMode.VOID: _draw_void_circle(center, radius, width)
 		RenderMode.HIVEMIND: _draw_hivemind_circle(center, radius, width)
 		RenderMode.SPORE: _draw_spore_circle(center, radius, width)
 		_: _draw_neon_circle(center, radius, color, width)
 
 func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
+	if _is_chrome_based():
+		_draw_chrome_line(a, b, color, width)
+		return
 	match render_mode:
-		RenderMode.CHROME: _draw_chrome_line(a, b, color, width)
 		RenderMode.VOID: _draw_void_line(a, b, width)
 		RenderMode.HIVEMIND: _draw_hivemind_line(a, b, width)
 		RenderMode.SPORE: _draw_spore_line(a, b, width)
@@ -168,9 +198,10 @@ func _arc(center: Vector2, radius: float, start_angle: float, end_angle: float, 
 		_line(center + Vector2(cos(a0) * radius, sin(a0) * radius), center + Vector2(cos(a1) * radius, sin(a1) * radius), color, width)
 
 func _canopy(points: PackedVector2Array) -> void:
+	if _is_chrome_based():
+		_draw_chrome_canopy(points, bank)
+		return
 	match render_mode:
-		RenderMode.CHROME:
-			_draw_chrome_canopy(points, bank)
 		RenderMode.VOID:
 			draw_colored_polygon(points, Color(0.0, 0.0, 0.0, 0.95))
 			var pulse: float = 0.7 + sin(time * 2.0) * 0.3
@@ -193,10 +224,10 @@ func _canopy(points: PackedVector2Array) -> void:
 			_draw_neon_lines(points, canopy_color, 1.2 * 1.4)
 
 func _exhaust_line(a: Vector2, b: Vector2, width: float) -> void:
+	if _is_chrome_based():
+		_draw_chrome_line(a, b, engine_color, width)
+		return
 	match render_mode:
-		RenderMode.CHROME:
-			var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-			_draw_chrome_line(a, b, exhaust, width)
 		RenderMode.VOID:
 			_draw_neon_line(a, b, Color(0.5, 0.0, 1.0, 0.6), width)
 		RenderMode.HIVEMIND:
@@ -234,12 +265,50 @@ func _apply_palette() -> void:
 			engine_color = Color.from_hsv(fmod(hue + 0.15, 1.0), 0.8, 1.0)
 			canopy_color = Color.from_hsv(fmod(hue + 0.5, 1.0), 0.7, 1.0)
 			detail_color = Color.from_hsv(fmod(hue + 0.6, 1.0), 0.75, 1.0)
+		RenderMode.GUNMETAL:
+			hull_color = GUNMETAL_HULL
+			accent_color = GUNMETAL_ACCENT
+			engine_color = GUNMETAL_ENGINE
+			canopy_color = GUNMETAL_CANOPY
+			detail_color = GUNMETAL_DETAIL
+			_chrome_dark = Color(0.14, 0.15, 0.18)
+			_chrome_mid = Color(0.30, 0.32, 0.38)
+			_chrome_light = Color(0.50, 0.52, 0.58)
+			_chrome_bright = Color(0.70, 0.72, 0.78)
+		RenderMode.MILITIA:
+			hull_color = MILITIA_HULL
+			accent_color = MILITIA_ACCENT
+			engine_color = MILITIA_ENGINE
+			canopy_color = MILITIA_CANOPY
+			detail_color = MILITIA_DETAIL
+			_chrome_dark = Color(0.12, 0.14, 0.06)
+			_chrome_mid = Color(0.22, 0.26, 0.12)
+			_chrome_light = Color(0.34, 0.38, 0.20)
+			_chrome_bright = Color(0.46, 0.50, 0.28)
+		RenderMode.STEALTH:
+			hull_color = STEALTH_HULL
+			accent_color = STEALTH_ACCENT
+			engine_color = STEALTH_ENGINE
+			canopy_color = STEALTH_CANOPY
+			detail_color = STEALTH_DETAIL
+			_chrome_dark = Color(0.04, 0.04, 0.05)
+			_chrome_mid = Color(0.09, 0.09, 0.11)
+			_chrome_light = Color(0.14, 0.14, 0.17)
+			_chrome_bright = Color(0.20, 0.20, 0.24)
 		_:
 			hull_color = Color(0.0, 0.9, 1.0)
 			accent_color = Color(1.0, 0.2, 0.6)
 			engine_color = Color(1.0, 0.5, 0.1)
 			canopy_color = Color(0.4, 0.2, 1.0)
 			detail_color = Color(0.0, 1.0, 0.7)
+			_chrome_dark = CHROME_DARK
+			_chrome_mid = CHROME_MID
+			_chrome_light = CHROME_LIGHT
+			_chrome_bright = CHROME_BRIGHT
+
+
+func _is_chrome_based() -> bool:
+	return render_mode == RenderMode.CHROME or render_mode == RenderMode.GUNMETAL or render_mode == RenderMode.MILITIA or render_mode == RenderMode.STEALTH
 
 
 func _draw() -> void:
@@ -971,7 +1040,7 @@ func _draw_chrome_polygon(points: PackedVector2Array, tint_color: Color, bk: flo
 	if points.size() < 3:
 		return
 	# Dark base fill
-	draw_colored_polygon(points, CHROME_DARK)
+	draw_colored_polygon(points, _chrome_dark)
 
 	# Compute bounding box for horizontal gradient bands
 	var min_y := points[0].y
@@ -990,10 +1059,10 @@ func _draw_chrome_polygon(points: PackedVector2Array, tint_color: Color, bk: flo
 
 	# Horizontal gradient bands — bottom dark, top bright (overhead light)
 	var band_colors: Array[Color] = [
-		CHROME_DARK.lerp(CHROME_MID, 0.3),
-		CHROME_MID,
-		CHROME_LIGHT,
-		CHROME_BRIGHT,
+		_chrome_dark.lerp(_chrome_mid, 0.3),
+		_chrome_mid,
+		_chrome_light,
+		_chrome_bright,
 	]
 	var band_count: int = band_colors.size()
 	for i in range(band_count):
@@ -1101,7 +1170,7 @@ func _draw_chrome_edges(points: PackedVector2Array, bk: float) -> void:
 		var edge_normal := Vector2(-edge_dir.y, edge_dir.x)
 		var facing: float = edge_normal.dot(light_dir)
 		var brightness: float = clampf(facing * 0.5 + 0.5, 0.15, 1.0)
-		var edge_col := CHROME_DARK.lerp(CHROME_SPEC, brightness)
+		var edge_col := _chrome_dark.lerp(CHROME_SPEC, brightness)
 		edge_col.a = 0.6 + brightness * 0.4
 		draw_line(a, b, edge_col, 1.5, true)
 
@@ -1110,11 +1179,11 @@ func _draw_chrome_line(a: Vector2, b: Vector2, color: Color, width: float) -> vo
 	var perp: Vector2 = (b - a).normalized()
 	perp = Vector2(-perp.y, perp.x)
 	var shadow_off: Vector2 = perp * 1.0
-	draw_line(a + shadow_off, b + shadow_off, CHROME_DARK, width * 1.2, true)
+	draw_line(a + shadow_off, b + shadow_off, _chrome_dark, width * 1.2, true)
 	# Bright highlight offset
-	draw_line(a - shadow_off, b - shadow_off, CHROME_BRIGHT, width * 0.8, true)
+	draw_line(a - shadow_off, b - shadow_off, _chrome_bright, width * 0.8, true)
 	# Core mid-tone with color tint
-	var mid := CHROME_MID.lerp(color, 0.15)
+	var mid := _chrome_mid.lerp(color, 0.15)
 	draw_line(a, b, mid, width, true)
 	# Hot specular center
 	var spec_brightness: float = 0.9 + sin(time * 1.2) * 0.1
@@ -1125,8 +1194,8 @@ func _draw_chrome_line(a: Vector2, b: Vector2, color: Color, width: float) -> vo
 func _draw_chrome_canopy(points: PackedVector2Array, bk: float) -> void:
 	if points.size() < 3:
 		return
-	# Dark blue-tinted glass fill
-	var glass := Color(0.05, 0.08, 0.2, 0.85)
+	# Glass fill — tinted by canopy_color for military skins
+	var glass := Color(canopy_color.r, canopy_color.g, canopy_color.b, 0.85)
 	draw_colored_polygon(points, glass)
 	# Bright rim on canopy edges
 	_draw_chrome_edges(points, bk)

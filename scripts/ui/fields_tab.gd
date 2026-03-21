@@ -2,15 +2,19 @@ extends MarginContainer
 ## Fields Tab — visual style editor for field effects (shader + color + pulse settings).
 ## Styles are saved to res://data/field_styles/ and referenced by devices.
 
-const FIELD_SHADERS: Array[String] = ["force_bubble", "hex_grid", "energy_ripple", "plasma_shield", "particle_ring", "pulse_barrier"]
+const FIELD_SHADERS: Array[String] = ["force_bubble", "hex_grid", "energy_ripple", "plasma_shield", "particle_ring", "pulse_barrier", "inner_glow", "sun_rays", "shimmer", "hologram"]
 
 const FIELD_SHADER_PARAM_DEFS: Dictionary = {
 	"force_bubble": {"refraction_strength": [0.0, 0.3, 0.05, 0.01], "edge_width": [0.02, 0.3, 0.1, 0.01], "wobble_speed": [0.1, 4.0, 1.0, 0.1]},
-	"hex_grid": {"hex_size": [0.02, 0.2, 0.08, 0.01], "gap_width": [0.001, 0.02, 0.005, 0.001], "scroll_speed": [0.1, 3.0, 0.5, 0.1]},
+	"hex_grid": {"hex_size": [0.02, 0.2, 0.08, 0.01], "line_thickness": [0.01, 0.15, 0.06, 0.01], "scroll_speed": [0.1, 3.0, 0.5, 0.1], "edge_density": [0.0, 1.0, 0.5, 0.05], "outer_radius": [0.5, 1.0, 0.95, 0.01]},
 	"energy_ripple": {"ring_count": [2.0, 12.0, 5.0, 1.0], "ring_width": [0.01, 0.1, 0.03, 0.01], "expansion_speed": [0.1, 3.0, 1.0, 0.1]},
 	"plasma_shield": {"turbulence_speed": [0.1, 4.0, 1.5, 0.1], "plasma_density": [1.0, 8.0, 4.0, 0.5], "edge_glow": [0.5, 3.0, 1.5, 0.1]},
 	"particle_ring": {"particle_count": [4.0, 32.0, 12.0, 1.0], "orbit_speed": [0.1, 4.0, 1.0, 0.1], "particle_size": [0.01, 0.1, 0.04, 0.01]},
-	"pulse_barrier": {"barrier_width": [0.02, 0.2, 0.08, 0.01], "pulse_decay": [0.1, 2.0, 0.5, 0.1], "flash_intensity": [0.5, 4.0, 2.0, 0.1]},
+	"pulse_barrier": {"barrier_width": [0.02, 0.2, 0.08, 0.01], "pulse_decay": [0.1, 2.0, 0.5, 0.1], "flash_intensity": [0.5, 4.0, 2.0, 0.1], "outer_radius": [0.5, 1.0, 0.95, 0.01]},
+	"inner_glow": {"glow_falloff": [1.0, 6.0, 2.5, 0.1], "core_size": [0.05, 0.5, 0.15, 0.01], "flicker_speed": [0.0, 4.0, 1.0, 0.1]},
+	"sun_rays": {"ray_count": [4.0, 24.0, 8.0, 1.0], "ray_width": [0.05, 0.5, 0.2, 0.01], "ray_rotation_speed": [0.0, 3.0, 0.5, 0.1], "length_variance": [0.0, 1.0, 0.4, 0.05], "width_variance": [0.0, 1.0, 0.3, 0.05], "brightness_variance": [0.0, 1.0, 0.5, 0.05], "chaos_speed": [0.0, 3.0, 0.8, 0.1], "outer_radius": [0.5, 1.0, 0.95, 0.01]},
+	"shimmer": {"wave_frequency": [2.0, 12.0, 5.0, 0.5], "distortion_strength": [0.01, 0.15, 0.05, 0.01], "rainbow_intensity": [0.0, 1.0, 0.5, 0.05]},
+	"hologram": {"scan_frequency": [4.0, 40.0, 20.0, 1.0], "scan_speed": [1.0, 10.0, 4.0, 0.5], "jitter_intensity": [0.0, 1.0, 0.5, 0.05], "jitter_rate": [0.0, 8.0, 3.0, 0.5], "aberration": [0.0, 0.1, 0.03, 0.005], "outer_radius": [0.5, 1.0, 0.95, 0.01]},
 }
 
 # UI references
@@ -31,6 +35,12 @@ var _radius_ratio_label: Label
 var _pulse_brightness_slider: HSlider
 var _pulse_brightness_label: Label
 
+# Ship effect controls
+var _ship_tint_strength_slider: HSlider
+var _ship_tint_strength_label: Label
+var _ship_hdr_boost_slider: HSlider
+var _ship_hdr_boost_label: Label
+
 # Dynamic shader params
 var _shader_params_container: VBoxContainer
 var _shader_param_sliders: Dictionary = {}
@@ -38,6 +48,7 @@ var _shader_param_sliders: Dictionary = {}
 # Preview
 var _preview_sprite: Sprite2D = null
 var _preview_material: ShaderMaterial = null
+var _preview_ship_renderer: ShipRenderer = null
 var _auto_pulse_timer: float = 0.0
 var _pulse_elapsed: float = 0.0
 var _pulse_active: bool = false
@@ -96,6 +107,21 @@ func _process(delta: float) -> void:
 				var remaining: float = total_dur - _pulse_elapsed
 				envelope = remaining / maxf(fade_out, 0.001)
 			_preview_material.set_shader_parameter("pulse_intensity", clampf(envelope * pulse_bright, 0.0, pulse_bright))
+
+	# Ship modulation: HDR brightness + color tint from field
+	if _preview_ship_renderer:
+		var pulse_val: float = 0.0
+		if _pulse_active and _preview_material:
+			pulse_val = float(_preview_material.get_shader_parameter("pulse_intensity"))
+		var hdr_boost: float = _ship_hdr_boost_slider.value if _ship_hdr_boost_slider else 0.3
+		var bright: float = 1.0 + pulse_val * hdr_boost
+		var field_col: Color = _color_picker.color
+		var tint_strength: float = _ship_tint_strength_slider.value if _ship_tint_strength_slider else 0.15
+		var tint_scaled: float = tint_strength * (_brightness_slider.value / 1.5)
+		var r: float = lerpf(bright, field_col.r * bright * 1.5, tint_scaled)
+		var g: float = lerpf(bright, field_col.g * bright * 1.5, tint_scaled)
+		var b: float = lerpf(bright, field_col.b * bright * 1.5, tint_scaled)
+		_preview_ship_renderer.modulate = Color(r, g, b, 1.0)
 
 
 func _build_ui() -> void:
@@ -204,12 +230,14 @@ func _build_left_panel() -> Control:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	viewport.add_child(bg)
 
-	# Ship silhouette placeholder
-	var ship_dot := ColorRect.new()
-	ship_dot.color = Color(0.3, 0.3, 0.4)
-	ship_dot.size = Vector2(20, 30)
-	ship_dot.position = Vector2(190, 245)
-	viewport.add_child(ship_dot)
+	# Ship preview
+	_preview_ship_renderer = ShipRenderer.new()
+	_preview_ship_renderer.ship_id = 0
+	_preview_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	_preview_ship_renderer.animate = true
+	_preview_ship_renderer.position = Vector2(200, 260)
+	_preview_ship_renderer.scale = Vector2(0.8, 0.8)
+	viewport.add_child(_preview_ship_renderer)
 
 	# Field preview sprite
 	var preview_node := Node2D.new()
@@ -291,6 +319,18 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_pulse_brightness_slider = pb_row[0]
 	_pulse_brightness_label = pb_row[1]
 
+	_add_separator(parent)
+
+	# Ship Effects
+	_add_section_header(parent, "SHIP EFFECTS")
+	var tint_row: Array = _add_slider_row(parent, "Tint Strength:", 0.0, 1.0, 0.15, 0.05)
+	_ship_tint_strength_slider = tint_row[0]
+	_ship_tint_strength_label = tint_row[1]
+
+	var hdr_row: Array = _add_slider_row(parent, "HDR Boost:", 0.0, 2.0, 0.3, 0.05)
+	_ship_hdr_boost_slider = hdr_row[0]
+	_ship_hdr_boost_label = hdr_row[1]
+
 
 func _rebuild_shader_params(shader_name: String) -> void:
 	for child in _shader_params_container.get_children():
@@ -333,6 +373,8 @@ func _collect_style_data() -> Dictionary:
 		"glow_intensity": _brightness_slider.value,
 		"radius_ratio": _radius_ratio_slider.value,
 		"pulse_brightness": _pulse_brightness_slider.value,
+		"ship_tint_strength": _ship_tint_strength_slider.value if _ship_tint_strength_slider else 0.15,
+		"ship_hdr_boost": _ship_hdr_boost_slider.value if _ship_hdr_boost_slider else 0.3,
 	}
 
 
@@ -406,6 +448,10 @@ func _on_new() -> void:
 	_anim_speed_slider.value = 1.0
 	_radius_ratio_slider.value = 0.8
 	_pulse_brightness_slider.value = 2.0
+	if _ship_tint_strength_slider:
+		_ship_tint_strength_slider.value = 0.15
+	if _ship_hdr_boost_slider:
+		_ship_hdr_boost_slider.value = 0.3
 	_color_picker.color = Color(0.0, 1.0, 1.0, 1.0)
 	_rebuild_shader_params("force_bubble")
 	_update_preview()
@@ -438,6 +484,10 @@ func _populate_from_style(style: FieldStyle) -> void:
 	_brightness_slider.value = style.glow_intensity
 	_radius_ratio_slider.value = style.radius_ratio
 	_pulse_brightness_slider.value = style.pulse_brightness
+	if _ship_tint_strength_slider:
+		_ship_tint_strength_slider.value = style.ship_tint_strength
+	if _ship_hdr_boost_slider:
+		_ship_hdr_boost_slider.value = style.ship_hdr_boost
 
 	_update_preview()
 
