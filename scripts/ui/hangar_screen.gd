@@ -15,6 +15,10 @@ var _reset_btn: Button
 var _vhs_overlay: ColorRect = null
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label}
 var _bar_segments: Dictionary = {}  # bar_name -> int segment count
+var _bar_gain_waves: Dictionary = {}  # bar_name -> {"active": bool, "position": float}
+var _bar_drain_waves: Dictionary = {}  # bar_name -> {"active": bool, "position": float}
+const BAR_WAVE_SPEED: float = 2.5
+const BAR_WAVE_MIN_CHANGE: float = 0.01
 var _play_btn: Button
 var _mute_btn: Button
 var _is_playing: bool = false
@@ -1511,6 +1515,8 @@ func _build_ui() -> void:
 		var cell: Dictionary = _create_bar_cell(bar_name, color, seg)
 		bars_vbox.add_child(cell["hbox"])
 		_bars[bar_name] = {"bar": cell["bar"], "label": cell["label"]}
+		_bar_gain_waves[bar_name] = {"active": false, "position": -1.0}
+		_bar_drain_waves[bar_name] = {"active": false, "position": -1.0}
 
 	# Playback controls on left panel
 	var controls_hbox := HBoxContainer.new()
@@ -1952,21 +1958,60 @@ func _on_bar_effect_fired(effects: Dictionary) -> void:
 		var entry: Dictionary = _bars[bar_name]
 		var bar: ProgressBar = entry["bar"]
 		# Scale effect so it feels proportional regardless of bar segment count.
-		# Raw bar_effects values are authored for ~60-100 max bars (dev studio).
-		# Hangar bars use segment counts (6-10) as max, so scale down accordingly.
 		var raw_delta: float = float(effects[key])
 		var delta: float = raw_delta * (bar.max_value / 80.0)
+		var old_val: float = bar.value
 		bar.value = clampf(bar.value + delta, 0.0, bar.max_value)
-		var bar_specs: Array = ThemeManager.get_status_bar_specs()
-		for spec in bar_specs:
-			if str(spec["name"]) == bar_name:
-				var color: Color = ThemeManager.resolve_bar_color(spec)
-				var seg: int = int(_bar_segments.get(bar_name, -1))
-				ThemeManager.apply_led_bar(bar, color, bar.value / maxf(bar.max_value, 1.0), seg)
-				break
+		var actual_change: float = bar.value - old_val
+		# Trigger rolling wave
+		var change_ratio: float = actual_change / maxf(bar.max_value, 1.0)
+		if change_ratio > BAR_WAVE_MIN_CHANGE:
+			_bar_gain_waves[bar_name]["active"] = true
+			_bar_gain_waves[bar_name]["position"] = 0.0
+		elif change_ratio < -BAR_WAVE_MIN_CHANGE:
+			_bar_drain_waves[bar_name]["active"] = true
+			_bar_drain_waves[bar_name]["position"] = 1.0
+		# Update fill ratio on shader (don't rebuild the whole bar)
+		if bar.material is ShaderMaterial:
+			var mat: ShaderMaterial = bar.material as ShaderMaterial
+			mat.set_shader_parameter("fill_ratio", bar.value / maxf(bar.max_value, 1.0))
+
+
+func _advance_bar_waves(delta: float) -> void:
+	for bar_name in _bars:
+		var gain_wave: Dictionary = _bar_gain_waves.get(bar_name, {})
+		var drain_wave: Dictionary = _bar_drain_waves.get(bar_name, {})
+		# Advance gain wave (rolls from 0 → 1.3)
+		if gain_wave.get("active", false):
+			var pos: float = float(gain_wave["position"])
+			pos += BAR_WAVE_SPEED * delta
+			if pos > 1.3:
+				gain_wave["active"] = false
+				gain_wave["position"] = -1.0
+			else:
+				gain_wave["position"] = pos
+		# Advance drain wave (rolls from 1 → -0.3)
+		if drain_wave.get("active", false):
+			var pos: float = float(drain_wave["position"])
+			pos -= BAR_WAVE_SPEED * delta
+			if pos < -0.3:
+				drain_wave["active"] = false
+				drain_wave["position"] = -1.0
+			else:
+				drain_wave["position"] = pos
+		# Push wave positions to shader
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		if bar.material is ShaderMaterial:
+			var mat: ShaderMaterial = bar.material as ShaderMaterial
+			var gp: float = float(gain_wave["position"]) if gain_wave.get("active", false) else -1.0
+			var dp: float = float(drain_wave["position"]) if drain_wave.get("active", false) else -1.0
+			mat.set_shader_parameter("gain_wave_pos", gp)
+			mat.set_shader_parameter("drain_wave_pos", dp)
 
 
 func _process(_delta: float) -> void:
+	_advance_bar_waves(_delta)
 	if not _is_playing:
 		return
 	_process_core_previews()
@@ -1994,6 +2039,15 @@ func _process_core_previews() -> void:
 		var slot_key: String = "int_" + slot_idx
 		if not _slot_active.get(slot_key, false):
 			continue
+		# Passive effects — apply per-second rate * delta while active
+		if not pc.passive_effects.is_empty():
+			var passive_delta: Dictionary = {}
+			for bar_type in pc.passive_effects:
+				var rate: float = float(pc.passive_effects[bar_type])
+				if rate != 0.0:
+					passive_delta[str(bar_type)] = rate * get_process_delta_time()
+			if not passive_delta.is_empty():
+				_on_bar_effect_fired(passive_delta)
 		var triggers: Array = entry["triggers"]
 		for t in triggers:
 			var tval: float = float(t)
@@ -2029,6 +2083,16 @@ func _process_device_previews() -> void:
 				if fr._material:
 					fr._material.set_shader_parameter("pulse_intensity", 0.0)
 				fr.visible = false
+
+		# Passive effects — apply per-second rate * delta while active
+		if is_active and not device.passive_effects.is_empty():
+			var passive_delta: Dictionary = {}
+			for bar_type in device.passive_effects:
+				var rate: float = float(device.passive_effects[bar_type])
+				if rate != 0.0:
+					passive_delta[str(bar_type)] = rate * get_process_delta_time()
+			if not passive_delta.is_empty():
+				_on_bar_effect_fired(passive_delta)
 
 		var pos_sec: float = LoopMixer.get_playback_position(loop_id)
 		var duration: float = LoopMixer.get_stream_duration(loop_id)
