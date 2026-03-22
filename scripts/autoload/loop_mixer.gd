@@ -14,7 +14,7 @@ var _active_tweens: Dictionary = {}
 # Per loop_id: active Tween for fade transitions (cancelled when a new fade starts)
 
 
-func add_loop(loop_id: String, stream_path: String, bus: String = "Master", volume_db: float = 0.0, start_muted: bool = true) -> void:
+func add_loop(loop_id: String, stream_path: String, bus: String = "Weapons", volume_db: float = 0.0, start_muted: bool = true) -> void:
 	if _loops.has(loop_id):
 		return
 	# Apply base volume from LoopConfigManager (additive with caller's volume_db)

@@ -29,6 +29,10 @@ var _event_labels: Dictionary = {}      # Label
 var _section_headers: Array[Label] = []
 
 var _sfx_files: Array[String] = []
+var _sfx_by_category: Dictionary = {}  # category -> Array[String]
+var _sfx_categories: Array[String] = []
+var _category_filter: OptionButton  # Global filter at top of SFX tab
+var _active_category: String = "ALL"
 
 
 func _ready() -> void:
@@ -119,6 +123,26 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 6)
 	_sfx_content.add_child(vbox)
 
+	# Category filter — subfolders in assets/audio/sfx/ become filter tags
+	var filter_row := HBoxContainer.new()
+	filter_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(filter_row)
+	var filter_lbl := Label.new()
+	filter_lbl.text = "SFX Folder Filter:"
+	filter_lbl.custom_minimum_size = Vector2(130, 0)
+	filter_row.add_child(filter_lbl)
+	_category_filter = OptionButton.new()
+	_category_filter.custom_minimum_size = Vector2(180, 0)
+	_category_filter.add_item("ALL")
+	for cat in _sfx_categories:
+		_category_filter.add_item(cat)
+	_category_filter.item_selected.connect(_on_category_filter_changed)
+	filter_row.add_child(_category_filter)
+
+	var filter_spacer := Control.new()
+	filter_spacer.custom_minimum_size = Vector2(0, 6)
+	vbox.add_child(filter_spacer)
+
 	# Hit Sounds section
 	_add_section_header(vbox, "HIT SOUNDS")
 	for event_id in ["enemy_shield_hit", "enemy_hull_hit", "player_shield_hit", "player_hull_hit"]:
@@ -159,6 +183,24 @@ func _build_ui() -> void:
 	# Reboot sequence section
 	_add_section_header(vbox, "REBOOT SEQUENCE")
 	for event_id in ["reboot_char_thunk", "reboot_line_beep", "reboot_complete"]:
+		_add_event_row(vbox, event_id)
+
+	var spacer_5 := Control.new()
+	spacer_5.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_5)
+
+	# Staged power-down cues (numbered in sequence order)
+	_add_section_header(vbox, "POWER-DOWN SEQUENCE (in order)")
+	for event_id in ["powerdown_shields_bleed", "powerdown_engines_dying", "powerdown_drift_start", "powerdown_crt_flicker_start", "powerdown_screen_dying", "powerdown_final_death"]:
+		_add_event_row(vbox, event_id)
+
+	var spacer_6 := Control.new()
+	spacer_6.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_6)
+
+	# Staged power-up cues
+	_add_section_header(vbox, "POWER-UP SEQUENCE (recovery)")
+	for event_id in ["powerup_electric_restored", "powerup_screen_on", "powerup_systems_online"]:
 		_add_event_row(vbox, event_id)
 
 	# Loops content (LoopBalancer panel — built from script)
@@ -226,12 +268,10 @@ func _add_event_row(parent: VBoxContainer, event_id: String) -> void:
 	row.add_child(label)
 	_event_labels[event_id] = label
 
-	# File dropdown
+	# File dropdown — shows files filtered by active category
 	var file_btn := OptionButton.new()
-	file_btn.custom_minimum_size = Vector2(200, 0)
-	file_btn.add_item("(none)")
-	for f in _sfx_files:
-		file_btn.add_item(f.get_file())
+	file_btn.custom_minimum_size = Vector2(280, 0)
+	_populate_file_dropdown(file_btn)
 	file_btn.item_selected.connect(_on_file_selected.bind(event_id))
 	row.add_child(file_btn)
 	_file_buttons[event_id] = file_btn
@@ -318,12 +358,11 @@ func _populate_from_config() -> void:
 		var ev: Dictionary = _config.get_event(event_id)
 		var file_path: String = ev["file_path"]
 
-		# Set file dropdown
+		# Set file dropdown — match by full path in metadata
 		var file_btn: OptionButton = _file_buttons[event_id]
 		if file_path != "":
-			var file_name: String = file_path.get_file()
-			for i in file_btn.item_count:
-				if file_btn.get_item_text(i) == file_name:
+			for i in range(1, file_btn.item_count):
+				if str(file_btn.get_item_metadata(i)) == file_path:
 					file_btn.select(i)
 					break
 
@@ -351,21 +390,58 @@ func _populate_from_config() -> void:
 
 
 func _scan_sfx_files() -> Array[String]:
-	var files: Array[String] = []
-	var dir := DirAccess.open("res://assets/audio/sfx/")
+	## Scans res://assets/audio/sfx/ including subfolders.
+	## Subfolders become categories (tags). Root files go in "uncategorized".
+	var all_files: Array[String] = []
+	_sfx_by_category.clear()
+	_sfx_categories.clear()
+	var root_path: String = "res://assets/audio/sfx/"
+	var dir := DirAccess.open(root_path)
 	if dir == null:
-		return files
+		return all_files
+	# Scan root files
+	var root_files: Array[String] = []
 	dir.list_dir_begin()
-	var file_name: String = dir.get_next()
-	while file_name != "":
-		if not dir.current_is_dir():
-			var lower: String = file_name.to_lower()
+	var entry: String = dir.get_next()
+	while entry != "":
+		if dir.current_is_dir() and not entry.begins_with("."):
+			# Subfolder = category
+			var cat_files: Array[String] = []
+			_scan_sfx_folder(root_path + entry + "/", cat_files)
+			if cat_files.size() > 0:
+				cat_files.sort()
+				_sfx_categories.append(entry)
+				_sfx_by_category[entry] = cat_files
+				all_files.append_array(cat_files)
+		elif not dir.current_is_dir():
+			var lower: String = entry.to_lower()
 			if lower.ends_with(".wav") or lower.ends_with(".ogg"):
-				files.append("res://assets/audio/sfx/" + file_name)
-		file_name = dir.get_next()
+				root_files.append(root_path + entry)
+		entry = dir.get_next()
 	dir.list_dir_end()
-	files.sort()
-	return files
+	if root_files.size() > 0:
+		root_files.sort()
+		_sfx_categories.insert(0, "uncategorized")
+		_sfx_by_category["uncategorized"] = root_files
+		all_files.append_array(root_files)
+	_sfx_categories.sort()
+	all_files.sort()
+	return all_files
+
+
+func _scan_sfx_folder(path: String, results: Array[String]) -> void:
+	var dir := DirAccess.open(path)
+	if not dir:
+		return
+	dir.list_dir_begin()
+	var fname: String = dir.get_next()
+	while fname != "":
+		if not dir.current_is_dir():
+			var lower: String = fname.to_lower()
+			if lower.ends_with(".wav") or lower.ends_with(".ogg"):
+				results.append(path + fname)
+		fname = dir.get_next()
+	dir.list_dir_end()
 
 
 func _get_stream_length(file_path: String) -> float:
@@ -377,13 +453,67 @@ func _get_stream_length(file_path: String) -> float:
 	return stream.get_length()
 
 
+func _populate_file_dropdown(btn: OptionButton) -> void:
+	btn.clear()
+	btn.add_item("(none)")
+	var files: Array[String] = _get_filtered_files()
+	for f in files:
+		# Show "category/filename" for subfolder files, just "filename" for root
+		var display: String = f.replace("res://assets/audio/sfx/", "")
+		var item_idx: int = btn.item_count
+		btn.add_item(display)
+		btn.set_item_metadata(item_idx, f)
+
+
+func _get_filtered_files() -> Array[String]:
+	if _active_category == "ALL":
+		return _sfx_files
+	if _sfx_by_category.has(_active_category):
+		var cat_files: Array = _sfx_by_category[_active_category]
+		var result: Array[String] = []
+		for f in cat_files:
+			result.append(str(f))
+		return result
+	return _sfx_files
+
+
+func _on_category_filter_changed(idx: int) -> void:
+	if idx <= 0:
+		_active_category = "ALL"
+	else:
+		_active_category = _category_filter.get_item_text(idx)
+	# Rebuild all file dropdowns with the new filter, preserving selections.
+	# If the assigned file isn't in the filtered set, add it as a special entry
+	# so the dropdown doesn't clear to "(none)".
+	for event_id in _file_buttons:
+		var btn: OptionButton = _file_buttons[event_id]
+		# Read the SAVED path from config, not from the dropdown (which is about to be rebuilt)
+		var ev: Dictionary = _config.get_event(event_id)
+		var saved_path: String = str(ev.get("file_path", ""))
+		_populate_file_dropdown(btn)
+		if saved_path != "":
+			var found: bool = false
+			for i in range(1, btn.item_count):
+				if str(btn.get_item_metadata(i)) == saved_path:
+					btn.selected = i
+					found = true
+					break
+			if not found:
+				# File isn't in filtered set — add it as a pinned entry so selection holds
+				var display: String = saved_path.replace("res://assets/audio/sfx/", "")
+				var pinned_idx: int = btn.item_count
+				btn.add_item(display + " (other)")
+				btn.set_item_metadata(pinned_idx, saved_path)
+				btn.selected = pinned_idx
+
+
 func _file_path_for_event(event_id: String) -> String:
 	var file_btn: OptionButton = _file_buttons[event_id]
 	var idx: int = file_btn.selected
 	if idx <= 0:
 		return ""
-	var file_name: String = file_btn.get_item_text(idx)
-	return "res://assets/audio/sfx/" + file_name
+	# Full path stored as metadata on each item
+	return str(file_btn.get_item_metadata(idx))
 
 
 func _update_sliders_enabled(event_id: String, has_file: bool) -> void:

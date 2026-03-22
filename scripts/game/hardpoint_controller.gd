@@ -47,7 +47,7 @@ func setup(weapon: WeaponData, dir_deg: float, proj_container: Node2D, hp_index:
 
 	# Register loop with LoopMixer (muted by default)
 	if weapon.loop_file_path != "" and not LoopMixer.has_loop(_loop_id):
-		LoopMixer.add_loop(_loop_id, weapon.loop_file_path, "Master", 0.0, true)
+		LoopMixer.add_loop(_loop_id, weapon.loop_file_path, "Weapons", 0.0, true)
 
 
 ## Setup from a raw Dictionary (e.g. from weapons_tab editor).

@@ -31,10 +31,24 @@ func play_sample(sample: AudioStream, pitch: float = 1.0, volume_db: float = 0.0
 	_play(sample, pitch, volume_db)
 
 
+func play_on_bus(sample: AudioStream, bus: String, pitch: float = 1.0, volume_db: float = 0.0) -> void:
+	## Play a sample on a specific bus (bypasses default SFX bus).
+	if not sample:
+		return
+	var player: AudioStreamPlayer = _player_pool[_next_player]
+	_next_player = (_next_player + 1) % POOL_SIZE
+	player.stream = sample
+	player.pitch_scale = pitch
+	player.volume_db = volume_db
+	player.bus = bus
+	player.play()
+
+
 func _play(sample: AudioStream, pitch: float, volume_db: float) -> void:
 	var player: AudioStreamPlayer = _player_pool[_next_player]
 	_next_player = (_next_player + 1) % POOL_SIZE
 	player.stream = sample
 	player.pitch_scale = pitch
 	player.volume_db = volume_db
+	player.bus = "SFX"  # Always reset to default bus
 	player.play()

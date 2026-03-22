@@ -25,6 +25,17 @@ const EVENT_IDS: Array[String] = [
 	"engine_sputter",
 	"electric_sparks",
 	"system_warning_beep",
+	# Staged power-down cues (in sequence order)
+	"powerdown_shields_bleed",
+	"powerdown_engines_dying",
+	"powerdown_drift_start",
+	"powerdown_crt_flicker_start",
+	"powerdown_screen_dying",
+	"powerdown_final_death",
+	# Staged power-up cues (recovery)
+	"powerup_electric_restored",
+	"powerup_screen_on",
+	"powerup_systems_online",
 ]
 
 const EVENT_LABELS: Dictionary = {
@@ -51,6 +62,17 @@ const EVENT_LABELS: Dictionary = {
 	"engine_sputter": "ENGINE SPUTTER",
 	"electric_sparks": "ELECTRIC SPARKS",
 	"system_warning_beep": "SYSTEM WARNING BEEP",
+	# Staged power-down cues
+	"powerdown_shields_bleed": "1. SHIELDS BLEEDING",
+	"powerdown_engines_dying": "2. ENGINES DYING",
+	"powerdown_drift_start": "3. DRIFT BEGINS",
+	"powerdown_crt_flicker_start": "4. CRT FLICKER START",
+	"powerdown_screen_dying": "5. SCREEN DYING",
+	"powerdown_final_death": "6. FINAL DEATH",
+	# Staged power-up cues
+	"powerup_electric_restored": "7. ELECTRIC RESTORED",
+	"powerup_screen_on": "8. SCREEN POWERING ON",
+	"powerup_systems_online": "9. SYSTEMS ONLINE",
 }
 
 var events: Dictionary = {}

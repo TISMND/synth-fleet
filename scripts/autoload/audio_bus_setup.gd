@@ -1,10 +1,26 @@
 extends Node
 ## AudioBusSetup — ensures audio buses exist and loads saved volume settings at startup.
 ## Must be an autoload so settings apply before any scene plays audio.
+##
+## Bus structure:
+##   Master (final output — never put game effects here)
+##   ├── GameAudio → Master (all in-game sound; blackout effects go here)
+##   │   ├── Weapons    → GameAudio (weapon loops from LoopMixer)
+##   │   ├── SFX        → GameAudio (one-shot game SFX: hits, explosions)
+##   │   ├── Enemies    → GameAudio (enemy sounds)
+##   │   └── Atmosphere → GameAudio (ambient loops)
+##   └── UI → Master (menus, reboot typing, monitor sounds — always clean)
 
 const SETTINGS_PATH := "user://settings/audio.json"
 
-const BUS_NAMES: Array[String] = ["Weapons", "Enemies", "Atmosphere", "SFX", "UI"]
+## GameAudio is the parent bus for all in-game sound. Blackout effects go here.
+const GAME_AUDIO_BUS := "GameAudio"
+
+## Game sub-buses route through GameAudio.
+const GAME_SUB_BUSES: Array[String] = ["Weapons", "SFX", "Enemies", "Atmosphere"]
+
+## UI bus routes directly to Master, bypassing GameAudio entirely.
+const UI_BUS := "UI"
 
 
 func _ready() -> void:
@@ -13,24 +29,39 @@ func _ready() -> void:
 
 
 ## Buses that get an AudioEffectPitchShift (for nebula key-change etc.)
-## All loops currently play on Master, so that's where the effect must live.
-const PITCH_SHIFT_BUSES: Array[String] = ["Master"]
+## Pitch shift goes on GameAudio so it affects all game sound uniformly.
+const PITCH_SHIFT_BUSES: Array[String] = ["GameAudio"]
 
 
 func _ensure_buses() -> void:
-	for bus_name in BUS_NAMES:
+	# Create GameAudio bus (sends to Master)
+	if AudioServer.get_bus_index(GAME_AUDIO_BUS) == -1:
+		AudioServer.add_bus()
+		var idx: int = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(idx, GAME_AUDIO_BUS)
+		AudioServer.set_bus_send(idx, "Master")
+
+	# Create game sub-buses (send to GameAudio)
+	for bus_name in GAME_SUB_BUSES:
 		var idx: int = AudioServer.get_bus_index(bus_name)
 		if idx == -1:
 			AudioServer.add_bus()
-			var new_idx: int = AudioServer.bus_count - 1
-			AudioServer.set_bus_name(new_idx, bus_name)
-			AudioServer.set_bus_send(new_idx, "Master")
+			idx = AudioServer.bus_count - 1
+			AudioServer.set_bus_name(idx, bus_name)
+		AudioServer.set_bus_send(idx, GAME_AUDIO_BUS)
+
+	# Create UI bus (sends to Master, NOT GameAudio)
+	if AudioServer.get_bus_index(UI_BUS) == -1:
+		AudioServer.add_bus()
+		var idx: int = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(idx, UI_BUS)
+	AudioServer.set_bus_send(AudioServer.get_bus_index(UI_BUS), "Master")
+
 	# Add pitch-shift effects to designated buses (disabled by default)
 	for bus_name in PITCH_SHIFT_BUSES:
 		var bus_idx: int = AudioServer.get_bus_index(bus_name)
 		if bus_idx < 0:
 			continue
-		# Skip if already has a pitch shift effect
 		var already_has: bool = false
 		for i in range(AudioServer.get_bus_effect_count(bus_idx)):
 			if AudioServer.get_bus_effect(bus_idx, i) is AudioEffectPitchShift:
@@ -40,7 +71,6 @@ func _ensure_buses() -> void:
 			var fx := AudioEffectPitchShift.new()
 			fx.pitch_scale = 1.0
 			AudioServer.add_bus_effect(bus_idx, fx)
-			# Start disabled — enabled when a nebula applies a key shift
 			AudioServer.set_bus_effect_enabled(bus_idx, AudioServer.get_bus_effect_count(bus_idx) - 1, false)
 
 

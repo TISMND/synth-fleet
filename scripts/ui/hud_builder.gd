@@ -220,7 +220,6 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 			bezel_rect.offset_bottom = bezel_pad
 			var smat := ShaderMaterial.new()
 			smat.shader = bezel_shader
-			print("[BEZEL] bar=%s seg=%d min_size=%s" % [bar_name, seg, str(bar.custom_minimum_size)])
 			smat.set_shader_parameter("segment_count", int(seg))
 			smat.set_shader_parameter("vertical", int(1))
 			smat.set_shader_parameter("socket_bezel", 0.16)

@@ -17,9 +17,17 @@ func reload() -> void:
 		var path: String = str(ev.get("file_path", ""))
 		if path == "":
 			continue
+		if not FileAccess.file_exists(path):
+			continue  # File moved/deleted — skip silently, user can reassign in SFX editor
 		var stream: AudioStream = load(path) as AudioStream
 		if stream:
 			_cache[event_id] = stream
+
+
+func get_cached_stream(event_id: String) -> AudioStream:
+	if _cache.has(event_id):
+		return _cache[event_id]
+	return null
 
 
 func play(event_id: String) -> void:
@@ -29,6 +37,17 @@ func play(event_id: String) -> void:
 	var ev: Dictionary = _config.get_event(event_id)
 	var vol: float = float(ev.get("volume_db", 0.0))
 	AudioManager.play_sample(stream, 1.0, vol)
+
+
+func play_ui(event_id: String) -> void:
+	## Play on UI bus — bypasses Master bus effects (low-pass, reverb from blackout).
+	## Use for screen/cockpit sounds: typing, monitor static, power failure, reboot.
+	if not _cache.has(event_id):
+		return
+	var stream: AudioStream = _cache[event_id]
+	var ev: Dictionary = _config.get_event(event_id)
+	var vol: float = float(ev.get("volume_db", 0.0))
+	AudioManager.play_on_bus(stream, "UI", 1.0, vol)
 
 
 func play_random_explosion() -> void:

@@ -26,7 +26,7 @@ func setup(device: DeviceData, slot_index: int, ship_node: Node2D) -> void:
 
 	# Register loop with LoopMixer (muted by default)
 	if device.loop_file_path != "" and not LoopMixer.has_loop(_loop_id):
-		LoopMixer.add_loop(_loop_id, device.loop_file_path, "Master", 0.0, true)
+		LoopMixer.add_loop(_loop_id, device.loop_file_path, "Weapons", 0.0, true)
 
 	# Create visual renderer as child of ship_node
 	if device.visual_mode == "orbiter" and device.orbiter_style_id != "":

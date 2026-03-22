@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://pjm187w0px8e"
+path="res://.godot/imported/clunky power down.wav-725e5d02b592e48957c635fb7c690128.sample"
+
+[deps]
+
+source_file="res://assets/audio/sfx/power/clunky power down.wav"
+dest_files=["res://.godot/imported/clunky power down.wav-725e5d02b592e48957c635fb7c690128.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

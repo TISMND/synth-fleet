@@ -43,8 +43,8 @@ var _blackout_active: bool = false  # Full blackout (darkness, HUD dim) — 3s a
 var _blackout_power: float = 1.0  # CRT power level: 1.0=on, 0.0=dead
 var _blackout_final_death: bool = false  # True once power hits floor — components off, text starts
 var _blackout_overlay: ColorRect = null
-var _blackout_lowpass: AudioEffectLowPassFilter = null
-var _blackout_reverb: AudioEffectReverb = null
+var _blackout_lowpass: AudioEffectLowPassFilter = null  # GameAudio bus
+var _blackout_reverb: AudioEffectReverb = null  # GameAudio bus
 var _blackout_flicker_state: bool = false  # True during hard cut frames — for SFX sync
 var _reboot_label: RichTextLabel = null  # DOS-style text during final death
 var _reboot_text_queue: Array[String] = []  # Lines to type out (prefix ">" = fast/scroll phase)
@@ -54,6 +54,7 @@ var _reboot_char_timer: float = 0.0  # Timer for typewriter effect
 var _reboot_blink_timer: float = 0.0  # Timer for initial cursor blink
 var _reboot_scrolling: bool = false  # True once we enter the ">" fast scroll phase
 var _reboot_completed_lines: Array[String] = []  # Finished lines for display
+var _reboot_typing_player: AudioStreamPlayer = null  # Looping typing sound, start/stop with typing
 signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
 signal final_power_death()  # Emitted once when power fully dies — for external systems
 
@@ -309,6 +310,7 @@ func _process(delta: float) -> void:
 	if electric <= 0.0 and not _electric_crisis_active:
 		_electric_crisis_active = true
 		SfxPlayer.play("electric_sparks")
+		SfxPlayer.play_ui("powerdown_shields_bleed")
 		if _electric_crisis_particles:
 			_electric_crisis_particles.emitting = true
 	elif electric > 0.0 and _electric_crisis_active:
@@ -577,6 +579,8 @@ const DRIFT_TO_BLACKOUT_DELAY: float = 1.0  # Seconds of drift before blackout b
 func _start_drift() -> void:
 	_drifting = true
 	_drift_timer = 0.0
+	SfxPlayer.play_ui("powerdown_drift_start")
+	SfxPlayer.play("powerdown_engines_dying")
 	_drift_rotation_speed = 0.0
 	_drift_spin_direction = 1.0 if randf() > 0.5 else -1.0
 
@@ -590,7 +594,8 @@ func _process_drift(delta: float) -> void:
 
 	# After delay, trigger blackout (darkness + HUD effects)
 	if _drift_timer >= DRIFT_TO_BLACKOUT_DELAY and not _blackout_active:
-		SfxPlayer.play("power_failure")
+		SfxPlayer.play_ui("power_failure")
+		SfxPlayer.play_ui("powerdown_crt_flicker_start")
 		_start_blackout()
 
 	if _blackout_active:
@@ -604,18 +609,20 @@ func _start_blackout() -> void:
 	# Dump thermal to zero (mercy: they'll need heat to generate electric)
 	thermal = 0.0
 	# HUD bars stay fully visible — LED bar shutdown animation handled separately
-	# Audio degradation — low-pass + reverb on Master, tied to _blackout_power
-	var master_idx: int = AudioServer.get_bus_index("Master")
-	if master_idx >= 0:
+	# Audio degradation — effects on GameAudio bus only.
+	# All game sound (Weapons/SFX/Enemies/Atmosphere) routes through GameAudio.
+	# UI bus routes directly to Master, bypassing GameAudio — stays clean.
+	var ga_idx: int = AudioServer.get_bus_index("GameAudio")
+	if ga_idx >= 0:
 		_blackout_lowpass = AudioEffectLowPassFilter.new()
 		_blackout_lowpass.cutoff_hz = 20500.0
-		AudioServer.add_bus_effect(master_idx, _blackout_lowpass)
+		AudioServer.add_bus_effect(ga_idx, _blackout_lowpass)
 		_blackout_reverb = AudioEffectReverb.new()
 		_blackout_reverb.room_size = 0.0
 		_blackout_reverb.wet = 0.0
 		_blackout_reverb.dry = 1.0
 		_blackout_reverb.damping = 0.8
-		AudioServer.add_bus_effect(master_idx, _blackout_reverb)
+		AudioServer.add_bus_effect(ga_idx, _blackout_reverb)
 	# CRT power death overlay — inside game SubViewport. Alpha-blended black overlay
 	# with distortion effects. HUD is on root viewport, unaffected.
 	if not _blackout_overlay:
@@ -644,7 +651,7 @@ func _process_blackout(delta: float) -> void:
 		var mat: ShaderMaterial = _blackout_overlay.material as ShaderMaterial
 		mat.set_shader_parameter("power", _blackout_power)
 
-	# Audio — tied to same power level
+	# Audio — effects on GameAudio bus, tied to same power level
 	var decay: float = 1.0 - _blackout_power
 	if _blackout_lowpass:
 		_blackout_lowpass.cutoff_hz = lerpf(20500.0, 600.0, decay * decay)
@@ -667,15 +674,20 @@ func _process_blackout(delta: float) -> void:
 	if flicker_now != _blackout_flicker_state:
 		# Flicker state changed — trigger SFX
 		if flicker_now:
-			SfxPlayer.play("monitor_static")
+			SfxPlayer.play_ui("monitor_static")
 		_blackout_flicker_state = flicker_now
 		blackout_flicker.emit(flicker_now)
+
+	# Screen dying cue — fires once at ~50% power
+	if _blackout_power <= 0.5 and _blackout_power > 0.45 and not _blackout_final_death:
+		SfxPlayer.play_ui("powerdown_screen_dying")
 
 	# Final power death — power hit the floor
 	if _blackout_power <= 0.03 and not _blackout_final_death:
 		_blackout_final_death = true
 		_shutdown_all_components()
-		SfxPlayer.play("monitor_shutoff")
+		SfxPlayer.play_ui("monitor_shutoff")
+		SfxPlayer.play_ui("powerdown_final_death")
 		_start_reboot_sequence()
 		final_power_death.emit()
 
@@ -715,18 +727,15 @@ func _start_reboot_sequence() -> void:
 		"Backup capacitor ...... 2%%",
 		"Shield generator ...... OFFLINE",
 		"Weapon bus ............ NO SIGNAL",
-		"Navigation ............ OFFLINE",
-		"Life support .......... MINIMAL",
 		"",
+		">Core restart sequence initiated...",
 		">Rerouting emergency power...",
 		">Activating backup capacitor...",
 		">Bypassing main reactor safety...",
 		">Shield generator: STANDBY",
 		">Weapon bus: LOCKED",
-		">Navigation: RECOVERING",
 		">Thermal vents: PURGING",
 		">Capacitor charge: 4%%... 8%%... 15%%",
-		">Core restart sequence initiated...",
 		">Regenerating power core...",
 	]
 	_reboot_text_index = -1  # -1 = cursor blink phase
@@ -742,12 +751,13 @@ func _start_reboot_sequence() -> void:
 	_reboot_label.scroll_active = false
 	_reboot_label.z_index = 48  # Above CRT overlay (45), below HUD (50)
 	_reboot_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_reboot_label.position = Vector2(120, 200)
-	_reboot_label.size = Vector2(600, 500)
+	# Text area — padding at top pushes content to bottom, CLI-style scroll up
+	_reboot_label.size = Vector2(600, 600)
+	_reboot_label.position = Vector2(120, 100)
 	_reboot_label.add_theme_font_size_override("normal_font_size", 16)
-	# Bright green — HDR modulate for bloom glow
+	# Bright green with HDR boost for bloom
 	_reboot_label.add_theme_color_override("default_color", Color(0.3, 1.0, 0.4))
-	_reboot_label.modulate = Color(2.0, 2.0, 2.0, 1.0)  # HDR boost for bloom
+	_reboot_label.modulate = Color(1.8, 1.8, 1.8, 1.0)
 	var mono_font: Font = ThemeManager.get_font("font_body")
 	if mono_font:
 		_reboot_label.add_theme_font_override("normal_font", mono_font)
@@ -758,17 +768,45 @@ func _start_reboot_sequence() -> void:
 		scan_mat.shader = scanline_shader
 		_reboot_label.material = scan_mat
 	_reboot_label.text = ""
-	get_viewport().add_child(_reboot_label)
+	# Add to ROOT viewport so HDR modulate produces bloom (root has glow_enabled)
+	get_tree().root.add_child(_reboot_label)
+
+	# Typing sound — plays while typing, stops during pauses.
+	# Reload SFX cache so any changes made in the SFX editor take effect.
+	SfxPlayer.reload()
+	_reboot_typing_player = AudioStreamPlayer.new()
+	_reboot_typing_player.bus = "UI"
+	var cfg: SfxConfig = SfxConfigManager.load_config()
+	var thunk_ev: Dictionary = cfg.get_event("reboot_char_thunk")
+	var thunk_path: String = str(thunk_ev.get("file_path", ""))
+	print("[REBOOT-SFX] thunk_path='%s'" % thunk_path)
+	if thunk_path != "":
+		# Load fresh (not from SfxPlayer cache) to avoid any stale resource issues
+		var stream: AudioStream = load(thunk_path) as AudioStream
+		if stream:
+			# Enable looping so it plays continuously while typing
+			if stream is AudioStreamWAV:
+				(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+				(stream as AudioStreamWAV).loop_begin = 0
+				(stream as AudioStreamWAV).loop_end = int((stream as AudioStreamWAV).get_length() * float((stream as AudioStreamWAV).mix_rate))
+			_reboot_typing_player.stream = stream
+			_reboot_typing_player.volume_db = float(thunk_ev.get("volume_db", 0.0))
+			print("[REBOOT-SFX] stream loaded OK, length=%.2f bus=%s" % [stream.get_length(), _reboot_typing_player.bus])
+		else:
+			print("[REBOOT-SFX] FAILED to load stream at path")
+	else:
+		print("[REBOOT-SFX] no file assigned to reboot_char_thunk")
+	add_child(_reboot_typing_player)
 
 
 const REBOOT_BLINK_DURATION: float = 3.0  # Seconds of cursor blinking before text starts
 const REBOOT_BLINK_RATE: float = 0.5  # Cursor blink toggle interval
-const REBOOT_CHAR_SLOW: float = 0.043  # Seconds per char — diagnosis phase (140% of 0.06)
-const REBOOT_CHAR_FAST: float = 0.018  # Seconds per char — reboot phase (140% of 0.025)
-const REBOOT_LINE_PAUSE_SLOW: float = 0.5  # Pause between lines — diagnosis
-const REBOOT_LINE_PAUSE_FAST: float = 0.2  # Pause between lines — reboot (faster turnover)
-const REBOOT_HEADER_PAUSE: float = 1.0  # Longer pause after ALL-CAPS lines
-const REBOOT_PARAGRAPH_PAUSE: float = 0.8  # Pause for empty lines
+const REBOOT_CHAR_SLOW: float = 0.011  # Seconds per char — diagnosis phase
+const REBOOT_CHAR_FAST: float = 0.005  # Seconds per char — reboot phase
+const REBOOT_LINE_PAUSE_SLOW: float = 0.3  # Pause between lines — diagnosis
+const REBOOT_LINE_PAUSE_FAST: float = 0.1  # Pause between lines — reboot (faster turnover)
+const REBOOT_HEADER_PAUSE: float = 0.6  # Longer pause after ALL-CAPS lines
+const REBOOT_PARAGRAPH_PAUSE: float = 0.5  # Pause for empty lines
 const REBOOT_MAX_VISIBLE_LINES: int = 14  # Max lines before scrolling
 
 func _process_reboot_text(delta: float) -> void:
@@ -779,7 +817,8 @@ func _process_reboot_text(delta: float) -> void:
 	if _reboot_text_index < 0:
 		_reboot_blink_timer += delta
 		var blink_on: bool = fmod(_reboot_blink_timer, REBOOT_BLINK_RATE * 2.0) < REBOOT_BLINK_RATE
-		_reboot_label.text = "\u2588" if blink_on else ""
+		# Blink cursor at the same position text will start (bottom of label area)
+		_update_reboot_display("", blink_on)
 		if _reboot_blink_timer >= REBOOT_BLINK_DURATION:
 			_reboot_text_index = 0
 			_reboot_char_index = 0
@@ -800,58 +839,84 @@ func _process_reboot_text(delta: float) -> void:
 	# Strip the ">" prefix for display
 	var current_line: String = raw_line.lstrip(">")
 
-	# Empty line = paragraph pause
+	# Empty line = paragraph pause — no display update during wait (prevents jump)
 	if current_line == "":
+		if _reboot_typing_player and _reboot_typing_player.playing:
+			_reboot_typing_player.stop()
 		if _reboot_char_timer >= REBOOT_PARAGRAPH_PAUSE:
 			_reboot_char_timer = 0.0
 			_reboot_completed_lines.append("")
 			_reboot_text_index += 1
 			_reboot_char_index = 0
-			_update_reboot_display("", false)
+			# Display updates on next frame with the new line
 		return
 
 	var char_speed: float = REBOOT_CHAR_FAST if _reboot_scrolling else REBOOT_CHAR_SLOW
 
 	if _reboot_char_index < current_line.length():
+		# Still typing
 		if _reboot_char_timer >= char_speed:
 			_reboot_char_timer -= char_speed
 			_reboot_char_index += 1
-			SfxPlayer.play("reboot_char_thunk")
-			var typed: String = current_line.substr(0, _reboot_char_index)
-			_update_reboot_display(typed, true)
+		# Start typing sound if not already playing
+		if _reboot_typing_player and not _reboot_typing_player.playing:
+			if _reboot_typing_player.stream:
+				_reboot_typing_player.play()
+				print("[REBOOT-SFX] typing sound STARTED, bus=%s" % _reboot_typing_player.bus)
+			else:
+				print("[REBOOT-SFX] NO STREAM on typing player!")
+		var typed: String = current_line.substr(0, _reboot_char_index)
+		_update_reboot_display(typed, true)
 	else:
-		# Line complete — show without cursor during pause, then advance
-		_update_reboot_display(current_line, false)
+		# Line fully typed — stop typing sound during pause
+		if _reboot_typing_player and _reboot_typing_player.playing:
+			_reboot_typing_player.stop()
+			print("[REBOOT-SFX] typing sound STOPPED (line complete)")
+		# Keep cursor visible during pause, then advance
+		# both completion AND new line start on same frame = no bump
 		var is_header: bool = current_line == current_line.to_upper() and current_line.length() > 2
 		var line_pause: float = REBOOT_LINE_PAUSE_FAST if _reboot_scrolling else REBOOT_LINE_PAUSE_SLOW
 		var pause: float = REBOOT_HEADER_PAUSE if is_header else line_pause
 		if _reboot_char_timer >= pause:
 			_reboot_char_timer = 0.0
-			SfxPlayer.play("reboot_line_beep")
+			SfxPlayer.play_ui("reboot_line_beep")
 			_reboot_completed_lines.append(current_line)
 			_reboot_text_index += 1
 			_reboot_char_index = 0
+			# Display with new state immediately — completed line moves up,
+			# new empty typing line starts, all in one frame
+			_update_reboot_display("", true)
+		else:
+			# Waiting — keep showing completed line WITH cursor (no bump)
+			_update_reboot_display(current_line, true)
 
 
 func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
 	if not _reboot_label:
 		return
-	# Build visible lines — scroll if too many
-	var visible_lines: Array[String] = []
+	# Build content lines
+	var content_lines: Array[String] = []
 	for completed in _reboot_completed_lines:
-		visible_lines.append(completed)
-
-	# Add current typing line
+		content_lines.append(completed)
+	# Current typing line
 	var current: String = typed_portion
 	if show_cursor:
-		current += "\u2588"
-	visible_lines.append(current)
+		current += "\u2586"
+	if current.length() > 0:
+		content_lines.append(current)
 
-	# Scroll — keep only the last N lines
-	while visible_lines.size() > REBOOT_MAX_VISIBLE_LINES:
-		visible_lines.remove_at(0)
+	# Pad with empty lines at top so content anchors to bottom of label area.
+	# This makes new lines push the block upward like a CLI terminal.
+	var line_height: float = 20.0  # Approximate line height at font_size 16
+	var label_height: float = _reboot_label.size.y
+	var max_visible: int = int(label_height / line_height)
+	var pad_count: int = maxi(max_visible - content_lines.size(), 0)
 
-	_reboot_label.text = "\n".join(visible_lines)
+	var padded: String = ""
+	for i in pad_count:
+		padded += "\n"
+	padded += "\n".join(content_lines)
+	_reboot_label.text = padded
 
 
 ## Hash matching the shader's hash function — keeps GDScript flicker detection in sync
@@ -867,25 +932,18 @@ func _end_drift() -> void:
 	_drift_timer = 0.0
 	_drift_rotation_speed = 0.0
 	rotation = 0.0
+	SfxPlayer.play_ui("powerup_electric_restored")
 	if _blackout_active:
 		_blackout_active = false
-		# HUD restoration handled by LED bar system when ready
+		SfxPlayer.play_ui("powerup_screen_on")
+		SfxPlayer.play_ui("powerup_systems_online")
 		# Power-up: tween CRT overlay + audio back to normal
 		var recovery_power: float = _blackout_power
-		var lp_ref: AudioEffectLowPassFilter = _blackout_lowpass
-		var rv_ref: AudioEffectReverb = _blackout_reverb
 		if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
 			var mat: ShaderMaterial = _blackout_overlay.material as ShaderMaterial
 			var tween: Tween = create_tween()
 			tween.tween_method(func(v: float) -> void:
 				mat.set_shader_parameter("power", v)
-				var d: float = 1.0 - v
-				if lp_ref:
-					lp_ref.cutoff_hz = lerpf(20500.0, 600.0, d * d)
-				if rv_ref:
-					rv_ref.wet = d * 0.7
-					rv_ref.dry = lerpf(1.0, 0.3, d)
-					rv_ref.room_size = lerpf(0.0, 0.9, d)
 			, recovery_power, 1.0, 0.5)
 			var overlay_ref: ColorRect = _blackout_overlay
 			tween.tween_callback(func() -> void:
@@ -903,20 +961,24 @@ func _end_drift() -> void:
 		_blackout_final_death = false
 		_reboot_scrolling = false
 		_reboot_completed_lines.clear()
-		# Remove reboot text
+		# Remove reboot text + typing sound
+		if _reboot_typing_player and is_instance_valid(_reboot_typing_player):
+			_reboot_typing_player.stop()
+			_reboot_typing_player.queue_free()
+			_reboot_typing_player = null
 		if _reboot_label and is_instance_valid(_reboot_label):
 			_reboot_label.queue_free()
 			_reboot_label = null
 
 
 func _remove_blackout_audio() -> void:
-	var master_idx: int = AudioServer.get_bus_index("Master")
-	if master_idx < 0:
-		return
-	for i in range(AudioServer.get_bus_effect_count(master_idx) - 1, -1, -1):
-		var fx: AudioEffect = AudioServer.get_bus_effect(master_idx, i)
-		if fx == _blackout_lowpass or fx == _blackout_reverb:
-			AudioServer.remove_bus_effect(master_idx, i)
+	# Remove effects from GameAudio bus
+	var ga_idx: int = AudioServer.get_bus_index("GameAudio")
+	if ga_idx >= 0:
+		for i in range(AudioServer.get_bus_effect_count(ga_idx) - 1, -1, -1):
+			var fx: AudioEffect = AudioServer.get_bus_effect(ga_idx, i)
+			if fx == _blackout_lowpass or fx == _blackout_reverb:
+				AudioServer.remove_bus_effect(ga_idx, i)
 	_blackout_lowpass = null
 	_blackout_reverb = null
 
@@ -949,6 +1011,10 @@ func _exit_tree() -> void:
 	if _blackout_overlay and is_instance_valid(_blackout_overlay):
 		_blackout_overlay.queue_free()
 		_blackout_overlay = null
+	if _reboot_typing_player and is_instance_valid(_reboot_typing_player):
+		_reboot_typing_player.stop()
+		_reboot_typing_player.queue_free()
+		_reboot_typing_player = null
 	if _reboot_label and is_instance_valid(_reboot_label):
 		_reboot_label.queue_free()
 		_reboot_label = null

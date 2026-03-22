@@ -53,6 +53,8 @@ var level_id: String = ""
 
 
 func _ready() -> void:
+	# Force fresh SFX cache on every game start
+	SfxPlayer.reload()
 	# Build ShipData — start from registry, then apply user overrides for stats/render
 	var ship: ShipData = ShipRegistry.build_ship_data(GameState.current_ship_index)
 	var ship_override: ShipData = ShipDataManager.load_by_id(ship.id)
@@ -202,7 +204,7 @@ func _register_presence_loops() -> void:
 			_presence_loops[sid] = ship.presence_loop_path
 			_presence_counts[sid] = 0
 			if not LoopMixer.has_loop(loop_id):
-				LoopMixer.add_loop(loop_id, ship.presence_loop_path, "Master", 0.0, true)
+				LoopMixer.add_loop(loop_id, ship.presence_loop_path, "Enemies", 0.0, true)
 
 
 func _on_presence_pre_trigger(sid: String, loop_path: String) -> void:
@@ -216,7 +218,7 @@ func _on_presence_pre_trigger(sid: String, loop_path: String) -> void:
 		_presence_loops[sid] = loop_path
 		_presence_counts[sid] = 0
 		if not LoopMixer.has_loop(loop_id):
-			LoopMixer.add_loop(loop_id, loop_path, "Master", 0.0, true)
+			LoopMixer.add_loop(loop_id, loop_path, "Atmosphere", 0.0, true)
 			if LoopMixer.is_playing():
 				LoopMixer.start_all()
 	# Only unmute if no enemies of this type are alive yet
@@ -234,7 +236,7 @@ func register_enemy_presence(sid: String, loop_path: String) -> void:
 		_presence_loops[sid] = loop_path
 		_presence_counts[sid] = 0
 		if not LoopMixer.has_loop(loop_id):
-			LoopMixer.add_loop(loop_id, loop_path, "Master", 0.0, true)
+			LoopMixer.add_loop(loop_id, loop_path, "Atmosphere", 0.0, true)
 			if LoopMixer.is_playing():
 				LoopMixer.start_all()
 

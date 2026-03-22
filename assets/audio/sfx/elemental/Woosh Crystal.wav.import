@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dtgpby8m1u6s8"
+path="res://.godot/imported/Woosh Crystal.wav-27c4018c6b0ece15ffb6f013e91a3d69.sample"
+
+[deps]
+
+source_file="res://assets/audio/sfx/elemental/Woosh Crystal.wav"
+dest_files=["res://.godot/imported/Woosh Crystal.wav-27c4018c6b0ece15ffb6f013e91a3d69.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

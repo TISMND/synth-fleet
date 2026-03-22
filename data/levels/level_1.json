@@ -11,10 +11,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 300.0,
 			"speed": 750.0,
-			"trigger_y": 493.827160493828,
+			"trigger_y": 1298.38232063618,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 8.54092526690391
+			"x_offset": 18.7900355871886
 		},
 		{
 			"count": 5,
@@ -81,10 +81,10 @@
 			"ship_id": "enemy_dart",
 			"spacing": 200.0,
 			"speed": 650.0,
-			"trigger_y": 1953.7037037037,
+			"trigger_y": 2379.04178199552,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 10.0814711779901
+			"x_offset": 20.3305814982748
 		},
 		{
 			"count": 1,
@@ -235,10 +235,66 @@
 			"ship_id": "enemy_dart",
 			"spacing": 200.0,
 			"speed": 650.0,
-			"trigger_y": 1429.34229603269,
+			"trigger_y": 1805.14300777646,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 0.0
+			"x_offset": -6.83274021352313
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_talon",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 5656.45182549098,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -40.9964412811388
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_talon",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 5671.8254909714,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -780.640569395018
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_talon",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 5338.72940556215,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 758.434163701068
+		},
+		{
+			"count": 7,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_scythe",
+			"spacing": 100.0,
+			"speed": 500.0,
+			"trigger_y": 666.192170818505,
+			"turn_speed": 90.0,
+			"weapons_active": false,
+			"x_offset": -527.829181494662
 		}
 	],
 	"id": "level_1",
@@ -255,12 +311,6 @@
 			"radius": 1000.0,
 			"trigger_y": 6790.12345679012,
 			"x_offset": -459.501779359431
-		},
-		{
-			"nebula_id": "nebula_1",
-			"radius": 450.0,
-			"trigger_y": 4552.46913580247,
-			"x_offset": 76.8683274021353
 		}
 	],
 	"scroll_speed": 140.0
