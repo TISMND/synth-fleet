@@ -116,14 +116,15 @@ func _ready() -> void:
 	_wave_manager.all_waves_cleared.connect(_on_all_waves_cleared)
 	_wave_manager.presence_pre_trigger.connect(_on_presence_pre_trigger)
 
-	# HUD stays on root viewport — not affected by ACES tonemapping
+	# HUD renders inside game SubViewport — shares ACES bloom with ship/projectiles.
+	# LED bar led_glow rects get bloom from this viewport's WorldEnvironment.
 	_hud = Control.new()
 	_hud.set_script(load("res://scripts/game/hud.gd"))
 	_hud.name = "HUD"
 	_hud.size = Vector2(1920, 1080)
 	_hud.z_index = 50  # Render on top of game elements
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_hud)
+	_game_viewport.add_child(_hud)
 
 	# Pass ship segment counts to HUD
 	_hud.set_bar_segments(ship.stats)

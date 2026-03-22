@@ -1,24 +1,24 @@
 {
 	"color": [
-		0.0,
+		1.0,
 		1.0,
 		1.0,
 		1.0
 	],
-	"display_name": "Rainbow WIP Needs more Params",
-	"field_shader": "shimmer",
-	"glow_intensity": 1.4,
+	"display_name": "White Bubble",
+	"field_shader": "plasma_shield",
+	"glow_intensity": 1.3,
 	"id": "rainbow_wip",
-	"pulse_brightness": 0.4,
-	"pulse_tint": 0.35,
-	"radius_ratio": 0.25,
+	"pulse_brightness": 0.2,
+	"pulse_tint": 0.2,
+	"radius_ratio": 0.0,
 	"shader_params": {
-		"distortion_strength": 0.13,
-		"outer_radius": 0.47,
-		"rainbow_intensity": 1.0,
-		"wave_frequency": 5.0
+		"edge_glow": 1.8,
+		"outer_radius": 0.53,
+		"plasma_density": 8.0,
+		"turbulence_speed": 0.9
 	},
 	"ship_active_hdr": 0.0,
 	"ship_pulse_hdr": 0.2,
-	"ship_tint_strength": 0.2
+	"ship_tint_strength": 1.0
 }

@@ -43,7 +43,7 @@
 	"skips_shields": false,
 	"splash_enabled": false,
 	"splash_radius": 0.0,
-	"sweep_arc_deg": 120.0,
+	"sweep_arc_deg": 60.0,
 	"sweep_duration": 2.0,
 	"transition_mode": "fade",
 	"transition_ms": 370

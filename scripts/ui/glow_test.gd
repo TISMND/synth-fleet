@@ -3,6 +3,9 @@ extends Control
 ## Left side: current bars (manual shader glow with overlay padding).
 ## Right side: HDR bars (simple bright colors, WorldEnvironment bloom does the glow).
 ## Center: ships + grid to prove normal-brightness content is unaffected.
+##
+## NOTE: Root viewport bloom is globally disabled. This test scene temporarily
+## re-enables it for comparison testing. Bloom is restored to disabled on exit.
 
 var env: Environment
 
@@ -22,15 +25,23 @@ var hdr_mult_label: Label
 
 
 func _ready() -> void:
+	# Temporarily re-enable root viewport bloom for this test scene
+	env = ThemeManager.get_environment()
+	env.glow_enabled = true
+	env.glow_intensity = ThemeManager.get_float("glow_intensity")
+	env.glow_bloom = ThemeManager.get_float("glow_bloom")
+	env.glow_hdr_threshold = ThemeManager.get_float("glow_hdr_threshold")
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	for i in 7:
+		var val: float = ThemeManager.get_float("glow_level_%d" % i)
+		env.set_glow_level(i, val > 0.5)
+
 	# Grid background
 	var grid_bg := ColorRect.new()
 	grid_bg.size = Vector2(1920, 1080)
 	grid_bg.z_index = -10
 	add_child(grid_bg)
 	ThemeManager.apply_grid_background(grid_bg)
-
-	# Use ThemeManager's global WorldEnvironment
-	env = ThemeManager.get_environment()
 
 	# Layout: three columns
 	# Left (x=40): Current LED bars (shader glow)
@@ -43,6 +54,12 @@ func _ready() -> void:
 	_build_ship_showcase()
 	_build_controls()
 	_build_labels()
+
+
+func _exit_tree() -> void:
+	# Restore root viewport bloom to disabled
+	if env:
+		env.glow_enabled = false
 
 
 
@@ -363,7 +380,10 @@ func _build_labels() -> void:
   Adjust [color=#edc]HDR Multiplier[/color] to change how bright the right-side bars are.
 
 [color=#aab]GLOW LEVELS:[/color] Each level is a blur pass at increasing radius.
-  Level 0 = tight glow (aura). Level 6 = huge soft bloom. Mix and match."""
+  Level 0 = tight glow (aura). Level 6 = huge soft bloom. Mix and match.
+
+[color=#f88]NOTE:[/color] This scene temporarily enables root viewport bloom for testing.
+  Root bloom is globally disabled — all production bloom is per-SubViewport."""
 	add_child(info)
 
 

@@ -165,22 +165,17 @@ func _setup_world_environment() -> void:
 	_env = Environment.new()
 	_env.background_mode = Environment.BG_CANVAS
 	_env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	_apply_glow_settings()
+	# Root viewport bloom is DISABLED — all bloom happens inside SubViewports
+	# with ACES tonemapping via VFXFactory.add_bloom_to_viewport().
+	_env.glow_enabled = false
 	_world_env.environment = _env
 	add_child(_world_env)
 
 
 func _apply_glow_settings() -> void:
-	if not _env:
-		return
-	_env.glow_enabled = true
-	_env.glow_intensity = get_float("glow_intensity")
-	_env.glow_bloom = get_float("glow_bloom")
-	_env.glow_hdr_threshold = get_float("glow_hdr_threshold")
-	_env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	for i in 7:
-		var val: float = get_float("glow_level_%d" % i)
-		_env.set_glow_level(i, val > 0.5)
+	# Glow settings are stored in _floats and read by VFXFactory.add_bloom_to_viewport()
+	# when creating per-SubViewport bloom. Root viewport glow stays disabled.
+	pass
 
 
 func get_environment() -> Environment:

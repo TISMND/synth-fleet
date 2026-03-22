@@ -53,28 +53,53 @@ var _weapon_preview_btn: Button = null
 var _weapon_preview_active: bool = false
 var _weapon_preview_container: Node2D = null
 var _weapon_preview_fire_point: Node2D = null
+var _ship_viewport: SubViewport = null
+var _ship_grid_bg: ColorRect = null
 var _weapon_preview_controller: HardpointController = null
 
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_NONE
-	ThemeManager.apply_grid_background($Background)
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
+	# Ship rendering goes in its own SubViewport with ACES bloom.
+	# UI panels (left/right/bottom) stay on root and render on top.
+	var svc := SubViewportContainer.new()
+	svc.name = "ShipViewportContainer"
+	svc.set_anchors_preset(Control.PRESET_FULL_RECT)
+	svc.stretch = true
+	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(svc)
+
+	_ship_viewport = SubViewport.new()
+	_ship_viewport.name = "ShipViewport"
+	_ship_viewport.size = Vector2i(1920, 1080)
+	_ship_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_ship_viewport.transparent_bg = false
+	svc.add_child(_ship_viewport)
+	VFXFactory.add_bloom_to_viewport(_ship_viewport)
+
+	# Grid background inside SubViewport
+	_ship_grid_bg = ColorRect.new()
+	_ship_grid_bg.size = Vector2(1920, 1080)
+	_ship_grid_bg.z_index = -10
+	_ship_viewport.add_child(_ship_grid_bg)
+	ThemeManager.apply_grid_background(_ship_grid_bg)
+
 	_exhaust_draw = _ExhaustDraw.new()
 	_exhaust_draw.viewer = self
-	add_child(_exhaust_draw)
+	_ship_viewport.add_child(_exhaust_draw)
 
 	_ship_draw = ShipRenderer.new()
-	add_child(_ship_draw)
+	_ship_viewport.add_child(_ship_draw)
 
 	_weapon_preview_container = Node2D.new()
-	add_child(_weapon_preview_container)
+	_ship_viewport.add_child(_weapon_preview_container)
 
 	_hitbox_overlay = _HitboxOverlay.new()
 	_hitbox_overlay.viewer = self
-	add_child(_hitbox_overlay)
+	_ship_viewport.add_child(_hitbox_overlay)
 
 	_ship_selector = _ShipSelector.new()
 	_ship_selector.viewer = self
@@ -227,7 +252,8 @@ func _setup_vhs_overlay() -> void:
 
 
 func _on_theme_changed() -> void:
-	ThemeManager.apply_grid_background($Background)
+	if _ship_grid_bg:
+		ThemeManager.apply_grid_background(_ship_grid_bg)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 	_apply_right_panel_theme()
 	if _category_dropdown:
@@ -1107,10 +1133,10 @@ func _start_weapon_preview() -> void:
 	_weapon_preview_active = true
 	_weapon_preview_btn.text = "STOP"
 
-	# Create fire point that follows ship position
+	# Create fire point that follows ship position (inside ship SubViewport for bloom)
 	_weapon_preview_fire_point = Node2D.new()
 	_weapon_preview_fire_point.position = _ship_draw.position + Vector2(0, 20)
-	add_child(_weapon_preview_fire_point)
+	_ship_viewport.add_child(_weapon_preview_fire_point)
 
 	# Create HardpointController — same system as player/enemy gameplay
 	_weapon_preview_controller = HardpointController.new()
@@ -1167,7 +1193,7 @@ func _preview_explosion() -> void:
 	explosion.explosion_size = _working_enemy.explosion_size
 	explosion.enable_screen_shake = false  # Don't shake in preview
 	explosion.position = _ship_draw.position
-	add_child(explosion)
+	_ship_viewport.add_child(explosion)
 	_explosion_preview = explosion
 
 

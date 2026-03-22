@@ -695,57 +695,27 @@ static func _generate_white_rect(w: int, h: int) -> ImageTexture:
 
 # ── WorldEnvironment Helper ─────────────────────────────────
 
-## Add a WorldEnvironment with bloom settings to a SubViewport for preview rendering.
-## Enables use_hdr_2d so HDR colors produce bloom, and reads glow params from ThemeManager
-## so preview rendering matches the main game viewport.
+## Add a WorldEnvironment with ACES bloom to a SubViewport.
+## All bloom in the project happens via this function — root viewport bloom is disabled.
+## Reads glow params from ThemeManager so Style Editor sliders affect all viewports.
 static func add_bloom_to_viewport(viewport: SubViewport) -> void:
 	viewport.use_hdr_2d = true
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CANVAS
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.glow_enabled = true
 	env.glow_bloom = ThemeManager.get_float("glow_bloom")
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	env.glow_hdr_threshold = ThemeManager.get_float("glow_hdr_threshold")
+	env.glow_intensity = ThemeManager.get_float("glow_intensity")
 
-	# Bloom is resolution-dependent: Godot's glow blur kernel is fixed-size in pixels,
-	# so it covers proportionally less area at higher resolutions. A field that blooms
-	# beautifully in a 350px preview is barely visible at 1920px.
-	#
-	# Compensation for large viewports:
-	# 1. Enable higher glow levels (wider blur spread)
-	# 2. Lower HDR threshold (more pixels qualify for bloom)
-	# 3. Boost intensity (brighter bloom to compensate for thinner coverage)
-	var vp_width: int = viewport.size.x
-	var base_threshold: float = ThemeManager.get_float("glow_hdr_threshold")
-	var base_intensity: float = ThemeManager.get_float("glow_intensity")
-
-	if vp_width >= 1024:
-		# Scale factor: how much larger is this viewport than a typical 400px preview
-		var scale: float = float(vp_width) / 400.0
-		# Lower threshold so field pixels (which land at ~0.85 after alpha) have more
-		# bloom headroom: at threshold 0.70, contribution = 0.15. At 0.45, contribution = 0.40.
-		env.glow_hdr_threshold = maxf(base_threshold - 0.25, 0.3)
-		# Boost intensity proportionally (sqrt to avoid over-brightening beams)
-		env.glow_intensity = base_intensity * sqrt(scale)
-	else:
-		env.glow_hdr_threshold = base_threshold
-		env.glow_intensity = base_intensity
-
-	var active_levels: Array[int] = []
 	for i in 7:
 		var val: float = ThemeManager.get_float("glow_level_%d" % i)
-		var user_on: bool = val > 0.5
-		if not user_on and vp_width >= 1024 and i >= 3 and i <= 5:
-			user_on = true
-		env.set_glow_level(i, user_on)
-		if user_on or (vp_width >= 1024 and i >= 3 and i <= 5):
-			active_levels.append(i)
+		env.set_glow_level(i, val > 0.5)
 
-	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	world_env.environment = env
 	viewport.add_child(world_env)
-	print("[BLOOM] viewport=%s levels=%s intensity=%.2f threshold=%.2f" % [
-		str(viewport.size), str(active_levels), env.glow_intensity, env.glow_hdr_threshold])
 
 
 # ── Field Shader Helpers ──────────────────────────────────
