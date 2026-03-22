@@ -200,7 +200,8 @@ func _apply_theme() -> void:
 		var bar: ProgressBar = entry["bar"]
 		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
 		var seg: int = int(_bar_segments.get(bar_name, -1))
-		ThemeManager.apply_led_bar(bar, color, ratio, seg)
+		var is_vert: bool = entry.get("vertical", false)
+		ThemeManager.apply_led_bar(bar, color, ratio, seg, is_vert)
 
 	# Buttons
 	_darken_button(_play_btn)
@@ -345,12 +346,13 @@ func _set_bar(bar_name: String, value: int, max_val: int) -> void:
 	var bar: ProgressBar = entry["bar"]
 	bar.max_value = max_val
 	bar.value = value
+	var is_vert: bool = entry.get("vertical", false)
 	var specs: Array = ThemeManager.get_status_bar_specs()
 	for spec in specs:
 		if str(spec["name"]) == bar_name:
 			var color: Color = ThemeManager.resolve_bar_color(spec)
 			var seg: int = int(_bar_segments.get(bar_name, -1))
-			ThemeManager.apply_led_bar(bar, color, float(value) / maxf(float(max_val), 1.0), seg)
+			ThemeManager.apply_led_bar(bar, color, float(value) / maxf(float(max_val), 1.0), seg, is_vert)
 			break
 
 
@@ -1924,14 +1926,26 @@ func _build_ui() -> void:
 	_ship_name_label.text = ""
 	left_vbox.add_child(_ship_name_label)
 
-	# Ship thumbnail display — SubViewport for live weapon preview
-	# Fixed render size (400×500) so bloom matches dev studio previews exactly.
-	# SubViewportContainer with stretch=true scales the output up for display.
+	# Ship preview with vertical status bars flanking — mirrors game HUD layout.
+	# Left side panel: Shield/Hull. Right side panel: Thermal/Electric.
+	var preview_hbox := HBoxContainer.new()
+	preview_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	preview_hbox.add_theme_constant_override("separation", 0)
+	left_vbox.add_child(preview_hbox)
+
+	# Left side panel — Shield + Hull (vertical bars, same as game HUD)
+	var left_panel_data: Dictionary = HudBuilder.build_side_panel("hangar", ["SHIELD", "HULL"], {})
+	var left_panel_root: Control = left_panel_data["root"]
+	left_panel_root.custom_minimum_size.x = HudBuilder.SIDE_PANEL_WIDTH
+	preview_hbox.add_child(left_panel_root)
+
+	# Ship viewport — center
 	_viewport_container = SubViewportContainer.new()
 	_viewport_container.stretch = true
 	_viewport_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_viewport_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_vbox.add_child(_viewport_container)
+	preview_hbox.add_child(_viewport_container)
 
 	_sub_viewport = SubViewport.new()
 	_sub_viewport.size = Vector2i(400, 500)
@@ -1939,10 +1953,8 @@ func _build_ui() -> void:
 	_sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport_container.add_child(_sub_viewport)
 
-	# Bloom for projectile glow — runs at fixed 400px, identical to dev studio
 	VFXFactory.add_bloom_to_viewport(_sub_viewport)
 
-	# Dark background for the viewport
 	var vp_bg := ColorRect.new()
 	vp_bg.color = Color(0.05, 0.06, 0.1)
 	vp_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1950,6 +1962,7 @@ func _build_ui() -> void:
 
 	_ship_renderer = ShipRenderer.new()
 	_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	_ship_renderer.z_index = 1
 	_sub_viewport.add_child(_ship_renderer)
 
 	_preview_node = Node2D.new()
@@ -1958,19 +1971,23 @@ func _build_ui() -> void:
 	_proj_container = Node2D.new()
 	_sub_viewport.add_child(_proj_container)
 
-	# Status bars — vertical stack
-	var bars_vbox := VBoxContainer.new()
-	bars_vbox.add_theme_constant_override("separation", 6)
-	left_vbox.add_child(bars_vbox)
+	# Right side panel — Thermal + Electric (vertical bars, same as game HUD)
+	var right_panel_data: Dictionary = HudBuilder.build_side_panel("hangar", ["THERMAL", "ELECTRIC"], {})
+	var right_panel_root: Control = right_panel_data["root"]
+	right_panel_root.custom_minimum_size.x = HudBuilder.SIDE_PANEL_WIDTH
+	preview_hbox.add_child(right_panel_root)
 
-	var specs: Array = ThemeManager.get_status_bar_specs()
-	for spec in specs:
-		var bar_name: String = str(spec["name"])
-		var color: Color = ThemeManager.resolve_bar_color(spec)
-		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, -1))
-		var cell: Dictionary = _create_bar_cell(bar_name, color, seg)
-		bars_vbox.add_child(cell["hbox"])
-		_bars[bar_name] = {"bar": cell["bar"], "label": cell["label"]}
+	# Merge bars from both panels into _bars dict for animation
+	var left_bars: Dictionary = left_panel_data["bars"]
+	var right_bars: Dictionary = right_panel_data["bars"]
+	for bar_name in left_bars:
+		var entry: Dictionary = left_bars[bar_name]
+		_bars[bar_name] = {"bar": entry["bar"], "label": entry["label"], "vertical": true}
+		_bar_gain_waves[bar_name] = {"active": false, "position": -1.0}
+		_bar_drain_waves[bar_name] = {"active": false, "position": -1.0}
+	for bar_name in right_bars:
+		var entry: Dictionary = right_bars[bar_name]
+		_bars[bar_name] = {"bar": entry["bar"], "label": entry["label"], "vertical": true}
 		_bar_gain_waves[bar_name] = {"active": false, "position": -1.0}
 		_bar_drain_waves[bar_name] = {"active": false, "position": -1.0}
 
@@ -2420,8 +2437,7 @@ func _sync_preview() -> void:
 			field_renderer = FieldRenderer.new()
 			_preview_node.add_child(field_renderer)
 			field_renderer.setup(style, device.radius, device.animation_speed)
-			# Override z_index — default -1 renders behind SubViewport background
-			field_renderer.z_index = 1
+			# z_index 1 (FieldRenderer default) — renders above ship, above background
 			field_renderer.set_pulse_timing(device.pulse_total_duration, device.pulse_fade_up, device.pulse_fade_out)
 			# Always start hidden — slot must be toggled on + PLAY to see fields
 			field_renderer.set_opacity(0.0)

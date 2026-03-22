@@ -35,7 +35,7 @@ func setup(style: FieldStyle, radius: float, anim_speed: float = 1.0) -> void:
 	_sprite.material = _material
 	add_child(_sprite)
 
-	z_index = -1
+	z_index = 1  # Fields render above ship/projectiles
 
 
 func pulse() -> void:

@@ -489,6 +489,7 @@ func _on_back() -> void:
 
 func _auto_save() -> void:
 	SfxConfigManager.save(_config)
+	SfxPlayer.reload()
 
 
 # --- Theming ---

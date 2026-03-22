@@ -3,6 +3,10 @@ extends RefCounted
 ## Factory for GPU particle emitters and procedural VFX textures.
 ## Generates soft circle / sparkle / ring textures at runtime (no external assets needed).
 
+# All ACES bloom Environments created by add_bloom_to_viewport().
+# Used by bloom tuning panel to live-update all SubViewport bloom.
+static var _bloom_envs: Array[Environment] = []
+
 # Cached textures (generated once on first use)
 static var _soft_circle: Texture2D = null
 static var _sparkle: Texture2D = null
@@ -698,24 +702,38 @@ static func _generate_white_rect(w: int, h: int) -> ImageTexture:
 ## Add a WorldEnvironment with ACES bloom to a SubViewport.
 ## All bloom in the project happens via this function — root viewport bloom is disabled.
 ## Reads glow params from ThemeManager so Style Editor sliders affect all viewports.
+## Add ACES tonemapping to a SubViewport. Glow is DISABLED here — Godot's 2D
+## bloom only runs on the root viewport (ThemeManager's WorldEnvironment).
+## SubViewport ACES ensures consistent color mapping; root bloom is the single
+## bloom source for all content.
 static func add_bloom_to_viewport(viewport: SubViewport) -> void:
 	viewport.use_hdr_2d = true
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CANVAS
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.glow_enabled = true
-	env.glow_bloom = ThemeManager.get_float("glow_bloom")
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	env.glow_hdr_threshold = ThemeManager.get_float("glow_hdr_threshold")
-	env.glow_intensity = ThemeManager.get_float("glow_intensity")
-
-	for i in 7:
-		var val: float = ThemeManager.get_float("glow_level_%d" % i)
-		env.set_glow_level(i, val > 0.5)
-
+	env.glow_enabled = false  # Root viewport handles all bloom
 	world_env.environment = env
 	viewport.add_child(world_env)
+
+
+## Live-update all tracked ACES bloom environments from ThemeManager values.
+## Called by bloom tuning panel when sliders change.
+static func update_all_bloom() -> void:
+	var intensity: float = ThemeManager.get_float("glow_intensity")
+	var bloom: float = ThemeManager.get_float("glow_bloom")
+	var threshold: float = ThemeManager.get_float("glow_hdr_threshold")
+	var levels: Array[bool] = []
+	for i in 7:
+		levels.append(ThemeManager.get_float("glow_level_%d" % i) > 0.5)
+
+	for env in _bloom_envs:
+		if env and is_instance_valid(env):
+			env.glow_intensity = intensity
+			env.glow_bloom = bloom
+			env.glow_hdr_threshold = threshold
+			for i in 7:
+				env.set_glow_level(i, levels[i])
 
 
 # ── Field Shader Helpers ──────────────────────────────────
