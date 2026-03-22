@@ -2126,9 +2126,10 @@ func _build_ui() -> void:
 	left_vbox.add_child(preview_hbox)
 
 	# Left side panel — Shield + Hull (vertical bars, same as game HUD)
+	# Width = BAR_WIDTH(52) + bezel padding(6*2) + margin = 68
 	var left_panel_data: Dictionary = HudBuilder.build_side_panel("hangar", ["SHIELD", "HULL"], {})
 	var left_panel_root: Control = left_panel_data["root"]
-	left_panel_root.custom_minimum_size.x = HudBuilder.SIDE_PANEL_WIDTH
+	left_panel_root.custom_minimum_size.x = HudBuilder.BAR_WIDTH + 16
 	preview_hbox.add_child(left_panel_root)
 
 	# Ship viewport — center
@@ -2165,7 +2166,7 @@ func _build_ui() -> void:
 	# Right side panel — Thermal + Electric (vertical bars, same as game HUD)
 	var right_panel_data: Dictionary = HudBuilder.build_side_panel("hangar", ["THERMAL", "ELECTRIC"], {})
 	var right_panel_root: Control = right_panel_data["root"]
-	right_panel_root.custom_minimum_size.x = HudBuilder.SIDE_PANEL_WIDTH
+	right_panel_root.custom_minimum_size.x = HudBuilder.BAR_WIDTH + 16
 	preview_hbox.add_child(right_panel_root)
 
 	# Merge bars from both panels into _bars dict for animation

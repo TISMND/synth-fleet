@@ -241,16 +241,21 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 				smat.set_shader_parameter("segment_gap", bar_mat.get_shader_parameter("segment_gap"))
 			# edge_pad tells shader where the bar grid lives within the padded rect
 			# These are set deferred once the bar has its final size
-			# edge_pad from bar's minimum size (set by apply_led_bar)
-			var bar_min: Vector2 = bar.custom_minimum_size
-			# For vertical: x=along segments (maps to height), y=across (maps to width)
-			var rect_h: float = bar_min.y + bezel_pad * 2.0
-			var rect_w: float = bar_min.x + bezel_pad * 2.0
-			if rect_h > 0.0 and rect_w > 0.0:
-				smat.set_shader_parameter("edge_pad_x", bezel_pad / rect_h)
-				smat.set_shader_parameter("edge_pad_y", bezel_pad / rect_w)
 			bezel_rect.material = smat
 			bar.add_child(bezel_rect)
+			# Deferred edge_pad from bar's actual rendered size
+			var bp: float = bezel_pad
+			var sm: ShaderMaterial = smat
+			var br: ProgressBar = bar
+			(func() -> void:
+				if not is_instance_valid(br):
+					return
+				var rh: float = br.size.y + bp * 2.0
+				var rw: float = br.size.x + bp * 2.0
+				if rh > 0.0 and rw > 0.0:
+					sm.set_shader_parameter("edge_pad_x", bp / rh)
+					sm.set_shader_parameter("edge_pad_y", bp / rw)
+			).call_deferred()
 
 		# Find the bezel material from the child we just added (if any)
 		var bz_mat: ShaderMaterial = null
@@ -385,13 +390,21 @@ static func update_bar_bezel(entry: Dictionary, seg: int) -> void:
 	if bar.material is ShaderMaterial:
 		var bar_mat: ShaderMaterial = bar.material as ShaderMaterial
 		smat.set_shader_parameter("segment_gap", bar_mat.get_shader_parameter("segment_gap"))
-	# Recompute edge padding from bar's current minimum size
-	var bar_min: Vector2 = bar.custom_minimum_size
-	var rect_h: float = bar_min.y + bezel_pad * 2.0
-	var rect_w: float = bar_min.x + bezel_pad * 2.0
-	if rect_h > 0.0 and rect_w > 0.0:
-		smat.set_shader_parameter("edge_pad_x", bezel_pad / rect_h)
-		smat.set_shader_parameter("edge_pad_y", bezel_pad / rect_w)
+	# Deferred: compute edge padding from bar's ACTUAL rendered size (not minimum).
+	# The container may stretch the bar beyond its minimum, and the bezel rect
+	# auto-sizes via anchors to match — so edge_pad must use the real size.
+	var pad_val: float = bezel_pad
+	var mat_ref: ShaderMaterial = smat
+	var bar_ref: ProgressBar = bar
+	(func() -> void:
+		if not is_instance_valid(bar_ref):
+			return
+		var rect_h: float = bar_ref.size.y + pad_val * 2.0
+		var rect_w: float = bar_ref.size.x + pad_val * 2.0
+		if rect_h > 0.0 and rect_w > 0.0:
+			mat_ref.set_shader_parameter("edge_pad_x", pad_val / rect_h)
+			mat_ref.set_shader_parameter("edge_pad_y", pad_val / rect_w)
+	).call_deferred()
 
 
 static func apply_bar_label_theme(lbl: Label, color: Color, font: Font, size: int) -> void:
