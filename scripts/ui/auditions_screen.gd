@@ -25,6 +25,7 @@ var _variants_hbox: HBoxContainer
 var _title_label: Label
 var _back_button: Button
 var _bezel_shader: Shader
+var _bezel_seg_shader: Shader
 var _pulse_timer: float = 2.0
 
 # Each variant: {name, params, no_bezel, name_label, panel_data, panel_root,
@@ -112,20 +113,36 @@ const PRESETS: Array = [
 		}
 	},
 	{
-		"name": "BRUSHED\nSTEEL",
+		"name": "SOCKET\nRECESSED",
+		"per_segment": true,
 		"params": {
-			"bezel_width": 0.09,
-			"corner_radius": 0.02,
-			"inner_shadow_intensity": 0.7,
-			"inner_shadow_softness": 0.5,
-			"shadow_direction": 0.3,
-			"bevel_intensity": 0.25,
+			"socket_bezel": 0.15,
+			"socket_radius": 0.08,
+			"inner_shadow_intensity": 1.0,
+			"inner_shadow_softness": 0.4,
+			"shadow_direction": 0.5,
+			"bevel_intensity": 0.2,
 			"bevel_softness": 0.5,
 			"rim_intensity": 0.0,
-			"metal_roughness": 0.2,
-			"brush_direction": 2,
-			"brush_intensity": 0.15,
-			"rivet_size": 0.0,
+			"metal_roughness": 0.5,
+			"depth_scale": 1.2,
+		}
+	},
+	{
+		"name": "SOCKET\nNEON",
+		"per_segment": true,
+		"params": {
+			"socket_bezel": 0.12,
+			"socket_radius": 0.15,
+			"inner_shadow_intensity": 0.8,
+			"inner_shadow_softness": 0.6,
+			"shadow_direction": 0.0,
+			"bevel_intensity": 0.1,
+			"bevel_softness": 0.5,
+			"rim_intensity": 1.2,
+			"rim_width": 0.03,
+			"rim_color": Color(0.3, 0.8, 1.0, 1.0),
+			"metal_roughness": 0.4,
 			"depth_scale": 1.0,
 		}
 	},
@@ -228,6 +245,7 @@ const PRESETS: Array = [
 
 func _ready() -> void:
 	_bezel_shader = load("res://assets/shaders/bar_bezel.gdshader") as Shader
+	_bezel_seg_shader = load("res://assets/shaders/bar_bezel_segments.gdshader") as Shader
 	_build_ui()
 	_apply_theme()
 	ThemeManager.theme_changed.connect(_apply_theme)
@@ -363,10 +381,12 @@ func _build_variant(index: int) -> void:
 			"wave_active": false,
 		})
 
+	var per_segment: bool = preset.get("per_segment", false) as bool
 	_variants.append({
 		"name": preset_name,
 		"params": params,
 		"no_bezel": no_bezel,
+		"per_segment": per_segment,
 		"name_label": name_label,
 		"panel_data": panel_data,
 		"panel_root": panel_root,
@@ -387,8 +407,11 @@ func _place_bezels() -> void:
 		var panel_root: ColorRect = variant["panel_root"]
 		var params: Dictionary = variant["params"]
 		var bars: Dictionary = variant["panel_data"]["bars"]
+		var bar_entries: Array = variant["bar_entries"]
 		var bezel_rects: Array = variant["bezel_rects"]
+		var is_per_seg: bool = variant.get("per_segment", false) as bool
 
+		var be_idx: int = 0
 		var specs: Array = ThemeManager.get_status_bar_specs()
 		for spec in specs:
 			var bar_name: String = str(spec["name"])
@@ -396,29 +419,48 @@ func _place_bezels() -> void:
 				continue
 			var entry: Dictionary = bars[bar_name]
 			var bar: ProgressBar = entry["bar"]
+			var seg: int = int(bar_entries[be_idx]["seg"]) if be_idx < bar_entries.size() else 8
+			be_idx += 1
 
 			# Get bar's position relative to panel_root
 			var bar_local_pos: Vector2 = bar.global_position - panel_root.global_position
 
+			# Per-segment bezels sit exactly on the bar (no padding — they tile
+			# around each LED segment). Whole-bar bezels extend beyond the bar.
+			var pad: float = 0.0 if is_per_seg else float(BEZEL_PAD)
+
 			var bezel_rect := ColorRect.new()
 			bezel_rect.position = Vector2(
-				bar_local_pos.x - float(BEZEL_PAD),
-				bar_local_pos.y - float(BEZEL_PAD)
+				bar_local_pos.x - pad,
+				bar_local_pos.y - pad
 			)
 			bezel_rect.size = Vector2(
-				bar.size.x + float(BEZEL_PAD) * 2.0,
-				bar.size.y + float(BEZEL_PAD) * 2.0
+				bar.size.x + pad * 2.0,
+				bar.size.y + pad * 2.0
 			)
 			bezel_rect.color = Color.WHITE
 			bezel_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			if _bezel_shader:
+
+			if is_per_seg and _bezel_seg_shader:
+				# Per-segment bezel — needs segment grid params to align with LED bar
+				var mat := ShaderMaterial.new()
+				mat.shader = _bezel_seg_shader
+				_apply_bezel_params(mat, params)
+				# Pass segment grid params from the bar's LED shader
+				mat.set_shader_parameter("segment_count", seg)
+				if bar.material is ShaderMaterial:
+					var bar_mat: ShaderMaterial = bar.material as ShaderMaterial
+					mat.set_shader_parameter("segment_gap", bar_mat.get_shader_parameter("segment_gap"))
+				mat.set_shader_parameter("vertical", 1)
+				bezel_rect.material = mat
+			elif _bezel_shader:
 				var mat := ShaderMaterial.new()
 				mat.shader = _bezel_shader
 				_apply_bezel_params(mat, params)
 				bezel_rect.material = mat
 
 			# Add as child of panel_root — renders after main_vbox (on top).
-			# Bezel shader's transparent cutout lets bar show through center.
+			# Shader's transparent cutout lets bar show through.
 			panel_root.add_child(bezel_rect)
 			bezel_rects.append(bezel_rect)
 
@@ -432,6 +474,8 @@ func _reposition_bezels() -> void:
 		var panel_root: ColorRect = variant["panel_root"]
 		var bars: Dictionary = variant["panel_data"]["bars"]
 		var bezel_rects: Array = variant["bezel_rects"]
+		var is_per_seg: bool = variant.get("per_segment", false) as bool
+		var pad: float = 0.0 if is_per_seg else float(BEZEL_PAD)
 
 		var bezel_idx: int = 0
 		var specs: Array = ThemeManager.get_status_bar_specs()
@@ -446,12 +490,12 @@ func _reposition_bezels() -> void:
 
 			var bar_local_pos: Vector2 = bar.global_position - panel_root.global_position
 			bezel_rect.position = Vector2(
-				bar_local_pos.x - float(BEZEL_PAD),
-				bar_local_pos.y - float(BEZEL_PAD)
+				bar_local_pos.x - pad,
+				bar_local_pos.y - pad
 			)
 			bezel_rect.size = Vector2(
-				bar.size.x + float(BEZEL_PAD) * 2.0,
-				bar.size.y + float(BEZEL_PAD) * 2.0
+				bar.size.x + pad * 2.0,
+				bar.size.y + pad * 2.0
 			)
 			bezel_idx += 1
 

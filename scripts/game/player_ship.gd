@@ -47,7 +47,7 @@ const THERMAL_COOLING_RATE: float = 10.0  # hp/sec passive cooling (10x scale)
 const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segments (40 points)
 const ELECTRIC_SHIELD_BLEED_MULT: float = 1.5  # Overdraw penalty: 1.5x cost from shields
 const BLACKOUT_MAX_SPIN: float = 0.2  # Max radians/sec — gentle drift
-const BLACKOUT_FADE_SPEED: float = 0.2  # Power drain per second (5s to near-zero)
+const BLACKOUT_FADE_SPEED: float = 0.196  # Power drain per second (~5s from 1.0 to 0.02)
 
 
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
@@ -546,7 +546,7 @@ func _update_hud_devices() -> void:
 # Phase 2: BLACKOUT — 3 seconds after drift starts. Screen darkens, HUD dims, thermal dumps.
 #           (Placeholder for future CRT distortion + LED bar death animations.)
 
-const DRIFT_TO_BLACKOUT_DELAY: float = 3.0  # Seconds of drift before blackout begins
+const DRIFT_TO_BLACKOUT_DELAY: float = 1.0  # Seconds of drift before blackout begins
 
 func _start_drift() -> void:
 	_drifting = true
