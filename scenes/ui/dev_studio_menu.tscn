@@ -67,6 +67,10 @@ text = "VFX"
 layout_mode = 2
 text = "OBJECTS"
 
+[node name="AuditionsButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "AUDITIONS"
+
 [node name="BackButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "BACK"

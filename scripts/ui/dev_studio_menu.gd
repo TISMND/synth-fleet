@@ -16,6 +16,7 @@ func _ready() -> void:
 	$VBoxContainer/SFXButton.pressed.connect(_on_sfx)
 	$VBoxContainer/VFXButton.pressed.connect(_on_vfx)
 	$VBoxContainer/ObjectsButton.pressed.connect(_on_objects)
+	$VBoxContainer/AuditionsButton.pressed.connect(_on_auditions)
 	$VBoxContainer/BackButton.pressed.connect(_on_back)
 
 	_apply_styles()
@@ -51,6 +52,10 @@ func _on_vfx() -> void:
 
 func _on_objects() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/objects_screen.tscn")
+
+
+func _on_auditions() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/auditions_screen.tscn")
 
 
 func _on_back() -> void:

@@ -40,13 +40,16 @@ var _drift_timer: float = 0.0  # Seconds since drift started
 var _drift_spin_direction: float = 1.0  # +1 or -1, random
 var _drift_rotation_speed: float = 0.0  # Current spin speed
 var _blackout_active: bool = false  # Full blackout (darkness, HUD dim) — 3s after drift starts
+var _blackout_power: float = 1.0  # CRT power level: 1.0=on, 0.0=dead — drives both visual AND audio
 var _blackout_overlay: ColorRect = null
+var _blackout_lowpass: AudioEffectLowPassFilter = null
+var _blackout_reverb: AudioEffectReverb = null
 
 const THERMAL_COOLING_RATE: float = 10.0  # hp/sec passive cooling (10x scale)
 const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segments (40 points)
 const ELECTRIC_SHIELD_BLEED_MULT: float = 1.5  # Overdraw penalty: 1.5x cost from shields
 const BLACKOUT_MAX_SPIN: float = 0.2  # Max radians/sec — gentle drift
-const BLACKOUT_FADE_SPEED: float = 0.4  # How fast screen dims (alpha/sec)
+const BLACKOUT_FADE_SPEED: float = 0.2  # Power drain per second (5s to near-zero)
 
 
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
@@ -571,33 +574,60 @@ func _process_drift(delta: float) -> void:
 
 func _start_blackout() -> void:
 	_blackout_active = true
+	_blackout_power = 1.0  # Starts fully powered, decays toward 0
 	# Dump thermal to zero (mercy: they'll need heat to generate electric)
 	thermal = 0.0
-	# Darken HUD bars (placeholder — future: individual LED bar shutdown animation)
-	if _hud:
-		_hud.modulate = Color(1, 1, 1, 0.15)
-	# Darkening overlay (placeholder — future: CRT distortion shader on game viewport)
+	# HUD bars stay fully visible — LED bar shutdown animation handled separately
+	# Audio degradation — low-pass + reverb on Master, tied to _blackout_power
+	var master_idx: int = AudioServer.get_bus_index("Master")
+	if master_idx >= 0:
+		_blackout_lowpass = AudioEffectLowPassFilter.new()
+		_blackout_lowpass.cutoff_hz = 20500.0  # Start at full range
+		AudioServer.add_bus_effect(master_idx, _blackout_lowpass)
+		_blackout_reverb = AudioEffectReverb.new()
+		_blackout_reverb.room_size = 0.0
+		_blackout_reverb.wet = 0.0
+		_blackout_reverb.dry = 1.0
+		_blackout_reverb.damping = 0.8
+		AudioServer.add_bus_effect(master_idx, _blackout_reverb)
+	# CRT power death overlay — inside game SubViewport. Alpha-blended black overlay
+	# with distortion effects. HUD is on root viewport, unaffected.
 	if not _blackout_overlay:
 		var vp: Viewport = get_viewport()
 		if vp:
 			_blackout_overlay = ColorRect.new()
-			_blackout_overlay.color = Color(0, 0, 0, 0)
+			_blackout_overlay.color = Color(0, 0, 0, 0)  # Transparent fallback if shader fails
 			_blackout_overlay.z_index = 45
 			_blackout_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_blackout_overlay.size = Vector2(1920, 1080)
+			var shader: Shader = load("res://assets/shaders/crt_power_death.gdshader") as Shader
+			if shader:
+				var mat := ShaderMaterial.new()
+				mat.shader = shader
+				mat.set_shader_parameter("power", 1.0)
+				_blackout_overlay.material = mat
 			vp.add_child(_blackout_overlay)
 
 
 func _process_blackout(delta: float) -> void:
-	# Fade screen to black (placeholder — future: CRT flicker + distortion)
-	if _blackout_overlay:
-		var new_alpha: float = minf(_blackout_overlay.color.a + BLACKOUT_FADE_SPEED * delta, 0.92)
-		_blackout_overlay.color = Color(0, 0, 0, new_alpha)
+	# Drive power level down — takes ~5 seconds to reach near-zero
+	_blackout_power = maxf(_blackout_power - BLACKOUT_FADE_SPEED * delta, 0.02)
 
-	# Ship flicker (placeholder — future: proper CRT effect)
-	if _ship_renderer:
-		var flicker: float = randf_range(0.2, 0.8) if _blackout_overlay and _blackout_overlay.color.a < 0.7 else 0.1
-		_ship_renderer.modulate.a = flicker
+	# Visual — CRT shader
+	if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
+		var mat: ShaderMaterial = _blackout_overlay.material as ShaderMaterial
+		mat.set_shader_parameter("power", _blackout_power)
+
+	# Audio — tied to same power level so visual and sound degrade together
+	var decay: float = 1.0 - _blackout_power
+	if _blackout_lowpass:
+		# Full range (20500) → muffled (800Hz) as power dies
+		_blackout_lowpass.cutoff_hz = lerpf(20500.0, 800.0, decay * decay)
+	if _blackout_reverb:
+		# Dry → increasingly wet/echoey
+		_blackout_reverb.wet = decay * 0.6
+		_blackout_reverb.dry = lerpf(1.0, 0.4, decay)
+		_blackout_reverb.room_size = lerpf(0.0, 0.85, decay)
 
 
 func _end_drift() -> void:
@@ -607,18 +637,50 @@ func _end_drift() -> void:
 	rotation = 0.0
 	if _blackout_active:
 		_blackout_active = false
-		# Restore HUD
-		if _hud:
-			_hud.modulate = Color(1, 1, 1, 1)
-		# Restore ship renderer
-		if _ship_renderer:
-			_ship_renderer.modulate.a = 1.0
-		# Fade overlay out
-		if _blackout_overlay:
+		# HUD restoration handled by LED bar system when ready
+		# Power-up: tween visuals and audio back to normal together
+		var recovery_power: float = _blackout_power
+		if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
+			var mat: ShaderMaterial = _blackout_overlay.material as ShaderMaterial
 			var tween: Tween = create_tween()
-			tween.tween_property(_blackout_overlay, "color:a", 0.0, 0.5)
-			tween.tween_callback(_blackout_overlay.queue_free)
+			var lp_ref: AudioEffectLowPassFilter = _blackout_lowpass
+			var rv_ref: AudioEffectReverb = _blackout_reverb
+			tween.tween_method(func(v: float) -> void:
+				mat.set_shader_parameter("power", v)
+				# Audio recovers in sync with visuals
+				var d: float = 1.0 - v
+				if lp_ref:
+					lp_ref.cutoff_hz = lerpf(20500.0, 800.0, d * d)
+				if rv_ref:
+					rv_ref.wet = d * 0.6
+					rv_ref.dry = lerpf(1.0, 0.4, d)
+					rv_ref.room_size = lerpf(0.0, 0.85, d)
+			, recovery_power, 1.0, 0.5)
+			var overlay_ref: ColorRect = _blackout_overlay
+			tween.tween_callback(func() -> void:
+				overlay_ref.queue_free()
+				_remove_blackout_audio()
+			)
 			_blackout_overlay = null
+		else:
+			if _blackout_overlay:
+				_blackout_overlay.queue_free()
+				_blackout_overlay = null
+			_remove_blackout_audio()
+		_blackout_power = 1.0
+
+
+func _remove_blackout_audio() -> void:
+	var master_idx: int = AudioServer.get_bus_index("Master")
+	if master_idx < 0:
+		return
+	# Remove effects from the end (so indices don't shift)
+	for i in range(AudioServer.get_bus_effect_count(master_idx) - 1, -1, -1):
+		var fx: AudioEffect = AudioServer.get_bus_effect(master_idx, i)
+		if fx == _blackout_lowpass or fx == _blackout_reverb:
+			AudioServer.remove_bus_effect(master_idx, i)
+	_blackout_lowpass = null
+	_blackout_reverb = null
 
 
 func _get_device_color(device: DeviceData) -> Color:

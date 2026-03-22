@@ -281,7 +281,12 @@ func _fire(trigger_idx: int = -1) -> void:
 
 
 func _fire_pattern_at(dir_deg: float, trigger_idx: int) -> void:
-	var dir: Vector2 = Vector2.UP.rotated(deg_to_rad(dir_deg))
+	# Apply parent rotation for fixed/sweep so projectiles follow ship spin.
+	# Track mode already returns global angles, so skip.
+	var ship_rot: float = 0.0
+	if not is_enemy and aim_mode != "track":
+		ship_rot = global_rotation
+	var dir: Vector2 = Vector2.UP.rotated(ship_rot + deg_to_rad(dir_deg))
 	var perp: Vector2 = dir.rotated(deg_to_rad(90.0))
 	var base_pos: Vector2 = global_position
 	var fp: String = weapon_data.fire_pattern
