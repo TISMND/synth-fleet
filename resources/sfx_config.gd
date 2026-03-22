@@ -30,7 +30,9 @@ const EVENT_IDS: Array[String] = [
 	"powerdown_engines_dying",
 	"powerdown_drift_start",
 	"powerdown_crt_flicker_start",
-	"powerdown_screen_dying",
+	"powerdown_screen_75",
+	"powerdown_screen_50",
+	"powerdown_screen_25",
 	"powerdown_final_death",
 	# Staged power-up cues (recovery)
 	"powerup_electric_restored",
@@ -67,7 +69,9 @@ const EVENT_LABELS: Dictionary = {
 	"powerdown_engines_dying": "2. ENGINES DYING",
 	"powerdown_drift_start": "3. DRIFT BEGINS",
 	"powerdown_crt_flicker_start": "4. CRT FLICKER START",
-	"powerdown_screen_dying": "5. SCREEN DYING",
+	"powerdown_screen_75": "5a. SCREEN 75%",
+	"powerdown_screen_50": "5b. SCREEN 50%",
+	"powerdown_screen_25": "5c. SCREEN 25%",
 	"powerdown_final_death": "6. FINAL DEATH",
 	# Staged power-up cues
 	"powerup_electric_restored": "7. ELECTRIC RESTORED",

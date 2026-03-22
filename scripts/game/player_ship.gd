@@ -46,6 +46,12 @@ var _blackout_overlay: ColorRect = null
 var _blackout_lowpass: AudioEffectLowPassFilter = null  # GameAudio bus
 var _blackout_reverb: AudioEffectReverb = null  # GameAudio bus
 var _blackout_flicker_state: bool = false  # True during hard cut frames — for SFX sync
+var _blackout_cue_75: bool = false  # Fired at 75% power
+var _blackout_cue_50: bool = false  # Fired at 50% power
+var _blackout_cue_25: bool = false  # Fired at 25% power
+var _sfx_debug_label: Label = null  # Shows SFX event names on screen when they fire
+var _sfx_debug_lines: Array[String] = []
+var _sfx_debug_timers: Array[float] = []
 var _reboot_label: RichTextLabel = null  # DOS-style text during final death
 var _reboot_text_queue: Array[String] = []  # Lines to type out (prefix ">" = fast/scroll phase)
 var _reboot_text_index: int = -1  # -1 = cursor blink, 0+ = line index
@@ -309,8 +315,8 @@ func _process(delta: float) -> void:
 	# Electric depleted — spark particles
 	if electric <= 0.0 and not _electric_crisis_active:
 		_electric_crisis_active = true
-		SfxPlayer.play("electric_sparks")
-		SfxPlayer.play_ui("powerdown_shields_bleed")
+		_play_sfx_cue("electric_sparks", false)
+		_play_sfx_cue("powerdown_shields_bleed")
 		if _electric_crisis_particles:
 			_electric_crisis_particles.emitting = true
 	elif electric > 0.0 and _electric_crisis_active:
@@ -329,6 +335,9 @@ func _process(delta: float) -> void:
 			_process_drift(delta)
 	# Reset overdraw flag — it's set per-frame by apply_bar_effects
 	_electric_overdraw = false
+
+	# SFX debug cue fadeout
+	_update_sfx_debug(delta)
 
 	# Banking animation from horizontal velocity
 	var target_bank: float = clampf(-_velocity.x / maxf(speed, 1.0), -1.0, 1.0)
@@ -579,8 +588,8 @@ const DRIFT_TO_BLACKOUT_DELAY: float = 1.0  # Seconds of drift before blackout b
 func _start_drift() -> void:
 	_drifting = true
 	_drift_timer = 0.0
-	SfxPlayer.play_ui("powerdown_drift_start")
-	SfxPlayer.play("powerdown_engines_dying")
+	_play_sfx_cue("powerdown_drift_start")
+	_play_sfx_cue("powerdown_engines_dying", false)
 	_drift_rotation_speed = 0.0
 	_drift_spin_direction = 1.0 if randf() > 0.5 else -1.0
 
@@ -594,8 +603,8 @@ func _process_drift(delta: float) -> void:
 
 	# After delay, trigger blackout (darkness + HUD effects)
 	if _drift_timer >= DRIFT_TO_BLACKOUT_DELAY and not _blackout_active:
-		SfxPlayer.play_ui("power_failure")
-		SfxPlayer.play_ui("powerdown_crt_flicker_start")
+		_play_sfx_cue("power_failure")
+		_play_sfx_cue("powerdown_crt_flicker_start")
 		_start_blackout()
 
 	if _blackout_active:
@@ -674,20 +683,27 @@ func _process_blackout(delta: float) -> void:
 	if flicker_now != _blackout_flicker_state:
 		# Flicker state changed — trigger SFX
 		if flicker_now:
-			SfxPlayer.play_ui("monitor_static")
+			_play_sfx_cue("monitor_static")
 		_blackout_flicker_state = flicker_now
 		blackout_flicker.emit(flicker_now)
 
-	# Screen dying cue — fires once at ~50% power
-	if _blackout_power <= 0.5 and _blackout_power > 0.45 and not _blackout_final_death:
-		SfxPlayer.play_ui("powerdown_screen_dying")
+	# Staged power-down cues — each fires once at its threshold
+	if _blackout_power <= 0.75 and not _blackout_cue_75:
+		_blackout_cue_75 = true
+		_play_sfx_cue("powerdown_screen_75")
+	if _blackout_power <= 0.50 and not _blackout_cue_50:
+		_blackout_cue_50 = true
+		_play_sfx_cue("powerdown_screen_50")
+	if _blackout_power <= 0.25 and not _blackout_cue_25:
+		_blackout_cue_25 = true
+		_play_sfx_cue("powerdown_screen_25")
 
 	# Final power death — power hit the floor
 	if _blackout_power <= 0.03 and not _blackout_final_death:
 		_blackout_final_death = true
 		_shutdown_all_components()
-		SfxPlayer.play_ui("monitor_shutoff")
-		SfxPlayer.play_ui("powerdown_final_death")
+		_play_sfx_cue("monitor_shutoff")
+		_play_sfx_cue("powerdown_final_death")
 		_start_reboot_sequence()
 		final_power_death.emit()
 
@@ -879,7 +895,7 @@ func _process_reboot_text(delta: float) -> void:
 		var pause: float = REBOOT_HEADER_PAUSE if is_header else line_pause
 		if _reboot_char_timer >= pause:
 			_reboot_char_timer = 0.0
-			SfxPlayer.play_ui("reboot_line_beep")
+			_play_sfx_cue("reboot_line_beep")
 			_reboot_completed_lines.append(current_line)
 			_reboot_text_index += 1
 			_reboot_char_index = 0
@@ -919,6 +935,46 @@ func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
 	_reboot_label.text = padded
 
 
+## SFX visual cue — shows event name on screen when triggered (dev aid)
+func _play_sfx_cue(event_id: String, use_ui_bus: bool = true) -> void:
+	if use_ui_bus:
+		SfxPlayer.play_ui(event_id)
+	else:
+		SfxPlayer.play(event_id)
+	# Show on-screen label
+	if not _sfx_debug_label:
+		_sfx_debug_label = Label.new()
+		_sfx_debug_label.position = Vector2(1400, 60)
+		_sfx_debug_label.size = Vector2(500, 400)
+		_sfx_debug_label.z_index = 100
+		_sfx_debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_sfx_debug_label.add_theme_font_size_override("font_size", 12)
+		_sfx_debug_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2, 0.9))
+		get_tree().root.add_child(_sfx_debug_label)
+	_sfx_debug_lines.append(">> " + event_id)
+	_sfx_debug_timers.append(3.0)
+	_rebuild_sfx_debug()
+
+
+func _update_sfx_debug(delta: float) -> void:
+	if _sfx_debug_timers.is_empty():
+		return
+	var changed: bool = false
+	for i in range(_sfx_debug_timers.size() - 1, -1, -1):
+		_sfx_debug_timers[i] -= delta
+		if _sfx_debug_timers[i] <= 0.0:
+			_sfx_debug_timers.remove_at(i)
+			_sfx_debug_lines.remove_at(i)
+			changed = true
+	if changed:
+		_rebuild_sfx_debug()
+
+
+func _rebuild_sfx_debug() -> void:
+	if _sfx_debug_label:
+		_sfx_debug_label.text = "\n".join(_sfx_debug_lines)
+
+
 ## Hash matching the shader's hash function — keeps GDScript flicker detection in sync
 func _hash_float(x: float, seed: float) -> float:
 	var p := Vector3(fmod(abs(x), 1000.0) * 0.1031, fmod(abs(seed), 1000.0) * 0.1031, fmod(abs(x), 1000.0) * 0.1031)
@@ -932,11 +988,11 @@ func _end_drift() -> void:
 	_drift_timer = 0.0
 	_drift_rotation_speed = 0.0
 	rotation = 0.0
-	SfxPlayer.play_ui("powerup_electric_restored")
+	_play_sfx_cue("powerup_electric_restored")
 	if _blackout_active:
 		_blackout_active = false
-		SfxPlayer.play_ui("powerup_screen_on")
-		SfxPlayer.play_ui("powerup_systems_online")
+		_play_sfx_cue("powerup_screen_on")
+		_play_sfx_cue("powerup_systems_online")
 		# Power-up: tween CRT overlay + audio back to normal
 		var recovery_power: float = _blackout_power
 		if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
@@ -959,6 +1015,9 @@ func _end_drift() -> void:
 		_blackout_power = 1.0
 		_blackout_flicker_state = false
 		_blackout_final_death = false
+		_blackout_cue_75 = false
+		_blackout_cue_50 = false
+		_blackout_cue_25 = false
 		_reboot_scrolling = false
 		_reboot_completed_lines.clear()
 		# Remove reboot text + typing sound
@@ -1018,6 +1077,9 @@ func _exit_tree() -> void:
 	if _reboot_label and is_instance_valid(_reboot_label):
 		_reboot_label.queue_free()
 		_reboot_label = null
+	if _sfx_debug_label and is_instance_valid(_sfx_debug_label):
+		_sfx_debug_label.queue_free()
+		_sfx_debug_label = null
 
 
 func stop_all() -> void:

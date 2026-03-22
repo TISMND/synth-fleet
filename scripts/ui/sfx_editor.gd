@@ -191,7 +191,7 @@ func _build_ui() -> void:
 
 	# Staged power-down cues (numbered in sequence order)
 	_add_section_header(vbox, "POWER-DOWN SEQUENCE (in order)")
-	for event_id in ["powerdown_shields_bleed", "powerdown_engines_dying", "powerdown_drift_start", "powerdown_crt_flicker_start", "powerdown_screen_dying", "powerdown_final_death"]:
+	for event_id in ["powerdown_shields_bleed", "powerdown_engines_dying", "powerdown_drift_start", "powerdown_crt_flicker_start", "powerdown_screen_75", "powerdown_screen_50", "powerdown_screen_25", "powerdown_final_death"]:
 		_add_event_row(vbox, event_id)
 
 	var spacer_6 := Control.new()
@@ -487,9 +487,10 @@ func _on_category_filter_changed(idx: int) -> void:
 	# so the dropdown doesn't clear to "(none)".
 	for event_id in _file_buttons:
 		var btn: OptionButton = _file_buttons[event_id]
-		# Read the SAVED path from config, not from the dropdown (which is about to be rebuilt)
 		var ev: Dictionary = _config.get_event(event_id)
 		var saved_path: String = str(ev.get("file_path", ""))
+		# Block signal during rebuild so clear() doesn't fire _on_file_selected
+		btn.set_block_signals(true)
 		_populate_file_dropdown(btn)
 		if saved_path != "":
 			var found: bool = false
@@ -499,12 +500,12 @@ func _on_category_filter_changed(idx: int) -> void:
 					found = true
 					break
 			if not found:
-				# File isn't in filtered set — add it as a pinned entry so selection holds
 				var display: String = saved_path.replace("res://assets/audio/sfx/", "")
 				var pinned_idx: int = btn.item_count
-				btn.add_item(display + " (other)")
+				btn.add_item(display + " (current)")
 				btn.set_item_metadata(pinned_idx, saved_path)
 				btn.selected = pinned_idx
+		btn.set_block_signals(false)
 
 
 func _file_path_for_event(event_id: String) -> String:
