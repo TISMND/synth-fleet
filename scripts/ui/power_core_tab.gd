@@ -63,6 +63,7 @@ var _trigger_types: Array = []         # Array[String] — bar type per trigger 
 
 # Component name
 var _name_input: LineEdit
+var _desc_input: TextEdit
 var _name_header_label: Label
 
 # Dirty tracking
@@ -257,6 +258,16 @@ func _build_timing_tab() -> Control:
 	_name_input.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	_name_input.text_changed.connect(func(_t: String) -> void: _mark_dirty())
 	vbox.add_child(_name_input)
+
+	_desc_input = TextEdit.new()
+	_desc_input.placeholder_text = "Description (shows in hangar picker)..."
+	_desc_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_desc_input.custom_minimum_size.y = 50
+	_desc_input.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	_desc_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
+	_desc_input.add_theme_color_override("font_color", ThemeManager.get_color("body"))
+	_desc_input.text_changed.connect(func() -> void: _mark_dirty())
+	vbox.add_child(_desc_input)
 
 	_add_separator(vbox)
 
@@ -963,7 +974,7 @@ func _collect_power_core_data() -> Dictionary:
 	return {
 		"id": id_text,
 		"display_name": name_text if name_text != "" else id_text,
-		"description": "",
+		"description": _desc_input.text,
 		"loop_file_path": loop_path,
 		"loop_length_bars": loop_bars,
 		"pulse_triggers": _split_triggers_to_dict(),
@@ -1061,6 +1072,7 @@ func _on_new() -> void:
 	_populating = true
 	_current_id = ""
 	_name_input.text = ""
+	_desc_input.text = ""
 	_merged_triggers.clear()
 	_trigger_types.clear()
 	_waveform_editor.set_stream_from_path("")
@@ -1120,6 +1132,7 @@ func _populate_from_power_core(data: PowerCoreData) -> void:
 	_populating = true
 	_current_id = data.id
 	_name_input.text = data.display_name
+	_desc_input.text = data.description
 
 	# Load loop
 	if data.loop_file_path != "":

@@ -89,6 +89,7 @@ var _is_enemy_weapon_toggle: CheckBox
 
 # Stats subtab
 var _name_input: LineEdit
+var _desc_input: TextEdit
 var _damage_slider: HSlider
 var _damage_label: Label
 # Bar effects (Stats subtab)
@@ -334,6 +335,17 @@ func _build_timing_tab() -> Control:
 		_update_preview()
 	)
 	vbox.add_child(_name_input)
+
+	# Description
+	_desc_input = TextEdit.new()
+	_desc_input.placeholder_text = "Description (shows in hangar picker)..."
+	_desc_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_desc_input.custom_minimum_size.y = 50
+	_desc_input.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	_desc_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
+	_desc_input.add_theme_color_override("font_color", ThemeManager.get_color("body"))
+	_desc_input.text_changed.connect(func() -> void: _mark_dirty())
+	vbox.add_child(_desc_input)
 
 	_add_separator(vbox)
 
@@ -1091,7 +1103,7 @@ func _collect_weapon_data() -> Dictionary:
 	return {
 		"id": _generate_id(_name_input.text),
 		"display_name": _name_input.text,
-		"description": "",
+		"description": _desc_input.text,
 		"damage": int(_damage_slider.value),
 		"projectile_speed": _speed_slider.value,
 		"loop_file_path": loop_path,
@@ -1277,6 +1289,7 @@ func _on_new() -> void:
 	_populating = true
 	_current_id = ""
 	_name_input.text = ""
+	_desc_input.text = ""
 	_damage_slider.value = 10
 	_speed_slider.value = 600
 	_direction_slider.value = 0
@@ -1349,6 +1362,7 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	_populating = true
 	_current_id = weapon.id
 	_name_input.text = weapon.display_name
+	_desc_input.text = weapon.description
 	_damage_slider.value = weapon.damage
 	_speed_slider.value = weapon.projectile_speed
 	_direction_slider.value = weapon.direction_deg

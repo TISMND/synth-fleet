@@ -75,6 +75,7 @@ const BAR_MAX_DEFAULTS: Array[float] = [100.0, 80.0, 60.0, 80.0]
 
 # Component name
 var _name_input: LineEdit
+var _desc_input: TextEdit
 
 # Dirty tracking
 var _dirty: bool = false
@@ -355,6 +356,16 @@ func _build_timing_tab() -> Control:
 	_name_input.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	_name_input.text_changed.connect(func(_t: String) -> void: _mark_dirty())
 	vbox.add_child(_name_input)
+
+	_desc_input = TextEdit.new()
+	_desc_input.placeholder_text = "Description (shows in hangar picker)..."
+	_desc_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_desc_input.custom_minimum_size.y = 50
+	_desc_input.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	_desc_input.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
+	_desc_input.add_theme_color_override("font_color", ThemeManager.get_color("body"))
+	_desc_input.text_changed.connect(func() -> void: _mark_dirty())
+	vbox.add_child(_desc_input)
 
 	_add_separator(vbox)
 
@@ -835,7 +846,7 @@ func _collect_device_data() -> Dictionary:
 	var data: Dictionary = {
 		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
 		"display_name": _name_input.text,
-		"description": "",
+		"description": _desc_input.text,
 		"loop_file_path": _loop_browser.get_selected_path() if _loop_browser else "",
 		"loop_length_bars": _waveform_editor.get_detected_bars() if _waveform_editor else 2,
 		"pulse_triggers": triggers,
@@ -903,6 +914,7 @@ func _on_new() -> void:
 	_current_id = ""
 	_populating = true
 	_name_input.text = ""
+	_desc_input.text = ""
 	if _device_type_button:
 		_device_type_button.selected = 0
 		_rebuild_mechanic_params("shield_aura")
@@ -944,6 +956,7 @@ func _populate_from_device(device: DeviceData) -> void:
 	_populating = true
 	_current_id = device.id
 	_name_input.text = device.display_name
+	_desc_input.text = device.description
 
 	# Load loop into browser + waveform
 	if device.loop_file_path != "":

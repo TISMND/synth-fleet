@@ -32,7 +32,7 @@ var _melee_target: Node2D = null
 var weapons_active: bool = true
 
 var _renderer: ShipRenderer = null
-var _shield_bubble: ShieldBubbleEffect = null
+var _shield_field: FieldRenderer = null
 var _weapon_controller: EnemyWeaponController = null
 
 # Set externally before adding to scene tree for weapon setup
@@ -73,18 +73,21 @@ func _ready() -> void:
 	_renderer.accent_color = Color(1.0, 0.2, 0.6)
 	add_child(_renderer)
 
-	# VFX hit effects
-	var vfx: VfxConfig = VfxConfigManager.load_config()
-	_renderer.hull_peak_color = Color(vfx.hull_peak_r, vfx.hull_peak_g, vfx.hull_peak_b, 1.0)
-	_renderer.hull_blink_speed = vfx.hull_blink_speed
-	_renderer.hull_flash_duration = vfx.hull_duration
-	_shield_bubble = ShieldBubbleEffect.new()
-	_shield_bubble.shield_color = Color(vfx.shield_color_r, vfx.shield_color_g, vfx.shield_color_b)
-	_shield_bubble.flash_duration = vfx.shield_duration
-	_shield_bubble.radius_mult = vfx.shield_radius_mult
-	_shield_bubble.intensity = vfx.shield_intensity
-	_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(-1) * 50.0
-	add_child(_shield_bubble)
+	# Per-ship hull flash settings
+	if ship_data_ref:
+		_renderer.hull_peak_color = Color(ship_data_ref.hull_peak_r, ship_data_ref.hull_peak_g, ship_data_ref.hull_peak_b, 1.0)
+		_renderer.hull_blink_speed = ship_data_ref.hull_blink_speed
+		_renderer.hull_flash_duration = ship_data_ref.hull_flash_duration
+	# Per-ship shield hit visual via FieldRenderer
+	var style_id: String = ship_data_ref.shield_style_id if ship_data_ref else ""
+	if style_id != "":
+		var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
+		if style:
+			_shield_field = FieldRenderer.new()
+			var ship_radius: float = ShipRenderer.get_ship_scale(-1) * 50.0
+			_shield_field.setup(style, ship_radius)
+			_shield_field.set_opacity(0.0)
+			add_child(_shield_field)
 
 	# Setup weapon controller if ship has a weapon assigned
 	if ship_data_ref and ship_data_ref.weapon_id != "" and projectiles_container:
@@ -214,8 +217,8 @@ func take_damage(amount: int, skips_shields: bool = false) -> void:
 		shield -= absorbed
 		remaining -= absorbed
 		SfxPlayer.play("enemy_shield_hit")
-		if _shield_bubble:
-			_shield_bubble.trigger()
+		if _shield_field:
+			_shield_field.pulse()
 	if remaining > 0:
 		health -= remaining
 		SfxPlayer.play("enemy_hull_hit")

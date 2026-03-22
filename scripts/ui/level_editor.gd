@@ -615,22 +615,33 @@ func _get_nebula_spread(nebula_id: String) -> float:
 	return float(NebulaData.default_params()["radial_spread"])
 
 
-func _get_nebula_canvas_radius(neb: Dictionary) -> float:
+func _get_nebula_canvas_radii(neb: Dictionary) -> Vector2:
 	var map_rect: Rect2 = _get_map_rect()
+	var canvas_h: float = _map_canvas.size.y
+	var level_len: float = _selected_level.level_length if _selected_level else 1.0
 	var radius: float = float(neb.get("radius", 300.0))
 	var spread: float = _get_nebula_spread(str(neb.get("nebula_id", "")))
 	var effective: float = radius * (1.0 - spread / 2.0)
-	return maxf(effective * (map_rect.size.x / SCREEN_W), NEBULA_HIT_RADIUS)
+	var rx: float = maxf(effective * (map_rect.size.x / SCREEN_W), NEBULA_HIT_RADIUS)
+	var ry: float = maxf(effective * (canvas_h / maxf(level_len, 1.0) * 3.0), NEBULA_HIT_RADIUS)
+	return Vector2(rx, ry)
+
+
+func _ellipse_hit_test(center: Vector2, pos: Vector2, rx: float, ry: float) -> bool:
+	# Normalized ellipse distance: (dx/rx)^2 + (dy/ry)^2 <= 1 means inside
+	var dx: float = (pos.x - center.x) / maxf(rx, 1.0)
+	var dy: float = (pos.y - center.y) / maxf(ry, 1.0)
+	return dx * dx + dy * dy <= 1.0
 
 
 func _map_left_click_nebula(pos: Vector2) -> void:
-	# Hit test existing nebula placements — use actual drawn radius
+	# Hit test existing nebula placements — use actual drawn ellipse
 	for i in range(_selected_level.nebula_placements.size()):
 		var neb: Dictionary = _selected_level.nebula_placements[i]
 		var neb_cy: float = _level_y_to_canvas_y(float(neb["trigger_y"]))
 		var neb_cx: float = _level_x_to_canvas_x(float(neb["x_offset"]))
-		var hit_radius: float = _get_nebula_canvas_radius(neb)
-		if Vector2(neb_cx, neb_cy).distance_to(pos) < hit_radius:
+		var radii: Vector2 = _get_nebula_canvas_radii(neb)
+		if _ellipse_hit_test(Vector2(neb_cx, neb_cy), pos, radii.x, radii.y):
 			_nebula_selected_idx = i
 			_nebula_dragging = true
 			_nebula_drag_start = pos
@@ -673,8 +684,8 @@ func _map_right_click_nebula(pos: Vector2) -> void:
 		var neb: Dictionary = _selected_level.nebula_placements[i]
 		var neb_cy: float = _level_y_to_canvas_y(float(neb["trigger_y"]))
 		var neb_cx: float = _level_x_to_canvas_x(float(neb["x_offset"]))
-		var hit_radius: float = _get_nebula_canvas_radius(neb)
-		if Vector2(neb_cx, neb_cy).distance_to(pos) < hit_radius:
+		var radii: Vector2 = _get_nebula_canvas_radii(neb)
+		if _ellipse_hit_test(Vector2(neb_cx, neb_cy), pos, radii.x, radii.y):
 			_selected_level.nebula_placements.remove_at(i)
 			if _nebula_selected_idx == i:
 				_nebula_selected_idx = -1
@@ -1316,7 +1327,10 @@ class _MapCanvasDraw extends Control:
 		var font2: Font = ThemeDB.fallback_font
 		draw_string(font2, Vector2(bar_x - 40, bar_y + bar_h * 0.5 + 4), str(int(s._scroll_offset)), HORIZONTAL_ALIGNMENT_RIGHT, 44, 10, Color(0.5, 0.7, 1.0, 0.7))
 
-		# Draw nebula placement circles (background layer, always visible)
+		# Draw nebula placement ellipses (background layer, always visible)
+		# X and Y have different scales on the map — use both for accurate proportions
+		var x_scale: float = map_rect.size.x / 1920.0
+		var y_scale: float = canvas_h / maxf(level.level_length, 1.0) * 3.0
 		for i in range(level.nebula_placements.size()):
 			var neb: Dictionary = level.nebula_placements[i]
 			var ncy: float = s._level_y_to_canvas_y(float(neb["trigger_y"]))
@@ -1325,9 +1339,10 @@ class _MapCanvasDraw extends Control:
 			var neb_id_for_spread: String = str(neb.get("nebula_id", ""))
 			var spread: float = s._get_nebula_spread(neb_id_for_spread)
 			var effective: float = neb_radius * (1.0 - spread / 2.0)
-			var canvas_radius: float = effective * (map_rect.size.x / 1920.0)
+			var canvas_rx: float = maxf(effective * x_scale, NEBULA_HIT_RADIUS)
+			var canvas_ry: float = maxf(effective * y_scale, NEBULA_HIT_RADIUS)
 
-			if ncy < -canvas_radius - 20 or ncy > canvas_h + canvas_radius + 20:
+			if ncy < -canvas_ry - 20 or ncy > canvas_h + canvas_ry + 20:
 				continue
 
 			var neb_id: String = str(neb.get("nebula_id", ""))
@@ -1338,20 +1353,21 @@ class _MapCanvasDraw extends Control:
 
 			if is_neb_selected:
 				# Selected: bright fill + thick outline + outer glow rings
-				draw_circle(center, canvas_radius, Color(neb_color, 0.3))
-				_draw_circle_outline(center, canvas_radius, Color(neb_color, 0.9), 3.0)
-				_draw_circle_outline(center, canvas_radius + 4, Color(neb_color, 0.4), 2.0)
-				_draw_circle_outline(center, canvas_radius + 8, Color(neb_color, 0.2), 1.0)
+				_draw_ellipse_filled(center, canvas_rx, canvas_ry, Color(neb_color, 0.3))
+				_draw_ellipse_outline(center, canvas_rx, canvas_ry, Color(neb_color, 0.9), 3.0)
+				_draw_ellipse_outline(center, canvas_rx + 4, canvas_ry + 4, Color(neb_color, 0.4), 2.0)
+				_draw_ellipse_outline(center, canvas_rx + 8, canvas_ry + 8, Color(neb_color, 0.2), 1.0)
 				# Center crosshair
-				var ch: float = minf(canvas_radius * 0.3, 12.0)
-				draw_line(Vector2(ncx - ch, ncy), Vector2(ncx + ch, ncy), Color(neb_color, 0.6), 1.0)
-				draw_line(Vector2(ncx, ncy - ch), Vector2(ncx, ncy + ch), Color(neb_color, 0.6), 1.0)
+				var ch_x: float = minf(canvas_rx * 0.3, 12.0)
+				var ch_y: float = minf(canvas_ry * 0.3, 12.0)
+				draw_line(Vector2(ncx - ch_x, ncy), Vector2(ncx + ch_x, ncy), Color(neb_color, 0.6), 1.0)
+				draw_line(Vector2(ncx, ncy - ch_y), Vector2(ncx, ncy + ch_y), Color(neb_color, 0.6), 1.0)
 			else:
 				# Unselected: subtle fill + thin outline
-				draw_circle(center, canvas_radius, Color(neb_color, 0.15))
-				_draw_circle_outline(center, canvas_radius, Color(neb_color, 0.4), 2.0)
+				_draw_ellipse_filled(center, canvas_rx, canvas_ry, Color(neb_color, 0.15))
+				_draw_ellipse_outline(center, canvas_rx, canvas_ry, Color(neb_color, 0.4), 2.0)
 
-			# Name label below circle
+			# Name label below ellipse
 			var neb_name: String = ""
 			for ni in range(s._cached_nebula_ids.size()):
 				if s._cached_nebula_ids[ni] == neb_id:
@@ -1360,7 +1376,7 @@ class _MapCanvasDraw extends Control:
 			if neb_name == "":
 				neb_name = neb_id
 			var nfont: Font = ThemeDB.fallback_font
-			draw_string(nfont, Vector2(ncx - 40, ncy + canvas_radius + 14), neb_name, HORIZONTAL_ALIGNMENT_CENTER, 80, 10, Color(neb_color, 0.7))
+			draw_string(nfont, Vector2(ncx - 40, ncy + canvas_ry + 14), neb_name, HORIZONTAL_ALIGNMENT_CENTER, 80, 10, Color(neb_color, 0.7))
 
 		# Draw encounter markers
 		for i in range(level.encounters.size()):
@@ -1486,6 +1502,24 @@ class _MapCanvasDraw extends Control:
 		for i in range(segments + 1):
 			var angle: float = TAU * float(i) / float(segments)
 			pts.append(center + Vector2(cos(angle), sin(angle)) * radius)
+		draw_polyline(pts, color, width, true)
+
+
+	func _draw_ellipse_filled(center: Vector2, rx: float, ry: float, color: Color) -> void:
+		var segments: int = maxi(int(maxf(rx, ry) * 0.5), 32)
+		var pts := PackedVector2Array()
+		for i in range(segments + 1):
+			var angle: float = TAU * float(i) / float(segments)
+			pts.append(center + Vector2(cos(angle) * rx, sin(angle) * ry))
+		draw_colored_polygon(pts, color)
+
+
+	func _draw_ellipse_outline(center: Vector2, rx: float, ry: float, color: Color, width: float) -> void:
+		var segments: int = maxi(int(maxf(rx, ry) * 0.5), 32)
+		var pts := PackedVector2Array()
+		for i in range(segments + 1):
+			var angle: float = TAU * float(i) / float(segments)
+			pts.append(center + Vector2(cos(angle) * rx, sin(angle) * ry))
 		draw_polyline(pts, color, width, true)
 
 

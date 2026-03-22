@@ -38,6 +38,14 @@ const DEFAULT_HP: Dictionary = {
 @export var explosion_size: float = 1.0                      # Explosion size multiplier
 @export var enable_screen_shake: bool = false                 # Screen shake on death (bosses)
 
+# Hit effects (shared by player and enemy ships)
+@export var shield_style_id: String = ""         # Field style for shield hit visual (e.g. "blue_ripple")
+@export var hull_peak_r: float = 3.0             # Hull flash HDR red (values > 1.0 bloom)
+@export var hull_peak_g: float = 3.0             # Hull flash HDR green
+@export var hull_peak_b: float = 3.0             # Hull flash HDR blue
+@export var hull_flash_duration: float = 0.12    # Hull flash duration in seconds
+@export var hull_blink_speed: float = 6.0        # Hull flash blink cycles per duration
+
 # Collision hitbox (shared by player and enemy ships)
 @export var collision_shape: String = "circle"  # "circle", "rectangle", "capsule"
 @export var collision_width: float = 30.0       # Width (or diameter for circle)
@@ -72,6 +80,13 @@ static func from_dict(data: Dictionary) -> ShipData:
 		s.explosion_color = Color(float(exp_color[0]), float(exp_color[1]), float(exp_color[2]), a)
 	s.explosion_size = float(data.get("explosion_size", 1.0))
 	s.enable_screen_shake = bool(data.get("enable_screen_shake", false))
+	# Hit effects
+	s.shield_style_id = str(data.get("shield_style_id", ""))
+	s.hull_peak_r = float(data.get("hull_peak_r", 3.0))
+	s.hull_peak_g = float(data.get("hull_peak_g", 3.0))
+	s.hull_peak_b = float(data.get("hull_peak_b", 3.0))
+	s.hull_flash_duration = float(data.get("hull_flash_duration", 0.12))
+	s.hull_blink_speed = float(data.get("hull_blink_speed", 6.0))
 	# Collision hitbox
 	s.collision_shape = data.get("collision_shape", "circle")
 	s.collision_width = float(data.get("collision_width", 30.0))
@@ -98,6 +113,14 @@ func to_dict() -> Dictionary:
 		d["explosion_color"] = [explosion_color.r, explosion_color.g, explosion_color.b, explosion_color.a]
 		d["explosion_size"] = explosion_size
 		d["enable_screen_shake"] = enable_screen_shake
+	# Hit effects (saved for all ship types)
+	if shield_style_id != "":
+		d["shield_style_id"] = shield_style_id
+	d["hull_peak_r"] = hull_peak_r
+	d["hull_peak_g"] = hull_peak_g
+	d["hull_peak_b"] = hull_peak_b
+	d["hull_flash_duration"] = hull_flash_duration
+	d["hull_blink_speed"] = hull_blink_speed
 	# Collision hitbox (saved for all ship types)
 	d["collision_shape"] = collision_shape
 	d["collision_width"] = collision_width

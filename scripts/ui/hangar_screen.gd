@@ -610,27 +610,44 @@ func _add_picker_item(item_id: String, label: String, description: String, slot_
 		title_lbl.add_theme_font_override("font", body_font)
 	vbox.add_child(title_lbl)
 
-	# Effect rates — colored inline values, no labels
+	# Effect rates — boxed color badges (same style as fire groups)
 	if not rates.is_empty():
 		var rates_hbox := HBoxContainer.new()
-		rates_hbox.add_theme_constant_override("separation", 8)
+		rates_hbox.add_theme_constant_override("separation", 4)
 		vbox.add_child(rates_hbox)
-		var small_size: int = ThemeManager.get_font_size("font_size_body") - 4
+		var rate_font_size: int = ThemeManager.get_font_size("font_size_body") - 5
 		for bar_type in EffectRateCalculator.BAR_TYPES:
 			if not rates.has(bar_type):
 				continue
 			var val: float = float(rates[bar_type])
-			var rate_lbl := Label.new()
-			var sign: String = "+" if val > 0 else ""
-			rate_lbl.text = sign + str(int(val)) + " seg/m"
 			var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
-			if val < 0:
-				bar_color = Color(bar_color.r, bar_color.g, bar_color.b, 0.7)
-			rate_lbl.add_theme_color_override("font_color", bar_color)
-			rate_lbl.add_theme_font_size_override("font_size", small_size)
+			var rate_box := PanelContainer.new()
+			var rbs := StyleBoxFlat.new()
+			rbs.bg_color = Color(bar_color.r * 0.15, bar_color.g * 0.15, bar_color.b * 0.15, 0.6)
+			rbs.corner_radius_top_left = 3
+			rbs.corner_radius_top_right = 3
+			rbs.corner_radius_bottom_left = 3
+			rbs.corner_radius_bottom_right = 3
+			rbs.content_margin_left = 4
+			rbs.content_margin_right = 4
+			rbs.content_margin_top = 1
+			rbs.content_margin_bottom = 1
+			rbs.border_width_left = 1
+			rbs.border_width_right = 1
+			rbs.border_width_top = 1
+			rbs.border_width_bottom = 1
+			rbs.border_color = Color(bar_color.r, bar_color.g, bar_color.b, 0.3)
+			rate_box.add_theme_stylebox_override("panel", rbs)
+			var rl := Label.new()
+			var rate_sign: String = "+" if val > 0 else ""
+			rl.text = rate_sign + str(int(val))
+			var text_alpha: float = 0.8 if val >= 0 else 0.6
+			rl.add_theme_color_override("font_color", Color(bar_color.r, bar_color.g, bar_color.b, text_alpha))
+			rl.add_theme_font_size_override("font_size", rate_font_size)
 			if body_font:
-				rate_lbl.add_theme_font_override("font", body_font)
-			rates_hbox.add_child(rate_lbl)
+				rl.add_theme_font_override("font", body_font)
+			rate_box.add_child(rl)
+			rates_hbox.add_child(rate_box)
 
 	# Description label — starts collapsed, expands on selection
 	var desc_wrapper := Control.new()
@@ -1991,26 +2008,31 @@ func _build_ui() -> void:
 		_bar_gain_waves[bar_name] = {"active": false, "position": -1.0}
 		_bar_drain_waves[bar_name] = {"active": false, "position": -1.0}
 
-	# Playback controls on left panel
+	# Playback controls — overlaid inside the viewport container, top-center
 	var controls_hbox := HBoxContainer.new()
 	controls_hbox.add_theme_constant_override("separation", 10)
-	left_vbox.add_child(controls_hbox)
+	controls_hbox.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	controls_hbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	controls_hbox.offset_top = 6
+	controls_hbox.offset_bottom = 40
+	controls_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_viewport_container.add_child(controls_hbox)
 
 	_play_btn = Button.new()
 	_play_btn.text = "PLAY"
-	_play_btn.custom_minimum_size = Vector2(80, 34)
+	_play_btn.custom_minimum_size = Vector2(70, 30)
 	_play_btn.pressed.connect(_on_play_toggle)
 	controls_hbox.add_child(_play_btn)
 
 	_mute_btn = Button.new()
 	_mute_btn.text = "MUTE"
-	_mute_btn.custom_minimum_size = Vector2(80, 34)
+	_mute_btn.custom_minimum_size = Vector2(70, 30)
 	_mute_btn.pressed.connect(_on_mute_toggle)
 	controls_hbox.add_child(_mute_btn)
 
 	_reset_btn = Button.new()
 	_reset_btn.text = "RESET"
-	_reset_btn.custom_minimum_size = Vector2(80, 34)
+	_reset_btn.custom_minimum_size = Vector2(70, 30)
 	_reset_btn.pressed.connect(_on_reset_bars)
 	controls_hbox.add_child(_reset_btn)
 

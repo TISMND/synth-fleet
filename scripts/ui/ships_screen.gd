@@ -56,6 +56,12 @@ var _weapon_preview_fire_point: Node2D = null
 var _ship_viewport: SubViewport = null
 var _ship_grid_bg: ColorRect = null
 var _weapon_preview_controller: HardpointController = null
+var _shield_style_dropdown: OptionButton = null
+var _shield_field_preview: FieldRenderer = null
+var _working_shield_style_id: String = ""
+var _working_hull_peak: Color = Color(3.0, 3.0, 3.0, 1.0)
+var _working_hull_flash_duration: float = 0.12
+var _working_hull_blink_speed: float = 6.0
 
 
 func _ready() -> void:
@@ -182,6 +188,8 @@ func _process(delta: float) -> void:
 	_update_exhaust(delta)
 	_exhaust_draw.queue_redraw()
 	_hitbox_overlay.queue_redraw()
+	if _shield_field_preview and is_instance_valid(_shield_field_preview):
+		_shield_field_preview.position = _ship_draw.position
 
 
 func _process_enemy(delta: float) -> void:
@@ -198,6 +206,8 @@ func _process_enemy(delta: float) -> void:
 	# Keep weapon preview fire point synced to ship position
 	if _weapon_preview_fire_point and is_instance_valid(_weapon_preview_fire_point):
 		_weapon_preview_fire_point.position = _ship_draw.position + Vector2(0, 20)
+	if _shield_field_preview and is_instance_valid(_shield_field_preview):
+		_shield_field_preview.position = _ship_draw.position
 
 	_hitbox_overlay.queue_redraw()
 
@@ -301,12 +311,21 @@ func _select_ship(index: int) -> void:
 		stats["collision_width"] = override.collision_width
 		stats["collision_height"] = override.collision_height
 		stats["collision_shape"] = override.collision_shape
+		# Load hit effect settings from override
+		_working_shield_style_id = override.shield_style_id
+		_working_hull_peak = Color(override.hull_peak_r, override.hull_peak_g, override.hull_peak_b, 1.0)
+		_working_hull_flash_duration = override.hull_flash_duration
+		_working_hull_blink_speed = override.hull_blink_speed
 	else:
 		stats = ShipRegistry.SHIP_STATS[index].duplicate()
 		_working_render_mode = "chrome"
 		stats["collision_width"] = 30.0
 		stats["collision_height"] = 30.0
 		stats["collision_shape"] = "circle"
+		_working_shield_style_id = ""
+		_working_hull_peak = Color(3.0, 3.0, 3.0, 1.0)
+		_working_hull_flash_duration = 0.12
+		_working_hull_blink_speed = 6.0
 
 	_working_stats = stats
 	_accel = float(stats.get("acceleration", 1200))
@@ -316,8 +335,18 @@ func _select_ship(index: int) -> void:
 	_updating_sliders = true
 	for key in _sliders:
 		var slider: HSlider = _sliders[key]
-		slider.value = float(stats.get(key, slider.value))
-		_slider_labels[key].text = str(int(slider.value))
+		var hull_flash_keys: Array[String] = ["hull_peak_r", "hull_peak_g", "hull_peak_b", "hull_flash_duration", "hull_blink_speed"]
+		if key in hull_flash_keys:
+			match key:
+				"hull_peak_r": slider.value = _working_hull_peak.r
+				"hull_peak_g": slider.value = _working_hull_peak.g
+				"hull_peak_b": slider.value = _working_hull_peak.b
+				"hull_flash_duration": slider.value = _working_hull_flash_duration
+				"hull_blink_speed": slider.value = _working_hull_blink_speed
+			_slider_labels[key].text = str(snapped(slider.value, 0.1))
+		else:
+			slider.value = float(stats.get(key, slider.value))
+			_slider_labels[key].text = str(int(slider.value))
 	# Update skin dropdown
 	if _skin_dropdown:
 		var skin_idx: int = SKIN_KEYS.find(_working_render_mode)
@@ -329,10 +358,19 @@ func _select_ship(index: int) -> void:
 			"rectangle": _hitbox_shape_dropdown.selected = 1
 			"capsule": _hitbox_shape_dropdown.selected = 2
 			_: _hitbox_shape_dropdown.selected = 0
+	# Update shield style dropdown
+	if _shield_style_dropdown:
+		_shield_style_dropdown.selected = 0  # default to (none)
+		for i in range(1, _shield_style_dropdown.item_count):
+			if str(_shield_style_dropdown.get_item_metadata(i)) == _working_shield_style_id:
+				_shield_style_dropdown.selected = i
+				break
 	_updating_sliders = false
 
 	# Apply render mode to preview
 	_apply_render_mode()
+	_apply_hull_flash_to_preview()
+	_update_shield_field_preview(_working_shield_style_id)
 	_update_hud_from_stats()
 	_ship_selector.queue_redraw()
 
@@ -407,6 +445,8 @@ func _select_enemy(index: int) -> void:
 	_apply_render_mode()
 
 	_rebuild_right_panel()
+	_apply_hull_flash_to_preview()
+	_update_shield_field_preview(_working_enemy.shield_style_id)
 	_update_enemy_hud()
 	_ship_selector.queue_redraw()
 
@@ -548,6 +588,7 @@ func _rebuild_right_panel() -> void:
 	_sliders.clear()
 	_slider_labels.clear()
 	_skin_dropdown = null
+	_shield_style_dropdown = null
 	_rebuild_right_panel_contents()
 
 
@@ -555,6 +596,7 @@ func _rebuild_right_panel_contents() -> void:
 	_sliders.clear()
 	_slider_labels.clear()
 	_skin_dropdown = null
+	_shield_style_dropdown = null
 
 	if _category == "ENEMIES":
 		_build_enemy_right_panel()
@@ -568,14 +610,19 @@ func _rebuild_right_panel_contents() -> void:
 
 
 func _build_player_right_panel() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.offset_left = 10
+	scroll.offset_right = -10
+	scroll.offset_top = 14
+	scroll.offset_bottom = -10
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_right_panel.add_child(scroll)
+
 	var vbox := VBoxContainer.new()
-	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox.offset_left = 10
-	vbox.offset_right = -10
-	vbox.offset_top = 14
-	vbox.offset_bottom = -10
 	vbox.add_theme_constant_override("separation", 6)
-	_right_panel.add_child(vbox)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
 
 	# Header
 	var header := Label.new()
@@ -654,6 +701,56 @@ func _build_player_right_panel() -> void:
 	_skin_dropdown.selected = 0
 	_skin_dropdown.item_selected.connect(_on_skin_changed)
 	vbox.add_child(_skin_dropdown)
+
+	# ── HIT EFFECTS ──
+	var spacer_hit := Control.new()
+	spacer_hit.custom_minimum_size.y = 12
+	vbox.add_child(spacer_hit)
+
+	var hit_label := Label.new()
+	hit_label.text = "HIT EFFECTS"
+	hit_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(hit_label)
+
+	# Shield style dropdown
+	var shield_hbox := HBoxContainer.new()
+	shield_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(shield_hbox)
+	var shield_lbl := Label.new()
+	shield_lbl.text = "SHD"
+	shield_lbl.custom_minimum_size.x = 40
+	shield_hbox.add_child(shield_lbl)
+	_shield_style_dropdown = OptionButton.new()
+	_shield_style_dropdown.clip_text = true
+	_shield_style_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_shield_style_dropdown.add_item("(none)", 0)
+	var field_styles: Array[FieldStyle] = FieldStyleManager.load_all()
+	for i in range(field_styles.size()):
+		var fs: FieldStyle = field_styles[i]
+		var label: String = fs.display_name if fs.display_name != "" else fs.id
+		_shield_style_dropdown.add_item(label, i + 1)
+		_shield_style_dropdown.set_item_metadata(i + 1, fs.id)
+	_shield_style_dropdown.item_selected.connect(_on_shield_style_changed)
+	shield_hbox.add_child(_shield_style_dropdown)
+
+	var test_shield_btn := Button.new()
+	test_shield_btn.text = "TEST SHIELD HIT"
+	test_shield_btn.pressed.connect(_test_shield_hit)
+	vbox.add_child(test_shield_btn)
+	ThemeManager.apply_button_style(test_shield_btn)
+
+	# Hull flash HDR sliders
+	_add_slider_row(vbox, "hull_peak_r", "HDR R", 0.0, 10.0, 0.1)
+	_add_slider_row(vbox, "hull_peak_g", "HDR G", 0.0, 10.0, 0.1)
+	_add_slider_row(vbox, "hull_peak_b", "HDR B", 0.0, 10.0, 0.1)
+	_add_slider_row(vbox, "hull_flash_duration", "DUR", 0.01, 1.0, 0.01)
+	_add_slider_row(vbox, "hull_blink_speed", "BLINK", 1.0, 20.0, 0.5)
+
+	var test_hull_btn := Button.new()
+	test_hull_btn.text = "TEST HULL HIT"
+	test_hull_btn.pressed.connect(_test_hull_hit)
+	vbox.add_child(test_hull_btn)
+	ThemeManager.apply_button_style(test_hull_btn)
 
 	# Spacer to push buttons down
 	var spacer4 := Control.new()
@@ -892,6 +989,57 @@ func _build_enemy_right_panel() -> void:
 	vbox.add_child(preview_btn)
 	ThemeManager.apply_button_style(preview_btn)
 
+	# ── HIT EFFECTS ──
+	_add_section_spacer(vbox)
+	var hit_label := Label.new()
+	hit_label.text = "HIT EFFECTS"
+	hit_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(hit_label)
+
+	# Shield style dropdown
+	var shield_hbox := HBoxContainer.new()
+	shield_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(shield_hbox)
+	var shield_lbl := Label.new()
+	shield_lbl.text = "SHD"
+	shield_lbl.custom_minimum_size.x = 40
+	shield_hbox.add_child(shield_lbl)
+	_shield_style_dropdown = OptionButton.new()
+	_shield_style_dropdown.clip_text = true
+	_shield_style_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_shield_style_dropdown.add_item("(none)", 0)
+	var field_styles: Array[FieldStyle] = FieldStyleManager.load_all()
+	var shield_selected_idx: int = 0
+	for i in range(field_styles.size()):
+		var fs: FieldStyle = field_styles[i]
+		var fs_label: String = fs.display_name if fs.display_name != "" else fs.id
+		_shield_style_dropdown.add_item(fs_label, i + 1)
+		_shield_style_dropdown.set_item_metadata(i + 1, fs.id)
+		if fs.id == _working_enemy.shield_style_id:
+			shield_selected_idx = i + 1
+	_shield_style_dropdown.selected = shield_selected_idx
+	_shield_style_dropdown.item_selected.connect(_on_shield_style_changed)
+	shield_hbox.add_child(_shield_style_dropdown)
+
+	var test_shield_btn := Button.new()
+	test_shield_btn.text = "TEST SHIELD HIT"
+	test_shield_btn.pressed.connect(_test_shield_hit)
+	vbox.add_child(test_shield_btn)
+	ThemeManager.apply_button_style(test_shield_btn)
+
+	# Hull flash HDR sliders
+	_add_slider_row(vbox, "hull_peak_r", "HDR R", 0.0, 10.0, 0.1)
+	_add_slider_row(vbox, "hull_peak_g", "HDR G", 0.0, 10.0, 0.1)
+	_add_slider_row(vbox, "hull_peak_b", "HDR B", 0.0, 10.0, 0.1)
+	_add_slider_row(vbox, "hull_flash_duration", "DUR", 0.01, 1.0, 0.01)
+	_add_slider_row(vbox, "hull_blink_speed", "BLINK", 1.0, 20.0, 0.5)
+
+	var test_hull_btn := Button.new()
+	test_hull_btn.text = "TEST HULL HIT"
+	test_hull_btn.pressed.connect(_test_hull_hit)
+	vbox.add_child(test_hull_btn)
+	ThemeManager.apply_button_style(test_hull_btn)
+
 	# ── HP readout ──
 	_add_section_spacer(vbox)
 	var hp_readout := Label.new()
@@ -922,10 +1070,12 @@ func _build_enemy_right_panel() -> void:
 
 	# Set slider values from working enemy
 	_updating_sliders = true
+	var direct_keys: Array[String] = ["explosion_size", "collision_width", "collision_height",
+		"hull_peak_r", "hull_peak_g", "hull_peak_b", "hull_flash_duration", "hull_blink_speed"]
 	for key in _sliders:
 		var slider: HSlider = _sliders[key]
 		var val: float = 0.0
-		if key in ["explosion_size", "collision_width", "collision_height"]:
+		if key in direct_keys:
 			val = float(_working_enemy.get(key))
 		else:
 			val = float(_working_enemy.stats.get(key, slider.min_value))
@@ -965,6 +1115,13 @@ func _build_hitbox_section(vbox: VBoxContainer, source: Variant) -> void:
 	hitbox_label.text = "HITBOX"
 	hitbox_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(hitbox_label)
+
+	# Show/hide toggle
+	var show_check := CheckButton.new()
+	show_check.text = "Show"
+	show_check.button_pressed = _hitbox_overlay.visible
+	show_check.toggled.connect(func(on: bool) -> void: _hitbox_overlay.visible = on)
+	vbox.add_child(show_check)
 
 	# Shape dropdown
 	var shape_hbox := HBoxContainer.new()
@@ -1055,6 +1212,9 @@ func _on_attr_changed(value: float, key: String) -> void:
 	else:
 		_slider_labels[key].text = str(int(value))
 
+	# Hull flash keys are direct ShipData properties, not stats
+	var hull_flash_keys: Array[String] = ["hull_peak_r", "hull_peak_g", "hull_peak_b", "hull_flash_duration", "hull_blink_speed"]
+
 	if _category == "ENEMIES" and _working_enemy:
 		if key == "explosion_size":
 			_working_enemy.explosion_size = value
@@ -1064,6 +1224,9 @@ func _on_attr_changed(value: float, key: String) -> void:
 		elif key == "collision_height":
 			_working_enemy.collision_height = value
 			_hitbox_overlay.queue_redraw()
+		elif key in hull_flash_keys:
+			_working_enemy.set(key, value)
+			_apply_hull_flash_to_preview()
 		else:
 			_working_enemy.stats[key] = value
 		# Update HP readout
@@ -1074,7 +1237,17 @@ func _on_attr_changed(value: float, key: String) -> void:
 			readout.text = "HULL: %d HP | SHIELD: %d HP" % [hhp, shp]
 		return
 
-	_working_stats[key] = value
+	# Player mode
+	if key in hull_flash_keys:
+		match key:
+			"hull_peak_r": _working_hull_peak.r = value
+			"hull_peak_g": _working_hull_peak.g = value
+			"hull_peak_b": _working_hull_peak.b = value
+			"hull_flash_duration": _working_hull_flash_duration = value
+			"hull_blink_speed": _working_hull_blink_speed = value
+		_apply_hull_flash_to_preview()
+	else:
+		_working_stats[key] = value
 
 	if key == "speed":
 		_top_speed = value
@@ -1093,6 +1266,60 @@ func _on_skin_changed(index: int) -> void:
 	if _category == "ENEMIES" and _working_enemy:
 		_working_enemy.render_mode = _working_render_mode
 	_apply_render_mode()
+
+
+# ── Hit effect handlers ──────────────────────────────────────
+
+func _on_shield_style_changed(index: int) -> void:
+	var style_id: String = ""
+	if index > 0 and _shield_style_dropdown:
+		style_id = str(_shield_style_dropdown.get_item_metadata(index))
+	if _category == "ENEMIES" and _working_enemy:
+		_working_enemy.shield_style_id = style_id
+	else:
+		_working_shield_style_id = style_id
+	_update_shield_field_preview(style_id)
+
+
+func _update_shield_field_preview(style_id: String) -> void:
+	# Remove old preview
+	if _shield_field_preview and is_instance_valid(_shield_field_preview):
+		_shield_field_preview.queue_free()
+		_shield_field_preview = null
+	if style_id == "":
+		return
+	var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
+	if not style:
+		return
+	_shield_field_preview = FieldRenderer.new()
+	var ship_scale: float = ShipRenderer.get_ship_scale(_ship_draw.ship_id) * 50.0
+	_shield_field_preview.setup(style, ship_scale)
+	_shield_field_preview.set_opacity(0.0)
+	_shield_field_preview.position = _ship_draw.position
+	_ship_viewport.add_child(_shield_field_preview)
+
+
+func _test_shield_hit() -> void:
+	if _shield_field_preview and is_instance_valid(_shield_field_preview):
+		_shield_field_preview.pulse()
+
+
+func _test_hull_hit() -> void:
+	if _ship_draw:
+		_ship_draw.trigger_hull_flash()
+
+
+func _apply_hull_flash_to_preview() -> void:
+	if not _ship_draw:
+		return
+	if _category == "ENEMIES" and _working_enemy:
+		_ship_draw.hull_peak_color = Color(_working_enemy.hull_peak_r, _working_enemy.hull_peak_g, _working_enemy.hull_peak_b, 1.0)
+		_ship_draw.hull_flash_duration = _working_enemy.hull_flash_duration
+		_ship_draw.hull_blink_speed = _working_enemy.hull_blink_speed
+	else:
+		_ship_draw.hull_peak_color = _working_hull_peak
+		_ship_draw.hull_flash_duration = _working_hull_flash_duration
+		_ship_draw.hull_blink_speed = _working_hull_blink_speed
 
 
 # ── Enemy attribute handlers ─────────────────────────────────
@@ -1320,6 +1547,12 @@ func _on_save_pressed() -> void:
 		"collision_shape": col_shape,
 		"collision_width": float(_working_stats.get("collision_width", 30.0)),
 		"collision_height": float(_working_stats.get("collision_height", 30.0)),
+		"shield_style_id": _working_shield_style_id,
+		"hull_peak_r": _working_hull_peak.r,
+		"hull_peak_g": _working_hull_peak.g,
+		"hull_peak_b": _working_hull_peak.b,
+		"hull_flash_duration": _working_hull_flash_duration,
+		"hull_blink_speed": _working_hull_blink_speed,
 	}
 	ShipDataManager.save(ship_id, data)
 
