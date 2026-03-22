@@ -200,7 +200,7 @@ func _build_ui() -> void:
 
 	# Staged power-up cues
 	_add_section_header(vbox, "POWER-UP SEQUENCE (recovery)")
-	for event_id in ["powerup_electric_restored", "powerup_screen_on", "powerup_systems_online"]:
+	for event_id in ["powerup_electric_restored", "powerup_bars_charging", "powerup_screen_on", "powerup_systems_online", "powerup_restored"]:
 		_add_event_row(vbox, event_id)
 
 	# Loops content (LoopBalancer panel — built from script)
@@ -344,13 +344,18 @@ func _add_event_row(parent: VBoxContainer, event_id: String) -> void:
 	row.add_child(fade_val)
 	_fade_labels[event_id] = fade_val
 
-	# Preview button
+	# Preview / Stop buttons
 	var preview_btn := Button.new()
 	preview_btn.text = "\u25b6"
 	preview_btn.disabled = true
 	preview_btn.pressed.connect(_on_preview.bind(event_id))
 	row.add_child(preview_btn)
 	_preview_buttons[event_id] = preview_btn
+
+	var stop_btn := Button.new()
+	stop_btn.text = "\u25a0"
+	stop_btn.pressed.connect(_on_stop_preview)
+	row.add_child(stop_btn)
 
 
 func _populate_from_config() -> void:
@@ -612,28 +617,11 @@ func _on_preview(event_id: String) -> void:
 	_preview_player.volume_db = vol_db
 	_preview_player.play()
 
-	var clip_end: float = ev["clip_end_time"]
-	var fade_dur: float = ev["fade_out_duration"]
-	var stream_length: float = stream.get_length()
 
-	# Determine effective end time
-	var end_time: float = stream_length
-	if clip_end > 0.0 and clip_end < stream_length:
-		end_time = clip_end
-
-	if fade_dur > 0.0 and fade_dur < end_time:
-		# Wait until fade start, then tween volume down, then stop
-		var fade_start: float = end_time - fade_dur
-		_preview_tween = create_tween()
-		_preview_tween.tween_interval(fade_start)
-		_preview_tween.tween_property(_preview_player, "volume_db", -60.0, fade_dur)
-		_preview_tween.tween_callback(_preview_player.stop)
-		_preview_tween.tween_callback(func() -> void: _preview_player.volume_db = vol_db)
-	elif clip_end > 0.0 and clip_end < stream_length:
-		# Just stop at clip end
-		_preview_tween = create_tween()
-		_preview_tween.tween_interval(end_time)
-		_preview_tween.tween_callback(_preview_player.stop)
+func _on_stop_preview() -> void:
+	if _preview_tween and _preview_tween.is_valid():
+		_preview_tween.kill()
+	_preview_player.stop()
 
 
 func _on_back() -> void:

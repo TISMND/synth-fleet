@@ -13,12 +13,17 @@ var _loops: Dictionary = {}
 var _durations_by_path: Dictionary = {}
 # Maps stream_path -> duration_sec (pre-mutation, clean values for EffectRateCalculator)
 
+var _ref_counts: Dictionary = {}
+# Per loop_id: how many owners hold a reference (for shared enemy weapon loops)
+
 var _active_tweens: Dictionary = {}
 # Per loop_id: active Tween for fade transitions (cancelled when a new fade starts)
 
 
 func add_loop(loop_id: String, stream_path: String, bus: String = "Weapons", volume_db: float = 0.0, start_muted: bool = true) -> void:
 	if _loops.has(loop_id):
+		# Bump ref count for shared loops (e.g. multiple enemies with same weapon)
+		_ref_counts[loop_id] = int(_ref_counts.get(loop_id, 1)) + 1
 		return
 	# Apply base volume from LoopConfigManager (additive with caller's volume_db)
 	var base_vol: float = LoopConfigManager.get_volume(stream_path)
@@ -63,9 +68,37 @@ func add_loop(loop_id: String, stream_path: String, bus: String = "Weapons", vol
 		"muted": start_muted,
 		"duration": duration_sec,
 	}
+	_ref_counts[loop_id] = 1
 
 
-func remove_loop(loop_id: String) -> void:
+func release_loop(loop_id: String, fade_ms: int = 0) -> void:
+	## Decrement ref count. When it hits 0, fade out (if requested) then remove.
+	## Use this instead of remove_loop when loops may be shared (e.g. enemy weapons).
+	if not _loops.has(loop_id):
+		return
+	var count: int = int(_ref_counts.get(loop_id, 1)) - 1
+	if count > 0:
+		_ref_counts[loop_id] = count
+		return
+	_ref_counts.erase(loop_id)
+	if fade_ms > 0:
+		# Fade to silence, then remove
+		var entry: Dictionary = _loops[loop_id]
+		var player: AudioStreamPlayer = entry["player"]
+		_cancel_fade(loop_id)
+		var duration_sec: float = float(fade_ms) / 1000.0
+		var tween: Tween = get_tree().create_tween()
+		tween.tween_property(player, "volume_db", MUTE_DB, duration_sec)
+		_active_tweens[loop_id] = tween
+		tween.finished.connect(func() -> void:
+			_active_tweens.erase(loop_id)
+			_force_remove_loop(loop_id)
+		)
+	else:
+		_force_remove_loop(loop_id)
+
+
+func _force_remove_loop(loop_id: String) -> void:
 	if not _loops.has(loop_id):
 		return
 	_cancel_fade(loop_id)
@@ -74,6 +107,13 @@ func remove_loop(loop_id: String) -> void:
 	player.stop()
 	player.queue_free()
 	_loops.erase(loop_id)
+	_ref_counts.erase(loop_id)
+
+
+func remove_loop(loop_id: String) -> void:
+	## Force-remove regardless of ref count. Use release_loop() for shared loops.
+	_ref_counts.erase(loop_id)
+	_force_remove_loop(loop_id)
 
 
 func remove_all_loops() -> void:

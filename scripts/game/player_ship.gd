@@ -64,6 +64,12 @@ var _reboot_blink_timer: float = 0.0  # Timer for initial cursor blink
 var _reboot_scrolling: bool = false  # True once we enter the ">" fast scroll phase
 var _reboot_completed_lines: Array[String] = []  # Finished lines for display
 var _reboot_typing_player: AudioStreamPlayer = null  # Looping typing sound, start/stop with typing
+var _reboot_finished: bool = false  # True once all text is typed — triggers recovery
+var _recovery_active: bool = false  # Bar restoration animation in progress
+var _recovery_elapsed: float = 0.0
+var _recovery_sfx_screen_fired: bool = false
+var _recovery_sfx_systems_fired: bool = false
+const RECOVERY_DURATION: float = 3.5  # Seconds for bars to animate back up
 signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
 signal final_power_death()  # Emitted once when power fully dies — for external systems
 
@@ -289,7 +295,7 @@ func _process(delta: float) -> void:
 		_play_sfx_cue("powerdown_shields_bleed")
 		if _hud and _hud.has_method("start_shield_arcs"):
 			_hud.start_shield_arcs()
-	elif electric > 0.0 and _electric_crisis_active:
+	elif electric > 0.0 and _electric_crisis_active and not _recovery_active:
 		_electric_crisis_active = false
 		_clear_electric_arcs()
 		if _hud and _hud.has_method("stop_shield_arcs"):
@@ -308,7 +314,7 @@ func _process(delta: float) -> void:
 		if not _drifting:
 			_start_drift()
 	if _drifting:
-		if electric > 0.0:
+		if electric > 0.0 and not _recovery_active:
 			_end_drift()
 		else:
 			_process_drift(delta)
@@ -500,7 +506,9 @@ func take_damage(amount: float, skips_shields: bool = false) -> void:
 		if shield_field:
 			shield_field.pulse()
 	if remaining > 0.0:
-		hull = maxf(hull - remaining, 0.0)
+		# During power death sequence, keep hull at minimum 1 segment (10 points)
+		var hull_floor: float = 10.0 if _drifting or _blackout_active else 0.0
+		hull = maxf(hull - remaining, hull_floor)
 		SfxPlayer.play("player_hull_hit")
 		if _ship_renderer:
 			_ship_renderer.trigger_hull_flash()
@@ -690,9 +698,10 @@ func _process_blackout(delta: float) -> void:
 		_start_reboot_sequence()
 		final_power_death.emit()
 
-	# Type out reboot text
+	# Type out reboot text + recovery animation
 	if _blackout_final_death:
 		_process_reboot_text(delta)
+	_process_recovery(delta)
 
 
 func smoothstepf(edge0: float, edge1: float, x: float) -> float:
@@ -720,22 +729,21 @@ func _start_reboot_sequence() -> void:
 	_reboot_text_queue = [
 		"SYSTEM POWER FAILURE",
 		"",
-		"Diagnosing subsystems...",
+		"SUBSYSTEM DIAGNOSTIC",
 		"Main reactor .......... OFFLINE",
-		"Aux reactor ........... OFFLINE",
-		"Backup capacitor ...... 2%%",
+		"Backup capacitor ...... 40%",
 		"Shield generator ...... OFFLINE",
 		"Weapon bus ............ NO SIGNAL",
 		"",
-		">Core restart sequence initiated...",
-		">Rerouting emergency power...",
-		">Activating backup capacitor...",
+		">CORE RESTART SEQUENCE",
 		">Bypassing main reactor safety...",
+		">Rerouting emergency power...",
 		">Shield generator: STANDBY",
 		">Weapon bus: LOCKED",
 		">Thermal vents: PURGING",
-		">Capacitor charge: 4%%... 8%%... 15%%",
 		">Regenerating power core...",
+		"",
+		"SUCCESS",
 	]
 	_reboot_text_index = -1  # -1 = cursor blink phase
 	_reboot_char_index = 0
@@ -798,10 +806,10 @@ func _start_reboot_sequence() -> void:
 	add_child(_reboot_typing_player)
 
 
-const REBOOT_BLINK_DURATION: float = 3.0  # Seconds of cursor blinking before text starts
+const REBOOT_BLINK_DURATION: float = 0.5  # Seconds of cursor blinking before text starts
 const REBOOT_BLINK_RATE: float = 0.5  # Cursor blink toggle interval
-const REBOOT_CHAR_SLOW: float = 0.011  # Seconds per char — diagnosis phase
-const REBOOT_CHAR_FAST: float = 0.005  # Seconds per char — reboot phase
+const REBOOT_CHAR_SLOW: float = 0.006  # Seconds per char — diagnosis phase
+const REBOOT_CHAR_FAST: float = 0.003  # Seconds per char — reboot phase
 const REBOOT_LINE_PAUSE_SLOW: float = 0.3  # Pause between lines — diagnosis
 const REBOOT_LINE_PAUSE_FAST: float = 0.1  # Pause between lines — reboot (faster turnover)
 const REBOOT_HEADER_PAUSE: float = 0.6  # Longer pause after ALL-CAPS lines
@@ -826,7 +834,10 @@ func _process_reboot_text(delta: float) -> void:
 		return
 
 	if _reboot_text_index >= _reboot_text_queue.size():
-		return  # All lines typed
+		if not _reboot_finished:
+			_reboot_finished = true
+			_start_recovery()
+		return
 
 	_reboot_char_timer += delta
 	var raw_line: String = _reboot_text_queue[_reboot_text_index]
@@ -834,6 +845,7 @@ func _process_reboot_text(delta: float) -> void:
 	# Check if this line starts the fast scroll phase
 	if raw_line.begins_with(">") and not _reboot_scrolling:
 		_reboot_scrolling = true
+		_play_sfx_cue("powerup_electric_restored")
 
 	# Strip the ">" prefix for display
 	var current_line: String = raw_line.lstrip(">")
@@ -853,8 +865,8 @@ func _process_reboot_text(delta: float) -> void:
 	var char_speed: float = REBOOT_CHAR_FAST if _reboot_scrolling else REBOOT_CHAR_SLOW
 
 	if _reboot_char_index < current_line.length():
-		# Still typing
-		if _reboot_char_timer >= char_speed:
+		# Still typing — advance multiple chars per frame if timer allows
+		while _reboot_char_timer >= char_speed and _reboot_char_index < current_line.length():
 			_reboot_char_timer -= char_speed
 			_reboot_char_index += 1
 		# Start typing sound if not already playing
@@ -916,6 +928,64 @@ func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
 		padded += "\n"
 	padded += "\n".join(content_lines)
 	_reboot_label.text = padded
+
+
+# ── Recovery sequence — bars animate back up after reboot completes ──────────
+
+func _start_recovery() -> void:
+	_recovery_active = true
+	_recovery_elapsed = 0.0
+	_recovery_sfx_screen_fired = false
+	_recovery_sfx_systems_fired = false
+	_play_sfx_cue("powerup_bars_charging")
+	print("[RECOVERY] started — electric_max=%.0f shield_max=%.0f" % [electric_max, shield_max])
+
+
+func _process_recovery(delta: float) -> void:
+	if not _recovery_active:
+		return
+	_recovery_elapsed += delta
+	var t: float = clampf(_recovery_elapsed / RECOVERY_DURATION, 0.0, 1.0)
+
+	# Animate electric from 0 to 50% (penalty for power failure)
+	electric = lerpf(0.0, electric_max * 0.5, t)
+	# Animate shield from 0 to 50%
+	shield = lerpf(0.0, shield_max * 0.5, t)
+	if int(t * 10) != int((t - delta / RECOVERY_DURATION) * 10):
+		print("[RECOVERY] t=%.2f elec=%.0f/%.0f shield=%.0f/%.0f" % [t, electric, electric_max, shield, shield_max])
+	# Thermal stays at 0
+	thermal = 0.0
+	# Hull stays at whatever it was (protected at min 10 during power death)
+
+	# Gradually unwind ship rotation back to 0
+	rotation = lerpf(rotation, 0.0, delta * 2.0)
+	# Slow drift to a stop
+	_drift_rotation_speed = lerpf(_drift_rotation_speed, 0.0, delta * 3.0)
+
+	# Staged SFX during recovery
+	if t >= 0.5 and not _recovery_sfx_screen_fired:
+		_recovery_sfx_screen_fired = true
+		_play_sfx_cue("powerup_screen_on")
+	if t >= 0.9 and not _recovery_sfx_systems_fired:
+		_recovery_sfx_systems_fired = true
+		_play_sfx_cue("powerup_systems_online")
+
+	# Reverse the bar kill masks — bring segments back per-bar
+	if _hud and _hud.has_method("set_power_recovery_ratio"):
+		var targets: Dictionary = {
+			"ELECTRIC": 0.5,   # 50% restore (penalty)
+			"SHIELD": 0.5,     # 50% restore
+			"THERMAL": 0.0,    # Stays dark
+			"HULL": hull / maxf(hull_max, 1.0),  # Whatever hull is at
+		}
+		_hud.set_power_recovery_ratio(t, targets)
+
+	if t >= 1.0:
+		_recovery_active = false
+		# Final restored cue — delayed 1 second after recovery ends
+		var delay_cue: Callable = func() -> void: _play_sfx_cue("powerup_restored")
+		get_tree().create_timer(1.0).timeout.connect(delay_cue)
+		_end_drift()
 
 
 ## ── Procedural lightning arcs ────────────────────────────────────────────────
@@ -1038,11 +1108,8 @@ func _end_drift() -> void:
 	# Restore LED bar segments
 	if _hud and _hud.has_method("stop_power_death_bars"):
 		_hud.stop_power_death_bars()
-	_play_sfx_cue("powerup_electric_restored")
 	if _blackout_active:
 		_blackout_active = false
-		_play_sfx_cue("powerup_screen_on")
-		_play_sfx_cue("powerup_systems_online")
 		# Power-up: tween CRT overlay + audio back to normal
 		var recovery_power: float = _blackout_power
 		if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
@@ -1050,7 +1117,7 @@ func _end_drift() -> void:
 			var tween: Tween = create_tween()
 			tween.tween_method(func(v: float) -> void:
 				mat.set_shader_parameter("power", v)
-			, recovery_power, 1.0, 0.5)
+			, recovery_power, 1.0, 2.0)  # Slow power-up matches recovery duration
 			var overlay_ref: ColorRect = _blackout_overlay
 			tween.tween_callback(func() -> void:
 				overlay_ref.queue_free()
@@ -1069,6 +1136,9 @@ func _end_drift() -> void:
 		_blackout_cue_50 = false
 		_blackout_cue_25 = false
 		_reboot_scrolling = false
+		_reboot_finished = false
+		_recovery_active = false
+		_recovery_elapsed = 0.0
 		_reboot_completed_lines.clear()
 		# Remove reboot text + typing sound
 		if _reboot_typing_player and is_instance_valid(_reboot_typing_player):

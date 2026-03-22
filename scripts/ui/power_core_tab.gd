@@ -36,7 +36,6 @@ var _bar_effect_lanes: Dictionary = {}  # bar_type -> BarEffectLane
 
 # Stats subtab
 var _mechanics_bar_effect_sliders: Dictionary = {}  # bar_type -> HSlider
-var _mechanics_bar_effect_rows: Dictionary = {}  # bar_type -> HBoxContainer (for dimming)
 var _passive_effect_sliders: Dictionary = {}  # bar_type -> HSlider
 var _effect_rate_label: Label = null
 # Stats bar preview (LED bars with rolling wave animation)
@@ -508,12 +507,12 @@ func _build_stats_tab() -> Control:
 		var val_edit: SliderValueEdit = SliderValueEdit.create(slider)
 		row.add_child(val_edit)
 
-		slider.value_changed.connect(func(_val: float) -> void:
-			_mark_dirty()
+		var captured_type: String = bar_type
+		slider.value_changed.connect(func(val: float) -> void:
+			_on_bar_effect_slider_changed(captured_type, val)
 		)
 
 		_mechanics_bar_effect_sliders[bar_type] = slider
-		_mechanics_bar_effect_rows[bar_type] = row
 
 	_add_separator(form)
 
@@ -911,6 +910,23 @@ func _on_bar_effect_triggers_changed(_triggers: Array) -> void:
 	_mark_dirty()
 
 
+func _on_bar_effect_slider_changed(bar_type: String, val: float) -> void:
+	if _populating:
+		return
+	# For shield/hull/thermal: sync slider value to the lane triggers
+	var lane: BarEffectLane = _bar_effect_lanes.get(bar_type) as BarEffectLane
+	if lane:
+		lane.set_default_value(val)
+		# Update all existing triggers in this lane to the new value
+		var trigs: Array = lane.get_triggers()
+		for trig in trigs:
+			var d: Dictionary = trig as Dictionary
+			d["value"] = val
+		lane.set_triggers(trigs)
+	# Electric has no lane — uses legacy bar_effects via pulse_triggers
+	_mark_dirty()
+
+
 # ── Loop Browser Events ────────────────────────────────────
 
 func _on_loop_selected(path: String, _category: String) -> void:
@@ -1183,17 +1199,28 @@ func _populate_from_power_core(data: PowerCoreData) -> void:
 			(override_data["container"] as VBoxContainer).visible = false
 
 	# Mechanics — power cost, bar effects, passive effects
+	# Distribute bar_effect_triggers to their respective lanes first
+	_distribute_lane_triggers(data.bar_effect_triggers)
+
 	for bar_type in BAR_TYPES:
 		var be_slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
 		if be_slider:
-			be_slider.value = float(data.bar_effects.get(bar_type, 0.0))
+			# For shield/hull/thermal: read value from lane triggers (the active system)
+			var lane: BarEffectLane = _bar_effect_lanes.get(bar_type) as BarEffectLane
+			if lane:
+				var lane_trigs: Array = lane.get_triggers()
+				if not lane_trigs.is_empty():
+					# Use the first trigger's value as the slider value
+					var first_trig: Dictionary = lane_trigs[0] as Dictionary
+					be_slider.value = float(first_trig.get("value", 0.0))
+				else:
+					be_slider.value = float(data.bar_effects.get(bar_type, 0.0))
+			else:
+				# Electric: use legacy bar_effects (tied to pulse_triggers)
+				be_slider.value = float(data.bar_effects.get(bar_type, 0.0))
 		var pe_slider: HSlider = _passive_effect_sliders.get(bar_type) as HSlider
 		if pe_slider:
 			pe_slider.value = float(data.passive_effects.get(bar_type, 0.0))
-
-	# Bar effect triggers (independent lane)
-	# Distribute bar_effect_triggers to their respective lanes
-	_distribute_lane_triggers(data.bar_effect_triggers)
 
 	_populating = false
 	_mark_clean()
@@ -1287,20 +1314,6 @@ func _update_effect_rate_label() -> void:
 	var rates: Dictionary = EffectRateCalculator.calc_power_core(core)
 	var text: String = EffectRateCalculator.format_rates(rates)
 	_effect_rate_label.text = text if text != "" else "No bar effects"
-	_update_bar_effect_slider_states(data.get("pulse_triggers", {}) as Dictionary)
-
-
-func _update_bar_effect_slider_states(pulse_triggers: Dictionary) -> void:
-	## Dim legacy bar_effects sliders for types without pulse_triggers.
-	for bar_type in BAR_TYPES:
-		var row: HBoxContainer = _mechanics_bar_effect_rows.get(bar_type) as HBoxContainer
-		if not row:
-			continue
-		var has_triggers: bool = not (pulse_triggers.get(bar_type, []) as Array).is_empty()
-		row.modulate.a = 1.0 if has_triggers else 0.3
-		var slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
-		if slider:
-			slider.editable = has_triggers
 
 
 func _mark_clean() -> void:

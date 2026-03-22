@@ -427,6 +427,40 @@ func final_power_death_bars() -> void:
 			timers[i] = 0.0
 
 
+func set_power_recovery_ratio(t: float, bar_targets: Dictionary = {}) -> void:
+	## During recovery, restore segments proportionally per bar.
+	## bar_targets: {bar_name: target_ratio} e.g. {"SHIELD": 0.5, "ELECTRIC": 1.0}
+	## Bars not in targets default to 0.0 (stay dark).
+	if not _power_death_active:
+		return
+	# Stop the kill animation from fighting the recovery
+	_power_death_final = false
+	var first_bar: bool = true
+	for bar_name in _bars:
+		var seg: int = int(_bar_segments.get(bar_name, 8))
+		var target_ratio: float = float(bar_targets.get(bar_name, 0.0))
+		# How many segments should be alive at this point in the recovery
+		var alive_count: int = int(float(seg) * target_ratio * t)
+		alive_count = clampi(alive_count, 0, seg)
+		# Kill mask: segments at index >= alive_count are killed (dark)
+		# Segments at index < alive_count are alive (lit)
+		var mask: int = 0
+		for i in seg:
+			if i >= alive_count:
+				mask = mask | (1 << i)
+		if first_bar:
+			print("[HUD-RECOVERY] bar=%s seg=%d target=%.1f t=%.2f alive=%d mask=%d" % [bar_name, seg, target_ratio, t, alive_count, mask])
+			first_bar = false
+		_bar_kill_masks[bar_name] = mask
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		if bar.material is ShaderMaterial:
+			(bar.material as ShaderMaterial).set_shader_parameter("segment_kill_mask", mask)
+		var glow: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+		if glow:
+			glow.color.a = 0.15 * target_ratio * t
+
+
 func stop_power_death_bars() -> void:
 	_power_death_active = false
 	_power_death_elapsed = 0.0
