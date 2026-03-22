@@ -34,15 +34,18 @@ var _ship_renderer: ShipRenderer = null
 var _electric_crisis_particles: GPUParticles2D = null  # Spark particles when electric is depleted
 var _electric_crisis_active: bool = false
 var _electric_overdraw: bool = false  # True when weapons tried to drain electric below 0
-var _blackout_active: bool = false
-var _blackout_rotation_speed: float = 0.0  # Accelerating spin during blackout
-var _blackout_overlay: ColorRect = null  # Darkening overlay on game viewport
+var _shield_at_crisis_start: float = -1.0  # Shield snapshot when engine penalty begins
+var _drifting: bool = false  # Spin + coast phase (shields=0 during crisis)
+var _drift_timer: float = 0.0  # Seconds since drift started
+var _drift_spin_direction: float = 1.0  # +1 or -1, random
+var _drift_rotation_speed: float = 0.0  # Current spin speed
+var _blackout_active: bool = false  # Full blackout (darkness, HUD dim) — 3s after drift starts
+var _blackout_overlay: ColorRect = null
 
 const THERMAL_COOLING_RATE: float = 10.0  # hp/sec passive cooling (10x scale)
 const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segments (40 points)
 const ELECTRIC_SHIELD_BLEED_MULT: float = 1.5  # Overdraw penalty: 1.5x cost from shields
-const BLACKOUT_SPIN_ACCEL: float = 0.8  # Radians/sec² rotation acceleration
-const BLACKOUT_MAX_SPIN: float = 2.5  # Max radians/sec rotation
+const BLACKOUT_MAX_SPIN: float = 0.2  # Max radians/sec — gentle drift
 const BLACKOUT_FADE_SPEED: float = 0.4  # How fast screen dims (alpha/sec)
 
 
@@ -249,21 +252,25 @@ func _process(delta: float) -> void:
 	_apply_device_modifiers()
 
 	# Electric engine penalty — kicks in once shield bleed starts (electric=0, shields draining).
-	# Uses shield level as the throttle: as shields drain from electric overdraw, engines die.
-	# Squared curve so it drops hard and fast.
-	if electric <= 0.0 and shield < shield_max:
-		var ratio: float = clampf(shield / maxf(shield_max, 1.0), 0.0, 1.0)
-		var throttle: float = ratio * ratio
+	# Curve goes from full speed at crisis start → zero at shields=0, regardless of
+	# what shield level was when the crisis began. Soft exponential (^0.9).
+	if electric <= 0.0 and _electric_crisis_active:
+		# Snapshot shield level when penalty first kicks in
+		if _shield_at_crisis_start < 0.0:
+			_shield_at_crisis_start = maxf(shield, 1.0)  # At least 1 to avoid div/0
+		var ratio: float = clampf(shield / _shield_at_crisis_start, 0.0, 1.0)
+		# Floor at 15% — engines never fully die from throttle, blackout drift takes over
+		var throttle: float = maxf(sqrt(ratio), 0.15)
 		speed *= throttle
 		acceleration *= throttle
-		# Also decay existing velocity so the ship actually slows down, not just future input
-		_velocity *= maxf(throttle, 0.05)
+	elif _shield_at_crisis_start >= 0.0 and electric > 0.0:
+		# Crisis over — reset snapshot
+		_shield_at_crisis_start = -1.0
 
-	# Blackout — engines completely dead
-	if _blackout_active:
+	# Drift/blackout — control cut, existing velocity coasts for a long time
+	if _drifting:
 		speed = 0.0
-		acceleration = 0.0
-		_velocity = _velocity.move_toward(Vector2.ZERO, 400.0 * delta)
+		acceleration = 6.0  # ~10 seconds to stop from 60px/s
 
 	# Acceleration-based movement
 	var input_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
@@ -293,15 +300,15 @@ func _process(delta: float) -> void:
 		if _electric_crisis_particles:
 			_electric_crisis_particles.emitting = false
 
-	# Blackout — electric at 0 AND shields at 0 AND player is still overdrawing
+	# Drift phase — shields hit 0 during electric crisis, ship loses control
 	if _electric_overdraw and electric <= 0.0 and shield <= 0.0:
-		if not _blackout_active:
-			_start_blackout()
-	if _blackout_active:
+		if not _drifting:
+			_start_drift()
+	if _drifting:
 		if electric > 0.0:
-			_end_blackout()
+			_end_drift()
 		else:
-			_process_blackout(delta)
+			_process_drift(delta)
 	# Reset overdraw flag — it's set per-frame by apply_bar_effects
 	_electric_overdraw = false
 
@@ -533,60 +540,85 @@ func _update_hud_devices() -> void:
 	_hud.update_devices(data)
 
 
-# ── Blackout sequence — total power failure ─────────────────────────────────
+# ── Drift + Blackout — electric power failure cascade ────────────────────────
+# Phase 1: DRIFT — shields hit 0 from electric overdraw. Ship spins, coasts, no control.
+# Phase 2: BLACKOUT — 3 seconds after drift starts. Screen darkens, HUD dims, thermal dumps.
+#           (Placeholder for future CRT distortion + LED bar death animations.)
+
+const DRIFT_TO_BLACKOUT_DELAY: float = 3.0  # Seconds of drift before blackout begins
+
+func _start_drift() -> void:
+	_drifting = true
+	_drift_timer = 0.0
+	_drift_rotation_speed = 0.0
+	_drift_spin_direction = 1.0 if randf() > 0.5 else -1.0
+
+
+func _process_drift(delta: float) -> void:
+	_drift_timer += delta
+
+	# Gradual spin — reaches max over 4 seconds
+	_drift_rotation_speed = minf(_drift_rotation_speed + (BLACKOUT_MAX_SPIN / 4.0) * delta, BLACKOUT_MAX_SPIN)
+	rotation += _drift_rotation_speed * _drift_spin_direction * delta
+
+	# After delay, trigger blackout (darkness + HUD effects)
+	if _drift_timer >= DRIFT_TO_BLACKOUT_DELAY and not _blackout_active:
+		_start_blackout()
+
+	if _blackout_active:
+		_process_blackout(delta)
+
 
 func _start_blackout() -> void:
 	_blackout_active = true
-	_blackout_rotation_speed = 0.0
 	# Dump thermal to zero (mercy: they'll need heat to generate electric)
 	thermal = 0.0
-	# Darken HUD bars
+	# Darken HUD bars (placeholder — future: individual LED bar shutdown animation)
 	if _hud:
 		_hud.modulate = Color(1, 1, 1, 0.15)
-	# Create darkening overlay on the game viewport
+	# Darkening overlay (placeholder — future: CRT distortion shader on game viewport)
 	if not _blackout_overlay:
 		var vp: Viewport = get_viewport()
 		if vp:
 			_blackout_overlay = ColorRect.new()
 			_blackout_overlay.color = Color(0, 0, 0, 0)
-			_blackout_overlay.z_index = 45  # Above game content, below HUD
+			_blackout_overlay.z_index = 45
 			_blackout_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_blackout_overlay.size = Vector2(1920, 1080)
 			vp.add_child(_blackout_overlay)
 
 
 func _process_blackout(delta: float) -> void:
-	# Accelerating spin
-	_blackout_rotation_speed = minf(_blackout_rotation_speed + BLACKOUT_SPIN_ACCEL * delta, BLACKOUT_MAX_SPIN)
-	rotation += _blackout_rotation_speed * delta
-
-	# Fade screen to black
+	# Fade screen to black (placeholder — future: CRT flicker + distortion)
 	if _blackout_overlay:
 		var new_alpha: float = minf(_blackout_overlay.color.a + BLACKOUT_FADE_SPEED * delta, 0.92)
 		_blackout_overlay.color = Color(0, 0, 0, new_alpha)
 
-	# CRT flicker effect — randomize ship renderer alpha
+	# Ship flicker (placeholder — future: proper CRT effect)
 	if _ship_renderer:
 		var flicker: float = randf_range(0.2, 0.8) if _blackout_overlay and _blackout_overlay.color.a < 0.7 else 0.1
 		_ship_renderer.modulate.a = flicker
 
 
-func _end_blackout() -> void:
-	_blackout_active = false
-	_blackout_rotation_speed = 0.0
+func _end_drift() -> void:
+	_drifting = false
+	_drift_timer = 0.0
+	_drift_rotation_speed = 0.0
 	rotation = 0.0
-	# Restore HUD bars
-	if _hud:
-		_hud.modulate = Color(1, 1, 1, 1)
-	# Restore ship renderer
-	if _ship_renderer:
-		_ship_renderer.modulate.a = 1.0
-	# Fade overlay out quickly
-	if _blackout_overlay:
-		var tween: Tween = create_tween()
-		tween.tween_property(_blackout_overlay, "color:a", 0.0, 0.5)
-		tween.tween_callback(_blackout_overlay.queue_free)
-		_blackout_overlay = null
+	if _blackout_active:
+		_blackout_active = false
+		# Restore HUD
+		if _hud:
+			_hud.modulate = Color(1, 1, 1, 1)
+		# Restore ship renderer
+		if _ship_renderer:
+			_ship_renderer.modulate.a = 1.0
+		# Fade overlay out
+		if _blackout_overlay:
+			var tween: Tween = create_tween()
+			tween.tween_property(_blackout_overlay, "color:a", 0.0, 0.5)
+			tween.tween_callback(_blackout_overlay.queue_free)
+			_blackout_overlay = null
 
 
 func _get_device_color(device: DeviceData) -> Color:
