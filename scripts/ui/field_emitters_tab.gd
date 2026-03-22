@@ -50,6 +50,9 @@ func _get_passive_effect_range() -> Vector2:
 func _save_data(id: String, data: Dictionary) -> void:
 	FieldEmitterDataManager.save(id, data)
 
+func _rename_data(old_id: String, new_id: String, data: Dictionary) -> void:
+	FieldEmitterDataManager.rename(old_id, new_id, data)
+
 func _delete_data(id: String) -> void:
 	FieldEmitterDataManager.delete(id)
 

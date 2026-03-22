@@ -49,6 +49,25 @@ static func load_all() -> Array[DeviceData]:
 	return devices
 
 
+static func rename(old_id: String, new_id: String, data: Dictionary) -> void:
+	if old_id == new_id:
+		save(new_id, data)
+		return
+	save(new_id, data)
+	delete(old_id)
+	# Update GameState references (owned devices + slot assignments)
+	var idx: int = GameState.owned_device_ids.find(old_id)
+	if idx >= 0:
+		GameState.owned_device_ids[idx] = new_id
+	for slot_key in GameState.slot_config:
+		if not slot_key.begins_with("field_"):
+			continue
+		var slot_data: Dictionary = GameState.slot_config[slot_key] as Dictionary
+		if str(slot_data.get("device_id", "")) == old_id:
+			slot_data["device_id"] = new_id
+	GameState.save_game()
+
+
 static func delete(id: String) -> void:
 	var path: String = DIR_PATH + id + ".json"
 	if FileAccess.file_exists(path):

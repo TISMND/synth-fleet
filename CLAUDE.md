@@ -183,3 +183,6 @@ Frame-based trigger checking using LoopMixer as the single clock source:
 - Each frame: get `LoopMixer.get_playback_position() / get_stream_duration()` for normalized time (0.0–1.0), check if any fire trigger was crossed since last frame
 - Wrap-around detection: if `curr < prev`, trigger fires if `> prev OR <= curr`
 - `activate()` / `deactivate()` / `toggle()` — unmute/mute via LoopMixer
+
+### Known Issues
+- **Effect rate (seg/min) calculation may be ~2x off for some weapons.** Observed on Charged Ion Pulse (single shot, mirror_mode=none). Displayed rate shows roughly half the actual consumption. Suspect: Godot resource caching — LoopMixer loads WAV and sets `loop_mode = LOOP_FORWARD`, then `EffectRateCalculator.get_loop_duration()` calls `load()` on same path and gets the cached looping stream, where `get_length()` may return a different value. Need to verify: (1) whether discrepancy is in hangar preview or gameplay, (2) print actual WAV durations from both LoopMixer and EffectRateCalculator to compare. Files: `scripts/util/effect_rate_calculator.gd`, `scripts/autoload/loop_mixer.gd`, `scripts/game/hardpoint_controller.gd`.

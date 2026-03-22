@@ -75,7 +75,7 @@ func _ready() -> void:
 
 	# Per-ship hull flash settings
 	if ship_data_ref:
-		_renderer.hull_peak_color = Color(ship_data_ref.hull_peak_r, ship_data_ref.hull_peak_g, ship_data_ref.hull_peak_b, 1.0)
+		_renderer.hull_flash_opacity = ship_data_ref.hull_flash_opacity
 		_renderer.hull_blink_speed = ship_data_ref.hull_blink_speed
 		_renderer.hull_flash_duration = ship_data_ref.hull_flash_duration
 	# Per-ship shield hit visual via FieldRenderer
@@ -86,7 +86,8 @@ func _ready() -> void:
 			_shield_field = FieldRenderer.new()
 			var ship_radius: float = ShipRenderer.get_ship_scale(-1) * 50.0
 			_shield_field.setup(style, ship_radius)
-			_shield_field.set_opacity(0.0)
+			_shield_field._stay_visible = false
+			_shield_field.visible = false
 			add_child(_shield_field)
 
 	# Setup weapon controller if ship has a weapon assigned

@@ -92,6 +92,9 @@ var _formation_id_to_name: Dictionary = {}
 var _path_id_to_name: Dictionary = {}
 var _path_id_to_curve: Dictionary = {}  # path_id -> Curve2D
 
+# Clipboard for copy/paste
+var _clipboard: Dictionary = {}  # Copied encounter or nebula dict
+
 # Cached nebula data
 var _cached_nebula_ids: Array[String] = []
 var _cached_nebula_names: Array[String] = []
@@ -182,6 +185,15 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
 		return
+	if not _is_text_input_focused() and event is InputEventKey:
+		var key: InputEventKey = event as InputEventKey
+		if key.pressed and key.ctrl_pressed and _selected_level:
+			if key.keycode == KEY_C:
+				_copy_selected()
+				get_viewport().set_input_as_handled()
+			elif key.keycode == KEY_V:
+				_paste_at_scroll()
+				get_viewport().set_input_as_handled()
 
 
 func _is_text_input_focused() -> bool:
@@ -437,6 +449,13 @@ func _get_map_rect() -> Rect2:
 	return Rect2(MAP_MARGIN, 0, map_w, canvas_size.y)
 
 
+func _get_map_scale() -> float:
+	# Uniform scale: same ratio for X and Y so circles stay circular.
+	# Derived from map width vs game screen width.
+	var map_rect: Rect2 = _get_map_rect()
+	return map_rect.size.x / SCREEN_W
+
+
 func _level_y_to_canvas_y(level_y: float) -> float:
 	# Convert level-space Y (trigger_y) to canvas Y, accounting for scroll.
 	# Flipped: high trigger_y (late encounters) at top, low trigger_y (early) at bottom,
@@ -444,8 +463,7 @@ func _level_y_to_canvas_y(level_y: float) -> float:
 	if not _selected_level:
 		return 0.0
 	var canvas_h: float = _map_canvas.size.y
-	var level_len: float = _selected_level.level_length
-	var scale: float = canvas_h / maxf(level_len, 1.0) * 3.0  # Show ~1/3 of level at a time
+	var scale: float = _get_map_scale()
 	return canvas_h - (level_y - _scroll_offset) * scale
 
 
@@ -453,8 +471,7 @@ func _canvas_y_to_level_y(canvas_y: float) -> float:
 	if not _selected_level:
 		return 0.0
 	var canvas_h: float = _map_canvas.size.y
-	var level_len: float = _selected_level.level_length
-	var scale: float = canvas_h / maxf(level_len, 1.0) * 3.0
+	var scale: float = _get_map_scale()
 	return (canvas_h - canvas_y) / scale + _scroll_offset
 
 
@@ -491,11 +508,13 @@ func _handle_map_input(event: InputEvent) -> void:
 				else:
 					_map_right_click(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-				var step: float = 2500.0 if mb.shift_pressed else 500.0
+				var visible_range: float = _map_canvas.size.y / maxf(_get_map_scale(), 0.001)
+				var step: float = visible_range * (0.5 if mb.shift_pressed else 0.15)
 				_scroll_offset = minf(_scroll_offset + step, maxf(_selected_level.level_length - 500.0, 0.0))
 				_map_canvas.queue_redraw()
 			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-				var step: float = 2500.0 if mb.shift_pressed else 500.0
+				var visible_range: float = _map_canvas.size.y / maxf(_get_map_scale(), 0.001)
+				var step: float = visible_range * (0.5 if mb.shift_pressed else 0.15)
 				_scroll_offset = maxf(_scroll_offset - step, 0.0)
 				_map_canvas.queue_redraw()
 		else:
@@ -529,9 +548,8 @@ func _handle_map_input(event: InputEvent) -> void:
 			_map_canvas.queue_redraw()
 		elif _map_dragging:
 			var delta: float = mm.position.y - _map_drag_start_y
-			var canvas_h: float = _map_canvas.size.y
 			var level_len: float = _selected_level.level_length
-			var scale: float = canvas_h / maxf(level_len, 1.0) * 3.0
+			var scale: float = _get_map_scale()
 			_scroll_offset = clampf(_map_drag_scroll_start + delta / scale, 0.0, maxf(level_len - 500.0, 0.0))
 			_map_canvas.queue_redraw()
 
@@ -615,33 +633,21 @@ func _get_nebula_spread(nebula_id: String) -> float:
 	return float(NebulaData.default_params()["radial_spread"])
 
 
-func _get_nebula_canvas_radii(neb: Dictionary) -> Vector2:
-	var map_rect: Rect2 = _get_map_rect()
-	var canvas_h: float = _map_canvas.size.y
-	var level_len: float = _selected_level.level_length if _selected_level else 1.0
+func _get_nebula_canvas_radius(neb: Dictionary) -> float:
 	var radius: float = float(neb.get("radius", 300.0))
 	var spread: float = _get_nebula_spread(str(neb.get("nebula_id", "")))
 	var effective: float = radius * (1.0 - spread / 2.0)
-	var rx: float = maxf(effective * (map_rect.size.x / SCREEN_W), NEBULA_HIT_RADIUS)
-	var ry: float = maxf(effective * (canvas_h / maxf(level_len, 1.0) * 3.0), NEBULA_HIT_RADIUS)
-	return Vector2(rx, ry)
-
-
-func _ellipse_hit_test(center: Vector2, pos: Vector2, rx: float, ry: float) -> bool:
-	# Normalized ellipse distance: (dx/rx)^2 + (dy/ry)^2 <= 1 means inside
-	var dx: float = (pos.x - center.x) / maxf(rx, 1.0)
-	var dy: float = (pos.y - center.y) / maxf(ry, 1.0)
-	return dx * dx + dy * dy <= 1.0
+	return maxf(effective * _get_map_scale(), NEBULA_HIT_RADIUS)
 
 
 func _map_left_click_nebula(pos: Vector2) -> void:
-	# Hit test existing nebula placements — use actual drawn ellipse
+	# Hit test existing nebula placements — use actual drawn radius
 	for i in range(_selected_level.nebula_placements.size()):
 		var neb: Dictionary = _selected_level.nebula_placements[i]
 		var neb_cy: float = _level_y_to_canvas_y(float(neb["trigger_y"]))
 		var neb_cx: float = _level_x_to_canvas_x(float(neb["x_offset"]))
-		var radii: Vector2 = _get_nebula_canvas_radii(neb)
-		if _ellipse_hit_test(Vector2(neb_cx, neb_cy), pos, radii.x, radii.y):
+		var hit_radius: float = _get_nebula_canvas_radius(neb)
+		if Vector2(neb_cx, neb_cy).distance_to(pos) < hit_radius:
 			_nebula_selected_idx = i
 			_nebula_dragging = true
 			_nebula_drag_start = pos
@@ -684,8 +690,8 @@ func _map_right_click_nebula(pos: Vector2) -> void:
 		var neb: Dictionary = _selected_level.nebula_placements[i]
 		var neb_cy: float = _level_y_to_canvas_y(float(neb["trigger_y"]))
 		var neb_cx: float = _level_x_to_canvas_x(float(neb["x_offset"]))
-		var radii: Vector2 = _get_nebula_canvas_radii(neb)
-		if _ellipse_hit_test(Vector2(neb_cx, neb_cy), pos, radii.x, radii.y):
+		var hit_radius: float = _get_nebula_canvas_radius(neb)
+		if Vector2(neb_cx, neb_cy).distance_to(pos) < hit_radius:
 			_selected_level.nebula_placements.remove_at(i)
 			if _nebula_selected_idx == i:
 				_nebula_selected_idx = -1
@@ -695,6 +701,40 @@ func _map_right_click_nebula(pos: Vector2) -> void:
 			_update_nebula_right_panel()
 			_map_canvas.queue_redraw()
 			return
+
+
+# ── Copy / Paste ──────────────────────────────────────────────
+
+func _copy_selected() -> void:
+	if _edit_mode == "encounters" and _selected_encounter_idx >= 0:
+		_clipboard = _selected_level.encounters[_selected_encounter_idx].duplicate(true)
+		_clipboard["_clip_type"] = "encounter"
+	elif _edit_mode == "nebulas" and _nebula_selected_idx >= 0:
+		_clipboard = _selected_level.nebula_placements[_nebula_selected_idx].duplicate(true)
+		_clipboard["_clip_type"] = "nebula"
+
+
+func _paste_at_scroll() -> void:
+	if _clipboard.is_empty() or not _selected_level:
+		return
+	var clip_type: String = str(_clipboard.get("_clip_type", ""))
+	var pasted: Dictionary = _clipboard.duplicate(true)
+	pasted.erase("_clip_type")
+	# Keep same trigger_y, center horizontally
+	pasted["x_offset"] = 0.0
+
+	if clip_type == "encounter" and _edit_mode == "encounters":
+		_selected_level.encounters.append(pasted)
+		_selected_encounter_idx = _selected_level.encounters.size() - 1
+		_save_current_level()
+		_update_right_panel()
+		_map_canvas.queue_redraw()
+	elif clip_type == "nebula" and _edit_mode == "nebulas":
+		_selected_level.nebula_placements.append(pasted)
+		_nebula_selected_idx = _selected_level.nebula_placements.size() - 1
+		_save_current_level()
+		_update_nebula_right_panel()
+		_map_canvas.queue_redraw()
 
 
 # ── Right panel: encounter properties ─────────────────────────
@@ -1316,8 +1356,10 @@ class _MapCanvasDraw extends Control:
 
 		# Scroll position indicator (narrow bar on left edge)
 		var canvas_h: float = size.y
+		var uniform_scale: float = s._get_map_scale()
+		var visible_range: float = canvas_h / maxf(uniform_scale, 0.001)
 		var scroll_ratio: float = s._scroll_offset / maxf(level.level_length, 1.0)
-		var view_ratio: float = clampf(1.0 / 3.0, 0.05, 1.0)
+		var view_ratio: float = clampf(visible_range / maxf(level.level_length, 1.0), 0.02, 1.0)
 		var bar_x: float = map_rect.position.x - 8
 		var bar_h: float = canvas_h * view_ratio
 		var bar_y: float = (1.0 - scroll_ratio) * (canvas_h - bar_h)
@@ -1327,10 +1369,7 @@ class _MapCanvasDraw extends Control:
 		var font2: Font = ThemeDB.fallback_font
 		draw_string(font2, Vector2(bar_x - 40, bar_y + bar_h * 0.5 + 4), str(int(s._scroll_offset)), HORIZONTAL_ALIGNMENT_RIGHT, 44, 10, Color(0.5, 0.7, 1.0, 0.7))
 
-		# Draw nebula placement ellipses (background layer, always visible)
-		# X and Y have different scales on the map — use both for accurate proportions
-		var x_scale: float = map_rect.size.x / 1920.0
-		var y_scale: float = canvas_h / maxf(level.level_length, 1.0) * 3.0
+		# Draw nebula placement circles (background layer, always visible)
 		for i in range(level.nebula_placements.size()):
 			var neb: Dictionary = level.nebula_placements[i]
 			var ncy: float = s._level_y_to_canvas_y(float(neb["trigger_y"]))
@@ -1339,10 +1378,9 @@ class _MapCanvasDraw extends Control:
 			var neb_id_for_spread: String = str(neb.get("nebula_id", ""))
 			var spread: float = s._get_nebula_spread(neb_id_for_spread)
 			var effective: float = neb_radius * (1.0 - spread / 2.0)
-			var canvas_rx: float = maxf(effective * x_scale, NEBULA_HIT_RADIUS)
-			var canvas_ry: float = maxf(effective * y_scale, NEBULA_HIT_RADIUS)
+			var canvas_radius: float = maxf(effective * uniform_scale, NEBULA_HIT_RADIUS)
 
-			if ncy < -canvas_ry - 20 or ncy > canvas_h + canvas_ry + 20:
+			if ncy < -canvas_radius - 20 or ncy > canvas_h + canvas_radius + 20:
 				continue
 
 			var neb_id: String = str(neb.get("nebula_id", ""))
@@ -1353,21 +1391,20 @@ class _MapCanvasDraw extends Control:
 
 			if is_neb_selected:
 				# Selected: bright fill + thick outline + outer glow rings
-				_draw_ellipse_filled(center, canvas_rx, canvas_ry, Color(neb_color, 0.3))
-				_draw_ellipse_outline(center, canvas_rx, canvas_ry, Color(neb_color, 0.9), 3.0)
-				_draw_ellipse_outline(center, canvas_rx + 4, canvas_ry + 4, Color(neb_color, 0.4), 2.0)
-				_draw_ellipse_outline(center, canvas_rx + 8, canvas_ry + 8, Color(neb_color, 0.2), 1.0)
+				draw_circle(center, canvas_radius, Color(neb_color, 0.3))
+				_draw_circle_outline(center, canvas_radius, Color(neb_color, 0.9), 3.0)
+				_draw_circle_outline(center, canvas_radius + 4, Color(neb_color, 0.4), 2.0)
+				_draw_circle_outline(center, canvas_radius + 8, Color(neb_color, 0.2), 1.0)
 				# Center crosshair
-				var ch_x: float = minf(canvas_rx * 0.3, 12.0)
-				var ch_y: float = minf(canvas_ry * 0.3, 12.0)
-				draw_line(Vector2(ncx - ch_x, ncy), Vector2(ncx + ch_x, ncy), Color(neb_color, 0.6), 1.0)
-				draw_line(Vector2(ncx, ncy - ch_y), Vector2(ncx, ncy + ch_y), Color(neb_color, 0.6), 1.0)
+				var ch: float = minf(canvas_radius * 0.3, 12.0)
+				draw_line(Vector2(ncx - ch, ncy), Vector2(ncx + ch, ncy), Color(neb_color, 0.6), 1.0)
+				draw_line(Vector2(ncx, ncy - ch), Vector2(ncx, ncy + ch), Color(neb_color, 0.6), 1.0)
 			else:
 				# Unselected: subtle fill + thin outline
-				_draw_ellipse_filled(center, canvas_rx, canvas_ry, Color(neb_color, 0.15))
-				_draw_ellipse_outline(center, canvas_rx, canvas_ry, Color(neb_color, 0.4), 2.0)
+				draw_circle(center, canvas_radius, Color(neb_color, 0.15))
+				_draw_circle_outline(center, canvas_radius, Color(neb_color, 0.4), 2.0)
 
-			# Name label below ellipse
+			# Name label below circle
 			var neb_name: String = ""
 			for ni in range(s._cached_nebula_ids.size()):
 				if s._cached_nebula_ids[ni] == neb_id:
@@ -1376,7 +1413,7 @@ class _MapCanvasDraw extends Control:
 			if neb_name == "":
 				neb_name = neb_id
 			var nfont: Font = ThemeDB.fallback_font
-			draw_string(nfont, Vector2(ncx - 40, ncy + canvas_ry + 14), neb_name, HORIZONTAL_ALIGNMENT_CENTER, 80, 10, Color(neb_color, 0.7))
+			draw_string(nfont, Vector2(ncx - 40, ncy + canvas_radius + 14), neb_name, HORIZONTAL_ALIGNMENT_CENTER, 80, 10, Color(neb_color, 0.7))
 
 		# Draw encounter markers
 		for i in range(level.encounters.size()):
@@ -1504,23 +1541,6 @@ class _MapCanvasDraw extends Control:
 			pts.append(center + Vector2(cos(angle), sin(angle)) * radius)
 		draw_polyline(pts, color, width, true)
 
-
-	func _draw_ellipse_filled(center: Vector2, rx: float, ry: float, color: Color) -> void:
-		var segments: int = maxi(int(maxf(rx, ry) * 0.5), 32)
-		var pts := PackedVector2Array()
-		for i in range(segments + 1):
-			var angle: float = TAU * float(i) / float(segments)
-			pts.append(center + Vector2(cos(angle) * rx, sin(angle) * ry))
-		draw_colored_polygon(pts, color)
-
-
-	func _draw_ellipse_outline(center: Vector2, rx: float, ry: float, color: Color, width: float) -> void:
-		var segments: int = maxi(int(maxf(rx, ry) * 0.5), 32)
-		var pts := PackedVector2Array()
-		for i in range(segments + 1):
-			var angle: float = TAU * float(i) / float(segments)
-			pts.append(center + Vector2(cos(angle) * rx, sin(angle) * ry))
-		draw_polyline(pts, color, width, true)
 
 
 	func _gui_input(event: InputEvent) -> void:

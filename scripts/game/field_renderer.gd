@@ -11,6 +11,7 @@ var _pulse_fade_up: float = 0.05
 var _pulse_fade_out: float = 0.4
 var _pulse_brightness: float = 2.0
 var _pulse_active: bool = false
+var _stay_visible: bool = true  # If false, hides after pulse ends (shield hit mode)
 
 
 func setup(style: FieldStyle, radius: float, anim_speed: float = 1.0) -> void:
@@ -41,6 +42,7 @@ func setup(style: FieldStyle, radius: float, anim_speed: float = 1.0) -> void:
 func pulse() -> void:
 	_pulse_elapsed = 0.0
 	_pulse_active = true
+	visible = true
 	if _material:
 		_material.set_shader_parameter("pulse_intensity", 0.0)
 
@@ -61,6 +63,7 @@ func _process(delta: float) -> void:
 		_pulse_elapsed += delta
 		if _pulse_elapsed >= _pulse_total_duration:
 			_pulse_active = false
+			visible = _stay_visible
 			if _material:
 				_material.set_shader_parameter("pulse_intensity", 0.0)
 		elif _material:

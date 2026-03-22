@@ -85,9 +85,26 @@ var time := 0.0
 var enemy_visual_id: String = ""
 var animate: bool = true
 var hit_flash: float = 0.0
-var hull_flash_duration: float = 0.12
-var hull_blink_speed: float = 6.0
-var hull_peak_color := Color(3.0, 3.0, 3.0, 1.0)
+var hull_flash_duration: float = 0.1
+var hull_blink_speed: float = 8.0
+var hull_flash_opacity: float = 0.5
+var _flash_material: ShaderMaterial = null
+
+const _FLASH_SHADER_CODE := "shader_type canvas_item;
+uniform float flash_mix : hint_range(0.0, 1.0) = 0.0;
+void fragment() {
+	vec4 col = texture(TEXTURE, UV) * COLOR;
+	col.rgb = mix(col.rgb, vec3(1.0), flash_mix);
+	COLOR = col;
+}"
+
+
+func _ready() -> void:
+	var shader := Shader.new()
+	shader.code = _FLASH_SHADER_CODE
+	_flash_material = ShaderMaterial.new()
+	_flash_material.shader = shader
+	material = _flash_material
 
 
 func trigger_hull_flash(duration: float = -1.0) -> void:
@@ -97,15 +114,15 @@ func trigger_hull_flash(duration: float = -1.0) -> void:
 
 
 func _process(delta: float) -> void:
-	# Hull flash modulate (Hard Blink)
+	# Hull flash (white blink, shader-masked to ship shape)
 	if hit_flash > 0.0:
 		hit_flash -= delta
-		var t: float = clampf(hit_flash / hull_flash_duration, 0.0, 1.0)
+		var t: float = clampf(hit_flash / maxf(hull_flash_duration, 0.001), 0.0, 1.0)
 		var on: bool = fmod(t * hull_blink_speed, 2.0) > 1.0
-		self_modulate = hull_peak_color if on else Color(1, 1, 1, 1)
+		_flash_material.set_shader_parameter("flash_mix", hull_flash_opacity if on else 0.0)
 		if hit_flash <= 0.0:
 			hit_flash = 0.0
-			self_modulate = Color(1, 1, 1, 1)
+			_flash_material.set_shader_parameter("flash_mix", 0.0)
 		if not animate:
 			queue_redraw()
 	if not animate:
@@ -330,17 +347,17 @@ func _draw() -> void:
 	_apply_palette()
 	if ship_id == -1:
 		_draw_enemy_ship()
-		return
-	match ship_id:
-		0: _draw_switchblade()
-		1: _draw_phantom()
-		2: _draw_mantis()
-		3: _draw_corsair()
-		4: _draw_stiletto()
-		5: _draw_trident()
-		6: _draw_orrery()
-		7: _draw_dreadnought()
-		8: _draw_bastion()
+	else:
+		match ship_id:
+			0: _draw_switchblade()
+			1: _draw_phantom()
+			2: _draw_mantis()
+			3: _draw_corsair()
+			4: _draw_stiletto()
+			5: _draw_trident()
+			6: _draw_orrery()
+			7: _draw_dreadnought()
+			8: _draw_bastion()
 
 # ── Enemy ship drawing ──
 

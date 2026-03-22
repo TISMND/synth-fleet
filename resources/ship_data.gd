@@ -40,11 +40,9 @@ const DEFAULT_HP: Dictionary = {
 
 # Hit effects (shared by player and enemy ships)
 @export var shield_style_id: String = ""         # Field style for shield hit visual (e.g. "blue_ripple")
-@export var hull_peak_r: float = 3.0             # Hull flash HDR red (values > 1.0 bloom)
-@export var hull_peak_g: float = 3.0             # Hull flash HDR green
-@export var hull_peak_b: float = 3.0             # Hull flash HDR blue
-@export var hull_flash_duration: float = 0.12    # Hull flash duration in seconds
-@export var hull_blink_speed: float = 6.0        # Hull flash blink cycles per duration
+@export var hull_flash_opacity: float = 0.5      # White blink overlay opacity (0.0–1.0)
+@export var hull_flash_duration: float = 0.1     # Hull flash duration in seconds
+@export var hull_blink_speed: float = 8.0        # Hull flash blink cycles per duration
 
 # Collision hitbox (shared by player and enemy ships)
 @export var collision_shape: String = "circle"  # "circle", "rectangle", "capsule"
@@ -82,9 +80,7 @@ static func from_dict(data: Dictionary) -> ShipData:
 	s.enable_screen_shake = bool(data.get("enable_screen_shake", false))
 	# Hit effects
 	s.shield_style_id = str(data.get("shield_style_id", ""))
-	s.hull_peak_r = float(data.get("hull_peak_r", 3.0))
-	s.hull_peak_g = float(data.get("hull_peak_g", 3.0))
-	s.hull_peak_b = float(data.get("hull_peak_b", 3.0))
+	s.hull_flash_opacity = float(data.get("hull_flash_opacity", 0.5))
 	s.hull_flash_duration = float(data.get("hull_flash_duration", 0.12))
 	s.hull_blink_speed = float(data.get("hull_blink_speed", 6.0))
 	# Collision hitbox
@@ -116,9 +112,7 @@ func to_dict() -> Dictionary:
 	# Hit effects (saved for all ship types)
 	if shield_style_id != "":
 		d["shield_style_id"] = shield_style_id
-	d["hull_peak_r"] = hull_peak_r
-	d["hull_peak_g"] = hull_peak_g
-	d["hull_peak_b"] = hull_peak_b
+	d["hull_flash_opacity"] = hull_flash_opacity
 	d["hull_flash_duration"] = hull_flash_duration
 	d["hull_blink_speed"] = hull_blink_speed
 	# Collision hitbox (saved for all ship types)

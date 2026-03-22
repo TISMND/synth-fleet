@@ -969,11 +969,10 @@ func _collect_power_core_data() -> Dictionary:
 	var loop_path: String = _loop_browser.get_selected_path()
 	var loop_bars: int = _waveform_editor.get_detected_bars()
 	var name_text: String = _name_input.text.strip_edges()
-	var id_text: String = _current_id if _current_id != "" else _generate_id(name_text)
 
 	return {
-		"id": id_text,
-		"display_name": name_text if name_text != "" else id_text,
+		"id": _generate_id(name_text),
+		"display_name": name_text,
 		"description": _desc_input.text,
 		"loop_file_path": loop_path,
 		"loop_length_bars": loop_bars,
@@ -1031,16 +1030,24 @@ func _collect_passive_effects() -> Dictionary:
 # ── Save / Load / Delete ───────────────────────────────────
 
 func _on_save() -> void:
+	var name_text: String = _name_input.text.strip_edges()
+	if name_text == "":
+		_status_label.text = "Enter a name first!"
+		return
 	if _merged_triggers.is_empty():
 		_status_label.text = "Place some pulse triggers first!"
 		return
 
 	var data: Dictionary = _collect_power_core_data()
-	if _current_id == "":
-		_current_id = str(data["id"])
-	var id: String = str(data["id"])
-	PowerCoreDataManager.save(id, data)
-	_status_label.text = "Saved: " + id
+	var new_id: String = str(data["id"])
+	var old_id: String = _current_id
+	if old_id != "" and old_id != new_id:
+		PowerCoreDataManager.rename(old_id, new_id, data)
+		_status_label.text = "Renamed: " + old_id + " → " + new_id
+	else:
+		PowerCoreDataManager.save(new_id, data)
+		_status_label.text = "Saved: " + new_id
+	_current_id = new_id
 	_refresh_load_list()
 	_mark_clean()
 

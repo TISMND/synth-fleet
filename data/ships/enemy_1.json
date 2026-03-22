@@ -10,15 +10,19 @@
 		1.0,
 		1.0
 	],
-	"explosion_size": 1.1,
+	"explosion_size": 1.0,
 	"grid_size": [
 		32,
 		32
 	],
 	"hardpoints": [],
+	"hull_blink_speed": 8.5,
+	"hull_flash_duration": 0.13,
+	"hull_flash_opacity": 0.35,
 	"id": "enemy_1",
 	"lines": [],
 	"render_mode": "neon",
+	"shield_style_id": "blue_ripple",
 	"stats": {
 		"acceleration": 600.0,
 		"core_slots": 1.0,

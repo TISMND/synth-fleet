@@ -31,8 +31,19 @@ var _space_state: int = 0  # 0=all off, 1=all on
 # Banking + rendering
 var _bank: float = 0.0
 var _ship_renderer: ShipRenderer = null
+var _electric_crisis_particles: GPUParticles2D = null  # Spark particles when electric is depleted
+var _electric_crisis_active: bool = false
+var _electric_overdraw: bool = false  # True when weapons tried to drain electric below 0
+var _blackout_active: bool = false
+var _blackout_rotation_speed: float = 0.0  # Accelerating spin during blackout
+var _blackout_overlay: ColorRect = null  # Darkening overlay on game viewport
 
 const THERMAL_COOLING_RATE: float = 10.0  # hp/sec passive cooling (10x scale)
+const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segments (40 points)
+const ELECTRIC_SHIELD_BLEED_MULT: float = 1.5  # Overdraw penalty: 1.5x cost from shields
+const BLACKOUT_SPIN_ACCEL: float = 0.8  # Radians/sec² rotation acceleration
+const BLACKOUT_MAX_SPIN: float = 2.5  # Max radians/sec rotation
+const BLACKOUT_FADE_SPEED: float = 0.4  # How fast screen dims (alpha/sec)
 
 
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
@@ -57,8 +68,46 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
 	add_child(_ship_renderer)
 
+	# Electric crisis VFX — spark particles when electric is depleted
+	_electric_crisis_particles = GPUParticles2D.new()
+	_electric_crisis_particles.z_index = 2
+	_electric_crisis_particles.emitting = false
+	_electric_crisis_particles.amount = 20
+	_electric_crisis_particles.lifetime = 0.4
+	_electric_crisis_particles.explosiveness = 0.0
+	_electric_crisis_particles.randomness = 1.0
+	_electric_crisis_particles.texture = VFXFactory.get_soft_circle()
+	_electric_crisis_particles.scale = Vector2(0.6, 0.6)
+	var spark_mat := ParticleProcessMaterial.new()
+	spark_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	spark_mat.emission_sphere_radius = 30.0
+	spark_mat.direction = Vector3(0, 0, 0)
+	spark_mat.spread = 180.0
+	spark_mat.initial_velocity_min = 40.0
+	spark_mat.initial_velocity_max = 120.0
+	spark_mat.gravity = Vector3(0, 0, 0)
+	spark_mat.damping_min = 60.0
+	spark_mat.damping_max = 100.0
+	spark_mat.scale_min = 0.3
+	spark_mat.scale_max = 1.0
+	var fade_curve := CurveTexture.new()
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 1.0))
+	curve.add_point(Vector2(1.0, 0.0))
+	fade_curve.curve = curve
+	spark_mat.scale_curve = fade_curve
+	spark_mat.color = Color(0.4, 0.7, 1.0, 0.9)
+	var color_ramp := Gradient.new()
+	color_ramp.set_color(0, Color(0.6, 0.8, 1.0, 1.0))
+	color_ramp.set_color(1, Color(0.2, 0.4, 1.0, 0.0))
+	var color_tex := GradientTexture1D.new()
+	color_tex.gradient = color_ramp
+	spark_mat.color_ramp = color_tex
+	_electric_crisis_particles.process_material = spark_mat
+	add_child(_electric_crisis_particles)
+
 	# Per-ship hull flash settings
-	_ship_renderer.hull_peak_color = Color(ship.hull_peak_r, ship.hull_peak_g, ship.hull_peak_b, 1.0)
+	_ship_renderer.hull_flash_opacity = ship.hull_flash_opacity
 	_ship_renderer.hull_blink_speed = ship.hull_blink_speed
 	_ship_renderer.hull_flash_duration = ship.hull_flash_duration
 	# Per-ship shield hit visual via FieldRenderer
@@ -68,7 +117,8 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 			var fr := FieldRenderer.new()
 			var ship_radius: float = ShipRenderer.get_ship_scale(_ship_renderer.ship_id) * 50.0
 			fr.setup(style, ship_radius)
-			fr.set_opacity(0.0)
+			fr._stay_visible = false
+			fr.visible = false
 			fr.name = "ShieldField"
 			add_child(fr)
 
@@ -198,6 +248,23 @@ func _process(delta: float) -> void:
 	# Apply device modifiers to speed/accel
 	_apply_device_modifiers()
 
+	# Electric engine penalty — kicks in once shield bleed starts (electric=0, shields draining).
+	# Uses shield level as the throttle: as shields drain from electric overdraw, engines die.
+	# Squared curve so it drops hard and fast.
+	if electric <= 0.0 and shield < shield_max:
+		var ratio: float = clampf(shield / maxf(shield_max, 1.0), 0.0, 1.0)
+		var throttle: float = ratio * ratio
+		speed *= throttle
+		acceleration *= throttle
+		# Also decay existing velocity so the ship actually slows down, not just future input
+		_velocity *= maxf(throttle, 0.05)
+
+	# Blackout — engines completely dead
+	if _blackout_active:
+		speed = 0.0
+		acceleration = 0.0
+		_velocity = _velocity.move_toward(Vector2.ZERO, 400.0 * delta)
+
 	# Acceleration-based movement
 	var input_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_velocity: Vector2 = input_dir * speed
@@ -215,6 +282,28 @@ func _process(delta: float) -> void:
 	# Shield regen is component-based only (no auto-regen)
 	# Passive thermal cooling
 	thermal = maxf(thermal - THERMAL_COOLING_RATE * delta, 0.0)
+
+	# Electric depleted — spark particles
+	if electric <= 0.0 and not _electric_crisis_active:
+		_electric_crisis_active = true
+		if _electric_crisis_particles:
+			_electric_crisis_particles.emitting = true
+	elif electric > 0.0 and _electric_crisis_active:
+		_electric_crisis_active = false
+		if _electric_crisis_particles:
+			_electric_crisis_particles.emitting = false
+
+	# Blackout — electric at 0 AND shields at 0 AND player is still overdrawing
+	if _electric_overdraw and electric <= 0.0 and shield <= 0.0:
+		if not _blackout_active:
+			_start_blackout()
+	if _blackout_active:
+		if electric > 0.0:
+			_end_blackout()
+		else:
+			_process_blackout(delta)
+	# Reset overdraw flag — it's set per-frame by apply_bar_effects
+	_electric_overdraw = false
 
 	# Banking animation from horizontal velocity
 	var target_bank: float = clampf(-_velocity.x / maxf(speed, 1.0), -1.0, 1.0)
@@ -444,6 +533,62 @@ func _update_hud_devices() -> void:
 	_hud.update_devices(data)
 
 
+# ── Blackout sequence — total power failure ─────────────────────────────────
+
+func _start_blackout() -> void:
+	_blackout_active = true
+	_blackout_rotation_speed = 0.0
+	# Dump thermal to zero (mercy: they'll need heat to generate electric)
+	thermal = 0.0
+	# Darken HUD bars
+	if _hud:
+		_hud.modulate = Color(1, 1, 1, 0.15)
+	# Create darkening overlay on the game viewport
+	if not _blackout_overlay:
+		var vp: Viewport = get_viewport()
+		if vp:
+			_blackout_overlay = ColorRect.new()
+			_blackout_overlay.color = Color(0, 0, 0, 0)
+			_blackout_overlay.z_index = 45  # Above game content, below HUD
+			_blackout_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_blackout_overlay.size = Vector2(1920, 1080)
+			vp.add_child(_blackout_overlay)
+
+
+func _process_blackout(delta: float) -> void:
+	# Accelerating spin
+	_blackout_rotation_speed = minf(_blackout_rotation_speed + BLACKOUT_SPIN_ACCEL * delta, BLACKOUT_MAX_SPIN)
+	rotation += _blackout_rotation_speed * delta
+
+	# Fade screen to black
+	if _blackout_overlay:
+		var new_alpha: float = minf(_blackout_overlay.color.a + BLACKOUT_FADE_SPEED * delta, 0.92)
+		_blackout_overlay.color = Color(0, 0, 0, new_alpha)
+
+	# CRT flicker effect — randomize ship renderer alpha
+	if _ship_renderer:
+		var flicker: float = randf_range(0.2, 0.8) if _blackout_overlay and _blackout_overlay.color.a < 0.7 else 0.1
+		_ship_renderer.modulate.a = flicker
+
+
+func _end_blackout() -> void:
+	_blackout_active = false
+	_blackout_rotation_speed = 0.0
+	rotation = 0.0
+	# Restore HUD bars
+	if _hud:
+		_hud.modulate = Color(1, 1, 1, 1)
+	# Restore ship renderer
+	if _ship_renderer:
+		_ship_renderer.modulate.a = 1.0
+	# Fade overlay out quickly
+	if _blackout_overlay:
+		var tween: Tween = create_tween()
+		tween.tween_property(_blackout_overlay, "color:a", 0.0, 0.5)
+		tween.tween_callback(_blackout_overlay.queue_free)
+		_blackout_overlay = null
+
+
 func _get_device_color(device: DeviceData) -> Color:
 	if device.field_style_id != "":
 		var style: FieldStyle = FieldStyleManager.load_by_id(device.field_style_id)
@@ -495,7 +640,18 @@ func apply_bar_effects(effects: Dictionary) -> void:
 			"thermal":
 				thermal = clampf(thermal + delta_val, 0.0, thermal_max)
 			"electric":
-				electric = clampf(electric + delta_val, 0.0, electric_max)
+				if delta_val < 0.0 and electric + delta_val < 0.0:
+					# Electric overdraw — absorb what electric has, bleed the rest to shields
+					var overflow: float = -(electric + delta_val)  # positive amount of overdraw
+					electric = 0.0
+					_electric_overdraw = true
+					var shield_cost: float = overflow * ELECTRIC_SHIELD_BLEED_MULT
+					shield = maxf(shield - shield_cost, 0.0)
+					# Trigger shield drain wave for the bleed
+					if _hud and _hud.has_method("trigger_drain_wave"):
+						_hud.trigger_drain_wave("SHIELD")
+				else:
+					electric = clampf(electric + delta_val, 0.0, electric_max)
 		# Trigger HUD wave based on intended delta, even when clamped at min/max
 		if _hud and delta_val != 0.0:
 			var hud_bar_name: String = str(bar_type).to_upper()

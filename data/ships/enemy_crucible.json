@@ -10,12 +10,15 @@
 		0.5,
 		1.0
 	],
-	"explosion_size": 1.0,
+	"explosion_size": 0.9,
 	"grid_size": [
 		48,
 		40
 	],
 	"hardpoints": [],
+	"hull_blink_speed": 8.0,
+	"hull_flash_duration": 0.12,
+	"hull_flash_opacity": 0.4,
 	"id": "enemy_crucible",
 	"lines": [],
 	"render_mode": "neon",

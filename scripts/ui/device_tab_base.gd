@@ -154,6 +154,9 @@ func _on_visual_pulse_crossed() -> void:
 func _save_data(id: String, data: Dictionary) -> void:
 	pass
 
+func _rename_data(old_id: String, new_id: String, data: Dictionary) -> void:
+	pass
+
 func _delete_data(id: String) -> void:
 	pass
 
@@ -844,7 +847,7 @@ func _collect_device_data() -> Dictionary:
 		mechanic_params[param_name] = slider.value
 
 	var data: Dictionary = {
-		"id": _current_id if _current_id != "" else _generate_id(_name_input.text),
+		"id": _generate_id(_name_input.text),
 		"display_name": _name_input.text,
 		"description": _desc_input.text,
 		"loop_file_path": _loop_browser.get_selected_path() if _loop_browser else "",
@@ -879,10 +882,15 @@ func _on_save() -> void:
 		_status_label.text = "Enter a name first!"
 		return
 	var data: Dictionary = _collect_device_data()
-	var id: String = str(data["id"])
-	_current_id = id
-	_save_data(id, data)
-	_status_label.text = "Saved: " + id
+	var new_id: String = str(data["id"])
+	var old_id: String = _current_id
+	if old_id != "" and old_id != new_id:
+		_rename_data(old_id, new_id, data)
+		_status_label.text = "Renamed: " + old_id + " → " + new_id
+	else:
+		_save_data(new_id, data)
+		_status_label.text = "Saved: " + new_id
+	_current_id = new_id
 	_refresh_load_list()
 	_dirty = false
 

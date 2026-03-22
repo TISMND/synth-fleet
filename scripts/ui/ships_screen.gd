@@ -59,9 +59,9 @@ var _weapon_preview_controller: HardpointController = null
 var _shield_style_dropdown: OptionButton = null
 var _shield_field_preview: FieldRenderer = null
 var _working_shield_style_id: String = ""
-var _working_hull_peak: Color = Color(3.0, 3.0, 3.0, 1.0)
-var _working_hull_flash_duration: float = 0.12
-var _working_hull_blink_speed: float = 6.0
+var _working_hull_flash_opacity: float = 0.5
+var _working_hull_flash_duration: float = 0.1
+var _working_hull_blink_speed: float = 8.0
 
 
 func _ready() -> void:
@@ -313,7 +313,7 @@ func _select_ship(index: int) -> void:
 		stats["collision_shape"] = override.collision_shape
 		# Load hit effect settings from override
 		_working_shield_style_id = override.shield_style_id
-		_working_hull_peak = Color(override.hull_peak_r, override.hull_peak_g, override.hull_peak_b, 1.0)
+		_working_hull_flash_opacity = override.hull_flash_opacity
 		_working_hull_flash_duration = override.hull_flash_duration
 		_working_hull_blink_speed = override.hull_blink_speed
 	else:
@@ -323,9 +323,9 @@ func _select_ship(index: int) -> void:
 		stats["collision_height"] = 30.0
 		stats["collision_shape"] = "circle"
 		_working_shield_style_id = ""
-		_working_hull_peak = Color(3.0, 3.0, 3.0, 1.0)
-		_working_hull_flash_duration = 0.12
-		_working_hull_blink_speed = 6.0
+		_working_hull_flash_opacity = 0.5
+		_working_hull_flash_duration = 0.1
+		_working_hull_blink_speed = 8.0
 
 	_working_stats = stats
 	_accel = float(stats.get("acceleration", 1200))
@@ -335,15 +335,13 @@ func _select_ship(index: int) -> void:
 	_updating_sliders = true
 	for key in _sliders:
 		var slider: HSlider = _sliders[key]
-		var hull_flash_keys: Array[String] = ["hull_peak_r", "hull_peak_g", "hull_peak_b", "hull_flash_duration", "hull_blink_speed"]
+		var hull_flash_keys: Array[String] = ["hull_flash_opacity", "hull_flash_duration", "hull_blink_speed"]
 		if key in hull_flash_keys:
 			match key:
-				"hull_peak_r": slider.value = _working_hull_peak.r
-				"hull_peak_g": slider.value = _working_hull_peak.g
-				"hull_peak_b": slider.value = _working_hull_peak.b
+				"hull_flash_opacity": slider.value = _working_hull_flash_opacity
 				"hull_flash_duration": slider.value = _working_hull_flash_duration
 				"hull_blink_speed": slider.value = _working_hull_blink_speed
-			_slider_labels[key].text = str(snapped(slider.value, 0.1))
+			_slider_labels[key].text = str(snapped(slider.value, 0.01))
 		else:
 			slider.value = float(stats.get(key, slider.value))
 			_slider_labels[key].text = str(int(slider.value))
@@ -740,9 +738,7 @@ func _build_player_right_panel() -> void:
 	ThemeManager.apply_button_style(test_shield_btn)
 
 	# Hull flash HDR sliders
-	_add_slider_row(vbox, "hull_peak_r", "HDR R", 0.0, 10.0, 0.1)
-	_add_slider_row(vbox, "hull_peak_g", "HDR G", 0.0, 10.0, 0.1)
-	_add_slider_row(vbox, "hull_peak_b", "HDR B", 0.0, 10.0, 0.1)
+	_add_slider_row(vbox, "hull_flash_opacity", "ALPHA", 0.0, 1.0, 0.05)
 	_add_slider_row(vbox, "hull_flash_duration", "DUR", 0.01, 1.0, 0.01)
 	_add_slider_row(vbox, "hull_blink_speed", "BLINK", 1.0, 20.0, 0.5)
 
@@ -1028,9 +1024,7 @@ func _build_enemy_right_panel() -> void:
 	ThemeManager.apply_button_style(test_shield_btn)
 
 	# Hull flash HDR sliders
-	_add_slider_row(vbox, "hull_peak_r", "HDR R", 0.0, 10.0, 0.1)
-	_add_slider_row(vbox, "hull_peak_g", "HDR G", 0.0, 10.0, 0.1)
-	_add_slider_row(vbox, "hull_peak_b", "HDR B", 0.0, 10.0, 0.1)
+	_add_slider_row(vbox, "hull_flash_opacity", "ALPHA", 0.0, 1.0, 0.05)
 	_add_slider_row(vbox, "hull_flash_duration", "DUR", 0.01, 1.0, 0.01)
 	_add_slider_row(vbox, "hull_blink_speed", "BLINK", 1.0, 20.0, 0.5)
 
@@ -1071,7 +1065,7 @@ func _build_enemy_right_panel() -> void:
 	# Set slider values from working enemy
 	_updating_sliders = true
 	var direct_keys: Array[String] = ["explosion_size", "collision_width", "collision_height",
-		"hull_peak_r", "hull_peak_g", "hull_peak_b", "hull_flash_duration", "hull_blink_speed"]
+		"hull_flash_opacity", "hull_flash_duration", "hull_blink_speed"]
 	for key in _sliders:
 		var slider: HSlider = _sliders[key]
 		var val: float = 0.0
@@ -1213,7 +1207,7 @@ func _on_attr_changed(value: float, key: String) -> void:
 		_slider_labels[key].text = str(int(value))
 
 	# Hull flash keys are direct ShipData properties, not stats
-	var hull_flash_keys: Array[String] = ["hull_peak_r", "hull_peak_g", "hull_peak_b", "hull_flash_duration", "hull_blink_speed"]
+	var hull_flash_keys: Array[String] = ["hull_flash_opacity", "hull_flash_duration", "hull_blink_speed"]
 
 	if _category == "ENEMIES" and _working_enemy:
 		if key == "explosion_size":
@@ -1240,9 +1234,7 @@ func _on_attr_changed(value: float, key: String) -> void:
 	# Player mode
 	if key in hull_flash_keys:
 		match key:
-			"hull_peak_r": _working_hull_peak.r = value
-			"hull_peak_g": _working_hull_peak.g = value
-			"hull_peak_b": _working_hull_peak.b = value
+			"hull_flash_opacity": _working_hull_flash_opacity = value
 			"hull_flash_duration": _working_hull_flash_duration = value
 			"hull_blink_speed": _working_hull_blink_speed = value
 		_apply_hull_flash_to_preview()
@@ -1294,7 +1286,8 @@ func _update_shield_field_preview(style_id: String) -> void:
 	_shield_field_preview = FieldRenderer.new()
 	var ship_scale: float = ShipRenderer.get_ship_scale(_ship_draw.ship_id) * 50.0
 	_shield_field_preview.setup(style, ship_scale)
-	_shield_field_preview.set_opacity(0.0)
+	_shield_field_preview._stay_visible = false
+	_shield_field_preview.visible = false
 	_shield_field_preview.position = _ship_draw.position
 	_ship_viewport.add_child(_shield_field_preview)
 
@@ -1313,11 +1306,11 @@ func _apply_hull_flash_to_preview() -> void:
 	if not _ship_draw:
 		return
 	if _category == "ENEMIES" and _working_enemy:
-		_ship_draw.hull_peak_color = Color(_working_enemy.hull_peak_r, _working_enemy.hull_peak_g, _working_enemy.hull_peak_b, 1.0)
+		_ship_draw.hull_flash_opacity = _working_enemy.hull_flash_opacity
 		_ship_draw.hull_flash_duration = _working_enemy.hull_flash_duration
 		_ship_draw.hull_blink_speed = _working_enemy.hull_blink_speed
 	else:
-		_ship_draw.hull_peak_color = _working_hull_peak
+		_ship_draw.hull_flash_opacity = _working_hull_flash_opacity
 		_ship_draw.hull_flash_duration = _working_hull_flash_duration
 		_ship_draw.hull_blink_speed = _working_hull_blink_speed
 
@@ -1548,9 +1541,7 @@ func _on_save_pressed() -> void:
 		"collision_width": float(_working_stats.get("collision_width", 30.0)),
 		"collision_height": float(_working_stats.get("collision_height", 30.0)),
 		"shield_style_id": _working_shield_style_id,
-		"hull_peak_r": _working_hull_peak.r,
-		"hull_peak_g": _working_hull_peak.g,
-		"hull_peak_b": _working_hull_peak.b,
+		"hull_flash_opacity": _working_hull_flash_opacity,
 		"hull_flash_duration": _working_hull_flash_duration,
 		"hull_blink_speed": _working_hull_blink_speed,
 	}

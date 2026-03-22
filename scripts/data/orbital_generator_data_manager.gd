@@ -49,6 +49,18 @@ static func load_all() -> Array[DeviceData]:
 	return devices
 
 
+static func rename(old_id: String, new_id: String, data: Dictionary) -> void:
+	if old_id == new_id:
+		save(new_id, data)
+		return
+	save(new_id, data)
+	delete(old_id)
+	var idx: int = GameState.owned_device_ids.find(old_id)
+	if idx >= 0:
+		GameState.owned_device_ids[idx] = new_id
+	GameState.save_game()
+
+
 static func delete(id: String) -> void:
 	var path: String = DIR_PATH + id + ".json"
 	if FileAccess.file_exists(path):

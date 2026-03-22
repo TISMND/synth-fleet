@@ -53,10 +53,10 @@
 			"ship_id": "enemy_obelisk",
 			"spacing": 100.0,
 			"speed": 200.0,
-			"trigger_y": 3216.04938271605,
+			"trigger_y": 2645.51557488687,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 28.5336345946567
+			"x_offset": 470.95356342028
 		},
 		{
 			"count": 7,
@@ -71,20 +71,6 @@
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 127.720794118178
-		},
-		{
-			"count": 7,
-			"formation_id": "",
-			"is_melee": false,
-			"path_id": "path_3",
-			"rotate_with_path": true,
-			"ship_id": "enemy_dart",
-			"spacing": 200.0,
-			"speed": 650.0,
-			"trigger_y": 1425.92592592593,
-			"turn_speed": 90.0,
-			"weapons_active": false,
-			"x_offset": -0.861069069245048
 		},
 		{
 			"count": 7,
@@ -241,18 +227,18 @@
 			"x_offset": 81.9928825622776
 		},
 		{
-			"count": 1,
+			"count": 7,
 			"formation_id": "",
 			"is_melee": false,
-			"path_id": "path_5",
-			"rotate_with_path": false,
-			"ship_id": "enemy_ironclad",
+			"path_id": "path_3",
+			"rotate_with_path": true,
+			"ship_id": "enemy_dart",
 			"spacing": 200.0,
-			"speed": 50.0,
-			"trigger_y": 1774.69135802469,
+			"speed": 650.0,
+			"trigger_y": 1429.34229603269,
 			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": -184.483985765125
+			"weapons_active": false,
+			"x_offset": 0.0
 		}
 	],
 	"id": "level_1",

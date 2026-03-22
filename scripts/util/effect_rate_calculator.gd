@@ -48,10 +48,12 @@ static func calc_weapon(weapon: WeaponData) -> Dictionary:
 	var emissions_per_trigger: float = 1.0
 	if weapon.beam_style_id != "":
 		emissions_per_trigger = maxf(weapon.beam_duration / 0.25, 1.0)
+	# Mirror mode fires twice per trigger (both +dir and -dir)
+	var mirror_mult: float = 2.0 if weapon.mirror_mode == "mirror" else 1.0
 	for bar_type in weapon.bar_effects:
 		var val: float = float(weapon.bar_effects[bar_type])
 		if not is_zero_approx(val):
-			result[str(bar_type)] = _to_segments(val * triggers_per_min * emissions_per_trigger)
+			result[str(bar_type)] = _to_segments(val * triggers_per_min * emissions_per_trigger * mirror_mult)
 	return result
 
 

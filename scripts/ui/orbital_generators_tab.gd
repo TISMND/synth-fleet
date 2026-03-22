@@ -29,6 +29,9 @@ func _get_id_prefix() -> String:
 func _save_data(id: String, data: Dictionary) -> void:
 	OrbitalGeneratorDataManager.save(id, data)
 
+func _rename_data(old_id: String, new_id: String, data: Dictionary) -> void:
+	OrbitalGeneratorDataManager.rename(old_id, new_id, data)
+
 func _delete_data(id: String) -> void:
 	OrbitalGeneratorDataManager.delete(id)
 

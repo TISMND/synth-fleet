@@ -57,14 +57,17 @@ var _core_previews: Array = []  # Array of Dicts: {pc, loop_id, prev_pos, trigge
 # Device preview — field emitter / orbital generator pulse trigger tracking
 var _device_previews: Array = []  # Array of Dicts: {device, loop_id, slot_key, prev_pos}
 
-# Mode toggle: "functional", "audio", or "controls"
+# Mode toggle: "functional", "workshop", "controls", or "audio"
 var _mode: String = "functional"
 var _functional_btn: Button
+var _workshop_btn: Button
 var _audio_btn: Button
 var _controls_btn: Button
 var _functional_content: VBoxContainer
+var _workshop_content: VBoxContainer
 var _audio_content: VBoxContainer
 var _controls_content: VBoxContainer
+var _ws_slot_rows: Dictionary = {}  # slot_key -> {toggle_btn, name_btn, rate_labels}
 
 # Slot active state for preview toggles
 var _slot_active: Dictionary = {}  # slot_key -> bool
@@ -211,6 +214,7 @@ func _apply_theme() -> void:
 	_darken_button(_launch_btn)
 	_darken_button(_back_btn)
 	_darken_button(_functional_btn)
+	_darken_button(_workshop_btn)
 	_darken_button(_audio_btn)
 	_darken_button(_controls_btn)
 
@@ -416,6 +420,8 @@ func _rebuild_buttons() -> void:
 		_particle_section.add_child(row)
 
 	_rebuild_audio_content()
+	if _workshop_content and _workshop_content.visible:
+		_rebuild_workshop_content()
 	_rebuild_controls_content()
 	call_deferred("_apply_theme")
 
@@ -915,23 +921,22 @@ func _sync_preview_active_states() -> void:
 func _on_mode_toggle(new_mode: String) -> void:
 	_mode = new_mode
 	_functional_content.visible = (_mode == "functional")
+	_workshop_content.visible = (_mode == "workshop")
 	_audio_content.visible = (_mode == "audio")
 	_controls_content.visible = (_mode == "controls")
 	if _mode == "controls":
 		_clear_right_panel()
 		_expanded_slot = ""
 		_unhighlight_all_slot_btns()
-		# Auto-select first fire group if none selected
-		if _fg_active_index < 0:
-			var presets: Array = KeyBindingManager.get_combo_presets()
-			if not presets.is_empty():
-				_fg_active_index = 0
-				var pattern: Dictionary = presets[0].get("pattern", {})
-				for slot_key in _slot_active:
-					_slot_active[slot_key] = pattern.get(slot_key, false)
-				_sync_preview_active_states()
+		_auto_select_first_fg()
 		_rebuild_controls_content()
 		_show_fire_groups_panel()
+	elif _mode == "workshop":
+		# Keep right panel available for picker (same as loadout)
+		_expanded_slot = ""
+		_unhighlight_all_slot_btns()
+		_auto_select_first_fg()
+		_rebuild_workshop_content()
 	elif _mode != "functional":
 		_clear_right_panel()
 		_expanded_slot = ""
@@ -939,17 +944,165 @@ func _on_mode_toggle(new_mode: String) -> void:
 	_update_mode_buttons()
 
 
+func _auto_select_first_fg() -> void:
+	if _fg_active_index < 0:
+		var presets: Array = KeyBindingManager.get_combo_presets()
+		if not presets.is_empty():
+			_fg_active_index = 0
+			var pattern: Dictionary = presets[0].get("pattern", {})
+			for slot_key in _slot_active:
+				_slot_active[slot_key] = pattern.get(slot_key, false)
+			_sync_preview_active_states()
+
+
+func _rebuild_workshop_content() -> void:
+	for child in _workshop_content.get_children():
+		child.queue_free()
+	_ws_slot_rows.clear()
+
+	var presets: Array = KeyBindingManager.get_combo_presets()
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var accent: Color = ThemeManager.get_color("accent")
+
+	# Fire group tab bar (no key labels)
+	_build_fg_tab_bar(_workshop_content, presets, false)
+
+	var has_group: bool = _fg_active_index >= 0 and _fg_active_index < presets.size()
+	if presets.is_empty():
+		var empty_lbl := Label.new()
+		empty_lbl.text = "Create your first fire group with the + button above."
+		empty_lbl.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
+		empty_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		empty_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if body_font:
+			empty_lbl.add_theme_font_override("font", body_font)
+		_workshop_content.add_child(empty_lbl)
+		return
+
+	# Scroll container for slot rows
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_workshop_content.add_child(scroll)
+
+	var slots_vbox := VBoxContainer.new()
+	slots_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slots_vbox.add_theme_constant_override("separation", 4)
+	scroll.add_child(slots_vbox)
+
+	var all_slots: Array = _get_all_slot_keys()
+	var active_totals: Dictionary = {}
+
+	# Group slots by type for section headers
+	var sections: Array = [
+		{"label": "WEAPONS", "prefix": "weapon_", "type": "weapon"},
+		{"label": "POWER CORES", "prefix": "core_", "type": "core"},
+		{"label": "FIELD EMITTERS", "prefix": "field_", "type": "field"},
+		{"label": "PARTICLE GENERATORS", "prefix": "particle_", "type": "particle"},
+	]
+
+	for section in sections:
+		var section_prefix: String = section["prefix"]
+		var section_slots: Array = []
+		for sk in all_slots:
+			if str(sk).begins_with(section_prefix):
+				section_slots.append(sk)
+		if section_slots.is_empty():
+			continue
+
+		var header: PanelContainer = _create_section_header_bar(section["label"], section["type"])
+		slots_vbox.add_child(header)
+
+		for slot_key in section_slots:
+			var item_name: String = _get_slot_item_name(slot_key)
+			var is_active: bool = _slot_active.get(slot_key, true)
+			var slot_rates: Dictionary = _get_slot_rates(slot_key)
+
+			if is_active:
+				for bar_type in slot_rates:
+					active_totals[str(bar_type)] = float(active_totals.get(str(bar_type), 0.0)) + float(slot_rates[bar_type])
+
+			# Hybrid row: power toggle + clickable slot name + rate badges
+			var panel := PanelContainer.new()
+			panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var ps := StyleBoxFlat.new()
+			ps.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+			ps.corner_radius_top_left = 4
+			ps.corner_radius_top_right = 4
+			ps.corner_radius_bottom_left = 4
+			ps.corner_radius_bottom_right = 4
+			ps.content_margin_left = 8
+			ps.content_margin_right = 8
+			ps.content_margin_top = 4
+			ps.content_margin_bottom = 4
+			panel.add_theme_stylebox_override("panel", ps)
+
+			var slot_vbox := VBoxContainer.new()
+			slot_vbox.add_theme_constant_override("separation", 0)
+			panel.add_child(slot_vbox)
+
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 8)
+			slot_vbox.add_child(row)
+
+			# Power toggle
+			var toggle_btn := Button.new()
+			toggle_btn.text = "\u23fb"
+			toggle_btn.custom_minimum_size = Vector2(36, 36)
+			toggle_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			_apply_power_toggle_style(toggle_btn, is_active)
+			if has_group:
+				var bound_slot: String = slot_key
+				toggle_btn.pressed.connect(func() -> void: _on_fg_slot_toggle(bound_slot))
+			else:
+				toggle_btn.disabled = true
+			row.add_child(toggle_btn)
+
+			# Slot name — styled button to open picker (matches loadout aesthetic)
+			var name_btn := Button.new()
+			name_btn.text = item_name
+			name_btn.custom_minimum_size.y = 54
+			name_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			name_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			_darken_button(name_btn)
+			var slot_color: Color = _get_slot_type_color(slot_key)
+			var name_alpha: float = 0.7 if is_active else 0.3
+			name_btn.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, name_alpha))
+			name_btn.add_theme_color_override("font_hover_color", Color(slot_color.r, slot_color.g, slot_color.b, 1.0))
+			name_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
+			var bound_key: String = slot_key
+			name_btn.pressed.connect(func() -> void: _toggle_slot_list(bound_key))
+			row.add_child(name_btn)
+			_slot_btns[slot_key] = name_btn
+
+			# Rate badges
+			var rate_label_refs: Array = _build_rate_badges(slot_vbox, slot_rates, is_active)
+			_ws_slot_rows[slot_key] = {"toggle_btn": toggle_btn, "name_btn": name_btn, "rate_labels": rate_label_refs}
+			slots_vbox.add_child(panel)
+
+		var section_spacer := Control.new()
+		section_spacer.custom_minimum_size.y = 4
+		slots_vbox.add_child(section_spacer)
+
+	# Totals
+	_build_fg_totals(active_totals, body_font, _workshop_content)
+
+
 func _update_mode_buttons() -> void:
 	var accent: Color = ThemeManager.get_color("accent")
-	for btn in [_functional_btn, _audio_btn, _controls_btn]:
+	for btn in [_functional_btn, _workshop_btn, _audio_btn, _controls_btn]:
 		btn.remove_theme_color_override("font_color")
 	if _mode == "functional":
 		_functional_btn.add_theme_color_override("font_color", accent)
+	elif _mode == "workshop":
+		_workshop_btn.add_theme_color_override("font_color", accent)
 	elif _mode == "audio":
 		_audio_btn.add_theme_color_override("font_color", accent)
 	else:
 		_controls_btn.add_theme_color_override("font_color", accent)
 	_darken_button(_functional_btn)
+	_darken_button(_workshop_btn)
 	_darken_button(_audio_btn)
 	_darken_button(_controls_btn)
 
@@ -1008,77 +1161,7 @@ func _rebuild_controls_content() -> void:
 	var accent: Color = ThemeManager.get_color("accent")
 
 	# ── TAB BAR ──
-	var tab_bar := HBoxContainer.new()
-	tab_bar.add_theme_constant_override("separation", 4)
-	tab_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_controls_content.add_child(tab_bar)
-
-	for i in presets.size():
-		var preset: Dictionary = presets[i]
-		var is_active_tab: bool = (i == _fg_active_index)
-
-		var tab_panel := PanelContainer.new()
-		var tps := StyleBoxFlat.new()
-		if is_active_tab:
-			tps.bg_color = Color(accent.r * 0.15, accent.g * 0.15, accent.b * 0.15, 0.8)
-			tps.border_width_bottom = 2
-			tps.border_color = accent
-		else:
-			tps.bg_color = Color(0.08, 0.08, 0.08, 0.7)
-		tps.corner_radius_top_left = 4
-		tps.corner_radius_top_right = 4
-		tps.content_margin_left = 10
-		tps.content_margin_right = 10
-		tps.content_margin_top = 4
-		tps.content_margin_bottom = 4
-		tab_panel.add_theme_stylebox_override("panel", tps)
-
-		var tab_vbox := VBoxContainer.new()
-		tab_vbox.add_theme_constant_override("separation", 0)
-		tab_panel.add_child(tab_vbox)
-
-		# Small label: group name
-		var tab_name := Label.new()
-		tab_name.text = "GROUP " + str(i + 1)
-		tab_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		tab_name.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
-		tab_name.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.9) if is_active_tab else ThemeManager.get_color("dimmed"))
-		if body_font:
-			tab_name.add_theme_font_override("font", body_font)
-		tab_vbox.add_child(tab_name)
-		_fg_tab_label_refs.append(tab_name)
-
-		# Large label: bound key
-		var tab_key := Label.new()
-		tab_key.text = str(preset.get("key_label", "?"))
-		tab_key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		tab_key.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-		tab_key.add_theme_color_override("font_color", accent if is_active_tab else ThemeManager.get_color("text"))
-		if button_font:
-			tab_key.add_theme_font_override("font", button_font)
-		tab_vbox.add_child(tab_key)
-
-		# Click handler
-		tab_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-		var bound_idx: int = i
-		tab_panel.gui_input.connect(func(event: InputEvent) -> void:
-			if event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
-				_select_fire_group(bound_idx)
-		)
-		tab_bar.add_child(tab_panel)
-
-	# "+" button to add new fire group
-	var add_btn := Button.new()
-	add_btn.text = "+"
-	add_btn.custom_minimum_size = Vector2(44, 0)
-	add_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	_darken_button(add_btn)
-	add_btn.pressed.connect(_on_add_fire_group)
-	tab_bar.add_child(add_btn)
-
-	var tab_spacer := Control.new()
-	tab_spacer.custom_minimum_size.y = 6
-	_controls_content.add_child(tab_spacer)
+	_build_fg_tab_bar(_controls_content, presets, true)
 
 	# ── EMPTY STATE ──
 	var has_group: bool = _fg_active_index >= 0 and _fg_active_index < presets.size()
@@ -1159,61 +1242,144 @@ func _rebuild_controls_content() -> void:
 		row.add_child(name_lbl)
 
 		# Per-slot rates — tiny boxed labels
-		var rate_label_refs: Array = []
-		if not slot_rates.is_empty():
-			var rates_hbox := HBoxContainer.new()
-			rates_hbox.add_theme_constant_override("separation", 4)
-			slot_vbox.add_child(rates_hbox)
-			var indent := Control.new()
-			indent.custom_minimum_size.x = 48
-			rates_hbox.add_child(indent)
-			var rate_font_size: int = ThemeManager.get_font_size("font_size_body") - 5
-			for bar_type in EffectRateCalculator.BAR_TYPES:
-				if not slot_rates.has(bar_type):
-					continue
-				var val: float = float(slot_rates[bar_type])
-				var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
-				var alpha: float = 0.8 if is_active else 0.25
-				# Mini box panel per rate value
-				var rate_box := PanelContainer.new()
-				var rbs := StyleBoxFlat.new()
-				rbs.bg_color = Color(bar_color.r * 0.15, bar_color.g * 0.15, bar_color.b * 0.15, alpha * 0.6)
-				rbs.corner_radius_top_left = 3
-				rbs.corner_radius_top_right = 3
-				rbs.corner_radius_bottom_left = 3
-				rbs.corner_radius_bottom_right = 3
-				rbs.content_margin_left = 4
-				rbs.content_margin_right = 4
-				rbs.content_margin_top = 1
-				rbs.content_margin_bottom = 1
-				rbs.border_width_left = 1
-				rbs.border_width_right = 1
-				rbs.border_width_top = 1
-				rbs.border_width_bottom = 1
-				rbs.border_color = Color(bar_color.r, bar_color.g, bar_color.b, alpha * 0.3)
-				rate_box.add_theme_stylebox_override("panel", rbs)
-				var rl := Label.new()
-				var rate_sign: String = "+" if val > 0 else ""
-				rl.text = rate_sign + str(int(val))
-				rl.add_theme_color_override("font_color", Color(bar_color.r, bar_color.g, bar_color.b, alpha))
-				rl.add_theme_font_size_override("font_size", rate_font_size)
-				if body_font:
-					rl.add_theme_font_override("font", body_font)
-				rate_box.add_child(rl)
-				rates_hbox.add_child(rate_box)
-				rate_label_refs.append(rl)
+		var rate_label_refs: Array = _build_rate_badges(slot_vbox, slot_rates, is_active)
 
 		_fg_slot_rows[slot_key] = {"toggle_btn": toggle_btn, "name_lbl": name_lbl, "rate_labels": rate_label_refs}
 		_controls_content.add_child(panel)
 
 	# ── TOTALS ──
-	_build_fg_totals(active_totals, body_font)
+	_build_fg_totals(active_totals, body_font, _controls_content)
 
 
-func _build_fg_totals(active_totals: Dictionary, body_font: Font) -> void:
+func _build_fg_tab_bar(parent: VBoxContainer, presets: Array, show_key_labels: bool = true) -> void:
+	var accent: Color = ThemeManager.get_color("accent")
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var button_font: Font = ThemeManager.get_font("font_header")
+
+	var tab_bar := HBoxContainer.new()
+	tab_bar.add_theme_constant_override("separation", 4)
+	tab_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(tab_bar)
+
+	for i in presets.size():
+		var preset: Dictionary = presets[i]
+		var is_active_tab: bool = (i == _fg_active_index)
+
+		var tab_panel := PanelContainer.new()
+		var tps := StyleBoxFlat.new()
+		if is_active_tab:
+			tps.bg_color = Color(accent.r * 0.15, accent.g * 0.15, accent.b * 0.15, 0.8)
+			tps.border_width_bottom = 2
+			tps.border_color = accent
+		else:
+			tps.bg_color = Color(0.08, 0.08, 0.08, 0.7)
+		tps.corner_radius_top_left = 4
+		tps.corner_radius_top_right = 4
+		tps.content_margin_left = 10
+		tps.content_margin_right = 10
+		tps.content_margin_top = 4
+		tps.content_margin_bottom = 4
+		tab_panel.add_theme_stylebox_override("panel", tps)
+
+		var tab_vbox := VBoxContainer.new()
+		tab_vbox.add_theme_constant_override("separation", 0)
+		tab_panel.add_child(tab_vbox)
+
+		var tab_name := Label.new()
+		tab_name.text = "GROUP " + str(i + 1)
+		tab_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tab_name.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
+		tab_name.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.9) if is_active_tab else ThemeManager.get_color("dimmed"))
+		if body_font:
+			tab_name.add_theme_font_override("font", body_font)
+		tab_vbox.add_child(tab_name)
+		_fg_tab_label_refs.append(tab_name)
+
+		if show_key_labels:
+			var tab_key := Label.new()
+			tab_key.text = str(preset.get("key_label", "?"))
+			tab_key.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			tab_key.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+			tab_key.add_theme_color_override("font_color", accent if is_active_tab else ThemeManager.get_color("text"))
+			if button_font:
+				tab_key.add_theme_font_override("font", button_font)
+			tab_vbox.add_child(tab_key)
+
+		tab_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		var bound_idx: int = i
+		tab_panel.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+				_select_fire_group(bound_idx)
+		)
+		tab_bar.add_child(tab_panel)
+
+	var add_btn := Button.new()
+	add_btn.text = "+"
+	add_btn.custom_minimum_size = Vector2(44, 0)
+	add_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	_darken_button(add_btn)
+	add_btn.pressed.connect(_on_add_fire_group)
+	tab_bar.add_child(add_btn)
+
+	var tab_spacer := Control.new()
+	tab_spacer.custom_minimum_size.y = 6
+	parent.add_child(tab_spacer)
+
+
+func _build_rate_badges(parent_vbox: VBoxContainer, slot_rates: Dictionary, is_active: bool) -> Array:
+	var rate_label_refs: Array = []
+	if slot_rates.is_empty():
+		return rate_label_refs
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var rates_hbox := HBoxContainer.new()
+	rates_hbox.add_theme_constant_override("separation", 4)
+	parent_vbox.add_child(rates_hbox)
+	var indent := Control.new()
+	indent.custom_minimum_size.x = 48
+	rates_hbox.add_child(indent)
+	var rate_font_size: int = ThemeManager.get_font_size("font_size_body") - 5
+	for bar_type in EffectRateCalculator.BAR_TYPES:
+		if not slot_rates.has(bar_type):
+			continue
+		var val: float = float(slot_rates[bar_type])
+		var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
+		var alpha: float = 0.8 if is_active else 0.25
+		var rate_box := PanelContainer.new()
+		var rbs := StyleBoxFlat.new()
+		rbs.bg_color = Color(bar_color.r * 0.15, bar_color.g * 0.15, bar_color.b * 0.15, alpha * 0.6)
+		rbs.corner_radius_top_left = 3
+		rbs.corner_radius_top_right = 3
+		rbs.corner_radius_bottom_left = 3
+		rbs.corner_radius_bottom_right = 3
+		rbs.content_margin_left = 4
+		rbs.content_margin_right = 4
+		rbs.content_margin_top = 1
+		rbs.content_margin_bottom = 1
+		rbs.border_width_left = 1
+		rbs.border_width_right = 1
+		rbs.border_width_top = 1
+		rbs.border_width_bottom = 1
+		rbs.border_color = Color(bar_color.r, bar_color.g, bar_color.b, alpha * 0.3)
+		rate_box.add_theme_stylebox_override("panel", rbs)
+		var rl := Label.new()
+		var rate_sign: String = "+" if val > 0 else ""
+		rl.text = rate_sign + str(int(val))
+		rl.add_theme_color_override("font_color", Color(bar_color.r, bar_color.g, bar_color.b, alpha))
+		rl.add_theme_font_size_override("font_size", rate_font_size)
+		if body_font:
+			rl.add_theme_font_override("font", body_font)
+		rate_box.add_child(rl)
+		rates_hbox.add_child(rate_box)
+		rate_label_refs.append(rl)
+	return rate_label_refs
+
+
+func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxContainer = null) -> void:
+	if not parent:
+		parent = _controls_content
 	var totals_spacer := Control.new()
 	totals_spacer.custom_minimum_size.y = 10
-	_controls_content.add_child(totals_spacer)
+	parent.add_child(totals_spacer)
 
 	var totals_panel := PanelContainer.new()
 	totals_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1272,7 +1438,7 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font) -> void:
 		total_row.add_child(val_lbl)
 		_fg_total_labels[bar_type] = val_lbl
 
-	_controls_content.add_child(totals_panel)
+	parent.add_child(totals_panel)
 
 
 func _fg_total_format_label(lbl: Label, val: float) -> void:
@@ -1354,8 +1520,11 @@ func _select_fire_group(index: int) -> void:
 	var pattern: Dictionary = presets[index].get("pattern", {})
 	for slot_key in _slot_active:
 		_slot_active[slot_key] = pattern.get(slot_key, false)
-	_rebuild_controls_content()
-	_show_fire_groups_panel()
+	if _mode == "workshop":
+		_rebuild_workshop_content()
+	else:
+		_rebuild_controls_content()
+		_show_fire_groups_panel()
 	_sync_preview_active_states()
 
 
@@ -1368,8 +1537,11 @@ func _on_fg_slot_toggle(slot_key: String) -> void:
 			pattern[sk] = _slot_active[sk]
 		KeyBindingManager.update_combo_preset_pattern(_fg_active_index, pattern)
 	# Rebuild UI (totals need recalculating)
-	_rebuild_controls_content()
-	_show_fire_groups_panel()
+	if _mode == "workshop":
+		_rebuild_workshop_content()
+	else:
+		_rebuild_controls_content()
+		_show_fire_groups_panel()
 	_sync_preview_active_states()
 
 
@@ -2008,18 +2180,31 @@ func _build_ui() -> void:
 		_bar_gain_waves[bar_name] = {"active": false, "position": -1.0}
 		_bar_drain_waves[bar_name] = {"active": false, "position": -1.0}
 
-	# Playback controls — overlaid inside the viewport container, top-center
+	# Simulator controls — overlaid inside the viewport container, top-center
+	var sim_vbox := VBoxContainer.new()
+	sim_vbox.add_theme_constant_override("separation", 2)
+	sim_vbox.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	sim_vbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	sim_vbox.offset_top = 4
+	sim_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_viewport_container.add_child(sim_vbox)
+
+	var sim_header := Label.new()
+	sim_header.text = "SIMULATOR"
+	sim_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sim_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
+	sim_header.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.5))
+	sim_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sim_vbox.add_child(sim_header)
+
 	var controls_hbox := HBoxContainer.new()
 	controls_hbox.add_theme_constant_override("separation", 10)
-	controls_hbox.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	controls_hbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	controls_hbox.offset_top = 6
-	controls_hbox.offset_bottom = 40
+	controls_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	controls_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_viewport_container.add_child(controls_hbox)
+	sim_vbox.add_child(controls_hbox)
 
 	_play_btn = Button.new()
-	_play_btn.text = "PLAY"
+	_play_btn.text = "RUN"
 	_play_btn.custom_minimum_size = Vector2(70, 30)
 	_play_btn.pressed.connect(_on_play_toggle)
 	controls_hbox.add_child(_play_btn)
@@ -2065,6 +2250,12 @@ func _build_ui() -> void:
 	_functional_btn.custom_minimum_size = Vector2(100, 36)
 	_functional_btn.pressed.connect(func() -> void: _on_mode_toggle("functional"))
 	mode_hbox.add_child(_functional_btn)
+
+	_workshop_btn = Button.new()
+	_workshop_btn.text = "WORKSHOP"
+	_workshop_btn.custom_minimum_size = Vector2(110, 36)
+	_workshop_btn.pressed.connect(func() -> void: _on_mode_toggle("workshop"))
+	mode_hbox.add_child(_workshop_btn)
 
 	_controls_btn = Button.new()
 	_controls_btn.text = "FIRE GROUPS"
@@ -2147,6 +2338,14 @@ func _build_ui() -> void:
 	_controls_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_controls_content.visible = false
 	_center_vbox.add_child(_controls_content)
+
+	# WORKSHOP content (hidden by default)
+	_workshop_content = VBoxContainer.new()
+	_workshop_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_workshop_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_workshop_content.add_theme_constant_override("separation", 4)
+	_workshop_content.visible = false
+	_center_vbox.add_child(_workshop_content)
 
 	# Bottom buttons (always visible, below all content areas)
 	var bottom_btns := HBoxContainer.new()
@@ -2265,13 +2464,13 @@ func _on_play_toggle() -> void:
 		LoopMixer.stop_all()
 		_clear_projectiles()
 		_is_playing = false
-		_play_btn.text = "PLAY"
+		_play_btn.text = "RUN"
 	else:
 		LoopMixer.start_all()
 		# Only activate controllers for slots that are toggled ON
 		_is_playing = true
 		_sync_preview_active_states()
-		_play_btn.text = "PAUSE"
+		_play_btn.text = "STOP"
 	_sync_audio_play_btn()
 
 
