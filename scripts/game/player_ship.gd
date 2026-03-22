@@ -41,7 +41,18 @@ var _drift_spin_direction: float = 1.0  # +1 or -1, random
 var _drift_rotation_speed: float = 0.0  # Current spin speed
 var _blackout_active: bool = false  # Full blackout (darkness, HUD dim) — 3s after drift starts
 var _blackout_power: float = 1.0  # CRT power level: 1.0=on, 0.0=dead
+var _blackout_final_death: bool = false  # True once power hits floor — components off, text starts
 var _blackout_overlay: ColorRect = null
+var _blackout_lowpass: AudioEffectLowPassFilter = null
+var _blackout_reverb: AudioEffectReverb = null
+var _blackout_flicker_state: bool = false  # True during hard cut frames — for SFX sync
+var _reboot_label: RichTextLabel = null  # DOS-style text during final death
+var _reboot_text_queue: Array[String] = []  # Lines to type out
+var _reboot_text_index: int = 0  # Current line being typed
+var _reboot_char_index: int = 0  # Current char in current line
+var _reboot_char_timer: float = 0.0  # Timer for typewriter effect
+signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
+signal final_power_death()  # Emitted once when power fully dies — for external systems
 
 const THERMAL_COOLING_RATE: float = 10.0  # hp/sec passive cooling (10x scale)
 const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segments (40 points)
@@ -577,6 +588,18 @@ func _start_blackout() -> void:
 	# Dump thermal to zero (mercy: they'll need heat to generate electric)
 	thermal = 0.0
 	# HUD bars stay fully visible — LED bar shutdown animation handled separately
+	# Audio degradation — low-pass + reverb on Master, tied to _blackout_power
+	var master_idx: int = AudioServer.get_bus_index("Master")
+	if master_idx >= 0:
+		_blackout_lowpass = AudioEffectLowPassFilter.new()
+		_blackout_lowpass.cutoff_hz = 20500.0
+		AudioServer.add_bus_effect(master_idx, _blackout_lowpass)
+		_blackout_reverb = AudioEffectReverb.new()
+		_blackout_reverb.room_size = 0.0
+		_blackout_reverb.wet = 0.0
+		_blackout_reverb.dry = 1.0
+		_blackout_reverb.damping = 0.8
+		AudioServer.add_bus_effect(master_idx, _blackout_reverb)
 	# CRT power death overlay — inside game SubViewport. Alpha-blended black overlay
 	# with distortion effects. HUD is on root viewport, unaffected.
 	if not _blackout_overlay:
@@ -598,14 +621,179 @@ func _start_blackout() -> void:
 
 func _process_blackout(delta: float) -> void:
 	# Drive power level down — takes ~5 seconds to reach near-zero
-	var prev: float = _blackout_power
 	_blackout_power = maxf(_blackout_power - BLACKOUT_FADE_SPEED * delta, 0.02)
+
+	# Visual — CRT shader
 	if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
 		var mat: ShaderMaterial = _blackout_overlay.material as ShaderMaterial
 		mat.set_shader_parameter("power", _blackout_power)
-	# Debug — print every 0.5 power drop
-	if int(prev * 10) != int(_blackout_power * 10):
-		print("[BLACKOUT] power=%.2f overlay=%s" % [_blackout_power, str(_blackout_overlay != null)])
+
+	# Audio — tied to same power level
+	var decay: float = 1.0 - _blackout_power
+	if _blackout_lowpass:
+		_blackout_lowpass.cutoff_hz = lerpf(20500.0, 600.0, decay * decay)
+	if _blackout_reverb:
+		_blackout_reverb.wet = decay * 0.7
+		_blackout_reverb.dry = lerpf(1.0, 0.3, decay)
+		_blackout_reverb.room_size = lerpf(0.0, 0.9, decay)
+
+	# Flicker detection — mirrors shader's hard cut logic for SFX sync
+	# (flickers fade out near death, matching shader's flicker_fade)
+	var t: float = Time.get_ticks_msec() / 1000.0
+	var flicker_fade: float = smoothstepf(0.85, 0.65, decay)
+	var cut_freq: float = decay * 0.7 * flicker_fade
+	var cut_roll: float = _hash_float(t * 10.0, 7.0)
+	var cut_hold: float = _hash_float(t * 10.0, 19.0)
+	var is_cut: bool = cut_roll < cut_freq and cut_hold < (0.4 + decay * 0.4)
+	var sustained_roll: float = _hash_float(t * 2.0, 31.0)
+	var sustained_cut: bool = decay > 0.5 and decay < 0.8 and sustained_roll < (decay - 0.4) * 0.9
+	var flicker_now: bool = is_cut or sustained_cut
+	if flicker_now != _blackout_flicker_state:
+		_blackout_flicker_state = flicker_now
+		blackout_flicker.emit(flicker_now)
+
+	# Final power death — power hit the floor
+	if _blackout_power <= 0.03 and not _blackout_final_death:
+		_blackout_final_death = true
+		_shutdown_all_components()
+		_start_reboot_sequence()
+		final_power_death.emit()
+
+	# Type out reboot text
+	if _blackout_final_death:
+		_process_reboot_text(delta)
+
+
+func smoothstepf(edge0: float, edge1: float, x: float) -> float:
+	var t_val: float = clampf((x - edge0) / (edge1 - edge0), 0.0, 1.0)
+	return t_val * t_val * (3.0 - 2.0 * t_val)
+
+
+func _shutdown_all_components() -> void:
+	# Kill all weapons, cores, devices — full power failure
+	for c in _hardpoint_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+	for c in _core_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+	for c in _device_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+	# Mute all loops
+	LoopMixer.mute_all()
+
+
+func _start_reboot_sequence() -> void:
+	_reboot_text_queue = [
+		"SYSTEM POWER FAILURE",
+		"",
+		"Diagnosing subsystems...",
+		"Main reactor: OFFLINE",
+		"Backup capacitor: 2%%",
+		"Rerouting emergency power...",
+		"",
+		"Activating backup systems...",
+		"Shield generator: STANDBY",
+		"Weapon systems: LOCKED",
+		"Navigation: RECOVERING...",
+		"",
+		"Regenerating power core...",
+	]
+	_reboot_text_index = 0
+	_reboot_char_index = 0
+	_reboot_char_timer = 0.0
+
+	# Create text label — on root viewport so it sits above the CRT overlay
+	# Uses HDR color for bloom glow
+	_reboot_label = RichTextLabel.new()
+	_reboot_label.bbcode_enabled = true
+	_reboot_label.scroll_active = false
+	_reboot_label.z_index = 48  # Above CRT overlay (45), below HUD (50)
+	_reboot_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_reboot_label.position = Vector2(120, 200)
+	_reboot_label.size = Vector2(600, 500)
+	_reboot_label.add_theme_font_size_override("normal_font_size", 16)
+	# Bright green for bloom — HDR via modulate
+	_reboot_label.add_theme_color_override("default_color", Color(0.3, 1.0, 0.4))
+	_reboot_label.modulate = Color(1.5, 1.5, 1.5, 1.0)  # HDR boost for bloom
+	var mono_font: Font = ThemeManager.get_font("font_body")
+	if mono_font:
+		_reboot_label.add_theme_font_override("normal_font", mono_font)
+	# CRT scanlines on the text itself
+	var scanline_shader: Shader = load("res://assets/shaders/crt_scanline_text.gdshader") as Shader
+	if scanline_shader:
+		var scan_mat := ShaderMaterial.new()
+		scan_mat.shader = scanline_shader
+		_reboot_label.material = scan_mat
+	_reboot_label.text = ""
+	get_viewport().add_child(_reboot_label)
+
+
+const REBOOT_CHAR_SPEED: float = 0.04  # Seconds per character
+const REBOOT_LINE_PAUSE: float = 0.6  # Pause between lines
+const REBOOT_HEADER_PAUSE: float = 1.2  # Longer pause after headers
+
+func _process_reboot_text(delta: float) -> void:
+	if _reboot_text_index >= _reboot_text_queue.size():
+		return  # All lines typed — stay on last frame
+
+	_reboot_char_timer += delta
+	var current_line: String = _reboot_text_queue[_reboot_text_index]
+
+	if current_line == "":
+		# Empty line = blank line pause
+		if _reboot_char_timer >= REBOOT_LINE_PAUSE:
+			_reboot_char_timer = 0.0
+			_reboot_text_index += 1
+			_reboot_char_index = 0
+			if _reboot_label:
+				_reboot_label.text += "\n"
+		return
+
+	var char_interval: float = REBOOT_CHAR_SPEED
+	if _reboot_char_index < current_line.length():
+		if _reboot_char_timer >= char_interval:
+			_reboot_char_timer -= char_interval
+			_reboot_char_index += 1
+			# Build display text with cursor
+			var typed: String = current_line.substr(0, _reboot_char_index)
+			_update_reboot_display(typed, true)
+	else:
+		# Line complete — pause then advance
+		var pause: float = REBOOT_HEADER_PAUSE if current_line == current_line.to_upper() else REBOOT_LINE_PAUSE
+		if _reboot_char_timer >= pause:
+			_reboot_char_timer = 0.0
+			_reboot_text_index += 1
+			_reboot_char_index = 0
+			_update_reboot_display(current_line, false)
+			if _reboot_label:
+				_reboot_label.text += "\n"
+
+
+func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
+	if not _reboot_label:
+		return
+	# Rebuild full text: all completed lines + current typing line + cursor
+	var full_text: String = ""
+	for i in _reboot_text_index:
+		var line: String = _reboot_text_queue[i]
+		if line == "":
+			full_text += "\n"
+		else:
+			full_text += line + "\n"
+	full_text += typed_portion
+	if show_cursor:
+		full_text += "\u2588"  # Block cursor █
+	_reboot_label.text = full_text
+
+
+## Hash matching the shader's hash function — keeps GDScript flicker detection in sync
+func _hash_float(x: float, seed: float) -> float:
+	var p := Vector3(fmod(abs(x), 1000.0) * 0.1031, fmod(abs(seed), 1000.0) * 0.1031, fmod(abs(x), 1000.0) * 0.1031)
+	p = Vector3(fmod(p.x, 1.0), fmod(p.y, 1.0), fmod(p.z, 1.0))
+	var d: float = p.x * (p.y + 33.33) + p.y * (p.z + 33.33) + p.z * (p.x + 33.33)
+	return fmod(abs(d), 1.0)
 
 
 func _end_drift() -> void:
@@ -616,21 +804,53 @@ func _end_drift() -> void:
 	if _blackout_active:
 		_blackout_active = false
 		# HUD restoration handled by LED bar system when ready
-		# Power-up: tween CRT overlay back to normal then remove
+		# Power-up: tween CRT overlay + audio back to normal
 		var recovery_power: float = _blackout_power
+		var lp_ref: AudioEffectLowPassFilter = _blackout_lowpass
+		var rv_ref: AudioEffectReverb = _blackout_reverb
 		if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
 			var mat: ShaderMaterial = _blackout_overlay.material as ShaderMaterial
 			var tween: Tween = create_tween()
 			tween.tween_method(func(v: float) -> void:
 				mat.set_shader_parameter("power", v)
+				var d: float = 1.0 - v
+				if lp_ref:
+					lp_ref.cutoff_hz = lerpf(20500.0, 600.0, d * d)
+				if rv_ref:
+					rv_ref.wet = d * 0.7
+					rv_ref.dry = lerpf(1.0, 0.3, d)
+					rv_ref.room_size = lerpf(0.0, 0.9, d)
 			, recovery_power, 1.0, 0.5)
 			var overlay_ref: ColorRect = _blackout_overlay
-			tween.tween_callback(overlay_ref.queue_free)
+			tween.tween_callback(func() -> void:
+				overlay_ref.queue_free()
+				_remove_blackout_audio()
+			)
 			_blackout_overlay = null
-		elif _blackout_overlay:
-			_blackout_overlay.queue_free()
-			_blackout_overlay = null
+		else:
+			if _blackout_overlay:
+				_blackout_overlay.queue_free()
+				_blackout_overlay = null
+			_remove_blackout_audio()
 		_blackout_power = 1.0
+		_blackout_flicker_state = false
+		_blackout_final_death = false
+		# Remove reboot text
+		if _reboot_label and is_instance_valid(_reboot_label):
+			_reboot_label.queue_free()
+			_reboot_label = null
+
+
+func _remove_blackout_audio() -> void:
+	var master_idx: int = AudioServer.get_bus_index("Master")
+	if master_idx < 0:
+		return
+	for i in range(AudioServer.get_bus_effect_count(master_idx) - 1, -1, -1):
+		var fx: AudioEffect = AudioServer.get_bus_effect(master_idx, i)
+		if fx == _blackout_lowpass or fx == _blackout_reverb:
+			AudioServer.remove_bus_effect(master_idx, i)
+	_blackout_lowpass = null
+	_blackout_reverb = null
 
 
 func _get_device_color(device: DeviceData) -> Color:
@@ -653,6 +873,17 @@ func _apply_device_modifiers() -> void:
 		accel_pct += device.accel_modifier
 	speed = _base_speed * maxf(1.0 + speed_pct / 100.0, 0.1)
 	acceleration = _base_accel * maxf(1.0 + accel_pct / 100.0, 0.1)
+
+
+func _exit_tree() -> void:
+	# Always clean up bus effects — they persist on the Master bus across scene changes
+	_remove_blackout_audio()
+	if _blackout_overlay and is_instance_valid(_blackout_overlay):
+		_blackout_overlay.queue_free()
+		_blackout_overlay = null
+	if _reboot_label and is_instance_valid(_reboot_label):
+		_reboot_label.queue_free()
+		_reboot_label = null
 
 
 func stop_all() -> void:

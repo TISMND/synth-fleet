@@ -3,13 +3,19 @@ shader_type canvas_item;
 // Per-segment bezel shader — renders individual socket/frame effects around each
 // LED segment. Uses the same segment grid math as led_bar_hdr.gdshader so bezels
 // align perfectly with the LED segments they frame.
-// Applied to a ColorRect overlaying the bar. Transparent between segments and
-// inside each segment cutout; opaque metal frame around each socket.
+//
+// The rect can be larger than the bar via edge_pad_x / edge_pad_y (in UV).
+// The segment grid is remapped into the inner region. End segments' bezel
+// frames extend naturally into the padding zone. Everything else is transparent.
 
 // Segment grid (must match led_bar_hdr values passed to this bar)
 uniform int segment_count : hint_range(1, 40) = 10;
 uniform float segment_gap : hint_range(0.0, 0.12) = 0.04;
 uniform int vertical : hint_range(0, 1) = 1;
+
+// Edge padding in UV space (fraction of total rect).
+uniform float edge_pad_x : hint_range(0.0, 0.3) = 0.0;
+uniform float edge_pad_y : hint_range(0.0, 0.3) = 0.0;
 
 // Per-socket bezel geometry
 uniform float socket_bezel : hint_range(0.0, 0.5) = 0.15;
@@ -32,6 +38,10 @@ uniform vec4 rim_color : source_color = vec4(0.3, 0.8, 1.0, 1.0);
 // Metal surface
 uniform vec4 metal_color : source_color = vec4(0.12, 0.13, 0.18, 1.0);
 uniform float metal_roughness : hint_range(0.0, 1.0) = 0.5;
+
+// Outer shadow — soft darkening halo around the segment array
+uniform float outer_shadow_intensity : hint_range(0.0, 2.0) = 0.0;
+uniform float outer_shadow_size : hint_range(0.0, 0.3) = 0.08;
 
 // Depth
 uniform float depth_scale : hint_range(0.0, 2.0) = 1.0;
@@ -56,42 +66,41 @@ void fragment() {
 	}
 	// Now uv.x = along segments (0→1), uv.y = across bar width (0→1)
 
-	// Segment grid math — same as led_bar_hdr.gdshader
-	float seg_w = 1.0 / float(segment_count);
-	float half_gap = segment_gap * 0.5;
+	// Remap UV into bar region (the inner area excluding edge padding).
+	// bar_uv can go outside 0-1 in the padding zone — that's intentional.
+	float inner_span_x = max(1.0 - 2.0 * edge_pad_x, 0.001);
+	float inner_span_y = max(1.0 - 2.0 * edge_pad_y, 0.001);
+	float bar_uv_x = (uv.x - edge_pad_x) / inner_span_x;
+	float bar_uv_y = (uv.y - edge_pad_y) / inner_span_y;
 
-	int seg_i = int(floor(uv.x / seg_w));
-	seg_i = clamp(seg_i, 0, segment_count - 1);
-
-	float seg_start = float(seg_i) * seg_w;
-
-	// Local UV within this segment cell, normalized 0→1
-	float lx = (uv.x - seg_start) / seg_w;
-	float ly = uv.y;
-
-	// Cell aspect ratio: how wide vs tall is one segment cell in pixels.
-	// For a vertical bar, after UV remap:
-	//   uv.x spans the rect's height (long axis)
-	//   uv.y spans the rect's width (short axis)
-	// TEXTURE_PIXEL_SIZE: px.x = 1/rect_width, px.y = 1/rect_height
+	// Cell aspect ratio
 	vec2 px = TEXTURE_PIXEL_SIZE;
 	float rect_w_px = 1.0 / max(px.x, 0.0001);
 	float rect_h_px = 1.0 / max(px.y, 0.0001);
-
-	float along_px;  // pixels per segment along the fill direction
-	float across_px; // pixels across the bar width
+	float along_px;
+	float across_px;
 	if (vertical == 1) {
-		along_px = rect_h_px * seg_w;  // height * fraction = segment length
-		across_px = rect_w_px;          // width = bar width
+		along_px = rect_h_px * inner_span_x / float(segment_count);
+		across_px = rect_w_px * inner_span_y;
 	} else {
-		along_px = rect_w_px * seg_w;
-		across_px = rect_h_px;
+		along_px = rect_w_px * inner_span_x / float(segment_count);
+		across_px = rect_h_px * inner_span_y;
 	}
-
-	// cell_aspect = across / along — how much wider than tall each cell is
 	float cell_aspect = across_px / max(along_px, 1.0);
 
-	// Center local UV and apply aspect correction so SDF is isotropic
+	// --- Segment SDF — always computed, even in padding zone ---
+	// Clamp to nearest segment so end bezels extend into padding naturally.
+	float seg_w = 1.0 / float(segment_count);
+
+	int seg_i = int(floor(bar_uv_x / seg_w));
+	seg_i = clamp(seg_i, 0, segment_count - 1);
+	float seg_start = float(seg_i) * seg_w;
+
+	// Local UV within this segment cell (can exceed 0-1 in padding)
+	float lx = (bar_uv_x - seg_start) / seg_w;
+	float ly = bar_uv_y;
+
+	// Center local UV and apply aspect correction
 	vec2 c = vec2(lx - 0.5, (ly - 0.5) * cell_aspect);
 	vec2 half_ext = vec2(0.5, 0.5 * cell_aspect);
 
@@ -99,20 +108,26 @@ void fragment() {
 	float r_outer = socket_radius * min(cell_aspect, 1.0);
 	float d_outer = sdf_rounded_rect(c, half_ext, r_outer);
 
-	// Inner rect = LED cutout, inset by socket_bezel
+	// Inner rect = LED cutout
 	vec2 half_inner = half_ext - vec2(socket_bezel, socket_bezel * cell_aspect);
 	half_inner = max(half_inner, vec2(0.01));
 	float r_inner = max(r_outer - socket_bezel * min(cell_aspect, 1.0), 0.0);
 	float d_inner = sdf_rounded_rect(c, half_inner, r_inner);
 
-	// Bezel mask: inside outer AND outside inner
 	float in_outer = 1.0 - smoothstep(-0.005, 0.005, d_outer);
 	float in_inner = 1.0 - smoothstep(-0.005, 0.005, d_inner);
 	float bezel_mask = in_outer * (1.0 - in_inner);
 
-	// Depth into bezel frame (0 = outer edge, 1 = inner edge)
+	// --- Metal color ---
+	vec3 col = metal_color.rgb;
+	if (metal_roughness > 0.0) {
+		float grain = hash21(uv * 500.0);
+		col += vec3((grain - 0.5) * metal_roughness * 0.06);
+	}
+
+	// --- Socket depth effects (only where bezel is visible) ---
 	float depth_raw = 0.0;
-	if (socket_bezel > 0.001) {
+	if (socket_bezel > 0.001 && bezel_mask > 0.0) {
 		float from_inner = max(d_inner, 0.0);
 		float from_outer = max(-d_outer, 0.0);
 		float total = from_inner + from_outer;
@@ -120,14 +135,7 @@ void fragment() {
 	}
 	float depth = depth_raw * depth_scale;
 
-	// --- Metal base color ---
-	vec3 col = metal_color.rgb;
-	if (metal_roughness > 0.0) {
-		float grain = hash21(uv * 500.0);
-		col += vec3((grain - 0.5) * metal_roughness * 0.06);
-	}
-
-	// --- Inner shadow ---
+	// Inner shadow
 	if (inner_shadow_intensity > 0.0 && bezel_mask > 0.0) {
 		float sh = pow(max(depth, 0.0), mix(0.5, 2.0, 1.0 - inner_shadow_softness));
 		if (abs(shadow_direction) > 0.01 && length(c) > 0.001) {
@@ -139,7 +147,7 @@ void fragment() {
 		col *= 1.0 - sh * inner_shadow_intensity * 0.8;
 	}
 
-	// --- Bevel highlight ---
+	// Bevel highlight
 	if (bevel_intensity > 0.0 && bezel_mask > 0.0 && length(c) > 0.001) {
 		vec2 grad_dir = normalize(c);
 		float facing = dot(grad_dir, normalize(vec2(-1.0, -1.0)));
@@ -148,16 +156,49 @@ void fragment() {
 		col += vec3(facing * ramp * inv_ramp * bevel_intensity * 0.3);
 	}
 
-	// --- Rim around each socket ---
+	// Rim around each socket
 	if (rim_intensity > 0.0 && rim_width > 0.0) {
 		float rim_d = abs(d_inner);
 		float rim_mask = smoothstep(rim_width, rim_width * 0.2, rim_d) * in_outer;
 		col = mix(col, rim_color.rgb * rim_intensity, rim_mask);
 	}
 
-	// --- Alpha: opaque in bezel frame, transparent in cutout and outside ---
-	// in_outer handles outer edge softness, in_inner handles cutout softness
-	float final_alpha = in_outer * (1.0 - in_inner);
+	// --- Alpha: transparent by default, opaque only in bezel frames ---
+	// Bezel frame = inside outer cell rect but NOT inside inner LED cutout.
+	// This naturally handles padding: end segment bezels extend into padding,
+	// but empty padding space stays transparent (d_outer > 0 → in_outer = 0).
+	float socket_alpha = in_outer * (1.0 - in_inner);
+
+	// --- Outer shadow: semi-transparent darkening halo in the padding zone ---
+	float shadow_alpha = 0.0;
+	if (outer_shadow_intensity > 0.0 && outer_shadow_size > 0.0) {
+		// Distance from the bar region boundary
+		float dx = 0.0;
+		float dy = 0.0;
+		if (bar_uv_x < 0.0) dx = -bar_uv_x;
+		else if (bar_uv_x > 1.0) dx = bar_uv_x - 1.0;
+		if (bar_uv_y < 0.0) dy = -bar_uv_y;
+		else if (bar_uv_y > 1.0) dy = bar_uv_y - 1.0;
+		float edge_dist = max(dx, dy);
+
+		if (edge_dist > 0.0) {
+			// Outside bar region: shadow fades outward
+			float fade = 1.0 - smoothstep(0.0, outer_shadow_size, edge_dist);
+			shadow_alpha = fade * outer_shadow_intensity * 0.5;
+			col *= 1.0 - fade * outer_shadow_intensity * 0.4;
+		} else {
+			// Inside bar region: subtle inner edge darkening
+			float inner_dx = min(bar_uv_x, 1.0 - bar_uv_x);
+			float inner_dy = min(bar_uv_y, 1.0 - bar_uv_y);
+			float inner_edge = min(inner_dx, inner_dy);
+			float inner_darken = smoothstep(outer_shadow_size * 0.5, 0.0, inner_edge);
+			col *= 1.0 - inner_darken * outer_shadow_intensity * 0.2;
+		}
+	}
+
+	// Combine: socket bezel frames are fully opaque, shadow is semi-transparent,
+	// everything else (gaps, cutouts, empty padding) is transparent.
+	float final_alpha = max(socket_alpha, shadow_alpha);
 
 	COLOR = vec4(col, final_alpha * mod_a * metal_color.a);
 }

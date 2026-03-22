@@ -33,212 +33,239 @@ var _pulse_timer: float = 2.0
 #                bezel_rects: [ColorRect]}
 var _variants: Array = []
 
+## All shadow-grounded socket variants. Same general approach (per-segment sockets
+## with outer_shadow grounding, dark chrome backgrounds), different parameter tweaks.
+
 const PRESETS: Array = [
 	{
 		"name": "CURRENT\nHUD",
 		"params": {},
 		"no_bezel": true,
 	},
+	# ── Vary socket depth & shadow ──
 	{
-		"name": "RECESSED\nCHANNEL",
-		"params": {
-			"bezel_width": 0.1,
-			"corner_radius": 0.015,
-			"inner_shadow_intensity": 1.2,
-			"inner_shadow_softness": 0.4,
-			"shadow_direction": 0.5,
-			"bevel_intensity": 0.15,
-			"bevel_softness": 0.6,
-			"rim_intensity": 0.0,
-			"metal_roughness": 0.4,
-			"brush_direction": 0,
-			"brush_intensity": 0.0,
-			"rivet_size": 0.0,
-			"depth_scale": 1.2,
-		}
-	},
-	{
-		"name": "RAISED\nBEVEL",
-		"params": {
-			"bezel_width": 0.09,
-			"corner_radius": 0.01,
-			"inner_shadow_intensity": 0.5,
-			"inner_shadow_softness": 0.3,
-			"shadow_direction": 0.6,
-			"bevel_intensity": 1.0,
-			"bevel_softness": 0.3,
-			"rim_intensity": 0.0,
-			"metal_roughness": 0.3,
-			"brush_direction": 0,
-			"brush_intensity": 0.0,
-			"rivet_size": 0.0,
-			"depth_scale": 1.0,
-		}
-	},
-	{
-		"name": "ROUNDED\nINSET",
-		"params": {
-			"bezel_width": 0.11,
-			"corner_radius": 0.08,
-			"inner_shadow_intensity": 0.9,
-			"inner_shadow_softness": 0.7,
-			"shadow_direction": 0.3,
-			"bevel_intensity": 0.2,
-			"bevel_softness": 0.9,
-			"rim_intensity": 0.0,
-			"metal_roughness": 0.5,
-			"brush_direction": 0,
-			"brush_intensity": 0.0,
-			"rivet_size": 0.0,
-			"depth_scale": 1.0,
-		}
-	},
-	{
-		"name": "INDUSTRIAL\nBOLTED",
-		"params": {
-			"bezel_width": 0.12,
-			"corner_radius": 0.005,
-			"inner_shadow_intensity": 0.8,
-			"inner_shadow_softness": 0.2,
-			"shadow_direction": 0.4,
-			"bevel_intensity": 0.4,
-			"bevel_softness": 0.15,
-			"rim_intensity": 0.0,
-			"metal_roughness": 0.7,
-			"brush_direction": 0,
-			"brush_intensity": 0.0,
-			"rivet_size": 0.025,
-			"rivet_brightness": 0.6,
-			"depth_scale": 1.3,
-		}
-	},
-	{
-		"name": "SOCKET\nRECESSED",
+		"name": "DEEP\nHARD SHADOW",
 		"per_segment": true,
 		"params": {
-			"socket_bezel": 0.15,
-			"socket_radius": 0.08,
-			"inner_shadow_intensity": 1.0,
-			"inner_shadow_softness": 0.4,
-			"shadow_direction": 0.5,
-			"bevel_intensity": 0.2,
-			"bevel_softness": 0.5,
+			"socket_bezel": 0.20, "socket_radius": 0.03,
+			"inner_shadow_intensity": 1.8, "inner_shadow_softness": 0.2,
+			"shadow_direction": 0.7, "bevel_intensity": 0.5, "bevel_softness": 0.2,
 			"rim_intensity": 0.0,
-			"metal_roughness": 0.5,
-			"depth_scale": 1.2,
-		}
-	},
-	{
-		"name": "SOCKET\nNEON",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.12,
-			"socket_radius": 0.15,
-			"inner_shadow_intensity": 0.8,
-			"inner_shadow_softness": 0.6,
-			"shadow_direction": 0.0,
-			"bevel_intensity": 0.1,
-			"bevel_softness": 0.5,
-			"rim_intensity": 1.2,
-			"rim_width": 0.03,
-			"rim_color": Color(0.3, 0.8, 1.0, 1.0),
-			"metal_roughness": 0.4,
-			"depth_scale": 1.0,
-		}
-	},
-	{
-		"name": "NEON\nTRIM",
-		"params": {
-			"bezel_width": 0.07,
-			"corner_radius": 0.03,
-			"inner_shadow_intensity": 1.0,
-			"inner_shadow_softness": 0.6,
-			"shadow_direction": 0.0,
-			"bevel_intensity": 0.1,
-			"bevel_softness": 0.5,
-			"rim_intensity": 1.5,
-			"rim_width": 0.015,
-			"rim_color": Color(0.3, 0.8, 1.0, 1.0),
-			"metal_roughness": 0.4,
-			"brush_direction": 0,
-			"brush_intensity": 0.0,
-			"rivet_size": 0.0,
-			"depth_scale": 1.0,
-		}
-	},
-	{
-		"name": "DEEP\nWELL",
-		"params": {
-			"bezel_width": 0.14,
-			"corner_radius": 0.02,
-			"inner_shadow_intensity": 1.8,
-			"inner_shadow_softness": 0.3,
-			"shadow_direction": 0.5,
-			"bevel_intensity": 0.3,
-			"bevel_softness": 0.2,
-			"rim_intensity": 0.0,
-			"metal_roughness": 0.5,
-			"brush_direction": 0,
-			"brush_intensity": 0.0,
-			"rivet_size": 0.0,
+			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.7,
+			"outer_shadow_intensity": 1.4, "outer_shadow_size": 0.14,
 			"depth_scale": 1.8,
-		}
+		},
+		"chrome": {
+			"base_color": Vector4(0.04, 0.04, 0.06, 1.0),
+			"chrome_top_brightness": 0.45,
+			"chrome_base_brightness": 0.22,
+			"highlight_intensity": 0.12,
+			"edge_brightness": 0.05,
+		},
 	},
 	{
-		"name": "CHAMFERED\nEDGE",
+		"name": "SHALLOW\nSOFT SHADOW",
+		"per_segment": true,
 		"params": {
-			"bezel_width": 0.1,
-			"corner_radius": 0.01,
-			"inner_shadow_intensity": 0.4,
-			"inner_shadow_softness": 0.2,
-			"shadow_direction": 0.6,
-			"bevel_intensity": 1.2,
-			"bevel_softness": 0.7,
+			"socket_bezel": 0.10, "socket_radius": 0.06,
+			"inner_shadow_intensity": 0.7, "inner_shadow_softness": 0.7,
+			"shadow_direction": 0.3, "bevel_intensity": 0.15, "bevel_softness": 0.7,
 			"rim_intensity": 0.0,
-			"metal_roughness": 0.3,
-			"brush_direction": 0,
-			"brush_intensity": 0.0,
-			"rivet_size": 0.0,
-			"depth_scale": 1.0,
-		}
+			"metal_color": Color(0.06, 0.06, 0.08, 1.0), "metal_roughness": 0.5,
+			"outer_shadow_intensity": 0.8, "outer_shadow_size": 0.10,
+			"depth_scale": 0.8,
+		},
+		"chrome": {
+			"base_color": Vector4(0.05, 0.05, 0.07, 1.0),
+			"chrome_top_brightness": 0.5,
+			"chrome_base_brightness": 0.25,
+			"highlight_intensity": 0.15,
+			"edge_brightness": 0.06,
+		},
 	},
 	{
-		"name": "RUBBER\nGASKET",
+		"name": "MEDIUM\nBALANCED",
+		"per_segment": true,
 		"params": {
-			"bezel_width": 0.08,
-			"corner_radius": 0.04,
-			"inner_shadow_intensity": 1.4,
-			"inner_shadow_softness": 0.8,
-			"shadow_direction": 0.0,
-			"bevel_intensity": 0.05,
-			"bevel_softness": 0.9,
+			"socket_bezel": 0.15, "socket_radius": 0.05,
+			"inner_shadow_intensity": 1.2, "inner_shadow_softness": 0.4,
+			"shadow_direction": 0.5, "bevel_intensity": 0.3, "bevel_softness": 0.4,
 			"rim_intensity": 0.0,
-			"metal_color": Color(0.06, 0.06, 0.07, 1.0),
-			"metal_roughness": 0.9,
-			"brush_direction": 0,
-			"brush_intensity": 0.0,
-			"rivet_size": 0.0,
-			"depth_scale": 1.0,
-		}
+			"metal_color": Color(0.06, 0.06, 0.08, 1.0), "metal_roughness": 0.6,
+			"outer_shadow_intensity": 1.0, "outer_shadow_size": 0.10,
+			"depth_scale": 1.3,
+		},
+		"chrome": {
+			"base_color": Vector4(0.05, 0.05, 0.07, 1.0),
+			"chrome_top_brightness": 0.5,
+			"chrome_base_brightness": 0.25,
+			"highlight_intensity": 0.15,
+			"edge_brightness": 0.06,
+		},
+	},
+	# ── Vary corner radius (sharp vs rounded sockets) ──
+	{
+		"name": "SHARP\nSQUARE",
+		"per_segment": true,
+		"params": {
+			"socket_bezel": 0.16, "socket_radius": 0.0,
+			"inner_shadow_intensity": 1.4, "inner_shadow_softness": 0.25,
+			"shadow_direction": 0.6, "bevel_intensity": 0.45, "bevel_softness": 0.2,
+			"rim_intensity": 0.0,
+			"metal_color": Color(0.04, 0.04, 0.05, 1.0), "metal_roughness": 0.4,
+			"outer_shadow_intensity": 1.1, "outer_shadow_size": 0.11,
+			"depth_scale": 1.5,
+		},
+		"chrome": {
+			"base_color": Vector4(0.03, 0.03, 0.04, 1.0),
+			"chrome_top_brightness": 0.4,
+			"chrome_base_brightness": 0.2,
+			"highlight_intensity": 0.1,
+			"edge_brightness": 0.04,
+		},
 	},
 	{
-		"name": "FLUSH\nEMBEDDED",
+		"name": "ROUNDED\nPILL",
+		"per_segment": true,
 		"params": {
-			"bezel_width": 0.05,
-			"corner_radius": 0.015,
-			"inner_shadow_intensity": 0.6,
-			"inner_shadow_softness": 0.6,
-			"shadow_direction": 0.35,
-			"bevel_intensity": 0.15,
-			"bevel_softness": 0.5,
-			"rim_intensity": 0.3,
-			"rim_width": 0.005,
-			"metal_roughness": 0.4,
-			"brush_direction": 0,
-			"brush_intensity": 0.0,
-			"rivet_size": 0.0,
-			"depth_scale": 0.7,
-		}
+			"socket_bezel": 0.14, "socket_radius": 0.35,
+			"inner_shadow_intensity": 1.0, "inner_shadow_softness": 0.5,
+			"shadow_direction": 0.4, "bevel_intensity": 0.2, "bevel_softness": 0.6,
+			"rim_intensity": 0.0,
+			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.5,
+			"outer_shadow_intensity": 1.0, "outer_shadow_size": 0.10,
+			"depth_scale": 1.2,
+		},
+		"chrome": {
+			"base_color": Vector4(0.04, 0.04, 0.06, 1.0),
+			"chrome_top_brightness": 0.5,
+			"chrome_base_brightness": 0.25,
+			"highlight_intensity": 0.15,
+			"edge_brightness": 0.06,
+		},
+	},
+	# ── Vary panel brightness ──
+	{
+		"name": "NEAR\nBLACK",
+		"per_segment": true,
+		"params": {
+			"socket_bezel": 0.16, "socket_radius": 0.04,
+			"inner_shadow_intensity": 1.3, "inner_shadow_softness": 0.3,
+			"shadow_direction": 0.5, "bevel_intensity": 0.35, "bevel_softness": 0.35,
+			"rim_intensity": 0.0,
+			"metal_color": Color(0.03, 0.03, 0.04, 1.0), "metal_roughness": 0.2,
+			"outer_shadow_intensity": 0.8, "outer_shadow_size": 0.09,
+			"depth_scale": 1.4,
+		},
+		"chrome": {
+			"base_color": Vector4(0.02, 0.02, 0.03, 1.0),
+			"chrome_top_brightness": 0.3,
+			"chrome_base_brightness": 0.15,
+			"highlight_intensity": 0.06,
+			"edge_brightness": 0.02,
+		},
+	},
+	{
+		"name": "MID\nGUNMETAL",
+		"per_segment": true,
+		"params": {
+			"socket_bezel": 0.15, "socket_radius": 0.05,
+			"inner_shadow_intensity": 1.1, "inner_shadow_softness": 0.4,
+			"shadow_direction": 0.5, "bevel_intensity": 0.3, "bevel_softness": 0.45,
+			"rim_intensity": 0.0,
+			"metal_color": Color(0.10, 0.10, 0.13, 1.0), "metal_roughness": 0.5,
+			"outer_shadow_intensity": 1.0, "outer_shadow_size": 0.10,
+			"depth_scale": 1.2,
+		},
+		"chrome": {
+			"base_color": Vector4(0.10, 0.10, 0.14, 1.0),
+			"chrome_top_brightness": 0.6,
+			"chrome_base_brightness": 0.35,
+			"highlight_intensity": 0.2,
+			"edge_brightness": 0.08,
+		},
+	},
+	# ── Vary bevel character ──
+	{
+		"name": "STRONG\nBEVEL",
+		"per_segment": true,
+		"params": {
+			"socket_bezel": 0.17, "socket_radius": 0.04,
+			"inner_shadow_intensity": 1.0, "inner_shadow_softness": 0.3,
+			"shadow_direction": 0.6, "bevel_intensity": 0.8, "bevel_softness": 0.3,
+			"rim_intensity": 0.0,
+			"metal_color": Color(0.07, 0.07, 0.09, 1.0), "metal_roughness": 0.5,
+			"outer_shadow_intensity": 1.0, "outer_shadow_size": 0.10,
+			"depth_scale": 1.4,
+		},
+		"chrome": {
+			"base_color": Vector4(0.06, 0.06, 0.08, 1.0),
+			"chrome_top_brightness": 0.55,
+			"chrome_base_brightness": 0.28,
+			"highlight_intensity": 0.18,
+			"edge_brightness": 0.07,
+		},
+	},
+	{
+		"name": "NO BEVEL\nPURE SHADOW",
+		"per_segment": true,
+		"params": {
+			"socket_bezel": 0.16, "socket_radius": 0.04,
+			"inner_shadow_intensity": 1.6, "inner_shadow_softness": 0.35,
+			"shadow_direction": 0.5, "bevel_intensity": 0.0, "bevel_softness": 0.5,
+			"rim_intensity": 0.0,
+			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.6,
+			"outer_shadow_intensity": 1.2, "outer_shadow_size": 0.12,
+			"depth_scale": 1.5,
+		},
+		"chrome": {
+			"base_color": Vector4(0.04, 0.04, 0.06, 1.0),
+			"chrome_top_brightness": 0.45,
+			"chrome_base_brightness": 0.22,
+			"highlight_intensity": 0.12,
+			"edge_brightness": 0.05,
+		},
+	},
+	# ── Vary shadow size/intensity ──
+	{
+		"name": "WIDE\nHALO",
+		"per_segment": true,
+		"params": {
+			"socket_bezel": 0.15, "socket_radius": 0.05,
+			"inner_shadow_intensity": 1.2, "inner_shadow_softness": 0.4,
+			"shadow_direction": 0.5, "bevel_intensity": 0.3, "bevel_softness": 0.4,
+			"rim_intensity": 0.0,
+			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.5,
+			"outer_shadow_intensity": 1.8, "outer_shadow_size": 0.20,
+			"depth_scale": 1.3,
+		},
+		"chrome": {
+			"base_color": Vector4(0.05, 0.05, 0.07, 1.0),
+			"chrome_top_brightness": 0.5,
+			"chrome_base_brightness": 0.25,
+			"highlight_intensity": 0.15,
+			"edge_brightness": 0.06,
+		},
+	},
+	{
+		"name": "TIGHT\nHALO",
+		"per_segment": true,
+		"params": {
+			"socket_bezel": 0.15, "socket_radius": 0.05,
+			"inner_shadow_intensity": 1.2, "inner_shadow_softness": 0.4,
+			"shadow_direction": 0.5, "bevel_intensity": 0.3, "bevel_softness": 0.4,
+			"rim_intensity": 0.0,
+			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.5,
+			"outer_shadow_intensity": 1.6, "outer_shadow_size": 0.05,
+			"depth_scale": 1.3,
+		},
+		"chrome": {
+			"base_color": Vector4(0.05, 0.05, 0.07, 1.0),
+			"chrome_top_brightness": 0.5,
+			"chrome_base_brightness": 0.25,
+			"highlight_intensity": 0.15,
+			"edge_brightness": 0.06,
+		},
 	},
 ]
 
@@ -348,6 +375,13 @@ func _build_variant(index: int) -> void:
 	panel_root.size = Vector2(VARIANT_WIDTH, VARIANT_HEIGHT)
 	panel_holder.add_child(panel_root)
 
+	# Apply chrome panel overrides if preset specifies custom background look
+	var chrome_overrides: Dictionary = preset.get("chrome", {}) as Dictionary
+	if not chrome_overrides.is_empty() and panel_root.material is ShaderMaterial:
+		var chrome_mat: ShaderMaterial = panel_root.material as ShaderMaterial
+		for key in chrome_overrides:
+			chrome_mat.set_shader_parameter(key, chrome_overrides[key])
+
 	# Apply fill ratio, colors, and label theming — NO structural changes to bars.
 	var bars: Dictionary = panel_data["bars"]
 	var bar_entries: Array = []
@@ -382,34 +416,40 @@ func _build_variant(index: int) -> void:
 		})
 
 	var per_segment: bool = preset.get("per_segment", false) as bool
+	var border_params: Dictionary = preset.get("border", {}) as Dictionary
 	_variants.append({
 		"name": preset_name,
 		"params": params,
 		"no_bezel": no_bezel,
 		"per_segment": per_segment,
+		"border": border_params,
+		"chrome": chrome_overrides,
 		"name_label": name_label,
 		"panel_data": panel_data,
 		"panel_root": panel_root,
 		"bar_entries": bar_entries,
-		"bezel_rects": [],
+		"bezel_rects": [],  # per-segment socket rects
+		"border_rects": [],  # outer border rects
 	})
 
 
 # ── Deferred bezel placement ────────────────────────────────────
 
 func _place_bezels() -> void:
-	## Called via call_deferred after layout settles. Reads actual bar positions
-	## and creates bezel ColorRects around each bar. The bezel shader's transparent
-	## cutout lets the bar's LED segments show through the center.
+	## Called via call_deferred after layout settles. Creates bezel overlays:
+	## 1. Outer border (bar_bezel.gdshader) — whole-bar frame, if "border" dict present
+	## 2. Per-segment sockets (bar_bezel_segments.gdshader) — individual LED frames
+	## Both layers use transparent cutouts so bars show through.
 	for variant in _variants:
 		if bool(variant["no_bezel"]):
 			continue
 		var panel_root: ColorRect = variant["panel_root"]
 		var params: Dictionary = variant["params"]
+		var border_params: Dictionary = variant["border"]
 		var bars: Dictionary = variant["panel_data"]["bars"]
 		var bar_entries: Array = variant["bar_entries"]
 		var bezel_rects: Array = variant["bezel_rects"]
-		var is_per_seg: bool = variant.get("per_segment", false) as bool
+		var border_rects: Array = variant["border_rects"]
 
 		var be_idx: int = 0
 		var specs: Array = ThemeManager.get_status_bar_specs()
@@ -417,87 +457,98 @@ func _place_bezels() -> void:
 			var bar_name: String = str(spec["name"])
 			if not bars.has(bar_name):
 				continue
-			var entry: Dictionary = bars[bar_name]
-			var bar: ProgressBar = entry["bar"]
+			var bar: ProgressBar = bars[bar_name]["bar"]
 			var seg: int = int(bar_entries[be_idx]["seg"]) if be_idx < bar_entries.size() else 8
 			be_idx += 1
 
-			# Get bar's position relative to panel_root
-			var bar_local_pos: Vector2 = bar.global_position - panel_root.global_position
+			var bar_pos: Vector2 = bar.global_position - panel_root.global_position
+			var pad: float = float(BEZEL_PAD)
 
-			# Per-segment bezels sit exactly on the bar (no padding — they tile
-			# around each LED segment). Whole-bar bezels extend beyond the bar.
-			var pad: float = 0.0 if is_per_seg else float(BEZEL_PAD)
+			# Layer 1: outer border frame (if present).
+			# Compute bezel_width dynamically so the cutout aligns exactly with
+			# the bar bounds — no visible gap between border and segments.
+			if not border_params.is_empty() and _bezel_shader:
+				var border_rect := ColorRect.new()
+				border_rect.position = Vector2(bar_pos.x - pad, bar_pos.y - pad)
+				var brd_size := Vector2(bar.size.x + pad * 2.0, bar.size.y + pad * 2.0)
+				border_rect.size = brd_size
+				border_rect.color = Color.WHITE
+				border_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				var bmat := ShaderMaterial.new()
+				bmat.shader = _bezel_shader
+				_apply_bezel_params(bmat, border_params)
+				# Override bezel_width so cutout = bar bounds exactly.
+				# bezel_width is in UV-x space; pad / border_width gives the fraction.
+				bmat.set_shader_parameter("bezel_width", pad / maxf(brd_size.x, 1.0))
+				border_rect.material = bmat
+				panel_root.add_child(border_rect)
+				border_rects.append(border_rect)
 
-			var bezel_rect := ColorRect.new()
-			bezel_rect.position = Vector2(
-				bar_local_pos.x - pad,
-				bar_local_pos.y - pad
-			)
-			bezel_rect.size = Vector2(
-				bar.size.x + pad * 2.0,
-				bar.size.y + pad * 2.0
-			)
-			bezel_rect.color = Color.WHITE
-			bezel_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-			if is_per_seg and _bezel_seg_shader:
-				# Per-segment bezel — needs segment grid params to align with LED bar
-				var mat := ShaderMaterial.new()
-				mat.shader = _bezel_seg_shader
-				_apply_bezel_params(mat, params)
-				# Pass segment grid params from the bar's LED shader
-				mat.set_shader_parameter("segment_count", seg)
+			# Layer 2: per-segment sockets.
+			# Extend rect by BEZEL_PAD on all sides so end segments get full
+			# bezel frames. edge_pad_x/y tell the shader where the bar region is.
+			if _bezel_seg_shader:
+				var seg_rect := ColorRect.new()
+				seg_rect.position = Vector2(bar_pos.x - pad, bar_pos.y - pad)
+				var seg_size := Vector2(bar.size.x + pad * 2.0, bar.size.y + pad * 2.0)
+				seg_rect.size = seg_size
+				seg_rect.color = Color.WHITE
+				seg_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				var smat := ShaderMaterial.new()
+				smat.shader = _bezel_seg_shader
+				_apply_bezel_params(smat, params)
+				smat.set_shader_parameter("segment_count", seg)
 				if bar.material is ShaderMaterial:
 					var bar_mat: ShaderMaterial = bar.material as ShaderMaterial
-					mat.set_shader_parameter("segment_gap", bar_mat.get_shader_parameter("segment_gap"))
-				mat.set_shader_parameter("vertical", 1)
-				bezel_rect.material = mat
-			elif _bezel_shader:
-				var mat := ShaderMaterial.new()
-				mat.shader = _bezel_shader
-				_apply_bezel_params(mat, params)
-				bezel_rect.material = mat
-
-			# Add as child of panel_root — renders after main_vbox (on top).
-			# Shader's transparent cutout lets bar show through.
-			panel_root.add_child(bezel_rect)
-			bezel_rects.append(bezel_rect)
+					smat.set_shader_parameter("segment_gap", bar_mat.get_shader_parameter("segment_gap"))
+				smat.set_shader_parameter("vertical", 1)
+				# Padding in UV space — tells shader where the bar grid lives
+				# For vertical: uv.x = along segments (maps to rect height),
+				# uv.y = across bar (maps to rect width).
+				# edge_pad_x = padding along segments = pad / seg_rect_height (in uv after remap)
+				# edge_pad_y = padding across bar = pad / seg_rect_width (in uv after remap)
+				if seg_size.y > 0.0 and seg_size.x > 0.0:
+					smat.set_shader_parameter("edge_pad_x", pad / seg_size.y)
+					smat.set_shader_parameter("edge_pad_y", pad / seg_size.x)
+				seg_rect.material = smat
+				panel_root.add_child(seg_rect)
+				bezel_rects.append(seg_rect)
 
 
 func _reposition_bezels() -> void:
-	## Re-reads bar positions and updates bezel rects. Called after theme changes
-	## that might change segment count → bar height → bar position.
+	## Re-reads bar positions and updates bezel/border rects after theme changes.
+	var pad: float = float(BEZEL_PAD)
 	for variant in _variants:
 		if bool(variant["no_bezel"]):
 			continue
 		var panel_root: ColorRect = variant["panel_root"]
 		var bars: Dictionary = variant["panel_data"]["bars"]
 		var bezel_rects: Array = variant["bezel_rects"]
-		var is_per_seg: bool = variant.get("per_segment", false) as bool
-		var pad: float = 0.0 if is_per_seg else float(BEZEL_PAD)
+		var border_rects: Array = variant["border_rects"]
 
-		var bezel_idx: int = 0
+		var seg_idx: int = 0
+		var brd_idx: int = 0
 		var specs: Array = ThemeManager.get_status_bar_specs()
 		for spec in specs:
 			var bar_name: String = str(spec["name"])
 			if not bars.has(bar_name):
 				continue
-			if bezel_idx >= bezel_rects.size():
-				break
 			var bar: ProgressBar = bars[bar_name]["bar"]
-			var bezel_rect: ColorRect = bezel_rects[bezel_idx]
+			var bar_pos: Vector2 = bar.global_position - panel_root.global_position
+			var full_pos := Vector2(bar_pos.x - pad, bar_pos.y - pad)
+			var full_size := Vector2(bar.size.x + pad * 2.0, bar.size.y + pad * 2.0)
 
-			var bar_local_pos: Vector2 = bar.global_position - panel_root.global_position
-			bezel_rect.position = Vector2(
-				bar_local_pos.x - pad,
-				bar_local_pos.y - pad
-			)
-			bezel_rect.size = Vector2(
-				bar.size.x + pad * 2.0,
-				bar.size.y + pad * 2.0
-			)
-			bezel_idx += 1
+			if brd_idx < border_rects.size():
+				var brect: ColorRect = border_rects[brd_idx]
+				brect.position = full_pos
+				brect.size = full_size
+				brd_idx += 1
+
+			if seg_idx < bezel_rects.size():
+				var srect: ColorRect = bezel_rects[seg_idx]
+				srect.position = full_pos
+				srect.size = full_size
+				seg_idx += 1
 
 
 func _apply_bezel_params(mat: ShaderMaterial, params: Dictionary) -> void:
@@ -581,11 +632,14 @@ func _apply_theme() -> void:
 			name_lbl.add_theme_font_override("font", body_font)
 		ThemeManager.apply_text_glow(name_lbl, "body")
 
-		# Chrome panel divider accent
+		# Chrome panel — update divider accent + reapply custom overrides
 		var panel_root: ColorRect = variant["panel_root"]
 		if panel_root.material is ShaderMaterial:
 			var chrome_mat: ShaderMaterial = panel_root.material as ShaderMaterial
 			chrome_mat.set_shader_parameter("divider_color", Vector4(accent.r, accent.g, accent.b, 0.5))
+			var chrome_ov: Dictionary = variant["chrome"]
+			for key in chrome_ov:
+				chrome_mat.set_shader_parameter(key, chrome_ov[key])
 
 		# Re-apply LED bars and bar labels — pass stored segment count (never -1)
 		var panel_data: Dictionary = variant["panel_data"]
