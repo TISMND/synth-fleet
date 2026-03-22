@@ -7,7 +7,7 @@ void fragment() {
 
 	// Scanlines based on screen position
 	float scanline = 0.5 + 0.5 * sin(SCREEN_UV.y * 800.0);
-	float line_darken = 1.0 - scanline * 0.4;
+	float line_darken = 1.0 - scanline * 0.2;
 
 	COLOR = vec4(tex.rgb * line_darken, tex.a * modulate_alpha);
 }

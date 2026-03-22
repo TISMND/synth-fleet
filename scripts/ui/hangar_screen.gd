@@ -205,6 +205,7 @@ func _apply_theme() -> void:
 		var seg: int = int(_bar_segments.get(bar_name, -1))
 		var is_vert: bool = entry.get("vertical", false)
 		ThemeManager.apply_led_bar(bar, color, ratio, seg, is_vert)
+		HudBuilder.update_bar_bezel(entry, seg)
 
 	# Buttons
 	_darken_button(_play_btn)
@@ -357,6 +358,7 @@ func _set_bar(bar_name: String, value: int, max_val: int) -> void:
 			var color: Color = ThemeManager.resolve_bar_color(spec)
 			var seg: int = int(_bar_segments.get(bar_name, -1))
 			ThemeManager.apply_led_bar(bar, color, float(value) / maxf(float(max_val), 1.0), seg, is_vert)
+			HudBuilder.update_bar_bezel(entry, seg)
 			break
 
 

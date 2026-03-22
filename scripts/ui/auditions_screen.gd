@@ -33,8 +33,42 @@ var _pulse_timer: float = 2.0
 #                bezel_rects: [ColorRect]}
 var _variants: Array = []
 
-## All shadow-grounded socket variants. Same general approach (per-segment sockets
-## with outer_shadow grounding, dark chrome backgrounds), different parameter tweaks.
+## FINAL AUDITION: Current HUD vs proposed replacement.
+## The replacement combines all winning choices:
+##   - Near Black chrome panel background
+##   - Per-segment shadow-grounded sockets (bar_bezel_segments.gdshader)
+##   - Subtle HDR labels (font_color * 1.5, soft aura + bloom via text_glow shader)
+##
+## To apply this to the game HUD, another agent should:
+##   1. Apply _REPLACEMENT_CHROME overrides to the chrome_panel shader in HudBuilder
+##   2. Create socket bezel overlays in hud.gd using _REPLACEMENT_SOCKET params
+##   3. Apply _REPLACEMENT_LABEL glow/HDR to bar labels in HudBuilder.apply_bar_label_theme
+
+# ── Replacement spec (for the next agent to reference) ──
+
+const _REPLACEMENT_SOCKET: Dictionary = {
+	"socket_bezel": 0.16, "socket_radius": 0.04,
+	"inner_shadow_intensity": 1.3, "inner_shadow_softness": 0.3,
+	"shadow_direction": 0.5, "bevel_intensity": 0.35, "bevel_softness": 0.35,
+	"rim_intensity": 0.0,
+	"metal_color": Color(0.03, 0.03, 0.04, 1.0), "metal_roughness": 0.2,
+	"outer_shadow_intensity": 0.8, "outer_shadow_size": 0.09,
+	"depth_scale": 1.4,
+}
+const _REPLACEMENT_CHROME: Dictionary = {
+	"base_color": Vector4(0.02, 0.02, 0.03, 1.0),
+	"chrome_top_brightness": 0.3,
+	"chrome_base_brightness": 0.15,
+	"highlight_intensity": 0.06,
+	"edge_brightness": 0.02,
+}
+const _REPLACEMENT_LABEL: Dictionary = {
+	"hdr_mult": 1.5,
+	"glow_aura_size": 3.0,
+	"glow_aura_intensity": 0.8,
+	"glow_bloom_size": 6.0,
+	"glow_bloom_intensity": 0.4,
+}
 
 const PRESETS: Array = [
 	{
@@ -42,230 +76,12 @@ const PRESETS: Array = [
 		"params": {},
 		"no_bezel": true,
 	},
-	# ── Vary socket depth & shadow ──
 	{
-		"name": "DEEP\nHARD SHADOW",
+		"name": "PROPOSED\nREPLACEMENT",
 		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.20, "socket_radius": 0.03,
-			"inner_shadow_intensity": 1.8, "inner_shadow_softness": 0.2,
-			"shadow_direction": 0.7, "bevel_intensity": 0.5, "bevel_softness": 0.2,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.7,
-			"outer_shadow_intensity": 1.4, "outer_shadow_size": 0.14,
-			"depth_scale": 1.8,
-		},
-		"chrome": {
-			"base_color": Vector4(0.04, 0.04, 0.06, 1.0),
-			"chrome_top_brightness": 0.45,
-			"chrome_base_brightness": 0.22,
-			"highlight_intensity": 0.12,
-			"edge_brightness": 0.05,
-		},
-	},
-	{
-		"name": "SHALLOW\nSOFT SHADOW",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.10, "socket_radius": 0.06,
-			"inner_shadow_intensity": 0.7, "inner_shadow_softness": 0.7,
-			"shadow_direction": 0.3, "bevel_intensity": 0.15, "bevel_softness": 0.7,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.06, 0.06, 0.08, 1.0), "metal_roughness": 0.5,
-			"outer_shadow_intensity": 0.8, "outer_shadow_size": 0.10,
-			"depth_scale": 0.8,
-		},
-		"chrome": {
-			"base_color": Vector4(0.05, 0.05, 0.07, 1.0),
-			"chrome_top_brightness": 0.5,
-			"chrome_base_brightness": 0.25,
-			"highlight_intensity": 0.15,
-			"edge_brightness": 0.06,
-		},
-	},
-	{
-		"name": "MEDIUM\nBALANCED",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.15, "socket_radius": 0.05,
-			"inner_shadow_intensity": 1.2, "inner_shadow_softness": 0.4,
-			"shadow_direction": 0.5, "bevel_intensity": 0.3, "bevel_softness": 0.4,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.06, 0.06, 0.08, 1.0), "metal_roughness": 0.6,
-			"outer_shadow_intensity": 1.0, "outer_shadow_size": 0.10,
-			"depth_scale": 1.3,
-		},
-		"chrome": {
-			"base_color": Vector4(0.05, 0.05, 0.07, 1.0),
-			"chrome_top_brightness": 0.5,
-			"chrome_base_brightness": 0.25,
-			"highlight_intensity": 0.15,
-			"edge_brightness": 0.06,
-		},
-	},
-	# ── Vary corner radius (sharp vs rounded sockets) ──
-	{
-		"name": "SHARP\nSQUARE",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.16, "socket_radius": 0.0,
-			"inner_shadow_intensity": 1.4, "inner_shadow_softness": 0.25,
-			"shadow_direction": 0.6, "bevel_intensity": 0.45, "bevel_softness": 0.2,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.04, 0.04, 0.05, 1.0), "metal_roughness": 0.4,
-			"outer_shadow_intensity": 1.1, "outer_shadow_size": 0.11,
-			"depth_scale": 1.5,
-		},
-		"chrome": {
-			"base_color": Vector4(0.03, 0.03, 0.04, 1.0),
-			"chrome_top_brightness": 0.4,
-			"chrome_base_brightness": 0.2,
-			"highlight_intensity": 0.1,
-			"edge_brightness": 0.04,
-		},
-	},
-	{
-		"name": "ROUNDED\nPILL",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.14, "socket_radius": 0.35,
-			"inner_shadow_intensity": 1.0, "inner_shadow_softness": 0.5,
-			"shadow_direction": 0.4, "bevel_intensity": 0.2, "bevel_softness": 0.6,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.5,
-			"outer_shadow_intensity": 1.0, "outer_shadow_size": 0.10,
-			"depth_scale": 1.2,
-		},
-		"chrome": {
-			"base_color": Vector4(0.04, 0.04, 0.06, 1.0),
-			"chrome_top_brightness": 0.5,
-			"chrome_base_brightness": 0.25,
-			"highlight_intensity": 0.15,
-			"edge_brightness": 0.06,
-		},
-	},
-	# ── Vary panel brightness ──
-	{
-		"name": "NEAR\nBLACK",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.16, "socket_radius": 0.04,
-			"inner_shadow_intensity": 1.3, "inner_shadow_softness": 0.3,
-			"shadow_direction": 0.5, "bevel_intensity": 0.35, "bevel_softness": 0.35,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.03, 0.03, 0.04, 1.0), "metal_roughness": 0.2,
-			"outer_shadow_intensity": 0.8, "outer_shadow_size": 0.09,
-			"depth_scale": 1.4,
-		},
-		"chrome": {
-			"base_color": Vector4(0.02, 0.02, 0.03, 1.0),
-			"chrome_top_brightness": 0.3,
-			"chrome_base_brightness": 0.15,
-			"highlight_intensity": 0.06,
-			"edge_brightness": 0.02,
-		},
-	},
-	{
-		"name": "MID\nGUNMETAL",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.15, "socket_radius": 0.05,
-			"inner_shadow_intensity": 1.1, "inner_shadow_softness": 0.4,
-			"shadow_direction": 0.5, "bevel_intensity": 0.3, "bevel_softness": 0.45,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.10, 0.10, 0.13, 1.0), "metal_roughness": 0.5,
-			"outer_shadow_intensity": 1.0, "outer_shadow_size": 0.10,
-			"depth_scale": 1.2,
-		},
-		"chrome": {
-			"base_color": Vector4(0.10, 0.10, 0.14, 1.0),
-			"chrome_top_brightness": 0.6,
-			"chrome_base_brightness": 0.35,
-			"highlight_intensity": 0.2,
-			"edge_brightness": 0.08,
-		},
-	},
-	# ── Vary bevel character ──
-	{
-		"name": "STRONG\nBEVEL",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.17, "socket_radius": 0.04,
-			"inner_shadow_intensity": 1.0, "inner_shadow_softness": 0.3,
-			"shadow_direction": 0.6, "bevel_intensity": 0.8, "bevel_softness": 0.3,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.07, 0.07, 0.09, 1.0), "metal_roughness": 0.5,
-			"outer_shadow_intensity": 1.0, "outer_shadow_size": 0.10,
-			"depth_scale": 1.4,
-		},
-		"chrome": {
-			"base_color": Vector4(0.06, 0.06, 0.08, 1.0),
-			"chrome_top_brightness": 0.55,
-			"chrome_base_brightness": 0.28,
-			"highlight_intensity": 0.18,
-			"edge_brightness": 0.07,
-		},
-	},
-	{
-		"name": "NO BEVEL\nPURE SHADOW",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.16, "socket_radius": 0.04,
-			"inner_shadow_intensity": 1.6, "inner_shadow_softness": 0.35,
-			"shadow_direction": 0.5, "bevel_intensity": 0.0, "bevel_softness": 0.5,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.6,
-			"outer_shadow_intensity": 1.2, "outer_shadow_size": 0.12,
-			"depth_scale": 1.5,
-		},
-		"chrome": {
-			"base_color": Vector4(0.04, 0.04, 0.06, 1.0),
-			"chrome_top_brightness": 0.45,
-			"chrome_base_brightness": 0.22,
-			"highlight_intensity": 0.12,
-			"edge_brightness": 0.05,
-		},
-	},
-	# ── Vary shadow size/intensity ──
-	{
-		"name": "WIDE\nHALO",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.15, "socket_radius": 0.05,
-			"inner_shadow_intensity": 1.2, "inner_shadow_softness": 0.4,
-			"shadow_direction": 0.5, "bevel_intensity": 0.3, "bevel_softness": 0.4,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.5,
-			"outer_shadow_intensity": 1.8, "outer_shadow_size": 0.20,
-			"depth_scale": 1.3,
-		},
-		"chrome": {
-			"base_color": Vector4(0.05, 0.05, 0.07, 1.0),
-			"chrome_top_brightness": 0.5,
-			"chrome_base_brightness": 0.25,
-			"highlight_intensity": 0.15,
-			"edge_brightness": 0.06,
-		},
-	},
-	{
-		"name": "TIGHT\nHALO",
-		"per_segment": true,
-		"params": {
-			"socket_bezel": 0.15, "socket_radius": 0.05,
-			"inner_shadow_intensity": 1.2, "inner_shadow_softness": 0.4,
-			"shadow_direction": 0.5, "bevel_intensity": 0.3, "bevel_softness": 0.4,
-			"rim_intensity": 0.0,
-			"metal_color": Color(0.05, 0.05, 0.07, 1.0), "metal_roughness": 0.5,
-			"outer_shadow_intensity": 1.6, "outer_shadow_size": 0.05,
-			"depth_scale": 1.3,
-		},
-		"chrome": {
-			"base_color": Vector4(0.05, 0.05, 0.07, 1.0),
-			"chrome_top_brightness": 0.5,
-			"chrome_base_brightness": 0.25,
-			"highlight_intensity": 0.15,
-			"edge_brightness": 0.06,
-		},
+		"params": _REPLACEMENT_SOCKET,
+		"chrome": _REPLACEMENT_CHROME,
+		"label": _REPLACEMENT_LABEL,
 	},
 ]
 
@@ -403,10 +219,13 @@ func _build_variant(index: int) -> void:
 		bar.custom_minimum_size.x = HudBuilder.BAR_WIDTH
 		ThemeManager.apply_led_bar(bar, color, FILL_RATIO, seg, is_vertical)
 
-		# Theme bar label — same call as game HUD _apply_theme
+		# Theme bar label — base styling from HudBuilder, then per-variant overrides
 		var body_font: Font = ThemeManager.get_font("font_body")
 		var body_size: int = ThemeManager.get_font_size("font_size_body")
 		HudBuilder.apply_bar_label_theme(lbl, color, body_font, body_size)
+
+		var label_cfg: Dictionary = preset.get("label", {}) as Dictionary
+		_apply_label_overrides(lbl, color, label_cfg)
 
 		bar_entries.append({
 			"bar": bar,
@@ -417,6 +236,7 @@ func _build_variant(index: int) -> void:
 
 	var per_segment: bool = preset.get("per_segment", false) as bool
 	var border_params: Dictionary = preset.get("border", {}) as Dictionary
+	var label_cfg: Dictionary = preset.get("label", {}) as Dictionary
 	_variants.append({
 		"name": preset_name,
 		"params": params,
@@ -424,12 +244,13 @@ func _build_variant(index: int) -> void:
 		"per_segment": per_segment,
 		"border": border_params,
 		"chrome": chrome_overrides,
+		"label": label_cfg,
 		"name_label": name_label,
 		"panel_data": panel_data,
 		"panel_root": panel_root,
 		"bar_entries": bar_entries,
-		"bezel_rects": [],  # per-segment socket rects
-		"border_rects": [],  # outer border rects
+		"bezel_rects": [],
+		"border_rects": [],
 	})
 
 
@@ -557,6 +378,55 @@ func _apply_bezel_params(mat: ShaderMaterial, params: Dictionary) -> void:
 		mat.set_shader_parameter(key, value)
 
 
+func _apply_label_overrides(lbl: Label, bar_color: Color, cfg: Dictionary) -> void:
+	## Apply per-variant label overrides: font, size, glow shader params, HDR bloom.
+	if cfg.is_empty():
+		return
+
+	# Font override
+	var font_path: String = str(cfg.get("font_path", ""))
+	if font_path != "":
+		var font: Font = load(font_path) as Font
+		if font:
+			lbl.add_theme_font_override("font", font)
+
+	# Size override
+	var font_size: int = int(cfg.get("font_size", 0))
+	if font_size > 0:
+		lbl.add_theme_font_size_override("font_size", font_size)
+
+	# Glow shader overrides — apply text_glow shader with custom params
+	var has_glow: bool = float(cfg.get("glow_aura_size", 0.0)) > 0.0 or float(cfg.get("glow_bloom_size", 0.0)) > 0.0
+	if has_glow:
+		var glow_shader: Shader = load("res://assets/shaders/text_glow.gdshader") as Shader
+		if glow_shader:
+			var mat: ShaderMaterial
+			if lbl.material is ShaderMaterial:
+				mat = lbl.material as ShaderMaterial
+			else:
+				mat = ShaderMaterial.new()
+				mat.shader = glow_shader
+				lbl.material = mat
+			mat.set_shader_parameter("inner_intensity", float(cfg.get("glow_inner_intensity", 0.3)))
+			mat.set_shader_parameter("aura_size", float(cfg.get("glow_aura_size", 0.0)))
+			mat.set_shader_parameter("aura_intensity", float(cfg.get("glow_aura_intensity", 0.0)))
+			mat.set_shader_parameter("bloom_size", float(cfg.get("glow_bloom_size", 0.0)))
+			mat.set_shader_parameter("bloom_intensity", float(cfg.get("glow_bloom_intensity", 0.0)))
+			mat.set_shader_parameter("smudge_blur", float(cfg.get("glow_smudge_blur", 0.0)))
+
+	# HDR bloom via font_color > 1.0. Godot's Label preserves HDR color values
+	# and the root viewport WorldEnvironment bloom picks them up — no ColorRect needed.
+	var hdr_mult: float = float(cfg.get("hdr_mult", 0.0))
+	if hdr_mult > 1.0:
+		var hdr_color := Color(
+			bar_color.r * hdr_mult,
+			bar_color.g * hdr_mult,
+			bar_color.b * hdr_mult,
+			1.0
+		)
+		lbl.add_theme_color_override("font_color", hdr_color)
+
+
 # ── Gain pulse animation ────────────────────────────────────────
 
 func _update_pulses(delta: float) -> void:
@@ -659,6 +529,8 @@ func _apply_theme() -> void:
 			bar.custom_minimum_size.x = HudBuilder.BAR_WIDTH
 			ThemeManager.apply_led_bar(bar, color, FILL_RATIO, seg, is_vertical)
 			HudBuilder.apply_bar_label_theme(entry["label"], color, body_font, body_size)
+			var lcfg: Dictionary = variant["label"]
+			_apply_label_overrides(entry["label"], color, lcfg)
 			be_idx += 1
 
 	# Reposition bezels after bars may have changed size

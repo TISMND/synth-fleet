@@ -9,6 +9,22 @@ const EVENT_IDS: Array[String] = [
 	"explosion_1",
 	"explosion_2",
 	"explosion_3",
+	# Damage & Warning
+	"electric_alarm",
+	"heat_alarm",
+	"fire_alarm",
+	"shield_critical",
+	"hull_critical",
+	"power_failure",
+	"monitor_shutoff",
+	"monitor_static",
+	"hull_damage_powerless",
+	"reboot_char_thunk",
+	"reboot_line_beep",
+	"reboot_complete",
+	"engine_sputter",
+	"electric_sparks",
+	"system_warning_beep",
 ]
 
 const EVENT_LABELS: Dictionary = {
@@ -19,6 +35,22 @@ const EVENT_LABELS: Dictionary = {
 	"explosion_1": "EXPLOSION 1",
 	"explosion_2": "EXPLOSION 2",
 	"explosion_3": "EXPLOSION 3",
+	# Damage & Warning
+	"electric_alarm": "ELECTRIC ALARM",
+	"heat_alarm": "HEAT ALARM",
+	"fire_alarm": "FIRE ALARM",
+	"shield_critical": "SHIELD CRITICAL",
+	"hull_critical": "HULL CRITICAL",
+	"power_failure": "POWER FAILURE",
+	"monitor_shutoff": "MONITOR SHUT OFF",
+	"monitor_static": "MONITOR STATIC",
+	"hull_damage_powerless": "HULL HIT (POWERLESS)",
+	"reboot_char_thunk": "REBOOT CHAR THUNK",
+	"reboot_line_beep": "REBOOT LINE BEEP",
+	"reboot_complete": "REBOOT COMPLETE",
+	"engine_sputter": "ENGINE SPUTTER",
+	"electric_sparks": "ELECTRIC SPARKS",
+	"system_warning_beep": "SYSTEM WARNING BEEP",
 }
 
 var events: Dictionary = {}

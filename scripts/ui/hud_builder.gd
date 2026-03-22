@@ -87,19 +87,29 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 	var root: Control
 	var border: Control
 
+	# Dark gunmetal chrome — replacement aesthetic from auditions
+	var chrome_base := Vector4(0.02, 0.02, 0.03, 1.0)
+	var chrome_params: Dictionary = {
+		"base_color": chrome_base,
+		"chrome_top_brightness": 0.3,
+		"chrome_base_brightness": 0.15,
+		"highlight_intensity": 0.06,
+		"edge_brightness": 0.02,
+	}
+
 	if mode == "game":
 		var bg := ColorRect.new()
-		bg.color = Color.WHITE  # Shader controls rendering
+		bg.color = Color.WHITE
 		root = bg
-		# Apply chrome panel shader
 		var shader: Shader = load("res://assets/shaders/chrome_panel.gdshader") as Shader
 		if shader:
 			var mat := ShaderMaterial.new()
 			mat.shader = shader
-			mat.set_shader_parameter("base_color", Vector4(0.12, 0.13, 0.18, 1.0))
 			mat.set_shader_parameter("divider_y", 0.5)
 			var accent_color: Color = ThemeManager.get_color("accent")
 			mat.set_shader_parameter("divider_color", Vector4(accent_color.r, accent_color.g, accent_color.b, 0.5))
+			for key in chrome_params:
+				mat.set_shader_parameter(key, chrome_params[key])
 			bg.material = mat
 
 		var border_line := ColorRect.new()
@@ -117,7 +127,6 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		panel.add_theme_stylebox_override("panel", style)
 		root = panel
 
-		# Chrome shader on a child ColorRect filling the panel
 		var chrome_bg := ColorRect.new()
 		chrome_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 		chrome_bg.color = Color.WHITE
@@ -126,10 +135,11 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		if shader:
 			var mat := ShaderMaterial.new()
 			mat.shader = shader
-			mat.set_shader_parameter("base_color", Vector4(0.12, 0.13, 0.18, 1.0))
 			mat.set_shader_parameter("divider_y", 0.5)
 			var accent_color2: Color = ThemeManager.get_color("accent")
 			mat.set_shader_parameter("divider_color", Vector4(accent_color2.r, accent_color2.g, accent_color2.b, 0.5))
+			for key in chrome_params:
+				mat.set_shader_parameter(key, chrome_params[key])
 			chrome_bg.material = mat
 		panel.add_child(chrome_bg)
 		border = panel
@@ -196,7 +206,60 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		bottom_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		zone.add_child(bottom_pad)
 
-		bars_result[bar_name] = {"bar": bar, "label": lbl, "vertical": true}
+		# Per-segment bezel — child of bar, auto-sizes via anchors
+		var bezel_pad: float = 6.0
+		var bezel_shader: Shader = load("res://assets/shaders/bar_bezel_segments.gdshader") as Shader
+		if bezel_shader:
+			var bezel_rect := ColorRect.new()
+			bezel_rect.color = Color.WHITE
+			bezel_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			bezel_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+			bezel_rect.offset_left = -bezel_pad
+			bezel_rect.offset_right = bezel_pad
+			bezel_rect.offset_top = -bezel_pad
+			bezel_rect.offset_bottom = bezel_pad
+			var smat := ShaderMaterial.new()
+			smat.shader = bezel_shader
+			print("[BEZEL] bar=%s seg=%d min_size=%s" % [bar_name, seg, str(bar.custom_minimum_size)])
+			smat.set_shader_parameter("segment_count", int(seg))
+			smat.set_shader_parameter("vertical", int(1))
+			smat.set_shader_parameter("socket_bezel", 0.16)
+			smat.set_shader_parameter("socket_radius", 0.04)
+			smat.set_shader_parameter("inner_shadow_intensity", 1.3)
+			smat.set_shader_parameter("inner_shadow_softness", 0.3)
+			smat.set_shader_parameter("shadow_direction", 0.5)
+			smat.set_shader_parameter("bevel_intensity", 0.35)
+			smat.set_shader_parameter("bevel_softness", 0.35)
+			smat.set_shader_parameter("rim_intensity", 0.0)
+			smat.set_shader_parameter("metal_color", Color(0.03, 0.03, 0.04, 1.0))
+			smat.set_shader_parameter("metal_roughness", 0.2)
+			smat.set_shader_parameter("outer_shadow_intensity", 0.8)
+			smat.set_shader_parameter("outer_shadow_size", 0.09)
+			smat.set_shader_parameter("depth_scale", 1.4)
+			if bar.material is ShaderMaterial:
+				var bar_mat: ShaderMaterial = bar.material as ShaderMaterial
+				smat.set_shader_parameter("segment_gap", bar_mat.get_shader_parameter("segment_gap"))
+			# edge_pad tells shader where the bar grid lives within the padded rect
+			# These are set deferred once the bar has its final size
+			# edge_pad from bar's minimum size (set by apply_led_bar)
+			var bar_min: Vector2 = bar.custom_minimum_size
+			# For vertical: x=along segments (maps to height), y=across (maps to width)
+			var rect_h: float = bar_min.y + bezel_pad * 2.0
+			var rect_w: float = bar_min.x + bezel_pad * 2.0
+			if rect_h > 0.0 and rect_w > 0.0:
+				smat.set_shader_parameter("edge_pad_x", bezel_pad / rect_h)
+				smat.set_shader_parameter("edge_pad_y", bezel_pad / rect_w)
+			bezel_rect.material = smat
+			bar.add_child(bezel_rect)
+
+		# Find the bezel material from the child we just added (if any)
+		var bz_mat: ShaderMaterial = null
+		var bz_pad: float = bezel_pad
+		for child_node in bar.get_children():
+			if child_node is ColorRect and child_node.material is ShaderMaterial:
+				bz_mat = child_node.material as ShaderMaterial
+				break
+		bars_result[bar_name] = {"bar": bar, "label": lbl, "vertical": true, "bezel_mat": bz_mat, "bezel_pad": bz_pad}
 
 	return {
 		"root": root,
@@ -205,6 +268,54 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		"content": main_vbox,
 	}
 
+
+## Place per-segment bezel overlays on a side panel's bars. Call deferred after layout settles.
+## panel_data is the dict returned by build_side_panel.
+static func place_segment_bezels(panel_data: Dictionary) -> void:
+	var root_node: Control = panel_data["root"]
+	var bars: Dictionary = panel_data["bars"]
+	var bezel_shader: Shader = load("res://assets/shaders/bar_bezel_segments.gdshader") as Shader
+	if not bezel_shader:
+		return
+	var pad: float = 10.0
+	var socket_params: Dictionary = {
+		"socket_bezel": 0.16, "socket_radius": 0.04,
+		"inner_shadow_intensity": 1.3, "inner_shadow_softness": 0.3,
+		"shadow_direction": 0.5, "bevel_intensity": 0.35, "bevel_softness": 0.35,
+		"rim_intensity": 0.0,
+		"metal_color": Color(0.03, 0.03, 0.04, 1.0), "metal_roughness": 0.2,
+		"outer_shadow_intensity": 0.8, "outer_shadow_size": 0.09,
+		"depth_scale": 1.4,
+	}
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for spec in specs:
+		var bar_name: String = str(spec["name"])
+		if not bars.has(bar_name):
+			continue
+		var entry: Dictionary = bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
+		var bar_pos: Vector2 = bar.global_position - root_node.global_position
+		var seg_rect := ColorRect.new()
+		seg_rect.position = Vector2(bar_pos.x - pad, bar_pos.y - pad)
+		var seg_size := Vector2(bar.size.x + pad * 2.0, bar.size.y + pad * 2.0)
+		seg_rect.size = seg_size
+		seg_rect.color = Color.WHITE
+		seg_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var smat := ShaderMaterial.new()
+		smat.shader = bezel_shader
+		for key in socket_params:
+			smat.set_shader_parameter(key, socket_params[key])
+		smat.set_shader_parameter("segment_count", seg)
+		if bar.material is ShaderMaterial:
+			var bar_mat: ShaderMaterial = bar.material as ShaderMaterial
+			smat.set_shader_parameter("segment_gap", bar_mat.get_shader_parameter("segment_gap"))
+		smat.set_shader_parameter("vertical", 1)
+		if seg_size.y > 0.0 and seg_size.x > 0.0:
+			smat.set_shader_parameter("edge_pad_x", pad / seg_size.y)
+			smat.set_shader_parameter("edge_pad_y", pad / seg_size.x)
+		seg_rect.material = smat
+		root_node.add_child(seg_rect)
 
 
 static func build_weapon_icon(number: int, active: bool, color: Color) -> Dictionary:
@@ -263,13 +374,48 @@ static func apply_icon_theme(icon: Dictionary) -> void:
 		icon["number_label"].add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 
 
+static func update_bar_bezel(entry: Dictionary, seg: int) -> void:
+	## Update bezel shader to match new segment count + bar size.
+	var smat: ShaderMaterial = entry.get("bezel_mat") as ShaderMaterial
+	if not smat:
+		return
+	var bar: ProgressBar = entry["bar"]
+	var bezel_pad: float = float(entry.get("bezel_pad", 6.0))
+	smat.set_shader_parameter("segment_count", int(seg))
+	if bar.material is ShaderMaterial:
+		var bar_mat: ShaderMaterial = bar.material as ShaderMaterial
+		smat.set_shader_parameter("segment_gap", bar_mat.get_shader_parameter("segment_gap"))
+	# Recompute edge padding from bar's current minimum size
+	var bar_min: Vector2 = bar.custom_minimum_size
+	var rect_h: float = bar_min.y + bezel_pad * 2.0
+	var rect_w: float = bar_min.x + bezel_pad * 2.0
+	if rect_h > 0.0 and rect_w > 0.0:
+		smat.set_shader_parameter("edge_pad_x", bezel_pad / rect_h)
+		smat.set_shader_parameter("edge_pad_y", bezel_pad / rect_w)
+
+
 static func apply_bar_label_theme(lbl: Label, color: Color, font: Font, size: int) -> void:
-	## Font + color + glow on a bar label.
+	## Font + HDR color + glow shader on a bar label — replacement aesthetic.
 	lbl.add_theme_font_size_override("font_size", size)
-	lbl.add_theme_color_override("font_color", color)
+	# HDR color for bloom glow (1.5x multiplier)
+	var hdr_color := Color(color.r * 1.5, color.g * 1.5, color.b * 1.5, 1.0)
+	lbl.add_theme_color_override("font_color", hdr_color)
 	if font:
 		lbl.add_theme_font_override("font", font)
-	ThemeManager.apply_text_glow(lbl, "body")
+	# Glow shader with soft aura + bloom
+	var glow_shader: Shader = load("res://assets/shaders/text_glow.gdshader") as Shader
+	if glow_shader:
+		var mat: ShaderMaterial
+		if lbl.material is ShaderMaterial:
+			mat = lbl.material as ShaderMaterial
+		else:
+			mat = ShaderMaterial.new()
+			mat.shader = glow_shader
+			lbl.material = mat
+		mat.set_shader_parameter("aura_size", 3.0)
+		mat.set_shader_parameter("aura_intensity", 0.8)
+		mat.set_shader_parameter("bloom_size", 6.0)
+		mat.set_shader_parameter("bloom_intensity", 0.4)
 
 
 static func apply_hud_theme(result: Dictionary) -> void:

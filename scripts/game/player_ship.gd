@@ -47,10 +47,13 @@ var _blackout_lowpass: AudioEffectLowPassFilter = null
 var _blackout_reverb: AudioEffectReverb = null
 var _blackout_flicker_state: bool = false  # True during hard cut frames — for SFX sync
 var _reboot_label: RichTextLabel = null  # DOS-style text during final death
-var _reboot_text_queue: Array[String] = []  # Lines to type out
-var _reboot_text_index: int = 0  # Current line being typed
+var _reboot_text_queue: Array[String] = []  # Lines to type out (prefix ">" = fast/scroll phase)
+var _reboot_text_index: int = -1  # -1 = cursor blink, 0+ = line index
 var _reboot_char_index: int = 0  # Current char in current line
 var _reboot_char_timer: float = 0.0  # Timer for typewriter effect
+var _reboot_blink_timer: float = 0.0  # Timer for initial cursor blink
+var _reboot_scrolling: bool = false  # True once we enter the ">" fast scroll phase
+var _reboot_completed_lines: Array[String] = []  # Finished lines for display
 signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
 signal final_power_death()  # Emitted once when power fully dies — for external systems
 
@@ -305,6 +308,7 @@ func _process(delta: float) -> void:
 	# Electric depleted — spark particles
 	if electric <= 0.0 and not _electric_crisis_active:
 		_electric_crisis_active = true
+		SfxPlayer.play("electric_sparks")
 		if _electric_crisis_particles:
 			_electric_crisis_particles.emitting = true
 	elif electric > 0.0 and _electric_crisis_active:
@@ -346,6 +350,17 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# DEBUG: F9 = force power death (zero electric + shields, trigger overdraw)
+	if event is InputEventKey and (event as InputEventKey).pressed and (event as InputEventKey).keycode == KEY_F9:
+		electric = 0.0
+		shield = 0.0
+		_electric_crisis_active = true
+		_electric_overdraw = true
+		if _electric_crisis_particles:
+			_electric_crisis_particles.emitting = true
+		print("[DEBUG] F9: Forced power death — electric=0, shield=0")
+		return
+
 	# Per-slot toggles using dynamic action names from KeyBindingManager
 	# Weapon slots
 	for i in GameState.get_weapon_slot_count():
@@ -575,6 +590,7 @@ func _process_drift(delta: float) -> void:
 
 	# After delay, trigger blackout (darkness + HUD effects)
 	if _drift_timer >= DRIFT_TO_BLACKOUT_DELAY and not _blackout_active:
+		SfxPlayer.play("power_failure")
 		_start_blackout()
 
 	if _blackout_active:
@@ -649,6 +665,9 @@ func _process_blackout(delta: float) -> void:
 	var sustained_cut: bool = decay > 0.5 and decay < 0.8 and sustained_roll < (decay - 0.4) * 0.9
 	var flicker_now: bool = is_cut or sustained_cut
 	if flicker_now != _blackout_flicker_state:
+		# Flicker state changed — trigger SFX
+		if flicker_now:
+			SfxPlayer.play("monitor_static")
 		_blackout_flicker_state = flicker_now
 		blackout_flicker.emit(flicker_now)
 
@@ -656,6 +675,7 @@ func _process_blackout(delta: float) -> void:
 	if _blackout_power <= 0.03 and not _blackout_final_death:
 		_blackout_final_death = true
 		_shutdown_all_components()
+		SfxPlayer.play("monitor_shutoff")
 		_start_reboot_sequence()
 		final_power_death.emit()
 
@@ -685,24 +705,35 @@ func _shutdown_all_components() -> void:
 
 
 func _start_reboot_sequence() -> void:
+	# Lines prefixed with ">" are in the fast/scrolling reboot phase
 	_reboot_text_queue = [
 		"SYSTEM POWER FAILURE",
 		"",
 		"Diagnosing subsystems...",
-		"Main reactor: OFFLINE",
-		"Backup capacitor: 2%%",
-		"Rerouting emergency power...",
+		"Main reactor .......... OFFLINE",
+		"Aux reactor ........... OFFLINE",
+		"Backup capacitor ...... 2%%",
+		"Shield generator ...... OFFLINE",
+		"Weapon bus ............ NO SIGNAL",
+		"Navigation ............ OFFLINE",
+		"Life support .......... MINIMAL",
 		"",
-		"Activating backup systems...",
-		"Shield generator: STANDBY",
-		"Weapon systems: LOCKED",
-		"Navigation: RECOVERING...",
-		"",
-		"Regenerating power core...",
+		">Rerouting emergency power...",
+		">Activating backup capacitor...",
+		">Bypassing main reactor safety...",
+		">Shield generator: STANDBY",
+		">Weapon bus: LOCKED",
+		">Navigation: RECOVERING",
+		">Thermal vents: PURGING",
+		">Capacitor charge: 4%%... 8%%... 15%%",
+		">Core restart sequence initiated...",
+		">Regenerating power core...",
 	]
-	_reboot_text_index = 0
+	_reboot_text_index = -1  # -1 = cursor blink phase
 	_reboot_char_index = 0
 	_reboot_char_timer = 0.0
+	_reboot_blink_timer = 0.0
+	_reboot_scrolling = false
 
 	# Create text label — on root viewport so it sits above the CRT overlay
 	# Uses HDR color for bloom glow
@@ -714,9 +745,9 @@ func _start_reboot_sequence() -> void:
 	_reboot_label.position = Vector2(120, 200)
 	_reboot_label.size = Vector2(600, 500)
 	_reboot_label.add_theme_font_size_override("normal_font_size", 16)
-	# Bright green for bloom — HDR via modulate
+	# Bright green — HDR modulate for bloom glow
 	_reboot_label.add_theme_color_override("default_color", Color(0.3, 1.0, 0.4))
-	_reboot_label.modulate = Color(1.5, 1.5, 1.5, 1.0)  # HDR boost for bloom
+	_reboot_label.modulate = Color(2.0, 2.0, 2.0, 1.0)  # HDR boost for bloom
 	var mono_font: Font = ThemeManager.get_font("font_body")
 	if mono_font:
 		_reboot_label.add_theme_font_override("normal_font", mono_font)
@@ -730,62 +761,97 @@ func _start_reboot_sequence() -> void:
 	get_viewport().add_child(_reboot_label)
 
 
-const REBOOT_CHAR_SPEED: float = 0.04  # Seconds per character
-const REBOOT_LINE_PAUSE: float = 0.6  # Pause between lines
-const REBOOT_HEADER_PAUSE: float = 1.2  # Longer pause after headers
+const REBOOT_BLINK_DURATION: float = 3.0  # Seconds of cursor blinking before text starts
+const REBOOT_BLINK_RATE: float = 0.5  # Cursor blink toggle interval
+const REBOOT_CHAR_SLOW: float = 0.043  # Seconds per char — diagnosis phase (140% of 0.06)
+const REBOOT_CHAR_FAST: float = 0.018  # Seconds per char — reboot phase (140% of 0.025)
+const REBOOT_LINE_PAUSE_SLOW: float = 0.5  # Pause between lines — diagnosis
+const REBOOT_LINE_PAUSE_FAST: float = 0.2  # Pause between lines — reboot (faster turnover)
+const REBOOT_HEADER_PAUSE: float = 1.0  # Longer pause after ALL-CAPS lines
+const REBOOT_PARAGRAPH_PAUSE: float = 0.8  # Pause for empty lines
+const REBOOT_MAX_VISIBLE_LINES: int = 14  # Max lines before scrolling
 
 func _process_reboot_text(delta: float) -> void:
-	if _reboot_text_index >= _reboot_text_queue.size():
-		return  # All lines typed — stay on last frame
-
-	_reboot_char_timer += delta
-	var current_line: String = _reboot_text_queue[_reboot_text_index]
-
-	if current_line == "":
-		# Empty line = blank line pause
-		if _reboot_char_timer >= REBOOT_LINE_PAUSE:
-			_reboot_char_timer = 0.0
-			_reboot_text_index += 1
-			_reboot_char_index = 0
-			if _reboot_label:
-				_reboot_label.text += "\n"
+	if not _reboot_label:
 		return
 
-	var char_interval: float = REBOOT_CHAR_SPEED
+	# Phase -1: blinking cursor only
+	if _reboot_text_index < 0:
+		_reboot_blink_timer += delta
+		var blink_on: bool = fmod(_reboot_blink_timer, REBOOT_BLINK_RATE * 2.0) < REBOOT_BLINK_RATE
+		_reboot_label.text = "\u2588" if blink_on else ""
+		if _reboot_blink_timer >= REBOOT_BLINK_DURATION:
+			_reboot_text_index = 0
+			_reboot_char_index = 0
+			_reboot_char_timer = 0.0
+			_reboot_completed_lines.clear()
+		return
+
+	if _reboot_text_index >= _reboot_text_queue.size():
+		return  # All lines typed
+
+	_reboot_char_timer += delta
+	var raw_line: String = _reboot_text_queue[_reboot_text_index]
+
+	# Check if this line starts the fast scroll phase
+	if raw_line.begins_with(">") and not _reboot_scrolling:
+		_reboot_scrolling = true
+
+	# Strip the ">" prefix for display
+	var current_line: String = raw_line.lstrip(">")
+
+	# Empty line = paragraph pause
+	if current_line == "":
+		if _reboot_char_timer >= REBOOT_PARAGRAPH_PAUSE:
+			_reboot_char_timer = 0.0
+			_reboot_completed_lines.append("")
+			_reboot_text_index += 1
+			_reboot_char_index = 0
+			_update_reboot_display("", false)
+		return
+
+	var char_speed: float = REBOOT_CHAR_FAST if _reboot_scrolling else REBOOT_CHAR_SLOW
+
 	if _reboot_char_index < current_line.length():
-		if _reboot_char_timer >= char_interval:
-			_reboot_char_timer -= char_interval
+		if _reboot_char_timer >= char_speed:
+			_reboot_char_timer -= char_speed
 			_reboot_char_index += 1
-			# Build display text with cursor
+			SfxPlayer.play("reboot_char_thunk")
 			var typed: String = current_line.substr(0, _reboot_char_index)
 			_update_reboot_display(typed, true)
 	else:
-		# Line complete — pause then advance
-		var pause: float = REBOOT_HEADER_PAUSE if current_line == current_line.to_upper() else REBOOT_LINE_PAUSE
+		# Line complete — show without cursor during pause, then advance
+		_update_reboot_display(current_line, false)
+		var is_header: bool = current_line == current_line.to_upper() and current_line.length() > 2
+		var line_pause: float = REBOOT_LINE_PAUSE_FAST if _reboot_scrolling else REBOOT_LINE_PAUSE_SLOW
+		var pause: float = REBOOT_HEADER_PAUSE if is_header else line_pause
 		if _reboot_char_timer >= pause:
 			_reboot_char_timer = 0.0
+			SfxPlayer.play("reboot_line_beep")
+			_reboot_completed_lines.append(current_line)
 			_reboot_text_index += 1
 			_reboot_char_index = 0
-			_update_reboot_display(current_line, false)
-			if _reboot_label:
-				_reboot_label.text += "\n"
 
 
 func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
 	if not _reboot_label:
 		return
-	# Rebuild full text: all completed lines + current typing line + cursor
-	var full_text: String = ""
-	for i in _reboot_text_index:
-		var line: String = _reboot_text_queue[i]
-		if line == "":
-			full_text += "\n"
-		else:
-			full_text += line + "\n"
-	full_text += typed_portion
+	# Build visible lines — scroll if too many
+	var visible_lines: Array[String] = []
+	for completed in _reboot_completed_lines:
+		visible_lines.append(completed)
+
+	# Add current typing line
+	var current: String = typed_portion
 	if show_cursor:
-		full_text += "\u2588"  # Block cursor █
-	_reboot_label.text = full_text
+		current += "\u2588"
+	visible_lines.append(current)
+
+	# Scroll — keep only the last N lines
+	while visible_lines.size() > REBOOT_MAX_VISIBLE_LINES:
+		visible_lines.remove_at(0)
+
+	_reboot_label.text = "\n".join(visible_lines)
 
 
 ## Hash matching the shader's hash function — keeps GDScript flicker detection in sync
@@ -835,6 +901,8 @@ func _end_drift() -> void:
 		_blackout_power = 1.0
 		_blackout_flicker_state = false
 		_blackout_final_death = false
+		_reboot_scrolling = false
+		_reboot_completed_lines.clear()
 		# Remove reboot text
 		if _reboot_label and is_instance_valid(_reboot_label):
 			_reboot_label.queue_free()

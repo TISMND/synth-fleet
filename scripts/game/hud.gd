@@ -86,6 +86,7 @@ func _build_ui() -> void:
 	for bar_name in right_bars:
 		_bars[bar_name] = right_bars[bar_name]
 
+
 	# Initialize wave tracking and base colors
 	for bar_name in _bars:
 		_bar_gain_wave[bar_name] = {"active": false, "position": 0.0, "speed": WAVE_SPEED}
@@ -157,6 +158,7 @@ func _apply_theme() -> void:
 		var is_vertical: bool = entry.get("vertical", false) as bool
 		bar.custom_minimum_size.x = HudBuilder.BAR_WIDTH
 		ThemeManager.apply_led_bar(bar, color, ratio, seg, is_vertical)
+		HudBuilder.update_bar_bezel(entry, seg)
 		_bar_base_colors[bar_name] = color
 
 	# Weapon icons
@@ -208,6 +210,7 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 		var seg: int = int(_bar_segments.get(bar_name, -1))
 		var is_vertical: bool = entry.get("vertical", false) as bool
 		ThemeManager.apply_led_bar(bar, ThemeManager.get_color(color_key), ratio, seg, is_vertical)
+		HudBuilder.update_bar_bezel(entry, seg)
 
 
 func pulse_bar(bar_name: String) -> void:

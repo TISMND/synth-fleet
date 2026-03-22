@@ -134,6 +134,33 @@ func _build_ui() -> void:
 	for event_id in ["explosion_1", "explosion_2", "explosion_3"]:
 		_add_event_row(vbox, event_id)
 
+	var spacer_2 := Control.new()
+	spacer_2.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_2)
+
+	# Alarms section
+	_add_section_header(vbox, "ALARMS & WARNINGS")
+	for event_id in ["electric_alarm", "heat_alarm", "fire_alarm", "shield_critical", "hull_critical", "system_warning_beep"]:
+		_add_event_row(vbox, event_id)
+
+	var spacer_3 := Control.new()
+	spacer_3.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_3)
+
+	# Power failure section
+	_add_section_header(vbox, "POWER FAILURE")
+	for event_id in ["power_failure", "monitor_shutoff", "monitor_static", "electric_sparks", "engine_sputter", "hull_damage_powerless"]:
+		_add_event_row(vbox, event_id)
+
+	var spacer_4 := Control.new()
+	spacer_4.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_4)
+
+	# Reboot sequence section
+	_add_section_header(vbox, "REBOOT SEQUENCE")
+	for event_id in ["reboot_char_thunk", "reboot_line_beep", "reboot_complete"]:
+		_add_event_row(vbox, event_id)
+
 	# Loops content (LoopBalancer panel — built from script)
 	var loop_balancer_script: GDScript = load("res://scripts/ui/loop_balancer.gd") as GDScript
 	_loops_content = Control.new()

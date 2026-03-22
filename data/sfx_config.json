@@ -1,5 +1,17 @@
 {
 	"events": {
+		"electric_alarm": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "res://assets/audio/sfx/alarm_2.wav",
+			"volume_db": 0.0
+		},
+		"electric_sparks": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
 		"enemy_hull_hit": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
@@ -11,6 +23,12 @@
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/doom.wav",
 			"volume_db": -26.0
+		},
+		"engine_sputter": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
 		},
 		"explosion_1": {
 			"clip_end_time": 0.0,
@@ -30,6 +48,42 @@
 			"file_path": "",
 			"volume_db": 0.0
 		},
+		"fire_alarm": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"heat_alarm": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "res://assets/audio/sfx/alarm_1.wav",
+			"volume_db": 0.0
+		},
+		"hull_critical": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"hull_damage_powerless": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"monitor_shutoff": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"monitor_static": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
 		"player_hull_hit": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
@@ -41,6 +95,42 @@
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/doom.wav",
 			"volume_db": -28.0
+		},
+		"power_failure": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"reboot_char_thunk": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"reboot_complete": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"reboot_line_beep": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "res://assets/audio/sfx/tst.wav",
+			"volume_db": 0.0
+		},
+		"shield_critical": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"system_warning_beep": {
+			"clip_end_time": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
 		}
 	}
 }
