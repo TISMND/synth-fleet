@@ -2,17 +2,18 @@ extends Control
 ## Auditions screen — side-by-side comparison of bar bezel/frame treatments.
 ## Each variant uses HudBuilder.build_side_panel("game", ...) for bars — the exact
 ## same rendering code, shaders, HDR glow rects, and chrome panel as the in-game HUD.
-## No SubViewports: bars render directly on root viewport so they bloom identically
-## to the game (root WorldEnvironment has glow_enabled = true, LINEAR tonemapping).
-## Bezels wrap each bar individually so labels remain visible.
+## Bars render directly on root viewport so they bloom identically to the game
+## (root WorldEnvironment has glow_enabled = true, LINEAR tonemapping).
+## Bezels are positioned AFTER layout settles via call_deferred — bars are never
+## reparented or structurally modified.
 
 const VARIANT_WIDTH: int = 90
 const VARIANT_HEIGHT: int = 500
 const VARIANT_SPACING: int = 30
-const FILL_RATIO: float = 0.75
+const FILL_RATIO: float = 0.5
 const BEZEL_PAD: int = 10  # pixels of bezel frame around each bar
 
-# Gain pulse demo: trigger a random bar's gain wave every few seconds
+# Gain pulse demo
 const PULSE_INTERVAL_MIN: float = 1.5
 const PULSE_INTERVAL_MAX: float = 3.5
 const WAVE_SPEED: float = 2.5
@@ -26,11 +27,17 @@ var _back_button: Button
 var _bezel_shader: Shader
 var _pulse_timer: float = 2.0
 
-# Each variant: {name, params, name_label, panel_data, panel_root, bar_entries}
-# bar_entries: Array of {bar, wave_pos, wave_active}
+# Each variant: {name, params, no_bezel, name_label, panel_data, panel_root,
+#                bar_entries: [{bar, seg, wave_pos, wave_active}],
+#                bezel_rects: [ColorRect]}
 var _variants: Array = []
 
 const PRESETS: Array = [
+	{
+		"name": "CURRENT\nHUD",
+		"params": {},
+		"no_bezel": true,
+	},
 	{
 		"name": "RECESSED\nCHANNEL",
 		"params": {
@@ -281,6 +288,9 @@ func _build_ui() -> void:
 	for i in PRESETS.size():
 		_build_variant(i)
 
+	# Bezels must be placed AFTER layout settles so we can read bar positions
+	call_deferred("_place_bezels")
+
 	_setup_vhs_overlay()
 
 
@@ -288,6 +298,7 @@ func _build_variant(index: int) -> void:
 	var preset: Dictionary = PRESETS[index]
 	var preset_name: String = str(preset["name"])
 	var params: Dictionary = preset["params"]
+	var no_bezel: bool = preset.get("no_bezel", false) as bool
 
 	# Outer container for label + panel
 	var variant_vbox := VBoxContainer.new()
@@ -301,16 +312,16 @@ func _build_variant(index: int) -> void:
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	variant_vbox.add_child(name_label)
 
-	# Panel holder — clips overflow, holds the HudBuilder panel
+	# Panel holder — sizing container for the HBoxContainer layout.
+	# NO clip_contents — let led_glow HDR bleed naturally for root viewport bloom.
 	var panel_holder := Control.new()
 	panel_holder.custom_minimum_size = Vector2(VARIANT_WIDTH, VARIANT_HEIGHT)
 	panel_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel_holder.clip_contents = true
 	variant_vbox.add_child(panel_holder)
 
 	# Build side panel via HudBuilder — exact same code path as game HUD.
-	# "game" mode creates: ColorRect with chrome_panel shader, VBoxContainer
-	# with zones, each zone has spacer → bar → pad → label → pad.
+	# "game" mode creates: ColorRect with chrome_panel shader → main_vbox →
+	# zones with spacer → bar → pad → label → pad. Bars stay untouched.
 	var panel_data: Dictionary = HudBuilder.build_side_panel(
 		"game", ["SHIELD", "HULL"], {}, float(VARIANT_HEIGHT)
 	)
@@ -319,10 +330,7 @@ func _build_variant(index: int) -> void:
 	panel_root.size = Vector2(VARIANT_WIDTH, VARIANT_HEIGHT)
 	panel_holder.add_child(panel_root)
 
-	# Now wrap each bar in a bezel frame. The bar is at index 1 in its zone
-	# VBoxContainer (spacer=0, bar=1, pad=2, label=3, pad=4).
-	# We reparent: remove bar from zone, create a wrapper Control that holds
-	# the bezel (first child = renders behind) and the bar (second = on top).
+	# Apply fill ratio, colors, and label theming — NO structural changes to bars.
 	var bars: Dictionary = panel_data["bars"]
 	var bar_entries: Array = []
 	var specs: Array = ThemeManager.get_status_bar_specs()
@@ -337,55 +345,20 @@ func _build_variant(index: int) -> void:
 		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
 		var is_vertical: bool = entry.get("vertical", false) as bool
 
-		# Set fill to 75%
+		# Set fill to 50%
 		bar.max_value = seg
 		bar.value = int(float(seg) * FILL_RATIO)
 		bar.custom_minimum_size.x = HudBuilder.BAR_WIDTH
 		ThemeManager.apply_led_bar(bar, color, FILL_RATIO, seg, is_vertical)
 
-		# Theme bar label (same call as game HUD)
+		# Theme bar label — same call as game HUD _apply_theme
 		var body_font: Font = ThemeManager.get_font("font_body")
 		var body_size: int = ThemeManager.get_font_size("font_size_body")
 		HudBuilder.apply_bar_label_theme(lbl, color, body_font, body_size)
 
-		# Wrap bar in a bezel frame:
-		# zone currently has: spacer(0), bar(1), pad(2), label(3), pad(4)
-		var zone: VBoxContainer = bar.get_parent() as VBoxContainer
-		var bar_index: int = bar.get_index()
-
-		# Create wrapper sized to bar + bezel padding
-		var wrapper := Control.new()
-		wrapper.custom_minimum_size = Vector2(
-			bar.custom_minimum_size.x + BEZEL_PAD * 2,
-			bar.custom_minimum_size.y + BEZEL_PAD * 2
-		)
-		wrapper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-		# Bezel ColorRect fills the wrapper — renders FIRST (behind the bar)
-		var bezel_rect := ColorRect.new()
-		bezel_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-		bezel_rect.color = Color.WHITE
-		bezel_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		if _bezel_shader:
-			var mat := ShaderMaterial.new()
-			mat.shader = _bezel_shader
-			_apply_bezel_params(mat, params)
-			bezel_rect.material = mat
-		wrapper.add_child(bezel_rect)
-
-		# Reparent bar into wrapper — renders SECOND (on top of bezel)
-		zone.remove_child(bar)
-		bar.position = Vector2(BEZEL_PAD, BEZEL_PAD)
-		bar.size = bar.custom_minimum_size
-		wrapper.add_child(bar)
-
-		# Insert wrapper into zone where bar was
-		zone.add_child(wrapper)
-		zone.move_child(wrapper, bar_index)
-
 		bar_entries.append({
 			"bar": bar,
+			"seg": seg,
 			"wave_pos": -1.0,
 			"wave_active": false,
 		})
@@ -393,11 +366,94 @@ func _build_variant(index: int) -> void:
 	_variants.append({
 		"name": preset_name,
 		"params": params,
+		"no_bezel": no_bezel,
 		"name_label": name_label,
 		"panel_data": panel_data,
 		"panel_root": panel_root,
 		"bar_entries": bar_entries,
+		"bezel_rects": [],
 	})
+
+
+# ── Deferred bezel placement ────────────────────────────────────
+
+func _place_bezels() -> void:
+	## Called via call_deferred after layout settles. Reads actual bar positions
+	## and creates bezel ColorRects around each bar. The bezel shader's transparent
+	## cutout lets the bar's LED segments show through the center.
+	for variant in _variants:
+		if bool(variant["no_bezel"]):
+			continue
+		var panel_root: ColorRect = variant["panel_root"]
+		var params: Dictionary = variant["params"]
+		var bars: Dictionary = variant["panel_data"]["bars"]
+		var bezel_rects: Array = variant["bezel_rects"]
+
+		var specs: Array = ThemeManager.get_status_bar_specs()
+		for spec in specs:
+			var bar_name: String = str(spec["name"])
+			if not bars.has(bar_name):
+				continue
+			var entry: Dictionary = bars[bar_name]
+			var bar: ProgressBar = entry["bar"]
+
+			# Get bar's position relative to panel_root
+			var bar_local_pos: Vector2 = bar.global_position - panel_root.global_position
+
+			var bezel_rect := ColorRect.new()
+			bezel_rect.position = Vector2(
+				bar_local_pos.x - float(BEZEL_PAD),
+				bar_local_pos.y - float(BEZEL_PAD)
+			)
+			bezel_rect.size = Vector2(
+				bar.size.x + float(BEZEL_PAD) * 2.0,
+				bar.size.y + float(BEZEL_PAD) * 2.0
+			)
+			bezel_rect.color = Color.WHITE
+			bezel_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			if _bezel_shader:
+				var mat := ShaderMaterial.new()
+				mat.shader = _bezel_shader
+				_apply_bezel_params(mat, params)
+				bezel_rect.material = mat
+
+			# Add as child of panel_root — renders after main_vbox (on top).
+			# Bezel shader's transparent cutout lets bar show through center.
+			panel_root.add_child(bezel_rect)
+			bezel_rects.append(bezel_rect)
+
+
+func _reposition_bezels() -> void:
+	## Re-reads bar positions and updates bezel rects. Called after theme changes
+	## that might change segment count → bar height → bar position.
+	for variant in _variants:
+		if bool(variant["no_bezel"]):
+			continue
+		var panel_root: ColorRect = variant["panel_root"]
+		var bars: Dictionary = variant["panel_data"]["bars"]
+		var bezel_rects: Array = variant["bezel_rects"]
+
+		var bezel_idx: int = 0
+		var specs: Array = ThemeManager.get_status_bar_specs()
+		for spec in specs:
+			var bar_name: String = str(spec["name"])
+			if not bars.has(bar_name):
+				continue
+			if bezel_idx >= bezel_rects.size():
+				break
+			var bar: ProgressBar = bars[bar_name]["bar"]
+			var bezel_rect: ColorRect = bezel_rects[bezel_idx]
+
+			var bar_local_pos: Vector2 = bar.global_position - panel_root.global_position
+			bezel_rect.position = Vector2(
+				bar_local_pos.x - float(BEZEL_PAD),
+				bar_local_pos.y - float(BEZEL_PAD)
+			)
+			bezel_rect.size = Vector2(
+				bar.size.x + float(BEZEL_PAD) * 2.0,
+				bar.size.y + float(BEZEL_PAD) * 2.0
+			)
+			bezel_idx += 1
 
 
 func _apply_bezel_params(mat: ShaderMaterial, params: Dictionary) -> void:
@@ -487,9 +543,11 @@ func _apply_theme() -> void:
 			var chrome_mat: ShaderMaterial = panel_root.material as ShaderMaterial
 			chrome_mat.set_shader_parameter("divider_color", Vector4(accent.r, accent.g, accent.b, 0.5))
 
-		# Re-apply LED bars and bar labels
+		# Re-apply LED bars and bar labels — pass stored segment count (never -1)
 		var panel_data: Dictionary = variant["panel_data"]
 		var bars: Dictionary = panel_data["bars"]
+		var bar_entries: Array = variant["bar_entries"]
+		var be_idx: int = 0
 		var specs: Array = ThemeManager.get_status_bar_specs()
 		for spec in specs:
 			var bar_name: String = str(spec["name"])
@@ -499,9 +557,14 @@ func _apply_theme() -> void:
 			var color: Color = ThemeManager.resolve_bar_color(spec)
 			var bar: ProgressBar = entry["bar"]
 			var is_vertical: bool = entry.get("vertical", false) as bool
+			var seg: int = int(bar_entries[be_idx]["seg"]) if be_idx < bar_entries.size() else 8
 			bar.custom_minimum_size.x = HudBuilder.BAR_WIDTH
-			ThemeManager.apply_led_bar(bar, color, FILL_RATIO, -1, is_vertical)
+			ThemeManager.apply_led_bar(bar, color, FILL_RATIO, seg, is_vertical)
 			HudBuilder.apply_bar_label_theme(entry["label"], color, body_font, body_size)
+			be_idx += 1
+
+	# Reposition bezels after bars may have changed size
+	call_deferred("_reposition_bezels")
 
 
 func _setup_vhs_overlay() -> void:
