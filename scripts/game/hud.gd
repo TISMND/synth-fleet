@@ -24,6 +24,10 @@ const WAVE_MIN_CHANGE: float = 0.01  # minimum ratio change to trigger a wave
 var _vhs_overlay: ColorRect = null
 
 # Power death bar animation
+var _shield_arc_container: Node2D = null  # Lightning arcs on the shield bar
+var _shield_arcs: Array = []  # Active Line2D bolts on shield bar
+var _shield_arc_timer: float = 0.0
+var _shield_arcing: bool = false  # True during shield bleed from electric overdraw
 var _power_death_active: bool = false
 var _power_death_elapsed: float = 0.0
 var _power_death_final: bool = false  # Final fade — kill all remaining segments fast
@@ -213,17 +217,21 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 			mat.set_shader_parameter("fill_ratio", 1.0)
 		else:
 			mat.set_shader_parameter("fill_ratio", ratio)
-	# Update glow rect alpha to match fill (skip during power death — managed by kill animation)
-	if not _power_death_active:
-		var glow_rect: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
-		if glow_rect:
+	# Update glow rect alpha to match fill
+	var glow_rect: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+	if glow_rect:
+		if not _power_death_active:
 			glow_rect.color.a = 0.15 * ratio
+		# During power death, glow managed by kill animation
 	else:
 		# First time or after theme change — full rebuild
 		var seg: int = int(_bar_segments.get(bar_name, -1))
 		var is_vertical: bool = entry.get("vertical", false) as bool
 		ThemeManager.apply_led_bar(bar, ThemeManager.get_color(color_key), ratio, seg, is_vertical)
 		HudBuilder.update_bar_bezel(entry, seg)
+		# Re-force fill_ratio if in power death (apply_led_bar resets it)
+		if _power_death_active and bar.material is ShaderMaterial:
+			(bar.material as ShaderMaterial).set_shader_parameter("fill_ratio", 1.0)
 
 
 func pulse_bar(bar_name: String) -> void:
@@ -305,6 +313,86 @@ func update_credits(amount: int) -> void:
 	_credits_label.text = "CR: " + str(amount)
 
 
+# ── Shield bar lightning arcs ────────────────────────────────────────────
+
+func start_shield_arcs() -> void:
+	_shield_arcing = true
+	_shield_arc_timer = 0.0
+	if not _shield_arc_container:
+		_shield_arc_container = Node2D.new()
+		_shield_arc_container.z_index = 60  # Above HUD panels
+		add_child(_shield_arc_container)
+
+
+func stop_shield_arcs() -> void:
+	_shield_arcing = false
+	_clear_shield_arcs()
+
+
+func process_shield_arcs(delta: float) -> void:
+	if not _shield_arcing or not _bars.has("SHIELD"):
+		return
+	_shield_arc_timer -= delta
+	if _shield_arc_timer <= 0.0 and _shield_arcs.size() < 2:
+		_spawn_shield_arc()
+		_shield_arc_timer = randf_range(0.1, 0.4)
+	# Update existing arcs
+	var i: int = _shield_arcs.size() - 1
+	while i >= 0:
+		var arc: Dictionary = _shield_arcs[i]
+		arc["age"] = float(arc["age"]) + delta
+		if float(arc["age"]) >= float(arc["life"]):
+			(arc["line"] as Line2D).queue_free()
+			_shield_arcs.remove_at(i)
+		else:
+			var fade: float = 1.0 - float(arc["age"]) / float(arc["life"])
+			(arc["line"] as Line2D).modulate.a = fade * 3.0
+		i -= 1
+
+
+func _spawn_shield_arc() -> void:
+	var entry: Dictionary = _bars["SHIELD"]
+	var bar: ProgressBar = entry["bar"]
+	# Get bar position in HUD space
+	var bar_pos: Vector2 = bar.global_position - global_position
+	var bar_size: Vector2 = bar.size
+
+	# Random start/end along the bar height
+	var y_start: float = bar_pos.y + randf() * bar_size.y
+	var y_end: float = bar_pos.y + randf() * bar_size.y
+	var x_center: float = bar_pos.x + bar_size.x * 0.5
+	# Arc extends outward from the bar
+	var x_offset: float = randf_range(20.0, 50.0) * (1.0 if randf() > 0.5 else -1.0)
+
+	var segments: int = randi_range(4, 8)
+	var points: PackedVector2Array = PackedVector2Array()
+	var start: Vector2 = Vector2(x_center, y_start)
+	var end: Vector2 = Vector2(x_center + x_offset, y_end)
+	for j in segments + 1:
+		var t: float = float(j) / float(segments)
+		var p: Vector2 = start.lerp(end, t)
+		if j > 0 and j < segments:
+			p.x += randf_range(-12.0, 12.0)
+			p.y += randf_range(-8.0, 8.0)
+		points.append(p)
+
+	var line := Line2D.new()
+	line.points = points
+	line.width = randf_range(1.0, 2.0)
+	line.default_color = Color(0.5, 0.7, 1.0, 1.0)
+	line.antialiased = true
+	line.modulate = Color(3.3, 3.3, 3.3, 1.0)
+	_shield_arc_container.add_child(line)
+	_shield_arcs.append({"line": line, "life": randf_range(0.05, 0.12), "age": 0.0})
+
+
+func _clear_shield_arcs() -> void:
+	for arc in _shield_arcs:
+		if is_instance_valid(arc["line"]):
+			(arc["line"] as Line2D).queue_free()
+	_shield_arcs.clear()
+
+
 # ── Power death bar animation ───────────────────────────────────────────
 
 func start_power_death_bars() -> void:
@@ -330,6 +418,8 @@ func final_power_death_bars() -> void:
 	## Kill all remaining segments rapidly — called when screen goes fully dark.
 	_power_death_final = true
 	_power_death_final_elapsed = 0.0
+	# Stop shield arcs
+	stop_shield_arcs()
 	# Stop all flickering — no more revivals
 	for bar_name in _bar_flicker_timers:
 		var timers: Array = _bar_flicker_timers[bar_name]

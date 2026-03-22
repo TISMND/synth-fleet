@@ -8,10 +8,16 @@ const BAR_TYPES: Array[String] = ["shield", "hull", "thermal", "electric"]
 const POINTS_PER_SEGMENT: float = 10.0
 
 
-## Get the duration of a WAV file in seconds (without loading into LoopMixer).
+## Get the duration of a WAV file in seconds.
+## Prefers LoopMixer's cached pre-mutation duration to avoid resource-cache coupling.
 static func get_loop_duration(loop_path: String) -> float:
 	if loop_path == "":
 		return 0.0
+	# Use LoopMixer's clean cached duration when available (game context)
+	var cached: float = LoopMixer.get_cached_duration_by_path(loop_path)
+	if cached > 0.0:
+		return cached
+	# Fallback: load directly (dev studio context where LoopMixer hasn't loaded the stream)
 	var stream: AudioStream = load(loop_path) as AudioStream
 	if not stream:
 		return 0.0
@@ -136,7 +142,7 @@ static func format_rates(rates: Dictionary) -> String:
 		var val: float = float(rates[bar_type])
 		var label: String = str(abbrev.get(bar_type, bar_type.to_upper()))
 		var sign: String = "+" if val > 0 else ""
-		parts.append(label + " " + sign + str(int(val)) + " seg/m")
+		parts.append(label + " " + sign + str(roundi(val)) + " seg/m")
 	return "  ".join(parts)
 
 

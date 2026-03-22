@@ -31,7 +31,6 @@ var _space_state: int = 0  # 0=all off, 1=all on
 # Banking + rendering
 var _bank: float = 0.0
 var _ship_renderer: ShipRenderer = null
-var _electric_crisis_particles: GPUParticles2D = null  # Spark particles when electric is depleted
 var _electric_arcs: Array = []  # Active Line2D lightning bolts
 var _electric_arc_container: Node2D = null  # Parent for arc lines
 var _electric_arc_timer: float = 0.0  # Countdown to next arc spawn
@@ -96,44 +95,6 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_ship_renderer.ship_id = _resolve_ship_id(ship_data)
 	_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
 	add_child(_ship_renderer)
-
-	# Electric crisis VFX — spark particles when electric is depleted
-	_electric_crisis_particles = GPUParticles2D.new()
-	_electric_crisis_particles.z_index = 2
-	_electric_crisis_particles.emitting = false
-	_electric_crisis_particles.amount = 20
-	_electric_crisis_particles.lifetime = 0.4
-	_electric_crisis_particles.explosiveness = 0.0
-	_electric_crisis_particles.randomness = 1.0
-	_electric_crisis_particles.texture = VFXFactory.get_soft_circle()
-	_electric_crisis_particles.scale = Vector2(0.6, 0.6)
-	var spark_mat := ParticleProcessMaterial.new()
-	spark_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	spark_mat.emission_sphere_radius = 30.0
-	spark_mat.direction = Vector3(0, 0, 0)
-	spark_mat.spread = 180.0
-	spark_mat.initial_velocity_min = 40.0
-	spark_mat.initial_velocity_max = 120.0
-	spark_mat.gravity = Vector3(0, 0, 0)
-	spark_mat.damping_min = 60.0
-	spark_mat.damping_max = 100.0
-	spark_mat.scale_min = 0.3
-	spark_mat.scale_max = 1.0
-	var fade_curve := CurveTexture.new()
-	var curve := Curve.new()
-	curve.add_point(Vector2(0.0, 1.0))
-	curve.add_point(Vector2(1.0, 0.0))
-	fade_curve.curve = curve
-	spark_mat.scale_curve = fade_curve
-	spark_mat.color = Color(0.4, 0.7, 1.0, 0.9)
-	var color_ramp := Gradient.new()
-	color_ramp.set_color(0, Color(0.6, 0.8, 1.0, 1.0))
-	color_ramp.set_color(1, Color(0.2, 0.4, 1.0, 0.0))
-	var color_tex := GradientTexture1D.new()
-	color_tex.gradient = color_ramp
-	spark_mat.color_ramp = color_tex
-	_electric_crisis_particles.process_material = spark_mat
-	add_child(_electric_crisis_particles)
 
 	# Electric arc container — holds Line2D lightning bolts spawned during crisis
 	_electric_arc_container = Node2D.new()
@@ -326,13 +287,13 @@ func _process(delta: float) -> void:
 		_electric_crisis_active = true
 		_play_sfx_cue("electric_sparks", false)
 		_play_sfx_cue("powerdown_shields_bleed")
-		if _electric_crisis_particles:
-			_electric_crisis_particles.emitting = true
+		if _hud and _hud.has_method("start_shield_arcs"):
+			_hud.start_shield_arcs()
 	elif electric > 0.0 and _electric_crisis_active:
 		_electric_crisis_active = false
-		if _electric_crisis_particles:
-			_electric_crisis_particles.emitting = false
 		_clear_electric_arcs()
+		if _hud and _hud.has_method("stop_shield_arcs"):
+			_hud.stop_shield_arcs()
 
 	# Sporadic electric arcs — spawn jagged Line2D lightning bolts
 	if _electric_crisis_active and _electric_arc_container:
@@ -385,8 +346,6 @@ func _input(event: InputEvent) -> void:
 		shield = 0.0
 		_electric_crisis_active = true
 		_electric_overdraw = true
-		if _electric_crisis_particles:
-			_electric_crisis_particles.emitting = true
 		print("[DEBUG] F9: Forced power death — electric=0, shield=0")
 		return
 
@@ -987,10 +946,10 @@ func _spawn_lightning_arc() -> void:
 	var line := Line2D.new()
 	line.points = points
 	line.width = randf_range(1.0, 2.5)
-	line.default_color = Color(0.5, 0.7, 1.0, 1.0)
+	line.default_color = Color(0.6, 0.8, 1.0, 1.0)
 	line.antialiased = true
-	# Bright core for HDR bloom
-	line.modulate = Color(2.0, 2.0, 2.0, 1.0)
+	# HDR bloom — bright white-blue core
+	line.modulate = Color(2.75, 2.75, 2.75, 1.0)
 	_electric_arc_container.add_child(line)
 	_electric_arcs.append({"line": line, "life": randf_range(0.04, 0.12), "age": 0.0})
 

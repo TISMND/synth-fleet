@@ -14,7 +14,7 @@
 	"fade_in_duration": 0.3,
 	"fade_out_duration": 0.3,
 	"field_style_id": "sun_rays",
-	"id": "fem_somethingwip",
+	"id": "fem_inverted_crystal_capacitors",
 	"loop_file_path": "res://loop_zips/sorted/pads/Thinking About Reaction - 120 BPM - 6 - Pads - NW_CSRW_90_kit_loop_sensory_synth_Fmin.wav",
 	"loop_length_bars": 2,
 	"mechanic_params": {
@@ -23,10 +23,10 @@
 	"orbiter_lifetime": 4.0,
 	"orbiter_style_id": "",
 	"passive_effects": {
-		"electric": 20.35,
+		"electric": 18.0,
 		"hull": -0.100000000000001,
 		"shield": -0.350000000000001,
-		"thermal": 1.0
+		"thermal": 6.0
 	},
 	"pulse_fade_out": 0.87,
 	"pulse_fade_up": 0.11,
@@ -35,7 +35,7 @@
 		0.0
 	],
 	"radius": 100.0,
-	"speed_modifier": -70.0,
+	"speed_modifier": -75.0,
 	"transition_mode": "fade",
 	"transition_ms": 830,
 	"visual_mode": "field",

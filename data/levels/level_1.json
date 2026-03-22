@@ -326,7 +326,7 @@
 		},
 		{
 			"count": 20,
-			"formation_id": "",
+			"formation_id": "formation_4",
 			"is_melee": false,
 			"path_id": "path_5",
 			"rotate_with_path": false,
@@ -340,7 +340,7 @@
 		},
 		{
 			"count": 20,
-			"formation_id": "",
+			"formation_id": "formation_4",
 			"is_melee": false,
 			"path_id": "path_5",
 			"rotate_with_path": false,
@@ -354,7 +354,7 @@
 		},
 		{
 			"count": 20,
-			"formation_id": "",
+			"formation_id": "formation_4",
 			"is_melee": false,
 			"path_id": "path_5",
 			"rotate_with_path": false,

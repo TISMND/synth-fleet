@@ -10,6 +10,9 @@ const MUTE_DB := -80.0
 var _loops: Dictionary = {}
 # Each entry: {player: AudioStreamPlayer, target_volume: float, muted: bool, duration: float}
 
+var _durations_by_path: Dictionary = {}
+# Maps stream_path -> duration_sec (pre-mutation, clean values for EffectRateCalculator)
+
 var _active_tweens: Dictionary = {}
 # Per loop_id: active Tween for fade transitions (cancelled when a new fade starts)
 
@@ -47,6 +50,8 @@ func add_loop(loop_id: String, stream_path: String, bus: String = "Weapons", vol
 		print("LoopMixer: \"%s\" duration=%.3fs loop_end=%d mix_rate=%d data_bytes=%d" % [loop_id, duration_sec, stream.loop_end, stream.mix_rate, stream.data.size()])
 	else:
 		duration_sec = stream.get_length()
+	# Cache clean duration by path for EffectRateCalculator
+	_durations_by_path[stream_path] = duration_sec
 	var player := AudioStreamPlayer.new()
 	player.stream = stream
 	player.bus = bus
@@ -225,6 +230,12 @@ func get_stream_duration(loop_id: String) -> float:
 		return -1.0
 	var entry: Dictionary = _loops[loop_id]
 	return float(entry["duration"])
+
+
+func get_cached_duration_by_path(stream_path: String) -> float:
+	## Returns the pre-mutation duration for a stream path, or 0.0 if not cached.
+	## Used by EffectRateCalculator to avoid resource-cache coupling.
+	return float(_durations_by_path.get(stream_path, 0.0))
 
 
 func set_pitch_shift(semitones: float, fade_sec: float = 0.5) -> void:

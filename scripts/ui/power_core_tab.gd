@@ -36,6 +36,7 @@ var _bar_effect_lanes: Dictionary = {}  # bar_type -> BarEffectLane
 
 # Stats subtab
 var _mechanics_bar_effect_sliders: Dictionary = {}  # bar_type -> HSlider
+var _mechanics_bar_effect_rows: Dictionary = {}  # bar_type -> HBoxContainer (for dimming)
 var _passive_effect_sliders: Dictionary = {}  # bar_type -> HSlider
 var _effect_rate_label: Label = null
 # Stats bar preview (LED bars with rolling wave animation)
@@ -512,6 +513,7 @@ func _build_stats_tab() -> Control:
 		)
 
 		_mechanics_bar_effect_sliders[bar_type] = slider
+		_mechanics_bar_effect_rows[bar_type] = row
 
 	_add_separator(form)
 
@@ -1285,6 +1287,20 @@ func _update_effect_rate_label() -> void:
 	var rates: Dictionary = EffectRateCalculator.calc_power_core(core)
 	var text: String = EffectRateCalculator.format_rates(rates)
 	_effect_rate_label.text = text if text != "" else "No bar effects"
+	_update_bar_effect_slider_states(data.get("pulse_triggers", {}) as Dictionary)
+
+
+func _update_bar_effect_slider_states(pulse_triggers: Dictionary) -> void:
+	## Dim legacy bar_effects sliders for types without pulse_triggers.
+	for bar_type in BAR_TYPES:
+		var row: HBoxContainer = _mechanics_bar_effect_rows.get(bar_type) as HBoxContainer
+		if not row:
+			continue
+		var has_triggers: bool = not (pulse_triggers.get(bar_type, []) as Array).is_empty()
+		row.modulate.a = 1.0 if has_triggers else 0.3
+		var slider: HSlider = _mechanics_bar_effect_sliders.get(bar_type) as HSlider
+		if slider:
+			slider.editable = has_triggers
 
 
 func _mark_clean() -> void:
