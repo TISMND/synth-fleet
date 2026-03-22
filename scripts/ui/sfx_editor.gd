@@ -200,7 +200,7 @@ func _build_ui() -> void:
 
 	# Staged power-up cues
 	_add_section_header(vbox, "POWER-UP SEQUENCE (recovery)")
-	for event_id in ["powerup_electric_restored", "powerup_bars_charging", "powerup_screen_on", "powerup_systems_online", "powerup_restored"]:
+	for event_id in ["powerup_electric_restored", "powerup_core_regen", "powerup_bars_charging", "powerup_screen_on", "powerup_systems_online", "powerup_restored"]:
 		_add_event_row(vbox, event_id)
 
 	# Loops content (LoopBalancer panel — built from script)

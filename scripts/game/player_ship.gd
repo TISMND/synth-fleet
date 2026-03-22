@@ -67,6 +67,11 @@ var _reboot_typing_player: AudioStreamPlayer = null  # Looping typing sound, sta
 var _reboot_finished: bool = false  # True once all text is typed — triggers recovery
 var _recovery_active: bool = false  # Bar restoration animation in progress
 var _recovery_elapsed: float = 0.0
+var _recovery_cores_activated: bool = false
+var _recovery_pitch_start_time: float = -1.0  # When pitch ramp started
+const RECOVERY_PITCH_DURATION: float = 5.0  # Seconds for pitch/speed to recover
+const RECOVERY_PITCH_START: float = 0.3  # Starting pitch_scale (very slow/low)
+const RECOVERY_VOLUME_START: float = -20.0  # Starting volume offset in dB
 var _recovery_sfx_screen_fired: bool = false
 var _recovery_sfx_systems_fired: bool = false
 const RECOVERY_DURATION: float = 3.5  # Seconds for bars to animate back up
@@ -864,6 +869,13 @@ func _process_reboot_text(delta: float) -> void:
 
 	var char_speed: float = REBOOT_CHAR_FAST if _reboot_scrolling else REBOOT_CHAR_SLOW
 
+	# Specific line triggers — fire once when line starts typing
+	if _reboot_char_index == 0 and _reboot_char_timer < char_speed:
+		if current_line == "Regenerating power core...":
+			_play_sfx_cue("powerup_core_regen")
+		elif current_line == "SUCCESS":
+			_play_sfx_cue("powerup_restored")
+
 	if _reboot_char_index < current_line.length():
 		# Still typing — advance multiple chars per frame if timer allows
 		while _reboot_char_timer >= char_speed and _reboot_char_index < current_line.length():
@@ -935,6 +947,7 @@ func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
 func _start_recovery() -> void:
 	_recovery_active = true
 	_recovery_elapsed = 0.0
+	_recovery_cores_activated = false
 	_recovery_sfx_screen_fired = false
 	_recovery_sfx_systems_fired = false
 	_play_sfx_cue("powerup_bars_charging")
@@ -962,6 +975,29 @@ func _process_recovery(delta: float) -> void:
 	# Slow drift to a stop
 	_drift_rotation_speed = lerpf(_drift_rotation_speed, 0.0, delta * 3.0)
 
+	# Reactivate power cores early — loops start at very low pitch/speed and ramp up
+	if t >= 0.01 and not _recovery_cores_activated:
+		_recovery_cores_activated = true
+		# Set all loop players to very low pitch BEFORE activating
+		LoopMixer.set_all_pitch_scale(RECOVERY_PITCH_START)
+		LoopMixer.set_all_volume_offset(RECOVERY_VOLUME_START)
+		for c in _core_controllers:
+			if c.has_method("activate"):
+				c.activate()
+		LoopMixer.start_all()
+		_recovery_pitch_start_time = _recovery_elapsed
+
+	# Ramp pitch/speed/volume from low to normal over 5 seconds
+	if _recovery_pitch_start_time >= 0.0:
+		var pitch_elapsed: float = _recovery_elapsed - _recovery_pitch_start_time
+		var pitch_t: float = clampf(pitch_elapsed / RECOVERY_PITCH_DURATION, 0.0, 1.0)
+		# Ease-in: stays low/slow longer, then ramps up toward end
+		var eased: float = pitch_t * pitch_t
+		var current_pitch: float = lerpf(RECOVERY_PITCH_START, 1.0, eased)
+		var current_vol_offset: float = lerpf(RECOVERY_VOLUME_START, 0.0, eased)
+		LoopMixer.set_all_pitch_scale(current_pitch)
+		LoopMixer.set_all_volume_offset(current_vol_offset)
+
 	# Staged SFX during recovery
 	if t >= 0.5 and not _recovery_sfx_screen_fired:
 		_recovery_sfx_screen_fired = true
@@ -982,10 +1018,14 @@ func _process_recovery(delta: float) -> void:
 
 	if t >= 1.0:
 		_recovery_active = false
-		# Final restored cue — delayed 1 second after recovery ends
-		var delay_cue: Callable = func() -> void: _play_sfx_cue("powerup_restored")
-		get_tree().create_timer(1.0).timeout.connect(delay_cue)
+		_restore_loop_playback()
 		_end_drift()
+
+
+func _restore_loop_playback() -> void:
+	LoopMixer.set_all_pitch_scale(1.0)
+	LoopMixer.set_all_volume_offset(0.0)
+	_recovery_pitch_start_time = -1.0
 
 
 ## ── Procedural lightning arcs ────────────────────────────────────────────────
@@ -1052,13 +1092,38 @@ func _clear_electric_arcs() -> void:
 	_electric_arcs.clear()
 
 
-## SFX visual cue — shows event name on screen when triggered (dev aid)
+const SFX_CUE_DISPLAY: Dictionary = {
+	"electric_sparks": "CAPACITOR DISCHARGE",
+	"powerdown_shields_bleed": "SHIELD DRAIN DETECTED",
+	"powerdown_engines_dying": "ENGINE FAILURE",
+	"powerdown_drift_start": "GYRO LOCK LOST",
+	"power_failure": "CATASTROPHIC FAILURE",
+	"powerdown_crt_flicker_start": "DISPLAY CORRUPTION",
+	"powerdown_screen_75": "SIGNAL DEGRADING",
+	"powerdown_screen_50": "SIGNAL CRITICAL",
+	"powerdown_screen_25": "SIGNAL LOST",
+	"monitor_static": "STATIC BURST",
+	"monitor_shutoff": "DISPLAY OFFLINE",
+	"powerdown_final_death": "TOTAL BLACKOUT",
+	"powerup_electric_restored": "COLD START INITIATED",
+	"powerup_bars_charging": "SUBSYSTEMS CHARGING",
+	"powerup_core_regen": "CORE REGENERATING",
+	"powerup_screen_on": "DISPLAY ONLINE",
+	"powerup_systems_online": "SYSTEMS NOMINAL",
+	"powerup_restored": "RESTORATION COMPLETE",
+	"reboot_line_beep": "",  # Don't show for line beeps
+}
+
+## SFX visual cue — shows sci-fi status text on screen when triggered
 func _play_sfx_cue(event_id: String, use_ui_bus: bool = true) -> void:
 	if use_ui_bus:
 		SfxPlayer.play_ui(event_id)
 	else:
 		SfxPlayer.play(event_id)
-	# Show on-screen label
+	# Show on-screen label with sci-fi display name
+	var display: String = str(SFX_CUE_DISPLAY.get(event_id, ""))
+	if display == "":
+		return
 	if not _sfx_debug_label:
 		_sfx_debug_label = Label.new()
 		_sfx_debug_label.position = Vector2(1400, 60)
@@ -1068,7 +1133,7 @@ func _play_sfx_cue(event_id: String, use_ui_bus: bool = true) -> void:
 		_sfx_debug_label.add_theme_font_size_override("font_size", 12)
 		_sfx_debug_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2, 0.9))
 		get_tree().root.add_child(_sfx_debug_label)
-	_sfx_debug_lines.append(">> " + event_id)
+	_sfx_debug_lines.append(">> " + display)
 	_sfx_debug_timers.append(3.0)
 	_rebuild_sfx_debug()
 
@@ -1139,6 +1204,7 @@ func _end_drift() -> void:
 		_reboot_finished = false
 		_recovery_active = false
 		_recovery_elapsed = 0.0
+		_recovery_cores_activated = false
 		_reboot_completed_lines.clear()
 		# Remove reboot text + typing sound
 		if _reboot_typing_player and is_instance_valid(_reboot_typing_player):
@@ -1185,8 +1251,9 @@ func _apply_device_modifiers() -> void:
 
 
 func _exit_tree() -> void:
-	# Always clean up bus effects — they persist on the Master bus across scene changes
+	# Always clean up bus effects — they persist across scene changes
 	_remove_blackout_audio()
+	_restore_loop_playback()
 	_clear_electric_arcs()
 	if _blackout_overlay and is_instance_valid(_blackout_overlay):
 		_blackout_overlay.queue_free()

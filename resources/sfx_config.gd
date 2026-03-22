@@ -37,6 +37,7 @@ const EVENT_IDS: Array[String] = [
 	# Staged power-up cues (recovery)
 	"powerup_electric_restored",
 	"powerup_bars_charging",
+	"powerup_core_regen",
 	"powerup_screen_on",
 	"powerup_systems_online",
 	"powerup_restored",
@@ -76,11 +77,12 @@ const EVENT_LABELS: Dictionary = {
 	"powerdown_screen_25": "5c. SCREEN 25%",
 	"powerdown_final_death": "6. FINAL DEATH",
 	# Staged power-up cues
-	"powerup_electric_restored": "7. ELECTRIC RESTORED",
-	"powerup_bars_charging": "7b. BARS CHARGING",
-	"powerup_screen_on": "8. SCREEN POWERING ON",
+	"powerup_electric_restored": "7. COLD START",
+	"powerup_bars_charging": "7b. SUBSYSTEMS CHARGING",
+	"powerup_core_regen": "7c. CORE REGENERATING",
+	"powerup_screen_on": "8. DISPLAY ONLINE",
 	"powerup_systems_online": "9. SYSTEMS ONLINE",
-	"powerup_restored": "10. FULLY RESTORED",
+	"powerup_restored": "10. FULL RESTORATION",
 }
 
 var events: Dictionary = {}

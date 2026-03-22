@@ -243,6 +243,27 @@ func has_loop(loop_id: String) -> bool:
 	return _loops.has(loop_id)
 
 
+func set_all_pitch_scale(scale: float) -> void:
+	## Set pitch_scale on ALL loop players. Changes both pitch AND speed together.
+	## 0.5 = half speed, one octave down. 1.0 = normal. 2.0 = double speed, one octave up.
+	for loop_id in _loops:
+		var entry: Dictionary = _loops[loop_id]
+		var player: AudioStreamPlayer = entry["player"]
+		player.pitch_scale = scale
+
+
+func set_all_volume_offset(offset_db: float) -> void:
+	## Apply a volume offset to ALL loop players (additive to their target volume).
+	## Use negative values to quiet them. 0.0 = no offset (restore normal).
+	for loop_id in _loops:
+		var entry: Dictionary = _loops[loop_id]
+		var player: AudioStreamPlayer = entry["player"]
+		var target: float = float(entry["target_volume"])
+		if bool(entry["muted"]):
+			continue  # Don't unmute muted loops
+		player.volume_db = target + offset_db
+
+
 func get_playback_position(loop_id: String) -> float:
 	## Returns the player's actual playback position in seconds, or -1.0 if not found/playing.
 	if not _loops.has(loop_id):
