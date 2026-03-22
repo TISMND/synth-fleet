@@ -20,6 +20,8 @@ uniform float gain_wave_pos : hint_range(-1.0, 2.0) = -1.0;
 uniform float drain_wave_pos : hint_range(-1.0, 2.0) = -1.0;
 uniform float wave_intensity : hint_range(0.0, 1.5) = 0.5;
 uniform float wave_width : hint_range(0.02, 0.4) = 0.15;
+// Per-segment kill mask — bit N=1 means segment N is forced unlit (power death animation)
+uniform int segment_kill_mask = 0;
 
 // Returns 1.0 if bar_uv_x is inside a lit segment, 0.0 otherwise.
 float is_lit(float bx) {
@@ -32,6 +34,11 @@ float is_lit(float bx) {
 	float seg_end = seg_start + seg_width;
 
 	if (bx - seg_start < half_gap || seg_end - bx < half_gap) {
+		return 0.0;
+	}
+
+	// Power death: killed segments render as unlit
+	if (((segment_kill_mask >> seg_index) & 1) == 1) {
 		return 0.0;
 	}
 

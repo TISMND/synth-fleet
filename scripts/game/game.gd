@@ -164,6 +164,7 @@ func _process(delta: float) -> void:
 	if _hud and _player:
 		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
 		_hud.update_bar_pulses(delta)
+		_hud.process_power_death_bars(delta)
 		_hud.update_credits(GameState.credits)
 
 

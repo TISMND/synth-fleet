@@ -32,6 +32,10 @@ var _space_state: int = 0  # 0=all off, 1=all on
 var _bank: float = 0.0
 var _ship_renderer: ShipRenderer = null
 var _electric_crisis_particles: GPUParticles2D = null  # Spark particles when electric is depleted
+var _electric_arcs: Array = []  # Active Line2D lightning bolts
+var _electric_arc_container: Node2D = null  # Parent for arc lines
+var _electric_arc_timer: float = 0.0  # Countdown to next arc spawn
+var _electric_arc_max: int = 3  # Max simultaneous arcs
 var _electric_crisis_active: bool = false
 var _electric_overdraw: bool = false  # True when weapons tried to drain electric below 0
 var _shield_at_crisis_start: float = -1.0  # Shield snapshot when engine penalty begins
@@ -130,6 +134,11 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	spark_mat.color_ramp = color_tex
 	_electric_crisis_particles.process_material = spark_mat
 	add_child(_electric_crisis_particles)
+
+	# Electric arc container — holds Line2D lightning bolts spawned during crisis
+	_electric_arc_container = Node2D.new()
+	_electric_arc_container.z_index = 2
+	add_child(_electric_arc_container)
 
 	# Per-ship hull flash settings
 	_ship_renderer.hull_flash_opacity = ship.hull_flash_opacity
@@ -323,6 +332,15 @@ func _process(delta: float) -> void:
 		_electric_crisis_active = false
 		if _electric_crisis_particles:
 			_electric_crisis_particles.emitting = false
+		_clear_electric_arcs()
+
+	# Sporadic electric arcs — spawn jagged Line2D lightning bolts
+	if _electric_crisis_active and _electric_arc_container:
+		_electric_arc_timer -= delta
+		if _electric_arc_timer <= 0.0 and _electric_arcs.size() < _electric_arc_max:
+			_spawn_lightning_arc()
+			_electric_arc_timer = randf_range(0.08, 0.35)
+		_update_electric_arcs(delta)
 
 	# Drift phase — shields hit 0 during electric crisis, ship loses control
 	if _electric_overdraw and electric <= 0.0 and shield <= 0.0:
@@ -590,6 +608,9 @@ func _start_drift() -> void:
 	_drift_timer = 0.0
 	_play_sfx_cue("powerdown_drift_start")
 	_play_sfx_cue("powerdown_engines_dying", false)
+	# Start LED bar segment death animation
+	if _hud and _hud.has_method("start_power_death_bars"):
+		_hud.start_power_death_bars()
 	_drift_rotation_speed = 0.0
 	_drift_spin_direction = 1.0 if randf() > 0.5 else -1.0
 
@@ -704,6 +725,9 @@ func _process_blackout(delta: float) -> void:
 		_shutdown_all_components()
 		_play_sfx_cue("monitor_shutoff")
 		_play_sfx_cue("powerdown_final_death")
+		# Kill remaining LED segments rapidly — fade to total darkness
+		if _hud and _hud.has_method("final_power_death_bars"):
+			_hud.final_power_death_bars()
 		_start_reboot_sequence()
 		final_power_death.emit()
 
@@ -935,6 +959,70 @@ func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
 	_reboot_label.text = padded
 
 
+## ── Procedural lightning arcs ────────────────────────────────────────────────
+
+func _spawn_lightning_arc() -> void:
+	## Create a jagged Line2D bolt between two random points on the ship hull.
+	var ship_radius: float = 40.0
+	# Random start and end points around the ship
+	var angle_start: float = randf() * TAU
+	var angle_end: float = angle_start + randf_range(1.5, 4.0)  # Span at least ~90 degrees
+	var r_start: float = randf_range(ship_radius * 0.3, ship_radius * 0.9)
+	var r_end: float = randf_range(ship_radius * 0.3, ship_radius * 1.1)
+	var start_pos: Vector2 = Vector2(cos(angle_start), sin(angle_start)) * r_start
+	var end_pos: Vector2 = Vector2(cos(angle_end), sin(angle_end)) * r_end
+
+	# Build jagged path between start and end
+	var segments: int = randi_range(5, 10)
+	var points: PackedVector2Array = PackedVector2Array()
+	for i in segments + 1:
+		var t: float = float(i) / float(segments)
+		var base_pos: Vector2 = start_pos.lerp(end_pos, t)
+		if i > 0 and i < segments:
+			# Jitter perpendicular to the line
+			var perp: Vector2 = (end_pos - start_pos).normalized().rotated(PI / 2.0)
+			base_pos += perp * randf_range(-15.0, 15.0)
+		points.append(base_pos)
+
+	var line := Line2D.new()
+	line.points = points
+	line.width = randf_range(1.0, 2.5)
+	line.default_color = Color(0.5, 0.7, 1.0, 1.0)
+	line.antialiased = true
+	# Bright core for HDR bloom
+	line.modulate = Color(2.0, 2.0, 2.0, 1.0)
+	_electric_arc_container.add_child(line)
+	_electric_arcs.append({"line": line, "life": randf_range(0.04, 0.12), "age": 0.0})
+
+
+func _update_electric_arcs(delta: float) -> void:
+	var i: int = _electric_arcs.size() - 1
+	while i >= 0:
+		var arc: Dictionary = _electric_arcs[i]
+		arc["age"] = float(arc["age"]) + delta
+		var life: float = float(arc["life"])
+		var age: float = float(arc["age"])
+		if age >= life:
+			# Arc expired — remove
+			var line: Line2D = arc["line"]
+			line.queue_free()
+			_electric_arcs.remove_at(i)
+		else:
+			# Fade out over lifetime
+			var line: Line2D = arc["line"]
+			var fade: float = 1.0 - (age / life)
+			line.modulate.a = fade * 2.0  # HDR fade
+		i -= 1
+
+
+func _clear_electric_arcs() -> void:
+	for arc in _electric_arcs:
+		var line: Line2D = arc["line"]
+		if is_instance_valid(line):
+			line.queue_free()
+	_electric_arcs.clear()
+
+
 ## SFX visual cue — shows event name on screen when triggered (dev aid)
 func _play_sfx_cue(event_id: String, use_ui_bus: bool = true) -> void:
 	if use_ui_bus:
@@ -988,6 +1076,9 @@ func _end_drift() -> void:
 	_drift_timer = 0.0
 	_drift_rotation_speed = 0.0
 	rotation = 0.0
+	# Restore LED bar segments
+	if _hud and _hud.has_method("stop_power_death_bars"):
+		_hud.stop_power_death_bars()
 	_play_sfx_cue("powerup_electric_restored")
 	if _blackout_active:
 		_blackout_active = false
@@ -1067,6 +1158,7 @@ func _apply_device_modifiers() -> void:
 func _exit_tree() -> void:
 	# Always clean up bus effects — they persist on the Master bus across scene changes
 	_remove_blackout_audio()
+	_clear_electric_arcs()
 	if _blackout_overlay and is_instance_valid(_blackout_overlay):
 		_blackout_overlay.queue_free()
 		_blackout_overlay = null

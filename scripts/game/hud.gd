@@ -22,6 +22,14 @@ var _bar_drain_wave: Dictionary = {}  # bar_name -> wave state dict
 const WAVE_SPEED: float = 2.5  # normalized units per second (wave traverses bar in ~0.4s)
 const WAVE_MIN_CHANGE: float = 0.01  # minimum ratio change to trigger a wave
 var _vhs_overlay: ColorRect = null
+
+# Power death bar animation
+var _power_death_active: bool = false
+var _power_death_elapsed: float = 0.0
+var _power_death_final: bool = false  # Final fade — kill all remaining segments fast
+var _power_death_final_elapsed: float = 0.0
+var _bar_kill_masks: Dictionary = {}   # bar_name -> int bitmask (bit N = segment N killed)
+var _bar_flicker_timers: Dictionary = {}  # bar_name -> Array[float] (per-segment flicker countdown)
 var _debug_overlay: HudDebugOverlay = null
 
 
@@ -198,13 +206,18 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 	_bar_prev_values[bar_name] = ratio
 
 	# Only update fill_ratio on existing shader — don't rebuild the entire LED bar
+	# During power death, fill_ratio is forced to 1.0 so all segments are visible for flicker
 	if bar.material is ShaderMaterial:
 		var mat: ShaderMaterial = bar.material as ShaderMaterial
-		mat.set_shader_parameter("fill_ratio", ratio)
-	# Update glow rect alpha to match fill
-	var glow_rect: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
-	if glow_rect:
-		glow_rect.color.a = 0.15 * ratio
+		if _power_death_active:
+			mat.set_shader_parameter("fill_ratio", 1.0)
+		else:
+			mat.set_shader_parameter("fill_ratio", ratio)
+	# Update glow rect alpha to match fill (skip during power death — managed by kill animation)
+	if not _power_death_active:
+		var glow_rect: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+		if glow_rect:
+			glow_rect.color.a = 0.15 * ratio
 	else:
 		# First time or after theme change — full rebuild
 		var seg: int = int(_bar_segments.get(bar_name, -1))
@@ -290,6 +303,138 @@ func _apply_wave_uniforms(bar_name: String) -> void:
 
 func update_credits(amount: int) -> void:
 	_credits_label.text = "CR: " + str(amount)
+
+
+# ── Power death bar animation ───────────────────────────────────────────
+
+func start_power_death_bars() -> void:
+	_power_death_active = true
+	_power_death_elapsed = 0.0
+	_bar_kill_masks.clear()
+	_bar_flicker_timers.clear()
+	for bar_name in _bars:
+		_bar_kill_masks[bar_name] = 0
+		var seg: int = int(_bar_segments.get(bar_name, 8))
+		var timers: Array[float] = []
+		timers.resize(seg)
+		timers.fill(0.0)
+		_bar_flicker_timers[bar_name] = timers
+		# Force all segments visible so flicker affects the whole bar
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		if bar.material is ShaderMaterial:
+			(bar.material as ShaderMaterial).set_shader_parameter("fill_ratio", 1.0)
+
+
+func final_power_death_bars() -> void:
+	## Kill all remaining segments rapidly — called when screen goes fully dark.
+	_power_death_final = true
+	_power_death_final_elapsed = 0.0
+	# Stop all flickering — no more revivals
+	for bar_name in _bar_flicker_timers:
+		var timers: Array = _bar_flicker_timers[bar_name]
+		for i in timers.size():
+			timers[i] = 0.0
+
+
+func stop_power_death_bars() -> void:
+	_power_death_active = false
+	_power_death_elapsed = 0.0
+	_power_death_final = false
+	_power_death_final_elapsed = 0.0
+	# Restore all segments and fill ratios
+	for bar_name in _bars:
+		_bar_kill_masks[bar_name] = 0
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		if bar.material is ShaderMaterial:
+			var mat: ShaderMaterial = bar.material as ShaderMaterial
+			mat.set_shader_parameter("segment_kill_mask", 0)
+			# Restore real fill ratio
+			var ratio: float = bar.value / maxf(bar.max_value, 1.0)
+			mat.set_shader_parameter("fill_ratio", ratio)
+		# Restore glow rect
+		var glow: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+		if glow:
+			var ratio: float = bar.value / maxf(bar.max_value, 1.0)
+			glow.color.a = 0.15 * ratio
+
+
+func process_power_death_bars(delta: float) -> void:
+	if not _power_death_active:
+		return
+	_power_death_elapsed += delta
+
+	# Final death: kill remaining segments very fast, no flicker
+	if _power_death_final:
+		_power_death_final_elapsed += delta
+
+	# Kill rate accelerates: ~1 seg/sec at start, ~8 seg/sec after 3 seconds
+	# Final death: 20 seg/sec, no flicker
+	var kill_rate: float
+	if _power_death_final:
+		kill_rate = 20.0
+	else:
+		kill_rate = lerpf(1.0, 8.0, minf(_power_death_elapsed / 3.0, 1.0))
+	var kill_chance: float = kill_rate * delta
+
+	for bar_name in _bars:
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		if not bar.material is ShaderMaterial:
+			continue
+		var mat: ShaderMaterial = bar.material as ShaderMaterial
+		var seg: int = int(_bar_segments.get(bar_name, 8))
+		var mask: int = int(_bar_kill_masks.get(bar_name, 0))
+		var timers: Array = _bar_flicker_timers.get(bar_name, [])
+
+		# Try to kill a random alive segment
+		if randf() < kill_chance:
+			# Find alive segments
+			var alive: Array[int] = []
+			for i in seg:
+				if (mask >> i) & 1 == 0:
+					alive.append(i)
+			if not alive.is_empty():
+				var target: int = alive[randi_range(0, alive.size() - 1)]
+				mask = mask | (1 << target)
+
+		# Flicker: killed segments randomly blink back on briefly (disabled during final death)
+		if not _power_death_final:
+			for i in seg:
+				if i >= timers.size():
+					break
+				if (mask >> i) & 1 == 1:
+					var timer: float = float(timers[i])
+					if timer > 0.0:
+						timer -= delta
+						if timer <= 0.0:
+							timer = 0.0
+						timers[i] = timer
+					elif randf() < 0.02:
+						timers[i] = randf_range(0.03, 0.1)
+
+		# Build effective mask (killed minus currently-flickering)
+		var effective_mask: int = mask
+		for i in seg:
+			if i >= timers.size():
+				break
+			if float(timers[i]) > 0.0:
+				effective_mask = effective_mask & ~(1 << i)  # Temporarily un-kill
+
+		_bar_kill_masks[bar_name] = mask
+		mat.set_shader_parameter("segment_kill_mask", effective_mask)
+
+		# Dim glow proportionally to alive segments
+		var alive_count: int = 0
+		for i in seg:
+			if (effective_mask >> i) & 1 == 0:
+				alive_count += 1
+		var glow: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+		if glow:
+			var ratio: float = bar.value / maxf(bar.max_value, 1.0)
+			var alive_frac: float = float(alive_count) / maxf(float(seg), 1.0)
+			glow.color.a = 0.15 * ratio * alive_frac
 
 
 func update_hardpoints(data: Array) -> void:
