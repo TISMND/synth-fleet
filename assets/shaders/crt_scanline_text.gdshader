@@ -7,7 +7,7 @@ void fragment() {
 
 	// Scanlines based on screen position
 	float scanline = 0.5 + 0.5 * sin(SCREEN_UV.y * 800.0);
-	float line_darken = 1.0 - scanline * 0.2;
+	float line_darken = 1.0 - scanline * 0.6;
 
 	// Multiply texture by modulate color AND scanline darkening
 	COLOR = vec4(tex.rgb * mod_color.rgb * line_darken, tex.a * mod_color.a);

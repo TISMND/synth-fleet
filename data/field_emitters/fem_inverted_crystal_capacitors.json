@@ -1,5 +1,5 @@
 {
-	"accel_modifier": -70.0,
+	"accel_modifier": -75.0,
 	"active_always_on": true,
 	"active_fade_in": 0.42,
 	"active_fade_out": 0.2,
@@ -10,10 +10,13 @@
 	},
 	"description": "",
 	"device_type": "shield_aura",
+	"disable_power_cores": false,
+	"disable_weapons": false,
 	"display_name": "Inverted Crystal Capacitors",
 	"fade_in_duration": 0.3,
 	"fade_out_duration": 0.3,
 	"field_style_id": "sun_rays",
+	"hull_damage_reduction": 0.0,
 	"id": "fem_inverted_crystal_capacitors",
 	"loop_file_path": "res://loop_zips/sorted/pads/Thinking About Reaction - 120 BPM - 6 - Pads - NW_CSRW_90_kit_loop_sensory_synth_Fmin.wav",
 	"loop_length_bars": 2,
@@ -23,10 +26,9 @@
 	"orbiter_lifetime": 4.0,
 	"orbiter_style_id": "",
 	"passive_effects": {
-		"electric": 18.0,
-		"hull": -0.100000000000001,
-		"shield": -0.350000000000001,
-		"thermal": 6.0
+		"electric": 13.35,
+		"hull": -0.549999999999997,
+		"thermal": 4.15
 	},
 	"pulse_fade_out": 0.87,
 	"pulse_fade_up": 0.11,
@@ -35,9 +37,10 @@
 		0.0
 	],
 	"radius": 100.0,
+	"shield_damage_reduction": 0.0,
 	"speed_modifier": -75.0,
 	"transition_mode": "fade",
-	"transition_ms": 830,
+	"transition_ms": 1040,
 	"visual_mode": "field",
 	"visual_pulse_triggers": [
 		0.0,

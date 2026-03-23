@@ -23,7 +23,8 @@ var _presence_loops: Dictionary = {}   # ship_id -> presence_loop_path
 
 # Nebula status effects
 var _nebula_areas: Array = []  # Array of {area: Area2D, nebula_data: NebulaData}
-var _active_nebula_effects: Array = []  # NebulaData objects currently overlapping the player
+var _active_nebula_counts: Dictionary = {}  # nebula_id -> int (ref count of overlapping zones)
+var _active_nebula_data: Dictionary = {}    # nebula_id -> NebulaData (representative instance)
 var _nebula_bar_accumulators: Dictionary = {}  # bar_name -> float accumulator for sub-frame amounts
 var _player_base_speed: float = 400.0
 var _player_base_modulate_a: float = 1.0
@@ -33,6 +34,14 @@ var _active_fade_duration: float = 0.15
 var _prev_loop_pos: float = -1.0  # For bar-boundary detection
 var _key_change_presets: Dictionary = {}  # nebula_id -> KeyChangeData
 var _reversed_stream_cache: Dictionary = {}  # sfx_path -> AudioStreamWAV (reversed)
+
+# Death sequence
+var _death_sequence_active: bool = false
+var _death_timer: float = 0.0
+var _death_explosion_accum: float = 0.0
+var _death_player_pos: Vector2 = Vector2.ZERO  # Snapshot of player position at death
+var _game_over_overlay: Control = null
+const DEATH_EXPLOSION_DURATION: float = 3.0
 
 const NEBULA_STYLES: Dictionary = {
 	"classic_fbm": {"shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "dual": false},
@@ -55,6 +64,8 @@ var level_id: String = ""
 func _ready() -> void:
 	# Force fresh SFX cache on every game start
 	SfxPlayer.reload()
+	# Reassign key bindings to sequential 1-2-3... based on current ship's slot counts
+	KeyBindingManager.reassign_sequential_keys()
 	# Build ShipData — start from registry, then apply user overrides for stats/render
 	var ship: ShipData = ShipRegistry.build_ship_data(GameState.current_ship_index)
 	var ship_override: ShipData = ShipDataManager.load_by_id(ship.id)
@@ -110,6 +121,7 @@ func _ready() -> void:
 	_game_viewport.add_child(_player)
 	_player.setup(ship, loadout, _projectiles)
 	_player.position = Vector2(960, 850)
+	_player.died.connect(_on_player_died)
 
 	# Wave manager
 	_wave_manager = WaveManager.new()
@@ -156,12 +168,16 @@ func _process(delta: float) -> void:
 	_scroll_distance += _scroll_speed * delta
 	if _nebula_container:
 		_nebula_container.position.y = _scroll_distance
-	if _wave_manager:
+	if _wave_manager and not _death_sequence_active:
 		_wave_manager.advance_scroll(_scroll_distance)
 	# Apply nebula status effects each frame
-	_apply_nebula_bar_effects(delta)
-	_check_measure_boundary_key_shift()
-	if _hud and _player:
+	if not _death_sequence_active:
+		_apply_nebula_bar_effects(delta)
+		_check_measure_boundary_key_shift()
+	# Death explosion sequence
+	if _death_sequence_active:
+		_process_death_sequence(delta)
+	if _hud and _player and not _game_over_overlay:
 		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
 		_hud.update_bar_pulses(delta)
 		_hud.process_power_death_bars(delta)
@@ -187,6 +203,11 @@ func _on_all_waves_cleared() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _game_over_overlay and event.is_pressed() and not event.is_echo():
+		_return_to_menu()
+		return
+	if _death_sequence_active:
+		return  # Block all input during explosion sequence
 	if event.is_action_pressed("ui_cancel"):
 		_return_to_menu()
 
@@ -262,35 +283,48 @@ func unregister_enemy_presence(sid: String) -> void:
 
 
 func _on_nebula_entered(_area: Area2D, ndata: NebulaData) -> void:
-	if ndata not in _active_nebula_effects:
-		# Check if already key-shifted before adding this nebula
-		var was_shifted: bool = _current_key_shift != 0
-		_active_nebula_effects.append(ndata)
-		_apply_special_effects()
-		# Only play enter SFX if this is the first nebula to apply a key shift
-		if not was_shifted and _key_change_presets.has(ndata.id):
-			var kc: KeyChangeData = _key_change_presets[ndata.id]
-			if kc.enter_sfx_path != "" and kc.semitones != 0:
-				_schedule_key_change_sfx(kc.enter_sfx_path, kc.enter_sfx_volume_db, kc.enter_sfx_offset, false)
+	var nid: String = ndata.id
+	var count: int = int(_active_nebula_counts.get(nid, 0))
+	count += 1
+	_active_nebula_counts[nid] = count
+	_active_nebula_data[nid] = ndata
+	if count > 1:
+		return  # Already active — same nebula type entered again, skip
+	# First zone of this type — apply effects
+	var was_shifted: bool = _current_key_shift != 0
+	_apply_special_effects()
+	if not was_shifted and _key_change_presets.has(nid):
+		var kc: KeyChangeData = _key_change_presets[nid]
+		if kc.enter_sfx_path != "" and kc.semitones != 0:
+			_schedule_key_change_sfx(kc.enter_sfx_path, kc.enter_sfx_volume_db, kc.enter_sfx_offset, false)
 
 
 func _on_nebula_exited(_area: Area2D, ndata: NebulaData) -> void:
-	_active_nebula_effects.erase(ndata)
+	var nid: String = ndata.id
+	var count: int = int(_active_nebula_counts.get(nid, 0))
+	count = maxi(count - 1, 0)
+	if count > 0:
+		_active_nebula_counts[nid] = count
+		return  # Still inside another zone of this type
+	# Last zone of this type exited — remove effects
+	_active_nebula_counts.erase(nid)
+	_active_nebula_data.erase(nid)
 	_apply_special_effects()
-	# Only play exit SFX when leaving all key-shifting nebulas (pending shift back to 0)
 	if _pending_key_shift == 0 and _current_key_shift != 0:
-		if _key_change_presets.has(ndata.id):
-			var kc: KeyChangeData = _key_change_presets[ndata.id]
+		if _key_change_presets.has(nid):
+			var kc: KeyChangeData = _key_change_presets[nid]
 			if kc.exit_sfx_path != "":
 				_schedule_key_change_sfx(kc.exit_sfx_path, kc.exit_sfx_volume_db, kc.exit_sfx_offset, kc.reverse_exit_sfx)
 
 
 func _apply_nebula_bar_effects(delta: float) -> void:
-	## Apply bar drain/fill from all overlapping nebulas each frame.
-	if _active_nebula_effects.is_empty() or not _player:
+	## Apply bar drain/fill from all active nebula types each frame.
+	## Each nebula type contributes once regardless of how many overlapping zones exist.
+	if _active_nebula_data.is_empty() or not _player:
 		return
 	var combined_rates: Dictionary = {}
-	for ndata in _active_nebula_effects:
+	for nid in _active_nebula_data:
+		var ndata: NebulaData = _active_nebula_data[nid]
 		for bar_name in ndata.bar_effects:
 			var rate: float = float(ndata.bar_effects[bar_name])
 			if combined_rates.has(bar_name):
@@ -310,11 +344,13 @@ func _apply_nebula_bar_effects(delta: float) -> void:
 
 
 func _apply_special_effects() -> void:
-	## Apply or remove special effects based on currently overlapping nebulas.
+	## Apply or remove special effects based on active nebula types.
+	## Each type contributes once regardless of overlapping zone count.
 	if not _player:
 		return
 	var active_specials: Array[String] = []
-	for ndata in _active_nebula_effects:
+	for nid in _active_nebula_data:
+		var ndata: NebulaData = _active_nebula_data[nid]
 		for effect_id in ndata.special_effects:
 			if effect_id not in active_specials:
 				active_specials.append(effect_id)
@@ -334,11 +370,12 @@ func _apply_special_effects() -> void:
 	if "damage_boost" in active_specials:
 		_player.set_meta("nebula_damage_boost", true)
 	# Key shift: queue pitch change — applied at next measure boundary
+	# Each nebula type contributes once (deduped by ID)
 	var total_shift: int = 0
 	var max_fade: float = 0.15
-	for ndata in _active_nebula_effects:
-		if _key_change_presets.has(ndata.id):
-			var kc: KeyChangeData = _key_change_presets[ndata.id]
+	for nid in _active_nebula_data:
+		if _key_change_presets.has(nid):
+			var kc: KeyChangeData = _key_change_presets[nid]
 			total_shift += kc.semitones
 			max_fade = maxf(max_fade, kc.fade_duration)
 	_pending_key_shift = clampi(total_shift, -12, 12)
@@ -457,6 +494,102 @@ func _get_time_to_next_measure() -> float:
 				var pos_in_measure: float = fmod(pos, measure_sec)
 				return measure_sec - pos_in_measure
 	return 0.0
+
+
+func _on_player_died() -> void:
+	if _death_sequence_active:
+		return  # Prevent double-trigger
+	_death_sequence_active = true
+	_death_timer = 0.0
+	_death_explosion_accum = 0.0
+	_death_player_pos = _player.global_position
+	_player.disable_for_death()
+	if _wave_manager:
+		_wave_manager.stop()
+	SfxPlayer.play("explosion_1")
+
+
+func _process_death_sequence(delta: float) -> void:
+	if _game_over_overlay:
+		return
+	_death_timer += delta
+	# Spawn staggered explosions — interval decreases for crescendo effect
+	var progress: float = clampf(_death_timer / DEATH_EXPLOSION_DURATION, 0.0, 1.0)
+	var spawn_interval: float = lerpf(0.4, 0.12, progress)
+	_death_explosion_accum += delta
+	while _death_explosion_accum >= spawn_interval:
+		_death_explosion_accum -= spawn_interval
+		var offset: Vector2 = Vector2(randf_range(-40.0, 40.0), randf_range(-40.0, 40.0))
+		var explosion: ExplosionEffect = ExplosionEffect.new()
+		explosion.explosion_color = Color(1.0, lerpf(0.6, 0.3, progress), lerpf(0.2, 0.1, progress))
+		explosion.explosion_size = lerpf(0.5, 2.0, progress)
+		explosion.global_position = _death_player_pos + offset
+		_game_viewport.add_child(explosion)
+		SfxPlayer.play("explosion_1")
+	# Flicker the ship during explosions
+	if _player and _player.visible:
+		_player.modulate.a = 0.3 + randf() * 0.7
+	# After duration: final big explosion, remove ship, show game over
+	if _death_timer >= DEATH_EXPLOSION_DURATION:
+		var final_explosion: ExplosionEffect = ExplosionEffect.new()
+		final_explosion.explosion_color = Color(1.0, 0.4, 0.1)
+		final_explosion.explosion_size = 3.5
+		final_explosion.enable_screen_shake = true
+		final_explosion.global_position = _death_player_pos
+		_game_viewport.add_child(final_explosion)
+		SfxPlayer.play("explosion_1")
+		if _player:
+			_player.visible = false
+		_show_game_over()
+
+
+func _show_game_over() -> void:
+	_game_over_overlay = Control.new()
+	_game_over_overlay.name = "GameOverOverlay"
+	_game_over_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_game_over_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_game_over_overlay)
+
+	# Semi-transparent dark background
+	var bg: ColorRect = ColorRect.new()
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.0, 0.0, 0.0, 0.5)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_game_over_overlay.add_child(bg)
+
+	# Container for centered text
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_game_over_overlay.add_child(vbox)
+
+	# "GAME OVER" label
+	var title: Label = Label.new()
+	title.text = "GAME OVER"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_override("font", ThemeManager.get_font("header"))
+	title.add_theme_font_size_override("font_size", 96)
+	title.add_theme_color_override("font_color", ThemeManager.get_color("text_header"))
+	ThemeManager.apply_text_glow(title, "header")
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(title)
+
+	# Spacer
+	var spacer: Control = Control.new()
+	spacer.custom_minimum_size = Vector2(0, 30)
+	vbox.add_child(spacer)
+
+	# "press any key to return to hangar"
+	var subtitle: Label = Label.new()
+	subtitle.text = "press any key to return to hangar"
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_override("font", ThemeManager.get_font("body"))
+	subtitle.add_theme_font_size_override("font_size", 28)
+	subtitle.add_theme_color_override("font_color", ThemeManager.get_color("text_body"))
+	ThemeManager.apply_text_glow(subtitle, "body")
+	subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(subtitle)
 
 
 func _return_to_menu() -> void:

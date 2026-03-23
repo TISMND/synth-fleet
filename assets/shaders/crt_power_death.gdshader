@@ -54,8 +54,8 @@ void fragment() {
 	if (flickering) {
 		float coarse = noise(warped_uv * 150.0 + vec2(t * 60.0, t * 35.0));
 		float fine_n = hash(warped_uv * 600.0 + vec2(t * 200.0, 0.0));
-		snow_brightness = mix(coarse, fine_n, 0.5) * 0.25 * (0.5 + decay * 0.5);
-		snow_alpha = 0.85 + decay * 0.15;
+		snow_brightness = mix(coarse, fine_n, 0.5) * 0.06 * (0.5 + decay * 0.5);
+		snow_alpha = 0.7 + decay * 0.15;
 	}
 
 	// ── Scanlines — always present, stronger with decay ──

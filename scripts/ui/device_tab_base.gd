@@ -54,6 +54,10 @@ var _passive_effect_sliders: Dictionary = {}
 var _effect_rate_label: Label = null
 var _speed_modifier_slider: HSlider
 var _accel_modifier_slider: HSlider
+var _shield_damage_reduction_slider: HSlider
+var _hull_damage_reduction_slider: HSlider
+var _disable_weapons_toggle: CheckButton
+var _disable_power_cores_toggle: CheckButton
 
 # Transition controls
 var _transition_mode_button: OptionButton
@@ -621,10 +625,34 @@ func _build_mechanics_tab() -> Control:
 
 	# Ship Modifiers
 	_add_section_header(form, "SHIP MODIFIERS (while active)")
-	var speed_row: Array = _add_slider_row(form, "Speed %:", -75.0, 200.0, 0.0, 5.0)
+	var speed_row: Array = _add_slider_row(form, "Speed %:", -100.0, 200.0, 0.0, 5.0)
 	_speed_modifier_slider = speed_row[0]
-	var accel_row: Array = _add_slider_row(form, "Accel %:", -75.0, 200.0, 0.0, 5.0)
+	var accel_row: Array = _add_slider_row(form, "Accel %:", -100.0, 200.0, 0.0, 5.0)
 	_accel_modifier_slider = accel_row[0]
+
+	_add_separator(form)
+
+	# Damage Reduction
+	_add_section_header(form, "DAMAGE REDUCTION (while active)")
+	var shield_dr_row: Array = _add_slider_row(form, "Shield DR %:", 0.0, 100.0, 0.0, 5.0)
+	_shield_damage_reduction_slider = shield_dr_row[0]
+	var hull_dr_row: Array = _add_slider_row(form, "Hull DR %:", 0.0, 100.0, 0.0, 5.0)
+	_hull_damage_reduction_slider = hull_dr_row[0]
+
+	_add_separator(form)
+
+	# Component Disable Toggles
+	_add_section_header(form, "DISABLE COMPONENTS (while active)")
+
+	_disable_weapons_toggle = CheckButton.new()
+	_disable_weapons_toggle.text = "Disable All Weapons"
+	_disable_weapons_toggle.toggled.connect(func(_on: bool) -> void: _mark_dirty())
+	form.add_child(_disable_weapons_toggle)
+
+	_disable_power_cores_toggle = CheckButton.new()
+	_disable_power_cores_toggle.text = "Disable All Power Cores"
+	_disable_power_cores_toggle.toggled.connect(func(_on: bool) -> void: _mark_dirty())
+	form.add_child(_disable_power_cores_toggle)
 
 	return scroll
 
@@ -866,6 +894,10 @@ func _collect_device_data() -> Dictionary:
 		"transition_ms": int(_transition_ms_slider.value),
 		"speed_modifier": _speed_modifier_slider.value if _speed_modifier_slider else 0.0,
 		"accel_modifier": _accel_modifier_slider.value if _accel_modifier_slider else 0.0,
+		"shield_damage_reduction": _shield_damage_reduction_slider.value if _shield_damage_reduction_slider else 0.0,
+		"hull_damage_reduction": _hull_damage_reduction_slider.value if _hull_damage_reduction_slider else 0.0,
+		"disable_weapons": _disable_weapons_toggle.button_pressed if _disable_weapons_toggle else false,
+		"disable_power_cores": _disable_power_cores_toggle.button_pressed if _disable_power_cores_toggle else false,
 	}
 
 	# Let subclass add its visual-mode-specific fields
@@ -1001,6 +1033,14 @@ func _populate_from_device(device: DeviceData) -> void:
 		_speed_modifier_slider.value = device.speed_modifier
 	if _accel_modifier_slider:
 		_accel_modifier_slider.value = device.accel_modifier
+	if _shield_damage_reduction_slider:
+		_shield_damage_reduction_slider.value = device.shield_damage_reduction
+	if _hull_damage_reduction_slider:
+		_hull_damage_reduction_slider.value = device.hull_damage_reduction
+	if _disable_weapons_toggle:
+		_disable_weapons_toggle.button_pressed = device.disable_weapons
+	if _disable_power_cores_toggle:
+		_disable_power_cores_toggle.button_pressed = device.disable_power_cores
 
 	# Transition settings
 	if device.transition_mode == "fade":

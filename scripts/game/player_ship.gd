@@ -23,6 +23,12 @@ var _core_controllers: Array = []  # PowerCoreController instances
 var _core_data_per_slot: Array = []  # [{label, pc}]
 var _device_controllers: Array = []  # DeviceController instances
 var _device_data_per_slot: Array = []  # [{label, device}]
+var _device_weapons_suppressed: bool = false  # true while a device is force-disabling weapons
+var _device_cores_suppressed: bool = false  # true while a device is force-disabling cores
+var _pre_suppress_weapon_states: Array = []  # per-hardpoint active state before suppression
+var _pre_suppress_core_states: Array = []  # per-core active state before suppression
+var _active_shield_dr: float = 0.0  # current shield damage reduction % from devices
+var _active_hull_dr: float = 0.0  # current hull damage reduction % from devices
 var _player_area: Area2D = null
 var _hud: Control = null
 var _weapon_data_per_hp: Array = []
@@ -35,6 +41,7 @@ var _electric_arcs: Array = []  # Active Line2D lightning bolts
 var _electric_arc_container: Node2D = null  # Parent for arc lines
 var _electric_arc_timer: float = 0.0  # Countdown to next arc spawn
 var _electric_arc_max: int = 3  # Max simultaneous arcs
+var _is_dead: bool = false  # True once hull reaches 0 — stops all processing
 var _electric_crisis_active: bool = false
 var _electric_overdraw: bool = false  # True when weapons tried to drain electric below 0
 var _shield_at_crisis_start: float = -1.0  # Shield snapshot when engine penalty begins
@@ -67,18 +74,20 @@ var _reboot_typing_player: AudioStreamPlayer = null  # Looping typing sound, sta
 var _reboot_finished: bool = false  # True once all text is typed — triggers recovery
 var _recovery_active: bool = false  # Bar restoration animation in progress
 var _recovery_elapsed: float = 0.0
+var _shutdown_audio_elapsed: float = 0.0
+var _shutdown_audio_done: bool = false
 var _recovery_cores_activated: bool = false
 var _recovery_pitch_start_time: float = -1.0  # When pitch ramp started
-const RECOVERY_PITCH_DURATION: float = 5.0  # Seconds for pitch/speed to recover
-const RECOVERY_PITCH_START: float = 0.3  # Starting pitch_scale (very slow/low)
-const RECOVERY_VOLUME_START: float = -20.0  # Starting volume offset in dB
+const RECOVERY_PITCH_DURATION: float = 5.0  # Seconds for speed to recover
+const RECOVERY_PITCH_START: float = 0.7  # Starting pitch_scale (noticeably slow but recognizable)
+const RECOVERY_VOLUME_START: float = 0.0  # No volume curve — instant full volume
 var _recovery_sfx_screen_fired: bool = false
 var _recovery_sfx_systems_fired: bool = false
 const RECOVERY_DURATION: float = 3.5  # Seconds for bars to animate back up
 signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
 signal final_power_death()  # Emitted once when power fully dies — for external systems
 
-const THERMAL_COOLING_RATE: float = 10.0  # hp/sec passive cooling (10x scale)
+const THERMAL_COOLING_RATE: float = 15.0  # hp/sec cooling when no heat sources active
 const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segments (40 points)
 const ELECTRIC_SHIELD_BLEED_MULT: float = 1.5  # Overdraw penalty: 1.5x cost from shields
 const BLACKOUT_MAX_SPIN: float = 0.2  # Max radians/sec — gentle drift
@@ -251,6 +260,8 @@ func _apply_stored_volumes() -> void:
 
 
 func _process(delta: float) -> void:
+	if _is_dead:
+		return
 	# Apply device modifiers to speed/accel
 	_apply_device_modifiers()
 
@@ -290,17 +301,18 @@ func _process(delta: float) -> void:
 		_velocity.y = 0.0
 		position.y = clamped_y
 	# Shield regen is component-based only (no auto-regen)
-	# Passive thermal cooling
-	thermal = maxf(thermal - THERMAL_COOLING_RATE * delta, 0.0)
+	# Thermal cooling — only when no active component generates heat
+	if thermal > 0.0 and not _any_heat_source_active():
+		thermal = maxf(thermal - THERMAL_COOLING_RATE * delta, 0.0)
 
-	# Electric depleted — spark particles
-	if electric <= 0.0 and not _electric_crisis_active:
+	# Electric critically low — crisis starts at half a segment (5 points)
+	if electric <= 5.0 and not _electric_crisis_active:
 		_electric_crisis_active = true
 		_play_sfx_cue("electric_sparks", false)
 		_play_sfx_cue("powerdown_shields_bleed")
 		if _hud and _hud.has_method("start_shield_arcs"):
 			_hud.start_shield_arcs()
-	elif electric > 0.0 and _electric_crisis_active and not _recovery_active:
+	elif electric > 5.0 and _electric_crisis_active and not _recovery_active:
 		_electric_crisis_active = false
 		_clear_electric_arcs()
 		if _hud and _hud.has_method("stop_shield_arcs"):
@@ -314,8 +326,8 @@ func _process(delta: float) -> void:
 			_electric_arc_timer = randf_range(0.08, 0.35)
 		_update_electric_arcs(delta)
 
-	# Drift phase — shields hit 0 during electric crisis, ship loses control
-	if _electric_overdraw and electric <= 0.0 and shield <= 0.0:
+	# Drift phase — shields critically low during electric crisis, ship loses control
+	if _electric_overdraw and electric <= 5.0 and shield <= 10.0:
 		if not _drifting:
 			_start_drift()
 	if _drifting:
@@ -355,55 +367,65 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and (event as InputEventKey).pressed and (event as InputEventKey).keycode == KEY_F9:
 		electric = 0.0
 		shield = 0.0
-		_electric_crisis_active = true
+		_electric_crisis_active = false  # Let _process detect and trigger properly
 		_electric_overdraw = true
 		print("[DEBUG] F9: Forced power death — electric=0, shield=0")
 		return
 
+	# Lock all component controls during power death sequence
+	if _drifting:
+		return
+
 	# Per-slot toggles using dynamic action names from KeyBindingManager
-	# Weapon slots
-	for i in GameState.get_weapon_slot_count():
-		var slot_key: String = "weapon_" + str(i)
-		var action: String = KeyBindingManager.get_slot_action(slot_key)
-		if event.is_action_pressed(action):
-			if i < _hardpoint_controllers.size():
+	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).is_echo():
+		var dbg_pkc: int = (event as InputEventKey).physical_keycode
+		print("[INPUT] key pressed: pkc=%d, weapons=%d cores=%d fields=%d controllers=%d" % [
+			dbg_pkc, GameState.get_weapon_slot_count(), GameState.get_core_slot_count(),
+			GameState.get_field_slot_count(), _hardpoint_controllers.size()])
+	# Weapon slots (blocked while device-suppressed)
+	if not _device_weapons_suppressed:
+		for i in _hardpoint_controllers.size():
+			var slot_key: String = "weapon_" + str(i)
+			var action: String = KeyBindingManager.get_slot_action(slot_key)
+			if event.is_action_pressed(action):
 				_hardpoint_controllers[i].toggle()
 				_update_hud_hardpoints()
-			return
+				return
 
-	# Core slots
-	for i in GameState.get_core_slot_count():
-		var slot_key: String = "core_" + str(i)
-		var action: String = KeyBindingManager.get_slot_action(slot_key)
-		if event.is_action_pressed(action):
-			if i < _core_controllers.size():
+	# Core slots (blocked while device-suppressed)
+	if not _device_cores_suppressed:
+		for i in _core_controllers.size():
+			var slot_key: String = "core_" + str(i)
+			var action: String = KeyBindingManager.get_slot_action(slot_key)
+			if event.is_action_pressed(action):
 				_core_controllers[i].toggle()
 				_update_hud_cores()
-			return
+				return
 
 	# Field slots
-	for i in GameState.get_field_slot_count():
+	for i in _device_controllers.size():
 		var slot_key: String = "field_" + str(i)
 		var action: String = KeyBindingManager.get_slot_action(slot_key)
 		if event.is_action_pressed(action):
-			if i < _device_controllers.size():
-				_device_controllers[i].toggle()
-				_update_hud_devices()
+			_device_controllers[i].toggle()
+			_update_hud_devices()
 			return
 
-	# Space: toggle all on/off (weapons + cores)
+	# Space: toggle all on/off (weapons + cores + devices)
 	if event.is_action_pressed("hardpoints_max"):
 		_space_state = 1 - _space_state
-		for c in _hardpoint_controllers:
-			if _space_state == 1:
-				c.activate()
-			else:
-				c.deactivate()
-		for c in _core_controllers:
-			if _space_state == 1:
-				c.activate()
-			else:
-				c.deactivate()
+		if not _device_weapons_suppressed:
+			for c in _hardpoint_controllers:
+				if _space_state == 1:
+					c.activate()
+				else:
+					c.deactivate()
+		if not _device_cores_suppressed:
+			for c in _core_controllers:
+				if _space_state == 1:
+					c.activate()
+				else:
+					c.deactivate()
 		for c in _device_controllers:
 			if _space_state == 1:
 				c.activate()
@@ -448,25 +470,27 @@ func _slot_key_from_label(label: String) -> String:
 
 
 func _apply_combo_pattern(pattern: Dictionary) -> void:
-	# Apply weapon slots
-	for i in GameState.get_weapon_slot_count():
-		var slot_key: String = "weapon_" + str(i)
-		var on: bool = pattern.get(slot_key, false)
-		if i < _hardpoint_controllers.size():
-			if on:
-				_hardpoint_controllers[i].activate()
-			else:
-				_hardpoint_controllers[i].deactivate()
+	# Apply weapon slots (skip if device-suppressed)
+	if not _device_weapons_suppressed:
+		for i in GameState.get_weapon_slot_count():
+			var slot_key: String = "weapon_" + str(i)
+			var on: bool = pattern.get(slot_key, false)
+			if i < _hardpoint_controllers.size():
+				if on:
+					_hardpoint_controllers[i].activate()
+				else:
+					_hardpoint_controllers[i].deactivate()
 
-	# Apply core slots
-	for i in GameState.get_core_slot_count():
-		var slot_key: String = "core_" + str(i)
-		var on: bool = pattern.get(slot_key, false)
-		if i < _core_controllers.size():
-			if on:
-				_core_controllers[i].activate()
-			else:
-				_core_controllers[i].deactivate()
+	# Apply core slots (skip if device-suppressed)
+	if not _device_cores_suppressed:
+		for i in GameState.get_core_slot_count():
+			var slot_key: String = "core_" + str(i)
+			var on: bool = pattern.get(slot_key, false)
+			if i < _core_controllers.size():
+				if on:
+					_core_controllers[i].activate()
+				else:
+					_core_controllers[i].deactivate()
 
 	# Apply field slots
 	for i in GameState.get_field_slot_count():
@@ -503,14 +527,20 @@ func _update_hud_hardpoints() -> void:
 func take_damage(amount: float, skips_shields: bool = false) -> void:
 	var remaining: float = amount
 	if shield > 0.0 and not skips_shields:
-		var absorbed: float = minf(remaining, shield)
-		shield -= absorbed
-		remaining -= absorbed
+		# Apply shield damage reduction from active devices
+		var shield_damage: float = minf(remaining, shield)
+		if _active_shield_dr > 0.0:
+			shield_damage *= (1.0 - _active_shield_dr / 100.0)
+		shield -= shield_damage
+		remaining -= shield_damage
 		SfxPlayer.play("player_shield_hit")
 		var shield_field: FieldRenderer = get_node_or_null("ShieldField") as FieldRenderer
 		if shield_field:
 			shield_field.pulse()
 	if remaining > 0.0:
+		# Apply hull damage reduction from active devices
+		if _active_hull_dr > 0.0:
+			remaining *= (1.0 - _active_hull_dr / 100.0)
 		# During power death sequence, keep hull at minimum 1 segment (10 points)
 		var hull_floor: float = 10.0 if _drifting or _blackout_active else 0.0
 		hull = maxf(hull - remaining, hull_floor)
@@ -575,11 +605,25 @@ func _update_hud_devices() -> void:
 
 const DRIFT_TO_BLACKOUT_DELAY: float = 1.0  # Seconds of drift before blackout begins
 
+const SHUTDOWN_AUDIO_DURATION: float = 1.5  # Seconds to slow down and fade out loops
+
 func _start_drift() -> void:
 	_drifting = true
 	_drift_timer = 0.0
+	_shutdown_audio_elapsed = 0.0
 	_play_sfx_cue("powerdown_drift_start")
 	_play_sfx_cue("powerdown_engines_dying", false)
+	# Deactivate ALL components — total power failure
+	# Weapons stop firing, cores stop generating, devices stop regenerating
+	for c in _hardpoint_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+	for c in _core_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+	for c in _device_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
 	# Start LED bar segment death animation
 	if _hud and _hud.has_method("start_power_death_bars"):
 		_hud.start_power_death_bars()
@@ -589,6 +633,20 @@ func _start_drift() -> void:
 
 func _process_drift(delta: float) -> void:
 	_drift_timer += delta
+
+	# Shutdown audio — slow down and fade out loops over 1.5 seconds
+	if not _shutdown_audio_done:
+		_shutdown_audio_elapsed += delta
+		var sd_t: float = clampf(_shutdown_audio_elapsed / SHUTDOWN_AUDIO_DURATION, 0.0, 1.0)
+		LoopMixer.set_all_pitch_scale(lerpf(1.0, 0.2, sd_t))
+		LoopMixer.set_all_volume_offset(lerpf(0.0, -40.0, sd_t))
+		if sd_t >= 1.0:
+			_shutdown_audio_done = true
+			LoopMixer.mute_all()
+			LoopMixer.set_all_pitch_scale(1.0)
+			LoopMixer.set_all_volume_offset(0.0)
+			LoopMixer.set_all_pitch_scale(1.0)
+			LoopMixer.set_all_volume_offset(0.0)
 
 	# Gradual spin — reaches max over 4 seconds
 	_drift_rotation_speed = minf(_drift_rotation_speed + (BLACKOUT_MAX_SPIN / 4.0) * delta, BLACKOUT_MAX_SPIN)
@@ -706,6 +764,12 @@ func _process_blackout(delta: float) -> void:
 	# Type out reboot text + recovery animation
 	if _blackout_final_death:
 		_process_reboot_text(delta)
+		# Speed ramp runs during text phase if cores activated early
+		if _recovery_cores_activated and _recovery_pitch_start_time >= 0.0:
+			_recovery_pitch_start_time += delta
+			var pitch_t: float = clampf(_recovery_pitch_start_time / RECOVERY_PITCH_DURATION, 0.0, 1.0)
+			var pitch_eased: float = pitch_t * pitch_t
+			LoopMixer.set_all_pitch_scale(lerpf(RECOVERY_PITCH_START, 1.0, pitch_eased))
 	_process_recovery(delta)
 
 
@@ -764,12 +828,12 @@ func _start_reboot_sequence() -> void:
 	_reboot_label.z_index = 48  # Above CRT overlay (45), below HUD (50)
 	_reboot_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Text area — padding at top pushes content to bottom, CLI-style scroll up
-	_reboot_label.size = Vector2(600, 600)
-	_reboot_label.position = Vector2(120, 100)
-	_reboot_label.add_theme_font_size_override("normal_font_size", 16)
+	_reboot_label.size = Vector2(600, 550)
+	_reboot_label.position = Vector2(240, 50)
+	_reboot_label.add_theme_font_size_override("normal_font_size", 18)
 	# Bright green with HDR boost for bloom
 	_reboot_label.add_theme_color_override("default_color", Color(0.3, 1.0, 0.4))
-	_reboot_label.modulate = Color(1.8, 1.8, 1.8, 1.0)
+	_reboot_label.modulate = Color(1.9, 1.9, 1.9, 1.0)
 	var mono_font: Font = ThemeManager.get_font("font_body")
 	if mono_font:
 		_reboot_label.add_theme_font_override("normal_font", mono_font)
@@ -871,7 +935,18 @@ func _process_reboot_text(delta: float) -> void:
 
 	# Specific line triggers — fire once when line starts typing
 	if _reboot_char_index == 0 and _reboot_char_timer < char_speed:
-		if current_line == "Regenerating power core...":
+		if current_line == "Bypassing main reactor safety...":
+			# Start the speed spinup early — during text, not after
+			if not _recovery_cores_activated:
+				_recovery_cores_activated = true
+				_recovery_pitch_start_time = 0.0
+				LoopMixer.set_all_pitch_scale(RECOVERY_PITCH_START)
+				LoopMixer.set_all_volume_offset(0.0)  # Instant full volume — no fade
+				for c in _core_controllers:
+					if c.has_method("activate"):
+						c.activate()
+				LoopMixer.start_all()
+		elif current_line == "Regenerating power core...":
 			_play_sfx_cue("powerup_core_regen")
 		elif current_line == "SUCCESS":
 			_play_sfx_cue("powerup_restored")
@@ -924,7 +999,7 @@ func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
 	# Current typing line
 	var current: String = typed_portion
 	if show_cursor:
-		current += "\u2586"
+		current += "[color=#228833]\u2588[/color]"
 	if current.length() > 0:
 		content_lines.append(current)
 
@@ -962,8 +1037,8 @@ func _process_recovery(delta: float) -> void:
 
 	# Animate electric from 0 to 50% (penalty for power failure)
 	electric = lerpf(0.0, electric_max * 0.5, t)
-	# Animate shield from 0 to 50%
-	shield = lerpf(0.0, shield_max * 0.5, t)
+	# Animate shield from 0 to 25%
+	shield = lerpf(0.0, shield_max * 0.25, t)
 	if int(t * 10) != int((t - delta / RECOVERY_DURATION) * 10):
 		print("[RECOVERY] t=%.2f elec=%.0f/%.0f shield=%.0f/%.0f" % [t, electric, electric_max, shield, shield_max])
 	# Thermal stays at 0
@@ -987,16 +1062,12 @@ func _process_recovery(delta: float) -> void:
 		LoopMixer.start_all()
 		_recovery_pitch_start_time = _recovery_elapsed
 
-	# Ramp pitch/speed/volume from low to normal over 5 seconds
+	# Speed ramp continues from text phase into recovery phase
 	if _recovery_pitch_start_time >= 0.0:
-		var pitch_elapsed: float = _recovery_elapsed - _recovery_pitch_start_time
-		var pitch_t: float = clampf(pitch_elapsed / RECOVERY_PITCH_DURATION, 0.0, 1.0)
-		# Ease-in: stays low/slow longer, then ramps up toward end
-		var eased: float = pitch_t * pitch_t
-		var current_pitch: float = lerpf(RECOVERY_PITCH_START, 1.0, eased)
-		var current_vol_offset: float = lerpf(RECOVERY_VOLUME_START, 0.0, eased)
-		LoopMixer.set_all_pitch_scale(current_pitch)
-		LoopMixer.set_all_volume_offset(current_vol_offset)
+		_recovery_pitch_start_time += delta
+		var pitch_t: float = clampf(_recovery_pitch_start_time / RECOVERY_PITCH_DURATION, 0.0, 1.0)
+		var pitch_eased: float = pitch_t * pitch_t
+		LoopMixer.set_all_pitch_scale(lerpf(RECOVERY_PITCH_START, 1.0, pitch_eased))
 
 	# Staged SFX during recovery
 	if t >= 0.5 and not _recovery_sfx_screen_fired:
@@ -1010,7 +1081,7 @@ func _process_recovery(delta: float) -> void:
 	if _hud and _hud.has_method("set_power_recovery_ratio"):
 		var targets: Dictionary = {
 			"ELECTRIC": 0.5,   # 50% restore (penalty)
-			"SHIELD": 0.5,     # 50% restore
+			"SHIELD": 0.25,    # 25% restore (penalty)
 			"THERMAL": 0.0,    # Stays dark
 			"HULL": hull / maxf(hull_max, 1.0),  # Whatever hull is at
 		}
@@ -1093,8 +1164,8 @@ func _clear_electric_arcs() -> void:
 
 
 const SFX_CUE_DISPLAY: Dictionary = {
-	"electric_sparks": "CAPACITOR DISCHARGE",
-	"powerdown_shields_bleed": "SHIELD DRAIN DETECTED",
+	"electric_sparks": "",  # Pre-drift — no visual cue
+	"powerdown_shields_bleed": "",  # Pre-drift — no visual cue
 	"powerdown_engines_dying": "ENGINE FAILURE",
 	"powerdown_drift_start": "GYRO LOCK LOST",
 	"power_failure": "CATASTROPHIC FAILURE",
@@ -1170,6 +1241,13 @@ func _end_drift() -> void:
 	_drift_timer = 0.0
 	_drift_rotation_speed = 0.0
 	rotation = 0.0
+	# Always reset crisis-level flags (even if blackout wasn't reached)
+	_electric_crisis_active = false
+	_shield_at_crisis_start = -1.0
+	_shutdown_audio_done = false
+	_clear_electric_arcs()
+	if _hud and _hud.has_method("stop_shield_arcs"):
+		_hud.stop_shield_arcs()
 	# Restore LED bar segments
 	if _hud and _hud.has_method("stop_power_death_bars"):
 		_hud.stop_power_death_bars()
@@ -1239,6 +1317,10 @@ func _get_device_color(device: DeviceData) -> Color:
 func _apply_device_modifiers() -> void:
 	var speed_pct: float = 0.0
 	var accel_pct: float = 0.0
+	var shield_dr: float = 0.0
+	var hull_dr: float = 0.0
+	var wants_suppress_weapons: bool = false
+	var wants_suppress_cores: bool = false
 	for i in _device_controllers.size():
 		var controller: DeviceController = _device_controllers[i]
 		if not controller.is_active():
@@ -1246,8 +1328,52 @@ func _apply_device_modifiers() -> void:
 		var device: DeviceData = _device_data_per_slot[i]["device"]
 		speed_pct += device.speed_modifier
 		accel_pct += device.accel_modifier
-	speed = _base_speed * maxf(1.0 + speed_pct / 100.0, 0.1)
-	acceleration = _base_accel * maxf(1.0 + accel_pct / 100.0, 0.1)
+		shield_dr += device.shield_damage_reduction
+		hull_dr += device.hull_damage_reduction
+		if device.disable_weapons:
+			wants_suppress_weapons = true
+		if device.disable_power_cores:
+			wants_suppress_cores = true
+	speed = _base_speed * maxf(1.0 + speed_pct / 100.0, 0.0)
+	acceleration = _base_accel * maxf(1.0 + accel_pct / 100.0, 0.0)
+	_active_shield_dr = clampf(shield_dr, 0.0, 100.0)
+	_active_hull_dr = clampf(hull_dr, 0.0, 100.0)
+
+	# Weapon suppression — snapshot states on suppress, restore on release
+	if wants_suppress_weapons and not _device_weapons_suppressed:
+		_device_weapons_suppressed = true
+		_pre_suppress_weapon_states.clear()
+		for ctrl in _hardpoint_controllers:
+			var hc: HardpointController = ctrl as HardpointController
+			_pre_suppress_weapon_states.append(hc.is_active() if hc else false)
+			if hc and hc.is_active():
+				hc.deactivate()
+	elif not wants_suppress_weapons and _device_weapons_suppressed:
+		_device_weapons_suppressed = false
+		for i in _hardpoint_controllers.size():
+			if i < _pre_suppress_weapon_states.size() and _pre_suppress_weapon_states[i]:
+				var hc: HardpointController = _hardpoint_controllers[i] as HardpointController
+				if hc:
+					hc.activate()
+		_pre_suppress_weapon_states.clear()
+
+	# Core suppression — same pattern
+	if wants_suppress_cores and not _device_cores_suppressed:
+		_device_cores_suppressed = true
+		_pre_suppress_core_states.clear()
+		for ctrl in _core_controllers:
+			var cc: PowerCoreController = ctrl as PowerCoreController
+			_pre_suppress_core_states.append(cc.is_active() if cc else false)
+			if cc and cc.is_active():
+				cc.deactivate()
+	elif not wants_suppress_cores and _device_cores_suppressed:
+		_device_cores_suppressed = false
+		for i in _core_controllers.size():
+			if i < _pre_suppress_core_states.size() and _pre_suppress_core_states[i]:
+				var cc: PowerCoreController = _core_controllers[i] as PowerCoreController
+				if cc:
+					cc.activate()
+		_pre_suppress_core_states.clear()
 
 
 func _exit_tree() -> void:
@@ -1288,7 +1414,50 @@ func stop_all() -> void:
 			c.cleanup()
 
 
+func _any_heat_source_active() -> bool:
+	## Returns true if any active component generates positive thermal.
+	for ctrl in _hardpoint_controllers:
+		var hc: HardpointController = ctrl as HardpointController
+		if hc and hc.is_active() and hc.weapon_data:
+			var th: float = float(hc.weapon_data.bar_effects.get("thermal", 0.0))
+			if th > 0.0:
+				return true
+	for ctrl in _core_controllers:
+		var cc: PowerCoreController = ctrl as PowerCoreController
+		if cc and cc.is_active() and cc.power_core_data:
+			# Check legacy bar_effects
+			var th: float = float(cc.power_core_data.bar_effects.get("thermal", 0.0))
+			if th > 0.0:
+				return true
+			# Check bar_effect_triggers for any positive thermal
+			for bet in cc.power_core_data.bar_effect_triggers:
+				var d: Dictionary = bet as Dictionary
+				if str(d.get("type", "")) == "thermal" and float(d.get("value", 0.0)) > 0.0:
+					return true
+			# Check passive_effects
+			var pth: float = float(cc.power_core_data.passive_effects.get("thermal", 0.0))
+			if pth > 0.0:
+				return true
+	for ctrl in _device_controllers:
+		var dc: DeviceController = ctrl as DeviceController
+		if dc and dc.is_active() and dc.device_data:
+			var th: float = float(dc.device_data.bar_effects.get("thermal", 0.0))
+			if th > 0.0:
+				return true
+	return false
+
+
+func disable_for_death() -> void:
+	_is_dead = true
+	stop_all()
+	if _player_area:
+		_player_area.set_deferred("monitoring", false)
+		_player_area.set_deferred("monitorable", false)
+
+
 func apply_bar_effects(effects: Dictionary) -> void:
+	if _is_dead:
+		return
 	for bar_type in effects:
 		var delta_val: float = float(effects[bar_type])
 		match str(bar_type):
@@ -1297,7 +1466,17 @@ func apply_bar_effects(effects: Dictionary) -> void:
 			"hull":
 				hull = clampf(hull + delta_val, 0.0, hull_max)
 			"thermal":
-				thermal = clampf(thermal + delta_val, 0.0, thermal_max)
+				if delta_val > 0.0 and thermal + delta_val > thermal_max:
+					# Thermal overflow — excess heat damages hull directly (bypasses shields)
+					var overflow: float = (thermal + delta_val) - thermal_max
+					thermal = thermal_max
+					hull = maxf(hull - overflow, 0.0)
+					if _hud and _hud.has_method("trigger_drain_wave"):
+						_hud.trigger_drain_wave("HULL")
+					if hull <= 0.0:
+						died.emit()
+				else:
+					thermal = clampf(thermal + delta_val, 0.0, thermal_max)
 			"electric":
 				if delta_val < 0.0 and electric + delta_val < 0.0:
 					# Electric overdraw — absorb what electric has, bleed the rest to shields

@@ -3,248 +3,248 @@
 		{
 			"time": 0.0234375,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.0390625,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.1484375,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.1640625,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.2734375,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.2890625,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.3984375,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.4140625,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.5234375,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.5390625,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.6484375,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.6640625,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.7734375,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.7890625,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.8984375,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.9140625,
 			"type": "shield",
-			"value": 5.0
+			"value": 3.3
 		},
 		{
 			"time": 0.0234375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.0390625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.078125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.1015625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.1484375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.1640625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.203125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.2265625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.2734375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.2890625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.328125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.3515625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.3984375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.4140625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.453125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.4765625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.5234375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.5390625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.578125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.6015625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.6484375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.6640625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.703125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.7265625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.7734375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.7890625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.828125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.8515625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.8984375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.9140625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.953125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		},
 		{
 			"time": 0.9765625,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.300000000000001
 		}
 	],
 	"bar_effects": {
-		"electric": 5.0,
-		"shield": 4.0,
-		"thermal": 0.35
+		"electric": 3.4,
+		"shield": 3.3,
+		"thermal": 0.300000000000001
 	},
 	"description": "",
 	"display_name": "FiddyFiddy",

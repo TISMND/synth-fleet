@@ -1,101 +1,56 @@
 extends Control
-## Auditions screen — side-by-side comparison of bar bezel/frame treatments.
-## Each variant uses HudBuilder.build_side_panel("game", ...) for bars — the exact
-## same rendering code, shaders, HDR glow rects, and chrome panel as the in-game HUD.
-## Bars render directly on root viewport so they bloom identically to the game
-## (root WorldEnvironment has glow_enabled = true, LINEAR tonemapping).
-## Bezels are positioned AFTER layout settles via call_deferred — bars are never
-## reparented or structurally modified.
+## Auditions screen — bottom HUD bar variants with Components + Fire Groups sections.
+## All variants use HudBuilder.build_bottom_panel() — the exact same rendering
+## code, shaders, HDR glow rects, and chrome panel as the in-game HUD.
+## Renders directly on root viewport so bloom is identical to the game.
 
-const VARIANT_WIDTH: int = 90
-const VARIANT_HEIGHT: int = 500
-const VARIANT_SPACING: int = 30
-const FILL_RATIO: float = 0.5
-const BEZEL_PAD: int = 10  # pixels of bezel frame around each bar
-
-# Gain pulse demo
-const PULSE_INTERVAL_MIN: float = 1.5
-const PULSE_INTERVAL_MAX: float = 3.5
-const WAVE_SPEED: float = 2.5
+const BOTTOM_VARIANT_WIDTH: int = 900
+const WARNING_FLASH_SPEED: float = 3.0
 
 var _vhs_overlay: ColorRect
 var _bg: ColorRect
-var _scroll: ScrollContainer
-var _variants_hbox: HBoxContainer
 var _title_label: Label
 var _back_button: Button
-var _bezel_shader: Shader
-var _bezel_seg_shader: Shader
-var _pulse_timer: float = 2.0
+var _bottom_variants: Array = []
+var _warning_flash_time: float = 0.0
+var _section_labels: Array = []  # screen section headers (not bar-style labels)
 
-# Each variant: {name, params, no_bezel, name_label, panel_data, panel_root,
-#                bar_entries: [{bar, seg, wave_pos, wave_active}],
-#                bezel_rects: [ColorRect]}
-var _variants: Array = []
+# Mock icon data — colors resolved at build time from ThemeManager to match hangar
+const MOCK_ICON_DEFS: Array = [
+	{"number": 1, "active": true, "type": "weapon"},
+	{"number": 2, "active": true, "type": "weapon"},
+	{"number": 3, "active": false, "type": "weapon"},
+	{"number": 4, "active": true, "type": "weapon"},
+	{"number": 5, "active": false, "type": "core"},
+	{"number": 6, "active": true, "type": "field"},
+]
 
-## FINAL AUDITION: Current HUD vs proposed replacement.
-## The replacement combines all winning choices:
-##   - Near Black chrome panel background
-##   - Per-segment shadow-grounded sockets (bar_bezel_segments.gdshader)
-##   - Subtle HDR labels (font_color * 1.5, soft aura + bloom via text_glow shader)
-##
-## To apply this to the game HUD, another agent should:
-##   1. Apply _REPLACEMENT_CHROME overrides to the chrome_panel shader in HudBuilder
-##   2. Create socket bezel overlays in hud.gd using _REPLACEMENT_SOCKET params
-##   3. Apply _REPLACEMENT_LABEL glow/HDR to bar labels in HudBuilder.apply_bar_label_theme
+# Mock fire groups — key labels and patterns from KeyBindingManager structure
+const MOCK_FIRE_GROUPS: Array = [
+	{"key_label": "F1", "pattern_label": "2W+1C", "active": false},
+	{"key_label": "F2", "pattern_label": "3W+1F", "active": true},
+	{"key_label": "Z", "pattern_label": "ALL", "active": false},
+]
 
-# ── Replacement spec (for the next agent to reference) ──
-
-const _REPLACEMENT_SOCKET: Dictionary = {
-	"socket_bezel": 0.16, "socket_radius": 0.04,
-	"inner_shadow_intensity": 1.3, "inner_shadow_softness": 0.3,
-	"shadow_direction": 0.5, "bevel_intensity": 0.35, "bevel_softness": 0.35,
-	"rim_intensity": 0.0,
-	"metal_color": Color(0.03, 0.03, 0.04, 1.0), "metal_roughness": 0.2,
-	"outer_shadow_intensity": 0.8, "outer_shadow_size": 0.09,
-	"depth_scale": 1.4,
-}
-const _REPLACEMENT_CHROME: Dictionary = {
-	"base_color": Vector4(0.02, 0.02, 0.03, 1.0),
-	"chrome_top_brightness": 0.3,
-	"chrome_base_brightness": 0.15,
-	"highlight_intensity": 0.06,
-	"edge_brightness": 0.02,
-}
-const _REPLACEMENT_LABEL: Dictionary = {
-	"hdr_mult": 1.5,
-	"glow_aura_size": 3.0,
-	"glow_aura_intensity": 0.8,
-	"glow_bloom_size": 6.0,
-	"glow_bloom_intensity": 0.4,
-}
-
-const PRESETS: Array = [
+## WINNER: 96px tall, 180x44 warning screens, center_gap=100, labels above, lit bg icons.
+const BOTTOM_PRESETS: Array = [
 	{
-		"name": "CURRENT\nHUD",
-		"params": {},
-		"no_bezel": true,
-	},
-	{
-		"name": "PROPOSED\nREPLACEMENT",
-		"per_segment": true,
-		"params": _REPLACEMENT_SOCKET,
-		"chrome": _REPLACEMENT_CHROME,
-		"label": _REPLACEMENT_LABEL,
+		"name": "WINNER — 96px, medium center gap, lit bg",
+		"mode": "new",
+		"height": 96,
+		"overrides": {"warning_width": 180, "warning_height": 44, "center_gap": 100},
 	},
 ]
 
 
 func _ready() -> void:
-	_bezel_shader = load("res://assets/shaders/bar_bezel.gdshader") as Shader
-	_bezel_seg_shader = load("res://assets/shaders/bar_bezel_segments.gdshader") as Shader
 	_build_ui()
 	_apply_theme()
 	ThemeManager.theme_changed.connect(_apply_theme)
 
 
 func _process(delta: float) -> void:
-	_update_pulses(delta)
+	_update_bottom_bar_animations(delta)
 
 
 func _build_ui() -> void:
@@ -106,16 +61,22 @@ func _build_ui() -> void:
 	add_child(_bg)
 	ThemeManager.apply_grid_background(_bg)
 
-	# Main layout
+	# Main layout — scrollable vertically
+	var main_scroll := ScrollContainer.new()
+	main_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	var margin_val := 20
+	main_scroll.offset_left = margin_val
+	main_scroll.offset_top = margin_val
+	main_scroll.offset_right = -margin_val
+	main_scroll.offset_bottom = -margin_val
+	add_child(main_scroll)
+
 	var main_vbox := VBoxContainer.new()
-	main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	main_vbox.add_theme_constant_override("separation", 16)
-	var margin := 20
-	main_vbox.offset_left = margin
-	main_vbox.offset_top = margin
-	main_vbox.offset_right = -margin
-	main_vbox.offset_bottom = -margin
-	add_child(main_vbox)
+	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_scroll.add_child(main_vbox)
 
 	# Header row
 	var header_hbox := HBoxContainer.new()
@@ -128,348 +89,131 @@ func _build_ui() -> void:
 	header_hbox.add_child(_back_button)
 
 	_title_label = Label.new()
-	_title_label.text = "AUDITIONS — Bar Bezels"
+	_title_label.text = "AUDITIONS — Bottom Bar"
 	_title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_hbox.add_child(_title_label)
 
-	# Scrollable area for variants
-	_scroll = ScrollContainer.new()
-	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	main_vbox.add_child(_scroll)
+	# Section label
+	var section_label := Label.new()
+	section_label.text = "BOTTOM BAR VARIANTS"
+	main_vbox.add_child(section_label)
+	_section_labels.append(section_label)
 
-	_variants_hbox = HBoxContainer.new()
-	_variants_hbox.add_theme_constant_override("separation", VARIANT_SPACING)
-	_variants_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_variants_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_scroll.add_child(_variants_hbox)
+	# Variants
+	var bottom_vbox := VBoxContainer.new()
+	bottom_vbox.add_theme_constant_override("separation", 24)
+	bottom_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(bottom_vbox)
 
-	for i in PRESETS.size():
-		_build_variant(i)
-
-	# Bezels must be placed AFTER layout settles so we can read bar positions
-	call_deferred("_place_bezels")
+	for i in BOTTOM_PRESETS.size():
+		_build_bottom_variant(i, bottom_vbox)
 
 	_setup_vhs_overlay()
 
 
-func _build_variant(index: int) -> void:
-	var preset: Dictionary = PRESETS[index]
-	var preset_name: String = str(preset["name"])
-	var params: Dictionary = preset["params"]
-	var no_bezel: bool = preset.get("no_bezel", false) as bool
+func _resolve_mock_icons() -> Array:
+	## Build icon_data with live ThemeManager colors matching hangar.
+	var weapon_color: Color = ThemeManager.get_color("bar_shield")   # Cyan
+	var core_color: Color = ThemeManager.get_color("bar_electric")   # Yellow
+	var field_color := Color(0.2, 0.8, 1.0)                         # Teal
+	var icons: Array = []
+	for def in MOCK_ICON_DEFS:
+		var icon_type: String = str(def["type"])
+		var color: Color = weapon_color
+		if icon_type == "core":
+			color = core_color
+		elif icon_type == "field":
+			color = field_color
+		icons.append({
+			"number": int(def["number"]),
+			"active": def["active"],
+			"color": color,
+			"type": icon_type,
+		})
+	return icons
 
-	# Outer container for label + panel
-	var variant_vbox := VBoxContainer.new()
-	variant_vbox.add_theme_constant_override("separation", 8)
-	variant_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_variants_hbox.add_child(variant_vbox)
+
+# ── Bottom bar variant builder ──────────────────────────────────
+
+func _build_bottom_variant(index: int, parent: VBoxContainer) -> void:
+	var preset: Dictionary = BOTTOM_PRESETS[index]
+	var preset_name: String = str(preset["name"])
+	var mode: String = str(preset["mode"])
+	var bar_height: int = int(preset.get("height", 80))
+	var overrides: Dictionary = preset.get("overrides", {}) as Dictionary
 
 	# Variant name label
 	var name_label := Label.new()
 	name_label.text = preset_name
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	variant_vbox.add_child(name_label)
+	parent.add_child(name_label)
 
-	# Panel holder — sizing container for the HBoxContainer layout.
-	# NO clip_contents — let led_glow HDR bleed naturally for root viewport bloom.
-	var panel_holder := Control.new()
-	panel_holder.custom_minimum_size = Vector2(VARIANT_WIDTH, VARIANT_HEIGHT)
-	panel_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	variant_vbox.add_child(panel_holder)
+	var icons: Array = _resolve_mock_icons()
 
-	# Build side panel via HudBuilder — exact same code path as game HUD.
-	# "game" mode creates: ColorRect with chrome_panel shader → main_vbox →
-	# zones with spacer → bar → pad → label → pad. Bars stay untouched.
-	var panel_data: Dictionary = HudBuilder.build_side_panel(
-		"game", ["SHIELD", "HULL"], {}, float(VARIANT_HEIGHT)
-	)
-	var panel_root: ColorRect = panel_data["root"]
-	panel_root.position = Vector2.ZERO
-	panel_root.size = Vector2(VARIANT_WIDTH, VARIANT_HEIGHT)
-	panel_holder.add_child(panel_root)
+	if mode == "current":
+		# Show the current flat bottom bar for comparison
+		var current_bar: Dictionary = HudBuilder._build_bottom_bar("game")
+		var bar_root: Control = current_bar["root"]
+		bar_root.custom_minimum_size = Vector2(BOTTOM_VARIANT_WIDTH, bar_height)
+		parent.add_child(bar_root)
+		var weapons_hbox: HBoxContainer = current_bar["weapons_hbox"]
+		for idata in icons:
+			var icon_number: int = int(idata["number"])
+			var icon_active: bool = idata["active"]
+			var icon_color: Color = idata["color"]
+			var icon: Dictionary = HudBuilder.build_weapon_icon(icon_number, icon_active, icon_color)
+			weapons_hbox.add_child(icon["container"])
 
-	# Apply chrome panel overrides if preset specifies custom background look
-	var chrome_overrides: Dictionary = preset.get("chrome", {}) as Dictionary
-	if not chrome_overrides.is_empty() and panel_root.material is ShaderMaterial:
-		var chrome_mat: ShaderMaterial = panel_root.material as ShaderMaterial
-		for key in chrome_overrides:
-			chrome_mat.set_shader_parameter(key, chrome_overrides[key])
-
-	# Apply fill ratio, colors, and label theming — NO structural changes to bars.
-	var bars: Dictionary = panel_data["bars"]
-	var bar_entries: Array = []
-	var specs: Array = ThemeManager.get_status_bar_specs()
-	for spec in specs:
-		var bar_name: String = str(spec["name"])
-		if not bars.has(bar_name):
-			continue
-		var entry: Dictionary = bars[bar_name]
-		var bar: ProgressBar = entry["bar"]
-		var lbl: Label = entry["label"]
-		var color: Color = ThemeManager.resolve_bar_color(spec)
-		var seg: int = int(ShipData.DEFAULT_SEGMENTS.get(bar_name, 8))
-		var is_vertical: bool = entry.get("vertical", false) as bool
-
-		# Set fill to 50%
-		bar.max_value = seg
-		bar.value = int(float(seg) * FILL_RATIO)
-		bar.custom_minimum_size.x = HudBuilder.BAR_WIDTH
-		ThemeManager.apply_led_bar(bar, color, FILL_RATIO, seg, is_vertical)
-
-		# Theme bar label — base styling from HudBuilder, then per-variant overrides
-		var body_font: Font = ThemeManager.get_font("font_body")
-		var body_size: int = ThemeManager.get_font_size("font_size_body")
-		HudBuilder.apply_bar_label_theme(lbl, color, body_font, body_size)
-
-		var label_cfg: Dictionary = preset.get("label", {}) as Dictionary
-		_apply_label_overrides(lbl, color, label_cfg)
-
-		bar_entries.append({
-			"bar": bar,
-			"seg": seg,
-			"wave_pos": -1.0,
-			"wave_active": false,
+		_bottom_variants.append({
+			"name_label": name_label,
+			"panel_result": {},
+			"icon_entries": [],
+			"fg_entries": [],
+			"warning_labels": [],
+			"bar_section_labels": [],
+			"mode": mode,
 		})
+		return
 
-	var per_segment: bool = preset.get("per_segment", false) as bool
-	var border_params: Dictionary = preset.get("border", {}) as Dictionary
-	var label_cfg: Dictionary = preset.get("label", {}) as Dictionary
-	_variants.append({
-		"name": preset_name,
-		"params": params,
-		"no_bezel": no_bezel,
-		"per_segment": per_segment,
-		"border": border_params,
-		"chrome": chrome_overrides,
-		"label": label_cfg,
+	# Build redesigned bottom panel
+	var panel_result: Dictionary = HudBuilder.build_bottom_panel(
+		icons, MOCK_FIRE_GROUPS, float(BOTTOM_VARIANT_WIDTH), float(bar_height), overrides
+	)
+	var panel_root: Control = panel_result["root"]
+	panel_root.custom_minimum_size = Vector2(BOTTOM_VARIANT_WIDTH, bar_height)
+	parent.add_child(panel_root)
+
+	_bottom_variants.append({
 		"name_label": name_label,
-		"panel_data": panel_data,
-		"panel_root": panel_root,
-		"bar_entries": bar_entries,
-		"bezel_rects": [],
-		"border_rects": [],
+		"panel_result": panel_result,
+		"icon_entries": panel_result["icon_entries"],
+		"fg_entries": panel_result["fg_entries"],
+		"warning_labels": panel_result["warning_labels"],
+		"bar_section_labels": panel_result["section_labels"],
+		"mode": mode,
 	})
 
 
-# ── Deferred bezel placement ────────────────────────────────────
+# ── Bottom bar animations ──────────────────────────────────────
 
-func _place_bezels() -> void:
-	## Called via call_deferred after layout settles. Creates bezel overlays:
-	## 1. Outer border (bar_bezel.gdshader) — whole-bar frame, if "border" dict present
-	## 2. Per-segment sockets (bar_bezel_segments.gdshader) — individual LED frames
-	## Both layers use transparent cutouts so bars show through.
-	for variant in _variants:
-		if bool(variant["no_bezel"]):
+func _update_bottom_bar_animations(delta: float) -> void:
+	_warning_flash_time += delta * WARNING_FLASH_SPEED
+
+	for variant in _bottom_variants:
+		var mode: String = str(variant["mode"])
+		if mode == "current":
 			continue
-		var panel_root: ColorRect = variant["panel_root"]
-		var params: Dictionary = variant["params"]
-		var border_params: Dictionary = variant["border"]
-		var bars: Dictionary = variant["panel_data"]["bars"]
-		var bar_entries: Array = variant["bar_entries"]
-		var bezel_rects: Array = variant["bezel_rects"]
-		var border_rects: Array = variant["border_rects"]
 
-		var be_idx: int = 0
-		var specs: Array = ThemeManager.get_status_bar_specs()
-		for spec in specs:
-			var bar_name: String = str(spec["name"])
-			if not bars.has(bar_name):
-				continue
-			var bar: ProgressBar = bars[bar_name]["bar"]
-			var seg: int = int(bar_entries[be_idx]["seg"]) if be_idx < bar_entries.size() else 8
-			be_idx += 1
+		var warning_labels: Array = variant["warning_labels"]
+		var warning_color := Color(1.0, 0.2, 0.1)
 
-			var bar_pos: Vector2 = bar.global_position - panel_root.global_position
-			var pad: float = float(BEZEL_PAD)
-
-			# Layer 1: outer border frame (if present).
-			# Compute bezel_width dynamically so the cutout aligns exactly with
-			# the bar bounds — no visible gap between border and segments.
-			if not border_params.is_empty() and _bezel_shader:
-				var border_rect := ColorRect.new()
-				border_rect.position = Vector2(bar_pos.x - pad, bar_pos.y - pad)
-				var brd_size := Vector2(bar.size.x + pad * 2.0, bar.size.y + pad * 2.0)
-				border_rect.size = brd_size
-				border_rect.color = Color.WHITE
-				border_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				var bmat := ShaderMaterial.new()
-				bmat.shader = _bezel_shader
-				_apply_bezel_params(bmat, border_params)
-				# Override bezel_width so cutout = bar bounds exactly.
-				# bezel_width is in UV-x space; pad / border_width gives the fraction.
-				bmat.set_shader_parameter("bezel_width", pad / maxf(brd_size.x, 1.0))
-				border_rect.material = bmat
-				panel_root.add_child(border_rect)
-				border_rects.append(border_rect)
-
-			# Layer 2: per-segment sockets.
-			# Extend rect by BEZEL_PAD on all sides so end segments get full
-			# bezel frames. edge_pad_x/y tell the shader where the bar region is.
-			if _bezel_seg_shader:
-				var seg_rect := ColorRect.new()
-				seg_rect.position = Vector2(bar_pos.x - pad, bar_pos.y - pad)
-				var seg_size := Vector2(bar.size.x + pad * 2.0, bar.size.y + pad * 2.0)
-				seg_rect.size = seg_size
-				seg_rect.color = Color.WHITE
-				seg_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				var smat := ShaderMaterial.new()
-				smat.shader = _bezel_seg_shader
-				_apply_bezel_params(smat, params)
-				smat.set_shader_parameter("segment_count", seg)
-				if bar.material is ShaderMaterial:
-					var bar_mat: ShaderMaterial = bar.material as ShaderMaterial
-					smat.set_shader_parameter("segment_gap", bar_mat.get_shader_parameter("segment_gap"))
-				smat.set_shader_parameter("vertical", 1)
-				# Padding in UV space — tells shader where the bar grid lives
-				# For vertical: uv.x = along segments (maps to rect height),
-				# uv.y = across bar (maps to rect width).
-				# edge_pad_x = padding along segments = pad / seg_rect_height (in uv after remap)
-				# edge_pad_y = padding across bar = pad / seg_rect_width (in uv after remap)
-				if seg_size.y > 0.0 and seg_size.x > 0.0:
-					smat.set_shader_parameter("edge_pad_x", pad / seg_size.y)
-					smat.set_shader_parameter("edge_pad_y", pad / seg_size.x)
-				seg_rect.material = smat
-				panel_root.add_child(seg_rect)
-				bezel_rects.append(seg_rect)
-
-
-func _reposition_bezels() -> void:
-	## Re-reads bar positions and updates bezel/border rects after theme changes.
-	var pad: float = float(BEZEL_PAD)
-	for variant in _variants:
-		if bool(variant["no_bezel"]):
-			continue
-		var panel_root: ColorRect = variant["panel_root"]
-		var bars: Dictionary = variant["panel_data"]["bars"]
-		var bezel_rects: Array = variant["bezel_rects"]
-		var border_rects: Array = variant["border_rects"]
-
-		var seg_idx: int = 0
-		var brd_idx: int = 0
-		var specs: Array = ThemeManager.get_status_bar_specs()
-		for spec in specs:
-			var bar_name: String = str(spec["name"])
-			if not bars.has(bar_name):
-				continue
-			var bar: ProgressBar = bars[bar_name]["bar"]
-			var bar_pos: Vector2 = bar.global_position - panel_root.global_position
-			var full_pos := Vector2(bar_pos.x - pad, bar_pos.y - pad)
-			var full_size := Vector2(bar.size.x + pad * 2.0, bar.size.y + pad * 2.0)
-
-			if brd_idx < border_rects.size():
-				var brect: ColorRect = border_rects[brd_idx]
-				brect.position = full_pos
-				brect.size = full_size
-				brd_idx += 1
-
-			if seg_idx < bezel_rects.size():
-				var srect: ColorRect = bezel_rects[seg_idx]
-				srect.position = full_pos
-				srect.size = full_size
-				seg_idx += 1
-
-
-func _apply_bezel_params(mat: ShaderMaterial, params: Dictionary) -> void:
-	for key in params:
-		var value = params[key]
-		mat.set_shader_parameter(key, value)
-
-
-func _apply_label_overrides(lbl: Label, bar_color: Color, cfg: Dictionary) -> void:
-	## Apply per-variant label overrides: font, size, glow shader params, HDR bloom.
-	if cfg.is_empty():
-		return
-
-	# Font override
-	var font_path: String = str(cfg.get("font_path", ""))
-	if font_path != "":
-		var font: Font = load(font_path) as Font
-		if font:
-			lbl.add_theme_font_override("font", font)
-
-	# Size override
-	var font_size: int = int(cfg.get("font_size", 0))
-	if font_size > 0:
-		lbl.add_theme_font_size_override("font_size", font_size)
-
-	# Glow shader overrides — apply text_glow shader with custom params
-	var has_glow: bool = float(cfg.get("glow_aura_size", 0.0)) > 0.0 or float(cfg.get("glow_bloom_size", 0.0)) > 0.0
-	if has_glow:
-		var glow_shader: Shader = load("res://assets/shaders/text_glow.gdshader") as Shader
-		if glow_shader:
-			var mat: ShaderMaterial
-			if lbl.material is ShaderMaterial:
-				mat = lbl.material as ShaderMaterial
-			else:
-				mat = ShaderMaterial.new()
-				mat.shader = glow_shader
-				lbl.material = mat
-			mat.set_shader_parameter("inner_intensity", float(cfg.get("glow_inner_intensity", 0.3)))
-			mat.set_shader_parameter("aura_size", float(cfg.get("glow_aura_size", 0.0)))
-			mat.set_shader_parameter("aura_intensity", float(cfg.get("glow_aura_intensity", 0.0)))
-			mat.set_shader_parameter("bloom_size", float(cfg.get("glow_bloom_size", 0.0)))
-			mat.set_shader_parameter("bloom_intensity", float(cfg.get("glow_bloom_intensity", 0.0)))
-			mat.set_shader_parameter("smudge_blur", float(cfg.get("glow_smudge_blur", 0.0)))
-
-	# HDR bloom via font_color > 1.0. Godot's Label preserves HDR color values
-	# and the root viewport WorldEnvironment bloom picks them up — no ColorRect needed.
-	var hdr_mult: float = float(cfg.get("hdr_mult", 0.0))
-	if hdr_mult > 1.0:
-		var hdr_color := Color(
-			bar_color.r * hdr_mult,
-			bar_color.g * hdr_mult,
-			bar_color.b * hdr_mult,
-			1.0
-		)
-		lbl.add_theme_color_override("font_color", hdr_color)
-
-
-# ── Gain pulse animation ────────────────────────────────────────
-
-func _update_pulses(delta: float) -> void:
-	_pulse_timer -= delta
-	if _pulse_timer <= 0.0:
-		_trigger_random_pulse()
-		_pulse_timer = randf_range(PULSE_INTERVAL_MIN, PULSE_INTERVAL_MAX)
-
-	# Advance all active waves
-	for variant in _variants:
-		var bar_entries: Array = variant["bar_entries"]
-		for entry in bar_entries:
-			if not bool(entry["wave_active"]):
-				continue
-			var pos: float = float(entry["wave_pos"])
-			pos += WAVE_SPEED * delta
-			if pos > 1.3:
-				entry["wave_active"] = false
-				entry["wave_pos"] = -1.0
-			else:
-				entry["wave_pos"] = pos
-
-			# Update shader uniform — same as game HUD _apply_wave_uniforms
-			var bar: ProgressBar = entry["bar"]
-			if bar.material is ShaderMaterial:
-				var mat: ShaderMaterial = bar.material as ShaderMaterial
-				var wave_val: float = float(entry["wave_pos"]) if bool(entry["wave_active"]) else -1.0
-				mat.set_shader_parameter("gain_wave_pos", wave_val)
-
-
-func _trigger_random_pulse() -> void:
-	if _variants.is_empty():
-		return
-	var vi: int = randi_range(0, _variants.size() - 1)
-	var variant: Dictionary = _variants[vi]
-	var bar_entries: Array = variant["bar_entries"]
-	if bar_entries.is_empty():
-		return
-	var bi: int = randi_range(0, bar_entries.size() - 1)
-	var entry: Dictionary = bar_entries[bi]
-	if not bool(entry["wave_active"]):
-		entry["wave_pos"] = 0.0
-	entry["wave_active"] = true
+		var cycle_idx: int = int(fmod(_warning_flash_time * 0.3, 4.0))
+		var messages: Array = ["FIRE", "HULL BREACH", "SHIELD CRITICAL", "POWER FAILURE"]
+		var flash: bool = fmod(_warning_flash_time, 2.0) < 1.4
+		for i in warning_labels.size():
+			var lbl: Label = warning_labels[i]
+			if flash:
+				lbl.text = str(messages[cycle_idx])
+			HudBuilder.set_warning_active(lbl, flash, warning_color)
 
 
 # ── Theme ────────────────────────────────────────────────────────
@@ -493,48 +237,39 @@ func _apply_theme() -> void:
 	var body_size: int = ThemeManager.get_font_size("font_size_body")
 	var accent: Color = ThemeManager.get_color("accent")
 
-	for variant in _variants:
+	# Screen section headers (the "BOTTOM BAR VARIANTS" header)
+	for slbl in _section_labels:
+		var section_lbl: Label = slbl as Label
+		if section_lbl:
+			section_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
+			section_lbl.add_theme_color_override("font_color", accent)
+			var hfont: Font = ThemeManager.get_font("font_header")
+			if hfont:
+				section_lbl.add_theme_font_override("font", hfont)
+			ThemeManager.apply_text_glow(section_lbl, "header")
+
+	# Bottom bar variants
+	for bv in _bottom_variants:
 		# Variant name label
-		var name_lbl: Label = variant["name_label"]
-		name_lbl.add_theme_font_size_override("font_size", body_size)
-		name_lbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
+		var blbl: Label = bv["name_label"]
+		blbl.add_theme_font_size_override("font_size", body_size)
+		blbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
 		if body_font:
-			name_lbl.add_theme_font_override("font", body_font)
-		ThemeManager.apply_text_glow(name_lbl, "body")
+			blbl.add_theme_font_override("font", body_font)
+		ThemeManager.apply_text_glow(blbl, "body")
 
-		# Chrome panel — update divider accent + reapply custom overrides
-		var panel_root: ColorRect = variant["panel_root"]
-		if panel_root.material is ShaderMaterial:
-			var chrome_mat: ShaderMaterial = panel_root.material as ShaderMaterial
-			chrome_mat.set_shader_parameter("divider_color", Vector4(accent.r, accent.g, accent.b, 0.5))
-			var chrome_ov: Dictionary = variant["chrome"]
-			for key in chrome_ov:
-				chrome_mat.set_shader_parameter(key, chrome_ov[key])
+		# Icon themes (component + fire group)
+		var icon_entries: Array = bv["icon_entries"]
+		for entry in icon_entries:
+			HudBuilder.apply_bezeled_icon_theme(entry)
+		var fg_entries: Array = bv["fg_entries"]
+		for entry in fg_entries:
+			HudBuilder.apply_bezeled_icon_theme(entry)
 
-		# Re-apply LED bars and bar labels — pass stored segment count (never -1)
-		var panel_data: Dictionary = variant["panel_data"]
-		var bars: Dictionary = panel_data["bars"]
-		var bar_entries: Array = variant["bar_entries"]
-		var be_idx: int = 0
-		var specs: Array = ThemeManager.get_status_bar_specs()
-		for spec in specs:
-			var bar_name: String = str(spec["name"])
-			if not bars.has(bar_name):
-				continue
-			var entry: Dictionary = bars[bar_name]
-			var color: Color = ThemeManager.resolve_bar_color(spec)
-			var bar: ProgressBar = entry["bar"]
-			var is_vertical: bool = entry.get("vertical", false) as bool
-			var seg: int = int(bar_entries[be_idx]["seg"]) if be_idx < bar_entries.size() else 8
-			bar.custom_minimum_size.x = HudBuilder.BAR_WIDTH
-			ThemeManager.apply_led_bar(bar, color, FILL_RATIO, seg, is_vertical)
-			HudBuilder.apply_bar_label_theme(entry["label"], color, body_font, body_size)
-			var lcfg: Dictionary = variant["label"]
-			_apply_label_overrides(entry["label"], color, lcfg)
-			be_idx += 1
-
-	# Reposition bezels after bars may have changed size
-	call_deferred("_reposition_bezels")
+		# Bar-style section labels (COMPONENTS, FIRE GROUPS) — re-apply on theme change
+		var bar_labels: Array = bv["bar_section_labels"]
+		for slbl in bar_labels:
+			HudBuilder.apply_section_label_theme(slbl)
 
 
 func _setup_vhs_overlay() -> void:

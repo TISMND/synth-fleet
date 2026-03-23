@@ -14,7 +14,7 @@
 	"fade_in_duration": 0.3,
 	"fade_out_duration": 0.3,
 	"field_style_id": "blue_ripple",
-	"id": "fem_blue_ripple_shields",
+	"id": "fem_field_modulation_tuner",
 	"loop_file_path": "res://loop_zips/sorted/pads/Dreading Sphere - 120 BPM - 6 - Pads - cw_pad90_youthful_E.wav",
 	"loop_length_bars": 8,
 	"mechanic_params": {
@@ -23,7 +23,7 @@
 	"orbiter_lifetime": 4.0,
 	"orbiter_style_id": "",
 	"passive_effects": {
-		"electric": -2.05,
+		"electric": -4.0,
 		"shield": 10.0,
 		"thermal": 1.0
 	},

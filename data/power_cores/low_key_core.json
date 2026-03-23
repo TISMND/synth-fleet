@@ -1,154 +1,175 @@
 {
 	"bar_effect_triggers": [
 		{
+			"time": 0.0,
+			"type": "shield",
+			"value": 3.2
+		},
+		{
+			"time": 0.25,
+			"type": "shield",
+			"value": 3.2
+		},
+		{
+			"time": 0.5,
+			"type": "shield",
+			"value": 3.2
+		},
+		{
+			"time": 0.75,
+			"type": "shield",
+			"value": 3.2
+		},
+		{
 			"time": 0.046875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.078125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.09375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.109375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.171875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.21875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.234375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.296875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.328125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.34375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.359375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.421875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.46875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.484375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.546875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.578125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.59375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.609375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.671875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.703125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.71875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.734375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.796875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.828125,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.84375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.859375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.921875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.96875,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		},
 		{
 			"time": 0.984375,
 			"type": "thermal",
-			"value": 5.0
+			"value": 0.25
 		}
 	],
 	"bar_effects": {
-		"electric": 0.75,
-		"thermal": 0.35
+		"electric": 0.949999999999999,
+		"shield": 3.2,
+		"thermal": 0.25
 	},
 	"description": "",
 	"display_name": "Low Key Core",
@@ -157,7 +178,7 @@
 		"brightness": 1.0,
 		"dim_duration": 0.51
 	},
-	"id": "power_core_1722",
+	"id": "low_key_core",
 	"loop_file_path": "res://loop_zips/sorted/drums/Fortunate Interval - 120 BPM - 1 - Drums - PM_RW3_Full_Drum_Loop_115Bpm_Cliff.wav",
 	"loop_length_bars": 8,
 	"passive_effects": {

@@ -1,10 +1,10 @@
 {
 	"aim_mode": "track",
 	"bar_effects": {
-		"electric": -1.0,
-		"thermal": 0.200000000000003
+		"electric": -0.299999999999997,
+		"thermal": 0.0999999999999943
 	},
-	"beam_dps": 15.0,
+	"beam_dps": 17.0,
 	"beam_duration": 1.6,
 	"beam_passthrough": false,
 	"beam_style_id": "beam_1",

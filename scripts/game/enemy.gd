@@ -228,6 +228,7 @@ func take_damage(amount: int, skips_shields: bool = false) -> void:
 	if health <= 0:
 		if _weapon_controller:
 			_weapon_controller.cleanup()
+			_weapon_controller = null
 		SfxPlayer.play_random_explosion()
 		GameState.add_credits(10)
 		_spawn_explosion()

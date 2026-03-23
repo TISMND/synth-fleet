@@ -967,19 +967,9 @@ func _rebuild_workshop_content() -> void:
 	var accent: Color = ThemeManager.get_color("accent")
 
 	# Fire group tab bar (no key labels)
-	_build_fg_tab_bar(_workshop_content, presets, false)
+	_build_fg_tab_bar(_workshop_content, presets, true)
 
 	var has_group: bool = _fg_active_index >= 0 and _fg_active_index < presets.size()
-	if presets.is_empty():
-		var empty_lbl := Label.new()
-		empty_lbl.text = "Create your first fire group with the + button above."
-		empty_lbl.add_theme_color_override("font_color", ThemeManager.get_color("dimmed"))
-		empty_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-		empty_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		if body_font:
-			empty_lbl.add_theme_font_override("font", body_font)
-		_workshop_content.add_child(empty_lbl)
-		return
 
 	# Scroll container for slot rows
 	var scroll := ScrollContainer.new()
@@ -1077,6 +1067,19 @@ func _rebuild_workshop_content() -> void:
 			name_btn.pressed.connect(func() -> void: _toggle_slot_list(bound_key))
 			row.add_child(name_btn)
 			_slot_btns[slot_key] = name_btn
+
+			# Key binding button — shows current bound key, click to rebind
+			var current_binding: Dictionary = KeyBindingManager.get_binding(slot_key)
+			var key_label_text: String = str(current_binding.get("label", "?"))
+			var key_btn := Button.new()
+			key_btn.text = key_label_text
+			key_btn.custom_minimum_size = Vector2(40, 36)
+			key_btn.tooltip_text = "Click to rebind key"
+			_darken_button(key_btn)
+			key_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+			var capture_key: String = slot_key
+			key_btn.pressed.connect(func() -> void: _start_key_capture(capture_key))
+			row.add_child(key_btn)
 
 			# Rate badges
 			var rate_label_refs: Array = _build_rate_badges(slot_vbox, slot_rates, is_active)
@@ -2148,9 +2151,35 @@ func _build_ui() -> void:
 	VFXFactory.add_bloom_to_viewport(_sub_viewport)
 
 	var vp_bg := ColorRect.new()
-	vp_bg.color = Color(0.05, 0.06, 0.1)
+	vp_bg.color = Color(0.0, 0.0, 0.0)
 	vp_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_sub_viewport.add_child(vp_bg)
+
+	# Scrolling star layers for parallax depth
+	var vp_size: Vector2 = Vector2(_sub_viewport.size)
+	var star_layer_far := _ScrollingStarField.new()
+	star_layer_far.star_count = 60
+	star_layer_far.star_color = Color(0.3, 0.3, 0.5, 0.4)
+	star_layer_far.scroll_speed = 8.0
+	star_layer_far.star_seed = 1
+	star_layer_far.star_size_min = 0.5
+	star_layer_far.star_size_max = 1.2
+	star_layer_far.field_size = vp_size
+	star_layer_far.set_anchors_preset(Control.PRESET_FULL_RECT)
+	star_layer_far.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sub_viewport.add_child(star_layer_far)
+
+	var star_layer_near := _ScrollingStarField.new()
+	star_layer_near.star_count = 30
+	star_layer_near.star_color = Color(0.6, 0.6, 0.9, 0.7)
+	star_layer_near.scroll_speed = 20.0
+	star_layer_near.star_seed = 2
+	star_layer_near.star_size_min = 1.0
+	star_layer_near.star_size_max = 2.5
+	star_layer_near.field_size = vp_size
+	star_layer_near.set_anchors_preset(Control.PRESET_FULL_RECT)
+	star_layer_near.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sub_viewport.add_child(star_layer_near)
 
 	_ship_renderer = ShipRenderer.new()
 	_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
@@ -2260,11 +2289,10 @@ func _build_ui() -> void:
 	_workshop_btn.pressed.connect(func() -> void: _on_mode_toggle("workshop"))
 	mode_hbox.add_child(_workshop_btn)
 
+	# Fire Groups tab hidden — functionality merged into Workshop
 	_controls_btn = Button.new()
 	_controls_btn.text = "FIRE GROUPS"
-	_controls_btn.custom_minimum_size = Vector2(120, 36)
-	_controls_btn.pressed.connect(func() -> void: _on_mode_toggle("controls"))
-	mode_hbox.add_child(_controls_btn)
+	_controls_btn.visible = false
 
 	_audio_btn = Button.new()
 	_audio_btn.text = "AUDIO MIX"
@@ -3002,10 +3030,12 @@ func _input(event: InputEvent) -> void:
 			# Rebinding a slot key
 			KeyBindingManager.set_slot_key(_capturing_for, pkc, label)
 			_end_key_capture()
-			# Update the key label button in controls tab
-			if _controls_key_btns.has(_capturing_for):
-				var btn: Button = _controls_key_btns[_capturing_for]
-				btn.text = "[" + label + "]"
+			# Rebuild workshop to show updated key label
+			if _mode == "workshop":
+				_rebuild_workshop_content()
+			elif _mode == "controls":
+				_rebuild_controls_content()
+				_show_fire_groups_panel()
 		return
 
 	# Slot key toggling on controls tab — routes through fire group auto-save
@@ -3020,3 +3050,38 @@ func _input(event: InputEvent) -> void:
 
 	if event.is_action_pressed("ui_cancel") and not _is_capturing:
 		_on_back()
+
+
+class _ScrollingStarField extends Control:
+	var star_count: int = 50
+	var star_color: Color = Color(0.5, 0.5, 0.8, 0.6)
+	var star_seed: int = 1
+	var scroll_speed: float = 20.0
+	var star_size_min: float = 0.8
+	var star_size_max: float = 2.0
+	var field_size: Vector2 = Vector2(400, 500)
+	var _positions: PackedVector2Array = PackedVector2Array()
+	var _sizes: PackedFloat32Array = PackedFloat32Array()
+	var _offset: float = 0.0
+
+	func _ready() -> void:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = star_seed
+		for i in star_count:
+			_positions.append(Vector2(rng.randf() * field_size.x, rng.randf() * field_size.y))
+			_sizes.append(rng.randf_range(star_size_min, star_size_max))
+
+	func _process(delta: float) -> void:
+		var h: float = size.y if size.y > 0.0 else field_size.y
+		_offset += scroll_speed * delta
+		if _offset >= h:
+			_offset -= h
+		queue_redraw()
+
+	func _draw() -> void:
+		var h: float = size.y if size.y > 0.0 else field_size.y
+		var w: float = size.x if size.x > 0.0 else field_size.x
+		for i in _positions.size():
+			var x: float = _positions[i].x / field_size.x * w
+			var y: float = fmod(_positions[i].y / field_size.y * h + _offset, h)
+			draw_circle(Vector2(x, y), _sizes[i], star_color)

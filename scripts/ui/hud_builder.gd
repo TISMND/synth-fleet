@@ -2,24 +2,35 @@ class_name HudBuilder extends RefCounted
 ## Shared HUD builder for in-game HUD and style editor HUD preview.
 ## 3-panel layout: bottom bar (icons), left panel (Shield/Hull), right panel (Thermal/Electric).
 
-const BOTTOM_BAR_HEIGHT: int = 64   # icons(40) + padding(2*12)
+const BOTTOM_BAR_HEIGHT: int = 96   # Redesigned bottom panel with chrome + bezels
 const SIDE_PANEL_WIDTH: int = 60    # bar(28) + padding + label space
 const SIDE_PANEL_PADDING: int = 8
 const PANEL_PADDING: int = 12
 const WEAPON_ICON_SIZE: int = 40
 const BAR_WIDTH: int = 52
+const BOTTOM_ICON_SIZE: int = 40
+const BOTTOM_BEZEL_PAD: float = 6.0
+const WARNING_WIDTH: int = 120
+const WARNING_HEIGHT: int = 36
+
+# Warning definitions
+const WARNINGS: Array = [
+	{"id": "FIRE", "text": "FIRE", "stat": "THERMAL", "threshold": 0.8, "above": true},
+	{"id": "HULL_BREACH", "text": "HULL BREACH", "stat": "HULL", "threshold": 0.2, "above": false},
+	{"id": "SHIELD_CRIT", "text": "SHIELD CRITICAL", "stat": "SHIELD", "threshold": 0.15, "above": false},
+	{"id": "POWER_FAIL", "text": "POWER FAILURE", "stat": "ELECTRIC", "threshold": 0.1, "above": false},
+]
 
 
 static func build_hud(mode: String, panel_height: float = 948.0) -> Dictionary:
-	## Top-level builder. Returns: {bottom_bar, left_panel, right_panel, weapons_hbox, mode}
-	var bottom: Dictionary = _build_bottom_bar(mode)
+	## Top-level builder. Returns: {bottom_panel, left_panel, right_panel, mode}
+	var bottom: Dictionary = build_bottom_panel([], [], 1920.0, float(BOTTOM_BAR_HEIGHT), {"warning_width": 180, "warning_height": 44, "center_gap": 100})
 	var left: Dictionary = build_side_panel(mode, ["SHIELD", "HULL"], {}, panel_height)
 	var right: Dictionary = build_side_panel(mode, ["THERMAL", "ELECTRIC"], {}, panel_height)
 	return {
-		"bottom_bar": bottom,
+		"bottom_panel": bottom,
 		"left_panel": left,
 		"right_panel": right,
-		"weapons_hbox": bottom["weapons_hbox"],
 		"mode": mode,
 	}
 
@@ -70,6 +81,469 @@ static func _build_bottom_bar(mode: String) -> Dictionary:
 		"border": border,
 		"weapons_hbox": weapons_hbox,
 	}
+
+
+static func build_bottom_panel(icon_data: Array, fire_groups: Array, panel_width: float = 1920.0, panel_height: float = 80.0, overrides: Dictionary = {}) -> Dictionary:
+	## Build a redesigned bottom HUD panel with chrome background, bezeled LED icons,
+	## labeled COMPONENTS (left) + FIRE GROUPS (right) sections, and warning screens.
+	## icon_data: [{number, active, color, type}, ...]
+	## fire_groups: [{key_label, pattern_label, active}, ...]
+	## overrides: per-variant tuning dict
+	## Returns: {root, icon_entries, fg_entries, warning_labels, section_labels}
+
+	# Read overrides with defaults
+	var warn_w: int = int(overrides.get("warning_width", WARNING_WIDTH))
+	var warn_h: int = int(overrides.get("warning_height", WARNING_HEIGHT))
+	var warn_bezel: float = float(overrides.get("warning_bezel", 0.12))
+	var icon_bezel: float = float(overrides.get("icon_bezel", 0.16))
+	var icon_depth: float = float(overrides.get("icon_depth", 1.4))
+	var icon_shadow: float = float(overrides.get("icon_shadow", 1.3))
+	var icon_bevel: float = float(overrides.get("icon_bevel", 0.35))
+	var labels_below: bool = overrides.get("labels_below", false) as bool
+	var show_labels: bool = overrides.get("show_labels", true) as bool
+	var show_pattern: bool = overrides.get("show_pattern", false) as bool
+	var warn_position: String = str(overrides.get("warn_position", "edges"))  # "edges" or "center"
+
+	# Root: ColorRect with chrome_panel shader
+	var root := ColorRect.new()
+	root.color = Color.WHITE
+	root.custom_minimum_size = Vector2(panel_width, panel_height)
+	var chrome_shader: Shader = load("res://assets/shaders/chrome_panel.gdshader") as Shader
+	if chrome_shader:
+		var mat := ShaderMaterial.new()
+		mat.shader = chrome_shader
+		mat.set_shader_parameter("base_color", Vector4(0.02, 0.02, 0.03, 1.0))
+		mat.set_shader_parameter("chrome_top_brightness", 0.3)
+		mat.set_shader_parameter("chrome_base_brightness", 0.15)
+		mat.set_shader_parameter("highlight_intensity", 0.06)
+		mat.set_shader_parameter("edge_brightness", 0.02)
+		mat.set_shader_parameter("divider_y", -1.0)
+		root.material = mat
+
+	# Padding wrapper — ~1/6 of panel width on each side
+	var h_pad: int = int(panel_width / 6.0)
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", h_pad)
+	margin.add_theme_constant_override("margin_right", h_pad)
+	margin.add_theme_constant_override("margin_top", 3)
+	margin.add_theme_constant_override("margin_bottom", 3)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(margin)
+
+	# Main horizontal layout
+	var main_hbox := HBoxContainer.new()
+	main_hbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	main_hbox.add_theme_constant_override("separation", 20)
+	main_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(main_hbox)
+
+	var warning_labels: Array = []
+	var section_labels: Array = []  # Labels styled like side panel bar labels
+	var bezel_shader: Shader = load("res://assets/shaders/bar_bezel_segments.gdshader") as Shader
+	var icon_params: Dictionary = {
+		"icon_bezel": icon_bezel, "icon_depth": icon_depth,
+		"icon_shadow": icon_shadow, "icon_bevel": icon_bevel,
+	}
+
+	# ── Left warning screen (if edges mode) ──
+	if warn_position == "edges":
+		var wl: Dictionary = _build_warning_screen("", warn_w, warn_h, warn_bezel)
+		main_hbox.add_child(wl["panel"])
+		warning_labels.append(wl["label"])
+
+	# ── COMPONENTS section ──
+	var comp_section := VBoxContainer.new()
+	comp_section.add_theme_constant_override("separation", 2)
+	comp_section.alignment = BoxContainer.ALIGNMENT_CENTER
+	comp_section.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_hbox.add_child(comp_section)
+
+	var comp_label: Label = null
+	if show_labels:
+		comp_label = _build_section_label("COMPONENTS")
+		section_labels.append(comp_label)
+
+	var comp_icons_hbox := HBoxContainer.new()
+	comp_icons_hbox.add_theme_constant_override("separation", 4)
+	comp_icons_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	comp_icons_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	if labels_below:
+		comp_section.add_child(comp_icons_hbox)
+		if comp_label:
+			comp_section.add_child(comp_label)
+	else:
+		if comp_label:
+			comp_section.add_child(comp_label)
+		comp_section.add_child(comp_icons_hbox)
+
+	# Build component icons
+	var icon_entries: Array = []
+	for i in icon_data.size():
+		var idata: Dictionary = icon_data[i]
+		var number: int = int(idata.get("number", i + 1))
+		var active: bool = idata.get("active", false) as bool
+		var color: Color = idata.get("color", Color.WHITE) as Color
+		var entry: Dictionary = _build_bezeled_icon(str(number), active, color, bezel_shader, icon_params)
+		comp_icons_hbox.add_child(entry["container"])
+		icon_entries.append(entry)
+		# Type separator
+		if i < icon_data.size() - 1:
+			var curr_type: String = str(idata.get("type", "weapon"))
+			var next_type: String = str(icon_data[i + 1].get("type", "weapon"))
+			if curr_type != next_type:
+				var sep := ColorRect.new()
+				sep.custom_minimum_size = Vector2(2, BOTTOM_ICON_SIZE)
+				sep.color = ThemeManager.get_color("disabled")
+				comp_icons_hbox.add_child(sep)
+
+	# ── Center warning screens (if center mode) ──
+	if warn_position == "center":
+		var wl: Dictionary = _build_warning_screen("", warn_w, warn_h, warn_bezel)
+		main_hbox.add_child(wl["panel"])
+		warning_labels.append(wl["label"])
+		var wr: Dictionary = _build_warning_screen("", warn_w, warn_h, warn_bezel)
+		main_hbox.add_child(wr["panel"])
+		warning_labels.append(wr["label"])
+
+	# ── Spacer between sections — expand to fill, or fixed width to pull closer ──
+	var center_gap: int = int(overrides.get("center_gap", 0))
+	var spacer := Control.new()
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if center_gap > 0:
+		spacer.custom_minimum_size.x = center_gap
+	else:
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_hbox.add_child(spacer)
+
+	# ── FIRE GROUPS section ──
+	var fg_section := VBoxContainer.new()
+	fg_section.add_theme_constant_override("separation", 2)
+	fg_section.alignment = BoxContainer.ALIGNMENT_CENTER
+	fg_section.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_hbox.add_child(fg_section)
+
+	var fg_label: Label = null
+	if show_labels:
+		fg_label = _build_section_label("FIRE GROUPS")
+		section_labels.append(fg_label)
+
+	var fg_icons_hbox := HBoxContainer.new()
+	fg_icons_hbox.add_theme_constant_override("separation", 4)
+	fg_icons_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	fg_icons_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	if labels_below:
+		fg_section.add_child(fg_icons_hbox)
+		if fg_label:
+			fg_section.add_child(fg_label)
+	else:
+		if fg_label:
+			fg_section.add_child(fg_label)
+		fg_section.add_child(fg_icons_hbox)
+
+	# Build fire group icons — key label on face, optional pattern label below
+	var fg_entries: Array = []
+	var fg_accent: Color = ThemeManager.get_color("accent")
+	for fg in fire_groups:
+		var key_lbl: String = str(fg.get("key_label", "?"))
+		var fg_active: bool = fg.get("active", false) as bool
+		var entry: Dictionary = _build_bezeled_icon(key_lbl, fg_active, fg_accent, bezel_shader, icon_params)
+		fg_icons_hbox.add_child(entry["container"])
+		fg_entries.append(entry)
+
+		# Optional pattern sublabel below the icon
+		if show_pattern:
+			var pattern_lbl: String = str(fg.get("pattern_label", ""))
+			if pattern_lbl != "":
+				var plbl := Label.new()
+				plbl.text = pattern_lbl
+				plbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				plbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				plbl.add_theme_font_size_override("font_size", 8)
+				plbl.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+				var pfont: Font = ThemeManager.get_font("font_body")
+				if pfont:
+					plbl.add_theme_font_override("font", pfont)
+				# Put it in a VBox wrapping the icon
+				var wrapper := VBoxContainer.new()
+				wrapper.add_theme_constant_override("separation", 0)
+				wrapper.alignment = BoxContainer.ALIGNMENT_CENTER
+				wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				# Reparent icon into wrapper
+				fg_icons_hbox.remove_child(entry["container"])
+				wrapper.add_child(entry["container"])
+				wrapper.add_child(plbl)
+				fg_icons_hbox.add_child(wrapper)
+
+	# ── Right warning screen (if edges mode) ──
+	if warn_position == "edges":
+		var wr: Dictionary = _build_warning_screen("", warn_w, warn_h, warn_bezel)
+		main_hbox.add_child(wr["panel"])
+		warning_labels.append(wr["label"])
+
+	return {
+		"root": root,
+		"icon_entries": icon_entries,
+		"fg_entries": fg_entries,
+		"warning_labels": warning_labels,
+		"section_labels": section_labels,
+		"comp_icons_hbox": comp_icons_hbox,
+		"fg_icons_hbox": fg_icons_hbox,
+	}
+
+
+static func _build_bezeled_icon(label_text: String, active: bool, color: Color, bezel_shader: Shader, params: Dictionary = {}) -> Dictionary:
+	## Build a single icon with bezel frame — looks like an inset LED panel.
+	## label_text: displayed on the icon face (number, key label, etc.)
+	## Container is fixed-size so toggling active/inactive never causes layout shift.
+	## Returns: {container, bg_rect, glow_rect, number_label, active, color}
+	var icon_size: int = BOTTOM_ICON_SIZE
+	var pad: float = BOTTOM_BEZEL_PAD
+	var total_size: float = float(icon_size) + pad * 2.0
+	var body_font: Font = ThemeManager.get_font("font_body")
+
+	# Read per-variant params
+	var p_bezel: float = float(params.get("icon_bezel", 0.16))
+	var p_depth: float = float(params.get("icon_depth", 1.4))
+	var p_shadow: float = float(params.get("icon_shadow", 1.3))
+	var p_bevel: float = float(params.get("icon_bevel", 0.35))
+
+	# Fixed-size container — never changes size on toggle
+	var container := Control.new()
+	container.custom_minimum_size = Vector2(total_size, total_size)
+	container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+	# LED background — the lit surface
+	var bg_rect := ColorRect.new()
+	bg_rect.position = Vector2(pad, pad)
+	bg_rect.size = Vector2(icon_size, icon_size)
+	bg_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.add_child(bg_rect)
+
+	# HDR glow rect — bloom source for active icons (color only, no size change)
+	var glow_rect := ColorRect.new()
+	glow_rect.position = Vector2(pad, pad)
+	glow_rect.size = Vector2(icon_size, icon_size)
+	glow_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow_rect.color = Color(0, 0, 0, 0)
+	container.add_child(glow_rect)
+
+	# Bezel overlay — per-segment shader with 1 segment = single socket frame
+	if bezel_shader:
+		var bezel_rect := ColorRect.new()
+		bezel_rect.position = Vector2.ZERO
+		bezel_rect.size = Vector2(total_size, total_size)
+		bezel_rect.color = Color.WHITE
+		bezel_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var smat := ShaderMaterial.new()
+		smat.shader = bezel_shader
+		smat.set_shader_parameter("segment_count", 1)
+		smat.set_shader_parameter("vertical", 0)
+		smat.set_shader_parameter("segment_gap", 0.0)
+		smat.set_shader_parameter("socket_bezel", p_bezel)
+		smat.set_shader_parameter("socket_radius", 0.04)
+		smat.set_shader_parameter("inner_shadow_intensity", p_shadow)
+		smat.set_shader_parameter("inner_shadow_softness", 0.3)
+		smat.set_shader_parameter("shadow_direction", 0.5)
+		smat.set_shader_parameter("bevel_intensity", p_bevel)
+		smat.set_shader_parameter("bevel_softness", 0.35)
+		smat.set_shader_parameter("rim_intensity", 0.0)
+		smat.set_shader_parameter("metal_color", Color(0.03, 0.03, 0.04, 1.0))
+		smat.set_shader_parameter("metal_roughness", 0.2)
+		smat.set_shader_parameter("outer_shadow_intensity", 0.8)
+		smat.set_shader_parameter("outer_shadow_size", 0.09)
+		smat.set_shader_parameter("depth_scale", p_depth)
+		smat.set_shader_parameter("edge_pad_x", pad / total_size)
+		smat.set_shader_parameter("edge_pad_y", pad / total_size)
+		bezel_rect.material = smat
+		container.add_child(bezel_rect)
+
+	# Label on top — auto-size to fill ~80% of the icon face
+	var number_label := Label.new()
+	number_label.text = label_text
+	number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	number_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	number_label.position = Vector2(pad, pad)
+	number_label.size = Vector2(icon_size, icon_size)
+	number_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Scale font to fill 80% of icon — shorter labels get bigger text
+	var target_width: float = float(icon_size) * 0.8
+	var char_count: int = maxi(label_text.length(), 1)
+	var icon_font_size: int = clampi(int(target_width / (float(char_count) * 0.55)), 10, 28)
+	number_label.add_theme_font_size_override("font_size", icon_font_size)
+	if body_font:
+		number_label.add_theme_font_override("font", body_font)
+	container.add_child(number_label)
+
+	# Text glow shader for inverted mode — makes the label text bloom
+	var is_inverted: bool = params.get("icon_inverted", false) as bool
+	if is_inverted:
+		var glow_shader: Shader = load("res://assets/shaders/text_glow.gdshader") as Shader
+		if glow_shader:
+			var gmat := ShaderMaterial.new()
+			gmat.shader = glow_shader
+			gmat.set_shader_parameter("aura_size", 2.5)
+			gmat.set_shader_parameter("aura_intensity", 1.0)
+			gmat.set_shader_parameter("bloom_size", 5.0)
+			gmat.set_shader_parameter("bloom_intensity", 0.5)
+			number_label.material = gmat
+
+	var entry: Dictionary = {
+		"container": container,
+		"bg_rect": bg_rect,
+		"glow_rect": glow_rect,
+		"number_label": number_label,
+		"active": active,
+		"color": color,
+		"inverted": is_inverted,
+	}
+	apply_bezeled_icon_theme(entry)
+	return entry
+
+
+static func apply_bezeled_icon_theme(icon: Dictionary) -> void:
+	## Active/inactive visual state for a bezeled bottom-bar icon.
+	## Only changes color — never size, position, or visibility — so layout is stable.
+	## "inverted" mode: dark bg, glowing HDR text instead of lit bg + dark text.
+	var active: bool = icon["active"]
+	var color: Color = icon["color"]
+	var bg: ColorRect = icon["bg_rect"]
+	var glow: ColorRect = icon["glow_rect"]
+	var lbl: Label = icon["number_label"]
+	var inverted: bool = icon.get("inverted", false) as bool
+
+	if inverted:
+		# Dark background always — text glows in the icon's color when active
+		var dark := Color(0.03, 0.03, 0.05)
+		bg.color = dark
+		if active:
+			# HDR text color for bloom glow
+			var hdr := Color(color.r * 2.5, color.g * 2.5, color.b * 2.5, 1.0)
+			lbl.add_theme_color_override("font_color", hdr)
+			glow.color = Color(color.r * 1.5, color.g * 1.5, color.b * 1.5, 0.25)
+		else:
+			lbl.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+			glow.color = Color(0, 0, 0, 0)
+	else:
+		if active:
+			bg.color = color
+			# HDR glow for bloom — color * 2.0 exceeds 1.0 threshold
+			glow.color = Color(color.r * 2.0, color.g * 2.0, color.b * 2.0, 0.4)
+			lbl.add_theme_color_override("font_color", Color(0.02, 0.02, 0.05))
+		else:
+			var dim: Color = Color(0.04, 0.04, 0.06)
+			bg.color = dim
+			glow.color = Color(0, 0, 0, 0)
+			lbl.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+
+
+static func _build_section_label(text: String) -> Label:
+	## Build a section label styled like the side panel bar labels (SHLD, HULL, etc.)
+	## Uses font_body, HDR 1.5x color from accent, text_glow shader.
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var accent: Color = ThemeManager.get_color("accent")
+	apply_bar_label_theme(lbl, accent, ThemeManager.get_font("font_body"), ThemeManager.get_font_size("font_size_body"))
+	return lbl
+
+
+static func apply_section_label_theme(lbl: Label) -> void:
+	## Re-apply theming on a bottom bar section label after theme change.
+	var accent: Color = ThemeManager.get_color("accent")
+	apply_bar_label_theme(lbl, accent, ThemeManager.get_font("font_body"), ThemeManager.get_font_size("font_size_body"))
+
+
+static func _build_warning_screen(text: String, w: int, h: int, bezel_width: float = 0.12) -> Dictionary:
+	## A dark bezel-framed rectangle with HDR warning text.
+	## Returns: {panel, label}
+	var pad: float = 4.0
+	var total_w: float = float(w) + pad * 2.0
+	var total_h: float = float(h) + pad * 2.0
+
+	var panel := ColorRect.new()
+	panel.custom_minimum_size = Vector2(total_w, total_h)
+	panel.color = Color(0.01, 0.01, 0.015, 1.0)  # Very dark screen background
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# Bezel frame around the warning screen
+	var bezel_shader: Shader = load("res://assets/shaders/bar_bezel_segments.gdshader") as Shader
+	if bezel_shader:
+		var bezel := ColorRect.new()
+		bezel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bezel.color = Color.WHITE
+		bezel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var mat := ShaderMaterial.new()
+		mat.shader = bezel_shader
+		mat.set_shader_parameter("segment_count", 1)
+		mat.set_shader_parameter("vertical", 0)
+		mat.set_shader_parameter("segment_gap", 0.0)
+		mat.set_shader_parameter("socket_bezel", bezel_width)
+		mat.set_shader_parameter("socket_radius", 0.03)
+		mat.set_shader_parameter("inner_shadow_intensity", 1.0)
+		mat.set_shader_parameter("inner_shadow_softness", 0.4)
+		mat.set_shader_parameter("shadow_direction", 0.3)
+		mat.set_shader_parameter("bevel_intensity", 0.25)
+		mat.set_shader_parameter("bevel_softness", 0.4)
+		mat.set_shader_parameter("rim_intensity", 0.0)
+		mat.set_shader_parameter("metal_color", Color(0.03, 0.03, 0.04, 1.0))
+		mat.set_shader_parameter("metal_roughness", 0.2)
+		mat.set_shader_parameter("outer_shadow_intensity", 0.6)
+		mat.set_shader_parameter("outer_shadow_size", 0.06)
+		mat.set_shader_parameter("depth_scale", 1.2)
+		mat.set_shader_parameter("edge_pad_x", pad / total_w)
+		mat.set_shader_parameter("edge_pad_y", pad / total_h)
+		bezel.material = mat
+		panel.add_child(bezel)
+
+	# Warning label — HDR color for bloom when active, hidden when inactive.
+	# Font auto-sized to fill ~80% of interior width for longest expected text.
+	# "SHIELD CRITICAL" (15 chars) is the longest warning message.
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.clip_text = true
+	var body_font: Font = ThemeManager.get_font("font_body")
+	if body_font:
+		lbl.add_theme_font_override("font", body_font)
+	# Auto-size: fill 80% of usable width for 15-char max text, cap by 80% of height
+	var usable_w: float = float(w) * 0.8
+	var size_from_w: int = int(usable_w / (15.0 * 0.55))
+	var size_from_h: int = int(float(h) * 0.7)
+	var warn_font_size: int = clampi(mini(size_from_w, size_from_h), 8, 24)
+	lbl.add_theme_font_size_override("font_size", warn_font_size)
+	lbl.add_theme_color_override("font_color", Color(0, 0, 0, 0))  # invisible by default
+
+	# Text glow shader for warning text
+	var glow_shader: Shader = load("res://assets/shaders/text_glow.gdshader") as Shader
+	if glow_shader:
+		var gmat := ShaderMaterial.new()
+		gmat.shader = glow_shader
+		gmat.set_shader_parameter("aura_size", 2.0)
+		gmat.set_shader_parameter("aura_intensity", 1.0)
+		gmat.set_shader_parameter("bloom_size", 4.0)
+		gmat.set_shader_parameter("bloom_intensity", 0.6)
+		lbl.material = gmat
+	panel.add_child(lbl)
+
+	return {"panel": panel, "label": lbl}
+
+
+static func set_warning_active(lbl: Label, active: bool, color: Color, hdr_mult: float = 2.5) -> void:
+	## Toggle a warning label on/off with HDR color for bloom.
+	if active:
+		var hdr := Color(color.r * hdr_mult, color.g * hdr_mult, color.b * hdr_mult, 1.0)
+		lbl.add_theme_color_override("font_color", hdr)
+	else:
+		lbl.add_theme_color_override("font_color", Color(0, 0, 0, 0))
 
 
 static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dictionary, panel_height: float = 948.0) -> Dictionary:
@@ -437,17 +911,13 @@ static func apply_hud_theme(result: Dictionary) -> void:
 	var panel_color: Color = ThemeManager.get_color("panel")
 	var mode: String = str(result["mode"])
 
-	# Bottom bar
-	var bottom: Dictionary = result["bottom_bar"]
-	if mode == "game":
-		bottom["root"].color = panel_color
-		bottom["border"].color = border_color
-	else:
-		var panel: PanelContainer = bottom["root"]
-		var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
-		if style:
-			style.bg_color = panel_color
-			style.border_color = border_color
+	# Bottom panel — chrome shader handles its own appearance, just update accent
+	var bottom: Dictionary = result.get("bottom_panel", {})
+	if not bottom.is_empty():
+		var broot: ColorRect = bottom["root"] as ColorRect
+		if broot and broot.material is ShaderMaterial:
+			var bmat: ShaderMaterial = broot.material as ShaderMaterial
+			bmat.set_shader_parameter("divider_color", Vector4(accent_color.r, accent_color.g, accent_color.b, 0.5))
 
 	# Side panels — update chrome shader divider color from accent
 	for panel_key in ["left_panel", "right_panel"]:

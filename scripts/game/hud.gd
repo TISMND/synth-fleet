@@ -8,10 +8,13 @@ extends Control
 var _credits_label: Label = null
 var _menu_hint: Label = null
 var _hud_result: Dictionary = {}  # HudBuilder.build_hud() result
-var _weapons_hbox: HBoxContainer = null
-var _weapon_icons: Array = []  # Array of dicts: {container, bg_rect, number_label, active, color}
-var _core_icons: Array = []    # Array of dicts: same shape as weapon_icons
-var _device_icons: Array = []  # Array of dicts: same shape as weapon_icons
+var _bottom_panel: Dictionary = {}  # build_bottom_panel() result
+var _comp_icons_hbox: HBoxContainer = null  # Component icons container in bottom panel
+var _fg_icons_hbox_bottom: HBoxContainer = null  # Fire group icons container in bottom panel
+var _weapon_icons: Array = []  # Array of dicts from _build_bezeled_icon
+var _core_icons: Array = []
+var _device_icons: Array = []
+var _warning_labels: Array = []  # Warning label nodes from bottom panel
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label, "vertical": bool}
 var _bar_segments: Dictionary = {}  # bar_name -> int segment count
 var _bar_base_colors: Dictionary = {}  # bar_name -> Color
@@ -70,11 +73,15 @@ func _build_ui() -> void:
 	var side_height: float = side_bottom - side_top
 	_hud_result = HudBuilder.build_hud("game", side_height)
 
-	# Position bottom bar
-	var bottom_root: ColorRect = _hud_result["bottom_bar"]["root"]
+	# Position bottom panel
+	_bottom_panel = _hud_result["bottom_panel"]
+	var bottom_root: ColorRect = _bottom_panel["root"]
 	bottom_root.position = Vector2(0, 1080 - HudBuilder.BOTTOM_BAR_HEIGHT)
 	bottom_root.size = Vector2(1920, HudBuilder.BOTTOM_BAR_HEIGHT)
 	add_child(bottom_root)
+	_warning_labels = _bottom_panel["warning_labels"]
+	_comp_icons_hbox = _bottom_panel["comp_icons_hbox"]
+	_fg_icons_hbox_bottom = _bottom_panel["fg_icons_hbox"]
 
 	# Position left panel (Shield + Hull)
 	var left_root: ColorRect = _hud_result["left_panel"]["root"]
@@ -87,8 +94,6 @@ func _build_ui() -> void:
 	right_root.position = Vector2(1920 - HudBuilder.SIDE_PANEL_WIDTH, side_top)
 	right_root.size = Vector2(HudBuilder.SIDE_PANEL_WIDTH, side_height)
 	add_child(right_root)
-
-	_weapons_hbox = _hud_result["weapons_hbox"]
 
 	# Merge bars from both side panels into unified _bars dict
 	var left_bars: Dictionary = _hud_result["left_panel"]["bars"]
@@ -175,7 +180,14 @@ func _apply_theme() -> void:
 
 	# Weapon icons
 	for icon in _weapon_icons:
-		HudBuilder.apply_icon_theme(icon)
+		if icon.has("bg_rect"):
+			HudBuilder.apply_bezeled_icon_theme(icon)
+	for icon in _core_icons:
+		if icon.has("bg_rect"):
+			HudBuilder.apply_bezeled_icon_theme(icon)
+	for icon in _device_icons:
+		if icon.has("bg_rect"):
+			HudBuilder.apply_bezeled_icon_theme(icon)
 
 
 func update_health(current_shield: float, max_shield: float, current_hull: float, max_hull: float) -> void:
@@ -188,6 +200,13 @@ func update_all_bars(current_shield: float, max_shield: float, current_hull: flo
 	_update_bar("HULL", current_hull, max_hull, "bar_hull")
 	_update_bar("THERMAL", current_thermal, max_thermal, "bar_thermal")
 	_update_bar("ELECTRIC", current_electric, max_electric, "bar_electric")
+	# Update warning displays
+	_update_warnings({
+		"THERMAL": current_thermal / maxf(max_thermal, 1.0),
+		"HULL": current_hull / maxf(max_hull, 1.0),
+		"SHIELD": current_shield / maxf(max_shield, 1.0),
+		"ELECTRIC": current_electric / maxf(max_electric, 1.0),
+	})
 
 
 func _update_bar(bar_name: String, current: float, max_val: float, color_key: String) -> void:
@@ -309,6 +328,38 @@ func _apply_wave_uniforms(bar_name: String) -> void:
 	mat.set_shader_parameter("drain_wave_pos", drain_pos)
 
 
+var _warning_flash_time: float = 0.0
+
+func _update_warnings(ratios: Dictionary) -> void:
+	if _warning_labels.is_empty():
+		return
+	_warning_flash_time += get_process_delta_time() * 3.0
+	var flash: bool = fmod(_warning_flash_time, 2.0) < 1.4
+	var warning_color := Color(1.0, 0.2, 0.1)
+
+	# Find the most critical active warning
+	var active_warning: String = ""
+	for w in HudBuilder.WARNINGS:
+		var stat: String = str(w["stat"])
+		var threshold: float = float(w["threshold"])
+		var above: bool = w["above"]
+		var ratio: float = float(ratios.get(stat, 0.0))
+		if above and ratio > threshold:
+			active_warning = str(w["text"])
+			break
+		elif not above and ratio < threshold:
+			active_warning = str(w["text"])
+			break
+
+	for lbl in _warning_labels:
+		if active_warning != "" and flash:
+			(lbl as Label).text = active_warning
+			HudBuilder.set_warning_active(lbl, true, warning_color)
+		else:
+			(lbl as Label).text = ""
+			HudBuilder.set_warning_active(lbl, false, warning_color)
+
+
 func update_credits(amount: int) -> void:
 	_credits_label.text = "CR: " + str(amount)
 
@@ -333,9 +384,9 @@ func process_shield_arcs(delta: float) -> void:
 	if not _shield_arcing or not _bars.has("SHIELD"):
 		return
 	_shield_arc_timer -= delta
-	if _shield_arc_timer <= 0.0 and _shield_arcs.size() < 2:
+	if _shield_arc_timer <= 0.0 and _shield_arcs.size() < 4:
 		_spawn_shield_arc()
-		_shield_arc_timer = randf_range(0.1, 0.4)
+		_shield_arc_timer = randf_range(0.06, 0.25)
 	# Update existing arcs
 	var i: int = _shield_arcs.size() - 1
 	while i >= 0:
@@ -381,7 +432,7 @@ func _spawn_shield_arc() -> void:
 	line.width = randf_range(1.0, 2.0)
 	line.default_color = Color(0.5, 0.7, 1.0, 1.0)
 	line.antialiased = true
-	line.modulate = Color(3.3, 3.3, 3.3, 1.0)
+	line.modulate = Color(3.4, 3.4, 3.4, 1.0)
 	_shield_arc_container.add_child(line)
 	_shield_arcs.append({"line": line, "life": randf_range(0.05, 0.12), "age": 0.0})
 
@@ -562,69 +613,88 @@ func process_power_death_bars(delta: float) -> void:
 
 
 func update_hardpoints(data: Array) -> void:
-	# Clear existing icons
-	for icon in _weapon_icons:
-		if is_instance_valid(icon["container"]):
-			icon["container"].queue_free()
-	_weapon_icons.clear()
-
-	for i in data.size():
-		var entry: Dictionary = data[i]
-		var active: bool = entry.get("active", false) as bool
-		var color: Color = entry.get("color", Color.CYAN) as Color
-		var icon_data: Dictionary = HudBuilder.build_weapon_icon(i + 1, active, color)
-		_weapons_hbox.add_child(icon_data["container"])
-		_weapon_icons.append(icon_data)
+	if not _comp_icons_hbox:
+		return
+	# First call: build icons. Subsequent calls: just toggle active state.
+	if _weapon_icons.size() != data.size():
+		# Rebuild — slot count changed (loadout change)
+		for icon in _weapon_icons:
+			if is_instance_valid(icon["container"]):
+				icon["container"].queue_free()
+		_weapon_icons.clear()
+		var bezel_shader: Shader = load("res://assets/shaders/bar_bezel_segments.gdshader") as Shader
+		for i in data.size():
+			var entry: Dictionary = data[i]
+			var color: Color = entry.get("color", Color.CYAN) as Color
+			var active: bool = entry.get("active", false) as bool
+			var icon_data: Dictionary = HudBuilder._build_bezeled_icon(str(i + 1), active, color, bezel_shader)
+			_comp_icons_hbox.add_child(icon_data["container"])
+			_weapon_icons.append(icon_data)
+	else:
+		# Same count — just update active state
+		for i in data.size():
+			var active: bool = data[i].get("active", false) as bool
+			_weapon_icons[i]["active"] = active
+			HudBuilder.apply_bezeled_icon_theme(_weapon_icons[i])
 
 
 func update_cores(data: Array) -> void:
-	# Clear existing core icons
-	for icon in _core_icons:
-		if is_instance_valid(icon["container"]):
-			icon["container"].queue_free()
-	_core_icons.clear()
-
-	if data.is_empty():
+	if not _comp_icons_hbox:
 		return
-
-	# Separator between weapons and cores
-	var sep: ColorRect = HudBuilder.build_icon_separator()
-	_weapons_hbox.add_child(sep)
-	_core_icons.append({"container": sep, "bg_rect": sep, "number_label": null, "active": false, "color": Color.WHITE})
-
-	for i in data.size():
-		var entry: Dictionary = data[i]
-		var active: bool = entry.get("active", false) as bool
-		var color: Color = entry.get("color", Color(0.6, 0.4, 1.0)) as Color
-		var key_label: String = str(entry.get("key", str(i + 1)))
-		var icon_data: Dictionary = HudBuilder.build_weapon_icon(0, active, color)
-		# Override the number label text with the key label
-		icon_data["number_label"].text = key_label
-		_weapons_hbox.add_child(icon_data["container"])
-		_core_icons.append(icon_data)
+	if _core_icons.size() != data.size():
+		for icon in _core_icons:
+			if icon.has("container") and is_instance_valid(icon["container"]):
+				icon["container"].queue_free()
+		_core_icons.clear()
+		if data.is_empty():
+			return
+		var bezel_shader: Shader = load("res://assets/shaders/bar_bezel_segments.gdshader") as Shader
+		# Separator
+		var sep := ColorRect.new()
+		sep.custom_minimum_size = Vector2(2, HudBuilder.BOTTOM_ICON_SIZE)
+		sep.color = ThemeManager.get_color("disabled")
+		_comp_icons_hbox.add_child(sep)
+		for i in data.size():
+			var entry: Dictionary = data[i]
+			var color: Color = entry.get("color", Color(0.6, 0.4, 1.0)) as Color
+			var active: bool = entry.get("active", false) as bool
+			var slot_num: int = _weapon_icons.size() + i + 1
+			var icon_data: Dictionary = HudBuilder._build_bezeled_icon(str(slot_num), active, color, bezel_shader)
+			_comp_icons_hbox.add_child(icon_data["container"])
+			_core_icons.append(icon_data)
+	else:
+		for i in data.size():
+			var active: bool = data[i].get("active", false) as bool
+			_core_icons[i]["active"] = active
+			HudBuilder.apply_bezeled_icon_theme(_core_icons[i])
 
 
 func update_devices(data: Array) -> void:
-	# Clear existing device icons
-	for icon in _device_icons:
-		if is_instance_valid(icon["container"]):
-			icon["container"].queue_free()
-	_device_icons.clear()
-
-	if data.is_empty():
+	if not _comp_icons_hbox:
 		return
-
-	# Separator between cores/weapons and devices
-	var sep: ColorRect = HudBuilder.build_icon_separator()
-	_weapons_hbox.add_child(sep)
-	_device_icons.append({"container": sep, "bg_rect": sep, "number_label": null, "active": false, "color": Color.WHITE})
-
-	for i in data.size():
-		var entry: Dictionary = data[i]
-		var active: bool = entry.get("active", false) as bool
-		var color: Color = entry.get("color", Color(0.0, 0.8, 1.0)) as Color
-		var key_label: String = str(entry.get("key", str(i + 1)))
-		var icon_data: Dictionary = HudBuilder.build_weapon_icon(0, active, color)
-		icon_data["number_label"].text = key_label
-		_weapons_hbox.add_child(icon_data["container"])
-		_device_icons.append(icon_data)
+	if _device_icons.size() != data.size():
+		for icon in _device_icons:
+			if icon.has("container") and is_instance_valid(icon["container"]):
+				icon["container"].queue_free()
+		_device_icons.clear()
+		if data.is_empty():
+			return
+		var bezel_shader: Shader = load("res://assets/shaders/bar_bezel_segments.gdshader") as Shader
+		# Separator
+		var sep := ColorRect.new()
+		sep.custom_minimum_size = Vector2(2, HudBuilder.BOTTOM_ICON_SIZE)
+		sep.color = ThemeManager.get_color("disabled")
+		_comp_icons_hbox.add_child(sep)
+		for i in data.size():
+			var entry: Dictionary = data[i]
+			var color: Color = entry.get("color", Color(0.0, 0.8, 1.0)) as Color
+			var active: bool = entry.get("active", false) as bool
+			var slot_num: int = _weapon_icons.size() + _core_icons.size() + i + 1
+			var icon_data: Dictionary = HudBuilder._build_bezeled_icon(str(slot_num), active, color, bezel_shader)
+			_comp_icons_hbox.add_child(icon_data["container"])
+			_device_icons.append(icon_data)
+	else:
+		for i in data.size():
+			var active: bool = data[i].get("active", false) as bool
+			_device_icons[i]["active"] = active
+			HudBuilder.apply_bezeled_icon_theme(_device_icons[i])

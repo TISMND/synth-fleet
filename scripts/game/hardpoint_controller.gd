@@ -45,8 +45,9 @@ func setup(weapon: WeaponData, dir_deg: float, proj_container: Node2D, hp_index:
 
 	_rebuild_triggers()
 
-	# Register loop with LoopMixer (muted by default)
-	if weapon.loop_file_path != "" and not LoopMixer.has_loop(_loop_id):
+	# Register loop with LoopMixer (muted by default).
+	# Always call add_loop — it handles duplicates via ref-counting for shared loops.
+	if weapon.loop_file_path != "":
 		LoopMixer.add_loop(_loop_id, weapon.loop_file_path, "Weapons", 0.0, true)
 
 
@@ -135,7 +136,7 @@ func cleanup() -> void:
 		if is_enemy:
 			# Enemy loops are ref-counted (shared across same-weapon enemies)
 			# and always fade out over 1.5s to avoid sharp audio cuts
-			LoopMixer.release_loop(_loop_id, 1500)
+			LoopMixer.release_loop(_loop_id, 2500)
 		else:
 			LoopMixer.remove_loop(_loop_id)
 

@@ -5,25 +5,40 @@ extends Node
 signal bindings_changed
 
 const SAVE_PATH := "user://settings/keybindings.json"
+const BINDINGS_VERSION: int = 3  # Increment to force re-initialization of key bindings
 
 # Default physical keycodes per slot type (indexed)
+## All component slots share sequential number keys.
+## Keys 1-9 then 0 covers up to 10 total slots.
+## HUD displays matching sequential numbers.
+const ALL_DEFAULT_KEYS: Array = [
+	{"physical_keycode": 49, "label": "1"},
+	{"physical_keycode": 50, "label": "2"},
+	{"physical_keycode": 51, "label": "3"},
+	{"physical_keycode": 52, "label": "4"},
+	{"physical_keycode": 53, "label": "5"},
+	{"physical_keycode": 54, "label": "6"},
+	{"physical_keycode": 55, "label": "7"},
+	{"physical_keycode": 56, "label": "8"},
+	{"physical_keycode": 57, "label": "9"},
+	{"physical_keycode": 48, "label": "0"},
+]
+# Legacy arrays for backwards compatibility — populated from ALL_DEFAULT_KEYS
 const WEAPON_DEFAULT_KEYS: Array = [
-	{"physical_keycode": 49, "label": "1"},  # 1
-	{"physical_keycode": 50, "label": "2"},  # 2
-	{"physical_keycode": 51, "label": "3"},  # 3
-	{"physical_keycode": 52, "label": "4"},  # 4
-	{"physical_keycode": 53, "label": "5"},  # 5
-	{"physical_keycode": 54, "label": "6"},  # 6
+	{"physical_keycode": 49, "label": "1"},
+	{"physical_keycode": 50, "label": "2"},
+	{"physical_keycode": 51, "label": "3"},
+	{"physical_keycode": 52, "label": "4"},
+	{"physical_keycode": 53, "label": "5"},
+	{"physical_keycode": 54, "label": "6"},
 ]
 const CORE_DEFAULT_KEYS: Array = [
-	{"physical_keycode": 69, "label": "E"},  # E
-	{"physical_keycode": 82, "label": "R"},  # R
+	{"physical_keycode": 55, "label": "7"},
+	{"physical_keycode": 56, "label": "8"},
 ]
 const FIELD_DEFAULT_KEYS: Array = [
-	{"physical_keycode": 70, "label": "F"},  # F
-	{"physical_keycode": 71, "label": "G"},  # G
-	{"physical_keycode": 84, "label": "T"},  # T
-	{"physical_keycode": 86, "label": "V"},  # V
+	{"physical_keycode": 57, "label": "9"},
+	{"physical_keycode": 48, "label": "0"},
 ]
 const PARTICLE_DEFAULT_KEYS: Array = [
 	{"physical_keycode": 72, "label": "H"},  # H
@@ -52,6 +67,13 @@ func _ready() -> void:
 	apply_to_input_map()
 
 
+func get_binding(slot_key: String) -> Dictionary:
+	## Returns the current binding for a slot key, or the default if not set.
+	if _bindings.has(slot_key):
+		return _bindings[slot_key]
+	return get_default_binding(slot_key)
+
+
 func get_slot_action(slot_key: String) -> String:
 	## Returns the InputMap action name for a slot key (e.g. "weapon_0" -> "slot_weapon_0").
 	return "slot_" + slot_key
@@ -59,35 +81,38 @@ func get_slot_action(slot_key: String) -> String:
 
 func get_default_binding(slot_key: String) -> Dictionary:
 	## Returns the default key binding for a given slot key.
+	## Sequential numbering: weapons 0-5 get keys 1-6, cores get 7-8, fields get 9-0.
+	## Uses fixed offsets so it doesn't depend on GameState slot counts (which may not be set yet).
+	var global_idx: int = -1
 	if slot_key.begins_with("weapon_"):
-		var idx: int = int(slot_key.replace("weapon_", ""))
-		if idx < WEAPON_DEFAULT_KEYS.size():
-			return WEAPON_DEFAULT_KEYS[idx]
+		global_idx = int(slot_key.replace("weapon_", ""))  # 0-5 → keys 1-6
 	elif slot_key.begins_with("core_"):
-		var idx: int = int(slot_key.replace("core_", ""))
-		if idx < CORE_DEFAULT_KEYS.size():
-			return CORE_DEFAULT_KEYS[idx]
+		global_idx = 6 + int(slot_key.replace("core_", ""))  # 6-7 → keys 7-8
 	elif slot_key.begins_with("field_"):
-		var idx: int = int(slot_key.replace("field_", ""))
-		if idx < FIELD_DEFAULT_KEYS.size():
-			return FIELD_DEFAULT_KEYS[idx]
+		global_idx = 8 + int(slot_key.replace("field_", ""))  # 8-9 → keys 9-0
 	elif slot_key.begins_with("particle_"):
-		var idx: int = int(slot_key.replace("particle_", ""))
-		if idx < PARTICLE_DEFAULT_KEYS.size():
-			return PARTICLE_DEFAULT_KEYS[idx]
+		global_idx = 12 + int(slot_key.replace("particle_", ""))
+	if global_idx >= 0 and global_idx < ALL_DEFAULT_KEYS.size():
+		return ALL_DEFAULT_KEYS[global_idx]
 	return {"physical_keycode": 0, "label": "?"}
 
 
 func _build_default_bindings() -> Dictionary:
+	## Build defaults for all possible slots — generous max counts.
+	## Actual sequential key assignment happens in get_default_binding().
 	var defaults: Dictionary = {}
-	for i in mini(6, WEAPON_DEFAULT_KEYS.size()):
-		defaults["weapon_" + str(i)] = WEAPON_DEFAULT_KEYS[i].duplicate()
-	for i in mini(3, CORE_DEFAULT_KEYS.size()):
-		defaults["core_" + str(i)] = CORE_DEFAULT_KEYS[i].duplicate()
-	for i in mini(4, FIELD_DEFAULT_KEYS.size()):
-		defaults["field_" + str(i)] = FIELD_DEFAULT_KEYS[i].duplicate()
-	for i in mini(2, PARTICLE_DEFAULT_KEYS.size()):
-		defaults["particle_" + str(i)] = PARTICLE_DEFAULT_KEYS[i].duplicate()
+	for i in 6:  # Up to 6 weapon slots
+		var sk: String = "weapon_" + str(i)
+		defaults[sk] = get_default_binding(sk)
+	for i in 3:  # Up to 3 core slots
+		var sk: String = "core_" + str(i)
+		defaults[sk] = get_default_binding(sk)
+	for i in 4:  # Up to 4 field slots
+		var sk: String = "field_" + str(i)
+		defaults[sk] = get_default_binding(sk)
+	for i in 2:  # Up to 2 particle slots
+		var sk: String = "particle_" + str(i)
+		defaults[sk] = get_default_binding(sk)
 	return defaults
 
 
@@ -125,8 +150,14 @@ func load_bindings() -> void:
 
 	var data: Dictionary = json.data as Dictionary if json.data is Dictionary else {}
 
+	# Check binding version — skip saved key bindings if outdated (keep combo presets)
+	var saved_version: int = int(data.get("bindings_version", 1))
+	var skip_bindings: bool = saved_version < BINDINGS_VERSION
+
 	# Load slot bindings — migrate old ext_/int_/dev_ keys to typed keys
 	var saved_bindings: Dictionary = data.get("bindings", {}) as Dictionary if data.get("bindings") is Dictionary else {}
+	if skip_bindings:
+		saved_bindings = {}  # Discard old bindings — use fresh defaults
 	for slot_key in saved_bindings:
 		var sk: String = str(slot_key)
 		if sk.begins_with("dev_"):
@@ -184,6 +215,7 @@ func save_bindings() -> void:
 	DirAccess.make_dir_recursive_absolute("user://settings")
 
 	var data: Dictionary = {
+		"bindings_version": BINDINGS_VERSION,
 		"bindings": _bindings,
 		"combo_presets": _combo_presets,
 		"slot_volumes": _slot_volumes,
@@ -195,6 +227,41 @@ func save_bindings() -> void:
 		return
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
+
+
+func reassign_sequential_keys() -> void:
+	## Reassign key bindings to sequential number keys for EQUIPPED slots only.
+	## Skips empty slots so keys are contiguous (1-2-3 not 1-2-3-_-5).
+	var slot_keys: Array[String] = []
+	# Only include slots that have something equipped
+	for i in GameState.get_weapon_slot_count():
+		var sk: String = "weapon_" + str(i)
+		var sd: Dictionary = GameState.slot_config.get(sk, {})
+		if str(sd.get("weapon_id", "")) != "":
+			slot_keys.append(sk)
+	for i in GameState.get_core_slot_count():
+		var sk: String = "core_" + str(i)
+		var sd: Dictionary = GameState.slot_config.get(sk, {})
+		if str(sd.get("device_id", "")) != "":
+			slot_keys.append(sk)
+	for i in GameState.get_field_slot_count():
+		var sk: String = "field_" + str(i)
+		var sd: Dictionary = GameState.slot_config.get(sk, {})
+		if str(sd.get("device_id", "")) != "":
+			slot_keys.append(sk)
+	for i in GameState.get_particle_slot_count():
+		var sk: String = "particle_" + str(i)
+		var sd: Dictionary = GameState.slot_config.get(sk, {})
+		if str(sd.get("device_id", "")) != "":
+			slot_keys.append(sk)
+	for i in slot_keys.size():
+		if i < ALL_DEFAULT_KEYS.size():
+			_bindings[slot_keys[i]] = ALL_DEFAULT_KEYS[i].duplicate()
+	print("[KEYBIND] reassign: %d slots, weapons=%d cores=%d fields=%d" % [
+		slot_keys.size(), GameState.get_weapon_slot_count(), GameState.get_core_slot_count(), GameState.get_field_slot_count()])
+	for sk in slot_keys:
+		print("[KEYBIND]   %s -> key %s" % [sk, str(_bindings[sk].get("label", "?"))])
+	apply_to_input_map()
 
 
 func apply_to_input_map() -> void:

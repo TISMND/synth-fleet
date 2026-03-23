@@ -35,6 +35,10 @@ extends Resource
 @export var transition_ms: int = 200  # fade duration in milliseconds (50–2000)
 @export var speed_modifier: float = 0.0  # percentage of base speed (+25 = 25% faster)
 @export var accel_modifier: float = 0.0  # percentage of base acceleration
+@export var shield_damage_reduction: float = 0.0  # percentage reduction to shield damage (0–100)
+@export var hull_damage_reduction: float = 0.0  # percentage reduction to hull damage (0–100)
+@export var disable_weapons: bool = false  # deactivate all weapons while active
+@export var disable_power_cores: bool = false  # deactivate all power cores while active
 @export var equip_slot: String = "flexible"  # "internal", "external", or "flexible"
 
 
@@ -100,6 +104,10 @@ static func from_dict(data: Dictionary) -> DeviceData:
 	# Ship modifiers
 	d.speed_modifier = float(data.get("speed_modifier", 0.0))
 	d.accel_modifier = float(data.get("accel_modifier", 0.0))
+	d.shield_damage_reduction = float(data.get("shield_damage_reduction", 0.0))
+	d.hull_damage_reduction = float(data.get("hull_damage_reduction", 0.0))
+	d.disable_weapons = bool(data.get("disable_weapons", false))
+	d.disable_power_cores = bool(data.get("disable_power_cores", false))
 
 	# Equip slot
 	d.equip_slot = str(data.get("equip_slot", "flexible"))
@@ -147,5 +155,9 @@ func to_dict() -> Dictionary:
 		"transition_ms": transition_ms,
 		"speed_modifier": speed_modifier,
 		"accel_modifier": accel_modifier,
+		"shield_damage_reduction": shield_damage_reduction,
+		"hull_damage_reduction": hull_damage_reduction,
+		"disable_weapons": disable_weapons,
+		"disable_power_cores": disable_power_cores,
 		"equip_slot": equip_slot,
 	}

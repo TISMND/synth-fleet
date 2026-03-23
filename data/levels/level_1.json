@@ -325,7 +325,7 @@
 			"x_offset": 531.245551601423
 		},
 		{
-			"count": 20,
+			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -339,7 +339,7 @@
 			"x_offset": 23.9145907473309
 		},
 		{
-			"count": 20,
+			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -353,7 +353,7 @@
 			"x_offset": 20.4982206405694
 		},
 		{
-			"count": 20,
+			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": false,
 			"path_id": "path_5",
