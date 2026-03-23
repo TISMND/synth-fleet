@@ -65,6 +65,7 @@ var _audio_btn: Button
 var _controls_btn: Button
 var _functional_content: VBoxContainer
 var _workshop_content: VBoxContainer
+var _sim_status_label: Label = null  # Status effects overlay on simulator viewport
 var _audio_content: VBoxContainer
 var _controls_content: VBoxContainer
 var _ws_slot_rows: Dictionary = {}  # slot_key -> {toggle_btn, name_btn, rate_labels}
@@ -2341,6 +2342,24 @@ func _build_ui() -> void:
 	_reset_btn.pressed.connect(_on_reset_bars)
 	controls_hbox.add_child(_reset_btn)
 
+	# Status effects overlay — bottom quarter of viewport, centered
+	_sim_status_label = Label.new()
+	_sim_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sim_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_sim_status_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_sim_status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_sim_status_label.offset_top = -60
+	_sim_status_label.offset_bottom = -20
+	_sim_status_label.offset_left = -200
+	_sim_status_label.offset_right = 200
+	_sim_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sim_status_label.add_theme_font_size_override("font_size", 13)
+	_sim_status_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5, 0.9))
+	var status_font: Font = ThemeManager.get_font("font_body")
+	if status_font:
+		_sim_status_label.add_theme_font_override("font", status_font)
+	_viewport_container.add_child(_sim_status_label)
+
 	# CENTER — mode toggle + content
 	var center_margin := MarginContainer.new()
 	center_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2876,6 +2895,46 @@ func _on_bar_effect_fired(effects: Dictionary) -> void:
 			mat.set_shader_parameter("fill_ratio", bar.value / maxf(bar.max_value, 1.0))
 
 
+func _update_sim_status() -> void:
+	if not _sim_status_label:
+		return
+	var lines: Array[String] = []
+
+	# Check bar values for critical states
+	for bar_name in _bars:
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		var ratio: float = bar.value / maxf(bar.max_value, 1.0)
+		if bar_name == "ELECTRIC" and ratio < 0.1 and bar.max_value > 0:
+			lines.append("POWER CRITICAL")
+		elif bar_name == "SHIELD" and ratio < 0.15 and bar.max_value > 0:
+			lines.append("SHIELDS FAILING")
+		elif bar_name == "THERMAL" and ratio > 0.8 and bar.max_value > 0:
+			lines.append("OVERHEATING")
+		elif bar_name == "HULL" and ratio < 0.2 and bar.max_value > 0:
+			lines.append("HULL INTEGRITY LOW")
+
+	# Check active device modifiers
+	for i in _device_previews.size():
+		var preview: Dictionary = _device_previews[i]
+		var device: DeviceData = preview["device"]
+		var slot_key: String = str(preview["slot_key"])
+		if not bool(_slot_active.get(slot_key, false)):
+			continue
+		if device.speed_modifier != 0.0:
+			var sign: String = "+" if device.speed_modifier > 0 else ""
+			lines.append("SPEED %s%d%%" % [sign, int(device.speed_modifier)])
+		if device.accel_modifier != 0.0:
+			var sign: String = "+" if device.accel_modifier > 0 else ""
+			lines.append("ACCEL %s%d%%" % [sign, int(device.accel_modifier)])
+		if device.shield_damage_reduction > 0.0:
+			lines.append("SHIELD DMG -%d%%" % int(device.shield_damage_reduction))
+		if device.hull_damage_reduction > 0.0:
+			lines.append("HULL DMG -%d%%" % int(device.hull_damage_reduction))
+
+	_sim_status_label.text = "\n".join(lines)
+
+
 func _advance_bar_waves(delta: float) -> void:
 	for bar_name in _bars:
 		var gain_wave: Dictionary = _bar_gain_waves.get(bar_name, {})
@@ -2912,6 +2971,7 @@ func _advance_bar_waves(delta: float) -> void:
 func _process(_delta: float) -> void:
 	_advance_bar_waves(_delta)
 	_animate_fg_totals(_delta)
+	_update_sim_status()
 	if not _is_playing:
 		return
 	_process_core_previews()
