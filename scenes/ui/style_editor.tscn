@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/ui/style_editor.gd" id="1"]
 
-[node name="AestheticStudio" type="Control"]
+[node name="StyleEditor" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
