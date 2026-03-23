@@ -37,5 +37,6 @@
 	},
 	"type": "enemy",
 	"visual_id": "obelisk",
-	"weapon_id": ""
+	"weapon_id": "",
+	"level": "level_1"
 }

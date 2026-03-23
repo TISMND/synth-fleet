@@ -18,6 +18,14 @@ var _game_viewport: SubViewport = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
 var _scroll_speed: float = 80.0
+var _flight_speed: float = 160.0
+var _flight_distance: float = 0.0
+
+# Debug parallax grids (F3 toggle)
+var _deep_debug_grid: Node2D = null
+var _bg_debug_grid: Node2D = null
+var _fg_debug_grid: Node2D = null
+var _debug_grids_visible: bool = false
 var _presence_counts: Dictionary = {}  # ship_id -> int (active enemy count)
 var _presence_loops: Dictionary = {}   # ship_id -> presence_loop_path
 
@@ -83,6 +91,7 @@ func _ready() -> void:
 
 	if _level_data:
 		_scroll_speed = _level_data.scroll_speed
+		_flight_speed = _level_data.flight_speed
 
 	# Game content renders in its own SubViewport with HDR + ACES + bloom —
 	# the exact same pipeline that component tab previews use.
@@ -105,6 +114,7 @@ func _ready() -> void:
 	# Build scene tree inside the game viewport
 	_setup_parallax()
 	_setup_nebulas()
+	_setup_debug_grids()
 
 	_projectiles = Node2D.new()
 	_projectiles.name = "Projectiles"
@@ -166,8 +176,11 @@ func _process(delta: float) -> void:
 	if _parallax_bg:
 		_parallax_bg.scroll_offset.y += _scroll_speed * delta
 	_scroll_distance += _scroll_speed * delta
+	_flight_distance += _flight_speed * delta
 	if _nebula_container:
-		_nebula_container.position.y = _scroll_distance
+		_nebula_container.position.y = _flight_distance
+	if _fg_debug_grid and _fg_debug_grid.visible:
+		_fg_debug_grid.position.y = fmod(_flight_distance, _fg_debug_grid.line_spacing)
 	if _wave_manager and not _death_sequence_active:
 		_wave_manager.advance_scroll(_scroll_distance)
 	# Apply nebula status effects each frame
@@ -188,6 +201,7 @@ func _process(delta: float) -> void:
 func _start_waves() -> void:
 	if _level_data:
 		_scroll_distance = 0.0
+		_flight_distance = 0.0
 		_wave_manager.setup_level(_level_data, _enemies, _player, _projectiles)
 	else:
 		var waves: Array = []
@@ -208,6 +222,15 @@ func _input(event: InputEvent) -> void:
 		return
 	if _death_sequence_active:
 		return  # Block all input during explosion sequence
+	if event is InputEventKey and event.pressed and not event.is_echo() and event.keycode == KEY_F3:
+		_debug_grids_visible = not _debug_grids_visible
+		if _deep_debug_grid:
+			_deep_debug_grid.visible = _debug_grids_visible
+		if _bg_debug_grid:
+			_bg_debug_grid.visible = _debug_grids_visible
+		if _fg_debug_grid:
+			_fg_debug_grid.visible = _debug_grids_visible
+		return
 	if event.is_action_pressed("ui_cancel"):
 		_return_to_menu()
 
@@ -622,8 +645,11 @@ func _setup_parallax() -> void:
 	_parallax_bg = ParallaxBackground.new()
 	_parallax_bg.name = "ParallaxBG"
 	_game_viewport.add_child(_parallax_bg)
-	_add_star_layer(0.3, 80, Color(0.3, 0.3, 0.5, 0.5), 1)
-	_add_star_layer(0.7, 50, Color(0.5, 0.5, 0.8, 0.7), 2)
+	# Deep background — static stars (speed = 0)
+	_add_star_layer(0.0, 80, Color(0.3, 0.3, 0.5, 0.5), 1)
+	_add_star_layer(0.0, 50, Color(0.5, 0.5, 0.8, 0.7), 2)
+	# Background layer (speed = scroll_speed) — future: buildings, ground structures
+	# Foreground layer (speed = flight_speed) — nebulas, debris (handled separately)
 
 
 func _add_star_layer(motion_scale: float, star_count: int, color: Color, seed_val: int) -> void:
@@ -638,6 +664,57 @@ func _add_star_layer(motion_scale: float, star_count: int, color: Color, seed_va
 	stars.star_seed = seed_val
 	stars.size = Vector2(1920, 1200)
 	layer.add_child(stars)
+
+
+class _DebugGrid extends Node2D:
+	var grid_color: Color = Color.GREEN
+	var label_text: String = "Layer"
+	var speed_value: float = 0.0
+	var line_spacing: float = 200.0
+
+	func _draw() -> void:
+		# Draw enough lines to cover viewport (1080) plus one extra above
+		var count: int = int(1200.0 / line_spacing) + 2
+		for i in range(-1, count):
+			var y: float = float(i) * line_spacing
+			draw_line(Vector2(0, y), Vector2(1920, y), grid_color, 2.0)
+		var font: Font = ThemeDB.fallback_font
+		var display: String = label_text + " (" + str(int(speed_value)) + " px/s)"
+		draw_string(font, Vector2(10, 20), display, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, grid_color)
+
+
+func _setup_debug_grids() -> void:
+	# Deep background grid — static, never moves (purple)
+	_deep_debug_grid = _DebugGrid.new()
+	_deep_debug_grid.grid_color = Color(0.6, 0.3, 0.9, 0.4)
+	_deep_debug_grid.label_text = "DEEP BG"
+	_deep_debug_grid.speed_value = 0.0
+	_deep_debug_grid.z_index = -9
+	_deep_debug_grid.visible = false
+	_game_viewport.add_child(_deep_debug_grid)
+
+	# Background grid — scrolls at scroll_speed via ParallaxLayer (green)
+	var bg_layer := ParallaxLayer.new()
+	bg_layer.motion_scale = Vector2(0, 1)
+	bg_layer.motion_mirroring = Vector2(0, 1200)
+	_parallax_bg.add_child(bg_layer)
+	_bg_debug_grid = _DebugGrid.new()
+	_bg_debug_grid.grid_color = Color(0.3, 0.9, 0.3, 0.4)
+	_bg_debug_grid.label_text = "BACKGROUND"
+	_bg_debug_grid.speed_value = _scroll_speed
+	_bg_debug_grid.z_index = -8
+	_bg_debug_grid.visible = false
+	bg_layer.add_child(_bg_debug_grid)
+
+	# Foreground grid — scrolls at flight_speed (orange)
+	_fg_debug_grid = _DebugGrid.new()
+	_fg_debug_grid.grid_color = Color(1.0, 0.5, 0.2, 0.4)
+	_fg_debug_grid.label_text = "FOREGROUND"
+	_fg_debug_grid.speed_value = _flight_speed
+	_fg_debug_grid.line_spacing = 200.0
+	_fg_debug_grid.z_index = -4
+	_fg_debug_grid.visible = false
+	_game_viewport.add_child(_fg_debug_grid)
 
 
 func _setup_nebulas() -> void:

@@ -37,5 +37,6 @@
 	},
 	"type": "enemy",
 	"visual_id": "ironclad",
-	"weapon_id": "enemy_beauty_beam"
+	"weapon_id": "enemy_beauty_beam",
+	"level": "misc"
 }

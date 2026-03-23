@@ -37,5 +37,6 @@
 	},
 	"type": "enemy",
 	"visual_id": "talon",
-	"weapon_id": "enemy_dual_diamond"
+	"weapon_id": "enemy_dual_diamond",
+	"level": "level_2"
 }

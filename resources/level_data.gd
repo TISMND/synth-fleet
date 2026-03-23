@@ -6,6 +6,7 @@ extends Resource
 @export var display_name: String = ""
 @export var bpm: float = 110.0
 @export var scroll_speed: float = 80.0
+@export var flight_speed: float = 160.0
 @export var level_length: float = 10000.0
 @export var encounters: Array = []  # Array of encounter dicts
 @export var nebula_placements: Array = []  # Array of placement dicts
@@ -17,6 +18,7 @@ static func from_dict(data: Dictionary) -> LevelData:
 	l.display_name = data.get("display_name", "")
 	l.bpm = float(data.get("bpm", 110.0))
 	l.scroll_speed = float(data.get("scroll_speed", 80.0))
+	l.flight_speed = float(data.get("flight_speed", l.scroll_speed * 2.0))
 	l.level_length = float(data.get("level_length", 10000.0))
 	var raw_enc: Array = data.get("encounters", [])
 	l.encounters = []
@@ -53,6 +55,7 @@ func to_dict() -> Dictionary:
 		"display_name": display_name,
 		"bpm": bpm,
 		"scroll_speed": scroll_speed,
+		"flight_speed": flight_speed,
 		"level_length": level_length,
 		"encounters": encounters,
 		"nebula_placements": nebula_placements,

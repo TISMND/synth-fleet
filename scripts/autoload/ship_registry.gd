@@ -19,7 +19,7 @@ const SHIP_STATS: Array[Dictionary] = [
 	# 3 Corsair — asymmetric, high power
 	{"hull_segments": 9, "hull_hp": 90, "shield_segments": 10, "shield_hp": 100, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 440, "acceleration": 1600, "shield_regen": 0.8, "weapon_slots": 4, "core_slots": 1, "field_slots": 1, "particle_slots": 1},
 	# 4 Stiletto — default all-rounder
-	{"hull_segments": 8, "hull_hp": 80, "shield_segments": 10, "shield_hp": 100, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 400, "acceleration": 1200, "shield_regen": 1.0, "weapon_slots": 3, "core_slots": 1, "field_slots": 2, "particle_slots": 1},
+	{"hull_segments": 8, "hull_hp": 80, "shield_segments": 10, "shield_hp": 100, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 400, "acceleration": 1200, "shield_regen": 1.0, "weapon_slots": 4, "core_slots": 2, "field_slots": 2, "particle_slots": 1},
 	# 5 Trident — 3-prong, good hardpoints
 	{"hull_segments": 10, "hull_hp": 100, "shield_segments": 11, "shield_hp": 110, "thermal_segments": 6, "thermal_hp": 60, "electric_segments": 8, "electric_hp": 80, "speed": 380, "acceleration": 1000, "shield_regen": 0.9, "weapon_slots": 3, "core_slots": 1, "field_slots": 2, "particle_slots": 1},
 	# 6 Orrery — exotic, high shields, field-focused
@@ -49,14 +49,16 @@ const SHIP_HARDPOINTS: Array[Array] = [
 	[{"id": "hp_0", "label": "CENTER", "grid_pos": [16, 8], "direction_deg": 0.0},
 	 {"id": "hp_1", "label": "LEFT", "grid_pos": [6, 14], "direction_deg": 0.0},
 	 {"id": "hp_2", "label": "RIGHT", "grid_pos": [26, 14], "direction_deg": 0.0}],
-	# 3 Corsair
+	# 3 Corsair (4 weapon slots)
 	[{"id": "hp_0", "label": "CENTER", "grid_pos": [16, 6], "direction_deg": 0.0},
 	 {"id": "hp_1", "label": "LEFT", "grid_pos": [8, 14], "direction_deg": 0.0},
-	 {"id": "hp_2", "label": "RIGHT", "grid_pos": [24, 14], "direction_deg": 0.0}],
-	# 4 Stiletto
+	 {"id": "hp_2", "label": "RIGHT", "grid_pos": [24, 14], "direction_deg": 0.0},
+	 {"id": "hp_3", "label": "AFT", "grid_pos": [16, 20], "direction_deg": 0.0}],
+	# 4 Stiletto (4 weapon slots)
 	[{"id": "hp_0", "label": "CENTER", "grid_pos": [16, 10], "direction_deg": 0.0},
 	 {"id": "hp_1", "label": "LEFT", "grid_pos": [8, 16], "direction_deg": 0.0},
-	 {"id": "hp_2", "label": "RIGHT", "grid_pos": [24, 16], "direction_deg": 0.0}],
+	 {"id": "hp_2", "label": "RIGHT", "grid_pos": [24, 16], "direction_deg": 0.0},
+	 {"id": "hp_3", "label": "AFT", "grid_pos": [16, 22], "direction_deg": 0.0}],
 	# 5 Trident
 	[{"id": "hp_0", "label": "CENTER", "grid_pos": [16, 6], "direction_deg": 0.0},
 	 {"id": "hp_1", "label": "LEFT", "grid_pos": [8, 16], "direction_deg": 0.0},
@@ -65,10 +67,11 @@ const SHIP_HARDPOINTS: Array[Array] = [
 	[{"id": "hp_0", "label": "CENTER", "grid_pos": [16, 10], "direction_deg": 0.0},
 	 {"id": "hp_1", "label": "LEFT", "grid_pos": [8, 16], "direction_deg": 0.0},
 	 {"id": "hp_2", "label": "RIGHT", "grid_pos": [24, 16], "direction_deg": 0.0}],
-	# 7 Dreadnought
+	# 7 Dreadnought (4 weapon slots)
 	[{"id": "hp_0", "label": "CENTER", "grid_pos": [16, 6], "direction_deg": 0.0},
 	 {"id": "hp_1", "label": "LEFT", "grid_pos": [8, 12], "direction_deg": 0.0},
-	 {"id": "hp_2", "label": "RIGHT", "grid_pos": [24, 12], "direction_deg": 0.0}],
+	 {"id": "hp_2", "label": "RIGHT", "grid_pos": [24, 12], "direction_deg": 0.0},
+	 {"id": "hp_3", "label": "AFT", "grid_pos": [16, 18], "direction_deg": 0.0}],
 	# 8 Bastion
 	[{"id": "hp_0", "label": "CENTER", "grid_pos": [16, 6], "direction_deg": 0.0},
 	 {"id": "hp_1", "label": "LEFT", "grid_pos": [8, 14], "direction_deg": 0.0},

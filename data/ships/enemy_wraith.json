@@ -16,6 +16,9 @@
 		100
 	],
 	"hardpoints": [],
+	"hull_blink_speed": 6.0,
+	"hull_flash_duration": 0.12,
+	"hull_flash_opacity": 0.5,
 	"id": "enemy_wraith",
 	"lines": [],
 	"render_mode": "neon",
@@ -25,7 +28,7 @@
 		"device_slots": 3.0,
 		"electric_segments": 10.0,
 		"field_slots": 2.0,
-		"hull_hp": 140.0,
+		"hull_hp": 195.0,
 		"hull_segments": 10.0,
 		"particle_slots": 1.0,
 		"shield_hp": 60.0,
@@ -37,5 +40,6 @@
 	},
 	"type": "enemy",
 	"visual_id": "wraith",
-	"weapon_id": ""
+	"weapon_id": "",
+	"level": "level_1"
 }

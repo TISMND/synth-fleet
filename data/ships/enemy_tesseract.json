@@ -37,5 +37,6 @@
 	},
 	"type": "enemy",
 	"visual_id": "tesseract",
-	"weapon_id": "enemy_speck_burst"
+	"weapon_id": "enemy_speck_burst",
+	"level": "level_1"
 }

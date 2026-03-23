@@ -10,12 +10,15 @@
 		0.5,
 		1.0
 	],
-	"explosion_size": 1.0,
+	"explosion_size": 0.9,
 	"grid_size": [
 		96,
 		96
 	],
 	"hardpoints": [],
+	"hull_blink_speed": 6.0,
+	"hull_flash_duration": 0.12,
+	"hull_flash_opacity": 0.5,
 	"id": "enemy_leviathan",
 	"lines": [],
 	"render_mode": "neon",
@@ -39,5 +42,6 @@
 	},
 	"type": "enemy",
 	"visual_id": "leviathan",
-	"weapon_id": ""
+	"weapon_id": "enemy_speck_burst",
+	"level": "misc"
 }

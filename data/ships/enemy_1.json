@@ -44,5 +44,6 @@
 	},
 	"type": "enemy",
 	"visual_id": "sentinel",
-	"weapon_id": ""
+	"weapon_id": "",
+	"level": "level_1"
 }

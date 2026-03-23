@@ -42,5 +42,6 @@
 	},
 	"type": "enemy",
 	"visual_id": "colossus",
-	"weapon_id": "enemy_slender_beam"
+	"weapon_id": "enemy_slender_beam",
+	"level": "misc"
 }

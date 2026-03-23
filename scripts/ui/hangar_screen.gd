@@ -13,7 +13,6 @@ var _weapon_header: Label
 var _core_header: Label
 var _field_header: Label
 var _particle_header: Label
-var _change_ship_btn: Button
 var _launch_btn: Button
 var _back_btn: Button
 var _reset_btn: Button
@@ -213,7 +212,6 @@ func _apply_theme() -> void:
 	_darken_button(_play_btn)
 	_darken_button(_mute_btn)
 	_darken_button(_reset_btn)
-	_darken_button(_change_ship_btn)
 	_darken_button(_launch_btn)
 	_darken_button(_back_btn)
 	_darken_button(_functional_btn)
@@ -2491,13 +2489,6 @@ func _build_ui() -> void:
 	bottom_btns.add_theme_constant_override("separation", 10)
 	_center_vbox.add_child(bottom_btns)
 
-	_change_ship_btn = Button.new()
-	_change_ship_btn.text = "CHANGE SHIP"
-	_change_ship_btn.custom_minimum_size.y = 40
-	_change_ship_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_change_ship_btn.pressed.connect(_on_change_ship)
-	bottom_btns.add_child(_change_ship_btn)
-
 	_launch_btn = Button.new()
 	_launch_btn.text = "LAUNCH"
 	_launch_btn.custom_minimum_size.y = 40
@@ -2671,9 +2662,6 @@ func _on_reset_bars() -> void:
 	_update_stats(info["stats"])
 
 
-func _on_change_ship() -> void:
-	_cleanup_preview()
-	get_tree().change_scene_to_file("res://scenes/ui/ship_select_screen.tscn")
 
 
 func _darken_button(btn: Button) -> void:

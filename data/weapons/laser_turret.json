@@ -47,5 +47,5 @@
 	"sweep_arc_deg": 127.0,
 	"sweep_duration": 1.0,
 	"transition_mode": "fade",
-	"transition_ms": 390
+	"transition_ms": 840
 }

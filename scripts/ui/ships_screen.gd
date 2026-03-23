@@ -36,8 +36,16 @@ var _working_render_mode: String = "chrome"
 
 # Category system
 var _category: String = "PLAYER"  # "PLAYER", "ENEMIES", "BOSSES"
-var _category_dropdown: OptionButton = null
-var _enemy_ships: Array[ShipData] = []
+var _category_tab_buttons: Array[Button] = []
+var _level_dropdown: OptionButton = null
+var _selected_level: String = "level_1"  # "level_1", "level_2", "misc"
+const LEVEL_OPTIONS: Array[Dictionary] = [
+	{"id": "level_1", "label": "01 WELCOME VOID"},
+	{"id": "level_2", "label": "02 TBD"},
+	{"id": "misc", "label": "MISC"},
+]
+var _enemy_ships: Array[ShipData] = []  # all enemies
+var _filtered_enemy_ships: Array[ShipData] = []  # filtered by level
 var _selected_enemy_index: int = -1
 var _working_enemy: ShipData = null
 var _enemy_idle_time: float = 0.0
@@ -111,21 +119,47 @@ func _ready() -> void:
 	_ship_selector.viewer = self
 	add_child(_ship_selector)
 
-	# Category dropdown on left panel
-	_category_dropdown = OptionButton.new()
-	_category_dropdown.add_item("PLAYER", 0)
-	_category_dropdown.add_item("ENEMIES", 1)
-	_category_dropdown.add_item("BOSSES", 2)
-	_category_dropdown.selected = 0
-	_category_dropdown.set_item_disabled(2, true)
-	_category_dropdown.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_category_dropdown.offset_left = 4
-	_category_dropdown.offset_top = 6
-	_category_dropdown.offset_right = LEFT_PANEL_W - 4
-	_category_dropdown.offset_bottom = 40
-	_category_dropdown.item_selected.connect(_on_category_changed)
-	add_child(_category_dropdown)
-	ThemeManager.apply_button_style(_category_dropdown)
+	# Category tab bar (top of screen)
+	var tab_bar := HBoxContainer.new()
+	tab_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	tab_bar.offset_left = LEFT_PANEL_W
+	tab_bar.offset_right = -RIGHT_PANEL_W
+	tab_bar.offset_top = 0
+	tab_bar.offset_bottom = 36
+	tab_bar.add_theme_constant_override("separation", 0)
+	add_child(tab_bar)
+
+	var tab_names: Array[String] = ["PLAYER", "ENEMIES", "BOSSES"]
+	for tab_name in tab_names:
+		var btn := Button.new()
+		btn.text = tab_name
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size.y = 36
+		var cat_id: String = tab_name
+		btn.pressed.connect(func() -> void: _switch_category(cat_id))
+		ThemeManager.apply_button_style(btn)
+		if tab_name == "BOSSES":
+			btn.disabled = true
+			btn.tooltip_text = "COMING SOON"
+		tab_bar.add_child(btn)
+		_category_tab_buttons.append(btn)
+	_update_category_tab_buttons()
+
+	# Level filter dropdown on left panel (visible for ENEMIES/BOSSES)
+	_level_dropdown = OptionButton.new()
+	for opt in LEVEL_OPTIONS:
+		var lbl: String = opt["label"]
+		_level_dropdown.add_item(lbl)
+	_level_dropdown.selected = 0
+	_level_dropdown.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_level_dropdown.offset_left = 4
+	_level_dropdown.offset_top = 6
+	_level_dropdown.offset_right = LEFT_PANEL_W - 4
+	_level_dropdown.offset_bottom = 40
+	_level_dropdown.item_selected.connect(_on_level_changed)
+	_level_dropdown.visible = false
+	add_child(_level_dropdown)
+	ThemeManager.apply_button_style(_level_dropdown)
 
 	# Center ship in preview area (between left panel, right panel, above HUD)
 	var vp_size: Vector2 = get_viewport_rect().size
@@ -266,8 +300,11 @@ func _on_theme_changed() -> void:
 		ThemeManager.apply_grid_background(_ship_grid_bg)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 	_apply_right_panel_theme()
-	if _category_dropdown:
-		ThemeManager.apply_button_style(_category_dropdown)
+	for btn in _category_tab_buttons:
+		ThemeManager.apply_button_style(btn)
+	_update_category_tab_buttons()
+	if _level_dropdown:
+		ThemeManager.apply_button_style(_level_dropdown)
 	_apply_compact_bar_theme()
 
 
@@ -290,7 +327,7 @@ func _input(event: InputEvent) -> void:
 					if slot >= 0 and slot < _ShipSelector.SHIP_COUNT:
 						_select_ship(slot)
 				elif _category == "ENEMIES":
-					if slot >= 0 and slot < _enemy_ships.size():
+					if slot >= 0 and slot < _filtered_enemy_ships.size():
 						_select_enemy(slot)
 
 
@@ -398,6 +435,7 @@ func _apply_render_mode() -> void:
 
 func _load_enemy_ships() -> void:
 	_enemy_ships = ShipDataManager.load_all_by_type("enemy")
+	_filter_enemy_ships()
 
 
 func _create_new_enemy() -> void:
@@ -409,6 +447,7 @@ func _create_new_enemy() -> void:
 		"render_mode": "neon",
 		"visual_id": "sentinel",
 		"weapon_id": "",
+		"level": _selected_level,
 		"stats": {
 			"hull_hp": 50,
 			"shield_hp": 0,
@@ -418,20 +457,21 @@ func _create_new_enemy() -> void:
 	}
 	ShipDataManager.save(new_id, data)
 	_load_enemy_ships()
+	_ship_selector.enemy_ships = _filtered_enemy_ships
 	# Select the newly created enemy
-	for i in range(_enemy_ships.size()):
-		if _enemy_ships[i].id == new_id:
+	for i in range(_filtered_enemy_ships.size()):
+		if _filtered_enemy_ships[i].id == new_id:
 			_select_enemy(i)
 			break
 	_ship_selector.queue_redraw()
 
 
 func _select_enemy(index: int) -> void:
-	if index < 0 or index >= _enemy_ships.size():
+	if index < 0 or index >= _filtered_enemy_ships.size():
 		return
 	_stop_weapon_preview()
 	_selected_enemy_index = index
-	_working_enemy = _enemy_ships[index]
+	_working_enemy = _filtered_enemy_ships[index]
 	_working_render_mode = _working_enemy.render_mode
 	_exhaust_particles.clear()
 	_velocity = 0.0
@@ -449,18 +489,18 @@ func _select_enemy(index: int) -> void:
 	_ship_selector.queue_redraw()
 
 
-func _on_category_changed(index: int) -> void:
+func _switch_category(cat: String) -> void:
+	if cat == _category:
+		return
 	_stop_weapon_preview()
-	match index:
-		0: _category = "PLAYER"
-		1: _category = "ENEMIES"
-		2: _category = "BOSSES"
+	_category = cat
+	_update_category_tab_buttons()
 
 	_ship_selector.category = _category
-	_ship_selector.enemy_ships = _enemy_ships
 	_ship_selector.scroll_offset = 0.0
 
 	if _category == "PLAYER":
+		_level_dropdown.visible = false
 		_selected_enemy_index = -1
 		_working_enemy = null
 		_rebuild_right_panel()
@@ -468,16 +508,19 @@ func _on_category_changed(index: int) -> void:
 		if _hud_replica:
 			_hud_replica.visible = true
 	elif _category == "ENEMIES":
+		_level_dropdown.visible = true
 		if _hud_replica:
 			_hud_replica.visible = false
-		_ship_selector.enemy_ships = _enemy_ships
-		if _enemy_ships.size() > 0:
+		_filter_enemy_ships()
+		_ship_selector.enemy_ships = _filtered_enemy_ships
+		if _filtered_enemy_ships.size() > 0:
 			_select_enemy(0)
 		else:
 			_selected_enemy_index = -1
 			_working_enemy = null
 			_rebuild_right_panel()
 	elif _category == "BOSSES":
+		_level_dropdown.visible = true
 		if _hud_replica:
 			_hud_replica.visible = false
 		_selected_enemy_index = -1
@@ -488,18 +531,60 @@ func _on_category_changed(index: int) -> void:
 	_ship_draw.queue_redraw()
 
 
+func _update_category_tab_buttons() -> void:
+	var tab_names: Array[String] = ["PLAYER", "ENEMIES", "BOSSES"]
+	for i in range(_category_tab_buttons.size()):
+		if tab_names[i] == _category:
+			_category_tab_buttons[i].modulate = Color(1.3, 1.3, 1.6)
+		else:
+			_category_tab_buttons[i].modulate = Color(0.6, 0.6, 0.7)
+
+
+func _on_level_changed(index: int) -> void:
+	if index >= 0 and index < LEVEL_OPTIONS.size():
+		var opt: Dictionary = LEVEL_OPTIONS[index]
+		_selected_level = opt["id"]
+	_filter_enemy_ships()
+	_ship_selector.enemy_ships = _filtered_enemy_ships
+	_ship_selector.scroll_offset = 0.0
+	if _filtered_enemy_ships.size() > 0:
+		_select_enemy(0)
+	else:
+		_selected_enemy_index = -1
+		_working_enemy = null
+		_rebuild_right_panel()
+	_ship_selector.queue_redraw()
+
+
+func _filter_enemy_ships() -> void:
+	_filtered_enemy_ships.clear()
+	for s in _enemy_ships:
+		if s.level == _selected_level:
+			_filtered_enemy_ships.append(s)
+
+
 func _save_enemy() -> void:
 	if not _working_enemy:
 		return
-	ShipDataManager.save(_working_enemy.id, _working_enemy.to_dict())
+	var saved_id: String = _working_enemy.id
+	ShipDataManager.save(saved_id, _working_enemy.to_dict())
 	_load_enemy_ships()
-	# Re-select to refresh
-	for i in range(_enemy_ships.size()):
-		if _enemy_ships[i].id == _working_enemy.id:
+	_ship_selector.enemy_ships = _filtered_enemy_ships
+	# Re-select — if level changed, enemy may have left this filter
+	var found := false
+	for i in range(_filtered_enemy_ships.size()):
+		if _filtered_enemy_ships[i].id == saved_id:
 			_selected_enemy_index = i
-			_working_enemy = _enemy_ships[i]
+			_working_enemy = _filtered_enemy_ships[i]
+			found = true
 			break
-	_ship_selector.enemy_ships = _enemy_ships
+	if not found:
+		if _filtered_enemy_ships.size() > 0:
+			_select_enemy(clampi(_selected_enemy_index, 0, _filtered_enemy_ships.size() - 1))
+		else:
+			_selected_enemy_index = -1
+			_working_enemy = null
+			_rebuild_right_panel()
 	_ship_selector.queue_redraw()
 
 
@@ -508,9 +593,9 @@ func _delete_enemy() -> void:
 		return
 	ShipDataManager.delete(_working_enemy.id)
 	_load_enemy_ships()
-	_ship_selector.enemy_ships = _enemy_ships
-	if _enemy_ships.size() > 0:
-		_select_enemy(clampi(_selected_enemy_index, 0, _enemy_ships.size() - 1))
+	_ship_selector.enemy_ships = _filtered_enemy_ships
+	if _filtered_enemy_ships.size() > 0:
+		_select_enemy(clampi(_selected_enemy_index, 0, _filtered_enemy_ships.size() - 1))
 	else:
 		_selected_enemy_index = -1
 		_working_enemy = null
@@ -815,6 +900,33 @@ func _build_enemy_right_panel() -> void:
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_edit.text_changed.connect(_on_enemy_name_changed)
 	name_hbox.add_child(name_edit)
+
+	# Level assignment dropdown
+	var level_hbox := HBoxContainer.new()
+	level_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(level_hbox)
+	var level_lbl := Label.new()
+	level_lbl.text = "LEVEL"
+	level_lbl.custom_minimum_size.x = 40
+	level_hbox.add_child(level_lbl)
+	var level_dd := OptionButton.new()
+	level_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var current_level_idx: int = 0
+	for i in range(LEVEL_OPTIONS.size()):
+		var opt: Dictionary = LEVEL_OPTIONS[i]
+		var lbl: String = opt["label"]
+		level_dd.add_item(lbl)
+		var opt_id: String = opt["id"]
+		if opt_id == _working_enemy.level:
+			current_level_idx = i
+	level_dd.selected = current_level_idx
+	level_dd.item_selected.connect(func(idx: int) -> void:
+		if _working_enemy and idx >= 0 and idx < LEVEL_OPTIONS.size():
+			var opt: Dictionary = LEVEL_OPTIONS[idx]
+			_working_enemy.level = opt["id"]
+	)
+	ThemeManager.apply_button_style(level_dd)
+	level_hbox.add_child(level_dd)
 
 	_add_section_spacer(vbox)
 
@@ -1915,7 +2027,7 @@ class _ShipSelector extends Node2D:
 		var clip_rect := Rect2(0, HEADER_HEIGHT, PANEL_WIDTH, panel_h - HEADER_HEIGHT)
 		draw_set_transform(Vector2(0, -scroll_offset), 0.0, Vector2.ONE)
 
-		# Header area is covered by the category OptionButton
+		# Header area is covered by the level filter dropdown (when visible)
 		match category:
 			"PLAYER": _draw_player_list()
 			"ENEMIES": _draw_enemy_list()

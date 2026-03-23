@@ -44,6 +44,9 @@ const DEFAULT_HP: Dictionary = {
 @export var hull_flash_duration: float = 0.1     # Hull flash duration in seconds
 @export var hull_blink_speed: float = 8.0        # Hull flash blink cycles per duration
 
+# Level assignment (enemies/bosses)
+@export var level: String = "misc"  # "level_1", "level_2", "misc"
+
 # Collision hitbox (shared by player and enemy ships)
 @export var collision_shape: String = "circle"  # "circle", "rectangle", "capsule"
 @export var collision_width: float = 30.0       # Width (or diameter for circle)
@@ -83,6 +86,8 @@ static func from_dict(data: Dictionary) -> ShipData:
 	s.hull_flash_opacity = float(data.get("hull_flash_opacity", 0.5))
 	s.hull_flash_duration = float(data.get("hull_flash_duration", 0.12))
 	s.hull_blink_speed = float(data.get("hull_blink_speed", 6.0))
+	# Level assignment
+	s.level = data.get("level", "misc")
 	# Collision hitbox
 	s.collision_shape = data.get("collision_shape", "circle")
 	s.collision_width = float(data.get("collision_width", 30.0))
@@ -109,6 +114,8 @@ func to_dict() -> Dictionary:
 		d["explosion_color"] = [explosion_color.r, explosion_color.g, explosion_color.b, explosion_color.a]
 		d["explosion_size"] = explosion_size
 		d["enable_screen_shake"] = enable_screen_shake
+	# Level assignment (saved for all ship types)
+	d["level"] = level
 	# Hit effects (saved for all ship types)
 	if shield_style_id != "":
 		d["shield_style_id"] = shield_style_id

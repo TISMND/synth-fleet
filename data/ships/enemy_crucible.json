@@ -40,5 +40,6 @@
 	},
 	"type": "enemy",
 	"visual_id": "crucible",
-	"weapon_id": ""
+	"weapon_id": "",
+	"level": "level_2"
 }

@@ -80,6 +80,12 @@ var _neb_radius_spin: SpinBox
 var _neb_center_btn: Button
 var _neb_delete_btn: Button
 
+# Flight speed + debug grids
+var _flight_speed_spin: SpinBox
+var _debug_deep_check: CheckButton
+var _debug_bg_check: CheckButton
+var _debug_fg_check: CheckButton
+
 # Cached data for dropdowns
 var _cached_path_ids: Array[String] = []
 var _cached_path_names: Array[String] = []
@@ -345,6 +351,24 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	)
 	vbox.add_child(_speed_spin)
 
+	# Flight Speed
+	var flight_label := Label.new()
+	flight_label.text = "FLIGHT SPEED"
+	ThemeManager.apply_text_glow(flight_label, "body")
+	vbox.add_child(flight_label)
+	_flight_speed_spin = SpinBox.new()
+	_flight_speed_spin.min_value = 20
+	_flight_speed_spin.max_value = 600
+	_flight_speed_spin.step = 10
+	_flight_speed_spin.value = 160
+	_flight_speed_spin.value_changed.connect(func(v: float) -> void:
+		if _selected_level:
+			_selected_level.flight_speed = v
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	vbox.add_child(_flight_speed_spin)
+
 	# Level Length
 	var len_label := Label.new()
 	len_label.text = "LENGTH (px)"
@@ -373,6 +397,34 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	play_btn.pressed.connect(_on_play_level)
 	ThemeManager.apply_button_style(play_btn)
 	vbox.add_child(play_btn)
+
+	# Debug grid toggles
+	var debug_sep := HSeparator.new()
+	vbox.add_child(debug_sep)
+
+	var debug_header := Label.new()
+	debug_header.text = "DEBUG GRIDS"
+	debug_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ThemeManager.apply_text_glow(debug_header, "header")
+	vbox.add_child(debug_header)
+
+	_debug_deep_check = CheckButton.new()
+	_debug_deep_check.text = "Deep (static)"
+	_debug_deep_check.button_pressed = false
+	_debug_deep_check.toggled.connect(func(_on: bool) -> void: _map_canvas.queue_redraw())
+	vbox.add_child(_debug_deep_check)
+
+	_debug_bg_check = CheckButton.new()
+	_debug_bg_check.text = "Background"
+	_debug_bg_check.button_pressed = false
+	_debug_bg_check.toggled.connect(func(_on: bool) -> void: _map_canvas.queue_redraw())
+	vbox.add_child(_debug_bg_check)
+
+	_debug_fg_check = CheckButton.new()
+	_debug_fg_check.text = "Foreground"
+	_debug_fg_check.button_pressed = false
+	_debug_fg_check.toggled.connect(func(_on: bool) -> void: _map_canvas.queue_redraw())
+	vbox.add_child(_debug_fg_check)
 
 
 func _on_play_level() -> void:
@@ -416,11 +468,13 @@ func _update_level_props_ui() -> void:
 		_name_edit.text = _selected_level.display_name
 		_bpm_spin.value = _selected_level.bpm
 		_speed_spin.value = _selected_level.scroll_speed
+		_flight_speed_spin.value = _selected_level.flight_speed
 		_length_spin.value = _selected_level.level_length
 	else:
 		_name_edit.text = ""
 		_bpm_spin.value = 110
 		_speed_spin.value = 80
+		_flight_speed_spin.value = 160
 		_length_spin.value = 10000
 
 
@@ -1276,6 +1330,7 @@ func _on_new_level() -> void:
 		"display_name": "New Level",
 		"bpm": 110.0,
 		"scroll_speed": 80.0,
+		"flight_speed": 160.0,
 		"level_length": 10000.0,
 		"encounters": [],
 	}
@@ -1343,6 +1398,10 @@ class _MapCanvasDraw extends Control:
 			return
 
 		var level: LevelData = s._selected_level
+		var uniform_scale: float = s._get_map_scale()
+
+		# Debug grid overlays (drawn behind everything else)
+		_draw_debug_grids(s, level, map_rect, uniform_scale)
 
 		# Grid lines + Y labels
 		var grid_y: float = 0.0
@@ -1356,7 +1415,6 @@ class _MapCanvasDraw extends Control:
 
 		# Scroll position indicator (narrow bar on left edge)
 		var canvas_h: float = size.y
-		var uniform_scale: float = s._get_map_scale()
 		var visible_range: float = canvas_h / maxf(uniform_scale, 0.001)
 		var scroll_ratio: float = s._scroll_offset / maxf(level.level_length, 1.0)
 		var view_ratio: float = clampf(visible_range / maxf(level.level_length, 1.0), 0.02, 1.0)
@@ -1485,6 +1543,46 @@ class _MapCanvasDraw extends Control:
 					var path_name: String = s._path_id_to_name.get(enc_path_id, enc_path_id) as String
 					var path_color := Color(0.5, 0.9, 1.0, 0.7) if is_selected else Color(0.4, 0.7, 0.9, 0.5)
 					draw_string(font3, Vector2(label_x, cy + label_y_offset), path_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, path_color)
+
+
+	func _draw_debug_grids(s: Control, level: LevelData, map_rect: Rect2, scale: float) -> void:
+		var left: float = map_rect.position.x
+		var right: float = map_rect.position.x + map_rect.size.x
+		var font: Font = ThemeDB.fallback_font
+
+		# Deep background grid — fixed canvas intervals (doesn't scroll with level)
+		if s._debug_deep_check and s._debug_deep_check.button_pressed:
+			var deep_color := Color(0.6, 0.3, 0.9, 0.25)
+			var spacing: float = 80.0  # Fixed pixel spacing on canvas
+			var y: float = 0.0
+			while y < size.y:
+				draw_line(Vector2(left, y), Vector2(right, y), deep_color, 1.0)
+				y += spacing
+			draw_string(font, Vector2(left + 4, 14), "DEEP BG (static)", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.6, 0.3, 0.9, 0.6))
+
+		# Background grid — level-space intervals at GRID_SPACING (scrolls with map)
+		if s._debug_bg_check and s._debug_bg_check.button_pressed:
+			var bg_color := Color(0.3, 0.9, 0.3, 0.25)
+			var grid_y: float = 0.0
+			while grid_y <= level.level_length:
+				var cy: float = s._level_y_to_canvas_y(grid_y)
+				if cy >= -10 and cy <= size.y + 10:
+					draw_line(Vector2(left, cy), Vector2(right, cy), bg_color, 1.5)
+				grid_y += GRID_SPACING
+			draw_string(font, Vector2(left + 4, 28), "BG (" + str(int(level.scroll_speed)) + " px/s)", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.3, 0.9, 0.3, 0.6))
+
+		# Foreground grid — denser lines to show faster speed
+		if s._debug_fg_check and s._debug_fg_check.button_pressed:
+			var fg_color := Color(1.0, 0.5, 0.2, 0.25)
+			var ratio: float = level.scroll_speed / maxf(level.flight_speed, 1.0)
+			var fg_spacing: float = GRID_SPACING * ratio  # Denser = faster
+			var grid_y: float = 0.0
+			while grid_y <= level.level_length:
+				var cy: float = s._level_y_to_canvas_y(grid_y)
+				if cy >= -10 and cy <= size.y + 10:
+					draw_line(Vector2(left, cy), Vector2(right, cy), fg_color, 1.5)
+				grid_y += fg_spacing
+			draw_string(font, Vector2(left + 4, 42), "FG (" + str(int(level.flight_speed)) + " px/s)", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.5, 0.2, 0.6))
 
 
 	func _draw_path_preview(curve: Curve2D, cx: float, cy: float, color: Color) -> void:
