@@ -1044,11 +1044,8 @@ func _rebuild_workshop_content() -> void:
 			toggle_btn.custom_minimum_size = Vector2(36, 36)
 			toggle_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			_apply_power_toggle_style(toggle_btn, is_active)
-			if has_group:
-				var bound_slot: String = slot_key
-				toggle_btn.pressed.connect(func() -> void: _on_fg_slot_toggle(bound_slot))
-			else:
-				toggle_btn.disabled = true
+			var bound_slot: String = slot_key
+			toggle_btn.pressed.connect(func() -> void: _on_fg_slot_toggle(bound_slot))
 			row.add_child(toggle_btn)
 
 			# Slot name — styled button to open picker (matches loadout aesthetic)
