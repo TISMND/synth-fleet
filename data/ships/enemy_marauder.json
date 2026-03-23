@@ -16,7 +16,11 @@
 		96
 	],
 	"hardpoints": [],
+	"hull_blink_speed": 5.5,
+	"hull_flash_duration": 0.12,
+	"hull_flash_opacity": 0.5,
 	"id": "enemy_marauder",
+	"level": "level_1",
 	"lines": [],
 	"render_mode": "neon",
 	"stats": {
@@ -26,11 +30,11 @@
 		"electric_segments": 8.0,
 		"external_slots": 3.0,
 		"field_slots": 2.0,
-		"hull_hp": 160.0,
+		"hull_hp": 80.0,
 		"hull_segments": 10.0,
 		"internal_slots": 3.0,
 		"particle_slots": 1.0,
-		"shield_hp": 40.0,
+		"shield_hp": 15.0,
 		"shield_regen": 2.0,
 		"shield_segments": 6.0,
 		"speed": 80.0,
@@ -39,6 +43,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "marauder",
-	"weapon_id": "",
-	"level": "level_1"
+	"weapon_id": ""
 }

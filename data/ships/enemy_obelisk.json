@@ -16,7 +16,11 @@
 		48
 	],
 	"hardpoints": [],
+	"hull_blink_speed": 9.0,
+	"hull_flash_duration": 0.12,
+	"hull_flash_opacity": 0.65,
 	"id": "enemy_obelisk",
+	"level": "level_1",
 	"lines": [],
 	"render_mode": "neon",
 	"stats": {
@@ -25,10 +29,10 @@
 		"device_slots": 4.0,
 		"electric_segments": 10.0,
 		"field_slots": 2.0,
-		"hull_hp": 120.0,
+		"hull_hp": 35.0,
 		"hull_segments": 14.0,
 		"particle_slots": 1.0,
-		"shield_hp": 40.0,
+		"shield_hp": 10.0,
 		"shield_regen": 3.0,
 		"shield_segments": 8.0,
 		"speed": 50.0,
@@ -37,6 +41,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "obelisk",
-	"weapon_id": "",
-	"level": "level_1"
+	"weapon_id": ""
 }

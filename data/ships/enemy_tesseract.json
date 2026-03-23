@@ -16,7 +16,11 @@
 		40
 	],
 	"hardpoints": [],
+	"hull_blink_speed": 6.0,
+	"hull_flash_duration": 0.12,
+	"hull_flash_opacity": 0.45,
 	"id": "enemy_tesseract",
+	"level": "level_1",
 	"lines": [],
 	"render_mode": "ember",
 	"stats": {
@@ -25,10 +29,10 @@
 		"device_slots": 4.0,
 		"electric_segments": 10.0,
 		"field_slots": 2.0,
-		"hull_hp": 100.0,
+		"hull_hp": 40.0,
 		"hull_segments": 12.0,
 		"particle_slots": 1.0,
-		"shield_hp": 50.0,
+		"shield_hp": 30.0,
 		"shield_regen": 4.0,
 		"shield_segments": 10.0,
 		"speed": 60.0,
@@ -37,6 +41,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "tesseract",
-	"weapon_id": "enemy_speck_burst",
-	"level": "level_1"
+	"weapon_id": "enemy_speck_burst"
 }

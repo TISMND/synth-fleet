@@ -52,11 +52,11 @@
 			"rotate_with_path": false,
 			"ship_id": "enemy_obelisk",
 			"spacing": 100.0,
-			"speed": 200.0,
-			"trigger_y": 2828.29137559861,
+			"speed": 100.0,
+			"trigger_y": 2903.45151794736,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 469.245378366899
+			"x_offset": 19.9927093277531
 		},
 		{
 			"count": 7,
@@ -277,10 +277,10 @@
 			"ship_id": "enemy_scythe",
 			"spacing": 100.0,
 			"speed": 500.0,
-			"trigger_y": 666.192170818505,
+			"trigger_y": 1000.99644128114,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -527.829181494662
+			"x_offset": -490.249110320285
 		},
 		{
 			"count": 1,
@@ -533,9 +533,23 @@
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -163.985765124555
+		},
+		{
+			"count": 7,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_scythe",
+			"spacing": 100.0,
+			"speed": 500.0,
+			"trigger_y": 3143.06049822064,
+			"turn_speed": 90.0,
+			"weapons_active": false,
+			"x_offset": 483.416370106762
 		}
 	],
-	"flight_speed": 280.0,
+	"flight_speed": 100.0,
 	"id": "level_1",
 	"level_length": 50000.0,
 	"nebula_placements": [
@@ -564,5 +578,5 @@
 			"x_offset": 462.918149466192
 		}
 	],
-	"scroll_speed": 140.0
+	"scroll_speed": 70.0
 }

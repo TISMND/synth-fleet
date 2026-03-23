@@ -18,8 +18,9 @@
 	"hardpoints": [],
 	"hull_blink_speed": 8.0,
 	"hull_flash_duration": 0.12,
-	"hull_flash_opacity": 0.4,
+	"hull_flash_opacity": 0.35,
 	"id": "enemy_crucible",
+	"level": "level_2",
 	"lines": [],
 	"render_mode": "neon",
 	"stats": {
@@ -28,10 +29,10 @@
 		"device_slots": 3.0,
 		"electric_segments": 8.0,
 		"field_slots": 2.0,
-		"hull_hp": 80.0,
+		"hull_hp": 35.0,
 		"hull_segments": 10.0,
 		"particle_slots": 1.0,
-		"shield_hp": 30.0,
+		"shield_hp": 5.0,
 		"shield_regen": 3.0,
 		"shield_segments": 8.0,
 		"speed": 80.0,
@@ -40,6 +41,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "crucible",
-	"weapon_id": "",
-	"level": "level_2"
+	"weapon_id": ""
 }
