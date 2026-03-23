@@ -544,22 +544,27 @@ func _process_death_sequence(delta: float) -> void:
 
 
 func _show_game_over() -> void:
+	# Light blue with slight HDR for glow pickup
+	var title_color: Color = Color(0.6, 0.85, 1.0) * 1.1
+	var subtitle_color: Color = Color(0.5, 0.75, 0.95)
+
 	_game_over_overlay = Control.new()
 	_game_over_overlay.name = "GameOverOverlay"
-	_game_over_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_game_over_overlay.size = Vector2(1920, 1080)
 	_game_over_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_game_over_overlay.z_index = 60  # Above HUD
 	add_child(_game_over_overlay)
 
 	# Semi-transparent dark background
 	var bg: ColorRect = ColorRect.new()
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.size = Vector2(1920, 1080)
 	bg.color = Color(0.0, 0.0, 0.0, 0.5)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_game_over_overlay.add_child(bg)
 
 	# Container for centered text
 	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.size = Vector2(1920, 1080)
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_game_over_overlay.add_child(vbox)
@@ -570,7 +575,7 @@ func _show_game_over() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_override("font", ThemeManager.get_font("header"))
 	title.add_theme_font_size_override("font_size", 96)
-	title.add_theme_color_override("font_color", ThemeManager.get_color("text_header"))
+	title.add_theme_color_override("font_color", title_color)
 	ThemeManager.apply_text_glow(title, "header")
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(title)
@@ -586,7 +591,7 @@ func _show_game_over() -> void:
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_override("font", ThemeManager.get_font("body"))
 	subtitle.add_theme_font_size_override("font_size", 28)
-	subtitle.add_theme_color_override("font_color", ThemeManager.get_color("text_body"))
+	subtitle.add_theme_color_override("font_color", subtitle_color)
 	ThemeManager.apply_text_glow(subtitle, "body")
 	subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(subtitle)

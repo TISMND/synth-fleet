@@ -96,6 +96,7 @@ var _fg_active_index: int = -1
 var _fg_slot_rows: Dictionary = {}  # slot_key -> {toggle_btn, name_lbl, rate_labels}
 var _fg_tab_label_refs: Array = []  # Label refs for tab name updates
 var _fg_total_labels: Dictionary = {}  # bar_type -> Label
+var _fg_total_bars: Dictionary = {}   # bar_type -> {fill: ColorRect, glow: ColorRect, container: Control}
 var _fg_total_current: Dictionary = {}  # bar_type -> float (displayed value, animating)
 var _fg_total_target: Dictionary = {}   # bar_type -> float (target value)
 
@@ -1402,7 +1403,9 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 	totals_panel.add_child(totals_vbox)
 
 	var totals_header := Label.new()
-	totals_header.text = "EFFECT TOTALS (active components)"
+	totals_header.text = "NET EFFECT"
+	totals_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	totals_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	totals_header.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.6))
 	totals_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
 	if body_font:
@@ -1412,28 +1415,77 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 	var abbrev: Dictionary = {"shield": "SHIELD", "hull": "HULL", "thermal": "THERMAL", "electric": "ELECTRIC"}
 	var section_size: int = ThemeManager.get_font_size("font_size_section")
 	_fg_total_labels.clear()
+	_fg_total_bars.clear()
+	var bar_track_width: float = 140.0
+	var bar_track_height: float = 10.0
 	for bar_type in EffectRateCalculator.BAR_TYPES:
 		var target_val: float = float(active_totals.get(bar_type, 0.0))
 		_fg_total_target[bar_type] = target_val
-		# Initialize current to target on first build, keep existing for animation
 		if not _fg_total_current.has(bar_type):
 			_fg_total_current[bar_type] = target_val
 		var display_val: float = float(_fg_total_current[bar_type])
+		var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
+
 		var total_row := HBoxContainer.new()
 		total_row.add_theme_constant_override("separation", 8)
+		total_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		totals_vbox.add_child(total_row)
-		var bar_color: Color = EffectRateCalculator.get_bar_color(bar_type)
+
+		# Type label
 		var type_lbl := Label.new()
 		type_lbl.text = str(abbrev.get(bar_type, bar_type.to_upper()))
-		type_lbl.custom_minimum_size.x = 80
+		type_lbl.custom_minimum_size.x = 70
 		type_lbl.add_theme_color_override("font_color", Color(bar_color.r, bar_color.g, bar_color.b, 0.6))
 		type_lbl.add_theme_font_size_override("font_size", section_size)
 		if body_font:
 			type_lbl.add_theme_font_override("font", body_font)
 		total_row.add_child(type_lbl)
+
+		# Swing bar — center line, fill extends left (negative) or right (positive)
+		var bar_container := Control.new()
+		bar_container.custom_minimum_size = Vector2(bar_track_width, bar_track_height)
+		bar_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		total_row.add_child(bar_container)
+
+		# Track background — dark
+		var track_bg := ColorRect.new()
+		track_bg.position = Vector2.ZERO
+		track_bg.size = Vector2(bar_track_width, bar_track_height)
+		track_bg.color = Color(0.05, 0.05, 0.08, 0.8)
+		bar_container.add_child(track_bg)
+
+		# Center line marker
+		var center_line := ColorRect.new()
+		center_line.position = Vector2(bar_track_width * 0.5 - 0.5, 0)
+		center_line.size = Vector2(1, bar_track_height)
+		center_line.color = Color(1.0, 1.0, 1.0, 0.3)
+		bar_container.add_child(center_line)
+
+		# Fill bar — positioned from center, width/direction based on value
+		var fill_rect := ColorRect.new()
+		fill_rect.size = Vector2(0, bar_track_height)
+		fill_rect.color = bar_color
+		bar_container.add_child(fill_rect)
+
+		# Glow rect — HDR bloom source
+		var glow_rect := ColorRect.new()
+		glow_rect.size = Vector2(0, bar_track_height)
+		glow_rect.color = Color(bar_color.r * 2.0, bar_color.g * 2.0, bar_color.b * 2.0, 0.3)
+		bar_container.add_child(glow_rect)
+
+		_fg_total_bars[bar_type] = {
+			"fill": fill_rect, "glow": glow_rect,
+			"container": bar_container, "track_width": bar_track_width,
+			"track_height": bar_track_height, "color": bar_color,
+		}
+		# Set initial bar position
+		_update_net_effect_bar(bar_type, display_val)
+
+		# Value label
 		var val_lbl := Label.new()
 		val_lbl.add_theme_color_override("font_color", bar_color)
 		val_lbl.add_theme_font_size_override("font_size", section_size + 2)
+		val_lbl.custom_minimum_size.x = 100
 		if body_font:
 			val_lbl.add_theme_font_override("font", body_font)
 		_fg_total_format_label(val_lbl, display_val)
@@ -1441,6 +1493,44 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 		_fg_total_labels[bar_type] = val_lbl
 
 	parent.add_child(totals_panel)
+
+
+func _update_net_effect_bar(bar_type: String, val: float) -> void:
+	if not _fg_total_bars.has(bar_type):
+		return
+	var entry: Dictionary = _fg_total_bars[bar_type]
+	var fill: ColorRect = entry["fill"]
+	var glow: ColorRect = entry["glow"]
+	var track_w: float = float(entry["track_width"])
+	var track_h: float = float(entry["track_height"])
+	var bar_color: Color = entry["color"]
+	var center_x: float = track_w * 0.5
+
+	# Normalize — clamp to half-track width, scale 50 seg/min = full bar
+	var max_val: float = 50.0
+	var norm: float = clampf(val / max_val, -1.0, 1.0)
+	var bar_width: float = absf(norm) * center_x
+
+	if norm >= 0:
+		# Positive — fill extends RIGHT from center
+		fill.position = Vector2(center_x, 0)
+		fill.size = Vector2(bar_width, track_h)
+		fill.color = bar_color
+	else:
+		# Negative — fill extends LEFT from center
+		fill.position = Vector2(center_x - bar_width, 0)
+		fill.size = Vector2(bar_width, track_h)
+		# Negative = slightly reddened
+		fill.color = Color(
+			lerpf(bar_color.r, 1.0, 0.3),
+			lerpf(bar_color.g, 0.2, 0.3),
+			lerpf(bar_color.b, 0.1, 0.3)
+		)
+
+	# Glow matches fill
+	glow.position = fill.position
+	glow.size = fill.size
+	glow.color = Color(fill.color.r * 2.0, fill.color.g * 2.0, fill.color.b * 2.0, 0.3 * absf(norm))
 
 
 func _fg_total_format_label(lbl: Label, val: float) -> void:
@@ -1470,11 +1560,12 @@ func _animate_fg_totals(delta: float) -> void:
 		else:
 			current -= step
 		_fg_total_current[bar_type] = current
-		# Update label
+		# Update label + bar
 		if _fg_total_labels.has(bar_type):
 			var lbl: Label = _fg_total_labels[bar_type]
 			if is_instance_valid(lbl):
 				_fg_total_format_label(lbl, current)
+		_update_net_effect_bar(bar_type, current)
 
 
 func _apply_power_toggle_style(btn: Button, is_on: bool) -> void:

@@ -1,0 +1,163 @@
+{
+	"bar_effect_triggers": [
+		{
+			"time": 0.890625,
+			"type": "shield",
+			"value": 5.3
+		},
+		{
+			"time": 0.90625,
+			"type": "shield",
+			"value": 5.3
+		},
+		{
+			"time": 0.9375,
+			"type": "shield",
+			"value": 5.3
+		},
+		{
+			"time": 0.9609375,
+			"type": "shield",
+			"value": 5.3
+		},
+		{
+			"time": 0.984375,
+			"type": "shield",
+			"value": 5.3
+		},
+		{
+			"time": 0.03125,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.09375,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.15625,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.21875,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.28125,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.34375,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.40625,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.46875,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.53125,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.59375,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.65625,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.71875,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.78125,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.84375,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.890625,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.9140625,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.9375,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.9609375,
+			"type": "thermal",
+			"value": 0.699999999999999
+		},
+		{
+			"time": 0.984375,
+			"type": "thermal",
+			"value": 0.699999999999999
+		}
+	],
+	"bar_effects": {
+		"electric": 2.85,
+		"shield": 5.3,
+		"thermal": 0.699999999999999
+	},
+	"description": "",
+	"display_name": "Radial Burst Core",
+	"global_pulse_settings": {
+		"brighten_duration": 0.05,
+		"brightness": 0.5,
+		"dim_duration": 0.3
+	},
+	"id": "radial_burst_core",
+	"loop_file_path": "res://loop_zips/sorted/drums/Globular Barnyard - 120 BPM - 1 - Drums - SC_EAS_105_melodic_loop_synth_bass_drums_blue_lofi_Fmin.wav",
+	"loop_length_bars": 8,
+	"passive_effects": {
+
+	},
+	"pulse_settings": {
+
+	},
+	"pulse_triggers": {
+		"electric": [
+			0.03125,
+			0.09375,
+			0.15625,
+			0.21875,
+			0.28125,
+			0.34375,
+			0.40625,
+			0.46875,
+			0.53125,
+			0.59375,
+			0.65625,
+			0.71875,
+			0.78125,
+			0.84375
+		]
+	}
+}
