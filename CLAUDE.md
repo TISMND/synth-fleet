@@ -15,24 +15,36 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - Player movement (WASD / arrows), clamped to screen
 - LoopMixer: all loops play simultaneously, mute/unmute for perfect sync
 - HardpointController fires projectiles at normalized time positions via LoopMixer (fire_triggers)
-- Enemies spawn, drift down, can be hit by projectiles
-- Parallax scrolling background
-- Shield/hull health system with HUD
+- Enemies spawn with weapons, flight paths, formations; hit by player projectiles
+- Enemy weapon system (enemy projectiles, beam projectiles, pulse waves)
+- Parallax scrolling background with nebula layers
+- Shield/hull/thermal/electric system bars with HUD
 - GameState save/load to user://
-- WeaponData resource with loop_file_path, loop_length_bars, fire_triggers
-- Weapons Tab with subtabs (Timing / Movement / Effects / Stats), time-based waveform editor, loop browser, fire trigger editor with Free/snap modes
-- Movement system: aim modes (fixed/sweep/track), mirror modes (none/mirror/alternate), direction control
+- Dev Studio with component tabs: Weapons, Beams, Fields, Orbiters, Projectile Animator, Power Cores, Key Changes, Nebulas, Orbital Generators, Field Emitters
+- Weapons Tab with subtabs (Timing / Movement / Effects / Stats), waveform editor, loop browser
+- Level Editor with encounter placement, wave management
+- Level Select and Ship Select screens
+- Ships Screen with ship rendering preview, explosion editor
+- Hangar Screen for loadout configuration
+- Style Editor for live theme editing (Typography, Grid, Buttons, VHS, Panels, Bars, HUD)
+- Options Screen with per-bus volume controls
+- SFX Editor and VFX Editor
+- Movement system: aim modes (fixed/sweep/track), mirror modes (none/mirror/alternate)
 - Effect system: muzzle/trail/impact slots with per-layer color, per-trigger overrides
-- EffectLayerRenderer: centralized rendering utility used by Projectile and HardpointController
-- ThemeManager for visual theming across all screens — every screen fully themed with grid bg, button styles, text glow, LED bars, VHS/CRT overlay, and `theme_changed` reactivity
+- EffectLayerRenderer: centralized rendering utility
+- ThemeManager for visual theming across all screens
+- ShipRenderer with procedural ship drawing + skin system
+- Audio bus hierarchy (GameAudio→Weapons/SFX/Enemies/Atmosphere, UI→Master)
+- KeyBindingManager with customizable slot keybindings
 
 **What's next (rough priority):**
 1. Add Splice WAV loops to `assets/audio/loops/` and `assets/audio/atmosphere/`
-3. More enemy types + actual wave/level design
-4. Shop UI between levels
-5. Additional weapons with different loop lengths/trigger patterns
-6. Real sprite art to replace placeholder polygons
-7. Level atmosphere loops for background music layers
+2. More enemy types + actual wave/level design
+3. Shop UI between levels (scene exists, needs build-out)
+4. Additional weapons with different loop lengths/trigger patterns
+5. Real sprite art to replace placeholder polygons
+6. Level atmosphere loops for background music layers
+7. HUD segment glow animation rework
 
 ## Core Rules
 - **PREVIEWS MUST = GAME REALITY.** Editor/dev studio previews must use the exact same rendering code, shaders, and node setup as the actual game. If something looks good in a preview but different in gameplay, that's a bug. Never create separate rendering paths for previews vs game — share the same components (e.g. `FieldRenderer`, `ShipRenderer`, `VFXFactory`). Previews exist to show what the player will actually see.
@@ -44,34 +56,24 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 
 ### Autoloads (singletons, always available)
 - **GameState** — Persistent player data (credits, loadout, owned items). Saves to `user://save_data.json`.
+- **AudioBusSetup** — Creates audio bus hierarchy at startup (GameAudio→Weapons/SFX/Enemies/Atmosphere, UI→Master). Loads saved volumes from `user://settings/audio.json`.
 - **AudioManager** — Pooled audio playback for non-loop SFX (impacts, UI clicks).
 - **LoopMixer** — Manages N AudioStreamPlayers for loops. All play from bar 1 simultaneously. Mute = `volume_db = -80.0`, unmute = restore volume. API: `add_loop()`, `remove_loop()`, `mute()`, `unmute()`, `start_all()`.
-- **ThemeManager** — Color/glow/font theming with presets. Owns a root `WorldEnvironment` (background mode only — glow is DISABLED on root). All bloom happens inside SubViewports via `VFXFactory.add_bloom_to_viewport()` with ACES tonemapping. Glow float settings (intensity, threshold, levels) are stored here and read by `add_bloom_to_viewport()`. Helpers: `apply_grid_background()`, `apply_button_style()`, `apply_text_glow()`, `apply_vhs_overlay()`, `apply_led_bar()`, `get_environment()`, `set_glow_enabled()`, color/font/float getters. All screens connect `theme_changed` and call helpers in `_apply_theme()` so preset changes propagate everywhere.
+- **ShipRegistry** — Static registry of all 9 player ships with stats (hull/shield/thermal/electric segments, speed, slot counts). Pure code, no JSON.
+- **SfxPlayer** — Loads `SfxConfig` and plays one-shot sounds for game events (hits, explosions, UI).
+- **KeyBindingManager** — Persists slot key bindings to `user://settings/keybindings.json`. Applies bindings to Godot InputMap at runtime.
+- **ThemeManager** — Color/glow/font theming. Single active theme saved to `user://settings/aesthetic.json`. Owns the root `WorldEnvironment` with `glow_enabled = true` — this is the **single bloom source** for everything on screen. SubViewports get ACES tonemapping only (no bloom) via `VFXFactory.add_bloom_to_viewport()`. Helpers: `apply_grid_background()`, `apply_button_style()`, `apply_text_glow()`, `apply_vhs_overlay()`, `apply_led_bar()`, `get_environment()`, `set_glow_enabled()`, color/font/float getters. All screens connect `theme_changed` and call helpers in `_apply_theme()` so changes propagate everywhere.
 
 ### Godot gotchas
-- **Sibling `_ready()` order is not guaranteed.** If node A needs to call a method on sibling node B that uses B's child refs, use `call_deferred()` so B's `_ready()` has run first. Without this, B's `$Child` refs will still be null and you'll get "Nil" property access errors.
-- **Integer regen from floats:** `int(rate * delta)` truncates to 0 when `rate * delta < 1`. Use a float accumulator: add `rate * delta` each frame, convert to int when ≥ 1, subtract the int portion.
-- **Script inheritance:** Don't use `extends "res://path/to/script.gd"` — it causes "Could not resolve class" errors. Instead, give the base script a `class_name` and extend by name (e.g. `class_name MyBase` → `extends MyBase`).
-- **NEVER use `:=` when the right-hand side might be `Variant`.** This includes:
-  1. **Dictionary values** — `dict[key]`, `dict.get()`, `dict.values()`, `for key in dict:`
-  2. **Loosely-typed node access** — `get_parent()` returns `Node`, so `get_parent().some_property` is Variant. Cast first: `var parent: Node2D = get_parent()`
-  3. **`load()` / `preload()` return values** — returns `Resource` (Variant-like). Use `as` cast: `var res: AudioStream = load(path) as AudioStream`
-  4. **Array element access on untyped Arrays** — `array[i]` when array is `Array` not `Array[Type]`
-  5. **Any property access on a base-class-typed variable** when the property only exists on a subclass
+> Full list with architecture-specific lessons: see `GODOT_GOTCHAS.md`
 
-  **Always use explicit type annotations instead:** `var x: float = dict["key"]`, `var pos: Vector2 = parent.global_position`, `var res: PackedScene = load(path)`. Wrapping in `int()` / `float()` also works since those return concrete types.
-- **Programmatic Panel sizing vs content width:** Setting `position`/`size` on a Panel directly does NOT prevent content from overflowing if children's combined minimum size exceeds the Panel width. `clip_contents = true` will crop visually but not fix the layout. Manual `set_deferred()`, anchors, and `grow_horizontal` all fail to override this. **Fix:** build content first, then `await get_tree().process_frame` and read `get_combined_minimum_size()` on children to measure actual needed width. Set the Panel size to fit, and position it accordingly (e.g. right-align by setting `position.x = viewport_width - measured_width`). This lets the panel auto-adjust to any content without hardcoded widths.
-- **Custom shaders ignore `modulate`:** In `canvas_item` shaders, `COLOR` on entry holds the node's `modulate` value. If `fragment()` overwrites `COLOR` without reading the original (e.g. `COLOR = vec4(col, alpha)`), then `sprite.modulate.a` has zero effect. **Fix:** capture `float modulate_alpha = COLOR.a;` at the top of `fragment()` and multiply into the final alpha: `COLOR = vec4(col, alpha * modulate_alpha);`. This applies to any shader where GDScript code expects `modulate` to control opacity.
-- **LED bar glow architecture:** `apply_led_bar()` applies a segment shader to the bar's background stylebox AND adds a child `led_glow` ColorRect with HDR color for bloom. The shader alone can't provide HDR bloom — Godot's 2D pipeline clamps canvas_item shader `COLOR` output, but preserves `ColorRect.color` values > 1.0. So the shader handles visual detail (segments, gaps, inner glow) while the glow rect provides the bloom source. Access shader via `bar.material`. The fill stylebox must be transparent (so ProgressBar value-scaling doesn't affect visuals); the background stylebox must be opaque (so the shader has a surface to draw on). **Bars must be inside a SubViewport with bloom** (via `VFXFactory.add_bloom_to_viewport()`) for the `led_glow` rect to produce visible bloom. Root viewport bloom is disabled.
-- **All bloom is per-SubViewport, not root.** Root viewport WorldEnvironment has `glow_enabled = false`. Every screen that needs bloom creates a SubViewport and calls `VFXFactory.add_bloom_to_viewport()` which adds ACES tonemapping + glow. The game viewport, hangar, dev studio previews, and ships screen each have their own SubViewport bloom. HUD bars render inside the game SubViewport so they share its bloom. CanvasLayer content (VHS overlay) still skips bloom, which is correct.
-- **`glow_bloom` vs `glow_hdr_threshold`:** `glow_bloom` applies bloom to ALL pixels regardless of brightness — even small values fog up the entire screen. Keep it near 0. `glow_hdr_threshold` controls the minimum brightness for bloom — only pixels above this value glow. HDR bar output (fill_color × hdr_multiplier) must exceed the threshold to bloom.
-- **Bloom is resolution-dependent.** Godot's glow blur kernel is fixed-size in pixels, so it covers proportionally larger area in smaller viewports. Dev studio previews (400px) will have more visible bloom per pixel than the game viewport (1920px) with identical settings. This is acceptable — dev previews don't need to match game exactly. **Portability warning:** bloom will blow out on smaller screens (tablets, phones, Steam Deck). Any future port MUST scale glow settings inversely with screen resolution.
-- **Never manually position bars — use VBoxContainer layout.** `apply_led_bar()` sets `custom_minimum_size` based on segment count. If you manually calculate `bar.position`/`bar.size`, they will desync when `_apply_theme` later calls `apply_led_bar` with a different segment count (e.g. from ship stats). **Fix:** put bars inside VBoxContainers: `spacer (SIZE_EXPAND_FILL) → bar → pad → label → pad`. The spacer pushes bar+label to the bottom of the zone. `custom_minimum_size` changes from `apply_led_bar` flow naturally through the container layout. Zero manual position math, zero deferred hacks.
-- **Saved settings override code defaults.** `user://settings/aesthetic.json` persists ALL float/color/font values. When adding new float keys to ThemeManager, their defaults only apply if the key is absent from the saved file. If the user previously saved while experimenting with bad values, those persist across code changes. When adding new tuneable params, consider whether existing save files need migration.
-- **Shader/slider parameter minimums must be zero.** When defining `hint_range` in shaders or slider bounds in UI (e.g. `FIELD_SHADER_PARAM_DEFS`), always set the minimum to `0.0` — never a non-zero floor. Use `max(value, 0.001)` in shader math to guard against division by zero. The user must be able to dial any parameter to zero as a creative choice.
-- **`z_index` in SubViewport previews:** Nodes in a SubViewport share a global z_index sort. A `Sprite2D` with `z_index = -1` renders BEHIND a `ColorRect` background at z_index 0, making shader-driven content completely invisible even when opacity is 1.0. **Fix:** always use `z_index = 1` (or higher) on preview sprites that render over a dark background ColorRect. The Fields tab uses `z_index = 1` — match it in any device/emitter preview.
-- **Hidden nodes leave layout:** Setting `visible = false` on a node removes it from layout calculations entirely. In an `HSplitContainer`, this causes the split to recalculate and the panel to shrink/jump. **Fix:** never hide content that anchors a panel's width. Instead, keep it visible but grey it out (`modulate = Color(1, 1, 1, 0.3)`) and disable interactive controls (`disabled = true` on buttons/dropdowns, `editable = false` on spinboxes). The widgets stay in layout and hold the panel width stable.
-- **Recovery animations that modify stat values will trigger "crisis over" exit checks.** If code checks `if electric > 0.0: _end_drift()` and a recovery animation sets `electric = lerpf(0, max, t)`, the recovery kills itself on frame 2 because electric rises above 0. **Fix:** guard exit checks with `and not _recovery_active` (or equivalent flag) so the recovery sequence completes before normal gameplay checks resume. This applies to any multi-frame animation that restores a stat value that other code monitors for state transitions.
+- **Sibling `_ready()` order is not guaranteed.** Use `call_deferred()` when node A needs sibling node B's children to be ready.
+- **Integer regen from floats:** `int(rate * delta)` truncates to 0 when `rate * delta < 1`. Use a float accumulator.
+- **Script inheritance:** Don't use `extends "res://path/to/script.gd"`. Give the base script a `class_name` and extend by name.
+- **NEVER use `:=` when the right-hand side might be `Variant`.** Dictionary values, `get_parent()`, `load()`, untyped array access. Always use explicit type annotations: `var x: float = dict["key"]`.
+- **Custom shaders ignore `modulate`:** Capture `float modulate_alpha = COLOR.a;` at the top of `fragment()` and multiply into final alpha. Without this, `sprite.modulate.a` has zero effect.
+- **Saved settings override code defaults.** `user://settings/aesthetic.json` persists ALL values. New ThemeManager keys only use defaults if absent from saved file.
+- **Shader/slider parameter minimums must be zero.** Use `max(value, 0.001)` in shader math to guard against division by zero. The user must be able to dial any parameter to zero.
 
 ### Vocabulary
 - **Style Editor** (`style_editor.*`) — theme editor screen. Not "Aesthetic Studio/Workshop."
@@ -83,7 +85,7 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - Weapons fire at specific beat positions defined by `fire_triggers` (Array[float])
 - Each weapon has an audio loop that plays/mutes in sync via LoopMixer
 - Player toggles weapons ON/OFF (1-9 keys, Space = all on, C = all off)
-- Health = shields (regen) + hull (doesn't). Generator power is a ship stat (displayed but not enforced).
+- Health = shields (regen) + hull (doesn't) + thermal + electric system bars.
 - Shop between levels/deaths for weapons, upgrades, ships
 
 ### Screen theming pattern
@@ -128,39 +130,57 @@ v1 profiles (flat `{slot: {type, params}}`) auto-migrate on load via `WeaponData
 ### Directory layout
 ```
 scenes/
-  ui/            Menus, dev studio, hangar, shop
+  game/          Game scene (game.tscn)
+  ui/            Menus, dev studio, hangar, shop, editors
 scripts/
-  autoload/      Singletons (GameState, AudioManager, LoopMixer, ThemeManager)
-  data/          DataManagers (WeaponDataManager, ShipDataManager, LoadoutDataManager)
-  game/          Game logic (game, player_ship, hardpoint_controller, enemy, effect_layer_renderer, etc.)
-  ui/            UI scripts (main_menu, dev_studio, weapons_tab, waveform_editor, loop_browser, etc.)
+  autoload/      Singletons (8 — see list above)
+  data/          DataManagers (~19 — WeaponDataManager, ShipDataManager, LevelDataManager, etc.)
+  game/          Game logic (game, player_ship, hardpoint_controller, enemy, vfx_factory, etc.)
+  rendering/     Ship rendering (ship_renderer, ship_canvas, ship_thumbnails, shield_bubble_effect)
+  ui/            UI scripts (~46 — dev_studio, weapons_tab, waveform_editor, level_editor, etc.)
+  util/          Utilities (effect_rate_calculator)
 resources/       Resource class definitions (.gd) — populated from JSON at runtime
 data/            Dev-authored JSON content (weapons, ships, styles, etc.) — git-tracked
 assets/
   audio/loops/       Weapon audio loops (Splice WAVs)
   audio/atmosphere/  Level/boss atmospheric loops (Splice WAVs)
+  shaders/           90+ .gdshader files (nebula, field, projectile, bar, UI)
+  fonts/             TTF fonts (Audiowide, Bungee, Orbitron, RussoOne, ShareTechMono)
 ```
 
 ### Data storage
 Dev-created content is JSON in `res://data/` (git-tracked):
 ```
-res://data/weapons/           Weapon definition JSON files
-res://data/ships/             Ship definition JSON files
-res://data/power_cores/       Power core definition JSON files
-res://data/flight_paths/      Flight path definition JSON files
-res://data/projectile_styles/ Projectile style JSON files
-res://data/projectile_masks/  Projectile mask PNGs
+res://data/weapons/             Weapon definitions
+res://data/ships/               Ship definitions (player + enemy)
+res://data/beam_styles/         Beam visual styles
+res://data/field_emitters/      Field emitter definitions
+res://data/field_styles/        Field visual styles
+res://data/flight_paths/        Enemy flight paths
+res://data/formations/          Enemy formations
+res://data/key_changes/         Key change definitions
+res://data/levels/              Level definitions
+res://data/nebula_definitions/  Nebula definitions
+res://data/orbital_generators/  Orbital generator definitions
+res://data/power_cores/         Power core definitions
+res://data/projectile_styles/   Projectile visual styles
+res://data/projectile_masks/    Projectile mask PNGs
+res://data/loop_config.json     Global loop config
+res://data/sfx_config.json      SFX event mappings
+res://data/vfx_config.json      VFX config
 ```
 Player runtime state stays in `user://` (not tracked):
 ```
-user://save_data.json GameState persistence
-user://settings/      Global settings (BPM, aesthetics)
+user://save_data.json           GameState persistence
+user://settings/                Global settings (audio, aesthetics, keybindings)
 ```
 
 ### Collision layers
 - Layer 1: Player
-- Layer 2: Player projectiles
+- Layer 2: Player projectiles (projectile, beam, pulse_wave)
 - Layer 4: Enemies
+- Layer 8: Enemy projectiles
+- Layer 128: Devices (field emitters)
 
 ### Waveform Editor coordinate system
 The waveform editor works in **normalized time (0.0–1.0)** internally. Fire triggers are placed, displayed, and stored in normalized time — no beat-space conversion anywhere in the pipeline.
@@ -172,7 +192,7 @@ Beat grid overlay uses `loop_length_bars` for cosmetic display only (snap lines,
 Snap modes: Free (click anywhere), 1/4, 1/8, 1/16. Beat grid overlay is optional and visual-only.
 
 ### Adding a new weapon
-1. Use the Weapons Tab in Dev Studio, or save a JSON file to `user://weapons/`
+1. Use the Weapons Tab in Dev Studio, or save a JSON file to `res://data/weapons/`
 2. Place the weapon's audio loop WAV in `assets/audio/loops/` or `loop_zips/sorted/`
 3. In Weapons Tab (Timing subtab): browse loops, waveform auto-loads with real PCM data, click to place fire triggers (Free or snapped)
 4. Use Effects subtab for visual effect layers, Stats subtab for combat values

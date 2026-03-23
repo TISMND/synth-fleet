@@ -1,5 +1,7 @@
 # Review Checklist — Commit 9243603+
 
+> **STATUS (2026-03-23):** Partially complete. Most items here have been implemented but not all checkboxes are ticked. See `project_roadmap.md` in memory for the current priority list.
+
 Remaining items from the mega-commit plus new priorities. Check each item, leave notes, mark pass/fail.
 
 ---

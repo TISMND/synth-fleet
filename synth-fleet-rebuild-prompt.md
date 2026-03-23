@@ -1,5 +1,7 @@
 # Synth Fleet — Complete Rebuild Prompt
 
+> **DEPRECATED (2026-03-23):** This document describes the original rebuild plan from before the loop-based audio overhaul. Major differences from current codebase: BeatClock (replaced by LoopMixer), piano roll / pitch offsets (replaced by fire_triggers on waveforms), `user://` data storage (now `res://data/` JSON), generator_power stat (removed), LoadoutDataManager (never built). **Do not use this as a spec — see CLAUDE.md for current architecture.**
+
 ## How to Use This Document
 
 This is the master specification for rebuilding Synth Fleet from scratch. It is organized into **phases** that should be built in order — each phase produces a working, testable state before moving on.
