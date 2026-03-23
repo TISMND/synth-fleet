@@ -519,6 +519,20 @@
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -5.12455516014235
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_1",
+			"rotate_with_path": false,
+			"ship_id": "enemy_1",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 1629.60854092527,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -163.985765124555
 		}
 	],
 	"flight_speed": 280.0,
