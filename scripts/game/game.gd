@@ -179,6 +179,8 @@ func _process(delta: float) -> void:
 	_flight_distance += _flight_speed * delta
 	if _nebula_container:
 		_nebula_container.position.y = _flight_distance
+	if _bg_debug_grid and _bg_debug_grid.visible:
+		_bg_debug_grid.position.y = fmod(_scroll_distance, _bg_debug_grid.line_spacing)
 	if _fg_debug_grid and _fg_debug_grid.visible:
 		_fg_debug_grid.position.y = fmod(_flight_distance, _fg_debug_grid.line_spacing)
 	if _wave_manager and not _death_sequence_active:
@@ -693,18 +695,14 @@ func _setup_debug_grids() -> void:
 	_deep_debug_grid.visible = false
 	_game_viewport.add_child(_deep_debug_grid)
 
-	# Background grid — scrolls at scroll_speed via ParallaxLayer (green)
-	var bg_layer := ParallaxLayer.new()
-	bg_layer.motion_scale = Vector2(0, 1)
-	bg_layer.motion_mirroring = Vector2(0, 1200)
-	_parallax_bg.add_child(bg_layer)
+	# Background grid — scrolls at scroll_speed, manually positioned (green)
 	_bg_debug_grid = _DebugGrid.new()
 	_bg_debug_grid.grid_color = Color(0.3, 0.9, 0.3, 0.4)
 	_bg_debug_grid.label_text = "BACKGROUND"
 	_bg_debug_grid.speed_value = _scroll_speed
 	_bg_debug_grid.z_index = -8
 	_bg_debug_grid.visible = false
-	bg_layer.add_child(_bg_debug_grid)
+	_game_viewport.add_child(_bg_debug_grid)
 
 	# Foreground grid — scrolls at flight_speed (orange)
 	_fg_debug_grid = _DebugGrid.new()

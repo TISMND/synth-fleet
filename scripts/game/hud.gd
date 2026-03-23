@@ -37,21 +37,14 @@ var _power_death_final: bool = false  # Final fade — kill all remaining segmen
 var _power_death_final_elapsed: float = 0.0
 var _bar_kill_masks: Dictionary = {}   # bar_name -> int bitmask (bit N = segment N killed)
 var _bar_flicker_timers: Dictionary = {}  # bar_name -> Array[float] (per-segment flicker countdown)
-var _debug_overlay: HudDebugOverlay = null
 
 
 func _ready() -> void:
 	_build_ui()
 	_setup_vhs_overlay()
-	_setup_debug_overlay()
 	_apply_theme()
 	ThemeManager.theme_changed.connect(_apply_theme)
 
-
-func _setup_debug_overlay() -> void:
-	_debug_overlay = HudDebugOverlay.new()
-	_debug_overlay.setup(self, _hud_result, _bars)
-	add_child(_debug_overlay)
 
 
 func _build_ui() -> void:
