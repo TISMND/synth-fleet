@@ -2348,8 +2348,9 @@ func _build_ui() -> void:
 	_sim_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_sim_status_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_sim_status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_sim_status_label.offset_top = -60
-	_sim_status_label.offset_bottom = -20
+	_sim_status_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_sim_status_label.offset_top = -120
+	_sim_status_label.offset_bottom = -50
 	_sim_status_label.offset_left = -200
 	_sim_status_label.offset_right = 200
 	_sim_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2875,24 +2876,66 @@ func _on_bar_effect_fired(effects: Dictionary) -> void:
 			continue
 		var entry: Dictionary = _bars[bar_name]
 		var bar: ProgressBar = entry["bar"]
-		# Scale effect so it feels proportional regardless of bar segment count.
 		var raw_delta: float = float(effects[key])
-		var delta: float = raw_delta * (bar.max_value / 80.0)
-		bar.value = clampf(bar.value + delta, 0.0, bar.max_value)
-		# Trigger rolling wave based on intended delta (not clamped result)
-		# Only reset position if wave isn't already rolling (passive effects fire every frame)
-		if delta > 0.0:
-			if not bool(_bar_gain_waves[bar_name].get("active", false)):
-				_bar_gain_waves[bar_name]["position"] = 0.0
-			_bar_gain_waves[bar_name]["active"] = true
-		elif delta < 0.0:
-			if not bool(_bar_drain_waves[bar_name].get("active", false)):
-				_bar_drain_waves[bar_name]["position"] = 1.0
-			_bar_drain_waves[bar_name]["active"] = true
-		# Update fill ratio on shader (don't rebuild the whole bar)
-		if bar.material is ShaderMaterial:
-			var mat: ShaderMaterial = bar.material as ShaderMaterial
-			mat.set_shader_parameter("fill_ratio", bar.value / maxf(bar.max_value, 1.0))
+		# raw_delta is in points (10 points = 1 segment). Convert to bar units.
+		# bar.max_value is in segments, so divide by 10.
+		var delta: float = raw_delta / 10.0
+
+		# Cascading effects — match game mechanics
+		if bar_name == "THERMAL" and delta > 0.0:
+			# Thermal overflow → hull damage (bypasses shields)
+			var new_thermal: float = bar.value + delta
+			if new_thermal > bar.max_value:
+				var overflow: float = new_thermal - bar.max_value
+				bar.value = bar.max_value
+				# Apply overflow as hull damage
+				if _bars.has("HULL"):
+					var hull_bar: ProgressBar = _bars["HULL"]["bar"]
+					hull_bar.value = maxf(hull_bar.value - overflow, 0.0)
+					_trigger_bar_wave("HULL", -overflow)
+					_update_bar_shader("HULL")
+			else:
+				bar.value = clampf(new_thermal, 0.0, bar.max_value)
+		elif bar_name == "ELECTRIC" and delta < 0.0:
+			# Electric overdraw → shield bleed (1.5x penalty)
+			var new_electric: float = bar.value + delta
+			if new_electric < 0.0:
+				var overflow: float = -new_electric
+				bar.value = 0.0
+				var shield_cost: float = overflow * 1.5
+				if _bars.has("SHIELD"):
+					var shield_bar: ProgressBar = _bars["SHIELD"]["bar"]
+					shield_bar.value = maxf(shield_bar.value - shield_cost, 0.0)
+					_trigger_bar_wave("SHIELD", -shield_cost)
+					_update_bar_shader("SHIELD")
+			else:
+				bar.value = clampf(new_electric, 0.0, bar.max_value)
+		else:
+			bar.value = clampf(bar.value + delta, 0.0, bar.max_value)
+
+		_trigger_bar_wave(bar_name, delta)
+		_update_bar_shader(bar_name)
+
+
+func _trigger_bar_wave(bar_name: String, delta: float) -> void:
+	if delta > 0.0:
+		if not bool(_bar_gain_waves[bar_name].get("active", false)):
+			_bar_gain_waves[bar_name]["position"] = 0.0
+		_bar_gain_waves[bar_name]["active"] = true
+	elif delta < 0.0:
+		if not bool(_bar_drain_waves[bar_name].get("active", false)):
+			_bar_drain_waves[bar_name]["position"] = 1.0
+		_bar_drain_waves[bar_name]["active"] = true
+
+
+func _update_bar_shader(bar_name: String) -> void:
+	if not _bars.has(bar_name):
+		return
+	var entry: Dictionary = _bars[bar_name]
+	var bar: ProgressBar = entry["bar"]
+	if bar.material is ShaderMaterial:
+		var mat: ShaderMaterial = bar.material as ShaderMaterial
+		mat.set_shader_parameter("fill_ratio", bar.value / maxf(bar.max_value, 1.0))
 
 
 func _update_sim_status() -> void:
@@ -2935,6 +2978,18 @@ func _update_sim_status() -> void:
 	_sim_status_label.text = "\n".join(lines)
 
 
+func _any_heat_source_active() -> bool:
+	## Returns true if any active component generates positive thermal.
+	## When true, passive cooling is suppressed (matches game behavior).
+	for slot_key in _slot_active:
+		if not bool(_slot_active[slot_key]):
+			continue
+		var rates: Dictionary = _get_slot_rates(slot_key)
+		if float(rates.get("thermal", 0.0)) > 0.0:
+			return true
+	return false
+
+
 func _advance_bar_waves(delta: float) -> void:
 	for bar_name in _bars:
 		var gain_wave: Dictionary = _bar_gain_waves.get(bar_name, {})
@@ -2968,6 +3023,8 @@ func _advance_bar_waves(delta: float) -> void:
 			mat.set_shader_parameter("drain_wave_pos", dp)
 
 
+const SIM_THERMAL_COOLING_RATE: float = 1.5  # segments/sec (15 hp/sec ÷ 10 points/segment)
+
 func _process(_delta: float) -> void:
 	_advance_bar_waves(_delta)
 	_animate_fg_totals(_delta)
@@ -2977,6 +3034,13 @@ func _process(_delta: float) -> void:
 	_process_core_previews()
 	_process_device_previews()
 	_update_ship_field_tint()
+	# Passive thermal cooling — only when no active component is generating heat
+	# (matches game: cooling stops while heat sources are active)
+	if _bars.has("THERMAL"):
+		var thermal_bar: ProgressBar = _bars["THERMAL"]["bar"]
+		if thermal_bar.value > 0.0 and not _any_heat_source_active():
+			thermal_bar.value = maxf(thermal_bar.value - SIM_THERMAL_COOLING_RATE * _delta, 0.0)
+			_update_bar_shader("THERMAL")
 
 
 func _process_core_previews() -> void:
