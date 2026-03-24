@@ -6,6 +6,11 @@ extends Node
 signal loop_state_changed(loop_id: String, muted: bool)  ## TODO: connect to HUD for weapon mute/unmute state display
 
 const MUTE_DB := -80.0
+const DEFAULT_FADE_IN_MS: int = 100
+const DEFAULT_FADE_OUT_MS: int = 500
+
+var _fade_in_ms: int = -1   # -1 = use DEFAULT_FADE_IN_MS
+var _fade_out_ms: int = -1  # -1 = use DEFAULT_FADE_OUT_MS
 
 var _loops: Dictionary = {}
 # Each entry: {player: AudioStreamPlayer, target_volume: float, muted: bool, duration: float}
@@ -121,9 +126,11 @@ func remove_all_loops() -> void:
 		remove_loop(loop_id)
 
 
-func mute(loop_id: String, fade_ms: int = 0) -> void:
+func mute(loop_id: String, fade_ms: int = -1) -> void:
 	if not _loops.has(loop_id):
 		return
+	if fade_ms == -1:
+		fade_ms = _fade_out_ms if _fade_out_ms >= 0 else DEFAULT_FADE_OUT_MS
 	var entry: Dictionary = _loops[loop_id]
 	entry["muted"] = true
 	var player: AudioStreamPlayer = entry["player"]
@@ -141,9 +148,11 @@ func mute(loop_id: String, fade_ms: int = 0) -> void:
 	loop_state_changed.emit(loop_id, true)
 
 
-func unmute(loop_id: String, fade_ms: int = 0) -> void:
+func unmute(loop_id: String, fade_ms: int = -1) -> void:
 	if not _loops.has(loop_id):
 		return
+	if fade_ms == -1:
+		fade_ms = _fade_in_ms if _fade_in_ms >= 0 else DEFAULT_FADE_IN_MS
 	var entry: Dictionary = _loops[loop_id]
 	entry["muted"] = false
 	var target_vol: float = float(entry["target_volume"])
@@ -168,6 +177,13 @@ func _cancel_fade(loop_id: String) -> void:
 		if tween and tween.is_valid():
 			tween.kill()
 		_active_tweens.erase(loop_id)
+
+
+func set_fade_defaults(fade_in_ms: int, fade_out_ms: int) -> void:
+	## Override the default fade durations at runtime.
+	## Pass -1 to revert to the compile-time constant for that direction.
+	_fade_in_ms = fade_in_ms
+	_fade_out_ms = fade_out_ms
 
 
 func set_volume(loop_id: String, volume_db: float) -> void:
@@ -229,12 +245,12 @@ func is_playing() -> bool:
 	return false
 
 
-func mute_all(fade_ms: int = 0) -> void:
+func mute_all(fade_ms: int = -1) -> void:
 	for loop_id in _loops:
 		mute(loop_id, fade_ms)
 
 
-func unmute_all(fade_ms: int = 0) -> void:
+func unmute_all(fade_ms: int = -1) -> void:
 	for loop_id in _loops:
 		unmute(loop_id, fade_ms)
 

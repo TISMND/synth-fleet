@@ -160,6 +160,13 @@ func _ready() -> void:
 	_apply_glow_settings()  # Re-apply with loaded saved values (defaults are stale)
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.is_echo() and event.keycode == KEY_F4:
+		print("\n── UI Tree Dump (F4) ──")
+		DebugTools.dump_ui_tree(get_tree().root)
+		print("── End Dump ──\n")
+
+
 func _setup_world_environment() -> void:
 	_world_env = WorldEnvironment.new()
 	_env = Environment.new()

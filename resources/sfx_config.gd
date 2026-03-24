@@ -85,6 +85,52 @@ const EVENT_LABELS: Dictionary = {
 	"powerup_restored": "10. FULL RESTORATION",
 }
 
+const EVENT_DESCRIPTIONS: Dictionary = {
+	# Hit Sounds
+	"enemy_shield_hit": "Player projectile hits an enemy's shield layer",
+	"enemy_hull_hit": "Player projectile hits an enemy's hull (no shield remaining)",
+	"player_shield_hit": "Enemy projectile or contact hits the player's shield",
+	"player_hull_hit": "Enemy projectile or contact hits the player's hull directly",
+	# Explosions
+	"explosion_1": "Small enemy death explosion (drones, small ships)",
+	"explosion_2": "Medium enemy death explosion (standard enemies)",
+	"explosion_3": "Large enemy death explosion (captains, bosses)",
+	# Alarms & Warnings
+	"electric_alarm": "Electric bar critically low — arcing/sparking danger",
+	"heat_alarm": "Thermal bar critically high — approaching overheat",
+	"fire_alarm": "Generic fire/danger alarm (not currently wired)",
+	"shield_critical": "Shield bar nearly depleted",
+	"hull_critical": "Hull bar nearly depleted — ship close to destruction",
+	"system_warning_beep": "General-purpose warning beep for HUD alerts",
+	# Power Failure (the moment systems go dark)
+	"power_failure": "The instant all power cuts — main power-out sound",
+	"monitor_shutoff": "CRT display switching off with a click/thud",
+	"monitor_static": "Brief burst of static as the display dies",
+	"electric_sparks": "Sparking sounds from failing electrical systems",
+	"engine_sputter": "Engines choking and dying, thrust cutting out",
+	"hull_damage_powerless": "Taking a hit while power is out — dull metallic impact, no shields",
+	# Reboot Sequence (CRT terminal reboot after power recovery)
+	"reboot_char_thunk": "Each character appearing on the reboot terminal — mechanical typewriter tick",
+	"reboot_line_beep": "End-of-line beep as each diagnostic line completes",
+	"reboot_complete": "Final confirmation sound — all systems restored",
+	# Power-Down Sequence (gradual failure, events fire in numbered order)
+	"powerdown_shields_bleed": "Step 1: Shields start draining passively — energy bleeding away",
+	"powerdown_engines_dying": "Step 2: Engines losing power — ship starts slowing",
+	"powerdown_drift_start": "Step 3: Ship begins uncontrolled drift — player loses steering",
+	"powerdown_crt_flicker_start": "Step 4: CRT overlay starts flickering — visual distortion begins",
+	"powerdown_screen_75": "Step 5a: Display degraded to 75% — screen dimming",
+	"powerdown_screen_50": "Step 5b: Display degraded to 50% — heavy static",
+	"powerdown_screen_25": "Step 5c: Display degraded to 25% — barely visible",
+	"powerdown_final_death": "Step 6: Total blackout — screen goes dark, all systems dead",
+	# Power-Up Sequence (recovery after power restored, events fire in numbered order)
+	"powerup_electric_restored": "Step 7: First spark of power — cold start initiated",
+	"powerup_core_regen": "Step 7c: Power core begins regenerating energy",
+	"powerup_bars_charging": "Step 7b: System bars (shield/hull/thermal) start refilling",
+	"powerup_screen_on": "Step 8: CRT display powers back on — screen flickers to life",
+	"powerup_systems_online": "Step 9: Weapons and navigation systems come back online",
+	"powerup_restored": "Step 10: Full restoration — ship back to normal operation",
+}
+
 var events: Dictionary = {}
 
 

@@ -144,7 +144,7 @@ func _build_ui() -> void:
 	vbox.add_child(filter_spacer)
 
 	# Hit Sounds section
-	_add_section_header(vbox, "HIT SOUNDS")
+	_add_section_header(vbox, "HIT SOUNDS", "Projectile and contact impacts — shield vs hull variants for both player and enemies")
 	for event_id in ["enemy_shield_hit", "enemy_hull_hit", "player_shield_hit", "player_hull_hit"]:
 		_add_event_row(vbox, event_id)
 
@@ -154,7 +154,7 @@ func _build_ui() -> void:
 	vbox.add_child(spacer)
 
 	# Explosions section
-	_add_section_header(vbox, "EXPLOSIONS")
+	_add_section_header(vbox, "EXPLOSIONS", "Enemy death explosions — size tiers from small drones to bosses")
 	for event_id in ["explosion_1", "explosion_2", "explosion_3"]:
 		_add_event_row(vbox, event_id)
 
@@ -163,7 +163,7 @@ func _build_ui() -> void:
 	vbox.add_child(spacer_2)
 
 	# Alarms section
-	_add_section_header(vbox, "ALARMS & WARNINGS")
+	_add_section_header(vbox, "ALARMS & WARNINGS", "Continuous or repeated alerts when system bars hit critical thresholds")
 	for event_id in ["electric_alarm", "heat_alarm", "fire_alarm", "shield_critical", "hull_critical", "system_warning_beep"]:
 		_add_event_row(vbox, event_id)
 
@@ -172,7 +172,7 @@ func _build_ui() -> void:
 	vbox.add_child(spacer_3)
 
 	# Power failure section
-	_add_section_header(vbox, "POWER FAILURE")
+	_add_section_header(vbox, "POWER FAILURE", "The instant of power loss — these all fire at once when electric hits zero")
 	for event_id in ["power_failure", "monitor_shutoff", "monitor_static", "electric_sparks", "engine_sputter", "hull_damage_powerless"]:
 		_add_event_row(vbox, event_id)
 
@@ -181,7 +181,7 @@ func _build_ui() -> void:
 	vbox.add_child(spacer_4)
 
 	# Reboot sequence section
-	_add_section_header(vbox, "REBOOT SEQUENCE")
+	_add_section_header(vbox, "REBOOT SEQUENCE", "CRT terminal reboot after power is restored — character-by-character diagnostic display")
 	for event_id in ["reboot_char_thunk", "reboot_line_beep", "reboot_complete"]:
 		_add_event_row(vbox, event_id)
 
@@ -190,7 +190,7 @@ func _build_ui() -> void:
 	vbox.add_child(spacer_5)
 
 	# Staged power-down cues (numbered in sequence order)
-	_add_section_header(vbox, "POWER-DOWN SEQUENCE (in order)")
+	_add_section_header(vbox, "POWER-DOWN SEQUENCE (in order)", "Gradual power failure — fires step by step as electric drains. Shields bleed first, then engines die, drift begins, display degrades in stages, then total blackout.")
 	for event_id in ["powerdown_shields_bleed", "powerdown_engines_dying", "powerdown_drift_start", "powerdown_crt_flicker_start", "powerdown_screen_75", "powerdown_screen_50", "powerdown_screen_25", "powerdown_final_death"]:
 		_add_event_row(vbox, event_id)
 
@@ -199,7 +199,7 @@ func _build_ui() -> void:
 	vbox.add_child(spacer_6)
 
 	# Staged power-up cues
-	_add_section_header(vbox, "POWER-UP SEQUENCE (recovery)")
+	_add_section_header(vbox, "POWER-UP SEQUENCE (recovery)", "Recovery after power restored — fires step by step as systems come back online. Cold start spark, core regen, bars refill, display flickers on, weapons restore, full recovery.")
 	for event_id in ["powerup_electric_restored", "powerup_core_regen", "powerup_bars_charging", "powerup_screen_on", "powerup_systems_online", "powerup_restored"]:
 		_add_event_row(vbox, event_id)
 
@@ -247,10 +247,13 @@ func _on_tab_loops() -> void:
 	_preview_player.stop()
 
 
-func _add_section_header(parent: VBoxContainer, text: String) -> void:
+func _add_section_header(parent: VBoxContainer, text: String, description: String = "") -> void:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_size_override("font_size", 20)
+	if description != "":
+		label.tooltip_text = description
+		label.mouse_filter = Control.MOUSE_FILTER_STOP
 	parent.add_child(label)
 	_section_headers.append(label)
 
@@ -260,11 +263,15 @@ func _add_event_row(parent: VBoxContainer, event_id: String) -> void:
 	row.add_theme_constant_override("separation", 8)
 	parent.add_child(row)
 
-	# Event label
+	# Event label with tooltip description
 	var label := Label.new()
 	var display_name: String = SfxConfig.EVENT_LABELS.get(event_id, event_id)
 	label.text = display_name
 	label.custom_minimum_size = Vector2(180, 0)
+	var desc: String = SfxConfig.EVENT_DESCRIPTIONS.get(event_id, "")
+	if desc != "":
+		label.tooltip_text = desc
+		label.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.add_child(label)
 	_event_labels[event_id] = label
 

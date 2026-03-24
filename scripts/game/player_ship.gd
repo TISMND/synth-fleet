@@ -87,6 +87,10 @@ const RECOVERY_DURATION: float = 3.5  # Seconds for bars to animate back up
 signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
 signal final_power_death()  # Emitted once when power fully dies — for external systems
 
+const RAM_DPS: float = 80.0  # Contact damage per second of overlap — half-second brush ≈ 40 damage
+var _ram_overlapping: Array[Area2D] = []  # Enemies currently overlapping player
+var _ram_accumulator: float = 0.0  # Fractional damage accumulator
+
 const THERMAL_COOLING_RATE: float = 15.0  # hp/sec cooling when no heat sources active
 const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segments (40 points)
 const ELECTRIC_SHIELD_BLEED_MULT: float = 1.5  # Overdraw penalty: 1.5x cost from shields
@@ -177,6 +181,7 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	col_shape.rotation = float(col_result["rotation"])
 	_player_area.add_child(col_shape)
 	_player_area.area_entered.connect(_on_contact)
+	_player_area.area_exited.connect(_on_contact_exit)
 	add_child(_player_area)
 
 	# Create core controllers from core_N slots
@@ -304,6 +309,20 @@ func _process(delta: float) -> void:
 	# Thermal cooling — only when no active component generates heat
 	if thermal > 0.0 and not _any_heat_source_active():
 		thermal = maxf(thermal - THERMAL_COOLING_RATE * delta, 0.0)
+
+	# Continuous ram damage — DPS while overlapping enemies (Tyrian-style)
+	# Clean up freed enemies first
+	var i: int = _ram_overlapping.size() - 1
+	while i >= 0:
+		if not is_instance_valid(_ram_overlapping[i]):
+			_ram_overlapping.remove_at(i)
+		i -= 1
+	if not _ram_overlapping.is_empty():
+		_ram_accumulator += RAM_DPS * delta
+		if _ram_accumulator >= 1.0:
+			var tick: int = int(_ram_accumulator)
+			_ram_accumulator -= float(tick)
+			take_damage(float(tick))
 
 	# Electric critically low — crisis starts at half a segment (5 points)
 	if electric <= 5.0 and not _electric_crisis_active:
@@ -1348,6 +1367,7 @@ func _apply_device_modifiers() -> void:
 			_pre_suppress_weapon_states.append(hc.is_active() if hc else false)
 			if hc and hc.is_active():
 				hc.deactivate()
+		_update_hud_hardpoints()
 	elif not wants_suppress_weapons and _device_weapons_suppressed:
 		_device_weapons_suppressed = false
 		for i in _hardpoint_controllers.size():
@@ -1356,6 +1376,7 @@ func _apply_device_modifiers() -> void:
 				if hc:
 					hc.activate()
 		_pre_suppress_weapon_states.clear()
+		_update_hud_hardpoints()
 
 	# Core suppression — same pattern
 	if wants_suppress_cores and not _device_cores_suppressed:
@@ -1366,6 +1387,7 @@ func _apply_device_modifiers() -> void:
 			_pre_suppress_core_states.append(cc.is_active() if cc else false)
 			if cc and cc.is_active():
 				cc.deactivate()
+		_update_hud_cores()
 	elif not wants_suppress_cores and _device_cores_suppressed:
 		_device_cores_suppressed = false
 		for i in _core_controllers.size():
@@ -1374,6 +1396,7 @@ func _apply_device_modifiers() -> void:
 				if cc:
 					cc.activate()
 		_pre_suppress_core_states.clear()
+		_update_hud_cores()
 
 
 func _exit_tree() -> void:
@@ -1503,7 +1526,15 @@ func _on_contact(area: Area2D) -> void:
 	# Enemy projectiles handle their own damage via their _on_area_entered
 	if area is EnemyProjectile:
 		return
-	take_damage(15.0)
+	# Track enemy for continuous ram damage (DPS while overlapping)
+	if area not in _ram_overlapping:
+		_ram_overlapping.append(area)
+
+
+func _on_contact_exit(area: Area2D) -> void:
+	var idx: int = _ram_overlapping.find(area)
+	if idx >= 0:
+		_ram_overlapping.remove_at(idx)
 
 
 static func _make_collision_shape(ship: ShipData) -> Dictionary:

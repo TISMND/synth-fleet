@@ -287,10 +287,10 @@ func _fire(trigger_idx: int = -1) -> void:
 
 
 func _fire_pattern_at(dir_deg: float, trigger_idx: int) -> void:
-	# Apply parent rotation for fixed/sweep so projectiles follow ship spin.
+	# Apply parent rotation for fixed/sweep so projectiles follow hull direction.
 	# Track mode already returns global angles, so skip.
 	var ship_rot: float = 0.0
-	if not is_enemy and aim_mode != "track":
+	if aim_mode != "track":
 		ship_rot = global_rotation
 	var dir: Vector2 = Vector2.UP.rotated(ship_rot + deg_to_rad(dir_deg))
 	var perp: Vector2 = dir.rotated(deg_to_rad(90.0))
@@ -470,9 +470,12 @@ func _spawn_muzzle_effect(origin: Vector2, trigger_idx: int = -1) -> void:
 		var layer_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, color)
 		var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer_dict, layer_color)
 		emitter.position = origin
-		# Flip muzzle direction for enemies (they fire downward)
+		# Rotate muzzle to match hull direction
+		# Enemies base direction is PI (downward); add hull rotation on top
 		if is_enemy:
-			emitter.rotation = PI
+			emitter.rotation = PI + global_rotation
+		elif global_rotation != 0.0:
+			emitter.rotation = global_rotation
 		_projectiles_container.add_child(emitter)
 
 

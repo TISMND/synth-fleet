@@ -9,6 +9,7 @@ var owned_weapon_ids: Array[String] = []
 var owned_ship_ids: Array[String] = []
 var owned_device_ids: Array[String] = []
 var current_level: int = 0
+var completed_levels: Dictionary = {}  # {"level_1": "A", "level_2": "B"} — level_id → letter grade
 var stats: Dictionary = {}
 
 # Ship/slot system
@@ -87,6 +88,7 @@ func save_game() -> void:
 		"current_ship_index": current_ship_index,
 		"slot_config": slot_config,
 		"current_level": current_level,
+		"completed_levels": completed_levels,
 		"stats": stats,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -121,6 +123,7 @@ func load_game() -> void:
 	for did in dids:
 		owned_device_ids.append(str(did))
 	current_level = int(data.get("current_level", 0))
+	completed_levels = data.get("completed_levels", {}) as Dictionary
 	stats = data.get("stats", {})
 
 	current_ship_index = int(data.get("current_ship_index", 4))
@@ -140,11 +143,41 @@ func _set_defaults() -> void:
 	current_ship_index = 4
 	_init_slot_config()
 	current_level = 0
+	completed_levels = {}
 	stats = {}
+
+
+func complete_level(level_id: String, grade: String) -> void:
+	## Record a level completion. Only upgrades the grade (A > B > C > D > F).
+	var old_grade: String = str(completed_levels.get(level_id, ""))
+	if old_grade == "" or _grade_rank(grade) < _grade_rank(old_grade):
+		completed_levels[level_id] = grade
+	save_game()
+
+
+func get_level_grade(level_id: String) -> String:
+	return str(completed_levels.get(level_id, ""))
+
+
+func is_level_completed(level_id: String) -> bool:
+	return completed_levels.has(level_id)
+
+
+func _grade_rank(grade: String) -> int:
+	## Lower = better. Used to compare grades.
+	match grade:
+		"S": return 0
+		"A": return 1
+		"B": return 2
+		"C": return 3
+		"D": return 4
+		"F": return 5
+	return 99
 
 
 func reset_campaign() -> void:
 	current_level = 0
+	completed_levels = {}
 	save_game()
 
 

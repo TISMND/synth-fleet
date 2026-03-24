@@ -38,13 +38,11 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - KeyBindingManager with customizable slot keybindings
 
 **What's next (rough priority):**
-1. Add Splice WAV loops to `assets/audio/loops/` and `assets/audio/atmosphere/`
-2. More enemy types + actual wave/level design
-3. Shop UI between levels (scene exists, needs build-out)
-4. Additional weapons with different loop lengths/trigger patterns
+1. Game loop: victory condition, shop integration, level progression (see TODO.md)
+2. Combat feel: ram damage, fragility pass, enemy weapon direction
+3. Audio: weapon fade in/out, level atmosphere loops
+4. More enemy types + actual wave/level design
 5. Real sprite art to replace placeholder polygons
-6. Level atmosphere loops for background music layers
-7. HUD segment glow animation rework
 
 ## Core Rules
 - **PREVIEWS MUST = GAME REALITY.** Editor/dev studio previews must use the exact same rendering code, shaders, and node setup as the actual game. If something looks good in a preview but different in gameplay, that's a bug. Never create separate rendering paths for previews vs game — share the same components (e.g. `FieldRenderer`, `ShipRenderer`, `VFXFactory`). Previews exist to show what the player will actually see.
