@@ -27,6 +27,7 @@ var _name_edit: LineEdit
 var _bpm_spin: SpinBox
 var _speed_spin: SpinBox
 var _length_spin: SpinBox
+var _bg_shader_dropdown: OptionButton
 
 # Map canvas
 var _map_canvas: Control
@@ -48,6 +49,13 @@ var _nebula_dragging: bool = false
 var _nebula_drag_start: Vector2 = Vector2.ZERO
 var _nebula_drag_origin_y: float = 0.0
 var _nebula_drag_origin_x: float = 0.0
+
+# Doodad placement state
+var _doodad_selected_idx: int = -1
+var _doodad_dragging: bool = false
+var _doodad_drag_start: Vector2 = Vector2.ZERO
+var _doodad_drag_origin_y: float = 0.0
+var _doodad_drag_origin_x: float = 0.0
 
 # Right panel
 var _right_panel: PanelContainer
@@ -72,6 +80,7 @@ var _enc_delete_btn: Button
 var _mode_toggle_box: HBoxContainer
 var _mode_enc_btn: Button
 var _mode_neb_btn: Button
+var _mode_doodad_btn: Button
 var _right_header: Label
 var _neb_content: VBoxContainer
 var _neb_hint: Label
@@ -80,11 +89,32 @@ var _neb_radius_spin: SpinBox
 var _neb_center_btn: Button
 var _neb_delete_btn: Button
 
+# Right panel — doodad controls
+var _doodad_content: VBoxContainer
+var _doodad_hint: Label
+var _doodad_type_dropdown: OptionButton
+var _doodad_scale_spin: SpinBox
+var _doodad_rot_spin: SpinBox
+var _doodad_center_btn: Button
+var _doodad_delete_btn: Button
+
 # Flight speed + debug grids
 var _flight_speed_spin: SpinBox
 var _debug_deep_check: CheckButton
 var _debug_bg_check: CheckButton
 var _debug_fg_check: CheckButton
+
+# Preview mode
+var _preview_mode: bool = false
+var _preview_toggle_btn: Button
+var _preview_container: Control
+var _preview_svc: SubViewportContainer
+var _preview_viewport: SubViewport
+var _preview_bg_rect: ColorRect
+var _preview_doodad_layer: Node2D
+var _preview_doodad_renderer: DoodadRenderer
+var _preview_encounter_markers: Node2D
+var _preview_scroll: float = 0.0  # level-space Y position being viewed
 
 # Cached data for dropdowns
 var _cached_path_ids: Array[String] = []
@@ -97,6 +127,10 @@ var _ship_id_to_name: Dictionary = {}
 var _formation_id_to_name: Dictionary = {}
 var _path_id_to_name: Dictionary = {}
 var _path_id_to_curve: Dictionary = {}  # path_id -> Curve2D
+
+# Level filter for ship dropdown
+var _enc_level_filter: OptionButton
+var _cached_ships_by_level: Dictionary = {}  # level_id -> Array of {id, name}
 
 # Clipboard for copy/paste
 var _clipboard: Dictionary = {}  # Copied encounter or nebula dict
@@ -111,7 +145,7 @@ func _ready() -> void:
 	focus_mode = Control.FOCUS_NONE
 
 	_bg = $Background
-	ThemeManager.apply_grid_background(_bg)
+	# Background will be set by _select_level → _apply_editor_background()
 
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
@@ -129,11 +163,28 @@ func _ready() -> void:
 	inner_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer_split.add_child(inner_split)
 
-	_build_map_canvas(inner_split)
+	# Center panel holds both overview map and preview (only one visible at a time)
+	var center_container := Control.new()
+	center_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	center_container.clip_contents = true
+	inner_split.add_child(center_container)
+
+	_build_map_canvas(center_container)
+	_build_preview_viewport(center_container)
 	_build_right_panel(inner_split)
 
 	_load_all_levels()
-	if _all_levels.size() > 0:
+	# Restore previously edited level if returning from play/preview
+	var restore_id: String = GameState.editing_level_id
+	var restored := false
+	if restore_id != "":
+		for lv in _all_levels:
+			if lv.id == restore_id:
+				_select_level(lv)
+				restored = true
+				break
+	if not restored and _all_levels.size() > 0:
 		_select_level(_all_levels[0])
 
 
@@ -165,12 +216,18 @@ func _cache_dropdown_data() -> void:
 	_cached_ship_ids.clear()
 	_cached_ship_names.clear()
 	_ship_id_to_name.clear()
+	_cached_ships_by_level.clear()
 	var ships: Array[ShipData] = ShipDataManager.load_all_by_type("enemy")
 	for s in ships:
 		_cached_ship_ids.append(s.id)
 		var sname: String = s.display_name if s.display_name != "" else s.id
 		_cached_ship_names.append(sname)
 		_ship_id_to_name[s.id] = sname
+		# Group by level for filter dropdown
+		var level_id: String = s.level if s.level != "" else "misc"
+		if not _cached_ships_by_level.has(level_id):
+			_cached_ships_by_level[level_id] = []
+		_cached_ships_by_level[level_id].append({"id": s.id, "name": sname})
 
 	_cached_nebula_ids.clear()
 	_cached_nebula_names.clear()
@@ -189,6 +246,7 @@ func _cache_dropdown_data() -> void:
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
+		GameState.editing_level_id = ""
 		get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
 		return
 	if not _is_text_input_focused() and event is InputEventKey:
@@ -224,8 +282,25 @@ func _setup_vhs_overlay() -> void:
 
 
 func _on_theme_changed() -> void:
-	ThemeManager.apply_grid_background(_bg)
+	_apply_editor_background()
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+
+
+func _apply_editor_background() -> void:
+	## Set the editor background to the selected level's shader, or default grid.
+	var shader_path: String = ""
+	if _selected_level:
+		shader_path = _selected_level.background_shader
+	if shader_path != "":
+		var shader: Shader = load(shader_path) as Shader
+		if shader:
+			var mat := ShaderMaterial.new()
+			mat.shader = shader
+			_bg.material = mat
+			return
+	# Fallback to default grid
+	_bg.material = null
+	ThemeManager.apply_grid_background(_bg)
 
 
 # ── Left panel ─────────────────────────────────────────────────
@@ -387,6 +462,37 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	)
 	vbox.add_child(_length_spin)
 
+	# Background Shader
+	var bg_label := Label.new()
+	bg_label.text = "BACKGROUND"
+	ThemeManager.apply_text_glow(bg_label, "body")
+	vbox.add_child(bg_label)
+
+	_bg_shader_dropdown = OptionButton.new()
+	_bg_shader_dropdown.add_item("(default grid)", 0)
+	_bg_shader_dropdown.set_item_metadata(0, "")
+	var bg_shaders: Array = [
+		["Synthwave Etch", "res://assets/shaders/bg_synthwave_pulse.gdshader"],
+		["Microchip Die", "res://assets/shaders/bg_circuit_board.gdshader"],
+		["Bioluminescent Reef", "res://assets/shaders/bg_bioluminescent_reef.gdshader"],
+		["Industrial Platform", "res://assets/shaders/bg_industrial_platform.gdshader"],
+		["Lava Field", "res://assets/shaders/bg_lava_field.gdshader"],
+		["City District", "res://assets/shaders/bg_city_district.gdshader"],
+	]
+	for i in range(bg_shaders.size()):
+		var entry: Array = bg_shaders[i]
+		_bg_shader_dropdown.add_item(str(entry[0]), i + 1)
+		_bg_shader_dropdown.set_item_metadata(i + 1, str(entry[1]))
+	_bg_shader_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _selected_level:
+			_selected_level.background_shader = str(_bg_shader_dropdown.get_item_metadata(idx))
+			_save_current_level()
+			_apply_editor_background()
+			if _preview_mode:
+				_rebuild_preview()
+	)
+	vbox.add_child(_bg_shader_dropdown)
+
 	# Play button
 	var play_sep := HSeparator.new()
 	vbox.add_child(play_sep)
@@ -397,6 +503,13 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	play_btn.pressed.connect(_on_play_level)
 	ThemeManager.apply_button_style(play_btn)
 	vbox.add_child(play_btn)
+
+	_preview_toggle_btn = Button.new()
+	_preview_toggle_btn.text = "PREVIEW MODE"
+	_preview_toggle_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_preview_toggle_btn.pressed.connect(_toggle_preview_mode)
+	ThemeManager.apply_button_style(_preview_toggle_btn)
+	vbox.add_child(_preview_toggle_btn)
 
 	# Debug grid toggles
 	var debug_sep := HSeparator.new()
@@ -470,30 +583,296 @@ func _update_level_props_ui() -> void:
 		_speed_spin.value = _selected_level.scroll_speed
 		_flight_speed_spin.value = _selected_level.flight_speed
 		_length_spin.value = _selected_level.level_length
+		# Sync background dropdown
+		var bg_path: String = _selected_level.background_shader
+		var found_bg := false
+		for i in range(_bg_shader_dropdown.item_count):
+			if str(_bg_shader_dropdown.get_item_metadata(i)) == bg_path:
+				_bg_shader_dropdown.select(i)
+				found_bg = true
+				break
+		if not found_bg:
+			_bg_shader_dropdown.select(0)
 	else:
 		_name_edit.text = ""
 		_bpm_spin.value = 110
 		_speed_spin.value = 80
 		_flight_speed_spin.value = 160
 		_length_spin.value = 10000
+		_bg_shader_dropdown.select(0)
 
 
 # ── Map canvas ─────────────────────────────────────────────────
 
-func _build_map_canvas(parent: HSplitContainer) -> void:
-	var canvas_container := Control.new()
-	canvas_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	canvas_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	canvas_container.clip_contents = true
-	canvas_container.mouse_filter = Control.MOUSE_FILTER_STOP
-	parent.add_child(canvas_container)
-
+func _build_map_canvas(parent: Control) -> void:
 	var drawer := _MapCanvasDraw.new()
 	drawer.screen = self
 	drawer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	drawer.mouse_filter = Control.MOUSE_FILTER_STOP
-	canvas_container.add_child(drawer)
+	parent.add_child(drawer)
 	_map_canvas = drawer
+
+
+func _build_preview_viewport(parent: Control) -> void:
+	_preview_container = Control.new()
+	_preview_container.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_preview_container.mouse_filter = Control.MOUSE_FILTER_STOP
+	_preview_container.visible = false
+	parent.add_child(_preview_container)
+
+	_preview_svc = SubViewportContainer.new()
+	_preview_svc.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_preview_svc.stretch = true
+	_preview_svc.mouse_filter = Control.MOUSE_FILTER_STOP
+	_preview_container.add_child(_preview_svc)
+
+	_preview_viewport = SubViewport.new()
+	_preview_viewport.size = Vector2i(1920, 1080)
+	_preview_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	_preview_viewport.transparent_bg = false
+	_preview_svc.add_child(_preview_viewport)
+
+	# Background shader rect
+	_preview_bg_rect = ColorRect.new()
+	_preview_bg_rect.size = Vector2(1920, 1080)
+	_preview_viewport.add_child(_preview_bg_rect)
+
+	# Doodad layer (scrolls with preview offset)
+	_preview_doodad_layer = Node2D.new()
+	_preview_doodad_layer.z_index = 1
+	_preview_viewport.add_child(_preview_doodad_layer)
+
+	_preview_doodad_renderer = DoodadRenderer.new()
+	_preview_doodad_layer.add_child(_preview_doodad_renderer)
+
+	# Encounter marker layer (scrolls with preview offset)
+	_preview_encounter_markers = _PreviewEncounterDraw.new()
+	_preview_encounter_markers.screen = self
+	_preview_encounter_markers.z_index = 2
+	_preview_viewport.add_child(_preview_encounter_markers)
+
+	# Input overlay (catches mouse events for preview)
+	var input_overlay := _PreviewInputOverlay.new()
+	input_overlay.screen = self
+	input_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	input_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_preview_container.add_child(input_overlay)
+
+	# Y position label overlay
+	var pos_label := Label.new()
+	pos_label.name = "PosLabel"
+	pos_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	pos_label.offset_left = 10
+	pos_label.offset_top = 10
+	pos_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0, 0.7))
+	pos_label.add_theme_font_size_override("font_size", 14)
+	_preview_container.add_child(pos_label)
+
+
+func _toggle_preview_mode() -> void:
+	_preview_mode = not _preview_mode
+	_map_canvas.visible = not _preview_mode
+	_preview_container.visible = _preview_mode
+	_preview_toggle_btn.text = "OVERVIEW MODE" if _preview_mode else "PREVIEW MODE"
+
+	if _preview_mode:
+		# Sync preview scroll with overview scroll
+		_preview_scroll = _scroll_offset
+		_rebuild_preview()
+
+
+func _rebuild_preview() -> void:
+	if not _selected_level:
+		return
+
+	# Apply background shader
+	var bg_applied := false
+	if _selected_level.background_shader != "":
+		var shader: Shader = load(_selected_level.background_shader) as Shader
+		if shader:
+			var mat := ShaderMaterial.new()
+			mat.shader = shader
+			_preview_bg_rect.material = mat
+			bg_applied = true
+	if not bg_applied:
+		_preview_bg_rect.material = null
+		ThemeManager.apply_grid_background(_preview_bg_rect)
+
+	# Tell shader to use manual scroll (not TIME-based)
+	var prev_mat: ShaderMaterial = _preview_bg_rect.material as ShaderMaterial
+	if prev_mat:
+		prev_mat.set_shader_parameter("manual_scroll", true)
+		prev_mat.set_shader_parameter("scroll_offset", _preview_scroll)
+
+	# Build doodad data in game-space coordinates
+	var game_doodads: Array = []
+	for dd in _selected_level.doodads:
+		game_doodads.append({
+			"type": str(dd.get("type", "water_tower")),
+			"x": 960.0 + float(dd.get("x", 0.0)),
+			"y": -float(dd.get("y", 0.0)) + 540.0,
+			"scale": float(dd.get("scale", 1.0)),
+			"rotation_deg": float(dd.get("rotation_deg", 0.0)),
+		})
+	_preview_doodad_renderer.setup(game_doodads)
+
+	# Position layers for current scroll
+	_update_preview_scroll()
+
+	# Redraw encounter markers
+	_preview_encounter_markers.queue_redraw()
+
+
+func _update_preview_scroll() -> void:
+	# Position doodad and encounter layers based on preview scroll
+	_preview_doodad_layer.position.y = _preview_scroll
+	_preview_encounter_markers.position.y = _preview_scroll
+
+	# Update shader scroll_offset so background tracks preview position
+	var prev_mat: ShaderMaterial = _preview_bg_rect.material as ShaderMaterial
+	if prev_mat:
+		prev_mat.set_shader_parameter("scroll_offset", _preview_scroll)
+
+	# Update Y position label
+	var pos_label: Label = _preview_container.get_node_or_null("PosLabel") as Label
+	if pos_label:
+		pos_label.text = "Y: " + str(int(_preview_scroll))
+
+
+func _handle_preview_input(event: InputEvent, overlay_size: Vector2) -> void:
+	if not _selected_level:
+		return
+
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb.pressed:
+			if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				var step: float = 200.0 if mb.shift_pressed else 60.0
+				_preview_scroll = minf(_preview_scroll + step, maxf(_selected_level.level_length - 500.0, 0.0))
+				_update_preview_scroll()
+				_preview_encounter_markers.queue_redraw()
+				_preview_doodad_renderer.queue_redraw()
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				var step: float = 200.0 if mb.shift_pressed else 60.0
+				_preview_scroll = maxf(_preview_scroll - step, 0.0)
+				_update_preview_scroll()
+				_preview_encounter_markers.queue_redraw()
+				_preview_doodad_renderer.queue_redraw()
+			elif mb.button_index == MOUSE_BUTTON_LEFT and _edit_mode == "doodads":
+				# Try to select existing doodad first, then place if none hit
+				if not _preview_try_select_doodad(mb.position, overlay_size):
+					_preview_place_doodad(mb.position, overlay_size)
+			elif mb.button_index == MOUSE_BUTTON_RIGHT and _edit_mode == "doodads":
+				_preview_delete_doodad(mb.position, overlay_size)
+			elif mb.button_index == MOUSE_BUTTON_MIDDLE or (mb.button_index == MOUSE_BUTTON_LEFT and _edit_mode != "doodads"):
+				# Middle-click or left-click in non-doodad mode: start scroll drag
+				_map_dragging = true
+				_map_drag_start_y = mb.position.y
+				_map_drag_scroll_start = _preview_scroll
+		else:
+			if mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_MIDDLE:
+				if _doodad_dragging:
+					_doodad_dragging = false
+					_save_current_level()
+					_rebuild_preview()
+					_update_doodad_right_panel()
+					_map_canvas.queue_redraw()
+				elif _map_dragging:
+					_map_dragging = false
+
+	elif event is InputEventMouseMotion:
+		var mm: InputEventMouseMotion = event as InputEventMouseMotion
+		if _doodad_dragging and _doodad_selected_idx >= 0:
+			var new_pos: Vector2 = _preview_pos_to_level(mm.position, overlay_size)
+			var dd: Dictionary = _selected_level.doodads[_doodad_selected_idx]
+			dd["x"] = new_pos.x
+			dd["y"] = new_pos.y
+			_rebuild_preview()
+		elif _map_dragging:
+			# Drag to scroll preview
+			var delta_px: float = mm.position.y - _map_drag_start_y
+			var px_to_level: float = 1080.0 / maxf(overlay_size.y, 1.0)
+			_preview_scroll = clampf(_map_drag_scroll_start - delta_px * px_to_level, 0.0, maxf(_selected_level.level_length - 500.0, 0.0))
+			_update_preview_scroll()
+			_preview_encounter_markers.queue_redraw()
+			_preview_doodad_renderer.queue_redraw()
+
+
+func _preview_pos_to_level(local_pos: Vector2, overlay_size: Vector2) -> Vector2:
+	## Convert a click position (in overlay local coords) to level-space coordinates.
+	# Scale from overlay pixels to game viewport (1920x1080)
+	var vp_x: float = local_pos.x / maxf(overlay_size.x, 1.0) * 1920.0
+	var vp_y: float = local_pos.y / maxf(overlay_size.y, 1.0) * 1080.0
+	# Convert to level space (same math as game: game_y = -level_y + 540 + scroll)
+	var level_y: float = _preview_scroll + 540.0 - vp_y
+	var level_x: float = vp_x - 960.0
+	return Vector2(level_x, level_y)
+
+
+func _preview_try_select_doodad(click_pos: Vector2, overlay_size: Vector2) -> bool:
+	## Try to select an existing doodad at click position. Returns true if one was hit.
+	var level_pos: Vector2 = _preview_pos_to_level(click_pos, overlay_size)
+	var px_to_level: float = 1920.0 / maxf(overlay_size.x, 1.0)
+	var hit_radius: float = 25.0 * px_to_level
+	for i in range(_selected_level.doodads.size()):
+		var dd: Dictionary = _selected_level.doodads[i]
+		var dd_pos := Vector2(float(dd["x"]), float(dd["y"]))
+		if dd_pos.distance_to(level_pos) < hit_radius:
+			_doodad_selected_idx = i
+			_doodad_dragging = true
+			_doodad_drag_start = click_pos
+			_doodad_drag_origin_x = float(dd["x"])
+			_doodad_drag_origin_y = float(dd["y"])
+			_update_doodad_right_panel()
+			_map_canvas.queue_redraw()
+			return true
+	return false
+
+
+func _preview_place_doodad(click_pos: Vector2, overlay_size: Vector2) -> void:
+	var level_pos: Vector2 = _preview_pos_to_level(click_pos, overlay_size)
+	var type_id: String = "water_tower"
+	var sel_idx: int = _doodad_type_dropdown.selected
+	if sel_idx >= 0:
+		type_id = str(_doodad_type_dropdown.get_item_metadata(sel_idx))
+	var new_dd: Dictionary = {
+		"type": type_id,
+		"x": level_pos.x,
+		"y": level_pos.y,
+		"scale": _doodad_scale_spin.value,
+		"rotation_deg": _doodad_rot_spin.value,
+	}
+	_selected_level.doodads.append(new_dd)
+	_doodad_selected_idx = _selected_level.doodads.size() - 1
+	_save_current_level()
+	_rebuild_preview()
+	_update_doodad_right_panel()
+	_map_canvas.queue_redraw()
+
+
+func _preview_delete_doodad(click_pos: Vector2, overlay_size: Vector2) -> void:
+	var level_pos: Vector2 = _preview_pos_to_level(click_pos, overlay_size)
+	var closest_idx: int = -1
+	# Hit radius in level-space: ~30px at game scale, but scale up for smaller preview
+	var px_to_level: float = 1920.0 / maxf(overlay_size.x, 1.0)
+	var closest_dist: float = 30.0 * px_to_level
+	for i in range(_selected_level.doodads.size()):
+		var dd: Dictionary = _selected_level.doodads[i]
+		var dd_pos := Vector2(float(dd["x"]), float(dd["y"]))
+		var dist: float = dd_pos.distance_to(level_pos)
+		if dist < closest_dist:
+			closest_dist = dist
+			closest_idx = i
+	if closest_idx >= 0:
+		_selected_level.doodads.remove_at(closest_idx)
+		if _doodad_selected_idx == closest_idx:
+			_doodad_selected_idx = -1
+		elif _doodad_selected_idx > closest_idx:
+			_doodad_selected_idx -= 1
+		_save_current_level()
+		_rebuild_preview()
+		_update_doodad_right_panel()
+		_map_canvas.queue_redraw()
 
 
 func _get_map_rect() -> Rect2:
@@ -554,11 +933,15 @@ func _handle_map_input(event: InputEvent) -> void:
 			if mb.button_index == MOUSE_BUTTON_LEFT:
 				if _edit_mode == "nebulas":
 					_map_left_click_nebula(mb.position)
+				elif _edit_mode == "doodads":
+					_map_left_click_doodad(mb.position)
 				else:
 					_map_left_click(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_RIGHT:
 				if _edit_mode == "nebulas":
 					_map_right_click_nebula(mb.position)
+				elif _edit_mode == "doodads":
+					_map_right_click_doodad(mb.position)
 				else:
 					_map_right_click(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -581,6 +964,10 @@ func _handle_map_input(event: InputEvent) -> void:
 					_nebula_dragging = false
 					_save_current_level()
 					_update_nebula_right_panel()
+				elif _doodad_dragging:
+					_doodad_dragging = false
+					_save_current_level()
+					_update_doodad_right_panel()
 				elif _map_dragging:
 					_map_dragging = false
 
@@ -599,6 +986,13 @@ func _handle_map_input(event: InputEvent) -> void:
 			neb["trigger_y"] = maxf(_nebula_drag_origin_y + delta_y, 0.0)
 			var delta_x: float = _canvas_x_to_level_x(mm.position.x) - _canvas_x_to_level_x(_nebula_drag_start.x)
 			neb["x_offset"] = _nebula_drag_origin_x + delta_x
+			_map_canvas.queue_redraw()
+		elif _doodad_dragging and _doodad_selected_idx >= 0:
+			var dd: Dictionary = _selected_level.doodads[_doodad_selected_idx]
+			var delta_y: float = _canvas_y_to_level_y(mm.position.y) - _canvas_y_to_level_y(_doodad_drag_start.y)
+			dd["y"] = maxf(_doodad_drag_origin_y + delta_y, 0.0)
+			var delta_x: float = _canvas_x_to_level_x(mm.position.x) - _canvas_x_to_level_x(_doodad_drag_start.x)
+			dd["x"] = _doodad_drag_origin_x + delta_x
 			_map_canvas.queue_redraw()
 		elif _map_dragging:
 			var delta: float = mm.position.y - _map_drag_start_y
@@ -631,18 +1025,18 @@ func _map_left_click(pos: Vector2) -> void:
 		var x_offset: float = _canvas_x_to_level_x(pos.x)
 		if trigger_y >= 0.0 and trigger_y <= _selected_level.level_length:
 			var enc: Dictionary = {
-				"path_id": _cached_path_ids[0] if _cached_path_ids.size() > 0 else "",
-				"formation_id": "",
-				"ship_id": _cached_ship_ids[0] if _cached_ship_ids.size() > 0 else "enemy_1",
-				"speed": 200.0,
-				"count": 1,
-				"spacing": 200.0,
+				"path_id": str(_enc_path_dropdown.get_item_metadata(_enc_path_dropdown.selected)) if _enc_path_dropdown.selected >= 0 else "",
+				"formation_id": str(_enc_fm_dropdown.get_item_metadata(_enc_fm_dropdown.selected)) if _enc_fm_dropdown.selected >= 0 else "",
+				"ship_id": str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected)) if _enc_ship_dropdown.selected >= 0 else "enemy_1",
+				"speed": _enc_speed_spin.value,
+				"count": int(_enc_count_spin.value),
+				"spacing": _enc_spacing_spin.value,
 				"trigger_y": trigger_y,
 				"x_offset": x_offset,
-				"rotate_with_path": false,
-			"is_melee": false,
-			"turn_speed": 90.0,
-			"weapons_active": true,
+				"rotate_with_path": _enc_rotate_check.button_pressed,
+				"is_melee": _enc_melee_check.button_pressed,
+				"turn_speed": _enc_turn_speed_spin.value,
+				"weapons_active": _enc_weapons_active_check.button_pressed,
 			}
 			_selected_level.encounters.append(enc)
 			_selected_encounter_idx = _selected_level.encounters.size() - 1
@@ -832,6 +1226,13 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	ThemeManager.apply_button_style(_mode_neb_btn)
 	_mode_toggle_box.add_child(_mode_neb_btn)
 
+	_mode_doodad_btn = Button.new()
+	_mode_doodad_btn.text = "DOODADS"
+	_mode_doodad_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mode_doodad_btn.pressed.connect(func() -> void: _set_edit_mode("doodads"))
+	ThemeManager.apply_button_style(_mode_doodad_btn)
+	_mode_toggle_box.add_child(_mode_doodad_btn)
+
 	var mode_sep := HSeparator.new()
 	_right_panel_vbox.add_child(mode_sep)
 
@@ -867,9 +1268,7 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 		_enc_path_dropdown.add_item(_cached_path_names[i], i)
 		_enc_path_dropdown.set_item_metadata(i, _cached_path_ids[i])
 	_enc_path_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["path_id"] = str(_enc_path_dropdown.get_item_metadata(idx))
 			_save_current_level()
 			_map_canvas.queue_redraw()
@@ -892,14 +1291,33 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 		_enc_fm_dropdown.add_item(_cached_formation_names[i], i + 1)
 		_enc_fm_dropdown.set_item_metadata(i + 1, _cached_formation_ids[i])
 	_enc_fm_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["formation_id"] = str(_enc_fm_dropdown.get_item_metadata(idx))
 			_save_current_level()
 			_map_canvas.queue_redraw()
 	)
 	_enc_content.add_child(_enc_fm_dropdown)
+
+	# Level filter for ship dropdown
+	var level_filter_label := Label.new()
+	level_filter_label.text = "LEVEL FILTER"
+	ThemeManager.apply_text_glow(level_filter_label, "body")
+	_enc_content.add_child(level_filter_label)
+
+	_enc_level_filter = OptionButton.new()
+	_enc_level_filter.add_item("ALL", 0)
+	_enc_level_filter.set_item_metadata(0, "ALL")
+	var sorted_level_keys: Array = _cached_ships_by_level.keys()
+	sorted_level_keys.sort()
+	for li in range(sorted_level_keys.size()):
+		var lkey: String = sorted_level_keys[li]
+		_enc_level_filter.add_item(lkey, li + 1)
+		_enc_level_filter.set_item_metadata(li + 1, lkey)
+	_enc_level_filter.item_selected.connect(func(idx: int) -> void:
+		var filter_val: String = str(_enc_level_filter.get_item_metadata(idx))
+		_repopulate_ship_dropdown(filter_val)
+	)
+	_enc_content.add_child(_enc_level_filter)
 
 	# Ship dropdown
 	var ship_label := Label.new()
@@ -912,9 +1330,7 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 		_enc_ship_dropdown.add_item(_cached_ship_names[i], i)
 		_enc_ship_dropdown.set_item_metadata(i, _cached_ship_ids[i])
 	_enc_ship_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["ship_id"] = str(_enc_ship_dropdown.get_item_metadata(idx))
 			_save_current_level()
 	)
@@ -934,9 +1350,7 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_speed_spin.step = 10
 	_enc_speed_spin.value = 200
 	_enc_speed_spin.value_changed.connect(func(v: float) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["speed"] = v
 			_save_current_level()
 	)
@@ -953,9 +1367,7 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_count_spin.step = 1
 	_enc_count_spin.value = 1
 	_enc_count_spin.value_changed.connect(func(v: float) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["count"] = int(v)
 			_save_current_level()
 			_map_canvas.queue_redraw()
@@ -973,9 +1385,7 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_spacing_spin.step = 50
 	_enc_spacing_spin.value = 200
 	_enc_spacing_spin.value_changed.connect(func(v: float) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["spacing"] = v
 			_save_current_level()
 	)
@@ -988,9 +1398,7 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_rotate_check = CheckButton.new()
 	_enc_rotate_check.text = "ROTATE WITH PATH"
 	_enc_rotate_check.toggled.connect(func(pressed: bool) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["rotate_with_path"] = pressed
 			_save_current_level()
 	)
@@ -1000,13 +1408,11 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_melee_check = CheckButton.new()
 	_enc_melee_check.text = "MELEE"
 	_enc_melee_check.toggled.connect(func(pressed: bool) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["is_melee"] = pressed
 			_save_current_level()
-			_update_melee_ui_state()
 			_map_canvas.queue_redraw()
+		_update_melee_ui_state()
 	)
 	_enc_content.add_child(_enc_melee_check)
 
@@ -1021,9 +1427,7 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_turn_speed_spin.step = 10
 	_enc_turn_speed_spin.value = 90
 	_enc_turn_speed_spin.value_changed.connect(func(v: float) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["turn_speed"] = v
 			_save_current_level()
 	)
@@ -1037,9 +1441,7 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_weapons_active_check.text = "WEAPONS ACTIVE"
 	_enc_weapons_active_check.button_pressed = true
 	_enc_weapons_active_check.toggled.connect(func(pressed: bool) -> void:
-		if _selected_encounter_idx < 0 or not _selected_level:
-			return
-		if _selected_encounter_idx < _selected_level.encounters.size():
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
 			_selected_level.encounters[_selected_encounter_idx]["weapons_active"] = pressed
 			_save_current_level()
 	)
@@ -1163,6 +1565,96 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	ThemeManager.apply_button_style(_neb_delete_btn)
 	_neb_content.add_child(_neb_delete_btn)
 
+	# ── Doodad controls ──
+	_doodad_hint = Label.new()
+	_doodad_hint.text = "Click map to place doodad"
+	_doodad_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_doodad_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	_doodad_hint.visible = false
+	_right_panel_vbox.add_child(_doodad_hint)
+
+	_doodad_content = VBoxContainer.new()
+	_doodad_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_doodad_content.add_theme_constant_override("separation", 6)
+	_doodad_content.visible = false
+	_right_panel_vbox.add_child(_doodad_content)
+
+	var dd_type_label := Label.new()
+	dd_type_label.text = "TYPE"
+	ThemeManager.apply_text_glow(dd_type_label, "body")
+	_doodad_content.add_child(dd_type_label)
+
+	_doodad_type_dropdown = OptionButton.new()
+	var dd_ids: Array[String] = DoodadRegistry.get_type_ids()
+	for i in range(dd_ids.size()):
+		_doodad_type_dropdown.add_item(DoodadRegistry.get_display_name(dd_ids[i]), i)
+		_doodad_type_dropdown.set_item_metadata(i, dd_ids[i])
+	_doodad_type_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _doodad_selected_idx >= 0 and _selected_level and _doodad_selected_idx < _selected_level.doodads.size():
+			_selected_level.doodads[_doodad_selected_idx]["type"] = str(_doodad_type_dropdown.get_item_metadata(idx))
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	_doodad_content.add_child(_doodad_type_dropdown)
+
+	var dd_scale_label := Label.new()
+	dd_scale_label.text = "SCALE"
+	ThemeManager.apply_text_glow(dd_scale_label, "body")
+	_doodad_content.add_child(dd_scale_label)
+
+	_doodad_scale_spin = SpinBox.new()
+	_doodad_scale_spin.min_value = 0.5
+	_doodad_scale_spin.max_value = 5.0
+	_doodad_scale_spin.step = 0.1
+	_doodad_scale_spin.value = 1.0
+	_doodad_scale_spin.value_changed.connect(func(val: float) -> void:
+		if _doodad_selected_idx >= 0 and _selected_level and _doodad_selected_idx < _selected_level.doodads.size():
+			_selected_level.doodads[_doodad_selected_idx]["scale"] = val
+			_save_current_level()
+	)
+	_doodad_content.add_child(_doodad_scale_spin)
+
+	var dd_rot_label := Label.new()
+	dd_rot_label.text = "ROTATION"
+	ThemeManager.apply_text_glow(dd_rot_label, "body")
+	_doodad_content.add_child(dd_rot_label)
+
+	_doodad_rot_spin = SpinBox.new()
+	_doodad_rot_spin.min_value = 0.0
+	_doodad_rot_spin.max_value = 360.0
+	_doodad_rot_spin.step = 15.0
+	_doodad_rot_spin.value = 0.0
+	_doodad_rot_spin.value_changed.connect(func(val: float) -> void:
+		if _doodad_selected_idx >= 0 and _selected_level and _doodad_selected_idx < _selected_level.doodads.size():
+			_selected_level.doodads[_doodad_selected_idx]["rotation_deg"] = val
+			_save_current_level()
+	)
+	_doodad_content.add_child(_doodad_rot_spin)
+
+	_doodad_center_btn = Button.new()
+	_doodad_center_btn.text = "CENTER VIEW"
+	_doodad_center_btn.pressed.connect(func() -> void:
+		if _doodad_selected_idx >= 0 and _selected_level and _doodad_selected_idx < _selected_level.doodads.size():
+			var dd: Dictionary = _selected_level.doodads[_doodad_selected_idx]
+			_scroll_offset = float(dd["y"]) - _map_canvas.size.y * 0.5 / _get_map_scale()
+			_map_canvas.queue_redraw()
+	)
+	ThemeManager.apply_button_style(_doodad_center_btn)
+	_doodad_content.add_child(_doodad_center_btn)
+
+	_doodad_delete_btn = Button.new()
+	_doodad_delete_btn.text = "DELETE DOODAD"
+	_doodad_delete_btn.pressed.connect(func() -> void:
+		if _doodad_selected_idx >= 0 and _selected_level and _doodad_selected_idx < _selected_level.doodads.size():
+			_selected_level.doodads.remove_at(_doodad_selected_idx)
+			_doodad_selected_idx = -1
+			_save_current_level()
+			_update_doodad_right_panel()
+			_map_canvas.queue_redraw()
+	)
+	ThemeManager.apply_button_style(_doodad_delete_btn)
+	_doodad_content.add_child(_doodad_delete_btn)
+
 	_set_edit_mode("encounters")
 	_update_right_panel()
 
@@ -1170,101 +1662,149 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 func _update_right_panel() -> void:
 	var has_enc: bool = _selected_level != null and _selected_encounter_idx >= 0 and _selected_encounter_idx < _selected_level.encounters.size()
 
-	_enc_hint.visible = not has_enc
-	# Never hide _enc_content — hidden nodes leave layout, causing width jump.
-	# Instead grey out + disable when no encounter selected.
-	var disabled: bool = not has_enc
-	_enc_content.modulate = Color(1, 1, 1, 0.3) if disabled else Color.WHITE
-	_enc_path_dropdown.disabled = disabled
-	_enc_fm_dropdown.disabled = disabled
-	_enc_ship_dropdown.disabled = disabled
-	_enc_speed_spin.editable = not disabled
-	_enc_count_spin.editable = not disabled
-	_enc_spacing_spin.editable = not disabled
-	_enc_rotate_check.disabled = disabled
-	_enc_melee_check.disabled = disabled
-	_enc_turn_speed_spin.editable = not disabled
-	_enc_weapons_active_check.disabled = disabled
-	_enc_center_btn.disabled = disabled
-	_enc_delete_btn.disabled = disabled
+	# Hint label always visible — text changes based on selection state
+	_enc_hint.visible = true
+	if has_enc:
+		_enc_hint.text = "Editing encounter #" + str(_selected_encounter_idx + 1)
+		_enc_hint.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
+	else:
+		_enc_hint.text = "Click map to place with current settings"
+		_enc_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 
-	if not has_enc:
-		return
+	# Panel is always active — controls serve as a "brush" for new placements.
+	# Only CENTER and DELETE require a selected encounter.
+	_enc_content.modulate = Color.WHITE
+	_enc_path_dropdown.disabled = false
+	_enc_fm_dropdown.disabled = false
+	_enc_ship_dropdown.disabled = false
+	_enc_speed_spin.editable = true
+	_enc_count_spin.editable = true
+	_enc_spacing_spin.editable = true
+	_enc_rotate_check.disabled = false
+	_enc_melee_check.disabled = false
+	_enc_turn_speed_spin.editable = true
+	_enc_weapons_active_check.disabled = false
+	_enc_level_filter.disabled = false
+	_enc_center_btn.disabled = not has_enc
+	_enc_delete_btn.disabled = not has_enc
 
-	var enc: Dictionary = _selected_level.encounters[_selected_encounter_idx]
+	if has_enc:
+		var enc: Dictionary = _selected_level.encounters[_selected_encounter_idx]
 
-	# Update path dropdown selection
-	var current_path_id: String = str(enc.get("path_id", ""))
-	var path_select: int = 0
-	for i in range(_cached_path_ids.size()):
-		if _cached_path_ids[i] == current_path_id:
-			path_select = i
-			break
-	if _cached_path_ids.size() > 0:
-		_enc_path_dropdown.select(path_select)
+		# Update path dropdown selection
+		var current_path_id: String = str(enc.get("path_id", ""))
+		var path_select: int = 0
+		for i in range(_cached_path_ids.size()):
+			if _cached_path_ids[i] == current_path_id:
+				path_select = i
+				break
+		if _cached_path_ids.size() > 0:
+			_enc_path_dropdown.select(path_select)
 
-	# Update formation dropdown selection
-	var current_fm_id: String = str(enc.get("formation_id", ""))
-	var fm_select: int = 0
-	for i in range(_cached_formation_ids.size()):
-		if _cached_formation_ids[i] == current_fm_id:
-			fm_select = i + 1
-			break
-	_enc_fm_dropdown.select(fm_select)
+		# Update formation dropdown selection
+		var current_fm_id: String = str(enc.get("formation_id", ""))
+		var fm_select: int = 0
+		for i in range(_cached_formation_ids.size()):
+			if _cached_formation_ids[i] == current_fm_id:
+				fm_select = i + 1
+				break
+		_enc_fm_dropdown.select(fm_select)
 
-	# Update ship dropdown selection
-	var current_ship_id: String = str(enc.get("ship_id", ""))
-	var ship_select: int = 0
-	for i in range(_cached_ship_ids.size()):
-		if _cached_ship_ids[i] == current_ship_id:
-			ship_select = i
-			break
-	if _cached_ship_ids.size() > 0:
-		_enc_ship_dropdown.select(ship_select)
+		# Update ship dropdown selection — find in current filtered list
+		var current_ship_id: String = str(enc.get("ship_id", ""))
+		var ship_select: int = 0
+		for i in range(_enc_ship_dropdown.item_count):
+			if str(_enc_ship_dropdown.get_item_metadata(i)) == current_ship_id:
+				ship_select = i
+				break
+		if _enc_ship_dropdown.item_count > 0:
+			_enc_ship_dropdown.select(ship_select)
 
-	# Update spinbox values
-	_enc_speed_spin.value = float(enc.get("speed", 200.0))
-	_enc_count_spin.value = int(enc.get("count", 1))
-	_enc_spacing_spin.value = float(enc.get("spacing", 200.0))
-	_enc_rotate_check.button_pressed = bool(enc.get("rotate_with_path", false))
-	_enc_melee_check.button_pressed = bool(enc.get("is_melee", false))
-	_enc_turn_speed_spin.value = float(enc.get("turn_speed", 90.0))
-	_enc_weapons_active_check.button_pressed = bool(enc.get("weapons_active", true))
+		# Update spinbox values
+		_enc_speed_spin.value = float(enc.get("speed", 200.0))
+		_enc_count_spin.value = int(enc.get("count", 1))
+		_enc_spacing_spin.value = float(enc.get("spacing", 200.0))
+		_enc_rotate_check.button_pressed = bool(enc.get("rotate_with_path", false))
+		_enc_melee_check.button_pressed = bool(enc.get("is_melee", false))
+		_enc_turn_speed_spin.value = float(enc.get("turn_speed", 90.0))
+		_enc_weapons_active_check.button_pressed = bool(enc.get("weapons_active", true))
+
 	_update_melee_ui_state()
 
 
 func _update_melee_ui_state() -> void:
 	var melee_on: bool = _enc_melee_check.button_pressed
-	var has_enc: bool = _selected_level != null and _selected_encounter_idx >= 0
 	# When melee is on, path and rotate_with_path are irrelevant
 	if melee_on:
 		_enc_path_dropdown.disabled = true
 		_enc_rotate_check.disabled = true
-	# Turn speed only editable when melee is on and encounter is selected
-	_enc_turn_speed_spin.editable = melee_on and has_enc
+	# Turn speed editable when melee is on (brush or selected encounter)
+	_enc_turn_speed_spin.editable = melee_on
 	_enc_turn_speed_label.modulate = Color.WHITE if melee_on else Color(1, 1, 1, 0.3)
 	_enc_turn_speed_spin.modulate = Color.WHITE if melee_on else Color(1, 1, 1, 0.3)
+
+
+func _repopulate_ship_dropdown(level_filter: String) -> void:
+	# Remember current selection metadata so we can restore it if still present
+	var prev_ship_id: String = ""
+	if _enc_ship_dropdown.selected >= 0:
+		prev_ship_id = str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected))
+
+	_enc_ship_dropdown.clear()
+
+	var ship_entries: Array = []
+	if level_filter == "ALL":
+		for i in range(_cached_ship_ids.size()):
+			ship_entries.append({"id": _cached_ship_ids[i], "name": _cached_ship_names[i]})
+	else:
+		if _cached_ships_by_level.has(level_filter):
+			ship_entries = _cached_ships_by_level[level_filter]
+
+	for i in range(ship_entries.size()):
+		var entry: Dictionary = ship_entries[i]
+		_enc_ship_dropdown.add_item(str(entry["name"]), i)
+		_enc_ship_dropdown.set_item_metadata(i, str(entry["id"]))
+
+	# Restore previous selection if it's still in the filtered list
+	var restored: bool = false
+	if prev_ship_id != "":
+		for i in range(_enc_ship_dropdown.item_count):
+			if str(_enc_ship_dropdown.get_item_metadata(i)) == prev_ship_id:
+				_enc_ship_dropdown.select(i)
+				restored = true
+				break
+	if not restored and _enc_ship_dropdown.item_count > 0:
+		_enc_ship_dropdown.select(0)
 
 
 func _set_edit_mode(mode: String) -> void:
 	_edit_mode = mode
 	var is_enc: bool = mode == "encounters"
+	var is_neb: bool = mode == "nebulas"
+	var is_dd: bool = mode == "doodads"
 	_mode_enc_btn.modulate = Color(1.2, 1.2, 1.5) if is_enc else Color(0.6, 0.6, 0.7)
-	_mode_neb_btn.modulate = Color(1.2, 1.2, 1.5) if not is_enc else Color(0.6, 0.6, 0.7)
-	_right_header.text = "ENCOUNTER" if is_enc else "NEBULA"
+	_mode_neb_btn.modulate = Color(1.2, 1.2, 1.5) if is_neb else Color(0.6, 0.6, 0.7)
+	_mode_doodad_btn.modulate = Color(1.2, 1.2, 1.5) if is_dd else Color(0.6, 0.6, 0.7)
+	if is_enc:
+		_right_header.text = "ENCOUNTER"
+	elif is_neb:
+		_right_header.text = "NEBULA"
+	else:
+		_right_header.text = "DOODAD"
 
-	# Show/hide via visibility — per gotcha, keep containers that anchor width visible.
-	# Encounter and nebula panels don't share width, so toggling visibility is safe here
-	# since the mode toggle buttons hold the panel width stable.
-	_enc_hint.visible = is_enc and (_selected_level == null or _selected_encounter_idx < 0 or _selected_encounter_idx >= _selected_level.encounters.size())
+	_enc_hint.visible = is_enc
 	_enc_content.visible = is_enc
-	_neb_hint.visible = not is_enc and (_selected_level == null or _nebula_selected_idx < 0 or _nebula_selected_idx >= _selected_level.nebula_placements.size())
-	_neb_content.visible = not is_enc
+	_neb_hint.visible = is_neb
+	_neb_content.visible = is_neb
+	_doodad_hint.visible = is_dd
+	_doodad_content.visible = is_dd
 
 	if is_enc:
 		_update_right_panel()
-	else:
+	elif is_neb:
 		_update_nebula_right_panel()
+	else:
+		_update_doodad_right_panel()
 	_map_canvas.queue_redraw()
 
 
@@ -1299,6 +1839,108 @@ func _update_nebula_right_panel() -> void:
 	_neb_radius_spin.value = float(neb.get("radius", 300.0))
 
 
+# ── Doodad operations ────────────────────────────────────────────
+
+const DOODAD_HIT_RADIUS := 30.0
+
+func _update_doodad_right_panel() -> void:
+	if _edit_mode != "doodads":
+		return
+	var has_dd: bool = _selected_level != null and _doodad_selected_idx >= 0 and _doodad_selected_idx < _selected_level.doodads.size()
+
+	# Panel always active — controls serve as "brush" for new placements (like encounters)
+	_doodad_hint.visible = true
+	if has_dd:
+		_doodad_hint.text = "Editing doodad #" + str(_doodad_selected_idx + 1)
+		_doodad_hint.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
+	else:
+		_doodad_hint.text = "Set params, then click map to place"
+		_doodad_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+
+	_doodad_content.modulate = Color.WHITE
+	_doodad_type_dropdown.disabled = false
+	_doodad_scale_spin.editable = true
+	_doodad_rot_spin.editable = true
+	# Only center/delete require a selection
+	_doodad_center_btn.disabled = not has_dd
+	_doodad_delete_btn.disabled = not has_dd
+
+	if not has_dd:
+		return
+
+	var dd: Dictionary = _selected_level.doodads[_doodad_selected_idx]
+
+	# Update type dropdown to match selected doodad
+	var dd_type: String = str(dd.get("type", "water_tower"))
+	var dd_ids: Array[String] = DoodadRegistry.get_type_ids()
+	for i in range(dd_ids.size()):
+		if dd_ids[i] == dd_type:
+			_doodad_type_dropdown.select(i)
+			break
+
+	_doodad_scale_spin.value = float(dd.get("scale", 1.0))
+	_doodad_rot_spin.value = float(dd.get("rotation_deg", 0.0))
+
+
+func _map_left_click_doodad(click_pos: Vector2) -> void:
+	if not _selected_level:
+		return
+	# Hit test existing doodads
+	for i in range(_selected_level.doodads.size()):
+		var dd: Dictionary = _selected_level.doodads[i]
+		var cy: float = _level_y_to_canvas_y(float(dd["y"]))
+		var cx: float = _level_x_to_canvas_x(float(dd["x"]))
+		if click_pos.distance_to(Vector2(cx, cy)) < DOODAD_HIT_RADIUS:
+			_doodad_selected_idx = i
+			_doodad_dragging = true
+			_doodad_drag_start = click_pos
+			_doodad_drag_origin_y = float(dd["y"])
+			_doodad_drag_origin_x = float(dd["x"])
+			_update_doodad_right_panel()
+			_map_canvas.queue_redraw()
+			return
+
+	# Place new doodad
+	var level_y: float = _canvas_y_to_level_y(click_pos.y)
+	var level_x: float = _canvas_x_to_level_x(click_pos.x)
+	# Use currently selected type from dropdown
+	var type_id: String = "water_tower"
+	var sel_idx: int = _doodad_type_dropdown.selected
+	if sel_idx >= 0:
+		type_id = str(_doodad_type_dropdown.get_item_metadata(sel_idx))
+	var new_dd: Dictionary = {
+		"type": type_id,
+		"x": level_x,
+		"y": level_y,
+		"scale": _doodad_scale_spin.value,
+		"rotation_deg": _doodad_rot_spin.value,
+	}
+	_selected_level.doodads.append(new_dd)
+	_doodad_selected_idx = _selected_level.doodads.size() - 1
+	_save_current_level()
+	_update_doodad_right_panel()
+	_map_canvas.queue_redraw()
+
+
+func _map_right_click_doodad(click_pos: Vector2) -> void:
+	if not _selected_level:
+		return
+	for i in range(_selected_level.doodads.size()):
+		var dd: Dictionary = _selected_level.doodads[i]
+		var cy: float = _level_y_to_canvas_y(float(dd["y"]))
+		var cx: float = _level_x_to_canvas_x(float(dd["x"]))
+		if click_pos.distance_to(Vector2(cx, cy)) < DOODAD_HIT_RADIUS:
+			_selected_level.doodads.remove_at(i)
+			if _doodad_selected_idx == i:
+				_doodad_selected_idx = -1
+			elif _doodad_selected_idx > i:
+				_doodad_selected_idx -= 1
+			_save_current_level()
+			_update_doodad_right_panel()
+			_map_canvas.queue_redraw()
+			return
+
+
 # ── Data operations ────────────────────────────────────────────
 
 func _load_all_levels() -> void:
@@ -1308,14 +1950,22 @@ func _load_all_levels() -> void:
 
 func _select_level(lv: LevelData) -> void:
 	_selected_level = lv
+	GameState.editing_level_id = lv.id
 	_selected_encounter_idx = -1
 	_nebula_selected_idx = -1
+	_doodad_selected_idx = -1
 	_scroll_offset = 0.0
 	_update_level_props_ui()
 	_rebuild_level_list()
 	_update_right_panel()
 	_update_nebula_right_panel()
+	if _edit_mode == "doodads":
+		_update_doodad_right_panel()
+	_apply_editor_background()
 	_map_canvas.queue_redraw()
+	if _preview_mode:
+		_preview_scroll = 0.0
+		_rebuild_preview()
 
 
 func _save_current_level() -> void:
@@ -1472,6 +2122,26 @@ class _MapCanvasDraw extends Control:
 				neb_name = neb_id
 			var nfont: Font = ThemeDB.fallback_font
 			draw_string(nfont, Vector2(ncx - 40, ncy + canvas_radius + 14), neb_name, HORIZONTAL_ALIGNMENT_CENTER, 80, 10, Color(neb_color, 0.7))
+
+		# Draw doodad markers
+		for i in range(level.doodads.size()):
+			var dd: Dictionary = level.doodads[i]
+			var dcy: float = s._level_y_to_canvas_y(float(dd["y"]))
+			var dcx: float = s._level_x_to_canvas_x(float(dd["x"]))
+			if dcy < -20 or dcy > canvas_h + 20:
+				continue
+			var is_dd_selected: bool = (s._edit_mode == "doodads" and i == s._doodad_selected_idx)
+			var dd_color := Color(0.6, 0.9, 0.4) if is_dd_selected else Color(0.3, 0.5, 0.25, 0.7)
+			var dd_sz: float = 8.0
+			# Square marker
+			draw_rect(Rect2(dcx - dd_sz, dcy - dd_sz, dd_sz * 2, dd_sz * 2), dd_color, true)
+			if is_dd_selected:
+				draw_rect(Rect2(dcx - dd_sz - 2, dcy - dd_sz - 2, dd_sz * 2 + 4, dd_sz * 2 + 4), Color(dd_color, 0.5), false, 2.0)
+			# Type label
+			var dd_type: String = str(dd.get("type", ""))
+			var dd_label: String = dd_type.substr(0, 3).to_upper()
+			var dfont: Font = ThemeDB.fallback_font
+			draw_string(dfont, Vector2(dcx + dd_sz + 3, dcy + 4), dd_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, dd_color)
 
 		# Draw encounter markers
 		for i in range(level.encounters.size()):
@@ -1646,5 +2316,47 @@ class _MapCanvasDraw extends Control:
 			screen._handle_map_input(event)
 			if event is InputEventMouseButton:
 				accept_event()
-			elif event is InputEventMouseMotion and (screen._encounter_dragging or screen._nebula_dragging or screen._map_dragging):
+			elif event is InputEventMouseMotion and (screen._encounter_dragging or screen._nebula_dragging or screen._doodad_dragging or screen._map_dragging):
+				accept_event()
+
+
+class _PreviewEncounterDraw extends Node2D:
+	## Draws static encounter markers in the preview viewport.
+	var screen: Control
+
+	func _draw() -> void:
+		if not screen or not screen._selected_level:
+			return
+		var level: LevelData = screen._selected_level
+		for enc in level.encounters:
+			var trigger_y: float = float(enc["trigger_y"])
+			var x_offset: float = float(enc["x_offset"])
+			var game_x: float = 960.0 + x_offset
+			var game_y: float = -trigger_y + 540.0
+			var sz: float = 14.0
+			var pts := PackedVector2Array([
+				Vector2(game_x, game_y - sz),
+				Vector2(game_x + sz * 0.7, game_y),
+				Vector2(game_x, game_y + sz),
+				Vector2(game_x - sz * 0.7, game_y),
+			])
+			draw_colored_polygon(pts, Color(0.4, 0.8, 1.0, 0.35))
+			draw_polyline(pts, Color(0.4, 0.8, 1.0, 0.6), 1.5)
+			var ship_id: String = str(enc.get("ship_id", ""))
+			var count: int = int(enc.get("count", 1))
+			var label: String = ship_id.replace("enemy_", "") + " x" + str(count)
+			var font: Font = ThemeDB.fallback_font
+			draw_string(font, Vector2(game_x + sz + 3, game_y + 4), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.5, 0.8, 1.0, 0.5))
+
+
+class _PreviewInputOverlay extends Control:
+	## Transparent overlay that routes input to the level editor's preview handler.
+	var screen: Control
+
+	func _gui_input(event: InputEvent) -> void:
+		if screen:
+			screen._handle_preview_input(event, size)
+			if event is InputEventMouseButton:
+				accept_event()
+			elif event is InputEventMouseMotion and (screen._doodad_dragging or screen._map_dragging):
 				accept_event()

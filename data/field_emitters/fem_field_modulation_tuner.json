@@ -8,12 +8,15 @@
 	"bar_effects": {
 
 	},
-	"description": "",
+	"description": "Shunts energy to shields with 70% efficiency after modulation.",
 	"device_type": "shield_aura",
+	"disable_power_cores": false,
+	"disable_weapons": false,
 	"display_name": "Field Modulation Tuner",
 	"fade_in_duration": 0.3,
 	"fade_out_duration": 0.3,
 	"field_style_id": "blue_ripple",
+	"hull_damage_reduction": 0.0,
 	"id": "fem_field_modulation_tuner",
 	"loop_file_path": "res://loop_zips/sorted/pads/Dreading Sphere - 120 BPM - 6 - Pads - cw_pad90_youthful_E.wav",
 	"loop_length_bars": 8,
@@ -23,8 +26,8 @@
 	"orbiter_lifetime": 4.0,
 	"orbiter_style_id": "",
 	"passive_effects": {
-		"electric": -4.0,
-		"shield": 10.0,
+		"electric": -10.0,
+		"shield": 7.0,
 		"thermal": 1.0
 	},
 	"pulse_fade_out": 0.99,
@@ -32,6 +35,7 @@
 	"pulse_total_duration": 1.05,
 	"pulse_triggers": [],
 	"radius": 100.0,
+	"shield_damage_reduction": 0.0,
 	"speed_modifier": 0.0,
 	"transition_mode": "fade",
 	"transition_ms": 810,

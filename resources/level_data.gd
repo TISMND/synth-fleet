@@ -9,6 +9,8 @@ extends Resource
 @export var flight_speed: float = 160.0
 @export var level_length: float = 10000.0
 @export var encounters: Array = []  # Array of encounter dicts
+@export var background_shader: String = ""  # Path to mid-layer bg shader (empty = default grid)
+@export var doodads: Array = []  # Array of doodad placement dicts
 @export var nebula_placements: Array = []  # Array of placement dicts
 
 
@@ -20,6 +22,7 @@ static func from_dict(data: Dictionary) -> LevelData:
 	l.scroll_speed = float(data.get("scroll_speed", 80.0))
 	l.flight_speed = float(data.get("flight_speed", l.scroll_speed * 2.0))
 	l.level_length = float(data.get("level_length", 10000.0))
+	l.background_shader = str(data.get("background_shader", ""))
 	var raw_enc: Array = data.get("encounters", [])
 	l.encounters = []
 	for enc in raw_enc:
@@ -36,6 +39,16 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"is_melee": bool(enc.get("is_melee", false)),
 			"turn_speed": float(enc.get("turn_speed", 90.0)),
 			"weapons_active": bool(enc.get("weapons_active", true)),
+		})
+	var raw_doodads: Array = data.get("doodads", [])
+	l.doodads = []
+	for dd in raw_doodads:
+		l.doodads.append({
+			"type": str(dd.get("type", "water_tower")),
+			"x": float(dd.get("x", 0.0)),
+			"y": float(dd.get("y", 0.0)),
+			"scale": float(dd.get("scale", 1.0)),
+			"rotation_deg": float(dd.get("rotation_deg", 0.0)),
 		})
 	var raw_neb: Array = data.get("nebula_placements", [])
 	l.nebula_placements = []
@@ -57,7 +70,9 @@ func to_dict() -> Dictionary:
 		"scroll_speed": scroll_speed,
 		"flight_speed": flight_speed,
 		"level_length": level_length,
+		"background_shader": background_shader,
 		"encounters": encounters,
+		"doodads": doodads,
 		"nebula_placements": nebula_placements,
 	}
 

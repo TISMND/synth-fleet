@@ -1,0 +1,12 @@
+{
+	"background_shader": "res://assets/shaders/bg_industrial_platform.gdshader",
+	"bpm": 110.0,
+	"display_name": "New Level",
+	"doodads": [],
+	"encounters": [],
+	"flight_speed": 160.0,
+	"id": "level_3",
+	"level_length": 10000.0,
+	"nebula_placements": [],
+	"scroll_speed": 80.0
+}

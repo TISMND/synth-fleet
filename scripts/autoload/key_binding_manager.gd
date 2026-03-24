@@ -389,7 +389,7 @@ func update_combo_preset_pattern(index: int, pattern: Dictionary) -> void:
 	save_bindings()
 
 
-static func generate_combo_label(pattern: Dictionary) -> String:
+func generate_combo_label(pattern: Dictionary) -> String:
 	var weapon_count: int = 0
 	var core_count: int = 0
 	var field_count: int = 0

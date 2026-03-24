@@ -1,5 +1,6 @@
 extends MarginContainer
 ## Nebula definition editor — create named nebulas, pick a shader style, tweak parameters.
+## Parameters organized into two columns: left (Appearance + Layers), right (Storm + Effects).
 
 const STYLES: Dictionary = {
 	"classic_fbm": {"name": "Classic FBM", "shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "dual": false},
@@ -15,36 +16,43 @@ const STYLES: Dictionary = {
 	"dual_voronoi": {"name": "Dual Voronoi", "shader": "res://assets/shaders/nebula_dual_voronoi.gdshader", "dual": true},
 }
 
-var _style_keys: Array[String] = []  # ordered list of style ids for OptionButton indexing
+var _style_keys: Array[String] = []
 var _nebulas: Array[NebulaData] = []
 var _selected_id: String = ""
 var _suppressing_signals: bool = false
 
-# UI refs
+# UI refs — top level
 var _list_container: VBoxContainer
 var _create_btn: Button
 var _delete_btn: Button
 var _preview_rect: ColorRect
 var _name_edit: LineEdit
 var _style_option: OptionButton
-var _params_container: VBoxContainer
 var _editor_panel: VBoxContainer
 var _empty_label: Label
 
-# Param control refs (rebuilt on style change)
+# Two-column param layout
+var _params_columns: HBoxContainer  # Holds left_col and right_col side by side
+var _left_col: VBoxContainer
+var _right_col: VBoxContainer
+var _active_slider_container: VBoxContainer  # Points to whichever column is being built
+
+# Appearance tab controls
 var _color_picker: ColorPickerButton
 var _color2_picker: ColorPickerButton
 var _color2_row: HBoxContainer
 var _brightness_slider: HSlider
-var _speed_slider: HSlider
-var _density_slider: HSlider
-var _seed_slider: HSlider
 var _brightness_value: Label
+var _speed_slider: HSlider
 var _speed_value: Label
+var _density_slider: HSlider
 var _density_value: Label
+var _seed_slider: HSlider
 var _seed_value: Label
 var _spread_slider: HSlider
 var _spread_value: Label
+
+# Layers tab controls
 var _bottom_opacity_slider: HSlider
 var _bottom_opacity_value: Label
 var _top_opacity_slider: HSlider
@@ -54,28 +62,35 @@ var _veil_contrast_value: Label
 var _wash_opacity_slider: HSlider
 var _wash_opacity_value: Label
 
-# Bar effects spinboxes
-var _bar_effect_spinboxes: Dictionary = {}  # bar_name -> SpinBox
-var _effects_container: VBoxContainer
+# Storm tab controls
+var _storm_enabled_check: CheckBox
+var _storm_frequency_slider: HSlider
+var _storm_frequency_value: Label
+var _storm_strike_size_slider: HSlider
+var _storm_strike_size_value: Label
+var _storm_duration_slider: HSlider
+var _storm_duration_value: Label
+var _storm_glow_slider: HSlider
+var _storm_glow_value: Label
+var _storm_controls_container: VBoxContainer  # Holds sliders, disabled when storm off
 
-# Special effects checkboxes
-var _special_effect_checks: Dictionary = {}  # effect_id -> CheckBox
+# Effects tab controls
+var _bar_effect_spinboxes: Dictionary = {}
+var _special_effect_checks: Dictionary = {}
 const KNOWN_SPECIAL_EFFECTS: Array[String] = ["cloak", "slow", "damage_boost"]
-
-# Key change preset
 var _key_change_option: OptionButton
 var _key_change_ids: Array[String] = []
 
 # Preview layering refs
-var _preview_container: Control  # Holds bottom nebula, ship, wash, top veil
+var _preview_container: Control
 var _preview_bottom: ColorRect
 var _preview_ship: ShipRenderer
-var _preview_wash: ColorRect  # Full-coverage tint layer
+var _preview_wash: ColorRect
+var _preview_storm: ColorRect  # Storm overlay layer
 var _preview_top: ColorRect
 
 
 func _ready() -> void:
-	# Build ordered style key list
 	for key in STYLES:
 		_style_keys.append(key)
 
@@ -96,13 +111,14 @@ func _build_ui() -> void:
 	var split := HSplitContainer.new()
 	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	split.split_offset = 300
+	split.split_offset = -200
 	add_child(split)
 
-	# --- Left panel: nebula list ---
+	# --- Left panel: nebula list (~35%) ---
 	var left_panel := VBoxContainer.new()
-	left_panel.custom_minimum_size.x = 280
+	left_panel.custom_minimum_size.x = 200
 	left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_panel.size_flags_stretch_ratio = 0.35
 	left_panel.add_theme_constant_override("separation", 8)
 	split.add_child(left_panel)
 
@@ -126,7 +142,7 @@ func _build_ui() -> void:
 	left_panel.add_child(btn_row)
 
 	_create_btn = Button.new()
-	_create_btn.text = "+ CREATE NEW"
+	_create_btn.text = "+ NEW"
 	_create_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_create_btn.pressed.connect(_on_create_new)
 	btn_row.add_child(_create_btn)
@@ -138,36 +154,34 @@ func _build_ui() -> void:
 	_delete_btn.pressed.connect(_on_delete)
 	btn_row.add_child(_delete_btn)
 
-	# --- Right panel: editor ---
+	# --- Right panel: editor (~65%) ---
 	var right_scroll := ScrollContainer.new()
 	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_scroll.size_flags_stretch_ratio = 0.65
 	split.add_child(right_scroll)
 
 	_editor_panel = VBoxContainer.new()
 	_editor_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_editor_panel.add_theme_constant_override("separation", 12)
+	_editor_panel.add_theme_constant_override("separation", 10)
 	right_scroll.add_child(_editor_panel)
 
-	# Preview — layered: black bg, bottom nebula, ship, top nebula veil
+	# Preview — layered: black bg, bottom nebula, ship, wash, storm overlay, top veil
 	_preview_container = Control.new()
-	_preview_container.custom_minimum_size = Vector2(400, 300)
+	_preview_container.custom_minimum_size = Vector2(400, 600)
 	_preview_container.clip_contents = true
 	_editor_panel.add_child(_preview_container)
 
-	# Black background
 	var preview_bg := ColorRect.new()
 	preview_bg.color = Color(0, 0, 0, 1)
 	preview_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_preview_container.add_child(preview_bg)
 
-	# Bottom nebula layer
 	_preview_bottom = ColorRect.new()
 	_preview_bottom.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_preview_bottom.color = Color.WHITE
 	_preview_container.add_child(_preview_bottom)
 
-	# Ship silhouette in the middle
 	_preview_ship = ShipRenderer.new()
 	_preview_ship.ship_id = 0
 	_preview_ship.render_mode = ShipRenderer.RenderMode.CHROME
@@ -175,24 +189,27 @@ func _build_ui() -> void:
 	_preview_ship.scale = Vector2(1.5, 1.5)
 	_preview_container.add_child(_preview_ship)
 
-	# Wash layer — flat full-coverage tint so the ship always looks "inside" the nebula
 	_preview_wash = ColorRect.new()
 	_preview_wash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_preview_wash.color = Color.WHITE
 	_preview_wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_preview_container.add_child(_preview_wash)
 
-	# Top nebula veil — scattered tufts (over the ship)
+	_preview_storm = ColorRect.new()
+	_preview_storm.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_preview_storm.color = Color.WHITE
+	_preview_storm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_preview_container.add_child(_preview_storm)
+
 	_preview_top = ColorRect.new()
 	_preview_top.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_preview_top.color = Color.WHITE
 	_preview_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_preview_container.add_child(_preview_top)
 
-	# Keep ref for compatibility with existing code
 	_preview_rect = _preview_bottom
 
-	# Name
+	# Name row
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 8)
 	_editor_panel.add_child(name_row)
@@ -221,31 +238,30 @@ func _build_ui() -> void:
 	_style_option.item_selected.connect(_on_style_changed)
 	style_row.add_child(_style_option)
 
-	# Parameters section
-	var params_label := Label.new()
-	params_label.text = "PARAMETERS"
-	params_label.name = "ParamsHeader"
-	_editor_panel.add_child(params_label)
+	# --- Two-column parameter layout ---
+	_params_columns = HBoxContainer.new()
+	_params_columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_params_columns.add_theme_constant_override("separation", 20)
+	_editor_panel.add_child(_params_columns)
 
-	_params_container = VBoxContainer.new()
-	_params_container.add_theme_constant_override("separation", 8)
-	_editor_panel.add_child(_params_container)
-	_build_param_controls()
+	_left_col = VBoxContainer.new()
+	_left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_left_col.add_theme_constant_override("separation", 6)
+	_params_columns.add_child(_left_col)
 
-	# --- Status Effects section ---
-	var effects_header := Label.new()
-	effects_header.text = "STATUS EFFECTS"
-	effects_header.name = "EffectsHeader"
-	_editor_panel.add_child(effects_header)
+	_right_col = VBoxContainer.new()
+	_right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_col.add_theme_constant_override("separation", 6)
+	_params_columns.add_child(_right_col)
 
-	_effects_container = VBoxContainer.new()
-	_effects_container.add_theme_constant_override("separation", 8)
-	_editor_panel.add_child(_effects_container)
-	_build_effects_controls()
+	_build_appearance_section()
+	_build_layers_section()
+	_build_storm_section()
+	_build_effects_section()
 
-	# Empty state label (shown when no nebulas exist)
+	# Empty state label
 	_empty_label = Label.new()
-	_empty_label.text = "No nebulas yet. Click + CREATE NEW to get started."
+	_empty_label.text = "No nebulas yet. Click + NEW to get started."
 	_empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -255,18 +271,20 @@ func _build_ui() -> void:
 	_rebuild_list()
 
 
-func _build_param_controls() -> void:
-	# Clear existing
-	for child in _params_container.get_children():
-		child.queue_free()
+func _build_appearance_section() -> void:
+	_active_slider_container = _left_col
+	var section_header := Label.new()
+	section_header.text = "APPEARANCE"
+	section_header.name = "AppearanceHeader"
+	_active_slider_container.add_child(section_header)
 
 	# Color
 	var color_row := HBoxContainer.new()
 	color_row.add_theme_constant_override("separation", 8)
-	_params_container.add_child(color_row)
+	_active_slider_container.add_child(color_row)
 	var color_label := Label.new()
 	color_label.text = "Color"
-	color_label.custom_minimum_size.x = 100
+	color_label.custom_minimum_size.x = 80
 	color_row.add_child(color_label)
 	_color_picker = ColorPickerButton.new()
 	_color_picker.custom_minimum_size = Vector2(60, 30)
@@ -277,10 +295,10 @@ func _build_param_controls() -> void:
 	# Secondary color (dual styles only)
 	_color2_row = HBoxContainer.new()
 	_color2_row.add_theme_constant_override("separation", 8)
-	_params_container.add_child(_color2_row)
+	_active_slider_container.add_child(_color2_row)
 	var color2_label := Label.new()
 	color2_label.text = "Color 2"
-	color2_label.custom_minimum_size.x = 100
+	color2_label.custom_minimum_size.x = 80
 	_color2_row.add_child(color2_label)
 	_color2_picker = ColorPickerButton.new()
 	_color2_picker.custom_minimum_size = Vector2(60, 30)
@@ -289,119 +307,103 @@ func _build_param_controls() -> void:
 	_color2_row.add_child(_color2_picker)
 	_color2_row.visible = false
 
-	# Brightness
 	_brightness_slider = _add_slider_row("Brightness", 0.5, 4.0, 0.05, 1.5)
 	_brightness_slider.value_changed.connect(_on_brightness_changed)
 
-	# Animation Speed
 	_speed_slider = _add_slider_row("Anim Speed", 0.0, 3.0, 0.05, 0.5)
 	_speed_slider.value_changed.connect(_on_speed_changed)
 
-	# Density
 	_density_slider = _add_slider_row("Density", 0.5, 4.0, 0.05, 1.5)
 	_density_slider.value_changed.connect(_on_density_changed)
 
-	# Seed Offset
 	_seed_slider = _add_slider_row("Seed", 0.0, 1000.0, 1.0, 0.0)
 	_seed_slider.value_changed.connect(_on_seed_changed)
 
-	# Spread — controls how evenly intensity fills the radius
 	_spread_slider = _add_slider_row("Spread", 0.05, 1.0, 0.05, 0.2)
 	_spread_slider.value_changed.connect(_on_spread_changed)
 
-	# --- Layer opacity section ---
-	var layer_label := Label.new()
-	layer_label.text = "LAYER OPACITY"
-	layer_label.name = "LayerHeader"
-	_params_container.add_child(layer_label)
 
-	# Bottom layer opacity
+func _build_layers_section() -> void:
+	_active_slider_container = _left_col
+	var section_header := Label.new()
+	section_header.text = "LAYERS"
+	section_header.name = "LayersHeader"
+	_active_slider_container.add_child(section_header)
+
 	_bottom_opacity_slider = _add_slider_row("Bottom", 0.0, 1.0, 0.05, 1.0)
 	_bottom_opacity_slider.value_changed.connect(_on_bottom_opacity_changed)
 
-	# Top veil opacity
 	_top_opacity_slider = _add_slider_row("Top Veil", 0.0, 2.0, 0.01, 0.1)
 	_top_opacity_slider.value_changed.connect(_on_top_opacity_changed)
 
-	# Veil contrast — edge emphasis
 	_veil_contrast_slider = _add_slider_row("Veil Edge", 0.0, 1.0, 0.01, 0.5)
 	_veil_contrast_slider.value_changed.connect(_on_veil_contrast_changed)
 
-	# Wash — full-coverage subtle tint over the ship
 	_wash_opacity_slider = _add_slider_row("Wash", 0.0, 1.0, 0.01, 0.0)
 	_wash_opacity_slider.value_changed.connect(_on_wash_opacity_changed)
 
 
-func _add_slider_row(label_text: String, min_val: float, max_val: float, step: float, default_val: float) -> HSlider:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	_params_container.add_child(row)
+func _build_storm_section() -> void:
+	_active_slider_container = _right_col
+	var section_header := Label.new()
+	section_header.text = "STORM"
+	section_header.name = "StormHeader"
+	_active_slider_container.add_child(section_header)
 
-	var label := Label.new()
-	label.text = label_text
-	label.custom_minimum_size.x = 100
-	row.add_child(label)
+	# Storm enable toggle
+	_storm_enabled_check = CheckBox.new()
+	_storm_enabled_check.text = "Enable Storm Overlay"
+	_storm_enabled_check.toggled.connect(_on_storm_enabled_toggled)
+	_active_slider_container.add_child(_storm_enabled_check)
 
-	var slider := HSlider.new()
-	slider.min_value = min_val
-	slider.max_value = max_val
-	slider.step = step
-	slider.value = default_val
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.custom_minimum_size.x = 200
-	row.add_child(slider)
+	# Container for storm sliders — disabled when storm is off
+	_storm_controls_container = VBoxContainer.new()
+	_storm_controls_container.add_theme_constant_override("separation", 8)
+	_active_slider_container.add_child(_storm_controls_container)
 
-	var value_label := Label.new()
-	value_label.text = str(snapped(default_val, step))
-	value_label.custom_minimum_size.x = 60
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	row.add_child(value_label)
+	# Temporarily point _active_slider_container at the storm controls sub-container
+	_active_slider_container = _storm_controls_container
 
-	# Store value label ref by slider name for updates
-	if label_text == "Brightness":
-		_brightness_value = value_label
-	elif label_text == "Anim Speed":
-		_speed_value = value_label
-	elif label_text == "Density":
-		_density_value = value_label
-	elif label_text == "Seed":
-		_seed_value = value_label
-	elif label_text == "Spread":
-		_spread_value = value_label
-	elif label_text == "Bottom":
-		_bottom_opacity_value = value_label
-	elif label_text == "Top Veil":
-		_top_opacity_value = value_label
-	elif label_text == "Veil Edge":
-		_veil_contrast_value = value_label
-	elif label_text == "Wash":
-		_wash_opacity_value = value_label
+	_storm_frequency_slider = _add_slider_row("Frequency", 0.0, 1.0, 0.05, 0.4)
+	_storm_frequency_slider.value_changed.connect(_on_storm_frequency_changed)
 
-	return slider
+	_storm_strike_size_slider = _add_slider_row("Strike Size", 0.02, 0.4, 0.01, 0.12)
+	_storm_strike_size_slider.value_changed.connect(_on_storm_strike_size_changed)
+
+	_storm_duration_slider = _add_slider_row("Duration", 0.05, 0.5, 0.01, 0.2)
+	_storm_duration_slider.value_changed.connect(_on_storm_duration_changed)
+
+	_storm_glow_slider = _add_slider_row("Glow Size", 0.0, 1.0, 0.01, 0.3)
+	_storm_glow_slider.value_changed.connect(_on_storm_glow_changed)
+
+	_storm_controls_container.visible = false  # Hidden until toggled on
 
 
-func _build_effects_controls() -> void:
-	# Clear existing
-	for child in _effects_container.get_children():
-		child.queue_free()
-	_bar_effect_spinboxes.clear()
-	_special_effect_checks.clear()
+func _build_effects_section() -> void:
+	_active_slider_container = _right_col
+	var panel: VBoxContainer = _right_col
 
-	# Bar effects: spinboxes for shield, hull, thermal, electric
+	var section_header := Label.new()
+	section_header.text = "EFFECTS"
+	section_header.name = "EffectsHeader"
+	panel.add_child(section_header)
+
+	# Bar effects
 	var bar_label := Label.new()
 	bar_label.text = "Bar Rates (per second)"
 	bar_label.name = "BarRatesLabel"
-	_effects_container.add_child(bar_label)
+	panel.add_child(bar_label)
 
+	_bar_effect_spinboxes.clear()
 	var bar_names: Array[String] = ["shield", "hull", "thermal", "electric"]
 	for bar_name in bar_names:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		_effects_container.add_child(row)
+		panel.add_child(row)
 
 		var lbl := Label.new()
 		lbl.text = bar_name.capitalize()
-		lbl.custom_minimum_size.x = 100
+		lbl.custom_minimum_size.x = 80
 		row.add_child(lbl)
 
 		var spin := SpinBox.new()
@@ -415,32 +417,33 @@ func _build_effects_controls() -> void:
 
 		_bar_effect_spinboxes[bar_name] = spin
 
-	# Special effects: checkboxes
+	# Special effects
 	var special_label := Label.new()
 	special_label.text = "Special Effects"
 	special_label.name = "SpecialEffectsLabel"
-	_effects_container.add_child(special_label)
+	panel.add_child(special_label)
 
+	_special_effect_checks.clear()
 	for effect_id in KNOWN_SPECIAL_EFFECTS:
 		var check := CheckBox.new()
 		check.text = effect_id.capitalize().replace("_", " ")
 		check.toggled.connect(_on_special_effect_toggled.bind(effect_id))
-		_effects_container.add_child(check)
+		panel.add_child(check)
 		_special_effect_checks[effect_id] = check
 
 	# Key change preset
 	var kc_label := Label.new()
 	kc_label.text = "Key Change Preset"
 	kc_label.name = "KeyChangeLabel"
-	_effects_container.add_child(kc_label)
+	panel.add_child(kc_label)
 
 	var kc_row := HBoxContainer.new()
 	kc_row.add_theme_constant_override("separation", 8)
-	_effects_container.add_child(kc_row)
+	panel.add_child(kc_row)
 
 	var kc_lbl := Label.new()
 	kc_lbl.text = "Preset"
-	kc_lbl.custom_minimum_size.x = 100
+	kc_lbl.custom_minimum_size.x = 80
 	kc_row.add_child(kc_lbl)
 
 	_key_change_option = OptionButton.new()
@@ -457,6 +460,53 @@ func _build_effects_controls() -> void:
 	_key_change_option.item_selected.connect(_on_key_change_selected)
 	kc_row.add_child(_key_change_option)
 
+
+func _add_slider_row(label_text: String, min_val: float, max_val: float, step: float, default_val: float) -> HSlider:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_active_slider_container.add_child(row)
+
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 80
+	row.add_child(label)
+
+	var slider := HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.step = step
+	slider.value = default_val
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 100
+	row.add_child(slider)
+
+	var value_label := Label.new()
+	value_label.text = str(snapped(default_val, step))
+	value_label.custom_minimum_size.x = 45
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(value_label)
+
+	# Store value label ref
+	match label_text:
+		"Brightness": _brightness_value = value_label
+		"Anim Speed": _speed_value = value_label
+		"Density": _density_value = value_label
+		"Seed": _seed_value = value_label
+		"Spread": _spread_value = value_label
+		"Bottom": _bottom_opacity_value = value_label
+		"Top Veil": _top_opacity_value = value_label
+		"Veil Edge": _veil_contrast_value = value_label
+		"Wash": _wash_opacity_value = value_label
+		"Frequency": _storm_frequency_value = value_label
+		"Strike Size": _storm_strike_size_value = value_label
+		"Duration": _storm_duration_value = value_label
+		"Glow Size": _storm_glow_value = value_label
+
+	return slider
+
+
+
+# ── List management ───────────────────────────────────────────────────────
 
 func _rebuild_list() -> void:
 	for child in _list_container.get_children():
@@ -483,12 +533,7 @@ func _show_empty_state() -> void:
 	_empty_label.visible = true
 	_name_edit.get_parent().visible = false
 	_style_option.get_parent().visible = false
-	_params_container.visible = false
-	_effects_container.visible = false
-	# Hide params header and effects header
-	for child in _editor_panel.get_children():
-		if child is Label and (child.name == "ParamsHeader" or child.name == "EffectsHeader"):
-			child.visible = false
+	_params_columns.visible = false
 	_delete_btn.disabled = true
 
 
@@ -497,12 +542,10 @@ func _show_editor_state() -> void:
 	_empty_label.visible = false
 	_name_edit.get_parent().visible = true
 	_style_option.get_parent().visible = true
-	_params_container.visible = true
-	_effects_container.visible = true
-	for child in _editor_panel.get_children():
-		if child is Label and (child.name == "ParamsHeader" or child.name == "EffectsHeader"):
-			child.visible = true
+	_params_columns.visible = true
 
+
+# ── Selection + data loading ──────────────────────────────────────────────
 
 func _select_nebula(id: String) -> void:
 	_selected_id = id
@@ -517,69 +560,51 @@ func _select_nebula(id: String) -> void:
 
 	_name_edit.text = data.display_name
 
-	# Set style dropdown
+	# Style dropdown
 	var style_idx: int = _style_keys.find(data.style_id)
 	if style_idx >= 0:
 		_style_option.selected = style_idx
 
-	# Update param controls
 	var params: Dictionary = data.shader_params
 	var defaults: Dictionary = NebulaData.default_params()
 
+	# Appearance
 	var color_arr: Array = params.get("nebula_color", defaults["nebula_color"])
 	_color_picker.color = Color(color_arr[0], color_arr[1], color_arr[2], color_arr[3])
 
 	var color2_arr: Array = params.get("secondary_color", defaults["secondary_color"])
 	_color2_picker.color = Color(color2_arr[0], color2_arr[1], color2_arr[2], color2_arr[3])
 
-	var brightness_val: float = float(params.get("brightness", defaults["brightness"]))
-	_brightness_slider.value = brightness_val
-	_brightness_value.text = str(snapped(brightness_val, 0.05))
+	_set_slider(_brightness_slider, _brightness_value, float(params.get("brightness", defaults["brightness"])), 0.05)
+	_set_slider(_speed_slider, _speed_value, float(params.get("animation_speed", defaults["animation_speed"])), 0.05)
+	_set_slider(_density_slider, _density_value, float(params.get("density", defaults["density"])), 0.05)
+	_set_slider(_seed_slider, _seed_value, float(params.get("seed_offset", defaults["seed_offset"])), 1.0)
+	_set_slider(_spread_slider, _spread_value, float(params.get("radial_spread", defaults["radial_spread"])), 0.05)
 
-	var speed_val: float = float(params.get("animation_speed", defaults["animation_speed"]))
-	_speed_slider.value = speed_val
-	_speed_value.text = str(snapped(speed_val, 0.05))
+	# Layers
+	_set_slider(_bottom_opacity_slider, _bottom_opacity_value, float(params.get("bottom_opacity", defaults["bottom_opacity"])), 0.05)
+	_set_slider(_top_opacity_slider, _top_opacity_value, float(params.get("top_opacity", defaults["top_opacity"])), 0.01)
+	_set_slider(_veil_contrast_slider, _veil_contrast_value, float(params.get("veil_contrast", defaults["veil_contrast"])), 0.01)
+	_set_slider(_wash_opacity_slider, _wash_opacity_value, float(params.get("wash_opacity", defaults["wash_opacity"])), 0.01)
 
-	var density_val: float = float(params.get("density", defaults["density"]))
-	_density_slider.value = density_val
-	_density_value.text = str(snapped(density_val, 0.05))
+	# Storm
+	var storm_on: bool = bool(params.get("storm_enabled", defaults["storm_enabled"]))
+	_storm_enabled_check.button_pressed = storm_on
+	_storm_controls_container.visible = storm_on
+	_set_slider(_storm_frequency_slider, _storm_frequency_value, float(params.get("storm_frequency", defaults["storm_frequency"])), 0.05)
+	_set_slider(_storm_strike_size_slider, _storm_strike_size_value, float(params.get("storm_strike_size", defaults["storm_strike_size"])), 0.01)
+	_set_slider(_storm_duration_slider, _storm_duration_value, float(params.get("storm_duration", defaults["storm_duration"])), 0.01)
+	_set_slider(_storm_glow_slider, _storm_glow_value, float(params.get("storm_glow_diameter", defaults["storm_glow_diameter"])), 0.01)
 
-	var seed_val: float = float(params.get("seed_offset", defaults["seed_offset"]))
-	_seed_slider.value = seed_val
-	_seed_value.text = str(snapped(seed_val, 1.0))
-
-	var spread_val: float = float(params.get("radial_spread", defaults["radial_spread"]))
-	_spread_slider.value = spread_val
-	_spread_value.text = str(snapped(spread_val, 0.1))
-
-	var bottom_val: float = float(params.get("bottom_opacity", defaults["bottom_opacity"]))
-	_bottom_opacity_slider.value = bottom_val
-	_bottom_opacity_value.text = str(snapped(bottom_val, 0.05))
-
-	var top_val: float = float(params.get("top_opacity", defaults["top_opacity"]))
-	_top_opacity_slider.value = top_val
-	_top_opacity_value.text = str(snapped(top_val, 0.01))
-
-	var veil_contrast_val: float = float(params.get("veil_contrast", defaults["veil_contrast"]))
-	_veil_contrast_slider.value = veil_contrast_val
-	_veil_contrast_value.text = str(snapped(veil_contrast_val, 0.01))
-
-	var wash_val: float = float(params.get("wash_opacity", defaults["wash_opacity"]))
-	_wash_opacity_slider.value = wash_val
-	_wash_opacity_value.text = str(snapped(wash_val, 0.01))
-
-	# Load bar effects into spinboxes
+	# Effects
 	for bar_name in _bar_effect_spinboxes:
 		var spin: SpinBox = _bar_effect_spinboxes[bar_name]
-		var rate: float = float(data.bar_effects.get(bar_name, 0.0))
-		spin.value = rate
+		spin.value = float(data.bar_effects.get(bar_name, 0.0))
 
-	# Load special effects into checkboxes
 	for effect_id in _special_effect_checks:
 		var check: CheckBox = _special_effect_checks[effect_id]
 		check.button_pressed = data.special_effects.has(effect_id)
 
-	# Load key change preset selection
 	if data.key_change_id == "" or data.key_change_id not in _key_change_ids:
 		_key_change_option.selected = 0
 	else:
@@ -589,11 +614,15 @@ func _select_nebula(id: String) -> void:
 
 	# Show/hide secondary color based on style
 	var style_info: Dictionary = STYLES.get(data.style_id, {})
-	var is_dual: bool = style_info.get("dual", false)
-	_color2_row.visible = is_dual
+	_color2_row.visible = style_info.get("dual", false)
 
 	_update_preview()
 	_update_list_selection()
+
+
+func _set_slider(slider: HSlider, label: Label, val: float, step: float) -> void:
+	slider.value = val
+	label.text = str(snapped(val, step))
 
 
 func _update_list_selection() -> void:
@@ -603,11 +632,15 @@ func _update_list_selection() -> void:
 			child.button_pressed = (btn_id == _selected_id)
 
 
+# ── Preview rendering ─────────────────────────────────────────────────────
+
 func _update_preview() -> void:
 	var data: NebulaData = _get_nebula_by_id(_selected_id)
 	if not data:
 		_preview_bottom.material = null
 		_preview_top.material = null
+		_preview_storm.material = null
+		_preview_storm.visible = false
 		return
 
 	var style_info: Dictionary = STYLES.get(data.style_id, {})
@@ -615,18 +648,22 @@ func _update_preview() -> void:
 	if shader_path == "":
 		_preview_bottom.material = null
 		_preview_top.material = null
+		_preview_storm.material = null
+		_preview_storm.visible = false
 		return
 
 	var shader_res: Shader = load(shader_path) as Shader
 	if not shader_res:
 		_preview_bottom.material = null
 		_preview_top.material = null
+		_preview_storm.material = null
+		_preview_storm.visible = false
 		return
 
 	var params: Dictionary = data.shader_params
 	var defaults: Dictionary = NebulaData.default_params()
 
-	# Build shader material
+	# Build base shader material
 	var mat := ShaderMaterial.new()
 	mat.shader = shader_res
 
@@ -643,11 +680,12 @@ func _update_preview() -> void:
 	mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
 	mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
 
-	# Bottom layer — full nebula behind ship
+
+	# Bottom layer
 	_preview_bottom.material = mat
 	_preview_bottom.modulate.a = float(params.get("bottom_opacity", defaults["bottom_opacity"]))
 
-	# Top veil — dedicated veil shader with edge contrast
+	# Top veil
 	var veil_shader: Shader = load("res://assets/shaders/nebula_veil.gdshader") as Shader
 	if veil_shader:
 		var top_mat := ShaderMaterial.new()
@@ -665,7 +703,7 @@ func _update_preview() -> void:
 		_preview_top.material = top_mat
 	_preview_top.modulate.a = float(params.get("top_opacity", defaults["top_opacity"]))
 
-	# Wash layer — flat tint with radial falloff matching nebula shape
+	# Wash layer
 	var wash_opacity: float = float(params.get("wash_opacity", defaults["wash_opacity"]))
 	var wash_shader: Shader = load("res://assets/shaders/nebula_wash.gdshader") as Shader
 	if wash_shader:
@@ -679,6 +717,31 @@ func _update_preview() -> void:
 		_preview_wash.material = null
 	_preview_wash.color = Color.WHITE
 	_preview_wash.modulate.a = wash_opacity
+
+	# Storm overlay layer
+	var storm_on: bool = bool(params.get("storm_enabled", defaults["storm_enabled"]))
+	if storm_on:
+		var storm_shader: Shader = load("res://assets/shaders/nebula_storm_overlay.gdshader") as Shader
+		if storm_shader:
+			var storm_mat := ShaderMaterial.new()
+			storm_mat.shader = storm_shader
+			storm_mat.set_shader_parameter("nebula_color", mat.get_shader_parameter("nebula_color"))
+			storm_mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
+			storm_mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+			storm_mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
+			storm_mat.set_shader_parameter("brightness", float(params.get("brightness", defaults["brightness"])))
+			storm_mat.set_shader_parameter("storm_frequency", float(params.get("storm_frequency", defaults["storm_frequency"])))
+			storm_mat.set_shader_parameter("storm_strike_size", float(params.get("storm_strike_size", defaults["storm_strike_size"])))
+			storm_mat.set_shader_parameter("storm_duration", float(params.get("storm_duration", defaults["storm_duration"])))
+			storm_mat.set_shader_parameter("storm_glow_diameter", float(params.get("storm_glow_diameter", defaults["storm_glow_diameter"])))
+			_preview_storm.material = storm_mat
+			_preview_storm.visible = true
+		else:
+			_preview_storm.material = null
+			_preview_storm.visible = false
+	else:
+		_preview_storm.material = null
+		_preview_storm.visible = false
 
 
 func _get_nebula_by_id(id: String) -> NebulaData:
@@ -706,7 +769,6 @@ func _auto_save() -> void:
 	if not data:
 		return
 	if data.id != _selected_id:
-		# ID changed (rename): save new file, delete old, update level references
 		var old_id: String = _selected_id
 		NebulaDataManager.rename(old_id, data.id, data)
 		_selected_id = data.id
@@ -716,7 +778,7 @@ func _auto_save() -> void:
 		NebulaDataManager.save(data)
 
 
-# --- Signals ---
+# ── Signal handlers ───────────────────────────────────────────────────────
 
 func _on_create_new() -> void:
 	var id: String = _generate_unique_id()
@@ -765,7 +827,6 @@ func _on_name_changed(new_name: String) -> void:
 	if data:
 		data.display_name = new_name
 		_auto_save()
-		# Update list button text
 		for child in _list_container.get_children():
 			if child is Button and child.name == "ListItem_" + _selected_id:
 				child.text = new_name
@@ -783,6 +844,8 @@ func _on_style_changed(idx: int) -> void:
 	_update_preview()
 	_auto_save()
 
+
+# --- Appearance handlers ---
 
 func _on_color_changed(color: Color) -> void:
 	if _suppressing_signals:
@@ -849,7 +912,7 @@ func _on_seed_changed(val: float) -> void:
 
 
 func _on_spread_changed(val: float) -> void:
-	_spread_value.text = str(snapped(val, 0.1))
+	_spread_value.text = str(snapped(val, 0.05))
 	if _suppressing_signals:
 		return
 	var data: NebulaData = _get_nebula_by_id(_selected_id)
@@ -858,6 +921,8 @@ func _on_spread_changed(val: float) -> void:
 		_update_preview()
 		_auto_save()
 
+
+# --- Layers handlers ---
 
 func _on_bottom_opacity_changed(val: float) -> void:
 	_bottom_opacity_value.text = str(snapped(val, 0.05))
@@ -903,6 +968,65 @@ func _on_wash_opacity_changed(val: float) -> void:
 		_auto_save()
 
 
+# --- Storm handlers ---
+
+func _on_storm_enabled_toggled(toggled_on: bool) -> void:
+	_storm_controls_container.visible = toggled_on
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["storm_enabled"] = toggled_on
+		_update_preview()
+		_auto_save()
+
+
+func _on_storm_frequency_changed(val: float) -> void:
+	_storm_frequency_value.text = str(snapped(val, 0.05))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["storm_frequency"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_storm_strike_size_changed(val: float) -> void:
+	_storm_strike_size_value.text = str(snapped(val, 0.01))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["storm_strike_size"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_storm_duration_changed(val: float) -> void:
+	_storm_duration_value.text = str(snapped(val, 0.01))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["storm_duration"] = val
+		_update_preview()
+		_auto_save()
+
+
+func _on_storm_glow_changed(val: float) -> void:
+	_storm_glow_value.text = str(snapped(val, 0.01))
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.shader_params["storm_glow_diameter"] = val
+		_update_preview()
+		_auto_save()
+
+
+# --- Effects handlers ---
+
 func _on_bar_effect_changed(val: float, bar_name: String) -> void:
 	if _suppressing_signals:
 		return
@@ -942,6 +1066,8 @@ func _on_key_change_selected(idx: int) -> void:
 	_auto_save()
 
 
+# ── Utility ───────────────────────────────────────────────────────────────
+
 func _center_preview_ship() -> void:
 	if _preview_ship and _preview_container:
 		var sz: Vector2 = _preview_container.size
@@ -956,7 +1082,7 @@ func _apply_theme() -> void:
 		if child is Button:
 			ThemeManager.apply_button_style(child)
 
-	# Header labels
+	# Header labels in left panel
 	for child in get_children():
 		if child is HSplitContainer:
 			var left: VBoxContainer = child.get_child(0) as VBoxContainer
@@ -965,7 +1091,7 @@ func _apply_theme() -> void:
 					if sub is Label:
 						ThemeManager.apply_text_glow(sub, "header")
 
-	# Editor labels
+	# Editor labels (name/style rows)
 	for child in _editor_panel.get_children():
 		if child is Label:
 			ThemeManager.apply_text_glow(child, "header")
@@ -974,15 +1100,19 @@ func _apply_theme() -> void:
 				if sub is Label:
 					ThemeManager.apply_text_glow(sub, "body")
 
-	for child in _params_container.get_children():
-		if child is Label:
-			ThemeManager.apply_text_glow(child, "header")
-		elif child is HBoxContainer:
-			for sub in child.get_children():
-				if sub is Label:
-					ThemeManager.apply_text_glow(sub, "body")
+	# Both parameter columns
+	_apply_theme_to_container(_left_col)
+	_apply_theme_to_container(_right_col)
 
-	for child in _effects_container.get_children():
+	# Storm sub-container
+	_apply_theme_to_container(_storm_controls_container)
+
+	ThemeManager.apply_button_style(_storm_enabled_check)
+	ThemeManager.apply_text_glow(_empty_label, "body")
+
+
+func _apply_theme_to_container(container: VBoxContainer) -> void:
+	for child in container.get_children():
 		if child is Label:
 			ThemeManager.apply_text_glow(child, "header")
 		elif child is HBoxContainer:
@@ -991,5 +1121,5 @@ func _apply_theme() -> void:
 					ThemeManager.apply_text_glow(sub, "body")
 		elif child is CheckBox:
 			ThemeManager.apply_button_style(child)
-
-	ThemeManager.apply_text_glow(_empty_label, "body")
+		elif child is VBoxContainer:
+			_apply_theme_to_container(child)

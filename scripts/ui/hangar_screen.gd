@@ -963,12 +963,9 @@ func _rebuild_workshop_content() -> void:
 
 	var presets: Array = KeyBindingManager.get_combo_presets()
 	var body_font: Font = ThemeManager.get_font("font_body")
-	var accent: Color = ThemeManager.get_color("accent")
 
 	# Fire group tab bar (no key labels)
 	_build_fg_tab_bar(_workshop_content, presets, true)
-
-	var has_group: bool = _fg_active_index >= 0 and _fg_active_index < presets.size()
 
 	# Scroll container for slot rows
 	var scroll := ScrollContainer.new()
@@ -1157,9 +1154,7 @@ func _rebuild_controls_content() -> void:
 	_fg_tab_label_refs.clear()
 
 	var body_font: Font = ThemeManager.get_font("font_body")
-	var button_font: Font = ThemeManager.get_font("font_button")
 	var presets: Array = KeyBindingManager.get_combo_presets()
-	var accent: Color = ThemeManager.get_color("accent")
 
 	# ── TAB BAR ──
 	_build_fg_tab_bar(_controls_content, presets, true)
@@ -1180,8 +1175,6 @@ func _rebuild_controls_content() -> void:
 	# ── SLOT ROWS ──
 	var all_slots: Array = _get_all_slot_keys()
 	var active_totals: Dictionary = {}
-	var small_size: int = ThemeManager.get_font_size("font_size_body") - 4
-
 	for slot_key in all_slots:
 		var item_name: String = _get_slot_item_name(slot_key)
 		var is_active: bool = _slot_active.get(slot_key, true)

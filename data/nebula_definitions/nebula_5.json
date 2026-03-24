@@ -2,17 +2,17 @@
 	"display_name": "Nebula 5",
 	"id": "nebula_5",
 	"shader_params": {
-		"animation_speed": 0.5,
+		"animation_speed": 2.1,
 		"bottom_opacity": 1.0,
-		"brightness": 1.5,
-		"density": 1.5,
+		"brightness": 2.25,
+		"density": 0.65,
 		"nebula_color": [
 			0.3,
 			0.4,
 			0.9,
 			1.0
 		],
-		"radial_spread": 0.2,
+		"radial_spread": 0.35,
 		"secondary_color": [
 			1.0,
 			0.5,
@@ -20,8 +20,13 @@
 			1.0
 		],
 		"seed_offset": 0.0,
-		"top_opacity": 2.0,
-		"veil_contrast": 0.5,
+		"storm_duration": 0.13,
+		"storm_enabled": true,
+		"storm_frequency": 0.25,
+		"storm_glow_diameter": 0.23,
+		"storm_strike_size": 0.07,
+		"top_opacity": 1.02,
+		"veil_contrast": 0.27,
 		"wash_opacity": 0.0
 	},
 	"style_id": "lightning_strike"

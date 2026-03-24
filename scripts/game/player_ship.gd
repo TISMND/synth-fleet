@@ -87,7 +87,7 @@ const RECOVERY_DURATION: float = 3.5  # Seconds for bars to animate back up
 signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
 signal final_power_death()  # Emitted once when power fully dies — for external systems
 
-const RAM_DPS: float = 80.0  # Contact damage per second of overlap — half-second brush ≈ 40 damage
+const RAM_DPS: float = 400.0  # Contact damage per second of overlap — quick pass ≈ 50 damage, sitting = instant death
 var _ram_overlapping: Array[Area2D] = []  # Enemies currently overlapping player
 var _ram_accumulator: float = 0.0  # Fractional damage accumulator
 
@@ -1265,8 +1265,8 @@ func _rebuild_sfx_debug() -> void:
 
 
 ## Hash matching the shader's hash function — keeps GDScript flicker detection in sync
-func _hash_float(x: float, seed: float) -> float:
-	var p := Vector3(fmod(abs(x), 1000.0) * 0.1031, fmod(abs(seed), 1000.0) * 0.1031, fmod(abs(x), 1000.0) * 0.1031)
+func _hash_float(x: float, hash_seed: float) -> float:
+	var p := Vector3(fmod(abs(x), 1000.0) * 0.1031, fmod(abs(hash_seed), 1000.0) * 0.1031, fmod(abs(x), 1000.0) * 0.1031)
 	p = Vector3(fmod(p.x, 1.0), fmod(p.y, 1.0), fmod(p.z, 1.0))
 	var d: float = p.x * (p.y + 33.33) + p.y * (p.z + 33.33) + p.z * (p.x + 33.33)
 	return fmod(abs(d), 1.0)

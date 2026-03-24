@@ -4,9 +4,9 @@
 	"key_change_id": "key_change_1",
 	"shader_params": {
 		"animation_speed": 0.4,
-		"bottom_opacity": 0.95,
+		"bottom_opacity": 0.8,
 		"brightness": 1.35,
-		"density": 1.2,
+		"density": 1.15,
 		"nebula_color": [
 			0.0666666477918625,
 			0.564705908298492,
@@ -21,9 +21,14 @@
 			1.0
 		],
 		"seed_offset": 0.0,
-		"top_opacity": 1.28,
-		"veil_contrast": 0.38,
-		"wash_opacity": 0.1
+		"storm_duration": 0.06,
+		"storm_enabled": false,
+		"storm_frequency": 1.0,
+		"storm_glow_diameter": 0.99,
+		"storm_strike_size": 0.09,
+		"top_opacity": 1.24,
+		"veil_contrast": 0.42,
+		"wash_opacity": 0.32
 	},
 	"style_id": "dual_color"
 }

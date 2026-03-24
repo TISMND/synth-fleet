@@ -271,7 +271,7 @@ func set_float(key: String, value: float) -> void:
 
 # ── Status Bar Specs (shared between HUD and Hangar) ─────────
 
-static func get_status_bar_specs() -> Array:
+func get_status_bar_specs() -> Array:
 	return [
 		{"name": "SHIELD", "color_key": "bar_shield", "color_fallback": Color(0, 0, 0, 0), "segments_stat": "shield_segments"},
 		{"name": "HULL", "color_key": "bar_hull", "color_fallback": Color(0, 0, 0, 0), "segments_stat": "hull_segments"},

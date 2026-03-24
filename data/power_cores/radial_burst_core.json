@@ -126,7 +126,7 @@
 		"shield": 5.3,
 		"thermal": 0.699999999999999
 	},
-	"description": "",
+	"description": "Makes regular moderate contributions to ship's power, with planned overloads that get shunted to shield power on long intervals.",
 	"display_name": "Radial Burst Core",
 	"global_pulse_settings": {
 		"brighten_duration": 0.05,

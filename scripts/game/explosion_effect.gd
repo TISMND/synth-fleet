@@ -194,7 +194,6 @@ func _process(delta: float) -> void:
 		var r: Dictionary = ring
 		var delay: float = float(r["delay"])
 		if _age > delay:
-			var ring_age: float = _age - delay
 			r["radius"] = float(r["radius"]) + float(r["speed"]) * delta
 			r["alpha"] = maxf(1.0 - float(r["radius"]) / float(r["max_radius"]), 0.0)
 

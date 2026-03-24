@@ -16,6 +16,7 @@ func _ready() -> void:
 	$VBoxContainer/SFXButton.pressed.connect(_on_sfx)
 	$VBoxContainer/VFXButton.pressed.connect(_on_vfx)
 	$VBoxContainer/EnvironmentsButton.pressed.connect(_on_environments)
+	$VBoxContainer/BackgroundsButton.pressed.connect(_on_backgrounds)
 	$VBoxContainer/AuditionsButton.pressed.connect(_on_auditions)
 	$VBoxContainer/BackButton.pressed.connect(_on_back)
 
@@ -52,6 +53,10 @@ func _on_vfx() -> void:
 
 func _on_environments() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/environments_screen.tscn")
+
+
+func _on_backgrounds() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/bg_auditions_screen.tscn")
 
 
 func _on_auditions() -> void:

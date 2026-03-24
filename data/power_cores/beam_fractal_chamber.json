@@ -226,7 +226,7 @@
 		"shield": 5.0,
 		"thermal": 0.449999999999999
 	},
-	"description": "",
+	"description": "A super heated laser chamber with incredible electrical output that makes minimal contribution to shields.",
 	"display_name": "Beam Fractal Chamber",
 	"global_pulse_settings": {
 		"brighten_duration": 0.05,

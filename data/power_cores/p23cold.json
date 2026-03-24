@@ -1,0 +1,49 @@
+{
+	"bar_effect_triggers": [],
+	"bar_effects": {
+		"electric": 0.949999999999999
+	},
+	"description": "An extremely low-output core with breakthrough technology that converts 100% of thermal output into energy.",
+	"display_name": "P23-Cold",
+	"global_pulse_settings": {
+		"brighten_duration": 0.05,
+		"brightness": 0.5,
+		"dim_duration": 0.3
+	},
+	"id": "p23cold",
+	"loop_file_path": "res://loop_zips/sorted/drums/Sleeping Symphony - 120 BPM - 1 - Drums - NW_SYS_135_drum_loop_angels_full.wav",
+	"loop_length_bars": 8,
+	"passive_effects": {
+
+	},
+	"pulse_settings": {
+
+	},
+	"pulse_triggers": {
+		"electric": [
+			0.0,
+			0.0625,
+			0.140625,
+			0.15625,
+			0.1875,
+			0.25,
+			0.265625,
+			0.3125,
+			0.390625,
+			0.40625,
+			0.4375,
+			0.5,
+			0.5625,
+			0.640625,
+			0.65625,
+			0.6875,
+			0.75,
+			0.765625,
+			0.796875,
+			0.8125,
+			0.890625,
+			0.90625,
+			0.9375
+		]
+	}
+}

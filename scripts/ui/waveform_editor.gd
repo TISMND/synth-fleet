@@ -162,7 +162,9 @@ func set_stream_from_path(path: String) -> void:
 		return
 
 	# Compute duration from raw WAV
+	@warning_ignore("integer_division")
 	var bytes_per_sample: int = bits_per_sample / 8
+	@warning_ignore("integer_division")
 	var total_samples: int = data_bytes.size() / (bytes_per_sample * channels)
 	_detected_duration_sec = float(total_samples) / float(sample_rate)
 

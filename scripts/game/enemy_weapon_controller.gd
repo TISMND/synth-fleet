@@ -12,7 +12,7 @@ var _weapon_data: WeaponData = null
 var _fire_point: Node2D = null
 
 
-func setup(ship_data: ShipData, enemy_node: Node2D, player: Node2D, proj_container: Node2D) -> void:
+func setup(ship_data: ShipData, enemy_node: Node2D, _player: Node2D, proj_container: Node2D) -> void:
 	# Load weapon data
 	if ship_data.weapon_id == "":
 		return

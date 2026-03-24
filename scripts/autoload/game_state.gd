@@ -28,6 +28,7 @@ var slot_config: Dictionary = {}
 # Transient — not saved. Used to pass context between screens.
 var current_level_id: String = ""
 var return_scene: String = ""
+var editing_level_id: String = ""  # Remembers which level was open in the editor
 
 
 func _ready() -> void:

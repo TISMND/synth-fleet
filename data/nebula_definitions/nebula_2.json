@@ -4,8 +4,8 @@
 	"shader_params": {
 		"animation_speed": 0.4,
 		"bottom_opacity": 1.0,
-		"brightness": 0.8,
-		"density": 1.25,
+		"brightness": 0.85,
+		"density": 1.05,
 		"nebula_color": [
 			0.386627197265625,
 			0.0,
@@ -20,7 +20,10 @@
 			1.0
 		],
 		"seed_offset": 0.0,
-		"top_opacity": 0.5
+		"storm_intensity": 0.4,
+		"top_opacity": 2.0,
+		"veil_contrast": 0.24,
+		"wash_opacity": 0.21
 	},
 	"style_id": "dual_swirl"
 }

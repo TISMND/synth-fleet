@@ -1,6 +1,8 @@
 {
+	"background_shader": "",
 	"bpm": 110.0,
 	"display_name": "NebTest",
+	"doodads": [],
 	"encounters": [
 		{
 			"count": 20,
@@ -17,14 +19,21 @@
 			"x_offset": 0.0
 		}
 	],
+	"flight_speed": 160.0,
 	"id": "level_2",
 	"level_length": 10000.0,
 	"nebula_placements": [
 		{
 			"nebula_id": "nebula_5",
-			"radius": 675.0,
-			"trigger_y": 1620.37037037037,
-			"x_offset": 46.1209964412811
+			"radius": 525.0,
+			"trigger_y": 785.847548793607,
+			"x_offset": 18.2371790138952
+		},
+		{
+			"nebula_id": "nebula_5",
+			"radius": 1000.0,
+			"trigger_y": 2176.92946058091,
+			"x_offset": 3.98340248962654
 		}
 	],
 	"scroll_speed": 80.0

@@ -24,6 +24,11 @@ static func default_params() -> Dictionary:
 		"top_opacity": 0.1,
 		"veil_contrast": 0.5,
 		"wash_opacity": 0.0,
+		"storm_enabled": false,
+		"storm_frequency": 0.4,
+		"storm_strike_size": 0.12,
+		"storm_duration": 0.2,
+		"storm_glow_diameter": 0.3,
 	}
 
 
@@ -34,6 +39,10 @@ static func from_dict(data: Dictionary) -> NebulaData:
 	n.style_id = data.get("style_id", "classic_fbm")
 	var params: Dictionary = data.get("shader_params", {})
 	var defaults: Dictionary = default_params()
+	# Migrate old storm_intensity → storm_frequency
+	if params.has("storm_intensity") and not params.has("storm_frequency"):
+		params["storm_frequency"] = params["storm_intensity"]
+	params.erase("storm_intensity")
 	for key in defaults:
 		if not params.has(key):
 			params[key] = defaults[key]

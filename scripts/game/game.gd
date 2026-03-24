@@ -14,6 +14,8 @@ var _projectiles: Node2D = null
 var _enemies: Node2D = null
 var _parallax_bg: ParallaxBackground = null
 var _nebula_container: Node2D = null
+var _doodad_container: Node2D = null
+var _bg_shader_mat: ShaderMaterial = null  # reference for setting scroll_offset on static shaders
 var _game_viewport: SubViewport = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
@@ -177,6 +179,10 @@ func _process(delta: float) -> void:
 		_parallax_bg.scroll_offset.y += _scroll_speed * delta
 	_scroll_distance += _scroll_speed * delta
 	_flight_distance += _flight_speed * delta
+	if _doodad_container:
+		_doodad_container.position.y = _scroll_distance
+	if _bg_shader_mat:
+		_bg_shader_mat.set_shader_parameter("scroll_offset", _scroll_distance)
 	if _nebula_container:
 		_nebula_container.position.y = _flight_distance
 	if _bg_debug_grid and _bg_debug_grid.visible:
@@ -641,7 +647,19 @@ func _setup_parallax() -> void:
 	var grid_bg := ColorRect.new()
 	grid_bg.size = Vector2(1920, 1080)
 	grid_bg.z_index = -10
-	ThemeManager.apply_grid_background(grid_bg)
+	# Use level-specific background shader if specified, otherwise default grid
+	var bg_applied := false
+	if _level_data and _level_data.background_shader != "":
+		var shader: Shader = load(_level_data.background_shader) as Shader
+		if shader:
+			var mat := ShaderMaterial.new()
+			mat.shader = shader
+			mat.set_shader_parameter("manual_scroll", true)
+			grid_bg.material = mat
+			_bg_shader_mat = mat
+			bg_applied = true
+	if not bg_applied:
+		ThemeManager.apply_grid_background(grid_bg)
 	_game_viewport.add_child(grid_bg)
 
 	_parallax_bg = ParallaxBackground.new()
@@ -650,8 +668,33 @@ func _setup_parallax() -> void:
 	# Deep background — static stars (speed = 0)
 	_add_star_layer(0.0, 80, Color(0.3, 0.3, 0.5, 0.5), 1)
 	_add_star_layer(0.0, 50, Color(0.5, 0.5, 0.8, 0.7), 2)
-	# Background layer (speed = scroll_speed) — future: buildings, ground structures
+	# Background layer (speed = scroll_speed) — doodad decorations
+	_setup_doodads()
 	# Foreground layer (speed = flight_speed) — nebulas, debris (handled separately)
+
+
+func _setup_doodads() -> void:
+	if not _level_data:
+		return
+	if _level_data.doodads.size() == 0:
+		return
+	_doodad_container = Node2D.new()
+	_doodad_container.name = "Doodads"
+	_doodad_container.z_index = -7  # Between bg shader (-10) and nebulas (-5)
+	_game_viewport.add_child(_doodad_container)
+	# Convert doodad x/y to game-space positions (same coord system as nebulas)
+	var game_doodads: Array = []
+	for dd in _level_data.doodads:
+		game_doodads.append({
+			"type": str(dd.get("type", "water_tower")),
+			"x": 960.0 + float(dd.get("x", 0.0)),
+			"y": -float(dd.get("y", 0.0)) + 540.0,
+			"scale": float(dd.get("scale", 1.0)),
+			"rotation_deg": float(dd.get("rotation_deg", 0.0)),
+		})
+	var renderer := DoodadRenderer.new()
+	renderer.setup(game_doodads)
+	_doodad_container.add_child(renderer)
 
 
 func _add_star_layer(motion_scale: float, star_count: int, color: Color, seed_val: int) -> void:
@@ -835,6 +878,32 @@ func _setup_nebulas() -> void:
 				wash_sprite.z_index = 8  # Between ship layer and tufts layer
 				wash_sprite.modulate.a = wash_opacity
 				_nebula_container.add_child(wash_sprite)
+
+		# Storm overlay layer — composited lightning on any nebula style
+		var storm_on: bool = bool(params.get("storm_enabled", defaults.get("storm_enabled", false)))
+		if storm_on:
+			var storm_shader: Shader = load("res://assets/shaders/nebula_storm_overlay.gdshader") as Shader
+			if storm_shader:
+				var storm_mat := ShaderMaterial.new()
+				storm_mat.shader = storm_shader
+				var storm_color_arr: Array = params.get("nebula_color", defaults["nebula_color"]) as Array
+				if storm_color_arr.size() >= 4:
+					storm_mat.set_shader_parameter("nebula_color", Color(float(storm_color_arr[0]), float(storm_color_arr[1]), float(storm_color_arr[2]), float(storm_color_arr[3])))
+				storm_mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
+				storm_mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+				storm_mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
+				storm_mat.set_shader_parameter("brightness", float(params.get("brightness", defaults["brightness"])))
+				storm_mat.set_shader_parameter("storm_frequency", float(params.get("storm_frequency", defaults.get("storm_frequency", 0.4))))
+				storm_mat.set_shader_parameter("storm_strike_size", float(params.get("storm_strike_size", defaults.get("storm_strike_size", 0.12))))
+				storm_mat.set_shader_parameter("storm_duration", float(params.get("storm_duration", defaults.get("storm_duration", 0.2))))
+				storm_mat.set_shader_parameter("storm_glow_diameter", float(params.get("storm_glow_diameter", defaults.get("storm_glow_diameter", 0.3))))
+				var storm_sprite := Sprite2D.new()
+				storm_sprite.texture = sprite.texture
+				storm_sprite.material = storm_mat
+				storm_sprite.scale = sprite.scale
+				storm_sprite.position = sprite.position
+				storm_sprite.z_index = 9  # Between wash (8) and veil (10)
+				_nebula_container.add_child(storm_sprite)
 
 		# Debug hitbox outline — shrink to where nebula is ~50% visible
 		var spread: float = float(params.get("radial_spread", defaults["radial_spread"]))
