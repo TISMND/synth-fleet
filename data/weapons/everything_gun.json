@@ -1,0 +1,44 @@
+{
+	"aim_mode": "fixed",
+	"bar_effects": {
+		"electric": -9.3
+	},
+	"beam_dps": 50.0,
+	"beam_duration": 0.3,
+	"beam_passthrough": true,
+	"beam_style_id": "",
+	"beam_transition_time": 0.1,
+	"damage": 100,
+	"description": "",
+	"direction_deg": 0.0,
+	"display_name": "Everything Gun",
+	"effect_profile": {
+		"defaults": {
+
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fire_pattern": "single",
+	"fire_triggers": [
+		0.0,
+		0.5
+	],
+	"id": "everything_gun",
+	"is_enemy_weapon": false,
+	"loop_file_path": "res://loop_zips/sorted/bass/Oscillating Spoons - 120 BPM - 2 - Bass - 013_b__Bass_Stab_110bpm_D_-_80ST_Zenhiser.wav",
+	"loop_length_bars": 8,
+	"mirror_mode": "none",
+	"pierce_count": 10,
+	"projectile_speed": 240.0,
+	"projectile_style_id": "balot",
+	"skips_shields": false,
+	"splash_enabled": true,
+	"splash_radius": 40.0,
+	"sweep_arc_deg": 60.0,
+	"sweep_duration": 1.0,
+	"transition_mode": "fade",
+	"transition_ms": 110
+}

@@ -1,0 +1,79 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		128.0,
+		128.0
+	],
+	"color": [
+		1.0,
+		0.3984375,
+		0.0,
+		1.0
+	],
+	"display_name": "Balo-T",
+	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"color": [
+						1.0,
+						0.09375,
+						0.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.6,
+						"particle_count": 23.0,
+						"radius": 81.0
+					},
+					"type": "nova_flash"
+				}
+			],
+			"muzzle": [
+				{
+					"color": [
+						1.0,
+						0.1640625,
+						0.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 1.0,
+						"particle_count": 20.0,
+						"spread_angle": 30.0
+					},
+					"type": "directional_flash"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "toxic",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "balot",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"brightness": 1.4,
+		"bubble_density": 3.0,
+		"bubble_speed": 1.6,
+		"color_mix": 0.06,
+		"drip_intensity": 0.3,
+		"edge_softness": 1.0
+	}
+}

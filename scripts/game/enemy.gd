@@ -44,13 +44,6 @@ var projectiles_container: Node2D = null
 func _ready() -> void:
 	add_to_group("enemies")
 
-	# Register presence with game node for audio loop tracking
-	if ship_id != "" and presence_loop_path != "":
-		var game_node: Node = _find_game_node()
-		if game_node:
-			game_node.register_enemy_presence(ship_id, presence_loop_path)
-			tree_exiting.connect(_on_presence_exit)
-
 	collision_layer = 4
 	collision_mask = 0
 	var col_shape := CollisionShape2D.new()
@@ -125,23 +118,6 @@ static func _make_collision_shape(ship: ShipData) -> Dictionary:
 			var circle := CircleShape2D.new()
 			circle.radius = w * 0.5
 			return {"shape": circle, "rotation": 0.0}
-
-
-func _find_game_node() -> Node:
-	## Walk up the tree to find the node with presence tracking methods.
-	var node: Node = get_parent()
-	while node:
-		if node.has_method("register_enemy_presence"):
-			return node
-		node = node.get_parent()
-	return null
-
-
-func _on_presence_exit() -> void:
-	# Unregister presence with game node when leaving the tree
-	var game_node: Node = _find_game_node()
-	if game_node:
-		game_node.unregister_enemy_presence(ship_id)
 
 
 func _on_weapon_cleanup() -> void:
