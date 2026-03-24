@@ -8,17 +8,18 @@ func _ready() -> void:
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
-	$VBoxContainer/ShipsButton.pressed.connect(_on_ships)
-	$VBoxContainer/StyleButton.pressed.connect(_on_style)
-	$VBoxContainer/ComponentsButton.pressed.connect(_on_components)
-	$VBoxContainer/EncountersButton.pressed.connect(_on_encounters)
-	$VBoxContainer/LevelsButton.pressed.connect(_on_levels)
-	$VBoxContainer/SFXButton.pressed.connect(_on_sfx)
-	$VBoxContainer/VFXButton.pressed.connect(_on_vfx)
-	$VBoxContainer/EnvironmentsButton.pressed.connect(_on_environments)
-	$VBoxContainer/BackgroundsButton.pressed.connect(_on_backgrounds)
-	$VBoxContainer/AuditionsButton.pressed.connect(_on_auditions)
-	$VBoxContainer/BackButton.pressed.connect(_on_back)
+	$ButtonLayout/Columns/LeftCol/ShipsButton.pressed.connect(_on_ships)
+	$ButtonLayout/Columns/LeftCol/StyleButton.pressed.connect(_on_style)
+	$ButtonLayout/Columns/LeftCol/ComponentsButton.pressed.connect(_on_components)
+	$ButtonLayout/Columns/LeftCol/EncountersButton.pressed.connect(_on_encounters)
+	$ButtonLayout/Columns/LeftCol/LevelsButton.pressed.connect(_on_levels)
+	$ButtonLayout/Columns/LeftCol/ObjectsButton.pressed.connect(_on_objects)
+	$ButtonLayout/Columns/RightCol/SFXButton.pressed.connect(_on_sfx)
+	$ButtonLayout/Columns/RightCol/VFXButton.pressed.connect(_on_vfx)
+	$ButtonLayout/Columns/RightCol/EnvironmentsButton.pressed.connect(_on_environments)
+	$ButtonLayout/Columns/RightCol/BackgroundsButton.pressed.connect(_on_backgrounds)
+	$ButtonLayout/Columns/RightCol/AuditionsButton.pressed.connect(_on_auditions)
+	$ButtonLayout/BackButton.pressed.connect(_on_back)
 
 	_apply_styles()
 
@@ -41,6 +42,10 @@ func _on_encounters() -> void:
 
 func _on_levels() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/level_editor.tscn")
+
+
+func _on_objects() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/objects_screen.tscn")
 
 
 func _on_sfx() -> void:
@@ -68,9 +73,12 @@ func _on_back() -> void:
 
 
 func _apply_styles() -> void:
-	for btn_node in $VBoxContainer.get_children():
-		if btn_node is Button:
-			ThemeManager.apply_button_style(btn_node as Button)
+	for col in $ButtonLayout/Columns.get_children():
+		if col is VBoxContainer:
+			for btn_node in col.get_children():
+				if btn_node is Button:
+					ThemeManager.apply_button_style(btn_node as Button)
+	ThemeManager.apply_button_style($ButtonLayout/BackButton)
 
 
 func _setup_vhs_overlay() -> void:

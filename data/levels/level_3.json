@@ -1,5 +1,5 @@
 {
-	"background_shader": "res://assets/shaders/bg_industrial_platform.gdshader",
+	"background_shader": "res://assets/shaders/bg_circuit_board.gdshader",
 	"bpm": 110.0,
 	"display_name": "New Level",
 	"doodads": [],

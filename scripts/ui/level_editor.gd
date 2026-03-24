@@ -651,12 +651,13 @@ func _build_preview_viewport(parent: Control) -> void:
 	_preview_encounter_markers.z_index = 2
 	_preview_viewport.add_child(_preview_encounter_markers)
 
-	# Input overlay (catches mouse events for preview)
+	# Input overlay INSIDE the SubViewport — Godot auto-transforms coords to 1920x1080
 	var input_overlay := _PreviewInputOverlay.new()
 	input_overlay.screen = self
 	input_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	input_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_preview_container.add_child(input_overlay)
+	input_overlay.z_index = 100  # On top of everything in the viewport
+	_preview_viewport.add_child(input_overlay)
 
 	# Y position label overlay
 	var pos_label := Label.new()
@@ -714,6 +715,8 @@ func _rebuild_preview() -> void:
 			"scale": float(dd.get("scale", 1.0)),
 			"rotation_deg": float(dd.get("rotation_deg", 0.0)),
 		})
+	_preview_doodad_renderer.show_editor_markers = true
+	_preview_doodad_renderer._selected_idx = _doodad_selected_idx
 	_preview_doodad_renderer.setup(game_doodads)
 
 	# Position layers for current scroll
@@ -739,7 +742,7 @@ func _update_preview_scroll() -> void:
 		pos_label.text = "Y: " + str(int(_preview_scroll))
 
 
-func _handle_preview_input(event: InputEvent, overlay_size: Vector2) -> void:
+func _handle_preview_input(event: InputEvent) -> void:
 	if not _selected_level:
 		return
 
@@ -759,13 +762,11 @@ func _handle_preview_input(event: InputEvent, overlay_size: Vector2) -> void:
 				_preview_encounter_markers.queue_redraw()
 				_preview_doodad_renderer.queue_redraw()
 			elif mb.button_index == MOUSE_BUTTON_LEFT and _edit_mode == "doodads":
-				# Try to select existing doodad first, then place if none hit
-				if not _preview_try_select_doodad(mb.position, overlay_size):
-					_preview_place_doodad(mb.position, overlay_size)
+				if not _preview_try_select_doodad(mb.position):
+					_preview_place_doodad(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_RIGHT and _edit_mode == "doodads":
-				_preview_delete_doodad(mb.position, overlay_size)
+				_preview_delete_doodad(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_MIDDLE or (mb.button_index == MOUSE_BUTTON_LEFT and _edit_mode != "doodads"):
-				# Middle-click or left-click in non-doodad mode: start scroll drag
 				_map_dragging = true
 				_map_drag_start_y = mb.position.y
 				_map_drag_scroll_start = _preview_scroll
@@ -783,37 +784,36 @@ func _handle_preview_input(event: InputEvent, overlay_size: Vector2) -> void:
 	elif event is InputEventMouseMotion:
 		var mm: InputEventMouseMotion = event as InputEventMouseMotion
 		if _doodad_dragging and _doodad_selected_idx >= 0:
-			var new_pos: Vector2 = _preview_pos_to_level(mm.position, overlay_size)
+			var new_pos: Vector2 = _preview_pos_to_level(mm.position)
 			var dd: Dictionary = _selected_level.doodads[_doodad_selected_idx]
 			dd["x"] = new_pos.x
 			dd["y"] = new_pos.y
 			_rebuild_preview()
 		elif _map_dragging:
-			# Drag to scroll preview
-			var delta_px: float = mm.position.y - _map_drag_start_y
-			var px_to_level: float = 1080.0 / maxf(overlay_size.y, 1.0)
-			_preview_scroll = clampf(_map_drag_scroll_start - delta_px * px_to_level, 0.0, maxf(_selected_level.level_length - 500.0, 0.0))
+			# Drag to scroll — positions are in viewport space (1920x1080)
+			var delta_vp: float = mm.position.y - _map_drag_start_y
+			_preview_scroll = clampf(_map_drag_scroll_start - delta_vp, 0.0, maxf(_selected_level.level_length - 500.0, 0.0))
 			_update_preview_scroll()
 			_preview_encounter_markers.queue_redraw()
 			_preview_doodad_renderer.queue_redraw()
 
 
-func _preview_pos_to_level(local_pos: Vector2, overlay_size: Vector2) -> Vector2:
-	## Convert a click position (in overlay local coords) to level-space coordinates.
-	# Scale from overlay pixels to game viewport (1920x1080)
-	var vp_x: float = local_pos.x / maxf(overlay_size.x, 1.0) * 1920.0
-	var vp_y: float = local_pos.y / maxf(overlay_size.y, 1.0) * 1080.0
-	# Convert to level space (same math as game: game_y = -level_y + 540 + scroll)
-	var level_y: float = _preview_scroll + 540.0 - vp_y
-	var level_x: float = vp_x - 960.0
+func _preview_pos_to_level(vp_pos: Vector2) -> Vector2:
+	## Convert viewport-space position (1920x1080) to level-space coordinates.
+	## No manual scaling needed — the overlay is inside the SubViewport so Godot
+	## auto-transforms click coords to viewport space.
+	# Reverse of game.gd: game_x = 960 + level_x, game_y = -level_y + 540
+	# Viewport shows: world_y = game_y + _preview_scroll = -level_y + 540 + scroll
+	# So: level_y = scroll + 540 - vp_y
+	var level_x: float = vp_pos.x - 960.0
+	var level_y: float = _preview_scroll + 540.0 - vp_pos.y
 	return Vector2(level_x, level_y)
 
 
-func _preview_try_select_doodad(click_pos: Vector2, overlay_size: Vector2) -> bool:
+func _preview_try_select_doodad(click_pos: Vector2) -> bool:
 	## Try to select an existing doodad at click position. Returns true if one was hit.
-	var level_pos: Vector2 = _preview_pos_to_level(click_pos, overlay_size)
-	var px_to_level: float = 1920.0 / maxf(overlay_size.x, 1.0)
-	var hit_radius: float = 25.0 * px_to_level
+	var level_pos: Vector2 = _preview_pos_to_level(click_pos)
+	var hit_radius: float = 40.0  # In level-space pixels
 	for i in range(_selected_level.doodads.size()):
 		var dd: Dictionary = _selected_level.doodads[i]
 		var dd_pos := Vector2(float(dd["x"]), float(dd["y"]))
@@ -829,8 +829,8 @@ func _preview_try_select_doodad(click_pos: Vector2, overlay_size: Vector2) -> bo
 	return false
 
 
-func _preview_place_doodad(click_pos: Vector2, overlay_size: Vector2) -> void:
-	var level_pos: Vector2 = _preview_pos_to_level(click_pos, overlay_size)
+func _preview_place_doodad(click_pos: Vector2) -> void:
+	var level_pos: Vector2 = _preview_pos_to_level(click_pos)
 	var type_id: String = "water_tower"
 	var sel_idx: int = _doodad_type_dropdown.selected
 	if sel_idx >= 0:
@@ -850,12 +850,10 @@ func _preview_place_doodad(click_pos: Vector2, overlay_size: Vector2) -> void:
 	_map_canvas.queue_redraw()
 
 
-func _preview_delete_doodad(click_pos: Vector2, overlay_size: Vector2) -> void:
-	var level_pos: Vector2 = _preview_pos_to_level(click_pos, overlay_size)
+func _preview_delete_doodad(click_pos: Vector2) -> void:
+	var level_pos: Vector2 = _preview_pos_to_level(click_pos)
 	var closest_idx: int = -1
-	# Hit radius in level-space: ~30px at game scale, but scale up for smaller preview
-	var px_to_level: float = 1920.0 / maxf(overlay_size.x, 1.0)
-	var closest_dist: float = 30.0 * px_to_level
+	var closest_dist: float = 40.0  # Level-space pixels
 	for i in range(_selected_level.doodads.size()):
 		var dd: Dictionary = _selected_level.doodads[i]
 		var dd_pos := Vector2(float(dd["x"]), float(dd["y"]))
@@ -2350,12 +2348,12 @@ class _PreviewEncounterDraw extends Node2D:
 
 
 class _PreviewInputOverlay extends Control:
-	## Transparent overlay that routes input to the level editor's preview handler.
+	## Input handler inside the SubViewport — coords are already in viewport space (1920x1080).
 	var screen: Control
 
 	func _gui_input(event: InputEvent) -> void:
 		if screen:
-			screen._handle_preview_input(event, size)
+			screen._handle_preview_input(event)
 			if event is InputEventMouseButton:
 				accept_event()
 			elif event is InputEventMouseMotion and (screen._doodad_dragging or screen._map_dragging):
