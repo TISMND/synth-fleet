@@ -20,7 +20,6 @@ static var _debug_printed: bool = false
 var _age: float = 0.0
 var _base_x: float = 0.0
 var _trail_points: Array = []
-var _trail_particles: Array = []
 var _ribbon_max_points: int = 20
 var _pierced_enemies: Array = []  # enemies already hit (for pierce)
 var _pierce_remaining: int = 0

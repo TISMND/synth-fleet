@@ -546,7 +546,7 @@ static func set_warning_active(lbl: Label, active: bool, color: Color, hdr_mult:
 		lbl.add_theme_color_override("font_color", Color(0, 0, 0, 0))
 
 
-static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dictionary, panel_height: float = 948.0) -> Dictionary:
+static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dictionary, _panel_height: float = 948.0) -> Dictionary:
 	## Build a side panel with 2 vertical bars at fixed half-and-half positions.
 	## Returns: {root, border, bars: {bar_name: {bar, label, vertical: true}}, content}
 	var specs: Array = ThemeManager.get_status_bar_specs()
@@ -908,7 +908,7 @@ static func apply_hud_theme(result: Dictionary) -> void:
 	## Update bg/border colors on all three HUD panels. Handles both modes.
 	var accent_color: Color = ThemeManager.get_color("accent")
 	var border_color := Color(accent_color.r, accent_color.g, accent_color.b, 0.4)
-	var panel_color: Color = ThemeManager.get_color("panel")
+	var _panel_color: Color = ThemeManager.get_color("panel")
 	var mode: String = str(result["mode"])
 
 	# Bottom panel — chrome shader handles its own appearance, just update accent

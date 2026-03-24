@@ -753,7 +753,7 @@ static func get_field_shader(shader_name: String) -> Shader:
 
 
 ## Create a ShaderMaterial configured for a FieldStyle at a given radius.
-static func create_field_material(style: FieldStyle, radius: float) -> ShaderMaterial:
+static func create_field_material(style: FieldStyle, _radius: float) -> ShaderMaterial:
 	var shader: Shader = get_field_shader(style.field_shader)
 	if not shader:
 		shader = get_field_shader("force_bubble")

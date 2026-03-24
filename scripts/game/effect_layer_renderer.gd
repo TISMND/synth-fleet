@@ -148,7 +148,7 @@ static func draw_shape_stack(canvas: CanvasItem, center: Vector2, layers: Array,
 
 ## Generate muzzle particles from all muzzle layers. Returns flat Array of particle dicts.
 ## Note: For actual GPU muzzle effects, use VFXFactory.create_muzzle_emitter() instead.
-static func spawn_muzzle_stack(layers: Array, origin: Vector2, color: Color) -> Array:
+static func spawn_muzzle_stack(layers: Array, _origin: Vector2, color: Color) -> Array:
 	var all_particles: Array = []
 	for layer in layers:
 		var layer_dict: Dictionary = layer as Dictionary

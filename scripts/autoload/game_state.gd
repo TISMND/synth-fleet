@@ -26,8 +26,6 @@ var slot_config: Dictionary = {}
 # }
 
 # Transient — not saved. Used to pass context between screens.
-var _editing_slot_key: String = ""
-var _editing_device_slot: int = -1
 var current_level_id: String = ""
 var return_scene: String = ""
 
@@ -233,7 +231,7 @@ func _migrate_slot_config() -> void:
 	var cores: Array[String] = []
 	var fields: Array[String] = []
 	for key in slot_config:
-		var sk: String = str(key)
+		var _sk: String = str(key)
 		var sd: Dictionary = slot_config[key]
 		var comp_type: String = str(sd.get("component_type", ""))
 		if comp_type == "weapon":

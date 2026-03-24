@@ -29,7 +29,7 @@ static func get_loop_duration(loop_path: String) -> float:
 		# Fallback: byte math
 		var bytes_per_sample: int = 2 if wav.format == AudioStreamWAV.FORMAT_16_BITS else 1
 		var channels: int = 2 if wav.stereo else 1
-		return float(wav.data.size() / (bytes_per_sample * channels)) / float(wav.mix_rate)
+		return float(wav.data.size()) / float(bytes_per_sample * channels) / float(wav.mix_rate)
 	return stream.get_length()
 
 
@@ -141,8 +141,8 @@ static func format_rates(rates: Dictionary) -> String:
 			continue
 		var val: float = float(rates[bar_type])
 		var label: String = str(abbrev.get(bar_type, bar_type.to_upper()))
-		var sign: String = "+" if val > 0 else ""
-		parts.append(label + " " + sign + str(roundi(val)) + " seg/m")
+		var sign_str: String = "+" if val > 0 else ""
+		parts.append(label + " " + sign_str + str(roundi(val)) + " seg/m")
 	return "  ".join(parts)
 
 

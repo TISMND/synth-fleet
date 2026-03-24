@@ -58,8 +58,6 @@ var _bindings: Dictionary = {}  # slot_key -> {physical_keycode, label}
 var _combo_presets: Array = []  # [{label, physical_keycode, key_label, pattern}]
 var _slot_volumes: Dictionary = {}  # slot_key -> float (dB, default 0.0)
 
-# Old-to-new key migration map (built once during load)
-var _old_key_remap: Dictionary = {}
 
 
 func _ready() -> void:

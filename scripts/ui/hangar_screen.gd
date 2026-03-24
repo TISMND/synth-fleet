@@ -73,8 +73,6 @@ var _ws_slot_rows: Dictionary = {}  # slot_key -> {toggle_btn, name_btn, rate_la
 var _slot_active: Dictionary = {}  # slot_key -> bool
 var _slot_toggle_btns: Dictionary = {}  # slot_key -> Button (toggle)
 
-# Preset section (in controls tab)
-var _preset_section: VBoxContainer
 var _preset_list: VBoxContainer
 
 # Key capture overlay
@@ -1537,8 +1535,8 @@ func _fg_total_format_label(lbl: Label, val: float) -> void:
 	if is_zero_approx(val):
 		lbl.text = "\u2014"
 	else:
-		var sign: String = "+" if val > 0 else ""
-		lbl.text = sign + str(int(val)) + " seg/min"
+		var sign_str: String = "+" if val > 0 else ""
+		lbl.text = sign_str + str(int(val)) + " seg/min"
 
 
 func _animate_fg_totals(delta: float) -> void:
@@ -2954,11 +2952,11 @@ func _update_sim_status() -> void:
 		if not bool(_slot_active.get(slot_key, false)):
 			continue
 		if device.speed_modifier != 0.0:
-			var sign: String = "+" if device.speed_modifier > 0 else ""
-			lines.append("SPEED %s%d%%" % [sign, int(device.speed_modifier)])
+			var speed_sign: String = "+" if device.speed_modifier > 0 else ""
+			lines.append("SPEED %s%d%%" % [speed_sign, int(device.speed_modifier)])
 		if device.accel_modifier != 0.0:
-			var sign: String = "+" if device.accel_modifier > 0 else ""
-			lines.append("ACCEL %s%d%%" % [sign, int(device.accel_modifier)])
+			var accel_sign: String = "+" if device.accel_modifier > 0 else ""
+			lines.append("ACCEL %s%d%%" % [accel_sign, int(device.accel_modifier)])
 		if device.shield_damage_reduction > 0.0:
 			lines.append("SHIELD DMG -%d%%" % int(device.shield_damage_reduction))
 		if device.hull_damage_reduction > 0.0:

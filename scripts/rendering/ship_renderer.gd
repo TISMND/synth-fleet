@@ -2070,7 +2070,7 @@ func _draw_spore_line(a: Vector2, b: Vector2, width: float) -> void:
 
 # ── Gunmetal draw helpers (matte steel + racing stripes + rivet dots) ──
 
-func _draw_gunmetal_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
+func _draw_gunmetal_polygon(points: PackedVector2Array, _color: Color, width: float) -> void:
 	if points.size() < 3:
 		return
 	# Flat matte steel fill
@@ -2094,7 +2094,7 @@ func _draw_gunmetal_polygon(points: PackedVector2Array, color: Color, width: flo
 	# Diagonal racing stripes — bold accent color
 	var stripe_spacing: float = 18.0
 	var stripe_w: float = 5.0
-	var center_x: float = (min_x + max_x) * 0.5
+	var _center_x: float = (min_x + max_x) * 0.5
 	var y_start: float = min_y - bwidth  # start above to cover diagonal
 	var y_pos: float = y_start
 	while y_pos < max_y + bwidth:
@@ -2181,7 +2181,7 @@ func _draw_stealth_polygon(points: PackedVector2Array, width: float) -> void:
 	for pt in points:
 		min_y = minf(min_y, pt.y)
 		max_y = maxf(max_y, pt.y)
-	var height: float = max_y - min_y
+	var _height: float = max_y - min_y
 
 	# Angular facet shading — per-edge brightness based on edge angle
 	for i in range(points.size()):
