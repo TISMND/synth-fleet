@@ -587,6 +587,7 @@ static func get_fill_shader(shader_name: String) -> Shader:
 static func create_styled_sprite(style: ProjectileStyle, color: Color) -> Sprite2D:
 	var shader: Shader = get_fill_shader(style.fill_shader)
 	if shader == null:
+		push_error("VFXFactory: shader '%s' failed to load for style '%s'" % [style.fill_shader, style.id])
 		return null
 
 	var sprite := Sprite2D.new()
@@ -746,6 +747,8 @@ static func get_field_shader(shader_name: String) -> Shader:
 	var shader: Shader = load(path) as Shader
 	if shader:
 		_field_shaders[shader_name] = shader
+	else:
+		push_warning("VFXFactory: field shader '%s' not found at %s" % [shader_name, path])
 	return shader
 
 

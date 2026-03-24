@@ -225,9 +225,7 @@ func _process(delta: float) -> void:
 func get_ship_tint() -> Color:
 	if not _active or not _field_style or not _field_renderer:
 		return Color(1.0, 1.0, 1.0, 1.0)
-	var pulse_val: float = 0.0
-	if _field_renderer._material:
-		pulse_val = float(_field_renderer._material.get_shader_parameter("pulse_intensity"))
+	var pulse_val: float = _field_renderer.get_pulse_intensity()
 	var active_hdr: float = _field_style.ship_active_hdr
 	var pulse_hdr: float = _field_style.ship_pulse_hdr
 	var bright: float = 1.0 + active_hdr + pulse_val * pulse_hdr

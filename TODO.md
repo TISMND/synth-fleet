@@ -101,6 +101,12 @@ The game currently has no way to win. Waves restart endlessly. No scoring, no pr
 - Add visual hit indicator when player takes damage during event
 - Rig to actual collision events
 
+### 4D. Ship automation toggles (hangar config panel)
+- Configuration menu on hangar screen with player-defined automation rules
+- Toggle examples: "Auto shut off heat-generating components when overheating", "Auto re-enable components when cooled", "Auto-disable weapons when shields critical"
+- Stored per-ship or per-loadout in GameState
+- Game logic reads these flags and acts on system bar thresholds
+
 ---
 
 ## Tier 5: Tools (makes development faster)

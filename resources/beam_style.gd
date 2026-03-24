@@ -40,7 +40,8 @@ static func from_dict(data: Dictionary) -> BeamStyle:
 	s.appearance_mode = str(data.get("appearance_mode", "flow_in"))
 	s.flip_shader = bool(data.get("flip_shader", false))
 	s.full_screen_length = bool(data.get("full_screen_length", false))
-	s.effect_profile = data.get("effect_profile", {}) as Dictionary
+	var raw_ep: Dictionary = data.get("effect_profile", {}) as Dictionary
+	s.effect_profile = WeaponData._migrate_effect_profile(raw_ep)
 	return s
 
 

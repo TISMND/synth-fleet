@@ -23,7 +23,7 @@ static func _load_if_needed() -> void:
 	var json := JSON.new()
 	var err: int = json.parse(file.get_as_text())
 	if err != OK:
-		push_warning("LoopConfigManager: failed to parse " + FILE_PATH)
+		push_warning("LoopConfigManager: JSON parse error in %s: %s" % [FILE_PATH, json.get_error_message()])
 		_config = {}
 		return
 	var data: Variant = json.data
@@ -39,7 +39,7 @@ static func save() -> void:
 		DirAccess.make_dir_recursive_absolute("res://data")
 	var file := FileAccess.open(FILE_PATH, FileAccess.WRITE)
 	if file == null:
-		push_warning("LoopConfigManager: failed to write " + FILE_PATH)
+		push_error("LoopConfigManager: failed to save %s" % FILE_PATH)
 		return
 	file.store_string(JSON.stringify(_config, "\t"))
 

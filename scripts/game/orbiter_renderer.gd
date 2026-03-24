@@ -163,11 +163,12 @@ func _process(delta: float) -> void:
 				ts.modulate.a = pow(_style.trail_fade, float(i + 1)) * life_alpha
 
 		# Decay pulse
-		var mat: ShaderMaterial = orb["material"]
-		var pulse_val: float = float(mat.get_shader_parameter("pulse_intensity"))
-		if pulse_val > 0.0:
-			pulse_val = maxf(0.0, pulse_val - delta * 3.0)
-			mat.set_shader_parameter("pulse_intensity", pulse_val)
+		var mat: ShaderMaterial = orb.get("material") as ShaderMaterial
+		if mat:
+			var pulse_val: float = float(mat.get_shader_parameter("pulse_intensity"))
+			if pulse_val > 0.0:
+				pulse_val = maxf(0.0, pulse_val - delta * 3.0)
+				mat.set_shader_parameter("pulse_intensity", pulse_val)
 
 	# Remove expired orbiters (iterate in reverse to keep indices valid)
 	for i in range(_pending_removal.size() - 1, -1, -1):

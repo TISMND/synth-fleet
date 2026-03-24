@@ -18,9 +18,12 @@ static func _ensure_masks_dir() -> void:
 static func save(id: String, data: Dictionary) -> void:
 	_ensure_dir()
 	data["id"] = id
-	var file := FileAccess.open(DIR_PATH + id + ".json", FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(data, "\t"))
+	var path: String = DIR_PATH + id + ".json"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if not file:
+		push_error("ProjectileStyleManager: failed to save %s" % path)
+		return
+	file.store_string(JSON.stringify(data, "\t"))
 
 
 static func load_by_id(id: String) -> ProjectileStyle:
@@ -32,6 +35,7 @@ static func load_by_id(id: String) -> ProjectileStyle:
 		return null
 	var json := JSON.new()
 	if json.parse(file.get_as_text()) != OK:
+		push_warning("ProjectileStyleManager: JSON parse error in %s: %s" % [path, json.get_error_message()])
 		return null
 	var data: Dictionary = json.data
 	return ProjectileStyle.from_dict(data)
@@ -63,6 +67,9 @@ static func delete(id: String) -> void:
 
 ## Rename a style: save under new_id, delete old_id, update all weapon references.
 static func rename(old_id: String, new_id: String, data: Dictionary) -> void:
+	if list_ids().has(new_id) and old_id != new_id:
+		push_error("ProjectileStyleManager: cannot rename to '%s' — ID already exists" % new_id)
+		return
 	if old_id == new_id:
 		save(new_id, data)
 		return

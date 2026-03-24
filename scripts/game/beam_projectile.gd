@@ -266,7 +266,11 @@ func _spawn_impact_at(pos: Vector2) -> void:
 		var layer_color: Color = EffectLayerRenderer.get_layer_color(layer_dict, color)
 		var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer_dict, layer_color)
 		emitter.global_position = pos
-		get_parent().add_child(emitter)
+		var container: Node = get_parent()
+		if container and is_instance_valid(container):
+			container.add_child(emitter)
+		else:
+			emitter.queue_free()
 
 
 func _on_area_exited(area: Area2D) -> void:

@@ -17,9 +17,11 @@ static func load_by_id(id: String) -> DeviceData:
 		var file := FileAccess.open(legacy_path, FileAccess.READ)
 		if file:
 			var json := JSON.new()
-			if json.parse(file.get_as_text()) == OK:
-				var data: Dictionary = json.data
-				return DeviceData.from_dict(data)
+			if json.parse(file.get_as_text()) != OK:
+				push_warning("DeviceDataManager: JSON parse error in %s: %s" % [legacy_path, json.get_error_message()])
+				return null
+			var data: Dictionary = json.data
+			return DeviceData.from_dict(data)
 	return null
 
 

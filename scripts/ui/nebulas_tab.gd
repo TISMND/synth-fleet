@@ -703,7 +703,16 @@ func _generate_unique_id() -> String:
 
 func _auto_save() -> void:
 	var data: NebulaData = _get_nebula_by_id(_selected_id)
-	if data:
+	if not data:
+		return
+	if data.id != _selected_id:
+		# ID changed (rename): save new file, delete old, update level references
+		var old_id: String = _selected_id
+		NebulaDataManager.rename(old_id, data.id, data)
+		_selected_id = data.id
+		_rebuild_list()
+		_update_list_selection()
+	else:
 		NebulaDataManager.save(data)
 
 

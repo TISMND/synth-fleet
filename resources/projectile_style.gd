@@ -54,6 +54,7 @@ func to_dict() -> Dictionary:
 	return {
 		"id": id,
 		"display_name": display_name,
+		"archetype": archetype,
 		"mask_path": mask_path,
 		"fill_shader": fill_shader,
 		"shader_params": shader_params,
@@ -61,6 +62,7 @@ func to_dict() -> Dictionary:
 		"base_scale": [base_scale.x, base_scale.y],
 		"color": [color.r, color.g, color.b, color.a],
 		"secondary_color": [secondary_color.r, secondary_color.g, secondary_color.b, secondary_color.a],
+		"archetype_params": archetype_params,
 		"procedural_mask_shape": procedural_mask_shape,
 		"procedural_mask_feather": procedural_mask_feather,
 		"flip_shader": flip_shader,

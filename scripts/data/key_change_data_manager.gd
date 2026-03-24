@@ -11,9 +11,12 @@ static func _ensure_dir() -> void:
 
 static func save(data: KeyChangeData) -> void:
 	_ensure_dir()
-	var file := FileAccess.open(DIR_PATH + data.id + ".json", FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(data.to_dict(), "\t"))
+	var path: String = DIR_PATH + data.id + ".json"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if not file:
+		push_error("KeyChangeDataManager: failed to save %s" % path)
+		return
+	file.store_string(JSON.stringify(data.to_dict(), "\t"))
 
 
 static func load_by_id(id: String) -> KeyChangeData:
@@ -25,6 +28,7 @@ static func load_by_id(id: String) -> KeyChangeData:
 		return null
 	var json := JSON.new()
 	if json.parse(file.get_as_text()) != OK:
+		push_warning("KeyChangeDataManager: JSON parse error in %s: %s" % [path, json.get_error_message()])
 		return null
 	var data: Dictionary = json.data
 	return KeyChangeData.from_dict(data)

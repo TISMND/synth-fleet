@@ -1,5 +1,5 @@
 extends Control
-## Objects screen — tabbed container for Nebulas, etc.
+## Environments screen — tabbed container for Nebulas, Key Changes, etc.
 
 var _vhs_overlay: ColorRect
 

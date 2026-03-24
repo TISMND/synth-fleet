@@ -130,11 +130,15 @@ func _spawn_encounter(enc: Dictionary) -> void:
 		var fp: FlightPathData = FlightPathDataManager.load_by_id(path_id)
 		if fp:
 			curve = fp.to_curve2d()
+		else:
+			push_warning("WaveManager: flight path '%s' not found" % path_id)
 
 	# Build slot list: either from formation or single ship
 	var slots: Array[Dictionary] = []
 	if formation_id != "":
 		var fm: FormationData = FormationDataManager.load_by_id(formation_id)
+		if not fm:
+			push_warning("WaveManager: formation '%s' not found" % formation_id)
 		if fm:
 			for slot in fm.slots:
 				var off: Array = slot.get("offset", [0, 0])

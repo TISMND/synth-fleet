@@ -67,13 +67,6 @@ func get_particle_slot_count() -> int:
 	return int(ship_stats.get("particle_slots", 1))
 
 
-# Deprecated — return 0 so any missed call sites break obviously
-func get_external_slot_count() -> int:
-	return 0
-
-func get_internal_slot_count() -> int:
-	return 0
-
 
 func _get_current_ship_stats() -> Dictionary:
 	var ship_id: String = ShipRegistry.get_ship_name(current_ship_index).to_lower()

@@ -53,6 +53,12 @@ func set_pulse_timing(total: float, up: float, out: float) -> void:
 	_pulse_fade_out = out
 
 
+func get_pulse_intensity() -> float:
+	if _material:
+		return float(_material.get_shader_parameter("pulse_intensity"))
+	return 0.0
+
+
 func set_opacity(val: float) -> void:
 	if _material:
 		_material.set_shader_parameter("opacity", val)

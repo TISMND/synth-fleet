@@ -160,16 +160,6 @@ func _draw() -> void:
 		draw_set_transform(Vector2.ZERO, 0.0)
 
 
-func _age_particles(particles: Array, delta: float) -> void:
-	var dead: Array = []
-	for p in particles:
-		p["age"] = float(p["age"]) + delta
-		p["pos"] = (p["pos"] as Vector2) + (p["vel"] as Vector2) * delta
-		if float(p["age"]) >= float(p["lifetime"]):
-			dead.append(p)
-	for p in dead:
-		particles.erase(p)
-
 
 # --- Death / Impact ---
 

@@ -28,7 +28,7 @@ static func load_config() -> SfxConfig:
 	var json := JSON.new()
 	var err: int = json.parse(text)
 	if err != OK:
-		push_error("SfxConfigManager: JSON parse error in %s" % FILE_PATH)
+		push_error("SfxConfigManager: JSON parse error in %s: %s" % [FILE_PATH, json.get_error_message()])
 		return SfxConfig.from_dict({})
 	var data: Dictionary = json.data
 	return SfxConfig.from_dict(data)

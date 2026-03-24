@@ -12,9 +12,12 @@ static func _ensure_dir() -> void:
 static func save(id: String, data: Dictionary) -> void:
 	_ensure_dir()
 	data["id"] = id
-	var file := FileAccess.open(DIR_PATH + id + ".json", FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(data, "\t"))
+	var path: String = DIR_PATH + id + ".json"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if not file:
+		push_error("FormationDataManager: failed to save %s" % path)
+		return
+	file.store_string(JSON.stringify(data, "\t"))
 
 
 static func load_by_id(id: String) -> FormationData:
@@ -26,6 +29,7 @@ static func load_by_id(id: String) -> FormationData:
 		return null
 	var json := JSON.new()
 	if json.parse(file.get_as_text()) != OK:
+		push_warning("FormationDataManager: JSON parse error in %s: %s" % [path, json.get_error_message()])
 		return null
 	var data: Dictionary = json.data
 	return FormationData.from_dict(data)

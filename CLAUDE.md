@@ -76,6 +76,9 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - **Shader/slider parameter minimums must be zero.** Use `max(value, 0.001)` in shader math to guard against division by zero. The user must be able to dial any parameter to zero.
 
 ### Vocabulary
+- **Dev Studio** (`dev_studio_menu.*`) — the main menu with buttons for all dev tools. Not a single screen.
+- **Component Editor** (`component_editor.*`) — tabbed screen for Weapons, Beams, Fields, Projectiles, Power Cores, etc. Accessed via COMPONENTS button.
+- **Environments Screen** (`environments_screen.*`) — Nebulas, Key Changes. Accessed via ENVIRONMENTS button.
 - **Style Editor** (`style_editor.*`) — VHS/CRT parameter editor only. Other theme values (colors, fonts, bars, buttons) are baked via ThemeManager defaults + `user://settings/aesthetic.json`.
 - **Ships Screen** (`ships_screen.*`) — ship config/preview. Not "Ship Viewer."
 - **System Bars** — shield/hull/thermal/electric bars. Each bar has **segments**.
@@ -111,7 +114,7 @@ scripts/
   data/          DataManagers (~19 — WeaponDataManager, ShipDataManager, LevelDataManager, etc.)
   game/          Game logic (game, player_ship, hardpoint_controller, enemy, vfx_factory, etc.)
   rendering/     Ship rendering (ship_renderer, ship_canvas, ship_thumbnails, shield_bubble_effect)
-  ui/            UI scripts (~46 — dev_studio, weapons_tab, waveform_editor, level_editor, etc.)
+  ui/            UI scripts (~46 — component_editor, weapons_tab, waveform_editor, level_editor, etc.)
   util/          Utilities (effect_rate_calculator)
 resources/       Resource class definitions (.gd) — populated from JSON at runtime
 data/            Dev-authored JSON content (weapons, ships, styles, etc.) — git-tracked

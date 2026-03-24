@@ -12,9 +12,12 @@ static func _ensure_dir() -> void:
 static func save(id: String, data: Dictionary) -> void:
 	_ensure_dir()
 	data["id"] = id
-	var file := FileAccess.open(DIR_PATH + id + ".json", FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(data, "\t"))
+	var path: String = DIR_PATH + id + ".json"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if not file:
+		push_error("FieldStyleManager: failed to save %s" % path)
+		return
+	file.store_string(JSON.stringify(data, "\t"))
 
 
 static func load_by_id(id: String) -> FieldStyle:
@@ -26,6 +29,7 @@ static func load_by_id(id: String) -> FieldStyle:
 		return null
 	var json := JSON.new()
 	if json.parse(file.get_as_text()) != OK:
+		push_warning("FieldStyleManager: JSON parse error in %s: %s" % [path, json.get_error_message()])
 		return null
 	var data: Dictionary = json.data
 	return FieldStyle.from_dict(data)
@@ -53,6 +57,27 @@ static func delete(id: String) -> void:
 	var path: String = DIR_PATH + id + ".json"
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)
+
+
+static func rename(old_id: String, new_id: String, data: Dictionary) -> void:
+	if list_ids().has(new_id) and old_id != new_id:
+		push_error("FieldStyleManager: cannot rename to '%s' — ID already exists" % new_id)
+		return
+	if old_id == new_id:
+		save(new_id, data)
+		return
+	save(new_id, data)
+	delete(old_id)
+	_update_device_field_references(old_id, new_id)
+
+
+static func _update_device_field_references(old_id: String, new_id: String) -> void:
+	var emitter_ids: Array[String] = FieldEmitterDataManager.list_ids()
+	for eid in emitter_ids:
+		var device: DeviceData = FieldEmitterDataManager.load_by_id(eid)
+		if device and device.field_style_id == old_id:
+			device.field_style_id = new_id
+			FieldEmitterDataManager.save(eid, device.to_dict())
 
 
 static func list_ids() -> Array[String]:

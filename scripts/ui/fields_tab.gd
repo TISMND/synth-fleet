@@ -425,10 +425,16 @@ func _on_save() -> void:
 		_status_label.text = "Enter a style name first!"
 		return
 	var data: Dictionary = _collect_style_data()
-	var id: String = str(data["id"])
-	_current_id = id
-	FieldStyleManager.save(id, data)
-	_status_label.text = "Saved: " + id
+	var new_id: String = _generate_id(name_text)
+	var old_id: String = _current_id
+	data["id"] = new_id
+	if old_id != "" and old_id != new_id:
+		FieldStyleManager.rename(old_id, new_id, data)
+		_status_label.text = "Renamed: " + old_id + " → " + new_id
+	else:
+		FieldStyleManager.save(new_id, data)
+		_status_label.text = "Saved: " + new_id
+	_current_id = new_id
 	_refresh_load_list()
 
 

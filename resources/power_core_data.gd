@@ -91,4 +91,5 @@ func to_dict() -> Dictionary:
 		"bar_effects": bar_effects,
 		"bar_effect_triggers": bar_effect_triggers,
 		"passive_effects": passive_effects,
+		"equip_slot": equip_slot,
 	}

@@ -3,7 +3,7 @@ extends Node
 ## All play from bar 1 simultaneously. Mute = volume_db = MUTE_DB, unmute = restore volume.
 ## Never use stream_paused (causes desync).
 
-signal loop_state_changed(loop_id: String, muted: bool)
+signal loop_state_changed(loop_id: String, muted: bool)  ## TODO: connect to HUD for weapon mute/unmute state display
 
 const MUTE_DB := -80.0
 

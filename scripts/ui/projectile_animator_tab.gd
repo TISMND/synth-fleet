@@ -42,6 +42,8 @@ const SHADER_PARAM_DEFS: Dictionary = {
 }
 
 # UI references
+var _current_archetype: String = "bullet"
+var _current_archetype_params: Dictionary = {}
 var _load_button: OptionButton
 var _save_button: Button
 var _delete_button: Button
@@ -723,7 +725,8 @@ func _collect_style_data() -> Dictionary:
 	return {
 		"id": _generate_id(_name_input.text),
 		"display_name": _name_input.text,
-		"archetype": "bullet",
+		"archetype": _current_archetype,
+		"archetype_params": _current_archetype_params,
 		"mask_path": mask_path,
 		"fill_shader": _shader_button.get_item_text(_shader_button.selected),
 		"shader_params": shader_params,
@@ -794,6 +797,8 @@ func _on_delete() -> void:
 
 func _on_new() -> void:
 	_current_id = ""
+	_current_archetype = "bullet"
+	_current_archetype_params = {}
 	_name_input.text = ""
 	_shader_button.selected = 0
 	_scale_x_slider.value = 24.0
@@ -828,6 +833,8 @@ func _refresh_load_list() -> void:
 
 func _populate_from_style(style: ProjectileStyle) -> void:
 	_current_id = style.id
+	_current_archetype = style.archetype
+	_current_archetype_params = style.archetype_params.duplicate()
 	_name_input.text = style.display_name
 
 	# Fill shader

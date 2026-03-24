@@ -18,7 +18,8 @@ func reload() -> void:
 		if path == "":
 			continue
 		if not FileAccess.file_exists(path):
-			continue  # File moved/deleted — skip silently, user can reassign in SFX editor
+			push_warning("SfxPlayer: missing audio file '%s' for event '%s'" % [path, event_id])
+			continue
 		var stream: AudioStream = load(path) as AudioStream
 		if stream:
 			_cache[event_id] = stream
