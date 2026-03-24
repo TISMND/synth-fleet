@@ -433,6 +433,15 @@ func _input(event: InputEvent) -> void:
 	# Space: toggle all on/off (weapons + cores + devices)
 	if event.is_action_pressed("hardpoints_max"):
 		_space_state = 1 - _space_state
+		# When turning everything off, clear suppression state — user explicitly
+		# wants everything off, so pre-suppress snapshots should not restore later.
+		if _space_state == 0:
+			if _device_weapons_suppressed:
+				_device_weapons_suppressed = false
+				_pre_suppress_weapon_states.clear()
+			if _device_cores_suppressed:
+				_device_cores_suppressed = false
+				_pre_suppress_core_states.clear()
 		if not _device_weapons_suppressed:
 			for c in _hardpoint_controllers:
 				if _space_state == 1:
@@ -457,6 +466,14 @@ func _input(event: InputEvent) -> void:
 
 	# Deactivate all (C)
 	if event.is_action_pressed("hardpoints_off"):
+		# Clear suppression state first — user explicitly wants everything off,
+		# so pre-suppress snapshots are stale and should not restore later.
+		if _device_weapons_suppressed:
+			_device_weapons_suppressed = false
+			_pre_suppress_weapon_states.clear()
+		if _device_cores_suppressed:
+			_device_cores_suppressed = false
+			_pre_suppress_core_states.clear()
 		for c in _hardpoint_controllers:
 			c.deactivate()
 		for c in _core_controllers:

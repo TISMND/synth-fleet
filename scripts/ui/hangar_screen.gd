@@ -106,7 +106,7 @@ func _ready() -> void:
 	_init_slot_active()
 	_build_ui()
 	_load_ship()
-	_setup_vhs_overlay()
+	call_deferred("_setup_vhs_overlay")
 	ThemeManager.theme_changed.connect(_apply_theme)
 	KeyBindingManager.bindings_changed.connect(_rebuild_buttons)
 	call_deferred("_apply_theme")
@@ -136,7 +136,8 @@ func _setup_vhs_overlay() -> void:
 
 
 func _apply_theme() -> void:
-	ThemeManager.apply_vhs_overlay(_vhs_overlay)
+	if _vhs_overlay:
+		ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var header_font: Font = ThemeManager.get_font("font_header")

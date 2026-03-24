@@ -99,7 +99,11 @@ func _process(delta: float) -> void:
 	_pending_removal.clear()
 
 	for idx in range(_orbiters.size()):
-		var orb: Dictionary = _orbiters[idx]
+		var orb_val: Variant = _orbiters[idx]
+		if not orb_val is Dictionary:
+			_pending_removal.append(idx)
+			continue
+		var orb: Dictionary = orb_val as Dictionary
 		var phase: float = float(orb["phase"])
 		var spawn_time: float = float(orb["spawn_time"])
 		var elapsed: float = time - spawn_time
@@ -179,7 +183,11 @@ func _process(delta: float) -> void:
 func _remove_orbiter_at(idx: int) -> void:
 	if idx < 0 or idx >= _orbiters.size():
 		return
-	var orb: Dictionary = _orbiters[idx]
+	var orb_val: Variant = _orbiters[idx]
+	if not orb_val is Dictionary:
+		_orbiters.remove_at(idx)
+		return
+	var orb: Dictionary = orb_val as Dictionary
 	var s: Sprite2D = orb["sprite"]
 	s.queue_free()
 	var trails: Array = orb["trail_sprites"]

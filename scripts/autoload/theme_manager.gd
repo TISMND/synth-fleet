@@ -163,7 +163,9 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.is_echo() and event.keycode == KEY_F4:
 		print("\n── UI Tree Dump (F4) ──")
-		DebugTools.dump_ui_tree(get_tree().root)
+		var dt: GDScript = load("res://scripts/util/debug_tools.gd") as GDScript
+		if dt:
+			dt.dump_ui_tree(get_tree().root)
 		print("── End Dump ──\n")
 
 
