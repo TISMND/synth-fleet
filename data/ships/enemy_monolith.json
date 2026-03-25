@@ -1,0 +1,44 @@
+{
+	"collision_height": 184.0,
+	"collision_shape": "rectangle",
+	"collision_width": 92.0,
+	"display_name": "Monolith",
+	"hardpoint_offsets": [[0, -48], [0, 0], [0, 48]],
+	"enable_screen_shake": false,
+	"explosion_color": [
+		0.400000005960464,
+		0.899999976158142,
+		1.0,
+		1.0
+	],
+	"explosion_size": 1.8,
+	"grid_size": [
+		96,
+		96
+	],
+	"hardpoints": [],
+	"id": "enemy_monolith",
+	"level": "geometric",
+	"lines": [],
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 300.0,
+		"core_slots": 1.0,
+		"electric_hp": 60.0,
+		"electric_segments": 6.0,
+		"field_slots": 1.0,
+		"hull_hp": 180.0,
+		"hull_segments": 12.0,
+		"particle_slots": 1.0,
+		"shield_hp": 120.0,
+		"shield_regen": 2.0,
+		"shield_segments": 8.0,
+		"speed": 60.0,
+		"thermal_hp": 60.0,
+		"thermal_segments": 6.0,
+		"weapon_slots": 1.0
+	},
+	"type": "enemy",
+	"visual_id": "monolith",
+	"weapon_id": ""
+}

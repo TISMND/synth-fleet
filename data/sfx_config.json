@@ -88,13 +88,13 @@
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/hits/thunk.wav",
-			"volume_db": -29.5
+			"volume_db": -20.0
 		},
 		"player_shield_hit": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/hits/doom.wav",
-			"volume_db": -28.0
+			"volume_db": -19.5
 		},
 		"power_failure": {
 			"clip_end_time": 0.0,

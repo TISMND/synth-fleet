@@ -88,6 +88,8 @@ var hit_flash: float = 0.0
 var hull_flash_duration: float = 0.1
 var hull_blink_speed: float = 8.0
 var hull_flash_opacity: float = 0.5
+var show_hardpoint_marker: bool = false  # Editor-only: draw crosshair at weapon fire origin
+var hardpoint_marker_offsets: Array = []  # Array of [x, y] — empty draws at center only
 var _flash_material: ShaderMaterial = null
 
 const _FLASH_SHADER_CODE := "shader_type canvas_item;
@@ -359,6 +361,40 @@ func _draw() -> void:
 			7: _draw_dreadnought()
 			8: _draw_bastion()
 
+	if show_hardpoint_marker:
+		_draw_hardpoint_marker()
+
+func _draw_hardpoint_marker() -> void:
+	## Editor-only crosshairs at weapon fire origins.
+	var offsets: Array = hardpoint_marker_offsets
+	if offsets.size() == 0:
+		offsets = [[0, 0]]
+	for offset in offsets:
+		var ox: float = float(offset[0]) if offset is Array and offset.size() >= 1 else 0.0
+		var oy: float = float(offset[1]) if offset is Array and offset.size() >= 2 else 0.0
+		var c := Vector2(ox, oy)
+		_draw_single_hardpoint_marker(c)
+
+func _draw_single_hardpoint_marker(c: Vector2) -> void:
+	var arm: float = 10.0
+	var gap: float = 3.0
+	var col := Color(1.0, 0.3, 0.2, 0.9)
+	var thin_col := Color(1.0, 0.3, 0.2, 0.4)
+	# Crosshair arms with center gap
+	draw_line(c + Vector2(0, -arm), c + Vector2(0, -gap), col, 1.5)
+	draw_line(c + Vector2(0, gap), c + Vector2(0, arm), col, 1.5)
+	draw_line(c + Vector2(-arm, 0), c + Vector2(-gap, 0), col, 1.5)
+	draw_line(c + Vector2(gap, 0), c + Vector2(arm, 0), col, 1.5)
+	# Diamond reticle
+	var dr: float = 6.0
+	draw_line(c + Vector2(0, -dr), c + Vector2(dr, 0), thin_col, 1.0)
+	draw_line(c + Vector2(dr, 0), c + Vector2(0, dr), thin_col, 1.0)
+	draw_line(c + Vector2(0, dr), c + Vector2(-dr, 0), thin_col, 1.0)
+	draw_line(c + Vector2(-dr, 0), c + Vector2(0, -dr), thin_col, 1.0)
+	# Center dot
+	draw_circle(c, 1.5, col)
+
+
 # ── Enemy ship drawing ──
 
 func _draw_enemy_ship() -> void:
@@ -376,6 +412,12 @@ func _draw_enemy_ship() -> void:
 		"ironclad": _draw_ironclad()
 		"wraith": _draw_wraith()
 		"colossus": _draw_colossus()
+		"monolith": _draw_monolith()
+		"nexus": _draw_nexus()
+		"pylon": _draw_pylon()
+		"aegis": _draw_aegis()
+		"helix": _draw_helix()
+		"conduit": _draw_conduit()
 		_: _draw_sentinel()  # Default fallback
 
 func _draw_sentinel() -> void:
@@ -1065,6 +1107,386 @@ func _draw_colossus() -> void:
 		var p2 := Vector2(cos(a2) * 17.0 * s, sin(a2) * 17.0 * s)
 		var vein_alpha: float = 0.15 + sin(time * 1.2 + float(t) * 0.8) * 0.1
 		_line(p1, p2, Color(detail_color.r, detail_color.g, detail_color.b, vein_alpha), 0.5 * s)
+
+func _draw_monolith() -> void:
+	# Elongated slab with internal geometric machinery — rotating gears, sliding bars.
+	# Diamond focal point at center for beam weapons.
+	var s := 3.0
+	var hw: float = 12.0 * s  # half width
+	var hh: float = 28.0 * s  # half height (tall)
+	var breath: float = sin(time * 0.9) * 0.03
+
+	# Outer slab body — tall rectangle with chamfered corners
+	var body := PackedVector2Array([
+		Vector2(-hw + 3.0 * s, -hh),
+		Vector2(hw - 3.0 * s, -hh),
+		Vector2(hw, -hh + 3.0 * s),
+		Vector2(hw, hh - 3.0 * s),
+		Vector2(hw - 3.0 * s, hh),
+		Vector2(-hw + 3.0 * s, hh),
+		Vector2(-hw, hh - 3.0 * s),
+		Vector2(-hw, -hh + 3.0 * s),
+	])
+	_poly(body, hull_color, 2.0 * s)
+
+	# Internal gear wheels — 3 stacked, contra-rotating
+	var gear_positions: Array[float] = [-16.0, 0.0, 16.0]
+	var gear_radii: Array[float] = [6.0, 8.0, 6.0]
+	var gear_teeth: Array[int] = [8, 10, 8]
+	var gear_dirs: Array[float] = [1.0, -1.0, 1.0]
+	for gi in range(3):
+		var gy: float = gear_positions[gi] * s * (1.0 + breath)
+		var gr: float = gear_radii[gi] * s
+		var teeth: int = gear_teeth[gi]
+		var spin: float = time * 1.5 * gear_dirs[gi]
+		# Gear outline with teeth
+		var gear := PackedVector2Array()
+		for t in range(teeth * 2):
+			var angle: float = TAU * float(t) / float(teeth * 2) + spin
+			var tr: float = gr if t % 2 == 0 else gr * 0.7
+			gear.append(Vector2(cos(angle) * tr, gy + sin(angle) * tr))
+		_poly(gear, accent_color, 1.0 * s)
+		# Axle
+		draw_circle(Vector2(0, gy), 2.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, 0.6))
+
+	# Sliding horizontal bars — oscillate left/right at different phases
+	for bi in range(5):
+		var by: float = (-20.0 + float(bi) * 10.0) * s
+		var slide: float = sin(time * 2.0 + float(bi) * 1.3) * 4.0 * s
+		var bar_alpha: float = 0.25 + sin(time * 1.5 + float(bi)) * 0.1
+		_line(
+			Vector2(-hw + 2.0 * s + slide, by),
+			Vector2(hw - 2.0 * s + slide, by),
+			Color(detail_color.r, detail_color.g, detail_color.b, bar_alpha), 0.6 * s
+		)
+
+	# Diamond focal point — center, pulsing, beam emitter
+	var dp: float = 0.7 + sin(time * 2.5) * 0.3
+	var diamond_r: float = 5.0 * s
+	var diamond := PackedVector2Array([
+		Vector2(0, diamond_r * 1.3),   # forward tip
+		Vector2(diamond_r, 0),
+		Vector2(0, -diamond_r * 1.3),
+		Vector2(-diamond_r, 0),
+	])
+	_poly(diamond, Color(accent_color.r, accent_color.g, accent_color.b, dp), 1.5 * s)
+	draw_circle(Vector2.ZERO, 2.5 * s, Color(1.0, 1.0, 1.0, dp * 0.8))
+
+	# Edge channel lights
+	for side in [-1.0, 1.0]:
+		for li in range(6):
+			var ly: float = (-22.0 + float(li) * 9.0) * s
+			var lx: float = side * (hw - 1.5 * s)
+			var lit: float = fmod(time * 3.0 + float(li) * 0.4, 1.0)
+			var la: float = 0.2 + lit * 0.5 if lit < 0.3 else 0.1
+			draw_circle(Vector2(lx, ly), 1.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, la))
+
+
+func _draw_nexus() -> void:
+	# Diamond-shaped body with internal churning hexagonal lattice.
+	# Clear beam focal point at forward diamond tip.
+	var s := 3.2
+	var r_fwd: float = 30.0 * s   # forward reach (long)
+	var r_aft: float = 20.0 * s   # aft reach
+	var r_side: float = 16.0 * s  # side width
+
+	# Outer diamond hull
+	var hull := PackedVector2Array([
+		Vector2(0, r_fwd),         # forward tip (down = +Y)
+		Vector2(r_side, 0),        # right
+		Vector2(0, -r_aft),        # aft
+		Vector2(-r_side, 0),       # left
+	])
+	_poly(hull, hull_color, 2.2 * s)
+
+	# Internal hexagonal lattice — rotating mesh of small hexagons
+	var hex_count: int = 7
+	var hex_positions: Array[Vector2] = [
+		Vector2(0, 12.0), Vector2(0, -4.0), Vector2(0, -16.0),
+		Vector2(8.0, 4.0), Vector2(-8.0, 4.0),
+		Vector2(6.0, -10.0), Vector2(-6.0, -10.0),
+	]
+	for hi in range(hex_count):
+		var hpos: Vector2 = hex_positions[hi] * s
+		var hr: float = (3.5 + sin(time * 1.2 + float(hi) * 0.9) * 0.8) * s
+		var hspin: float = time * (0.8 + float(hi) * 0.2) * (1.0 if hi % 2 == 0 else -1.0)
+		var hex := PackedVector2Array()
+		for vi in range(6):
+			var angle: float = TAU * float(vi) / 6.0 + hspin
+			hex.append(hpos + Vector2(cos(angle) * hr, sin(angle) * hr))
+		var ha: float = 0.3 + sin(time * 2.0 + float(hi) * 1.4) * 0.2
+		_poly(hex, Color(accent_color.r, accent_color.g, accent_color.b, ha), 0.8 * s)
+
+	# Connecting lattice lines between adjacent hexagons
+	var connections: Array[Vector2i] = [
+		Vector2i(0, 1), Vector2i(1, 2), Vector2i(0, 3), Vector2i(0, 4),
+		Vector2i(1, 3), Vector2i(1, 4), Vector2i(1, 5), Vector2i(1, 6),
+		Vector2i(2, 5), Vector2i(2, 6),
+	]
+	for conn in connections:
+		var ca: float = 0.1 + sin(time * 1.8 + float(conn.x) * 0.7) * 0.08
+		_line(
+			hex_positions[conn.x] * s, hex_positions[conn.y] * s,
+			Color(detail_color.r, detail_color.g, detail_color.b, ca), 0.4 * s
+		)
+
+	# Forward diamond tip — beam focal, bright pulsing
+	var tip_pulse: float = 0.6 + sin(time * 3.0) * 0.4
+	var tip_diamond := PackedVector2Array([
+		Vector2(0, r_fwd - 2.0 * s),
+		Vector2(4.0 * s, r_fwd - 10.0 * s),
+		Vector2(0, r_fwd - 18.0 * s),
+		Vector2(-4.0 * s, r_fwd - 10.0 * s),
+	])
+	_poly(tip_diamond, Color(accent_color.r, accent_color.g, accent_color.b, tip_pulse), 1.2 * s)
+	draw_circle(Vector2(0, r_fwd - 10.0 * s), 2.0 * s, Color(1.0, 1.0, 1.0, tip_pulse * 0.9))
+
+	# Aft glow
+	var eng_f: float = 0.4 + sin(time * 4.5) * 0.3
+	draw_circle(Vector2(0, -r_aft + 4.0 * s), 3.0 * s, Color(engine_color.r, engine_color.g, engine_color.b, eng_f))
+
+
+func _draw_pylon() -> void:
+	# Very tall narrow structure with multiple diamond nodes along its length.
+	# Each node is a potential hardpoint mirror. Energy flows between nodes.
+	var s := 2.8
+	var hw: float = 6.0 * s
+	var hh: float = 36.0 * s  # extremely tall
+
+	# Central spine
+	_line(Vector2(0, -hh), Vector2(0, hh), hull_color, 1.5 * s)
+	# Side rails
+	_line(Vector2(-hw, -hh + 4.0 * s), Vector2(-hw, hh - 4.0 * s), hull_color, 1.0 * s)
+	_line(Vector2(hw, -hh + 4.0 * s), Vector2(hw, hh - 4.0 * s), hull_color, 1.0 * s)
+	# Top/bottom caps
+	_line(Vector2(-hw, -hh + 4.0 * s), Vector2(0, -hh), hull_color, 1.2 * s)
+	_line(Vector2(hw, -hh + 4.0 * s), Vector2(0, -hh), hull_color, 1.2 * s)
+	_line(Vector2(-hw, hh - 4.0 * s), Vector2(0, hh), hull_color, 1.2 * s)
+	_line(Vector2(hw, hh - 4.0 * s), Vector2(0, hh), hull_color, 1.2 * s)
+
+	# Diamond nodes — 5 evenly spaced along the spine
+	var node_count: int = 5
+	for ni in range(node_count):
+		var ny: float = lerpf(-hh + 8.0 * s, hh - 8.0 * s, float(ni) / float(node_count - 1))
+		var nr: float = (3.5 + sin(time * 1.5 + float(ni) * 1.2) * 1.0) * s
+		var node_diamond := PackedVector2Array([
+			Vector2(0, ny + nr * 1.4),
+			Vector2(nr, ny),
+			Vector2(0, ny - nr * 1.4),
+			Vector2(-nr, ny),
+		])
+		var np: float = 0.5 + sin(time * 2.0 + float(ni) * 0.8) * 0.3
+		_poly(node_diamond, Color(accent_color.r, accent_color.g, accent_color.b, np), 1.2 * s)
+		draw_circle(Vector2(0, ny), 1.5 * s, Color(1.0, 1.0, 1.0, np * 0.7))
+
+		# Cross-struts to side rails
+		var strut_a: float = 0.2 + sin(time * 1.2 + float(ni) * 0.6) * 0.15
+		_line(Vector2(-hw, ny), Vector2(-nr, ny), Color(detail_color.r, detail_color.g, detail_color.b, strut_a), 0.6 * s)
+		_line(Vector2(hw, ny), Vector2(nr, ny), Color(detail_color.r, detail_color.g, detail_color.b, strut_a), 0.6 * s)
+
+	# Energy flow between nodes — traveling pulse dots, alternating directions
+	for ni in range(node_count - 1):
+		var y0: float = lerpf(-hh + 8.0 * s, hh - 8.0 * s, float(ni) / float(node_count - 1))
+		var y1: float = lerpf(-hh + 8.0 * s, hh - 8.0 * s, float(ni + 1) / float(node_count - 1))
+		# Forward pulse (y0 → y1)
+		var pulse_fwd: float = fmod(time * 1.5 + float(ni) * 0.5, 1.0)
+		var fwd_y: float = lerpf(y0, y1, pulse_fwd)
+		var fwd_a: float = sin(pulse_fwd * PI) * 0.8
+		draw_circle(Vector2(-1.5 * s, fwd_y), 1.2 * s, Color(accent_color.r, accent_color.g, accent_color.b, fwd_a))
+		# Return pulse (y1 → y0, offset timing)
+		var pulse_rev: float = fmod(time * 1.5 + float(ni) * 0.5 + 0.5, 1.0)
+		var rev_y: float = lerpf(y1, y0, pulse_rev)
+		var rev_a: float = sin(pulse_rev * PI) * 0.6
+		draw_circle(Vector2(1.5 * s, rev_y), 1.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, rev_a))
+
+
+func _draw_aegis() -> void:
+	# Ship-like attempt — angular hull with bridge, engines, plating. Still neon/geometric.
+	var s := 2.6
+	# Main hull — angular wedge pointing forward (+Y)
+	var hull := PackedVector2Array([
+		Vector2(0, 28.0 * s),          # nose
+		Vector2(8.0 * s, 18.0 * s),    # forward cheek R
+		Vector2(12.0 * s, 4.0 * s),    # mid hull R
+		Vector2(14.0 * s, -8.0 * s),   # aft hull R (widest)
+		Vector2(12.0 * s, -20.0 * s),  # engine fairing R
+		Vector2(6.0 * s, -24.0 * s),   # stern R
+		Vector2(-6.0 * s, -24.0 * s),  # stern L
+		Vector2(-12.0 * s, -20.0 * s), # engine fairing L
+		Vector2(-14.0 * s, -8.0 * s),  # aft hull L
+		Vector2(-12.0 * s, 4.0 * s),   # mid hull L
+		Vector2(-8.0 * s, 18.0 * s),   # forward cheek L
+	])
+	_poly(hull, hull_color, 2.0 * s)
+
+	# Armor plating seams
+	_line(Vector2(-10.0 * s, 0), Vector2(10.0 * s, 0), detail_color, 0.6 * s)
+	_line(Vector2(-12.0 * s, -10.0 * s), Vector2(12.0 * s, -10.0 * s), detail_color, 0.5 * s)
+	_line(Vector2(0, 28.0 * s), Vector2(0, -20.0 * s), Color(detail_color, 0.3), 0.4 * s)
+
+	# Bridge canopy — small diamond near front
+	var bridge := PackedVector2Array([
+		Vector2(0, 16.0 * s),
+		Vector2(3.5 * s, 11.0 * s),
+		Vector2(0, 6.0 * s),
+		Vector2(-3.5 * s, 11.0 * s),
+	])
+	_poly(bridge, canopy_color, 1.2 * s)
+	# Bridge glow
+	var bg: float = 0.4 + sin(time * 1.5) * 0.2
+	draw_circle(Vector2(0, 11.0 * s), 2.0 * s, Color(canopy_color.r, canopy_color.g, canopy_color.b, bg))
+
+	# Wing weapon pods — small diamonds at widest points
+	for side in [-1.0, 1.0]:
+		var pod_x: float = side * 14.0 * s
+		var pod := PackedVector2Array([
+			Vector2(pod_x, -4.0 * s),
+			Vector2(pod_x + side * 4.0 * s, -8.0 * s),
+			Vector2(pod_x, -12.0 * s),
+			Vector2(pod_x - side * 2.0 * s, -8.0 * s),
+		])
+		_poly(pod, accent_color, 1.0 * s)
+
+	# Engine banks — 3 nozzles at stern
+	var eng_positions: Array[float] = [-4.0, 0.0, 4.0]
+	for ei in range(3):
+		var ex: float = eng_positions[ei] * s
+		var flicker: float = 0.5 + sin(time * 5.0 + float(ei) * 2.0) * 0.3 + sin(time * 8.0 + float(ei)) * 0.15
+		var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, flicker)
+		draw_circle(Vector2(ex, -24.0 * s), 2.5 * s, eng_col)
+		# Exhaust trail
+		var trail_len: float = (4.0 + flicker * 3.0) * s
+		_line(Vector2(ex, -24.0 * s), Vector2(ex, -24.0 * s - trail_len),
+			Color(engine_color.r, engine_color.g, engine_color.b, flicker * 0.5), 1.5 * s)
+
+	# Nose focal diamond for beam
+	var nose_p: float = 0.6 + sin(time * 2.5) * 0.3
+	draw_circle(Vector2(0, 26.0 * s), 2.0 * s, Color(accent_color.r, accent_color.g, accent_color.b, nose_p))
+
+
+func _draw_helix() -> void:
+	# Two elongated arms spiraling around a central axis with diamond core.
+	# Arms churn/rotate continuously. Very alien.
+	var s := 3.0
+	var core_r: float = 5.0 * s
+	var arm_length: float = 28.0 * s
+	var arm_count: int = 2
+	var coils: float = 2.5  # number of spiral wraps
+	var seg_count: int = 24
+
+	# Central diamond core — beam focal point
+	var core_pulse: float = 0.6 + sin(time * 2.0) * 0.4
+	var core_diamond := PackedVector2Array([
+		Vector2(0, core_r * 1.5),
+		Vector2(core_r, 0),
+		Vector2(0, -core_r * 1.5),
+		Vector2(-core_r, 0),
+	])
+	_poly(core_diamond, Color(accent_color.r, accent_color.g, accent_color.b, core_pulse), 1.5 * s)
+	draw_circle(Vector2.ZERO, 2.0 * s, Color(1.0, 1.0, 1.0, core_pulse * 0.8))
+
+	# Spiral arms — two helices offset by PI
+	for arm in range(arm_count):
+		var arm_phase: float = float(arm) * PI + time * 1.2
+		var prev := Vector2.ZERO
+		for seg in range(seg_count + 1):
+			var t: float = float(seg) / float(seg_count)
+			var y_pos: float = lerpf(-arm_length, arm_length, t)
+			# Spiral radius increases from center, narrows at tips
+			var envelope: float = sin(t * PI)  # 0 at ends, 1 at middle
+			var spiral_r: float = (8.0 + envelope * 6.0) * s
+			var angle: float = arm_phase + t * coils * TAU
+			var x_pos: float = cos(angle) * spiral_r
+			var curr := Vector2(x_pos, y_pos)
+
+			if seg > 0:
+				var seg_alpha: float = 0.3 + envelope * 0.5
+				var w: float = (1.0 + envelope * 1.2) * s
+				_line(prev, curr, Color(hull_color.r, hull_color.g, hull_color.b, seg_alpha), w)
+
+			# Nodes at quarter-turn intervals
+			if seg > 0 and seg < seg_count and seg % 6 == 0:
+				var node_a: float = 0.3 + sin(time * 2.5 + float(seg)) * 0.3
+				draw_circle(curr, 1.5 * s, Color(detail_color.r, detail_color.g, detail_color.b, node_a))
+
+			prev = curr
+
+	# Cross-braces connecting the two arms at a few points
+	for bi in range(5):
+		var bt: float = 0.15 + float(bi) * 0.175
+		var by: float = lerpf(-arm_length, arm_length, bt)
+		var envelope: float = sin(bt * PI)
+		var spiral_r: float = (8.0 + envelope * 6.0) * s
+		var angle1: float = time * 1.2 + bt * coils * TAU
+		var angle2: float = PI + time * 1.2 + bt * coils * TAU
+		var p1 := Vector2(cos(angle1) * spiral_r, by)
+		var p2 := Vector2(cos(angle2) * spiral_r, by)
+		var ba: float = 0.12 + sin(time * 1.5 + float(bi)) * 0.08
+		_line(p1, p2, Color(detail_color.r, detail_color.g, detail_color.b, ba), 0.4 * s)
+
+
+func _draw_conduit() -> void:
+	# Long tubular form with internal segments that pulse and shift.
+	# Diamond emitter at front. Segments flow through the tube.
+	var s := 2.8
+	var hw: float = 9.0 * s
+	var hh: float = 32.0 * s
+	var seg_count: int = 10
+
+	# Outer tube walls — two parallel lines with end caps
+	_line(Vector2(-hw, -hh), Vector2(-hw, hh), hull_color, 1.8 * s)
+	_line(Vector2(hw, -hh), Vector2(hw, hh), hull_color, 1.8 * s)
+	# Rounded end caps
+	_arc(Vector2(0, -hh), hw, PI, TAU, 8, hull_color, 1.8 * s)
+	_arc(Vector2(0, hh), hw, 0, PI, 8, hull_color, 1.8 * s)
+
+	# Internal flowing segments — rectangles that slide through the tube
+	for si in range(seg_count):
+		# Each segment scrolls along the tube length, wrapping
+		var seg_phase: float = fmod(time * 0.8 + float(si) / float(seg_count), 1.0)
+		var seg_y: float = lerpf(-hh + 4.0 * s, hh - 4.0 * s, seg_phase)
+		var seg_h: float = (3.0 + sin(time * 1.5 + float(si) * 2.0) * 1.5) * s
+		var seg_w: float = (hw - 2.0 * s) * (0.6 + sin(time * 2.0 + float(si) * 0.7) * 0.3)
+
+		# Segment rectangle
+		var seg_alpha: float = 0.15 + sin(seg_phase * PI) * 0.25  # brightest in middle
+		var seg_col := Color(accent_color.r, accent_color.g, accent_color.b, seg_alpha)
+		var seg_rect := PackedVector2Array([
+			Vector2(-seg_w, seg_y - seg_h),
+			Vector2(seg_w, seg_y - seg_h),
+			Vector2(seg_w, seg_y + seg_h),
+			Vector2(-seg_w, seg_y + seg_h),
+		])
+		_poly(seg_rect, seg_col, 0.6 * s)
+
+	# Cross-ribs — structural dividers
+	for ri in range(7):
+		var ry: float = lerpf(-hh + 6.0 * s, hh - 6.0 * s, float(ri) / 6.0)
+		var rib_a: float = 0.15 + sin(time * 0.8 + float(ri) * 1.1) * 0.08
+		_line(Vector2(-hw, ry), Vector2(hw, ry), Color(detail_color.r, detail_color.g, detail_color.b, rib_a), 0.5 * s)
+
+	# Central channel energy — pulsing line along the spine
+	var channel_a: float = 0.3 + sin(time * 2.0) * 0.2
+	_line(Vector2(0, -hh + 4.0 * s), Vector2(0, hh - 4.0 * s),
+		Color(accent_color.r, accent_color.g, accent_color.b, channel_a), 0.8 * s)
+
+	# Forward diamond emitter
+	var dp: float = 0.6 + sin(time * 2.5) * 0.4
+	var diamond_y: float = hh - 2.0 * s
+	var dr: float = 4.5 * s
+	var diamond := PackedVector2Array([
+		Vector2(0, diamond_y + dr * 1.3),
+		Vector2(dr, diamond_y),
+		Vector2(0, diamond_y - dr * 1.3),
+		Vector2(-dr, diamond_y),
+	])
+	_poly(diamond, Color(accent_color.r, accent_color.g, accent_color.b, dp), 1.3 * s)
+	draw_circle(Vector2(0, diamond_y), 2.0 * s, Color(1.0, 1.0, 1.0, dp * 0.8))
+
+	# Aft exhaust
+	var eng_f: float = 0.4 + sin(time * 5.0) * 0.3
+	draw_circle(Vector2(0, -hh - 1.0 * s), 3.0 * s, Color(engine_color.r, engine_color.g, engine_color.b, eng_f))
+
 
 # ── Chrome drawing helpers ──
 

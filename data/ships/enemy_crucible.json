@@ -1,7 +1,7 @@
 {
 	"collision_height": 30.0,
 	"collision_shape": "circle",
-	"collision_width": 68.0,
+	"collision_width": 82.0,
 	"display_name": "Crucible",
 	"enable_screen_shake": false,
 	"explosion_color": [
@@ -16,11 +16,8 @@
 		40
 	],
 	"hardpoints": [],
-	"hull_blink_speed": 8.0,
-	"hull_flash_duration": 0.12,
-	"hull_flash_opacity": 0.35,
 	"id": "enemy_crucible",
-	"level": "level_2",
+	"level": "vehicle",
 	"lines": [],
 	"render_mode": "neon",
 	"stats": {

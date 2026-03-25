@@ -40,5 +40,5 @@
 	"type": "enemy",
 	"visual_id": "dart",
 	"weapon_id": "",
-	"level": "level_2"
+	"level": "vehicle"
 }

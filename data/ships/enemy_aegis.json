@@ -1,0 +1,44 @@
+{
+	"collision_height": 164.0,
+	"collision_shape": "rectangle",
+	"collision_width": 86.0,
+	"display_name": "Aegis",
+	"hardpoint_offsets": [[0, 67.6], [-36.4, -20.8], [36.4, -20.8]],
+	"enable_screen_shake": true,
+	"explosion_color": [
+		0.600000023841858,
+		0.400000005960464,
+		1.0,
+		1.0
+	],
+	"explosion_size": 2.2,
+	"grid_size": [
+		96,
+		96
+	],
+	"hardpoints": [],
+	"id": "enemy_aegis",
+	"level": "vehicle",
+	"lines": [],
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 200.0,
+		"core_slots": 1.0,
+		"electric_hp": 80.0,
+		"electric_segments": 8.0,
+		"field_slots": 2.0,
+		"hull_hp": 250.0,
+		"hull_segments": 16.0,
+		"particle_slots": 1.0,
+		"shield_hp": 200.0,
+		"shield_regen": 4.0,
+		"shield_segments": 12.0,
+		"speed": 45.0,
+		"thermal_hp": 80.0,
+		"thermal_segments": 8.0,
+		"weapon_slots": 1.0
+	},
+	"type": "enemy",
+	"visual_id": "aegis",
+	"weapon_id": ""
+}

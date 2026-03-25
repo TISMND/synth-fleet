@@ -119,8 +119,11 @@ func _process(delta: float) -> void:
 	if track_node and is_instance_valid(track_node):
 		global_position = track_node.global_position
 	if _has_direction_source:
-		var dir_deg: float = _direction_source.call()
-		rotation = deg_to_rad(dir_deg)
+		if _direction_source.is_valid():
+			var dir_deg: float = _direction_source.call()
+			rotation = deg_to_rad(dir_deg)
+		else:
+			_has_direction_source = false
 
 	# Auto-destroy after duration
 	if _age >= beam_duration:

@@ -20,7 +20,7 @@
 	"hull_flash_duration": 0.13,
 	"hull_flash_opacity": 1.0,
 	"id": "enemy_1",
-	"level": "level_1",
+	"level": "geometric",
 	"lines": [],
 	"render_mode": "neon",
 	"shield_style_id": "blue_ripple",

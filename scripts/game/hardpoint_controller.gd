@@ -246,16 +246,17 @@ func _predict_position(target: Node2D) -> Vector2:
 
 
 func _find_nearest_enemy() -> Node2D:
-	var enemies: Array[Node] = get_tree().get_nodes_in_group(_enemies_group)
+	var group: String = "player" if is_enemy else _enemies_group
+	var targets: Array[Node] = get_tree().get_nodes_in_group(group)
 	var best: Node2D = null
 	var best_dist_sq: float = INF
-	for node in enemies:
+	for node in targets:
 		if node is Node2D:
-			var enemy: Node2D = node as Node2D
-			var dist_sq: float = global_position.distance_squared_to(enemy.global_position)
+			var target: Node2D = node as Node2D
+			var dist_sq: float = global_position.distance_squared_to(target.global_position)
 			if dist_sq < best_dist_sq:
 				best_dist_sq = dist_sq
-				best = enemy
+				best = target
 	return best
 
 

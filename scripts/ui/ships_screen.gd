@@ -38,11 +38,11 @@ var _working_render_mode: String = "chrome"
 var _category: String = "PLAYER"  # "PLAYER", "ENEMIES", "BOSSES"
 var _category_tab_buttons: Array[Button] = []
 var _level_dropdown: OptionButton = null
-var _selected_level: String = "level_1"  # "level_1", "level_2", "misc"
+var _selected_level: String = "geometric"
 const LEVEL_OPTIONS: Array[Dictionary] = [
-	{"id": "level_1", "label": "01 WELCOME VOID"},
-	{"id": "level_2", "label": "02 TBD"},
-	{"id": "misc", "label": "MISC"},
+	{"id": "geometric", "label": "GEOMETRIC"},
+	{"id": "vehicle", "label": "VEHICLE"},
+	{"id": "lifeform", "label": "LIFEFORM"},
 ]
 var _enemy_ships: Array[ShipData] = []  # all enemies
 var _filtered_enemy_ships: Array[ShipData] = []  # filtered by level
@@ -206,6 +206,7 @@ func _process(delta: float) -> void:
 	_bank = lerpf(_bank, target_bank, BANK_LERP * delta)
 	_ship_draw.bank = _bank
 	_ship_draw.ship_id = _selected_ship
+	_ship_draw.show_hardpoint_marker = false
 
 	_exhaust_timer += delta
 	if _exhaust_timer > 0.016:
@@ -441,6 +442,8 @@ func _select_enemy(index: int) -> void:
 	_enemy_idle_time = 0.0
 
 	_ship_draw.enemy_visual_id = _working_enemy.visual_id
+	_ship_draw.show_hardpoint_marker = true
+	_ship_draw.hardpoint_marker_offsets = _working_enemy.hardpoint_offsets
 	_apply_render_mode()
 
 	_rebuild_right_panel()

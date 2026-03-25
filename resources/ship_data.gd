@@ -33,6 +33,7 @@ const DEFAULT_HP: Dictionary = {
 # Enemy-specific fields (inert for player ships)
 @export var visual_id: String = ""          # Drawing template: "sentinel"
 @export var weapon_id: String = ""          # References a WeaponData id (must have is_enemy_weapon=true)
+@export var hardpoint_offsets: Array = []   # Array of [x, y] offsets for multi-hardpoint enemies (empty = center)
 @export var presence_loop_path: String = "" # Audio loop that plays while this enemy type is on screen
 @export var explosion_color: Color = Color(1.0, 0.3, 0.5)  # Explosion VFX color
 @export var explosion_size: float = 1.0                      # Explosion size multiplier
@@ -81,6 +82,7 @@ static func from_dict(data: Dictionary) -> ShipData:
 		s.explosion_color = Color(float(exp_color[0]), float(exp_color[1]), float(exp_color[2]), a)
 	s.explosion_size = float(data.get("explosion_size", 1.0))
 	s.enable_screen_shake = bool(data.get("enable_screen_shake", false))
+	s.hardpoint_offsets = data.get("hardpoint_offsets", [])
 	# Hit effects
 	s.shield_style_id = str(data.get("shield_style_id", ""))
 	s.hull_flash_opacity = float(data.get("hull_flash_opacity", 0.5))
@@ -112,6 +114,8 @@ func to_dict() -> Dictionary:
 		d["explosion_color"] = [explosion_color.r, explosion_color.g, explosion_color.b, explosion_color.a]
 		d["explosion_size"] = explosion_size
 		d["enable_screen_shake"] = enable_screen_shake
+		if hardpoint_offsets.size() > 0:
+			d["hardpoint_offsets"] = hardpoint_offsets
 	# Level assignment (saved for all ship types)
 	d["level"] = level
 	# Collision hitbox (saved for all ship types)

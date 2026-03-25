@@ -1,0 +1,43 @@
+{
+	"collision_height": 148.0,
+	"collision_shape": "rectangle",
+	"collision_width": 128.0,
+	"display_name": "Nexus",
+	"enable_screen_shake": true,
+	"explosion_color": [
+		0.300000011920929,
+		0.699999988079071,
+		1.0,
+		1.0
+	],
+	"explosion_size": 2.0,
+	"grid_size": [
+		96,
+		96
+	],
+	"hardpoints": [],
+	"id": "enemy_nexus",
+	"level": "vehicle",
+	"lines": [],
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 250.0,
+		"core_slots": 1.0,
+		"electric_hp": 80.0,
+		"electric_segments": 8.0,
+		"field_slots": 1.0,
+		"hull_hp": 220.0,
+		"hull_segments": 14.0,
+		"particle_slots": 1.0,
+		"shield_hp": 160.0,
+		"shield_regen": 3.0,
+		"shield_segments": 10.0,
+		"speed": 50.0,
+		"thermal_hp": 80.0,
+		"thermal_segments": 8.0,
+		"weapon_slots": 1.0
+	},
+	"type": "enemy",
+	"visual_id": "nexus",
+	"weapon_id": ""
+}

@@ -1,0 +1,44 @@
+{
+	"collision_height": 220.0,
+	"collision_shape": "rectangle",
+	"collision_width": 44.0,
+	"display_name": "Pylon",
+	"hardpoint_offsets": [[0, -78], [0, -39], [0, 0], [0, 39], [0, 78]],
+	"enable_screen_shake": false,
+	"explosion_color": [
+		0.5,
+		0.800000011920929,
+		1.0,
+		1.0
+	],
+	"explosion_size": 1.6,
+	"grid_size": [
+		64,
+		128
+	],
+	"hardpoints": [],
+	"id": "enemy_pylon",
+	"level": "geometric",
+	"lines": [],
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 350.0,
+		"core_slots": 1.0,
+		"electric_hp": 50.0,
+		"electric_segments": 6.0,
+		"field_slots": 1.0,
+		"hull_hp": 150.0,
+		"hull_segments": 10.0,
+		"particle_slots": 1.0,
+		"shield_hp": 80.0,
+		"shield_regen": 1.5,
+		"shield_segments": 6.0,
+		"speed": 70.0,
+		"thermal_hp": 50.0,
+		"thermal_segments": 6.0,
+		"weapon_slots": 1.0
+	},
+	"type": "enemy",
+	"visual_id": "pylon",
+	"weapon_id": ""
+}

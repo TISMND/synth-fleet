@@ -496,20 +496,6 @@
 			"x_offset": 570.533807829181
 		},
 		{
-			"count": 13,
-			"formation_id": "",
-			"is_melee": false,
-			"path_id": "path_2",
-			"rotate_with_path": false,
-			"ship_id": "enemy_prism",
-			"spacing": 200.0,
-			"speed": 200.0,
-			"trigger_y": 558.576512455516,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": 415.08896797153
-		},
-		{
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": false,
@@ -812,10 +798,10 @@
 			"ship_id": "enemy_ironclad",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 942.971175166297,
-			"turn_speed": 90.0,
+			"trigger_y": 617.294900221729,
+			"turn_speed": 10.0,
 			"weapons_active": true,
-			"x_offset": -323.547671840355
+			"x_offset": -249.046563192905
 		}
 	],
 	"flight_speed": 340.0,

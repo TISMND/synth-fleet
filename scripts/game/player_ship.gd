@@ -99,6 +99,7 @@ const BLACKOUT_FADE_SPEED: float = 0.196  # Power drain per second (~5s from 1.0
 
 
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
+	add_to_group("player")
 	ship_data = ship
 	var stats: Dictionary = ship_data.stats
 	hull_max = float(stats.get("hull_hp", float(stats.get("hull_segments", 8)) * 10.0))

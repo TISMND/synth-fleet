@@ -3,6 +3,7 @@
 	"collision_shape": "capsule",
 	"collision_width": 42.0,
 	"display_name": "Talon",
+	"hardpoint_offsets": [[0, 26]],
 	"enable_screen_shake": false,
 	"explosion_color": [
 		1.0,
@@ -20,7 +21,7 @@
 	"hull_flash_duration": 0.12,
 	"hull_flash_opacity": 0.5,
 	"id": "enemy_talon",
-	"level": "level_2",
+	"level": "vehicle",
 	"lines": [],
 	"render_mode": "neon",
 	"stats": {

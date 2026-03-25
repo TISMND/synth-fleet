@@ -20,7 +20,7 @@
 	"hull_flash_duration": 0.12,
 	"hull_flash_opacity": 0.5,
 	"id": "enemy_scythe",
-	"level": "level_2",
+	"level": "vehicle",
 	"lines": [],
 	"render_mode": "sport",
 	"stats": {

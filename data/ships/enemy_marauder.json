@@ -17,7 +17,7 @@
 	],
 	"hardpoints": [],
 	"id": "enemy_marauder",
-	"level": "level_1",
+	"level": "geometric",
 	"lines": [],
 	"render_mode": "neon",
 	"stats": {
@@ -40,5 +40,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "marauder",
-	"weapon_id": ""
+	"weapon_id": "enemy_yellow_dagger"
 }

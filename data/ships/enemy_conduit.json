@@ -1,0 +1,43 @@
+{
+	"collision_height": 238.0,
+	"collision_shape": "rectangle",
+	"collision_width": 62.0,
+	"display_name": "Conduit",
+	"enable_screen_shake": false,
+	"explosion_color": [
+		0.300000011920929,
+		0.600000023841858,
+		1.0,
+		1.0
+	],
+	"explosion_size": 1.7,
+	"grid_size": [
+		64,
+		128
+	],
+	"hardpoints": [],
+	"id": "enemy_conduit",
+	"level": "geometric",
+	"lines": [],
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 280.0,
+		"core_slots": 1.0,
+		"electric_hp": 55.0,
+		"electric_segments": 6.0,
+		"field_slots": 1.0,
+		"hull_hp": 160.0,
+		"hull_segments": 10.0,
+		"particle_slots": 1.0,
+		"shield_hp": 110.0,
+		"shield_regen": 2.5,
+		"shield_segments": 8.0,
+		"speed": 55.0,
+		"thermal_hp": 55.0,
+		"thermal_segments": 6.0,
+		"weapon_slots": 1.0
+	},
+	"type": "enemy",
+	"visual_id": "conduit",
+	"weapon_id": ""
+}

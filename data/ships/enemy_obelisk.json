@@ -20,7 +20,7 @@
 	"hull_flash_duration": 0.12,
 	"hull_flash_opacity": 0.65,
 	"id": "enemy_obelisk",
-	"level": "level_1",
+	"level": "geometric",
 	"lines": [],
 	"render_mode": "neon",
 	"stats": {

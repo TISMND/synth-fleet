@@ -1,0 +1,43 @@
+{
+	"collision_height": 90.0,
+	"collision_shape": "circle",
+	"collision_width": 90.0,
+	"display_name": "Helix",
+	"enable_screen_shake": false,
+	"explosion_color": [
+		0.200000002980232,
+		1.0,
+		0.800000011920929,
+		1.0
+	],
+	"explosion_size": 1.8,
+	"grid_size": [
+		96,
+		96
+	],
+	"hardpoints": [],
+	"id": "enemy_helix",
+	"level": "lifeform",
+	"lines": [],
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 400.0,
+		"core_slots": 1.0,
+		"electric_hp": 60.0,
+		"electric_segments": 6.0,
+		"field_slots": 1.0,
+		"hull_hp": 170.0,
+		"hull_segments": 12.0,
+		"particle_slots": 1.0,
+		"shield_hp": 100.0,
+		"shield_regen": 2.0,
+		"shield_segments": 8.0,
+		"speed": 80.0,
+		"thermal_hp": 60.0,
+		"thermal_segments": 6.0,
+		"weapon_slots": 1.0
+	},
+	"type": "enemy",
+	"visual_id": "helix",
+	"weapon_id": ""
+}
