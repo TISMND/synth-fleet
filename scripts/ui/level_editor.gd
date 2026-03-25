@@ -1362,7 +1362,15 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	sorted_level_keys.sort()
 	for li in range(sorted_level_keys.size()):
 		var lkey: String = sorted_level_keys[li]
-		_enc_level_filter.add_item(lkey, li + 1)
+		# Look up display name from loaded level data
+		var display_label: String = lkey.capitalize()
+		for lv in _all_levels:
+			if lv.id == lkey:
+				display_label = lv.display_name if lv.display_name != "" else lkey.capitalize()
+				break
+		if lkey == "misc":
+			display_label = "MISC"
+		_enc_level_filter.add_item(display_label, li + 1)
 		_enc_level_filter.set_item_metadata(li + 1, lkey)
 	_enc_level_filter.item_selected.connect(func(idx: int) -> void:
 		var filter_val: String = str(_enc_level_filter.get_item_metadata(idx))

@@ -1,0 +1,137 @@
+[gd_scene format=3 uid="uid://cnnegen27xbvn"]
+
+[ext_resource type="Script" uid="uid://dss70efxavtcb" path="res://scripts/ui/layout_sandbox.gd" id="1"]
+
+[node name="LayoutSandbox" type="Control" unique_id=282652959]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="." unique_id=2078606009]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.04, 0.08, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="." unique_id=672438597]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="TopBar" type="HBoxContainer" parent="MainLayout" unique_id=1216773712]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="MainLayout/TopBar" unique_id=129135468]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "LAYOUT SANDBOX"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="MainLayout/TopBar" unique_id=1522556741]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BackButton" type="Button" parent="MainLayout/TopBar" unique_id=230520959]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "BACK"
+
+[node name="Content" type="HBoxContainer" parent="MainLayout" unique_id=1940377934]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="LeftPanel" type="PanelContainer" parent="MainLayout/Content" unique_id=1976082429]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+
+[node name="LeftVBox" type="VBoxContainer" parent="MainLayout/Content/LeftPanel" unique_id=2032307637]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PanelTitle" type="Label" parent="MainLayout/Content/LeftPanel/LeftVBox" unique_id=1049562943]
+layout_mode = 2
+text = "SCENE-DEFINED PANEL"
+horizontal_alignment = 1
+
+[node name="Description" type="Label" parent="MainLayout/Content/LeftPanel/LeftVBox" unique_id=1817896013]
+layout_mode = 2
+text = "Everything in this left panel was laid out
+in the .tscn file. The buttons, labels, and
+containers are all defined in the scene tree.
+Open it in Godot to drag things around."
+autowrap_mode = 3
+
+[node name="Separator1" type="HSeparator" parent="MainLayout/Content/LeftPanel/LeftVBox" unique_id=1959650838]
+layout_mode = 2
+
+[node name="ColorButton" type="Button" parent="MainLayout/Content/LeftPanel/LeftVBox" unique_id=1380972606]
+layout_mode = 2
+text = "RANDOMIZE COLORS"
+
+[node name="SizeButton" type="Button" parent="MainLayout/Content/LeftPanel/LeftVBox" unique_id=674378805]
+layout_mode = 2
+text = "TOGGLE PANEL SIZE"
+
+[node name="AddBarButton" type="Button" parent="MainLayout/Content/LeftPanel/LeftVBox" unique_id=941773146]
+layout_mode = 2
+text = "ADD A BAR"
+
+[node name="ClearButton" type="Button" parent="MainLayout/Content/LeftPanel/LeftVBox" unique_id=767136123]
+layout_mode = 2
+text = "CLEAR BARS"
+
+[node name="Separator2" type="HSeparator" parent="MainLayout/Content/LeftPanel/LeftVBox" unique_id=1586174113]
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="MainLayout/Content/LeftPanel/LeftVBox" unique_id=2005027073]
+layout_mode = 2
+text = "Status: Ready"
+
+[node name="RightPanel" type="PanelContainer" parent="MainLayout/Content" unique_id=859354535]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RightVBox" type="VBoxContainer" parent="MainLayout/Content/RightPanel" unique_id=656673841]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RightTitle" type="Label" parent="MainLayout/Content/RightPanel/RightVBox" unique_id=671323622]
+layout_mode = 2
+text = "CODE-POPULATED PANEL"
+horizontal_alignment = 1
+
+[node name="RightDescription" type="Label" parent="MainLayout/Content/RightPanel/RightVBox" unique_id=1394947759]
+layout_mode = 2
+text = "This panel's layout is in .tscn, but the
+bars below are added by code at runtime.
+This is the hybrid approach."
+autowrap_mode = 3
+
+[node name="BarContainer" type="VBoxContainer" parent="MainLayout/Content/RightPanel/RightVBox" unique_id=919181610]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="BottomBar" type="HBoxContainer" parent="MainLayout" unique_id=42094036]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BottomLabel" type="Label" parent="MainLayout/BottomBar" unique_id=374684509]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Try: Open scenes/ui/layout_sandbox.tscn in Godot editor. Change colors, drag nodes, resize panels."

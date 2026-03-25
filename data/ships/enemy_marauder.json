@@ -2,7 +2,7 @@
 	"collision_height": 30.0,
 	"collision_shape": "circle",
 	"collision_width": 120.0,
-	"display_name": "Marauder",
+	"display_name": "Pentorbiter",
 	"enable_screen_shake": false,
 	"explosion_color": [
 		1.0,
@@ -16,9 +16,6 @@
 		96
 	],
 	"hardpoints": [],
-	"hull_blink_speed": 5.5,
-	"hull_flash_duration": 0.12,
-	"hull_flash_opacity": 0.5,
 	"id": "enemy_marauder",
 	"level": "level_1",
 	"lines": [],

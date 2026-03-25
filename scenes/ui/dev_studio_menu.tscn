@@ -93,6 +93,10 @@ text = "BACKGROUNDS"
 layout_mode = 2
 text = "AUDITIONS"
 
+[node name="SandboxButton" type="Button" parent="ButtonLayout/Columns/RightCol"]
+layout_mode = 2
+text = "LAYOUT SANDBOX"
+
 [node name="BackButton" type="Button" parent="ButtonLayout"]
 layout_mode = 2
 text = "BACK"

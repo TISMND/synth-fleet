@@ -19,6 +19,7 @@ func _ready() -> void:
 	$ButtonLayout/Columns/RightCol/EnvironmentsButton.pressed.connect(_on_environments)
 	$ButtonLayout/Columns/RightCol/BackgroundsButton.pressed.connect(_on_backgrounds)
 	$ButtonLayout/Columns/RightCol/AuditionsButton.pressed.connect(_on_auditions)
+	$ButtonLayout/Columns/RightCol/SandboxButton.pressed.connect(_on_sandbox)
 	$ButtonLayout/BackButton.pressed.connect(_on_back)
 
 	_apply_styles()
@@ -66,6 +67,10 @@ func _on_backgrounds() -> void:
 
 func _on_auditions() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/auditions_screen.tscn")
+
+
+func _on_sandbox() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/layout_sandbox.tscn")
 
 
 func _on_back() -> void:

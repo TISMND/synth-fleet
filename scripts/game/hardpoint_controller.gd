@@ -211,12 +211,16 @@ func _get_current_direction() -> float:
 
 ## Beam-specific direction: no lead prediction (beams hit instantly), same sweep.
 ## When tracking with no enemies, fires straight (0 degrees = up) instead of direction_deg.
+## Fixed/sweep include parent rotation so beams follow the ship as it turns.
 func _get_beam_direction() -> float:
+	var ship_rot_deg: float = 0.0
+	if aim_mode != "track":
+		ship_rot_deg = rad_to_deg(global_rotation)
 	match aim_mode:
 		"sweep":
 			var phase: float = fmod(_sweep_time, sweep_duration) / sweep_duration
 			var sweep_offset: float = sin(phase * TAU) * sweep_arc_deg * 0.5
-			return direction_deg + sweep_offset
+			return direction_deg + sweep_offset + ship_rot_deg
 		"track":
 			var nearest: Node2D = _find_nearest_enemy()
 			if nearest:
@@ -224,7 +228,7 @@ func _get_beam_direction() -> float:
 				return rad_to_deg(Vector2.UP.angle_to(to_target))
 			return 0.0  # No target — fire straight up
 		_:
-			return direction_deg
+			return direction_deg + ship_rot_deg
 
 
 func _predict_position(target: Node2D) -> Vector2:
@@ -385,20 +389,16 @@ func _spawn_beam_v2(pos: Vector2, dir: Vector2, bstyle: BeamStyle) -> void:
 	beam.is_enemy = is_enemy
 	# Rotate beam to match firing direction (Vector2.UP = 0 rotation)
 	beam.rotation = Vector2.UP.angle_to(dir)
-	# For sweep/track aim modes, beam continuously follows current direction
-	if aim_mode == "sweep" or aim_mode == "track":
-		beam.set_direction_source(_get_beam_direction)
+	# Beam continuously follows current direction (tracks parent rotation for all aim modes)
+	beam.set_direction_source(_get_beam_direction)
 	# Calculate beam length — full screen or style-defined
 	var beam_length: float = bstyle.max_length if bstyle else 400.0
 	if bstyle and bstyle.full_screen_length:
-		if aim_mode == "sweep" or aim_mode == "track":
-			# Sweep/track change direction — use viewport diagonal as worst case
-			var vp_size: Vector2 = Vector2(1920, 1080)
-			if get_viewport():
-				vp_size = Vector2(get_viewport().get_visible_rect().size)
-			beam_length = vp_size.length() + 200.0
-		else:
-			beam_length = _calc_full_screen_length(pos, dir)
+		# Direction can change (sweep, track, or parent rotation) — use viewport diagonal
+		var vp_size: Vector2 = Vector2(1920, 1080)
+		if get_viewport():
+			vp_size = Vector2(get_viewport().get_visible_rect().size)
+		beam_length = vp_size.length() + 200.0
 	beam.max_length = beam_length
 	_projectiles_container.add_child(beam)
 

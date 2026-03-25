@@ -802,6 +802,20 @@
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -889.756097560976
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": true,
+			"path_id": "path_1",
+			"rotate_with_path": false,
+			"ship_id": "enemy_ironclad",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 942.971175166297,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -323.547671840355
 		}
 	],
 	"flight_speed": 340.0,

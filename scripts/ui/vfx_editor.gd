@@ -24,7 +24,7 @@ const ENEMY_SHIPS: Array[Dictionary] = [
 	{"visual_id": "sentinel", "name": "Sentinel"},
 ]
 
-var _player_ship_index: int = 0
+var _player_ship_index: int = 4  # Default to Stiletto
 var _enemy_ship_index: int = 0
 var _player_skin: int = ShipRenderer.RenderMode.CHROME
 var _enemy_skin: int = ShipRenderer.RenderMode.NEON

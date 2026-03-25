@@ -16,13 +16,10 @@
 		40
 	],
 	"hardpoints": [],
-	"hull_blink_speed": 6.0,
-	"hull_flash_duration": 0.12,
-	"hull_flash_opacity": 0.45,
 	"id": "enemy_tesseract",
 	"level": "level_1",
 	"lines": [],
-	"render_mode": "ember",
+	"render_mode": "neon",
 	"stats": {
 		"acceleration": 200.0,
 		"core_slots": 1.0,

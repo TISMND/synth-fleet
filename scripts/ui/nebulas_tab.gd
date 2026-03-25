@@ -183,7 +183,7 @@ func _build_ui() -> void:
 	_preview_container.add_child(_preview_bottom)
 
 	_preview_ship = ShipRenderer.new()
-	_preview_ship.ship_id = 0
+	_preview_ship.ship_id = 4  # Stiletto
 	_preview_ship.render_mode = ShipRenderer.RenderMode.CHROME
 	_preview_ship.animate = false
 	_preview_ship.scale = Vector2(1.5, 1.5)

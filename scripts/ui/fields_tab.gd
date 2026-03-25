@@ -237,7 +237,7 @@ func _build_left_panel() -> Control:
 
 	# Ship preview
 	_preview_ship_renderer = ShipRenderer.new()
-	_preview_ship_renderer.ship_id = 0
+	_preview_ship_renderer.ship_id = 4  # Stiletto
 	_preview_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
 	_preview_ship_renderer.animate = true
 	_preview_ship_renderer.position = Vector2(200, 260)

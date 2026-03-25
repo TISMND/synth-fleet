@@ -18,7 +18,7 @@
 		"ring_count": 5.0,
 		"ring_width": 0.03
 	},
-	"ship_active_hdr": 0.35,
-	"ship_pulse_hdr": 0.2,
+	"ship_active_hdr": 0.2,
+	"ship_pulse_hdr": 0.1,
 	"ship_tint_strength": 0.15
 }
