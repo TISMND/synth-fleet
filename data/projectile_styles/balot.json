@@ -23,16 +23,16 @@
 			"impact": [
 				{
 					"color": [
-						1.0,
-						0.09375,
+						1.43299996852875,
+						0.320085316896439,
 						0.0,
 						1.0
 					],
 					"params": {
-						"lifetime": 0.6,
-						"particle_count": 23.0,
-						"radius": 81.0,
-						"speed_scale": 1.1
+						"lifetime": 0.15,
+						"particle_count": 40.0,
+						"radius": 52.0,
+						"speed_scale": 1.4
 					},
 					"type": "nova_flash"
 				}

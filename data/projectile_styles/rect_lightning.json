@@ -22,7 +22,23 @@
 	],
 	"display_name": "Rect Lightning",
 	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"params": {
+						"lifetime": 0.1,
+						"particle_count": 5.0,
+						"radius": 13.0,
+						"speed_scale": 0.5
+					},
+					"type": "nova_flash"
+				}
+			]
+		},
+		"trigger_overrides": {
 
+		},
+		"version": 2
 	},
 	"fill_shader": "electric",
 	"flip_shader": false,

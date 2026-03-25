@@ -19,7 +19,23 @@
 	],
 	"display_name": "whiteish_oval",
 	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"params": {
+						"lifetime": 0.2,
+						"particle_count": 11.0,
+						"radius": 29.0,
+						"speed_scale": 0.9
+					},
+					"type": "shatter_lines"
+				}
+			]
+		},
+		"trigger_overrides": {
 
+		},
+		"version": 2
 	},
 	"fill_shader": "pulse",
 	"flip_shader": false,

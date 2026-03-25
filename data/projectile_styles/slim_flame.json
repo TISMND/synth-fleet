@@ -19,7 +19,23 @@
 	],
 	"display_name": "slim_flame",
 	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"params": {
+						"lifetime": 0.15,
+						"particle_count": 2.0,
+						"radius": 6.0,
+						"speed_scale": 0.2
+					},
+					"type": "ripple"
+				}
+			]
+		},
+		"trigger_overrides": {
 
+		},
+		"version": 2
 	},
 	"fill_shader": "energy",
 	"flip_shader": false,

@@ -13,10 +13,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 300.0,
 			"speed": 750.0,
-			"trigger_y": 1527.27911778921,
+			"trigger_y": 152.201512467702,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 27.3309608540925
+			"x_offset": 25.2023577498796
 		},
 		{
 			"count": 5,
@@ -629,10 +629,10 @@
 			"ship_id": "enemy_prism",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 379.217081850534,
+			"trigger_y": 613.363423313949,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": -136.654804270463
+			"x_offset": -149.42642289574
 		},
 		{
 			"count": 1,
