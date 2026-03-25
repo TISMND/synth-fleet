@@ -748,7 +748,7 @@
 			"x_offset": 902.527716186253
 		}
 	],
-	"flight_speed": 100.0,
+	"flight_speed": 340.0,
 	"id": "level_1",
 	"level_length": 50000.0,
 	"nebula_placements": [

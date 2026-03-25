@@ -726,9 +726,9 @@ func _setup_parallax() -> void:
 	# Parallax speck layers — 3 depths between deep BG and doodads.
 	# motion_scale is relative to scroll_speed (ParallaxBackground.scroll_offset).
 	# Far = slow/tiny/dim/many, Near = fast/bigger/brighter/fewer.
-	_add_speck_layer(0.25, 100, Color(0.3, 0.3, 0.55, 0.4), 0.8, 1.8, 10, -9)  # Far
-	_add_speck_layer(0.50,  60, Color(0.5, 0.5, 0.8, 0.55), 1.0, 2.5, 20, -9)  # Mid
-	_add_speck_layer(0.75,  30, Color(0.7, 0.7, 1.0, 0.7), 1.5, 3.5, 30, -8)   # Near
+	_add_speck_layer(0.25, 100, Color(0.1, 0.35, 0.45, 0.35), 0.6, 1.4, 10, -9)  # Far — synth cyan
+	_add_speck_layer(0.50,  60, Color(0.15, 0.6, 0.75, 0.5), 0.8, 1.6, 20, -9)  # Mid — synth cyan
+	_add_speck_layer(0.75,  30, Color(0.3, 0.85, 1.0, 0.65), 0.8, 1.8, 30, -8)  # Near — synth cyan, shrunk
 	# Background layer (speed = scroll_speed) — doodad decorations
 	_setup_doodads()
 	# Foreground layer (speed = flight_speed) — nebulas, debris (handled separately)

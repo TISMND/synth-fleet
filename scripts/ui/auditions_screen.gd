@@ -1,44 +1,100 @@
 extends Control
-## Auditions screen — bottom HUD bar variants with Components + Fire Groups sections.
-## All variants use HudBuilder.build_bottom_panel() — the exact same rendering
-## code, shaders, HDR glow rects, and chrome panel as the in-game HUD.
-## Renders directly on root viewport so bloom is identical to the game.
+## Auditions screen — side-by-side speck style previews for comparing colors,
+## shapes, and effects. Each slab shows a dark viewport with twinkling specks
+## scrolling upward, labeled with the style name.
 
-const BOTTOM_VARIANT_WIDTH: int = 900
-const WARNING_FLASH_SPEED: float = 3.0
+const SLAB_WIDTH: int = 280
+const SLAB_HEIGHT: int = 400
+const SPECK_COUNT: int = 80
+const SCROLL_SPEED: float = 40.0
 
 var _vhs_overlay: ColorRect
 var _bg: ColorRect
 var _title_label: Label
 var _back_button: Button
-var _bottom_variants: Array = []
-var _warning_flash_time: float = 0.0
-var _section_labels: Array = []  # screen section headers (not bar-style labels)
+var _slabs: Array = []  # Array of slab dicts for _process updates
 
-# Mock icon data — colors resolved at build time from ThemeManager to match hangar
-const MOCK_ICON_DEFS: Array = [
-	{"number": 1, "active": true, "type": "weapon"},
-	{"number": 2, "active": true, "type": "weapon"},
-	{"number": 3, "active": false, "type": "weapon"},
-	{"number": 4, "active": true, "type": "weapon"},
-	{"number": 5, "active": false, "type": "core"},
-	{"number": 6, "active": true, "type": "field"},
-]
-
-# Mock fire groups — key labels and patterns from KeyBindingManager structure
-const MOCK_FIRE_GROUPS: Array = [
-	{"key_label": "F1", "pattern_label": "2W+1C", "active": false},
-	{"key_label": "F2", "pattern_label": "3W+1F", "active": true},
-	{"key_label": "Z", "pattern_label": "ALL", "active": false},
-]
-
-## WINNER: 96px tall, 180x44 warning screens, center_gap=100, labels above, lit bg icons.
-const BOTTOM_PRESETS: Array = [
+# Audition presets — each is a color/shape/effect combo to compare
+const PRESETS: Array = [
 	{
-		"name": "WINNER — 96px, medium center gap, lit bg",
-		"mode": "new",
-		"height": 96,
-		"overrides": {"warning_width": 180, "warning_height": 44, "center_gap": 100},
+		"name": "Cool Blue (default)",
+		"colors": [
+			{"color": Color(0.3, 0.3, 0.55, 0.4), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.5, 0.5, 0.8, 0.55), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(0.7, 0.7, 1.0, 0.7), "size_min": 1.0, "size_max": 2.2},
+		],
+	},
+	{
+		"name": "Warm Amber",
+		"colors": [
+			{"color": Color(0.5, 0.35, 0.15, 0.35), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.8, 0.55, 0.2, 0.5), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(1.0, 0.75, 0.3, 0.65), "size_min": 1.0, "size_max": 2.2},
+		],
+	},
+	{
+		"name": "Neon Pink",
+		"colors": [
+			{"color": Color(0.4, 0.15, 0.3, 0.35), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.7, 0.2, 0.5, 0.5), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(1.0, 0.4, 0.7, 0.65), "size_min": 1.0, "size_max": 2.2},
+		],
+	},
+	{
+		"name": "Pale Violet",
+		"colors": [
+			{"color": Color(0.35, 0.25, 0.5, 0.35), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.55, 0.4, 0.8, 0.5), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(0.75, 0.6, 1.0, 0.65), "size_min": 1.0, "size_max": 2.2},
+		],
+	},
+	{
+		"name": "Mint Green",
+		"colors": [
+			{"color": Color(0.2, 0.4, 0.35, 0.35), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.3, 0.65, 0.55, 0.5), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(0.5, 0.9, 0.75, 0.65), "size_min": 1.0, "size_max": 2.2},
+		],
+	},
+	{
+		"name": "Pure White",
+		"colors": [
+			{"color": Color(0.4, 0.4, 0.4, 0.3), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.65, 0.65, 0.65, 0.45), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(0.9, 0.9, 0.95, 0.65), "size_min": 1.0, "size_max": 2.2},
+		],
+	},
+	{
+		"name": "Synth Cyan",
+		"colors": [
+			{"color": Color(0.1, 0.35, 0.45, 0.35), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.15, 0.6, 0.75, 0.5), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(0.3, 0.85, 1.0, 0.65), "size_min": 1.0, "size_max": 2.2},
+		],
+	},
+	{
+		"name": "Gold Dust",
+		"colors": [
+			{"color": Color(0.45, 0.35, 0.1, 0.35), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.75, 0.6, 0.15, 0.5), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(1.0, 0.85, 0.3, 0.65), "size_min": 1.0, "size_max": 2.2},
+		],
+	},
+	{
+		"name": "Deep Red",
+		"colors": [
+			{"color": Color(0.4, 0.12, 0.1, 0.35), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.7, 0.18, 0.15, 0.5), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(1.0, 0.3, 0.25, 0.6), "size_min": 1.0, "size_max": 2.2},
+		],
+	},
+	{
+		"name": "Mixed Cool/Warm",
+		"colors": [
+			{"color": Color(0.3, 0.3, 0.55, 0.4), "size_min": 0.6, "size_max": 1.4},
+			{"color": Color(0.7, 0.5, 0.3, 0.5), "size_min": 0.8, "size_max": 1.8},
+			{"color": Color(0.9, 0.8, 0.95, 0.65), "size_min": 1.0, "size_max": 2.2},
+		],
 	},
 ]
 
@@ -50,7 +106,16 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_update_bottom_bar_animations(delta)
+	for slab in _slabs:
+		var scroll_val: float = slab["scroll"]
+		scroll_val += SCROLL_SPEED * delta
+		slab["scroll"] = scroll_val
+		var fields: Array = slab["fields"]
+		for field in fields:
+			var f: _AuditionSpeckField = field as _AuditionSpeckField
+			if f:
+				f.scroll_y = scroll_val * f.motion_scale
+				f.queue_redraw()
 
 
 func _build_ui() -> void:
@@ -61,16 +126,15 @@ func _build_ui() -> void:
 	add_child(_bg)
 	ThemeManager.apply_grid_background(_bg)
 
-	# Main layout — scrollable vertically
+	# Main scroll
 	var main_scroll := ScrollContainer.new()
 	main_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
-	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	main_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	var margin_val := 20
-	main_scroll.offset_left = margin_val
-	main_scroll.offset_top = margin_val
-	main_scroll.offset_right = -margin_val
-	main_scroll.offset_bottom = -margin_val
+	main_scroll.offset_left = 20
+	main_scroll.offset_top = 20
+	main_scroll.offset_right = -20
+	main_scroll.offset_bottom = -20
 	add_child(main_scroll)
 
 	var main_vbox := VBoxContainer.new()
@@ -78,7 +142,7 @@ func _build_ui() -> void:
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_scroll.add_child(main_vbox)
 
-	# Header row
+	# Header
 	var header_hbox := HBoxContainer.new()
 	header_hbox.add_theme_constant_override("separation", 20)
 	main_vbox.add_child(header_hbox)
@@ -89,131 +153,102 @@ func _build_ui() -> void:
 	header_hbox.add_child(_back_button)
 
 	_title_label = Label.new()
-	_title_label.text = "AUDITIONS — Bottom Bar"
+	_title_label.text = "AUDITIONS — Speck Styles"
 	_title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_hbox.add_child(_title_label)
 
-	# Section label
-	var section_label := Label.new()
-	section_label.text = "BOTTOM BAR VARIANTS"
-	main_vbox.add_child(section_label)
-	_section_labels.append(section_label)
+	# Slab grid — wrap flow of preset slabs
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 16)
+	flow.add_theme_constant_override("v_separation", 16)
+	flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(flow)
 
-	# Variants
-	var bottom_vbox := VBoxContainer.new()
-	bottom_vbox.add_theme_constant_override("separation", 24)
-	bottom_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main_vbox.add_child(bottom_vbox)
-
-	for i in BOTTOM_PRESETS.size():
-		_build_bottom_variant(i, bottom_vbox)
+	for i in PRESETS.size():
+		_build_slab(i, flow)
 
 	_setup_vhs_overlay()
 
 
-func _resolve_mock_icons() -> Array:
-	## Build icon_data with live ThemeManager colors matching hangar.
-	var weapon_color: Color = ThemeManager.get_color("bar_shield")   # Cyan
-	var core_color: Color = ThemeManager.get_color("bar_electric")   # Yellow
-	var field_color := Color(0.2, 0.8, 1.0)                         # Teal
-	var icons: Array = []
-	for def in MOCK_ICON_DEFS:
-		var icon_type: String = str(def["type"])
-		var color: Color = weapon_color
-		if icon_type == "core":
-			color = core_color
-		elif icon_type == "field":
-			color = field_color
-		icons.append({
-			"number": int(def["number"]),
-			"active": def["active"],
-			"color": color,
-			"type": icon_type,
-		})
-	return icons
-
-
-# ── Bottom bar variant builder ──────────────────────────────────
-
-func _build_bottom_variant(index: int, parent: VBoxContainer) -> void:
-	var preset: Dictionary = BOTTOM_PRESETS[index]
+func _build_slab(index: int, parent: HFlowContainer) -> void:
+	var preset: Dictionary = PRESETS[index]
 	var preset_name: String = str(preset["name"])
-	var mode: String = str(preset["mode"])
-	var bar_height: int = int(preset.get("height", 80))
-	var overrides: Dictionary = preset.get("overrides", {}) as Dictionary
+	var color_layers: Array = preset["colors"]
 
-	# Variant name label
-	var name_label := Label.new()
-	name_label.text = preset_name
-	parent.add_child(name_label)
+	var slab_vbox := VBoxContainer.new()
+	slab_vbox.add_theme_constant_override("separation", 4)
+	parent.add_child(slab_vbox)
 
-	var icons: Array = _resolve_mock_icons()
+	# Label
+	var label := Label.new()
+	label.text = preset_name
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	slab_vbox.add_child(label)
+	ThemeManager.apply_text_glow(label, "body")
 
-	if mode == "current":
-		# Show the current flat bottom bar for comparison
-		var current_bar: Dictionary = HudBuilder._build_bottom_bar("game")
-		var bar_root: Control = current_bar["root"]
-		bar_root.custom_minimum_size = Vector2(BOTTOM_VARIANT_WIDTH, bar_height)
-		parent.add_child(bar_root)
-		var weapons_hbox: HBoxContainer = current_bar["weapons_hbox"]
-		for idata in icons:
-			var icon_number: int = int(idata["number"])
-			var icon_active: bool = idata["active"]
-			var icon_color: Color = idata["color"]
-			var icon: Dictionary = HudBuilder.build_weapon_icon(icon_number, icon_active, icon_color)
-			weapons_hbox.add_child(icon["container"])
+	# Viewport for dark preview
+	var vpc := SubViewportContainer.new()
+	vpc.stretch = true
+	vpc.custom_minimum_size = Vector2(SLAB_WIDTH, SLAB_HEIGHT)
+	vpc.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	slab_vbox.add_child(vpc)
 
-		_bottom_variants.append({
-			"name_label": name_label,
-			"panel_result": {},
-			"icon_entries": [],
-			"fg_entries": [],
-			"warning_labels": [],
-			"bar_section_labels": [],
-			"mode": mode,
-		})
-		return
+	var vp := SubViewport.new()
+	vp.transparent_bg = false
+	vp.size = Vector2i(SLAB_WIDTH, SLAB_HEIGHT)
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vpc.add_child(vp)
 
-	# Build redesigned bottom panel
-	var panel_result: Dictionary = HudBuilder.build_bottom_panel(
-		icons, MOCK_FIRE_GROUPS, float(BOTTOM_VARIANT_WIDTH), float(bar_height), overrides
-	)
-	var panel_root: Control = panel_result["root"]
-	panel_root.custom_minimum_size = Vector2(BOTTOM_VARIANT_WIDTH, bar_height)
-	parent.add_child(panel_root)
+	VFXFactory.add_bloom_to_viewport(vp)
 
-	_bottom_variants.append({
-		"name_label": name_label,
-		"panel_result": panel_result,
-		"icon_entries": panel_result["icon_entries"],
-		"fg_entries": panel_result["fg_entries"],
-		"warning_labels": panel_result["warning_labels"],
-		"bar_section_labels": panel_result["section_labels"],
-		"mode": mode,
+	# Dark background
+	var bg := ColorRect.new()
+	bg.color = Color(0.02, 0.02, 0.04, 1.0)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vp.add_child(bg)
+
+	# Build 3 speck sub-layers with different motion scales
+	var fields: Array = []
+	var motion_scales: Array[float] = [0.25, 0.5, 0.75]
+	var counts: Array[int] = [50, 30, 15]
+
+	for layer_idx in range(color_layers.size()):
+		var layer_def: Dictionary = color_layers[layer_idx]
+		var col: Color = layer_def["color"]
+		var s_min: float = float(layer_def["size_min"])
+		var s_max: float = float(layer_def["size_max"])
+		var ms: float = motion_scales[layer_idx] if layer_idx < motion_scales.size() else 0.5
+		var count: int = counts[layer_idx] if layer_idx < counts.size() else 30
+
+		var field := _AuditionSpeckField.new()
+		field.speck_count = count
+		field.speck_color = col
+		field.speck_size_min = s_min
+		field.speck_size_max = s_max
+		field.speck_seed = index * 100 + layer_idx * 10
+		field.motion_scale = ms
+		field.field_width = float(SLAB_WIDTH)
+		field.field_height = float(SLAB_HEIGHT)
+		field.size = Vector2(SLAB_WIDTH, SLAB_HEIGHT)
+		vp.add_child(field)
+		fields.append(field)
+
+	# Etch grid overlay — same shader as level 1 background, layered on top of specks
+	var etch_shader: Shader = load("res://assets/shaders/bg_synthwave_pulse.gdshader") as Shader
+	if etch_shader:
+		var etch_rect := ColorRect.new()
+		etch_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		etch_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var mat := ShaderMaterial.new()
+		mat.shader = etch_shader
+		etch_rect.material = mat
+		vp.add_child(etch_rect)
+
+	_slabs.append({
+		"scroll": 0.0,
+		"fields": fields,
+		"label": label,
 	})
-
-
-# ── Bottom bar animations ──────────────────────────────────────
-
-func _update_bottom_bar_animations(delta: float) -> void:
-	_warning_flash_time += delta * WARNING_FLASH_SPEED
-
-	for variant in _bottom_variants:
-		var mode: String = str(variant["mode"])
-		if mode == "current":
-			continue
-
-		var warning_labels: Array = variant["warning_labels"]
-		var warning_color := Color(1.0, 0.2, 0.1)
-
-		var cycle_idx: int = int(fmod(_warning_flash_time * 0.3, 4.0))
-		var messages: Array = ["FIRE", "HULL BREACH", "SHIELD CRITICAL", "POWER FAILURE"]
-		var flash: bool = fmod(_warning_flash_time, 2.0) < 1.4
-		for i in warning_labels.size():
-			var lbl: Label = warning_labels[i]
-			if flash:
-				lbl.text = str(messages[cycle_idx])
-			HudBuilder.set_warning_active(lbl, flash, warning_color)
 
 
 # ── Theme ────────────────────────────────────────────────────────
@@ -232,44 +267,9 @@ func _apply_theme() -> void:
 		_title_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	if _vhs_overlay:
 		ThemeManager.apply_vhs_overlay(_vhs_overlay)
-
-	var body_font: Font = ThemeManager.get_font("font_body")
-	var body_size: int = ThemeManager.get_font_size("font_size_body")
-	var accent: Color = ThemeManager.get_color("accent")
-
-	# Screen section headers (the "BOTTOM BAR VARIANTS" header)
-	for slbl in _section_labels:
-		var section_lbl: Label = slbl as Label
-		if section_lbl:
-			section_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section"))
-			section_lbl.add_theme_color_override("font_color", accent)
-			var hfont: Font = ThemeManager.get_font("font_header")
-			if hfont:
-				section_lbl.add_theme_font_override("font", hfont)
-			ThemeManager.apply_text_glow(section_lbl, "header")
-
-	# Bottom bar variants
-	for bv in _bottom_variants:
-		# Variant name label
-		var blbl: Label = bv["name_label"]
-		blbl.add_theme_font_size_override("font_size", body_size)
-		blbl.add_theme_color_override("font_color", ThemeManager.get_color("body"))
-		if body_font:
-			blbl.add_theme_font_override("font", body_font)
-		ThemeManager.apply_text_glow(blbl, "body")
-
-		# Icon themes (component + fire group)
-		var icon_entries: Array = bv["icon_entries"]
-		for entry in icon_entries:
-			HudBuilder.apply_bezeled_icon_theme(entry)
-		var fg_entries: Array = bv["fg_entries"]
-		for entry in fg_entries:
-			HudBuilder.apply_bezeled_icon_theme(entry)
-
-		# Bar-style section labels (COMPONENTS, FIRE GROUPS) — re-apply on theme change
-		var bar_labels: Array = bv["bar_section_labels"]
-		for slbl in bar_labels:
-			HudBuilder.apply_section_label_theme(slbl)
+	for slab in _slabs:
+		var lbl: Label = slab["label"]
+		ThemeManager.apply_text_glow(lbl, "body")
 
 
 func _setup_vhs_overlay() -> void:
@@ -290,3 +290,49 @@ func _on_back() -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		_on_back()
+
+
+# ── Audition speck field (self-contained, no ParallaxLayer needed) ──
+
+class _AuditionSpeckField extends Control:
+	var speck_count: int = 40
+	var speck_color: Color = Color(0.5, 0.5, 0.8, 0.6)
+	var speck_size_min: float = 0.8
+	var speck_size_max: float = 2.0
+	var speck_seed: int = 1
+	var motion_scale: float = 0.5
+	var scroll_y: float = 0.0
+	var field_width: float = 280.0
+	var field_height: float = 400.0
+	var _positions: PackedVector2Array = PackedVector2Array()
+	var _sizes: PackedFloat32Array = PackedFloat32Array()
+	var _phases: PackedFloat32Array = PackedFloat32Array()
+	var _speeds: PackedFloat32Array = PackedFloat32Array()
+	var _time: float = 0.0
+
+	func _ready() -> void:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = speck_seed
+		# Generate enough specks to tile vertically
+		for i in speck_count:
+			_positions.append(Vector2(rng.randf() * field_width, rng.randf() * field_height))
+			_sizes.append(rng.randf_range(speck_size_min, speck_size_max))
+			_phases.append(rng.randf() * TAU)
+			_speeds.append(rng.randf_range(0.8, 2.5))
+
+	func _process(delta: float) -> void:
+		_time += delta
+
+	func _draw() -> void:
+		for i in _positions.size():
+			var base_pos: Vector2 = _positions[i]
+			# Scroll: wrap vertically
+			var y: float = fmod(base_pos.y - scroll_y, field_height)
+			if y < 0.0:
+				y += field_height
+			var pos := Vector2(base_pos.x, y)
+
+			var twinkle: float = 0.6 + 0.4 * sin(_time * _speeds[i] + _phases[i])
+			var col := Color(speck_color.r, speck_color.g, speck_color.b, speck_color.a * twinkle)
+			var r: float = _sizes[i] * (0.85 + 0.15 * twinkle)
+			draw_circle(pos, r, col)
