@@ -17,7 +17,7 @@ var _nebula_container: Node2D = null
 var _doodad_container: Node2D = null
 var _bg_shader_mat: ShaderMaterial = null  # reference for setting scroll_offset on static shaders
 var _game_viewport: SubViewport = null
-var _bake_manager: EnemyBakeManager = null
+var _shared_renderer: EnemySharedRenderer = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
 var _scroll_speed: float = 80.0
@@ -129,13 +129,15 @@ func _ready() -> void:
 	_enemies.name = "Enemies"
 	_game_viewport.add_child(_enemies)
 
-	# Pre-bake enemy ship viewports (shared rendering for performance)
-	_bake_manager = EnemyBakeManager.new()
-	_bake_manager.name = "EnemyBakeManager"
-	_game_viewport.add_child(_bake_manager)
+	# Shared enemy renderers — one live ShipRenderer per unique enemy type,
+	# all instances share the viewport texture instead of running their own _draw()
+	# Lives on root (not inside game SubViewport) to avoid nested viewport overhead
+	_shared_renderer = EnemySharedRenderer.new()
+	_shared_renderer.name = "EnemySharedRenderer"
+	add_child(_shared_renderer)
 	if _level_data:
 		var appearances: Array = _collect_enemy_appearances(_level_data)
-		_bake_manager.register_appearances(appearances, _game_viewport)
+		_shared_renderer.register_appearances(appearances, _shared_renderer)
 
 	# Player
 	_player = Node2D.new()
@@ -246,7 +248,7 @@ func _collect_enemy_appearances(level: LevelData) -> Array:
 
 
 func _start_waves() -> void:
-	_wave_manager.bake_manager = _bake_manager
+	_wave_manager.shared_renderer = _shared_renderer
 	if _level_data:
 		_scroll_distance = 0.0
 		_flight_distance = 0.0
@@ -721,9 +723,12 @@ func _setup_parallax() -> void:
 	_parallax_bg = ParallaxBackground.new()
 	_parallax_bg.name = "ParallaxBG"
 	_game_viewport.add_child(_parallax_bg)
-	# Deep background — static stars (speed = 0)
-	_add_star_layer(0.0, 80, Color(0.3, 0.3, 0.5, 0.5), 1)
-	_add_star_layer(0.0, 50, Color(0.5, 0.5, 0.8, 0.7), 2)
+	# Parallax speck layers — 3 depths between deep BG and doodads.
+	# motion_scale is relative to scroll_speed (ParallaxBackground.scroll_offset).
+	# Far = slow/tiny/dim/many, Near = fast/bigger/brighter/fewer.
+	_add_speck_layer(0.25, 100, Color(0.3, 0.3, 0.55, 0.4), 0.8, 1.8, 10, -9)  # Far
+	_add_speck_layer(0.50,  60, Color(0.5, 0.5, 0.8, 0.55), 1.0, 2.5, 20, -9)  # Mid
+	_add_speck_layer(0.75,  30, Color(0.7, 0.7, 1.0, 0.7), 1.5, 3.5, 30, -8)   # Near
 	# Background layer (speed = scroll_speed) — doodad decorations
 	_setup_doodads()
 	# Foreground layer (speed = flight_speed) — nebulas, debris (handled separately)
@@ -753,18 +758,22 @@ func _setup_doodads() -> void:
 	_doodad_container.add_child(renderer)
 
 
-func _add_star_layer(motion_scale: float, star_count: int, color: Color, seed_val: int) -> void:
+func _add_speck_layer(motion_scale: float, speck_count: int, color: Color,
+		size_min: float, size_max: float, seed_val: int, z: int) -> void:
 	var layer := ParallaxLayer.new()
 	layer.motion_scale = Vector2(0, motion_scale)
 	layer.motion_mirroring = Vector2(0, 1200)
+	layer.z_index = z
 	_parallax_bg.add_child(layer)
 
-	var stars := _StarField.new()
-	stars.star_count = star_count
-	stars.star_color = color
-	stars.star_seed = seed_val
-	stars.size = Vector2(1920, 1200)
-	layer.add_child(stars)
+	var specks := _SpeckField.new()
+	specks.speck_count = speck_count
+	specks.speck_color = color
+	specks.speck_size_min = size_min
+	specks.speck_size_max = size_max
+	specks.speck_seed = seed_val
+	specks.size = Vector2(1920, 1200)
+	layer.add_child(specks)
 
 
 class _DebugGrid extends Node2D:
@@ -999,20 +1008,36 @@ class _NebulaDebugRing extends Node2D:
 		draw_polyline(pts, Color(1.0, 1.0, 0.0, 0.7), 2.0, true)
 
 
-class _StarField extends Control:
-	var star_count: int = 60
-	var star_color: Color = Color(0.5, 0.5, 0.8, 0.6)
-	var star_seed: int = 1
+class _SpeckField extends Control:
+	## Twinkling star specks with per-speck phase offsets for gentle shimmer.
+	var speck_count: int = 60
+	var speck_color: Color = Color(0.5, 0.5, 0.8, 0.6)
+	var speck_size_min: float = 1.0
+	var speck_size_max: float = 2.5
+	var speck_seed: int = 1
 	var _positions: PackedVector2Array = PackedVector2Array()
 	var _sizes: PackedFloat32Array = PackedFloat32Array()
+	var _phases: PackedFloat32Array = PackedFloat32Array()  # Twinkle phase offset
+	var _speeds: PackedFloat32Array = PackedFloat32Array()  # Twinkle speed
+	var _time: float = 0.0
 
 	func _ready() -> void:
 		var rng := RandomNumberGenerator.new()
-		rng.seed = star_seed
-		for i in star_count:
+		rng.seed = speck_seed
+		for i in speck_count:
 			_positions.append(Vector2(rng.randf() * 1920.0, rng.randf() * 1200.0))
-			_sizes.append(rng.randf_range(1.0, 2.5))
+			_sizes.append(rng.randf_range(speck_size_min, speck_size_max))
+			_phases.append(rng.randf() * TAU)
+			_speeds.append(rng.randf_range(0.8, 2.5))
+
+	func _process(delta: float) -> void:
+		_time += delta
+		queue_redraw()
 
 	func _draw() -> void:
 		for i in _positions.size():
-			draw_circle(_positions[i], _sizes[i], star_color)
+			# Twinkle: alpha oscillates gently, never fully disappears
+			var twinkle: float = 0.6 + 0.4 * sin(_time * _speeds[i] + _phases[i])
+			var col := Color(speck_color.r, speck_color.g, speck_color.b, speck_color.a * twinkle)
+			var r: float = _sizes[i] * (0.85 + 0.15 * twinkle)
+			draw_circle(_positions[i], r, col)

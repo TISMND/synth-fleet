@@ -30,8 +30,10 @@ var _bars_button: OptionButton
 
 # Transition controls
 var _transition_mode_button: OptionButton
-var _transition_ms_slider: HSlider
-var _transition_ms_label: Label
+var _fade_in_slider: HSlider
+var _fade_in_label: Label
+var _fade_out_slider: HSlider
+var _fade_out_label: Label
 
 # Movement subtab
 var _pattern_button: OptionButton
@@ -416,41 +418,64 @@ func _build_timing_tab() -> Control:
 
 	# Audio Transition
 	_add_section_header(vbox, "AUDIO TRANSITION")
-	var transition_row := HBoxContainer.new()
-	vbox.add_child(transition_row)
+	var mode_row := HBoxContainer.new()
+	vbox.add_child(mode_row)
 
 	var trans_mode_label := Label.new()
 	trans_mode_label.text = "Mode:"
 	trans_mode_label.custom_minimum_size.x = 60
-	transition_row.add_child(trans_mode_label)
+	mode_row.add_child(trans_mode_label)
 
 	_transition_mode_button = OptionButton.new()
 	_transition_mode_button.add_item("Instant")
 	_transition_mode_button.add_item("Fade")
 	_transition_mode_button.selected = 0
 	_transition_mode_button.item_selected.connect(_on_transition_mode_changed)
-	transition_row.add_child(_transition_mode_button)
+	mode_row.add_child(_transition_mode_button)
 
-	var trans_dur_label := Label.new()
-	trans_dur_label.text = "  Duration:"
-	transition_row.add_child(trans_dur_label)
+	var fade_in_row := HBoxContainer.new()
+	vbox.add_child(fade_in_row)
+	var fade_in_text := Label.new()
+	fade_in_text.text = "Fade In:"
+	fade_in_text.custom_minimum_size.x = 60
+	fade_in_row.add_child(fade_in_text)
+	_fade_in_slider = HSlider.new()
+	_fade_in_slider.min_value = 50
+	_fade_in_slider.max_value = 2000
+	_fade_in_slider.value = 200
+	_fade_in_slider.step = 10
+	_fade_in_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_fade_in_slider.custom_minimum_size.x = 120
+	_fade_in_slider.editable = false
+	_fade_in_slider.value_changed.connect(_on_fade_in_changed)
+	fade_in_row.add_child(_fade_in_slider)
+	_fade_in_label = Label.new()
+	_fade_in_label.text = "200ms"
+	_fade_in_label.custom_minimum_size.x = 60
+	_fade_in_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fade_in_row.add_child(_fade_in_label)
 
-	_transition_ms_slider = HSlider.new()
-	_transition_ms_slider.min_value = 50
-	_transition_ms_slider.max_value = 2000
-	_transition_ms_slider.value = 200
-	_transition_ms_slider.step = 10
-	_transition_ms_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_transition_ms_slider.custom_minimum_size.x = 120
-	_transition_ms_slider.editable = false
-	_transition_ms_slider.value_changed.connect(_on_transition_ms_changed)
-	transition_row.add_child(_transition_ms_slider)
-
-	_transition_ms_label = Label.new()
-	_transition_ms_label.text = "200ms"
-	_transition_ms_label.custom_minimum_size.x = 60
-	_transition_ms_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	transition_row.add_child(_transition_ms_label)
+	var fade_out_row := HBoxContainer.new()
+	vbox.add_child(fade_out_row)
+	var fade_out_text := Label.new()
+	fade_out_text.text = "Fade Out:"
+	fade_out_text.custom_minimum_size.x = 60
+	fade_out_row.add_child(fade_out_text)
+	_fade_out_slider = HSlider.new()
+	_fade_out_slider.min_value = 50
+	_fade_out_slider.max_value = 2000
+	_fade_out_slider.value = 200
+	_fade_out_slider.step = 10
+	_fade_out_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_fade_out_slider.custom_minimum_size.x = 120
+	_fade_out_slider.editable = false
+	_fade_out_slider.value_changed.connect(_on_fade_out_changed)
+	fade_out_row.add_child(_fade_out_slider)
+	_fade_out_label = Label.new()
+	_fade_out_label.text = "200ms"
+	_fade_out_label.custom_minimum_size.x = 60
+	_fade_out_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fade_out_row.add_child(_fade_out_label)
 
 	_add_separator(vbox)
 
@@ -1143,7 +1168,8 @@ func _collect_weapon_data() -> Dictionary:
 		"mirror_mode": MIRROR_MODES[_mirror_mode_button.selected],
 		"bar_effects": _collect_bar_effects(),
 		"transition_mode": "fade" if _transition_mode_button.selected == 1 else "instant",
-		"transition_ms": int(_transition_ms_slider.value),
+		"fade_in_ms": int(_fade_in_slider.value),
+		"fade_out_ms": int(_fade_out_slider.value),
 		"pierce_count": int(_pierce_slider.value),
 		"splash_enabled": _splash_toggle.button_pressed,
 		"splash_radius": _splash_radius_slider.value if _splash_toggle.button_pressed else 0.0,
@@ -1225,14 +1251,23 @@ func _on_bars_changed(idx: int) -> void:
 
 func _on_transition_mode_changed(idx: int) -> void:
 	var is_fade: bool = idx == 1
-	_transition_ms_slider.editable = is_fade
-	_transition_ms_slider.modulate = Color(1, 1, 1, 1.0) if is_fade else Color(1, 1, 1, 0.3)
-	_transition_ms_label.modulate = Color(1, 1, 1, 1.0) if is_fade else Color(1, 1, 1, 0.3)
+	var alpha: Color = Color(1, 1, 1, 1.0) if is_fade else Color(1, 1, 1, 0.3)
+	_fade_in_slider.editable = is_fade
+	_fade_in_slider.modulate = alpha
+	_fade_in_label.modulate = alpha
+	_fade_out_slider.editable = is_fade
+	_fade_out_slider.modulate = alpha
+	_fade_out_label.modulate = alpha
 	_mark_dirty()
 
 
-func _on_transition_ms_changed(val: float) -> void:
-	_transition_ms_label.text = str(int(val)) + "ms"
+func _on_fade_in_changed(val: float) -> void:
+	_fade_in_label.text = str(int(val)) + "ms"
+	_mark_dirty()
+
+
+func _on_fade_out_changed(val: float) -> void:
+	_fade_out_label.text = str(int(val)) + "ms"
 	_mark_dirty()
 
 
@@ -1344,8 +1379,10 @@ func _on_new() -> void:
 	# Reset transition controls
 	_transition_mode_button.selected = 0
 	_on_transition_mode_changed(0)
-	_transition_ms_slider.value = 200
-	_transition_ms_label.text = "200ms"
+	_fade_in_slider.value = 200
+	_fade_in_label.text = "200ms"
+	_fade_out_slider.value = 200
+	_fade_out_label.text = "200ms"
 
 	# Reset pierce / splash / skips shields
 	_pierce_slider.value = 0
@@ -1446,8 +1483,10 @@ func _populate_from_weapon(weapon: WeaponData) -> void:
 	else:
 		_transition_mode_button.selected = 0
 	_on_transition_mode_changed(_transition_mode_button.selected)
-	_transition_ms_slider.value = float(weapon.transition_ms)
-	_transition_ms_label.text = str(weapon.transition_ms) + "ms"
+	_fade_in_slider.value = float(weapon.fade_in_ms)
+	_fade_in_label.text = str(weapon.fade_in_ms) + "ms"
+	_fade_out_slider.value = float(weapon.fade_out_ms)
+	_fade_out_label.text = str(weapon.fade_out_ms) + "ms"
 
 	# Pierce / Splash / Skips Shields
 	_pierce_slider.value = weapon.pierce_count

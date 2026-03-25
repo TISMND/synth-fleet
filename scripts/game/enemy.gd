@@ -45,7 +45,7 @@ var _weapon_controller: EnemyWeaponController = null
 var ship_data_ref: ShipData = null
 var player_ref: Node2D = null
 var projectiles_container: Node2D = null
-var bake_manager: EnemyBakeManager = null
+var shared_renderer: EnemySharedRenderer = null
 
 
 func _ready() -> void:
@@ -73,15 +73,16 @@ func _ready() -> void:
 	# Try shared bake viewport first — falls back to per-instance ShipRenderer
 	var vid: String = visual_id if visual_id != "" else "sentinel"
 	var bake_tex: ViewportTexture = null
-	if bake_manager:
-		bake_tex = bake_manager.get_texture(vid, render_mode_str, enemy_color)
+	if shared_renderer:
+		bake_tex = shared_renderer.get_texture(vid, render_mode_str, enemy_color)
 
 	if bake_tex:
 		_baked_sprite = Sprite2D.new()
 		_baked_sprite.texture = bake_tex
-		_flash_material = bake_manager.create_flash_material()
+		_flash_material = shared_renderer.create_flash_material()
 		_baked_sprite.material = _flash_material
 		add_child(_baked_sprite)
+		shared_renderer.ref(vid, render_mode_str, enemy_color)
 	else:
 		# Fallback: per-instance ShipRenderer (for unregistered appearances or no bake manager)
 		_renderer = ShipRenderer.new()
@@ -116,7 +117,7 @@ func _ready() -> void:
 		_weapon_controller.setup(ship_data_ref, self, player_ref, projectiles_container)
 
 	# Always clean up weapon controller when leaving tree (death, off-screen, etc.)
-	tree_exiting.connect(_on_weapon_cleanup)
+	tree_exiting.connect(_on_cleanup)
 
 
 static func _make_collision_shape(ship: ShipData) -> Dictionary:
@@ -144,10 +145,13 @@ static func _make_collision_shape(ship: ShipData) -> Dictionary:
 			return {"shape": circle, "rotation": 0.0}
 
 
-func _on_weapon_cleanup() -> void:
+func _on_cleanup() -> void:
 	if _weapon_controller:
 		_weapon_controller.cleanup()
 		_weapon_controller = null
+	if _baked_sprite and shared_renderer:
+		var vid: String = visual_id if visual_id != "" else "sentinel"
+		shared_renderer.unref(vid, render_mode_str, enemy_color)
 
 
 func set_melee_target(target: Node2D) -> void:

@@ -21,7 +21,8 @@ extends Resource
 @export var mirror_mode: String = "none"  # "none", "mirror", "alternate"
 @export var bar_effects: Dictionary = {}  # {"shield": -0.5, "thermal": 1.2, ...} float delta per trigger hit
 @export var transition_mode: String = "instant"  # "instant" or "fade"
-@export var transition_ms: int = 200  # fade duration in milliseconds (50–2000)
+@export var fade_in_ms: int = 200  # fade-in duration in milliseconds (50–2000)
+@export var fade_out_ms: int = 200  # fade-out duration in milliseconds (50–2000)
 @export var pierce_count: int = 0  # 0 = dies on hit, N = passes through N enemies, -1 = infinite
 @export var splash_enabled: bool = false
 @export var splash_radius: float = 0.0  # splash damage radius in pixels
@@ -72,7 +73,10 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	for key in raw_bar_effects:
 		w.bar_effects[str(key)] = float(raw_bar_effects[key])
 	w.transition_mode = str(data.get("transition_mode", "instant"))
-	w.transition_ms = int(data.get("transition_ms", 200))
+	# Backward compat: old single transition_ms → both fade_in_ms / fade_out_ms
+	var legacy_ms: int = int(data.get("transition_ms", 200))
+	w.fade_in_ms = int(data.get("fade_in_ms", legacy_ms))
+	w.fade_out_ms = int(data.get("fade_out_ms", legacy_ms))
 	w.pierce_count = int(data.get("pierce_count", 0))
 	w.splash_enabled = bool(data.get("splash_enabled", false))
 	w.splash_radius = float(data.get("splash_radius", 0.0))
@@ -132,7 +136,8 @@ func to_dict() -> Dictionary:
 		"mirror_mode": mirror_mode,
 		"bar_effects": bar_effects,
 		"transition_mode": transition_mode,
-		"transition_ms": transition_ms,
+		"fade_in_ms": fade_in_ms,
+		"fade_out_ms": fade_out_ms,
 		"pierce_count": pierce_count,
 		"splash_enabled": splash_enabled,
 		"splash_radius": splash_radius,

@@ -32,7 +32,8 @@ extends Resource
 @export var pulse_fade_up: float = 0.05  # fade-in time per pulse
 @export var pulse_fade_out: float = 0.4  # fade-out time per pulse
 @export var transition_mode: String = "instant"  # "instant" or "fade"
-@export var transition_ms: int = 200  # fade duration in milliseconds (50–2000)
+@export var fade_in_ms: int = 200  # fade-in duration in milliseconds (50–2000)
+@export var fade_out_ms: int = 200  # fade-out duration in milliseconds (50–2000)
 @export var speed_modifier: float = 0.0  # percentage of base speed (+25 = 25% faster)
 @export var accel_modifier: float = 0.0  # percentage of base acceleration
 @export var shield_damage_reduction: float = 0.0  # percentage reduction to shield damage (0–100)
@@ -99,7 +100,10 @@ static func from_dict(data: Dictionary) -> DeviceData:
 
 	# Transition settings
 	d.transition_mode = str(data.get("transition_mode", "instant"))
-	d.transition_ms = int(data.get("transition_ms", 200))
+	# Backward compat: old single transition_ms → both fade_in_ms / fade_out_ms
+	var legacy_ms: int = int(data.get("transition_ms", 200))
+	d.fade_in_ms = int(data.get("fade_in_ms", legacy_ms))
+	d.fade_out_ms = int(data.get("fade_out_ms", legacy_ms))
 
 	# Ship modifiers
 	d.speed_modifier = float(data.get("speed_modifier", 0.0))
@@ -152,7 +156,8 @@ func to_dict() -> Dictionary:
 		"pulse_fade_up": pulse_fade_up,
 		"pulse_fade_out": pulse_fade_out,
 		"transition_mode": transition_mode,
-		"transition_ms": transition_ms,
+		"fade_in_ms": fade_in_ms,
+		"fade_out_ms": fade_out_ms,
 		"speed_modifier": speed_modifier,
 		"accel_modifier": accel_modifier,
 		"shield_damage_reduction": shield_damage_reduction,
