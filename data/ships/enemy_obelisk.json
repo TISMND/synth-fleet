@@ -16,9 +16,6 @@
 		48
 	],
 	"hardpoints": [],
-	"hull_blink_speed": 9.0,
-	"hull_flash_duration": 0.12,
-	"hull_flash_opacity": 0.65,
 	"id": "enemy_obelisk",
 	"level": "geometric",
 	"lines": [],
@@ -41,5 +38,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "obelisk",
-	"weapon_id": ""
+	"weapon_id": "enemy_speck_turret"
 }

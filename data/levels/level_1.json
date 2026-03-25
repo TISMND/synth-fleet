@@ -6,20 +6,6 @@
 	"doodads": [],
 	"encounters": [
 		{
-			"count": 15,
-			"formation_id": "",
-			"is_melee": false,
-			"path_id": "path_1",
-			"rotate_with_path": false,
-			"ship_id": "enemy_obelisk",
-			"spacing": 300.0,
-			"speed": 750.0,
-			"trigger_y": 152.201512467702,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": 25.2023577498796
-		},
-		{
 			"count": 5,
 			"formation_id": "",
 			"is_melee": false,
@@ -788,20 +774,6 @@
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -889.756097560976
-		},
-		{
-			"count": 1,
-			"formation_id": "",
-			"is_melee": true,
-			"path_id": "path_1",
-			"rotate_with_path": false,
-			"ship_id": "enemy_ironclad",
-			"spacing": 200.0,
-			"speed": 200.0,
-			"trigger_y": 617.294900221729,
-			"turn_speed": 10.0,
-			"weapons_active": true,
-			"x_offset": -249.046563192905
 		}
 	],
 	"flight_speed": 340.0,

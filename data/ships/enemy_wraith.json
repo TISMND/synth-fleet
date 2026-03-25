@@ -38,5 +38,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "wraith",
-	"weapon_id": ""
+	"weapon_id": "enemy_yellow_dagger"
 }

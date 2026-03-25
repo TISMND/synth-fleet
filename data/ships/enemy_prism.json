@@ -38,5 +38,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "prism",
-	"weapon_id": ""
+	"weapon_id": "enemy_speck_turret"
 }

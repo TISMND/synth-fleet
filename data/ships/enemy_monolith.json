@@ -3,7 +3,6 @@
 	"collision_shape": "rectangle",
 	"collision_width": 92.0,
 	"display_name": "Monolith",
-	"hardpoint_offsets": [[0, -48], [0, 0], [0, 48]],
 	"enable_screen_shake": false,
 	"explosion_color": [
 		0.400000005960464,
@@ -15,6 +14,20 @@
 	"grid_size": [
 		96,
 		96
+	],
+	"hardpoint_offsets": [
+		[
+			0.0,
+			-48.0
+		],
+		[
+			0.0,
+			0.0
+		],
+		[
+			0.0,
+			48.0
+		]
 	],
 	"hardpoints": [],
 	"id": "enemy_monolith",
@@ -40,5 +53,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "monolith",
-	"weapon_id": ""
+	"weapon_id": "enemy_speck_burst"
 }

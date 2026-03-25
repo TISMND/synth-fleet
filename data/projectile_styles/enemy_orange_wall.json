@@ -1,0 +1,85 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		128.0,
+		20.0
+	],
+	"collision_scale": [
+		81.0,
+		13.0
+	],
+	"color": [
+		1.0,
+		0.375,
+		0.0,
+		1.0
+	],
+	"display_name": "Enemy Orange Wall",
+	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"color": [
+						0.261657059192657,
+						0.0674430727958679,
+						0.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.1,
+						"particle_count": 3.0,
+						"radius": 18.0,
+						"speed_scale": 1.1
+					},
+					"type": "nova_flash"
+				}
+			],
+			"muzzle": [
+				{
+					"color": [
+						0.240622162818909,
+						0.0988685786724091,
+						0.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.2,
+						"particle_count": 5.0,
+						"spread_angle": 360.0
+					},
+					"type": "radial_burst"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "smoke",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "enemy_orange_wall",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"brightness": 1.5,
+		"color_mix": 0.0,
+		"density": 3.0,
+		"edge_softness": 1.0,
+		"flow_speed": 4.0,
+		"turbulence": 1.0,
+		"wisp_scale": 4.0
+	}
+}

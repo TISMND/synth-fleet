@@ -16,14 +16,10 @@
 		32
 	],
 	"hardpoints": [],
-	"hull_blink_speed": 8.5,
-	"hull_flash_duration": 0.13,
-	"hull_flash_opacity": 1.0,
 	"id": "enemy_1",
 	"level": "geometric",
 	"lines": [],
 	"render_mode": "neon",
-	"shield_style_id": "blue_ripple",
 	"stats": {
 		"acceleration": 600.0,
 		"core_slots": 1.0,
@@ -45,5 +41,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "sentinel",
-	"weapon_id": ""
+	"weapon_id": "enemy_speck_turret"
 }

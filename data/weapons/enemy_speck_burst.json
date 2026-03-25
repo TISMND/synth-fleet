@@ -8,7 +8,7 @@
 	"beam_passthrough": true,
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
-	"damage": 3,
+	"damage": 8,
 	"description": "",
 	"direction_deg": 0.0,
 	"display_name": "Enemy Speck Burst",
@@ -21,6 +21,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 1350,
+	"fade_out_ms": 1350,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -69,6 +71,5 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 360.0,
 	"sweep_duration": 4.8,
-	"transition_mode": "fade",
-	"transition_ms": 1350
+	"transition_mode": "fade"
 }
