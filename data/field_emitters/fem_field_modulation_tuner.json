@@ -14,7 +14,9 @@
 	"disable_weapons": false,
 	"display_name": "Field Modulation Tuner",
 	"fade_in_duration": 0.3,
+	"fade_in_ms": 810,
 	"fade_out_duration": 0.3,
+	"fade_out_ms": 810,
 	"field_style_id": "blue_ripple",
 	"hull_damage_reduction": 0.0,
 	"id": "fem_field_modulation_tuner",
@@ -27,7 +29,7 @@
 	"orbiter_style_id": "",
 	"passive_effects": {
 		"electric": -10.0,
-		"shield": 7.0,
+		"shield": 9.0,
 		"thermal": 1.0
 	},
 	"pulse_fade_out": 0.99,
@@ -38,7 +40,6 @@
 	"shield_damage_reduction": 0.0,
 	"speed_modifier": 0.0,
 	"transition_mode": "fade",
-	"transition_ms": 810,
 	"visual_mode": "field",
 	"visual_pulse_triggers": [
 		0.0,

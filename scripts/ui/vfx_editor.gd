@@ -37,6 +37,9 @@ var _player_hull_renderer: ShipRenderer
 var _enemy_shield_renderer: ShipRenderer
 var _enemy_shield_bubble: ShieldBubbleEffect
 var _enemy_hull_renderer: ShipRenderer
+# Preview nodes — immune
+var _immune_renderer: ShipRenderer
+var _immune_bubble: ShieldBubbleEffect
 
 # Ship labels
 var _player_ship_label: Label
@@ -98,6 +101,7 @@ func _build_ui() -> void:
 	_build_player_hull_section(content)
 	_build_enemy_shield_section(content)
 	_build_enemy_hull_section(content)
+	_build_immune_section(content)
 
 	_build_bottom_bar()
 
@@ -242,6 +246,51 @@ func _build_enemy_hull_section(parent: VBoxContainer) -> void:
 	_build_section(parent, "ENEMY HULL FLASH", false, true)
 
 
+func _build_immune_section(parent: VBoxContainer) -> void:
+	# Header (no ship browser — immune effect is universal)
+	var header := Label.new()
+	header.text = "IMMUNE HIT"
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(header)
+	ThemeManager.apply_text_glow(header, "header")
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 20)
+	parent.add_child(row)
+
+	# Preview panel
+	var panel := Panel.new()
+	panel.custom_minimum_size = Vector2(280, 220)
+	row.add_child(panel)
+	_style_panel(panel)
+
+	_immune_renderer = ShipRenderer.new()
+	_immune_renderer.position = Vector2(140, 110)
+	_immune_renderer.scale = Vector2(0.7, 0.7)
+	_immune_renderer.animate = true
+	_immune_renderer.ship_id = 4  # Stiletto
+	_immune_renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	panel.add_child(_immune_renderer)
+
+	_immune_bubble = ShieldBubbleEffect.new()
+	_immune_bubble.position = _immune_renderer.position
+	_immune_bubble.ship_radius = ShipRenderer.get_ship_scale(4) * 50.0
+	panel.add_child(_immune_bubble)
+
+	# Sliders
+	var slider_vbox := VBoxContainer.new()
+	slider_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider_vbox.add_theme_constant_override("separation", 4)
+	row.add_child(slider_vbox)
+
+	_add_slider_row_vbox(slider_vbox, "immune_color_r", "Color R", 0.0, 1.0, _config.immune_color_r)
+	_add_slider_row_vbox(slider_vbox, "immune_color_g", "Color G", 0.0, 1.0, _config.immune_color_g)
+	_add_slider_row_vbox(slider_vbox, "immune_color_b", "Color B", 0.0, 1.0, _config.immune_color_b)
+	_add_slider_row_vbox(slider_vbox, "immune_duration", "Duration", 0.05, 0.5, _config.immune_duration)
+	_add_slider_row_vbox(slider_vbox, "immune_radius_mult", "Radius", 0.5, 2.0, _config.immune_radius_mult)
+	_add_slider_row_vbox(slider_vbox, "immune_intensity", "Intensity", 0.2, 2.0, _config.immune_intensity)
+
+
 func _build_bottom_bar() -> void:
 	var bar := HBoxContainer.new()
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -340,6 +389,13 @@ func _apply_config_to_previews() -> void:
 	_enemy_hull_renderer.hull_blink_speed = _config.enemy_hull_blink_speed
 	_enemy_hull_renderer.hull_flash_duration = _config.enemy_hull_duration
 
+	# Immune
+	if _immune_bubble:
+		_immune_bubble.shield_color = Color(_config.immune_color_r, _config.immune_color_g, _config.immune_color_b)
+		_immune_bubble.flash_duration = _config.immune_duration
+		_immune_bubble.radius_mult = _config.immune_radius_mult
+		_immune_bubble.intensity = _config.immune_intensity
+
 
 func _update_player_ship_preview() -> void:
 	if PLAYER_SHIPS.is_empty():
@@ -374,6 +430,8 @@ func _trigger_effects() -> void:
 	_player_hull_renderer.trigger_hull_flash(_config.hull_duration)
 	_enemy_shield_bubble.trigger()
 	_enemy_hull_renderer.trigger_hull_flash(_config.enemy_hull_duration)
+	if _immune_bubble:
+		_immune_bubble.trigger()
 	_auto_timer = 0.0
 
 

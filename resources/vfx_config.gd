@@ -32,6 +32,14 @@ var enemy_hull_peak_b: float = 3.0
 var enemy_hull_duration: float = 0.12
 var enemy_hull_blink_speed: float = 6.0
 
+# Immune Hit — universal effect when hitting an invulnerable target
+var immune_color_r: float = 0.7
+var immune_color_g: float = 0.7
+var immune_color_b: float = 0.8
+var immune_duration: float = 0.1
+var immune_radius_mult: float = 0.8
+var immune_intensity: float = 0.6
+
 
 static func from_dict(data: Dictionary) -> VfxConfig:
 	var config := VfxConfig.new()
@@ -59,6 +67,13 @@ static func from_dict(data: Dictionary) -> VfxConfig:
 	config.enemy_hull_peak_b = float(data.get("enemy_hull_peak_b", 3.0))
 	config.enemy_hull_duration = float(data.get("enemy_hull_duration", 0.12))
 	config.enemy_hull_blink_speed = float(data.get("enemy_hull_blink_speed", 6.0))
+	# Immune
+	config.immune_color_r = float(data.get("immune_color_r", 0.7))
+	config.immune_color_g = float(data.get("immune_color_g", 0.7))
+	config.immune_color_b = float(data.get("immune_color_b", 0.8))
+	config.immune_duration = float(data.get("immune_duration", 0.1))
+	config.immune_radius_mult = float(data.get("immune_radius_mult", 0.8))
+	config.immune_intensity = float(data.get("immune_intensity", 0.6))
 	return config
 
 
@@ -86,4 +101,10 @@ func to_dict() -> Dictionary:
 		"enemy_hull_peak_b": enemy_hull_peak_b,
 		"enemy_hull_duration": enemy_hull_duration,
 		"enemy_hull_blink_speed": enemy_hull_blink_speed,
+		"immune_color_r": immune_color_r,
+		"immune_color_g": immune_color_g,
+		"immune_color_b": immune_color_b,
+		"immune_duration": immune_duration,
+		"immune_radius_mult": immune_radius_mult,
+		"immune_intensity": immune_intensity,
 	}

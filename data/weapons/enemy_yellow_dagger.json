@@ -8,7 +8,7 @@
 	"beam_passthrough": true,
 	"beam_style_id": "",
 	"beam_transition_time": 0.01,
-	"damage": 70,
+	"damage": 15,
 	"description": "",
 	"direction_deg": 0.0,
 	"display_name": "enemy_yellow_dagger",
