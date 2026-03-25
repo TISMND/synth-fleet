@@ -1,7 +1,7 @@
 {
 	"collision_height": 30.0,
 	"collision_shape": "circle",
-	"collision_width": 66.0,
+	"collision_width": 84.0,
 	"display_name": "Obelisk",
 	"enable_screen_shake": false,
 	"explosion_color": [
@@ -10,7 +10,7 @@
 		0.5,
 		1.0
 	],
-	"explosion_size": 1.0,
+	"explosion_size": 1.1,
 	"grid_size": [
 		40,
 		48

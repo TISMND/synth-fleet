@@ -31,7 +31,7 @@
 	"loop_file_path": "res://loop_zips/sorted/bass/Oscillating Spoons - 120 BPM - 2 - Bass - 013_b__Bass_Stab_110bpm_D_-_80ST_Zenhiser.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
-	"pierce_count": 10,
+	"pierce_count": 0,
 	"projectile_speed": 240.0,
 	"projectile_style_id": "balot",
 	"skips_shields": false,

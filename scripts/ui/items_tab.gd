@@ -275,6 +275,8 @@ func _build_preview(parent: VBoxContainer) -> void:
 	_preview_subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_preview_viewport.add_child(_preview_subviewport)
 
+	VFXFactory.add_bloom_to_viewport(_preview_subviewport)
+
 	# Dark background
 	_preview_bg = ColorRect.new()
 	_preview_bg.color = Color(0.05, 0.05, 0.08, 1.0)

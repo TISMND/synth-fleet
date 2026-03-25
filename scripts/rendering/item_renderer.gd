@@ -42,7 +42,10 @@ func _draw() -> void:
 
 	match _item.animation_style:
 		"spin":
-			anim_squeeze_x = 0.5 + 0.5 * abs(cos(_time * 3.0))
+			# cos goes -1..1, abs gives 0..1. Pow flattens the curve so it spends
+			# more time thin (near 0) and snaps wide, selling a full rotation.
+			var raw: float = abs(cos(_time * 3.0))
+			anim_squeeze_x = 0.04 + 0.96 * raw * raw  # squeezes to ~4% width
 		"pulse":
 			anim_scale = 0.9 + 0.1 * sin(_time * 4.0)
 		"shimmer":
@@ -53,11 +56,14 @@ func _draw() -> void:
 	center.y += anim_offset_y
 	s *= anim_scale
 
-	# Outer glow
-	var glow_alpha: float = 0.15 + 0.08 * sin(_time * 2.5)
-	var glow_col := Color(glow.r, glow.g, glow.b, glow_alpha)
-	draw_circle(center, s * 0.9, glow_col)
-	draw_circle(center, s * 0.7, Color(glow.r, glow.g, glow.b, glow_alpha * 0.6))
+	# HDR glow halo — bright HDR colors at low alpha, same pattern as projectile trails.
+	# ACES tonemapping in the SubViewport handles the rolloff gracefully.
+	var glow_alpha: float = 0.12 + 0.06 * sin(_time * 2.5)
+	var hdr_mult: float = 2.5
+	var hdr_glow := Color(glow.r * hdr_mult, glow.g * hdr_mult, glow.b * hdr_mult, glow_alpha * 0.4)
+	draw_circle(center, s * 0.95, hdr_glow)
+	var hdr_glow_inner := Color(glow.r * hdr_mult, glow.g * hdr_mult, glow.b * hdr_mult, glow_alpha * 0.7)
+	draw_circle(center, s * 0.6, hdr_glow_inner)
 
 	match _item.visual_shape:
 		"coin":
@@ -295,10 +301,11 @@ func _draw_star_shape(center: Vector2, s: float, squeeze_x: float, primary: Colo
 func _draw_powerup_circle(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
 	var r: float = s * 0.42
 
-	# Outer glow ring
+	# Outer glow ring — HDR multiplied for ACES bloom
 	var ring_alpha: float = 0.4 + 0.15 * sin(_time * 3.0)
-	draw_arc(center, r + 4, 0.0, TAU, 32, Color(glow.r, glow.g, glow.b, ring_alpha), 3.0)
-	draw_arc(center, r + 7, 0.0, TAU, 32, Color(glow.r, glow.g, glow.b, ring_alpha * 0.4), 2.0)
+	var hdr: float = 2.0
+	draw_arc(center, r + 4, 0.0, TAU, 32, Color(glow.r * hdr, glow.g * hdr, glow.b * hdr, ring_alpha), 3.0)
+	draw_arc(center, r + 7, 0.0, TAU, 32, Color(glow.r * hdr, glow.g * hdr, glow.b * hdr, ring_alpha * 0.4), 2.0)
 
 	# Background circle
 	draw_circle(center, r, primary.darkened(0.2))
@@ -445,7 +452,8 @@ func _draw_ellipse_highlight(center: Vector2, rx: float, ry: float, color: Color
 
 
 func _draw_sparkles(center: Vector2, radius: float, color: Color, shimmer: float) -> void:
-	# 3-4 small sparkle dots that twinkle
+	# 3-4 small sparkle dots that twinkle — HDR multiplied for ACES glow
+	var hdr: float = 2.0
 	var sparkle_positions: Array[Vector2] = [
 		center + Vector2(radius * 0.6, -radius * 0.5),
 		center + Vector2(-radius * 0.4, -radius * 0.7),
@@ -456,10 +464,11 @@ func _draw_sparkles(center: Vector2, radius: float, color: Color, shimmer: float
 		var phase: float = shimmer + float(i) * 0.25
 		var alpha: float = maxf(0.0, sin(phase * TAU)) * 0.8
 		if alpha > 0.05:
-			var col := Color(color.r, color.g, color.b, alpha)
+			var col := Color(color.r * hdr, color.g * hdr, color.b * hdr, alpha)
 			var sp: float = 1.5 + alpha * 2.0
 			var pos: Vector2 = sparkle_positions[i]
 			draw_circle(pos, sp, col)
 			# Cross sparkle lines
-			draw_line(pos + Vector2(-sp * 1.5, 0), pos + Vector2(sp * 1.5, 0), Color(col.r, col.g, col.b, alpha * 0.5), 1.0)
-			draw_line(pos + Vector2(0, -sp * 1.5), pos + Vector2(0, sp * 1.5), Color(col.r, col.g, col.b, alpha * 0.5), 1.0)
+			var line_col := Color(color.r * hdr, color.g * hdr, color.b * hdr, alpha * 0.5)
+			draw_line(pos + Vector2(-sp * 1.5, 0), pos + Vector2(sp * 1.5, 0), line_col, 1.0)
+			draw_line(pos + Vector2(0, -sp * 1.5), pos + Vector2(0, sp * 1.5), line_col, 1.0)

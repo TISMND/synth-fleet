@@ -10,7 +10,7 @@
 			"is_melee": false,
 			"path_id": "path_1",
 			"rotate_with_path": false,
-			"ship_id": "enemy_1",
+			"ship_id": "enemy_obelisk",
 			"spacing": 300.0,
 			"speed": 750.0,
 			"trigger_y": 152.201512467702,
@@ -279,10 +279,10 @@
 			"ship_id": "enemy_scythe",
 			"spacing": 100.0,
 			"speed": 500.0,
-			"trigger_y": 816.512455516016,
+			"trigger_y": 842.05569276657,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -341.637010676157
+			"x_offset": -333.122598259306
 		},
 		{
 			"count": 1,
@@ -531,10 +531,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 1894.37722419929,
+			"trigger_y": 1787.94706898865,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 11.9572953736656
+			"x_offset": 58.7865636663485
 		},
 		{
 			"count": 7,
@@ -565,18 +565,18 @@
 			"x_offset": 474.875444839858
 		},
 		{
-			"count": 7,
-			"formation_id": "",
+			"count": 1,
+			"formation_id": "formation_3",
 			"is_melee": false,
 			"path_id": "path_5",
 			"rotate_with_path": false,
 			"ship_id": "enemy_scythe",
 			"spacing": 100.0,
 			"speed": 500.0,
-			"trigger_y": 1134.23487544484,
+			"trigger_y": 1127.8490661322,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 47.8291814946619
+			"x_offset": 128.716099454751
 		},
 		{
 			"count": 5,
@@ -607,8 +607,8 @@
 			"x_offset": 570.533807829181
 		},
 		{
-			"count": 1,
-			"formation_id": "formation_4",
+			"count": 13,
+			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_2",
 			"rotate_with_path": false,
@@ -629,24 +629,10 @@
 			"ship_id": "enemy_prism",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 613.363423313949,
+			"trigger_y": 1335.00911379221,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": -149.42642289574
-		},
-		{
-			"count": 1,
-			"formation_id": "formation_4",
-			"is_melee": false,
-			"path_id": "path_2",
-			"rotate_with_path": false,
-			"ship_id": "enemy_prism",
-			"spacing": 200.0,
-			"speed": 200.0,
-			"trigger_y": 1217.9359430605,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": 814.804270462633
+			"x_offset": 663.67345006352
 		},
 		{
 			"count": 1,
@@ -671,10 +657,38 @@
 			"ship_id": "enemy_prism",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 1450.24911032028,
+			"trigger_y": 1456.63491963292,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 117.864768683274
+			"x_offset": 128.507784204338
+		},
+		{
+			"count": 13,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_prism",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 685.410199556541,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -123.458980044346
+		},
+		{
+			"count": 13,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_prism",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 1025.9866962306,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -619.423503325942
 		}
 	],
 	"flight_speed": 100.0,
