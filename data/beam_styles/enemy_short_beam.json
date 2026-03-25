@@ -37,7 +37,7 @@
 	"full_screen_length": false,
 	"glow_intensity": 1.5,
 	"id": "enemy_short_beam",
-	"max_length": 300.0,
+	"max_length": 590.0,
 	"secondary_color": [
 		1.0,
 		0.300000011920929,

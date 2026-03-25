@@ -3,9 +3,9 @@
 	"bar_effects": {
 
 	},
-	"beam_dps": 19.0,
+	"beam_dps": 285.0,
 	"beam_duration": 0.55,
-	"beam_passthrough": true,
+	"beam_passthrough": false,
 	"beam_style_id": "enemy_short_beam",
 	"beam_transition_time": 0.05,
 	"damage": 10,

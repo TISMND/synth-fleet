@@ -26,10 +26,10 @@
 		"electric_hp": 55.0,
 		"electric_segments": 6.0,
 		"field_slots": 1.0,
-		"hull_hp": 160.0,
+		"hull_hp": 260.0,
 		"hull_segments": 10.0,
 		"particle_slots": 1.0,
-		"shield_hp": 110.0,
+		"shield_hp": 140.0,
 		"shield_regen": 2.5,
 		"shield_segments": 8.0,
 		"speed": 55.0,
@@ -39,5 +39,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "conduit",
-	"weapon_id": "enemy_orange_wall"
+	"weapon_id": "enemy_short_beam"
 }
