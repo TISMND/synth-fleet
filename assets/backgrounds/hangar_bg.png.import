@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b28fdnkgknrjh"
-path="res://.godot/imported/Syntherion_bg_titled.png-b6f49a159916cc3f5b980c89e6af689d.ctex"
+uid="uid://byvomk24h5qv4"
+path="res://.godot/imported/hangar_bg.png-7b64ff29ccd241aa0d807c5af3fa28dd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Syntherion_bg_titled.png"
-dest_files=["res://.godot/imported/Syntherion_bg_titled.png-b6f49a159916cc3f5b980c89e6af689d.ctex"]
+source_file="res://assets/backgrounds/hangar_bg.png"
+dest_files=["res://.godot/imported/hangar_bg.png-7b64ff29ccd241aa0d807c5af3fa28dd.ctex"]
 
 [params]
 

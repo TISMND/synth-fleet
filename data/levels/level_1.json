@@ -1,6 +1,7 @@
 {
 	"background_shader": "res://assets/shaders/bg_synthwave_pulse.gdshader",
 	"bpm": 110.0,
+	"deep_background": "",
 	"display_name": "01 - Welcome Void",
 	"doodads": [],
 	"encounters": [
@@ -731,6 +732,20 @@
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 0.0
+		},
+		{
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_1",
+			"rotate_with_path": false,
+			"ship_id": "enemy_1",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 2298.89135254989,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 902.527716186253
 		}
 	],
 	"flight_speed": 100.0,

@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://play_menu"]
 
 [ext_resource type="Script" path="res://scripts/ui/play_menu.gd" id="1"]
-[ext_resource type="Texture2D" path="res://assets/Syntherion_bg_titled.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/Syntherion_bg_titled.png" id="2"]
 
 [node name="PlayMenu" type="Control"]
 layout_mode = 3

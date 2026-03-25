@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://byvomk24h5qv4"
-path="res://.godot/imported/hangar_bg.png-a75e5f12aae1d44565ef95e056b35622.ctex"
+uid="uid://bxrt2rm56gw5e"
+path="res://.godot/imported/main_menu_bg.png-9452cd3c194d8183325a9fd3c4fabb82.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/hangar_bg.png"
-dest_files=["res://.godot/imported/hangar_bg.png-a75e5f12aae1d44565ef95e056b35622.ctex"]
+source_file="res://assets/backgrounds/main_menu_bg.png"
+dest_files=["res://.godot/imported/main_menu_bg.png-9452cd3c194d8183325a9fd3c4fabb82.ctex"]
 
 [params]
 

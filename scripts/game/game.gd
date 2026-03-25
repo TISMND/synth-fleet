@@ -688,6 +688,18 @@ func _return_to_menu() -> void:
 
 
 func _setup_parallax() -> void:
+	# Deep background image — behind everything, static (no scroll)
+	if _level_data and _level_data.deep_background != "":
+		var tex: Texture2D = load(_level_data.deep_background) as Texture2D
+		if tex:
+			var deep_bg := TextureRect.new()
+			deep_bg.texture = tex
+			deep_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			deep_bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			deep_bg.size = Vector2(1920, 1080)
+			deep_bg.z_index = -11
+			_game_viewport.add_child(deep_bg)
+
 	var grid_bg := ColorRect.new()
 	grid_bg.size = Vector2(1920, 1080)
 	grid_bg.z_index = -10

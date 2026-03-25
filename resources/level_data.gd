@@ -10,6 +10,7 @@ extends Resource
 @export var level_length: float = 10000.0
 @export var encounters: Array = []  # Array of encounter dicts
 @export var background_shader: String = ""  # Path to mid-layer bg shader (empty = default grid)
+@export var deep_background: String = ""  # Path to deep bg image (empty = star field only)
 @export var doodads: Array = []  # Array of doodad placement dicts
 @export var nebula_placements: Array = []  # Array of placement dicts
 
@@ -23,6 +24,7 @@ static func from_dict(data: Dictionary) -> LevelData:
 	l.flight_speed = float(data.get("flight_speed", l.scroll_speed * 2.0))
 	l.level_length = float(data.get("level_length", 10000.0))
 	l.background_shader = str(data.get("background_shader", ""))
+	l.deep_background = str(data.get("deep_background", ""))
 	var raw_enc: Array = data.get("encounters", [])
 	l.encounters = []
 	for enc in raw_enc:
@@ -71,6 +73,7 @@ func to_dict() -> Dictionary:
 		"flight_speed": flight_speed,
 		"level_length": level_length,
 		"background_shader": background_shader,
+		"deep_background": deep_background,
 		"encounters": encounters,
 		"doodads": doodads,
 		"nebula_placements": nebula_placements,

@@ -563,12 +563,20 @@ func _update_hud_hardpoints() -> void:
 func take_damage(amount: float, skips_shields: bool = false) -> void:
 	var remaining: float = amount
 	if shield > 0.0 and not skips_shields:
-		# Apply shield damage reduction from active devices
-		var shield_damage: float = minf(remaining, shield)
+		# Shield DR: shields absorb the full hit but take reduced actual damage.
+		# With 95% DR, 100 raw damage only costs 5 shield HP.
+		var reduction_factor: float = 1.0
 		if _active_shield_dr > 0.0:
-			shield_damage *= (1.0 - _active_shield_dr / 100.0)
-		shield -= shield_damage
-		remaining -= shield_damage
+			reduction_factor = 1.0 - _active_shield_dr / 100.0
+		if reduction_factor > 0.0:
+			# Max raw damage shields can absorb before depleting
+			var max_absorbable: float = shield / reduction_factor
+			var absorbed: float = minf(remaining, max_absorbable)
+			shield -= absorbed * reduction_factor
+			remaining -= absorbed
+		else:
+			# 100% reduction: shields absorb everything, take no damage
+			remaining = 0.0
 		SfxPlayer.play("player_shield_hit")
 		var shield_field: FieldRenderer = get_node_or_null("ShieldField") as FieldRenderer
 		if shield_field:
@@ -1483,6 +1491,10 @@ func _any_heat_source_active() -> bool:
 		if dc and dc.is_active() and dc.device_data:
 			var th: float = float(dc.device_data.bar_effects.get("thermal", 0.0))
 			if th > 0.0:
+				return true
+			# Check passive_effects for continuous heat generation
+			var pth: float = float(dc.device_data.passive_effects.get("thermal", 0.0))
+			if pth > 0.0:
 				return true
 	return false
 

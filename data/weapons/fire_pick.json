@@ -1,17 +1,17 @@
 {
 	"aim_mode": "fixed",
 	"bar_effects": {
-		"electric": -0.299999999999997
+		"electric": -0.200000000000003
 	},
 	"beam_dps": 50.0,
 	"beam_duration": 0.3,
 	"beam_passthrough": true,
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
-	"damage": 8,
+	"damage": 10,
 	"description": "",
 	"direction_deg": 0.0,
-	"display_name": "fire_pick",
+	"display_name": "Fire Pick",
 	"effect_profile": {
 		"defaults": {
 
@@ -113,5 +113,5 @@
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
 	"transition_mode": "fade",
-	"transition_ms": 1130
+	"transition_ms": 490
 }

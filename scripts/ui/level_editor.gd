@@ -28,6 +28,7 @@ var _bpm_spin: SpinBox
 var _speed_spin: SpinBox
 var _length_spin: SpinBox
 var _bg_shader_dropdown: OptionButton
+var _deep_bg_dropdown: OptionButton
 
 # Map canvas
 var _map_canvas: Control
@@ -286,6 +287,24 @@ func _on_theme_changed() -> void:
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 
+func _scan_deep_backgrounds() -> Array:
+	## Scan assets/backgrounds/ for PNG files and return [display_name, path] pairs.
+	var results: Array = []
+	var dir := DirAccess.open("res://assets/backgrounds/")
+	if not dir:
+		return results
+	dir.list_dir_begin()
+	var fname: String = dir.get_next()
+	while fname != "":
+		if fname.ends_with(".png") or fname.ends_with(".jpg"):
+			var display: String = fname.get_basename().replace("_", " ").capitalize()
+			results.append([display, "res://assets/backgrounds/" + fname])
+		fname = dir.get_next()
+	dir.list_dir_end()
+	results.sort_custom(func(a: Array, b: Array) -> bool: return str(a[0]) < str(b[0]))
+	return results
+
+
 func _apply_editor_background() -> void:
 	## Set the editor background to the selected level's shader, or default grid.
 	var shader_path: String = ""
@@ -462,6 +481,29 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	)
 	vbox.add_child(_length_spin)
 
+	# Deep Background Image
+	var deep_bg_label := Label.new()
+	deep_bg_label.text = "DEEP BACKGROUND"
+	ThemeManager.apply_text_glow(deep_bg_label, "body")
+	vbox.add_child(deep_bg_label)
+
+	_deep_bg_dropdown = OptionButton.new()
+	_deep_bg_dropdown.add_item("(none)", 0)
+	_deep_bg_dropdown.set_item_metadata(0, "")
+	var deep_bgs: Array = _scan_deep_backgrounds()
+	for i in range(deep_bgs.size()):
+		var entry: Array = deep_bgs[i]
+		_deep_bg_dropdown.add_item(str(entry[0]), i + 1)
+		_deep_bg_dropdown.set_item_metadata(i + 1, str(entry[1]))
+	_deep_bg_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _selected_level:
+			_selected_level.deep_background = str(_deep_bg_dropdown.get_item_metadata(idx))
+			_save_current_level()
+			if _preview_mode:
+				_rebuild_preview()
+	)
+	vbox.add_child(_deep_bg_dropdown)
+
 	# Background Shader
 	var bg_label := Label.new()
 	bg_label.text = "BACKGROUND"
@@ -583,6 +625,16 @@ func _update_level_props_ui() -> void:
 		_speed_spin.value = _selected_level.scroll_speed
 		_flight_speed_spin.value = _selected_level.flight_speed
 		_length_spin.value = _selected_level.level_length
+		# Sync deep background dropdown
+		var deep_path: String = _selected_level.deep_background
+		var found_deep := false
+		for i in range(_deep_bg_dropdown.item_count):
+			if str(_deep_bg_dropdown.get_item_metadata(i)) == deep_path:
+				_deep_bg_dropdown.select(i)
+				found_deep = true
+				break
+		if not found_deep:
+			_deep_bg_dropdown.select(0)
 		# Sync background dropdown
 		var bg_path: String = _selected_level.background_shader
 		var found_bg := false
@@ -599,6 +651,7 @@ func _update_level_props_ui() -> void:
 		_speed_spin.value = 80
 		_flight_speed_spin.value = 160
 		_length_spin.value = 10000
+		_deep_bg_dropdown.select(0)
 		_bg_shader_dropdown.select(0)
 
 

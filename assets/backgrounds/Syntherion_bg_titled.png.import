@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bxrt2rm56gw5e"
-path="res://.godot/imported/main_menu_bg.png-0ebeb2137dac1176e6b275a6c7477b27.ctex"
+uid="uid://b28fdnkgknrjh"
+path="res://.godot/imported/Syntherion_bg_titled.png-41416bb061d4273a2cf77eec142188d1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/main_menu_bg.png"
-dest_files=["res://.godot/imported/main_menu_bg.png-0ebeb2137dac1176e6b275a6c7477b27.ctex"]
+source_file="res://assets/backgrounds/Syntherion_bg_titled.png"
+dest_files=["res://.godot/imported/Syntherion_bg_titled.png-41416bb061d4273a2cf77eec142188d1.ctex"]
 
 [params]
 
