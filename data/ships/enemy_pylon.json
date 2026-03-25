@@ -3,7 +3,6 @@
 	"collision_shape": "rectangle",
 	"collision_width": 44.0,
 	"display_name": "Pylon",
-	"hardpoint_offsets": [[0, -78], [0, -39], [0, 0], [0, 39], [0, 78]],
 	"enable_screen_shake": false,
 	"explosion_color": [
 		0.5,
@@ -15,6 +14,28 @@
 	"grid_size": [
 		64,
 		128
+	],
+	"hardpoint_offsets": [
+		[
+			0.0,
+			-78.0
+		],
+		[
+			0.0,
+			-39.0
+		],
+		[
+			0.0,
+			0.0
+		],
+		[
+			0.0,
+			39.0
+		],
+		[
+			0.0,
+			78.0
+		]
 	],
 	"hardpoints": [],
 	"id": "enemy_pylon",
@@ -40,5 +61,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "pylon",
-	"weapon_id": ""
+	"weapon_id": "enemy_orange_wall"
 }

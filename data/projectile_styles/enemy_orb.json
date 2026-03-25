@@ -1,18 +1,46 @@
 {
 	"archetype": "bullet",
+	"archetype_params": {
+
+	},
 	"base_scale": [
 		32.0,
 		32.0
 	],
+	"collision_scale": [
+		30.0,
+		28.0
+	],
 	"color": [
-		0.080322265625,
-		0.673057556152344,
-		0.734375,
+		0.733333349227905,
+		0.615655660629272,
+		0.0784313902258873,
 		1.0
 	],
 	"display_name": "Enemy Orb",
 	"effect_profile": {
+		"defaults": {
+			"muzzle": [
+				{
+					"color": [
+						0.8984375,
+						1.0,
+						0.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.15,
+						"particle_count": 2.0,
+						"spread_angle": 30.0
+					},
+					"type": "radial_burst"
+				}
+			]
+		},
+		"trigger_overrides": {
 
+		},
+		"version": 2
 	},
 	"fill_shader": "toxic",
 	"flip_shader": false,
@@ -29,10 +57,10 @@
 	],
 	"shader_params": {
 		"animation_speed": 0.8,
-		"brightness": 0.7,
+		"brightness": 1.6,
 		"bubble_density": 5.0,
 		"bubble_speed": 2.5,
-		"color_mix": 0.19,
+		"color_mix": 0.06,
 		"drip_intensity": 0.55,
 		"edge_softness": 0.63
 	}

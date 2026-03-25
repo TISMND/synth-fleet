@@ -1,0 +1,39 @@
+{
+	"default_speed": 200.0,
+	"display_name": "Straightup",
+	"enemy_ship_id": "",
+	"id": "path_9",
+	"segment_speeds": {
+
+	},
+	"waypoints": [
+		{
+			"ctrl_in": [
+				0.0,
+				0.0
+			],
+			"ctrl_out": [
+				0.0,
+				0.0
+			],
+			"pos": [
+				891.219482421875,
+				1069.75610351563
+			]
+		},
+		{
+			"ctrl_in": [
+				0.0,
+				0.0
+			],
+			"ctrl_out": [
+				0.0,
+				0.0
+			],
+			"pos": [
+				894.146362304688,
+				5.85365867614746
+			]
+		}
+	]
+}

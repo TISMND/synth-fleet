@@ -1,0 +1,51 @@
+{
+	"aim_mode": "fixed",
+	"bar_effects": {
+
+	},
+	"beam_dps": 19.0,
+	"beam_duration": 0.55,
+	"beam_passthrough": true,
+	"beam_style_id": "enemy_short_beam",
+	"beam_transition_time": 0.05,
+	"damage": 10,
+	"description": "",
+	"direction_deg": 0.0,
+	"display_name": "Enemy Short Beam",
+	"effect_profile": {
+		"defaults": {
+
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fade_in_ms": 390,
+	"fade_out_ms": 350,
+	"fire_pattern": "single",
+	"fire_triggers": [
+		0.0,
+		0.125,
+		0.25,
+		0.375,
+		0.5,
+		0.625,
+		0.75,
+		0.875
+	],
+	"id": "enemy_short_beam",
+	"is_enemy_weapon": true,
+	"loop_file_path": "res://loop_zips/sorted/chords/NEW Thin Addition - 120 BPM - 8 - Chords - NW_MECS_90_synth_loop_halcyon_Bbmin.wav",
+	"loop_length_bars": 8,
+	"mirror_mode": "none",
+	"pierce_count": 0,
+	"projectile_speed": 600.0,
+	"projectile_style_id": "",
+	"skips_shields": false,
+	"splash_enabled": false,
+	"splash_radius": 0.0,
+	"sweep_arc_deg": 60.0,
+	"sweep_duration": 1.2,
+	"transition_mode": "fade"
+}

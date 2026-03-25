@@ -1,0 +1,56 @@
+{
+	"appearance_mode": "flow_in",
+	"beam_width": 24.0,
+	"color": [
+		1.0,
+		0.5625,
+		0.0,
+		1.0
+	],
+	"display_name": "enemy short beam",
+	"effect_profile": {
+		"defaults": {
+			"muzzle": [
+				{
+					"color": [
+						1.0,
+						0.776975274085999,
+						0.3046875,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.45,
+						"particle_count": 6.0,
+						"spread_angle": 360.0
+					},
+					"type": "radial_burst"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "fire",
+	"flip_shader": true,
+	"full_screen_length": false,
+	"glow_intensity": 1.5,
+	"id": "enemy_short_beam",
+	"max_length": 300.0,
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"brightness": 2.0,
+		"color_mix": 0.24,
+		"edge_softness": 1.0,
+		"flame_detail": 3.0,
+		"heat_distortion": 0.0,
+		"scroll_speed": 2.5
+	}
+}

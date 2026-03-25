@@ -39,10 +39,17 @@ var _map_drag_scroll_start: float = 0.0
 
 # Encounter state
 var _selected_encounter_idx: int = -1
+var _selected_encounter_indices: Array[int] = []  # Multi-select
 var _encounter_dragging: bool = false
 var _encounter_drag_start: Vector2 = Vector2.ZERO
 var _encounter_drag_origin_y: float = 0.0
 var _encounter_drag_origin_x: float = 0.0
+var _encounter_drag_origins: Array[Dictionary] = []  # Multi-drag: [{y, x}]
+
+# Selection box
+var _selection_box_active: bool = false
+var _selection_box_start: Vector2 = Vector2.ZERO
+var _selection_box_end: Vector2 = Vector2.ZERO
 
 # Nebula placement state
 var _nebula_selected_idx: int = -1
@@ -135,6 +142,7 @@ var _cached_ships_by_level: Dictionary = {}  # level_id -> Array of {id, name}
 
 # Clipboard for copy/paste
 var _clipboard: Dictionary = {}  # Copied encounter or nebula dict
+var _clipboard_multi: Array[Dictionary] = []  # Multi-select copy
 
 # Cached nebula data
 var _cached_nebula_ids: Array[String] = []
@@ -987,7 +995,7 @@ func _handle_map_input(event: InputEvent) -> void:
 				elif _edit_mode == "doodads":
 					_map_left_click_doodad(mb.position)
 				else:
-					_map_left_click(mb.position)
+					_map_left_click(mb.position, mb.ctrl_pressed)
 			elif mb.button_index == MOUSE_BUTTON_RIGHT:
 				if _edit_mode == "nebulas":
 					_map_right_click_nebula(mb.position)
@@ -1007,7 +1015,10 @@ func _handle_map_input(event: InputEvent) -> void:
 				_map_canvas.queue_redraw()
 		else:
 			if mb.button_index == MOUSE_BUTTON_LEFT:
-				if _encounter_dragging:
+				if _selection_box_active:
+					_selection_box_active = false
+					_finish_selection_box()
+				elif _encounter_dragging:
 					_encounter_dragging = false
 					_save_current_level()
 					_update_right_panel()
@@ -1024,12 +1035,19 @@ func _handle_map_input(event: InputEvent) -> void:
 
 	elif event is InputEventMouseMotion:
 		var mm: InputEventMouseMotion = event as InputEventMouseMotion
-		if _encounter_dragging and _selected_encounter_idx >= 0:
-			var enc: Dictionary = _selected_level.encounters[_selected_encounter_idx]
+		if _selection_box_active:
+			_selection_box_end = mm.position
+			_map_canvas.queue_redraw()
+		elif _encounter_dragging and _selected_encounter_indices.size() > 0:
 			var delta_y: float = _canvas_y_to_level_y(mm.position.y) - _canvas_y_to_level_y(_encounter_drag_start.y)
-			enc["trigger_y"] = maxf(_encounter_drag_origin_y + delta_y, 0.0)
 			var delta_x: float = _canvas_x_to_level_x(mm.position.x) - _canvas_x_to_level_x(_encounter_drag_start.x)
-			enc["x_offset"] = _encounter_drag_origin_x + delta_x
+			for oi in range(_selected_encounter_indices.size()):
+				var si: int = _selected_encounter_indices[oi]
+				if si >= 0 and si < _selected_level.encounters.size() and oi < _encounter_drag_origins.size():
+					var enc: Dictionary = _selected_level.encounters[si]
+					var orig: Dictionary = _encounter_drag_origins[oi]
+					enc["trigger_y"] = maxf(float(orig["y"]) + delta_y, 0.0)
+					enc["x_offset"] = float(orig["x"]) + delta_x
 			_map_canvas.queue_redraw()
 		elif _nebula_dragging and _nebula_selected_idx >= 0:
 			var neb: Dictionary = _selected_level.nebula_placements[_nebula_selected_idx]
@@ -1053,51 +1071,74 @@ func _handle_map_input(event: InputEvent) -> void:
 			_map_canvas.queue_redraw()
 
 
-func _map_left_click(pos: Vector2) -> void:
-	# Check encounter hit
+func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
+	# Ctrl+click on map → place new encounter
+	if ctrl_held:
+		var map_rect: Rect2 = _get_map_rect()
+		if map_rect.has_point(pos):
+			var trigger_y: float = _canvas_y_to_level_y(pos.y)
+			var x_offset: float = _canvas_x_to_level_x(pos.x)
+			if trigger_y >= 0.0 and trigger_y <= _selected_level.level_length:
+				var enc: Dictionary = {
+					"path_id": str(_enc_path_dropdown.get_item_metadata(_enc_path_dropdown.selected)) if _enc_path_dropdown.selected >= 0 else "",
+					"formation_id": str(_enc_fm_dropdown.get_item_metadata(_enc_fm_dropdown.selected)) if _enc_fm_dropdown.selected >= 0 else "",
+					"ship_id": str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected)) if _enc_ship_dropdown.selected >= 0 else "enemy_1",
+					"speed": _enc_speed_spin.value,
+					"count": int(_enc_count_spin.value),
+					"spacing": _enc_spacing_spin.value,
+					"trigger_y": trigger_y,
+					"x_offset": x_offset,
+					"rotate_with_path": _enc_rotate_check.button_pressed,
+					"is_melee": _enc_melee_check.button_pressed,
+					"turn_speed": _enc_turn_speed_spin.value,
+					"weapons_active": _enc_weapons_active_check.button_pressed,
+				}
+				_selected_level.encounters.append(enc)
+				_selected_encounter_idx = _selected_level.encounters.size() - 1
+				_selected_encounter_indices = [_selected_encounter_idx]
+				_save_current_level()
+				_update_right_panel()
+				_map_canvas.queue_redraw()
+		return
+
+	# Plain click — check encounter hit for select/drag
 	for i in range(_selected_level.encounters.size()):
 		var enc: Dictionary = _selected_level.encounters[i]
 		var enc_canvas_y: float = _level_y_to_canvas_y(float(enc["trigger_y"]))
 		var enc_canvas_x: float = _level_x_to_canvas_x(float(enc["x_offset"]))
 		if Vector2(enc_canvas_x, enc_canvas_y).distance_to(pos) < ENCOUNTER_HIT_RADIUS:
 			_selected_encounter_idx = i
+			if i in _selected_encounter_indices:
+				# Clicked an already-selected item — drag the whole group
+				pass
+			else:
+				_selected_encounter_indices = [i]
+			# Start drag for all selected
 			_encounter_dragging = true
 			_encounter_drag_start = pos
-			_encounter_drag_origin_y = float(enc["trigger_y"])
-			_encounter_drag_origin_x = float(enc["x_offset"])
+			_encounter_drag_origins.clear()
+			for si in _selected_encounter_indices:
+				var se: Dictionary = _selected_level.encounters[si]
+				_encounter_drag_origins.append({"y": float(se["trigger_y"]), "x": float(se["x_offset"])})
 			_update_right_panel()
 			_map_canvas.queue_redraw()
 			return
 
-	# Click empty space on map → place new encounter
+	# Click empty space on map → start selection box
 	var map_rect: Rect2 = _get_map_rect()
 	if map_rect.has_point(pos):
-		var trigger_y: float = _canvas_y_to_level_y(pos.y)
-		var x_offset: float = _canvas_x_to_level_x(pos.x)
-		if trigger_y >= 0.0 and trigger_y <= _selected_level.level_length:
-			var enc: Dictionary = {
-				"path_id": str(_enc_path_dropdown.get_item_metadata(_enc_path_dropdown.selected)) if _enc_path_dropdown.selected >= 0 else "",
-				"formation_id": str(_enc_fm_dropdown.get_item_metadata(_enc_fm_dropdown.selected)) if _enc_fm_dropdown.selected >= 0 else "",
-				"ship_id": str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected)) if _enc_ship_dropdown.selected >= 0 else "enemy_1",
-				"speed": _enc_speed_spin.value,
-				"count": int(_enc_count_spin.value),
-				"spacing": _enc_spacing_spin.value,
-				"trigger_y": trigger_y,
-				"x_offset": x_offset,
-				"rotate_with_path": _enc_rotate_check.button_pressed,
-				"is_melee": _enc_melee_check.button_pressed,
-				"turn_speed": _enc_turn_speed_spin.value,
-				"weapons_active": _enc_weapons_active_check.button_pressed,
-			}
-			_selected_level.encounters.append(enc)
-			_selected_encounter_idx = _selected_level.encounters.size() - 1
-			_save_current_level()
-			_update_right_panel()
-			_map_canvas.queue_redraw()
-			return
+		_selection_box_active = true
+		_selection_box_start = pos
+		_selection_box_end = pos
+		_selected_encounter_idx = -1
+		_selected_encounter_indices.clear()
+		_update_right_panel()
+		_map_canvas.queue_redraw()
+		return
 
-	# Click outside map → start drag-scroll or deselect
+	# Click outside map → deselect + scroll drag
 	_selected_encounter_idx = -1
+	_selected_encounter_indices.clear()
 	_map_dragging = true
 	_map_drag_start_y = pos.y
 	_map_drag_scroll_start = _scroll_offset
@@ -1106,21 +1147,56 @@ func _map_left_click(pos: Vector2) -> void:
 
 
 func _map_right_click(pos: Vector2) -> void:
-	# Right-click encounter to delete
+	# Right-click: if clicking a selected item in a multi-select, delete all selected
 	for i in range(_selected_level.encounters.size()):
 		var enc: Dictionary = _selected_level.encounters[i]
 		var enc_canvas_y: float = _level_y_to_canvas_y(float(enc["trigger_y"]))
 		var enc_canvas_x: float = _level_x_to_canvas_x(float(enc["x_offset"]))
 		if Vector2(enc_canvas_x, enc_canvas_y).distance_to(pos) < ENCOUNTER_HIT_RADIUS:
-			_selected_level.encounters.remove_at(i)
-			if _selected_encounter_idx == i:
+			if _selected_encounter_indices.size() > 1 and i in _selected_encounter_indices:
+				# Delete all selected (remove from highest index first to preserve ordering)
+				var sorted_indices: Array[int] = _selected_encounter_indices.duplicate()
+				sorted_indices.sort()
+				sorted_indices.reverse()
+				for si in sorted_indices:
+					if si >= 0 and si < _selected_level.encounters.size():
+						_selected_level.encounters.remove_at(si)
 				_selected_encounter_idx = -1
-			elif _selected_encounter_idx > i:
-				_selected_encounter_idx -= 1
+				_selected_encounter_indices.clear()
+			else:
+				# Delete single
+				_selected_level.encounters.remove_at(i)
+				_selected_encounter_idx = -1
+				_selected_encounter_indices.clear()
 			_save_current_level()
 			_update_right_panel()
 			_map_canvas.queue_redraw()
 			return
+
+
+func _finish_selection_box() -> void:
+	## Resolve selection box into selected encounter indices.
+	_selected_encounter_indices.clear()
+	_selected_encounter_idx = -1
+	if not _selected_level:
+		_map_canvas.queue_redraw()
+		return
+
+	var box := Rect2(_selection_box_start, _selection_box_end - _selection_box_start).abs()
+	for i in range(_selected_level.encounters.size()):
+		var enc: Dictionary = _selected_level.encounters[i]
+		var enc_canvas_y: float = _level_y_to_canvas_y(float(enc["trigger_y"]))
+		var enc_canvas_x: float = _level_x_to_canvas_x(float(enc["x_offset"]))
+		if box.has_point(Vector2(enc_canvas_x, enc_canvas_y)):
+			_selected_encounter_indices.append(i)
+
+	if _selected_encounter_indices.size() == 1:
+		_selected_encounter_idx = _selected_encounter_indices[0]
+	elif _selected_encounter_indices.size() > 1:
+		_selected_encounter_idx = _selected_encounter_indices[0]
+
+	_update_right_panel()
+	_map_canvas.queue_redraw()
 
 
 func _get_nebula_spread(nebula_id: String) -> float:
@@ -1205,26 +1281,55 @@ func _map_right_click_nebula(pos: Vector2) -> void:
 # ── Copy / Paste ──────────────────────────────────────────────
 
 func _copy_selected() -> void:
-	if _edit_mode == "encounters" and _selected_encounter_idx >= 0:
-		_clipboard = _selected_level.encounters[_selected_encounter_idx].duplicate(true)
-		_clipboard["_clip_type"] = "encounter"
+	if _edit_mode == "encounters":
+		if _selected_encounter_indices.size() > 0:
+			_clipboard_multi.clear()
+			for si in _selected_encounter_indices:
+				if si >= 0 and si < _selected_level.encounters.size():
+					var d: Dictionary = _selected_level.encounters[si].duplicate(true)
+					_clipboard_multi.append(d)
+			_clipboard = {}
+			_clipboard["_clip_type"] = "encounters_multi"
+		elif _selected_encounter_idx >= 0:
+			_clipboard = _selected_level.encounters[_selected_encounter_idx].duplicate(true)
+			_clipboard["_clip_type"] = "encounter"
+			_clipboard_multi.clear()
 	elif _edit_mode == "nebulas" and _nebula_selected_idx >= 0:
 		_clipboard = _selected_level.nebula_placements[_nebula_selected_idx].duplicate(true)
 		_clipboard["_clip_type"] = "nebula"
+		_clipboard_multi.clear()
 
 
 func _paste_at_scroll() -> void:
-	if _clipboard.is_empty() or not _selected_level:
+	if not _selected_level:
 		return
 	var clip_type: String = str(_clipboard.get("_clip_type", ""))
+
+	if clip_type == "encounters_multi" and _edit_mode == "encounters" and _clipboard_multi.size() > 0:
+		_selected_encounter_indices.clear()
+		var base_idx: int = _selected_level.encounters.size()
+		for d in _clipboard_multi:
+			var pasted: Dictionary = d.duplicate(true)
+			_selected_level.encounters.append(pasted)
+		for pi in range(_clipboard_multi.size()):
+			_selected_encounter_indices.append(base_idx + pi)
+		if _selected_encounter_indices.size() > 0:
+			_selected_encounter_idx = _selected_encounter_indices[0]
+		_save_current_level()
+		_update_right_panel()
+		_map_canvas.queue_redraw()
+		return
+
+	if _clipboard.is_empty():
+		return
 	var pasted: Dictionary = _clipboard.duplicate(true)
 	pasted.erase("_clip_type")
-	# Keep same trigger_y, center horizontally
 	pasted["x_offset"] = 0.0
 
 	if clip_type == "encounter" and _edit_mode == "encounters":
 		_selected_level.encounters.append(pasted)
 		_selected_encounter_idx = _selected_level.encounters.size() - 1
+		_selected_encounter_indices = [_selected_encounter_idx]
 		_save_current_level()
 		_update_right_panel()
 		_map_canvas.queue_redraw()
@@ -2211,7 +2316,7 @@ class _MapCanvasDraw extends Control:
 			if cy < -30 or cy > canvas_h + 30:
 				continue
 
-			var is_selected: bool = (i == s._selected_encounter_idx)
+			var is_selected: bool = (i == s._selected_encounter_idx or i in s._selected_encounter_indices)
 			var enc_is_melee: bool = bool(enc.get("is_melee", false))
 			var color := Color(1.0, 0.5, 0.2) if is_selected else (Color(1.0, 0.3, 0.3) if enc_is_melee else Color(0.4, 0.8, 1.0))
 
@@ -2272,6 +2377,13 @@ class _MapCanvasDraw extends Control:
 					var path_name: String = s._path_id_to_name.get(enc_path_id, enc_path_id) as String
 					var path_color := Color(0.5, 0.9, 1.0, 0.7) if is_selected else Color(0.4, 0.7, 0.9, 0.5)
 					draw_string(font3, Vector2(label_x, cy + label_y_offset), path_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, path_color)
+
+
+		# Selection box overlay
+		if s._selection_box_active:
+			var box := Rect2(s._selection_box_start, s._selection_box_end - s._selection_box_start).abs()
+			draw_rect(box, Color(1.0, 0.7, 0.2, 0.08))
+			draw_rect(box, Color(1.0, 0.7, 0.2, 0.5), false, 1.0)
 
 
 	func _draw_debug_grids(s: Control, level: LevelData, map_rect: Rect2, scale: float) -> void:
