@@ -1,0 +1,14 @@
+{
+	"id": "item_26",
+	"display_name": "Speed Boost",
+	"category": "powerup",
+	"value": 1.5,
+	"duration": 8.0,
+	"effect_type": "speed_boost",
+	"visual_shape": "circle",
+	"primary_color": "#FFDD00",
+	"secondary_color": "#CCAA00",
+	"glow_color": "#FFFF66",
+	"icon": "arrow_up",
+	"animation_style": "bob"
+}

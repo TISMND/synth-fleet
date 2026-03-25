@@ -1,0 +1,14 @@
+{
+	"id": "item_28",
+	"display_name": "Thermal Dump",
+	"category": "powerup",
+	"value": 80.0,
+	"duration": 0.0,
+	"effect_type": "thermal_dump",
+	"visual_shape": "circle",
+	"primary_color": "#00DDEE",
+	"secondary_color": "#00AABB",
+	"glow_color": "#66FFFF",
+	"icon": "snowflake",
+	"animation_style": "shimmer"
+}

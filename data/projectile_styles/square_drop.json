@@ -4,8 +4,12 @@
 
 	},
 	"base_scale": [
-		30.0,
+		28.0,
 		40.0
+	],
+	"collision_scale": [
+		33.0,
+		42.0
 	],
 	"color": [
 		0.0,
@@ -21,7 +25,8 @@
 					"params": {
 						"lifetime": 0.15,
 						"particle_count": 2.0,
-						"radius": 7.0
+						"radius": 7.0,
+						"speed_scale": 1.1
 					},
 					"type": "ring_expand"
 				}
@@ -43,6 +48,7 @@
 		"version": 2
 	},
 	"fill_shader": "fire",
+	"flip_shader": false,
 	"glow_intensity": 1.5,
 	"id": "square_drop",
 	"mask_path": "",

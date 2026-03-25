@@ -1,0 +1,14 @@
+{
+	"id": "item_25",
+	"display_name": "Hull Repair",
+	"category": "powerup",
+	"value": 40.0,
+	"duration": 0.0,
+	"effect_type": "hull_repair",
+	"visual_shape": "circle",
+	"primary_color": "#FF3333",
+	"secondary_color": "#CC1111",
+	"glow_color": "#FF8888",
+	"icon": "cross",
+	"animation_style": "pulse"
+}

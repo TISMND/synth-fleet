@@ -1,0 +1,14 @@
+{
+	"id": "item_15",
+	"display_name": "Void Crystal",
+	"category": "money",
+	"value": 2500.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "crystal",
+	"primary_color": "#8800CC",
+	"secondary_color": "#550088",
+	"glow_color": "#CC66FF",
+	"icon": "",
+	"animation_style": "pulse"
+}

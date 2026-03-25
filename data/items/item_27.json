@@ -1,0 +1,14 @@
+{
+	"id": "item_27",
+	"display_name": "Damage Boost",
+	"category": "powerup",
+	"value": 2.0,
+	"duration": 10.0,
+	"effect_type": "damage_boost",
+	"visual_shape": "circle",
+	"primary_color": "#FF6600",
+	"secondary_color": "#CC4400",
+	"glow_color": "#FFAA44",
+	"icon": "sword",
+	"animation_style": "shimmer"
+}

@@ -7,6 +7,10 @@
 		128.0,
 		128.0
 	],
+	"collision_scale": [
+		114.0,
+		95.0
+	],
 	"color": [
 		1.0,
 		0.3984375,
@@ -27,7 +31,8 @@
 					"params": {
 						"lifetime": 0.6,
 						"particle_count": 23.0,
-						"radius": 81.0
+						"radius": 81.0,
+						"speed_scale": 1.1
 					},
 					"type": "nova_flash"
 				}

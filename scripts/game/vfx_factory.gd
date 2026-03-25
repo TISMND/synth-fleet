@@ -314,6 +314,7 @@ static func create_impact_emitter(layer: Dictionary, color: Color) -> GPUParticl
 	var count: int = int(params.get("particle_count", 8))
 	var lifetime: float = float(params.get("lifetime", 0.4))
 	var radius: float = float(params.get("radius", 20.0))
+	var speed_scale: float = float(params.get("speed_scale", 1.0))
 
 	var emitter := GPUParticles2D.new()
 	emitter.amount = count
@@ -323,7 +324,7 @@ static func create_impact_emitter(layer: Dictionary, color: Color) -> GPUParticl
 	emitter.emitting = true
 
 	var mat := ParticleProcessMaterial.new()
-	var speed: float = radius / lifetime
+	var speed: float = (radius / lifetime) * speed_scale
 
 	match itype:
 		"burst":

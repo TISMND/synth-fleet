@@ -1,0 +1,14 @@
+{
+	"id": "item_30",
+	"display_name": "Invincibility",
+	"category": "powerup",
+	"value": 1.0,
+	"duration": 5.0,
+	"effect_type": "invincibility",
+	"visual_shape": "circle",
+	"primary_color": "#FFD700",
+	"secondary_color": "#FFA500",
+	"glow_color": "#FFFF88",
+	"icon": "star",
+	"animation_style": "spin"
+}

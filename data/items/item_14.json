@@ -1,0 +1,14 @@
+{
+	"id": "item_14",
+	"display_name": "Synth Crystal",
+	"category": "money",
+	"value": 1500.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "crystal",
+	"primary_color": "#00CCFF",
+	"secondary_color": "#0088AA",
+	"glow_color": "#66EEFF",
+	"icon": "",
+	"animation_style": "shimmer"
+}

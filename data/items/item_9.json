@@ -1,0 +1,14 @@
+{
+	"id": "item_9",
+	"display_name": "Ruby",
+	"category": "money",
+	"value": 750.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "gem_round",
+	"primary_color": "#DC143C",
+	"secondary_color": "#8B0000",
+	"glow_color": "#FF6688",
+	"icon": "",
+	"animation_style": "shimmer"
+}

@@ -10,6 +10,10 @@
 		12.0,
 		46.0
 	],
+	"collision_scale": [
+		15.0,
+		50.0
+	],
 	"color": [
 		0.0,
 		1.0,
@@ -17,13 +21,29 @@
 		1.0
 	],
 	"display_name": "Rect Lightning",
+	"effect_profile": {
+
+	},
 	"fill_shader": "electric",
-	"glow_intensity": 0.9,
+	"flip_shader": false,
+	"glow_intensity": 1.5,
 	"id": "rect_lightning",
 	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
 	"shader_params": {
+		"animation_speed": 1.1,
 		"arc_width": 0.2,
 		"branch_density": 8.0,
+		"brightness": 1.6,
+		"color_mix": 0.0,
+		"edge_softness": 0.0,
 		"flicker_speed": 16.0
 	}
 }

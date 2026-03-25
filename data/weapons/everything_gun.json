@@ -36,7 +36,7 @@
 	"projectile_style_id": "balot",
 	"skips_shields": false,
 	"splash_enabled": true,
-	"splash_radius": 170.0,
+	"splash_radius": 200.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.0,
 	"transition_mode": "fade",

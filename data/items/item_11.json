@@ -1,0 +1,14 @@
+{
+	"id": "item_11",
+	"display_name": "Sapphire",
+	"category": "money",
+	"value": 750.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "gem_round",
+	"primary_color": "#0F52BA",
+	"secondary_color": "#082567",
+	"glow_color": "#6699FF",
+	"icon": "",
+	"animation_style": "pulse"
+}

@@ -7,6 +7,10 @@
 		6.0,
 		26.0
 	],
+	"collision_scale": [
+		10.0,
+		25.0
+	],
 	"color": [
 		0.085693359375,
 		0.8125,
@@ -14,10 +18,22 @@
 		1.0
 	],
 	"display_name": "green_tickle",
+	"effect_profile": {
+
+	},
 	"fill_shader": "fire",
+	"flip_shader": false,
 	"glow_intensity": 1.5,
 	"id": "green_tickle",
 	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
 	"shader_params": {
 		"animation_speed": 1.1,
 		"brightness": 1.6,

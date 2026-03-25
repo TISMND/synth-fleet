@@ -1,0 +1,14 @@
+{
+	"id": "item_2",
+	"display_name": "Silver Coin",
+	"category": "money",
+	"value": 50.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "coin",
+	"primary_color": "#C0C0C0",
+	"secondary_color": "#808080",
+	"glow_color": "#E8E8F0",
+	"icon": "",
+	"animation_style": "spin"
+}

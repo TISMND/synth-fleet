@@ -1,8 +1,15 @@
 {
 	"archetype": "bullet",
+	"archetype_params": {
+
+	},
 	"base_scale": [
-		24.0,
+		30.0,
 		62.0
+	],
+	"collision_scale": [
+		26.0,
+		44.0
 	],
 	"color": [
 		1.0,

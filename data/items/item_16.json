@@ -1,0 +1,14 @@
+{
+	"id": "item_16",
+	"display_name": "Fire Crystal",
+	"category": "money",
+	"value": 1500.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "crystal",
+	"primary_color": "#FF4400",
+	"secondary_color": "#CC2200",
+	"glow_color": "#FF8844",
+	"icon": "",
+	"animation_style": "shimmer"
+}

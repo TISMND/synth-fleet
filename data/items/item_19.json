@@ -1,0 +1,14 @@
+{
+	"id": "item_19",
+	"display_name": "Credit Chip",
+	"category": "money",
+	"value": 200.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "chip",
+	"primary_color": "#2244AA",
+	"secondary_color": "#1A3388",
+	"glow_color": "#4488DD",
+	"icon": "",
+	"animation_style": "bob"
+}

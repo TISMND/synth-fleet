@@ -24,7 +24,7 @@ extends Resource
 func get_effective_collision_scale() -> Vector2:
 	if collision_scale.x > 0.0 and collision_scale.y > 0.0:
 		return collision_scale
-	return base_scale * 0.5
+	return base_scale * 0.8
 
 
 static func from_dict(data: Dictionary) -> ProjectileStyle:

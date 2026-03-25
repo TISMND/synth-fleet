@@ -1,10 +1,19 @@
 extends MarginContainer
-## Items editor — create/edit powerups and money pickups.
+## Items editor — create/edit powerups and money pickups with live preview.
 
 const CATEGORIES: Array[String] = ["powerup", "money"]
 const EFFECT_TYPES: Array[String] = [
 	"shield_restore", "hull_repair", "speed_boost", "damage_boost",
 	"thermal_dump", "electric_charge", "invincibility", "magnet",
+]
+const VISUAL_SHAPES: Array[String] = [
+	"coin", "diamond", "gem_round", "gem_oval", "crystal", "bar", "chip", "star", "circle",
+]
+const ANIMATION_STYLES: Array[String] = [
+	"shimmer", "spin", "pulse", "bob", "static",
+]
+const ICONS: Array[String] = [
+	"", "shield", "cross", "arrow_up", "sword", "snowflake", "bolt", "star", "magnet",
 ]
 
 var _items: Array[ItemData] = []
@@ -17,14 +26,30 @@ var _delete_btn: Button
 var _editor_panel: VBoxContainer
 var _empty_label: Label
 
+# Data fields
 var _name_edit: LineEdit
 var _category_option: OptionButton
 var _value_spin: SpinBox
-var _value_label: Label  # "Value" for money, "Strength" for powerup
+var _value_label: Label
 var _duration_spin: SpinBox
 var _duration_row: HBoxContainer
 var _effect_option: OptionButton
 var _effect_row: HBoxContainer
+
+# Visual fields
+var _shape_option: OptionButton
+var _primary_color_btn: ColorPickerButton
+var _secondary_color_btn: ColorPickerButton
+var _glow_color_btn: ColorPickerButton
+var _icon_option: OptionButton
+var _icon_row: HBoxContainer
+var _anim_option: OptionButton
+
+# Preview
+var _preview_viewport: SubViewportContainer
+var _preview_subviewport: SubViewport
+var _preview_renderer: ItemRenderer
+var _preview_bg: ColorRect
 
 
 func _ready() -> void:
@@ -51,7 +76,7 @@ func _build_ui() -> void:
 	var left_panel := VBoxContainer.new()
 	left_panel.custom_minimum_size.x = 200
 	left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_panel.size_flags_stretch_ratio = 0.35
+	left_panel.size_flags_stretch_ratio = 0.3
 	left_panel.add_theme_constant_override("separation", 8)
 	split.add_child(left_panel)
 
@@ -87,17 +112,33 @@ func _build_ui() -> void:
 	_delete_btn.pressed.connect(_on_delete)
 	btn_row.add_child(_delete_btn)
 
-	# --- Right: editor ---
+	# --- Right: preview + editor ---
+	var right_panel := VBoxContainer.new()
+	right_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_panel.size_flags_stretch_ratio = 0.7
+	right_panel.add_theme_constant_override("separation", 8)
+	split.add_child(right_panel)
+
+	# Preview area
+	_build_preview(right_panel)
+
+	# Editor scroll
 	var right_scroll := ScrollContainer.new()
 	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_scroll.size_flags_stretch_ratio = 0.65
-	split.add_child(right_scroll)
+	right_panel.add_child(right_scroll)
 
 	_editor_panel = VBoxContainer.new()
 	_editor_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_editor_panel.add_theme_constant_override("separation", 10)
+	_editor_panel.add_theme_constant_override("separation", 8)
 	right_scroll.add_child(_editor_panel)
+
+	# --- Data fields ---
+	var data_header := Label.new()
+	data_header.text = "DATA"
+	data_header.name = "DataHeader"
+	_editor_panel.add_child(data_header)
 
 	# Name
 	var name_row := _make_row("Name")
@@ -147,6 +188,64 @@ func _build_ui() -> void:
 	_duration_spin.value_changed.connect(_on_duration_changed)
 	_duration_row.add_child(_duration_spin)
 
+	# --- Visual fields ---
+	var vis_header := Label.new()
+	vis_header.text = "VISUALS"
+	vis_header.name = "VisualHeader"
+	_editor_panel.add_child(vis_header)
+
+	# Shape
+	var shape_row := _make_row("Shape")
+	_shape_option = OptionButton.new()
+	_shape_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for sh in VISUAL_SHAPES:
+		_shape_option.add_item(sh.replace("_", " ").capitalize())
+	_shape_option.item_selected.connect(_on_shape_changed)
+	shape_row.add_child(_shape_option)
+
+	# Primary color
+	var pc_row := _make_row("Primary")
+	_primary_color_btn = ColorPickerButton.new()
+	_primary_color_btn.custom_minimum_size = Vector2(60, 28)
+	_primary_color_btn.color = Color.GOLD
+	_primary_color_btn.color_changed.connect(_on_primary_color_changed)
+	pc_row.add_child(_primary_color_btn)
+
+	# Secondary color
+	var sc_row := _make_row("Secondary")
+	_secondary_color_btn = ColorPickerButton.new()
+	_secondary_color_btn.custom_minimum_size = Vector2(60, 28)
+	_secondary_color_btn.color = Color.DARK_GOLDENROD
+	_secondary_color_btn.color_changed.connect(_on_secondary_color_changed)
+	sc_row.add_child(_secondary_color_btn)
+
+	# Glow color
+	var gc_row := _make_row("Glow")
+	_glow_color_btn = ColorPickerButton.new()
+	_glow_color_btn.custom_minimum_size = Vector2(60, 28)
+	_glow_color_btn.color = Color.YELLOW
+	_glow_color_btn.color_changed.connect(_on_glow_color_changed)
+	gc_row.add_child(_glow_color_btn)
+
+	# Icon (powerups)
+	_icon_row = _make_row("Icon")
+	_icon_option = OptionButton.new()
+	_icon_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for ic in ICONS:
+		var label_text: String = "(none)" if ic == "" else ic.replace("_", " ").capitalize()
+		_icon_option.add_item(label_text)
+	_icon_option.item_selected.connect(_on_icon_changed)
+	_icon_row.add_child(_icon_option)
+
+	# Animation
+	var anim_row := _make_row("Animation")
+	_anim_option = OptionButton.new()
+	_anim_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for a in ANIMATION_STYLES:
+		_anim_option.add_item(a.capitalize())
+	_anim_option.item_selected.connect(_on_anim_changed)
+	anim_row.add_child(_anim_option)
+
 	# Empty state
 	_empty_label = Label.new()
 	_empty_label.text = "No items yet. Click + NEW to get started."
@@ -156,6 +255,41 @@ func _build_ui() -> void:
 	_empty_label.visible = false
 
 	_rebuild_list()
+
+
+func _build_preview(parent: VBoxContainer) -> void:
+	var preview_frame := PanelContainer.new()
+	preview_frame.custom_minimum_size = Vector2(0, 140)
+	preview_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(preview_frame)
+
+	_preview_viewport = SubViewportContainer.new()
+	_preview_viewport.stretch = true
+	_preview_viewport.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_preview_viewport.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview_frame.add_child(_preview_viewport)
+
+	_preview_subviewport = SubViewport.new()
+	_preview_subviewport.transparent_bg = false
+	_preview_subviewport.size = Vector2i(400, 140)
+	_preview_subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_preview_viewport.add_child(_preview_subviewport)
+
+	# Dark background
+	_preview_bg = ColorRect.new()
+	_preview_bg.color = Color(0.05, 0.05, 0.08, 1.0)
+	_preview_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_preview_subviewport.add_child(_preview_bg)
+
+	_preview_renderer = ItemRenderer.new()
+	_preview_renderer.position = Vector2(200, 70)
+	_preview_subviewport.add_child(_preview_renderer)
+
+
+func _update_preview() -> void:
+	var data: ItemData = _get_by_id(_selected_id)
+	if data and _preview_renderer:
+		_preview_renderer.setup(data, 48.0)
 
 
 func _make_row(label_text: String) -> HBoxContainer:
@@ -173,6 +307,7 @@ func _update_category_visibility(cat: String) -> void:
 	var is_powerup: bool = (cat == "powerup")
 	_effect_row.visible = is_powerup
 	_duration_row.visible = is_powerup
+	_icon_row.visible = is_powerup
 	_value_label.text = "Strength" if is_powerup else "Value"
 
 
@@ -202,6 +337,8 @@ func _show_empty_state() -> void:
 		if child != _empty_label:
 			child.visible = false
 	_delete_btn.disabled = true
+	if _preview_renderer:
+		_preview_renderer.setup(null)
 
 
 func _show_editor_state() -> void:
@@ -231,8 +368,24 @@ func _select_item(id: String) -> void:
 
 	_value_spin.value = data.value
 	_duration_spin.value = data.duration
+
+	# Visual fields
+	var shape_idx: int = VISUAL_SHAPES.find(data.visual_shape)
+	_shape_option.selected = maxi(shape_idx, 0)
+
+	_primary_color_btn.color = Color.from_string(data.primary_color, Color.GOLD)
+	_secondary_color_btn.color = Color.from_string(data.secondary_color, Color.DARK_GOLDENROD)
+	_glow_color_btn.color = Color.from_string(data.glow_color, Color.YELLOW)
+
+	var icon_idx: int = ICONS.find(data.icon)
+	_icon_option.selected = maxi(icon_idx, 0)
+
+	var anim_idx: int = ANIMATION_STYLES.find(data.animation_style)
+	_anim_option.selected = maxi(anim_idx, 0)
+
 	_suppressing_signals = false
 	_rebuild_list()
+	_update_preview()
 
 
 func _get_by_id(id: String) -> ItemData:
@@ -259,6 +412,7 @@ func _auto_save() -> void:
 	var data: ItemData = _get_by_id(_selected_id)
 	if data:
 		ItemDataManager.save(data)
+	_update_preview()
 
 
 # ── Signals ───────────────────────────────────────────────────────────────
@@ -345,6 +499,60 @@ func _on_duration_changed(val: float) -> void:
 	var data: ItemData = _get_by_id(_selected_id)
 	if data:
 		data.duration = val
+		_auto_save()
+
+
+func _on_shape_changed(idx: int) -> void:
+	if _suppressing_signals:
+		return
+	var data: ItemData = _get_by_id(_selected_id)
+	if data:
+		data.visual_shape = VISUAL_SHAPES[idx]
+		_auto_save()
+
+
+func _on_primary_color_changed(color: Color) -> void:
+	if _suppressing_signals:
+		return
+	var data: ItemData = _get_by_id(_selected_id)
+	if data:
+		data.primary_color = "#" + color.to_html(false)
+		_auto_save()
+
+
+func _on_secondary_color_changed(color: Color) -> void:
+	if _suppressing_signals:
+		return
+	var data: ItemData = _get_by_id(_selected_id)
+	if data:
+		data.secondary_color = "#" + color.to_html(false)
+		_auto_save()
+
+
+func _on_glow_color_changed(color: Color) -> void:
+	if _suppressing_signals:
+		return
+	var data: ItemData = _get_by_id(_selected_id)
+	if data:
+		data.glow_color = "#" + color.to_html(false)
+		_auto_save()
+
+
+func _on_icon_changed(idx: int) -> void:
+	if _suppressing_signals:
+		return
+	var data: ItemData = _get_by_id(_selected_id)
+	if data:
+		data.icon = ICONS[idx]
+		_auto_save()
+
+
+func _on_anim_changed(idx: int) -> void:
+	if _suppressing_signals:
+		return
+	var data: ItemData = _get_by_id(_selected_id)
+	if data:
+		data.animation_style = ANIMATION_STYLES[idx]
 		_auto_save()
 
 

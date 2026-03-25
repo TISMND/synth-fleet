@@ -2594,6 +2594,9 @@ func _on_play_toggle() -> void:
 				if fr._material:
 					fr._material.set_shader_parameter("pulse_intensity", 0.0)
 				fr.visible = false
+		# Reset ship tint to neutral (field HDR tint sticks otherwise)
+		if _ship_renderer:
+			_ship_renderer.modulate = Color(1.0, 1.0, 1.0, 1.0)
 		_is_playing = false
 		_play_btn.text = "RUN"
 	else:

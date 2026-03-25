@@ -46,10 +46,10 @@ const EFFECT_PARAM_DEFS: Dictionary = {
 	},
 	"impact": {
 		"none": {},
-		"burst": {"particle_count": [1, 40, 8, 1], "lifetime": [0.05, 2.0, 0.3, 0.05], "radius": [2.0, 100.0, 20.0, 1.0]},
-		"ring_expand": {"particle_count": [2, 48, 12, 1], "lifetime": [0.05, 1.5, 0.25, 0.05], "radius": [4.0, 100.0, 30.0, 1.0]},
-		"shatter_lines": {"particle_count": [1, 24, 6, 1], "lifetime": [0.05, 1.5, 0.25, 0.05], "radius": [2.0, 80.0, 25.0, 1.0]},
-		"nova_flash": {"particle_count": [2, 40, 10, 1], "lifetime": [0.1, 2.0, 0.4, 0.05], "radius": [5.0, 120.0, 40.0, 1.0]},
-		"ripple": {"particle_count": [1, 32, 8, 1], "lifetime": [0.05, 2.0, 0.3, 0.05], "radius": [4.0, 100.0, 35.0, 1.0]},
+		"burst": {"particle_count": [1, 40, 8, 1], "lifetime": [0.05, 2.0, 0.3, 0.05], "radius": [2.0, 100.0, 20.0, 1.0], "speed_scale": [0.1, 5.0, 1.0, 0.1]},
+		"ring_expand": {"particle_count": [2, 48, 12, 1], "lifetime": [0.05, 1.5, 0.25, 0.05], "radius": [4.0, 100.0, 30.0, 1.0], "speed_scale": [0.1, 5.0, 1.0, 0.1]},
+		"shatter_lines": {"particle_count": [1, 24, 6, 1], "lifetime": [0.05, 1.5, 0.25, 0.05], "radius": [2.0, 80.0, 25.0, 1.0], "speed_scale": [0.1, 5.0, 1.0, 0.1]},
+		"nova_flash": {"particle_count": [2, 40, 10, 1], "lifetime": [0.1, 2.0, 0.4, 0.05], "radius": [5.0, 120.0, 40.0, 1.0], "speed_scale": [0.1, 5.0, 1.0, 0.1]},
+		"ripple": {"particle_count": [1, 32, 8, 1], "lifetime": [0.05, 2.0, 0.3, 0.05], "radius": [4.0, 100.0, 35.0, 1.0], "speed_scale": [0.1, 5.0, 1.0, 0.1]},
 	},
 }

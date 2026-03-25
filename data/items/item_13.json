@@ -1,0 +1,14 @@
+{
+	"id": "item_13",
+	"display_name": "Topaz",
+	"category": "money",
+	"value": 400.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "gem_round",
+	"primary_color": "#FFC87C",
+	"secondary_color": "#CC8833",
+	"glow_color": "#FFE0AA",
+	"icon": "",
+	"animation_style": "bob"
+}

@@ -1,0 +1,14 @@
+{
+	"id": "item_31",
+	"display_name": "Magnet",
+	"category": "powerup",
+	"value": 1.0,
+	"duration": 12.0,
+	"effect_type": "magnet",
+	"visual_shape": "circle",
+	"primary_color": "#888899",
+	"secondary_color": "#555566",
+	"glow_color": "#AABBCC",
+	"icon": "magnet",
+	"animation_style": "bob"
+}

@@ -1,0 +1,14 @@
+{
+	"id": "item_24",
+	"display_name": "Shield Restore",
+	"category": "powerup",
+	"value": 50.0,
+	"duration": 0.0,
+	"effect_type": "shield_restore",
+	"visual_shape": "circle",
+	"primary_color": "#3388FF",
+	"secondary_color": "#2266CC",
+	"glow_color": "#88BBFF",
+	"icon": "shield",
+	"animation_style": "pulse"
+}
