@@ -10,8 +10,7 @@ var enemy_color: Color = Color(1.0, 0.3, 0.5)
 var visual_id: String = ""
 var render_mode_str: String = "neon"
 var grid_size: Vector2i = Vector2i(32, 32)
-var ship_id: String = ""                    # ShipData id for presence tracking
-var presence_loop_path: String = ""         # Audio loop path for presence system
+var ship_id: String = ""
 
 # Path-following mode (set externally; null = drift mode)
 var path_curve: Curve2D = null
@@ -38,7 +37,7 @@ var _hit_flash: float = 0.0
 var _hull_flash_duration: float = 0.1
 var _hull_blink_speed: float = 8.0
 var _hull_flash_opacity: float = 0.5
-var _shield_field: FieldRenderer = null
+var _shield_bubble: ShieldBubbleEffect = null
 var _weapon_controller: EnemyWeaponController = null
 
 # Set externally before adding to scene tree for weapon setup
@@ -64,11 +63,11 @@ func _ready() -> void:
 		col_shape.shape = circle
 	add_child(col_shape)
 
-	# Per-ship hull flash settings
-	if ship_data_ref:
-		_hull_flash_opacity = ship_data_ref.hull_flash_opacity
-		_hull_blink_speed = ship_data_ref.hull_blink_speed
-		_hull_flash_duration = ship_data_ref.hull_flash_duration
+	# Load universal enemy hit effect params from VFX config
+	var vfx: VfxConfig = VfxConfigManager.load_config()
+	_hull_flash_opacity = maxf(maxf(vfx.enemy_hull_peak_r, vfx.enemy_hull_peak_g), vfx.enemy_hull_peak_b) / 5.0
+	_hull_blink_speed = vfx.enemy_hull_blink_speed
+	_hull_flash_duration = vfx.enemy_hull_duration
 
 	# Try shared bake viewport first — falls back to per-instance ShipRenderer
 	var vid: String = visual_id if visual_id != "" else "sentinel"
@@ -91,22 +90,22 @@ func _ready() -> void:
 		_renderer.render_mode = ShipRenderer.RenderMode.CHROME if render_mode_str == "chrome" else ShipRenderer.RenderMode.NEON
 		_renderer.hull_color = enemy_color
 		_renderer.accent_color = Color(1.0, 0.2, 0.6)
-		if ship_data_ref:
-			_renderer.hull_flash_opacity = _hull_flash_opacity
-			_renderer.hull_blink_speed = _hull_blink_speed
-			_renderer.hull_flash_duration = _hull_flash_duration
+		_renderer.hull_flash_opacity = _hull_flash_opacity
+		_renderer.hull_blink_speed = _hull_blink_speed
+		_renderer.hull_flash_duration = _hull_flash_duration
 		add_child(_renderer)
-	# Per-ship shield hit visual via FieldRenderer
-	var style_id: String = ship_data_ref.shield_style_id if ship_data_ref else ""
-	if style_id != "":
-		var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
-		if style:
-			_shield_field = FieldRenderer.new()
-			var ship_radius: float = ShipRenderer.get_ship_scale(-1) * 50.0
-			_shield_field.setup(style, ship_radius)
-			_shield_field._stay_visible = false
-			_shield_field.visible = false
-			add_child(_shield_field)
+
+	# Universal shield hit effect — always circular, diameter = max hitbox dimension
+	var shield_radius: float = ShipRenderer.get_ship_scale(-1) * 50.0
+	if ship_data_ref:
+		shield_radius = maxf(ship_data_ref.collision_width, ship_data_ref.collision_height) * 0.5
+	_shield_bubble = ShieldBubbleEffect.new()
+	_shield_bubble.ship_radius = shield_radius
+	_shield_bubble.shield_color = Color(vfx.enemy_shield_color_r, vfx.enemy_shield_color_g, vfx.enemy_shield_color_b)
+	_shield_bubble.flash_duration = vfx.enemy_shield_duration
+	_shield_bubble.radius_mult = vfx.enemy_shield_radius_mult
+	_shield_bubble.intensity = vfx.enemy_shield_intensity
+	add_child(_shield_bubble)
 
 	# Setup weapon controller if ship has a weapon assigned
 	if ship_data_ref and ship_data_ref.weapon_id != "" and projectiles_container:
@@ -232,8 +231,8 @@ func take_damage(amount: int, skips_shields: bool = false) -> void:
 		shield -= absorbed
 		remaining -= absorbed
 		SfxPlayer.play("enemy_shield_hit")
-		if _shield_field:
-			_shield_field.pulse()
+		if _shield_bubble:
+			_shield_bubble.trigger()
 	if remaining > 0:
 		health -= remaining
 		SfxPlayer.play("enemy_hull_hit")

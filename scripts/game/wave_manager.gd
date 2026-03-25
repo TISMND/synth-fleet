@@ -6,7 +6,7 @@ extends Node
 signal wave_started(wave_index: int, total_waves: int)
 signal wave_cleared(wave_index: int, total_waves: int)
 signal all_waves_cleared
-signal presence_pre_trigger(ship_id: String, loop_path: String)
+
 
 var _waves: Array = []
 var _enemies_container: Node2D = null
@@ -89,14 +89,7 @@ func _check_presence_pretriggers() -> void:
 		var trigger_y: float = float(enc["trigger_y"])
 		if trigger_y > lead_distance:
 			break  # Sorted by trigger_y, so no more encounters within range
-		# Within lead distance — pre-trigger presence audio
 		_pre_triggered_encounters[i] = true
-		var sid: String = str(enc.get("ship_id", ""))
-		if sid == "":
-			continue
-		var ship: ShipData = ShipDataManager.load_by_id(sid)
-		if ship and ship.presence_loop_path != "":
-			presence_pre_trigger.emit(sid, ship.presence_loop_path)
 
 
 func _check_encounter_triggers() -> void:
@@ -212,7 +205,6 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 			enemy.render_mode_str = ship.render_mode if ship.render_mode != "" else "neon"
 			enemy.grid_size = ship.grid_size
 			enemy.ship_id = sid
-			enemy.presence_loop_path = ship.presence_loop_path
 			# Pass weapon data for EnemyWeaponController
 			if ship.type == "enemy" and ship.weapon_id != "":
 				enemy.ship_data_ref = ship

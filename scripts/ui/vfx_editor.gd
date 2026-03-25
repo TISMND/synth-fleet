@@ -1,6 +1,6 @@
 extends Control
-## VFX Editor — two live previews (shield bubble + hull flash) with slider controls.
-## Browses all 9 player ship designs + enemy ships by renderer ID, with skin toggle.
+## VFX Editor — four live previews: Player Shield/Hull + Enemy Shield/Hull.
+## Browses player ship designs + enemy ships by renderer ID, with skin toggle.
 
 var _config: VfxConfig
 var _vhs_overlay: ColorRect
@@ -24,17 +24,23 @@ const ENEMY_SHIPS: Array[Dictionary] = [
 	{"visual_id": "sentinel", "name": "Sentinel"},
 ]
 
-var _category: int = 0  # 0=player, 1=enemy
-var _ship_index: int = 0
-var _render_mode: int = ShipRenderer.RenderMode.CHROME
-var _ship_label: Label
-var _cat_btn: Button
-var _skin_btn: Button
+var _player_ship_index: int = 0
+var _enemy_ship_index: int = 0
+var _player_skin: int = ShipRenderer.RenderMode.CHROME
+var _enemy_skin: int = ShipRenderer.RenderMode.NEON
 
-# Preview nodes
-var _shield_renderer: ShipRenderer
-var _shield_bubble: ShieldBubbleEffect
-var _hull_renderer: ShipRenderer
+# Preview nodes — player
+var _player_shield_renderer: ShipRenderer
+var _player_shield_bubble: ShieldBubbleEffect
+var _player_hull_renderer: ShipRenderer
+# Preview nodes — enemy
+var _enemy_shield_renderer: ShipRenderer
+var _enemy_shield_bubble: ShieldBubbleEffect
+var _enemy_hull_renderer: ShipRenderer
+
+# Ship labels
+var _player_ship_label: Label
+var _enemy_ship_label: Label
 
 # Slider references for live update
 var _sliders: Dictionary = {}  # key -> HSlider
@@ -45,7 +51,8 @@ func _ready() -> void:
 	_setup_vhs_overlay()
 	_build_ui()
 	_apply_config_to_previews()
-	_update_ship_previews()
+	_update_player_ship_preview()
+	_update_enemy_ship_preview()
 
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
@@ -65,19 +72,33 @@ func _input(event: InputEvent) -> void:
 # ── UI Construction ──
 
 func _build_ui() -> void:
-	# Grid background
 	var bg := ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	ThemeManager.apply_grid_background(bg)
 
-	# Top bar
 	_build_top_bar()
-	# Ship selector row
-	_build_ship_selector()
-	# Two-column layout: shield (left) + hull (right)
-	_build_preview_columns()
-	# Bottom bar
+
+	# Scrollable content area for four sections
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.offset_top = 60
+	scroll.offset_bottom = -60
+	scroll.offset_left = 20
+	scroll.offset_right = -20
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
+
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 20)
+	scroll.add_child(content)
+
+	_build_player_shield_section(content)
+	_build_player_hull_section(content)
+	_build_enemy_shield_section(content)
+	_build_enemy_hull_section(content)
+
 	_build_bottom_bar()
 
 
@@ -109,205 +130,183 @@ func _build_top_bar() -> void:
 	top_bar.add_child(spacer2)
 
 
-func _build_ship_selector() -> void:
-	var row := HBoxContainer.new()
-	row.position = Vector2(20, 60)
-	row.size = Vector2(1880, 40)
-	add_child(row)
+func _build_section(parent: VBoxContainer, section_title: String, is_shield: bool, is_enemy: bool) -> void:
+	# Section header with ship selector
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 10)
+	parent.add_child(header_row)
 
-	var ship_lbl := Label.new()
-	ship_lbl.text = "Ship:"
-	row.add_child(ship_lbl)
-	ThemeManager.apply_text_glow(ship_lbl, "body")
+	var header := Label.new()
+	header.text = section_title
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(header)
+	ThemeManager.apply_text_glow(header, "header")
 
-	_cat_btn = Button.new()
-	_cat_btn.text = "PLAYER"
-	_cat_btn.custom_minimum_size.x = 100
-	_cat_btn.pressed.connect(_toggle_category)
-	row.add_child(_cat_btn)
-	ThemeManager.apply_button_style(_cat_btn)
-
+	# Ship browsing controls
 	var prev_btn := Button.new()
 	prev_btn.text = "<"
-	prev_btn.pressed.connect(_prev_ship)
-	row.add_child(prev_btn)
+	prev_btn.pressed.connect(_prev_player_ship if not is_enemy else _prev_enemy_ship)
+	header_row.add_child(prev_btn)
 	ThemeManager.apply_button_style(prev_btn)
 
-	_ship_label = Label.new()
-	_ship_label.text = "Switchblade"
-	_ship_label.custom_minimum_size.x = 180
-	_ship_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	row.add_child(_ship_label)
-	ThemeManager.apply_text_glow(_ship_label, "body")
+	var ship_label := Label.new()
+	ship_label.custom_minimum_size.x = 140
+	ship_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header_row.add_child(ship_label)
+	ThemeManager.apply_text_glow(ship_label, "body")
 
 	var next_btn := Button.new()
 	next_btn.text = ">"
-	next_btn.pressed.connect(_next_ship)
-	row.add_child(next_btn)
+	next_btn.pressed.connect(_next_player_ship if not is_enemy else _next_enemy_ship)
+	header_row.add_child(next_btn)
 	ThemeManager.apply_button_style(next_btn)
 
-	# Spacer
-	var sep := Control.new()
-	sep.custom_minimum_size.x = 40
-	row.add_child(sep)
+	if not is_enemy:
+		_player_ship_label = ship_label
+		ship_label.text = str(PLAYER_SHIPS[0]["name"])
+	else:
+		_enemy_ship_label = ship_label
+		ship_label.text = str(ENEMY_SHIPS[0]["name"]) if ENEMY_SHIPS.size() > 0 else "(none)"
 
-	var skin_lbl := Label.new()
-	skin_lbl.text = "Skin:"
-	row.add_child(skin_lbl)
-	ThemeManager.apply_text_glow(skin_lbl, "body")
+	# Content row: preview panel (left) + sliders (right)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 20)
+	parent.add_child(row)
 
-	_skin_btn = Button.new()
-	_skin_btn.text = "CHROME"
-	_skin_btn.custom_minimum_size.x = 100
-	_skin_btn.pressed.connect(_toggle_skin)
-	row.add_child(_skin_btn)
-	ThemeManager.apply_button_style(_skin_btn)
+	# Preview panel
+	var panel := Panel.new()
+	panel.custom_minimum_size = Vector2(280, 220)
+	row.add_child(panel)
+	_style_panel(panel)
+
+	var renderer := ShipRenderer.new()
+	renderer.position = Vector2(140, 110)
+	renderer.scale = Vector2(0.7, 0.7)
+	renderer.animate = true
+	panel.add_child(renderer)
+
+	var bubble: ShieldBubbleEffect = null
+	if is_shield:
+		bubble = ShieldBubbleEffect.new()
+		bubble.position = renderer.position
+		panel.add_child(bubble)
+
+	# Store references
+	if not is_enemy:
+		if is_shield:
+			_player_shield_renderer = renderer
+			_player_shield_bubble = bubble
+		else:
+			_player_hull_renderer = renderer
+	else:
+		if is_shield:
+			_enemy_shield_renderer = renderer
+			_enemy_shield_bubble = bubble
+		else:
+			_enemy_hull_renderer = renderer
+		renderer.render_mode = ShipRenderer.RenderMode.NEON
+
+	# Sliders
+	var slider_vbox := VBoxContainer.new()
+	slider_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider_vbox.add_theme_constant_override("separation", 4)
+	row.add_child(slider_vbox)
+
+	if is_shield:
+		var prefix: String = "enemy_" if is_enemy else ""
+		_add_slider_row_vbox(slider_vbox, prefix + "shield_color_r", "Color R", 0.0, 1.0, _config.get(prefix + "shield_color_r"))
+		_add_slider_row_vbox(slider_vbox, prefix + "shield_color_g", "Color G", 0.0, 1.0, _config.get(prefix + "shield_color_g"))
+		_add_slider_row_vbox(slider_vbox, prefix + "shield_color_b", "Color B", 0.0, 1.0, _config.get(prefix + "shield_color_b"))
+		_add_slider_row_vbox(slider_vbox, prefix + "shield_duration", "Duration", 0.05, 0.5, _config.get(prefix + "shield_duration"))
+		_add_slider_row_vbox(slider_vbox, prefix + "shield_radius_mult", "Radius", 0.5, 2.0, _config.get(prefix + "shield_radius_mult"))
+		_add_slider_row_vbox(slider_vbox, prefix + "shield_intensity", "Intensity", 0.2, 2.0, _config.get(prefix + "shield_intensity"))
+	else:
+		var prefix: String = "enemy_" if is_enemy else ""
+		_add_slider_row_vbox(slider_vbox, prefix + "hull_peak_r", "Peak R", 1.0, 5.0, _config.get(prefix + "hull_peak_r"))
+		_add_slider_row_vbox(slider_vbox, prefix + "hull_peak_g", "Peak G", 1.0, 5.0, _config.get(prefix + "hull_peak_g"))
+		_add_slider_row_vbox(slider_vbox, prefix + "hull_peak_b", "Peak B", 1.0, 5.0, _config.get(prefix + "hull_peak_b"))
+		_add_slider_row_vbox(slider_vbox, prefix + "hull_duration", "Duration", 0.04, 0.4, _config.get(prefix + "hull_duration"))
+		_add_slider_row_vbox(slider_vbox, prefix + "hull_blink_speed", "Blink Speed", 2.0, 14.0, _config.get(prefix + "hull_blink_speed"))
 
 
-func _build_preview_columns() -> void:
-	var col_y: float = 110.0
-	var col_w: float = 900.0
+func _build_player_shield_section(parent: VBoxContainer) -> void:
+	_build_section(parent, "PLAYER SHIELD HIT", true, false)
 
-	# ── Left column: Shield Hit ──
-	var shield_header := Label.new()
-	shield_header.text = "SHIELD HIT  (Soft Sphere)"
-	shield_header.position = Vector2(60, col_y)
-	add_child(shield_header)
-	ThemeManager.apply_text_glow(shield_header, "header")
+func _build_player_hull_section(parent: VBoxContainer) -> void:
+	_build_section(parent, "PLAYER HULL FLASH", false, false)
 
-	# Shield preview panel
-	var shield_panel := Panel.new()
-	shield_panel.position = Vector2(60, col_y + 35)
-	shield_panel.size = Vector2(280, 220)
-	add_child(shield_panel)
-	_style_panel(shield_panel)
+func _build_enemy_shield_section(parent: VBoxContainer) -> void:
+	_build_section(parent, "ENEMY SHIELD HIT", true, true)
 
-	_shield_renderer = ShipRenderer.new()
-	_shield_renderer.position = Vector2(140, 110)
-	_shield_renderer.scale = Vector2(0.7, 0.7)
-	_shield_renderer.animate = true
-	shield_panel.add_child(_shield_renderer)
-
-	_shield_bubble = ShieldBubbleEffect.new()
-	_shield_bubble.position = _shield_renderer.position
-	shield_panel.add_child(_shield_bubble)
-
-	# Shield sliders
-	var sy: float = col_y + 35
-	var sx: float = 370.0
-	sy = _add_slider(sx, sy, "shield_color_r", "Color R", 0.0, 1.0, _config.shield_color_r)
-	sy = _add_slider(sx, sy, "shield_color_g", "Color G", 0.0, 1.0, _config.shield_color_g)
-	sy = _add_slider(sx, sy, "shield_color_b", "Color B", 0.0, 1.0, _config.shield_color_b)
-	sy = _add_slider(sx, sy, "shield_duration", "Duration", 0.05, 0.5, _config.shield_duration)
-	sy = _add_slider(sx, sy, "shield_radius_mult", "Radius", 0.5, 2.0, _config.shield_radius_mult)
-	sy = _add_slider(sx, sy, "shield_intensity", "Intensity", 0.2, 2.0, _config.shield_intensity)
-
-	# ── Right column: Hull Flash ──
-	var hull_header := Label.new()
-	hull_header.text = "HULL FLASH  (Hard Blink)"
-	hull_header.position = Vector2(col_w + 60, col_y)
-	add_child(hull_header)
-	ThemeManager.apply_text_glow(hull_header, "header")
-
-	# Hull preview panel
-	var hull_panel := Panel.new()
-	hull_panel.position = Vector2(col_w + 60, col_y + 35)
-	hull_panel.size = Vector2(280, 220)
-	add_child(hull_panel)
-	_style_panel(hull_panel)
-
-	_hull_renderer = ShipRenderer.new()
-	_hull_renderer.position = Vector2(140, 110)
-	_hull_renderer.scale = Vector2(0.7, 0.7)
-	_hull_renderer.animate = true
-	hull_panel.add_child(_hull_renderer)
-
-	# Hull sliders
-	var hy: float = col_y + 35
-	var hx: float = col_w + 370.0
-	hy = _add_slider(hx, hy, "hull_peak_r", "Peak R", 1.0, 5.0, _config.hull_peak_r)
-	hy = _add_slider(hx, hy, "hull_peak_g", "Peak G", 1.0, 5.0, _config.hull_peak_g)
-	hy = _add_slider(hx, hy, "hull_peak_b", "Peak B", 1.0, 5.0, _config.hull_peak_b)
-	hy = _add_slider(hx, hy, "hull_duration", "Duration", 0.04, 0.4, _config.hull_duration)
-	hy = _add_slider(hx, hy, "hull_blink_speed", "Blink Speed", 2.0, 14.0, _config.hull_blink_speed)
+func _build_enemy_hull_section(parent: VBoxContainer) -> void:
+	_build_section(parent, "ENEMY HULL FLASH", false, true)
 
 
 func _build_bottom_bar() -> void:
-	var bottom_y: float = 720.0
+	var bar := HBoxContainer.new()
+	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bar.offset_top = -50
+	bar.offset_left = 20
+	bar.offset_right = -20
+	add_child(bar)
 
 	_status_label = Label.new()
-	_status_label.position = Vector2(60, bottom_y)
-	_status_label.size = Vector2(1200, 40)
-	add_child(_status_label)
+	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.add_child(_status_label)
 	ThemeManager.apply_text_glow(_status_label, "body")
 	_update_status()
 
 	var replay_btn := Button.new()
 	replay_btn.text = "REPLAY"
-	replay_btn.position = Vector2(1560, bottom_y)
-	replay_btn.size = Vector2(120, 40)
+	replay_btn.custom_minimum_size.x = 120
 	replay_btn.pressed.connect(_trigger_effects)
-	add_child(replay_btn)
+	bar.add_child(replay_btn)
 	ThemeManager.apply_button_style(replay_btn)
 
 	var save_btn := Button.new()
 	save_btn.text = "SAVE"
-	save_btn.position = Vector2(1700, bottom_y)
-	save_btn.size = Vector2(120, 40)
+	save_btn.custom_minimum_size.x = 120
 	save_btn.pressed.connect(_save_config)
-	add_child(save_btn)
+	bar.add_child(save_btn)
 	ThemeManager.apply_button_style(save_btn)
 
 
 # ── Slider factory ──
 
-func _add_slider(x: float, y: float, key: String, label_text: String, min_val: float, max_val: float, value: float) -> float:
+func _add_slider_row_vbox(parent: VBoxContainer, key: String, label_text: String, min_val: float, max_val: float, value: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	parent.add_child(row)
+
 	var lbl := Label.new()
 	lbl.text = label_text
-	lbl.position = Vector2(x, y + 2)
-	lbl.size = Vector2(90, 24)
-	add_child(lbl)
+	lbl.custom_minimum_size.x = 90
+	row.add_child(lbl)
 	ThemeManager.apply_text_glow(lbl, "body")
 
 	var slider := HSlider.new()
-	slider.position = Vector2(x + 95, y)
-	slider.size = Vector2(280, 28)
 	slider.min_value = min_val
 	slider.max_value = max_val
 	slider.step = 0.01
 	slider.value = value
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 200
 	slider.value_changed.connect(_on_slider_changed.bind(key))
-	add_child(slider)
+	row.add_child(slider)
 	_sliders[key] = slider
 
 	var val_lbl := Label.new()
 	val_lbl.name = key + "_val"
 	val_lbl.text = "%.2f" % value
-	val_lbl.position = Vector2(x + 380, y + 2)
-	val_lbl.size = Vector2(60, 24)
-	add_child(val_lbl)
+	val_lbl.custom_minimum_size.x = 50
+	row.add_child(val_lbl)
 	ThemeManager.apply_text_glow(val_lbl, "body")
-
-	return y + 34.0
 
 
 func _on_slider_changed(value: float, key: String) -> void:
-	# Update config
-	match key:
-		"shield_color_r": _config.shield_color_r = value
-		"shield_color_g": _config.shield_color_g = value
-		"shield_color_b": _config.shield_color_b = value
-		"shield_duration": _config.shield_duration = value
-		"shield_radius_mult": _config.shield_radius_mult = value
-		"shield_intensity": _config.shield_intensity = value
-		"hull_peak_r": _config.hull_peak_r = value
-		"hull_peak_g": _config.hull_peak_g = value
-		"hull_peak_b": _config.hull_peak_b = value
-		"hull_duration": _config.hull_duration = value
-		"hull_blink_speed": _config.hull_blink_speed = value
+	_config.set(key, value)
 
-	# Update value label
-	var val_node: Label = get_node_or_null(key + "_val") as Label
+	var val_node: Label = find_child(key + "_val", true, false) as Label
 	if val_node:
 		val_node.text = "%.2f" % value
 
@@ -319,92 +318,86 @@ func _on_slider_changed(value: float, key: String) -> void:
 # ── Preview management ──
 
 func _apply_config_to_previews() -> void:
-	# Shield bubble
-	_shield_bubble.shield_color = Color(_config.shield_color_r, _config.shield_color_g, _config.shield_color_b)
-	_shield_bubble.flash_duration = _config.shield_duration
-	_shield_bubble.radius_mult = _config.shield_radius_mult
-	_shield_bubble.intensity = _config.shield_intensity
+	# Player shield
+	_player_shield_bubble.shield_color = Color(_config.shield_color_r, _config.shield_color_g, _config.shield_color_b)
+	_player_shield_bubble.flash_duration = _config.shield_duration
+	_player_shield_bubble.radius_mult = _config.shield_radius_mult
+	_player_shield_bubble.intensity = _config.shield_intensity
 
-	# Hull flash — ShipRenderer's flash shader mixes toward white at hull_flash_opacity.
-	# Peak RGB sliders control intensity: use max channel as opacity (1.0 = normal, 5.0 = full).
-	_hull_renderer.hull_flash_opacity = maxf(maxf(_config.hull_peak_r, _config.hull_peak_g), _config.hull_peak_b) / 5.0
-	_hull_renderer.hull_blink_speed = _config.hull_blink_speed
-	_hull_renderer.hull_flash_duration = _config.hull_duration
+	# Player hull
+	_player_hull_renderer.hull_flash_opacity = maxf(maxf(_config.hull_peak_r, _config.hull_peak_g), _config.hull_peak_b) / 5.0
+	_player_hull_renderer.hull_blink_speed = _config.hull_blink_speed
+	_player_hull_renderer.hull_flash_duration = _config.hull_duration
+
+	# Enemy shield
+	_enemy_shield_bubble.shield_color = Color(_config.enemy_shield_color_r, _config.enemy_shield_color_g, _config.enemy_shield_color_b)
+	_enemy_shield_bubble.flash_duration = _config.enemy_shield_duration
+	_enemy_shield_bubble.radius_mult = _config.enemy_shield_radius_mult
+	_enemy_shield_bubble.intensity = _config.enemy_shield_intensity
+
+	# Enemy hull
+	_enemy_hull_renderer.hull_flash_opacity = maxf(maxf(_config.enemy_hull_peak_r, _config.enemy_hull_peak_g), _config.enemy_hull_peak_b) / 5.0
+	_enemy_hull_renderer.hull_blink_speed = _config.enemy_hull_blink_speed
+	_enemy_hull_renderer.hull_flash_duration = _config.enemy_hull_duration
 
 
-func _update_ship_previews() -> void:
-	var list: Array[Dictionary] = _current_ship_list()
-	if list.is_empty():
+func _update_player_ship_preview() -> void:
+	if PLAYER_SHIPS.is_empty():
 		return
-	var entry: Dictionary = list[_ship_index]
+	var entry: Dictionary = PLAYER_SHIPS[_player_ship_index]
+	var sid: int = int(entry["id"])
+	_player_shield_renderer.ship_id = sid
+	_player_hull_renderer.ship_id = sid
+	_player_shield_renderer.render_mode = _player_skin
+	_player_hull_renderer.render_mode = _player_skin
+	_player_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(sid) * 50.0
+	_player_ship_label.text = str(entry["name"])
 
-	if _category == 0:
-		# Player ship
-		var sid: int = int(entry["id"])
-		_shield_renderer.ship_id = sid
-		_hull_renderer.ship_id = sid
-		_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(sid) * 50.0
-	else:
-		# Enemy ship
-		var vis_id: String = str(entry["visual_id"])
-		_shield_renderer.ship_id = -1
-		_shield_renderer.enemy_visual_id = vis_id
-		_hull_renderer.ship_id = -1
-		_hull_renderer.enemy_visual_id = vis_id
-		_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(-1) * 50.0
 
-	_shield_renderer.render_mode = _render_mode
-	_hull_renderer.render_mode = _render_mode
-	_ship_label.text = str(entry["name"])
-	_trigger_effects()
+func _update_enemy_ship_preview() -> void:
+	if ENEMY_SHIPS.is_empty():
+		return
+	var entry: Dictionary = ENEMY_SHIPS[_enemy_ship_index]
+	var vis_id: String = str(entry["visual_id"])
+	_enemy_shield_renderer.ship_id = -1
+	_enemy_shield_renderer.enemy_visual_id = vis_id
+	_enemy_hull_renderer.ship_id = -1
+	_enemy_hull_renderer.enemy_visual_id = vis_id
+	_enemy_shield_renderer.render_mode = _enemy_skin
+	_enemy_hull_renderer.render_mode = _enemy_skin
+	_enemy_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(-1) * 50.0
+	_enemy_ship_label.text = str(entry["name"])
 
 
 func _trigger_effects() -> void:
-	_shield_bubble.trigger()
-	_hull_renderer.trigger_hull_flash(_config.hull_duration)
+	_player_shield_bubble.trigger()
+	_player_hull_renderer.trigger_hull_flash(_config.hull_duration)
+	_enemy_shield_bubble.trigger()
+	_enemy_hull_renderer.trigger_hull_flash(_config.enemy_hull_duration)
 	_auto_timer = 0.0
-
-
-func _current_ship_list() -> Array[Dictionary]:
-	if _category == 0:
-		return PLAYER_SHIPS
-	return ENEMY_SHIPS
 
 
 # ── Ship selector callbacks ──
 
-func _toggle_category() -> void:
-	_category = 1 - _category
-	_cat_btn.text = "ENEMY" if _category == 1 else "PLAYER"
-	_ship_index = 0
-	_update_ship_previews()
+func _prev_player_ship() -> void:
+	_player_ship_index = (_player_ship_index - 1 + PLAYER_SHIPS.size()) % PLAYER_SHIPS.size()
+	_update_player_ship_preview()
 
+func _next_player_ship() -> void:
+	_player_ship_index = (_player_ship_index + 1) % PLAYER_SHIPS.size()
+	_update_player_ship_preview()
 
-func _prev_ship() -> void:
-	var list: Array[Dictionary] = _current_ship_list()
-	if list.is_empty():
+func _prev_enemy_ship() -> void:
+	if ENEMY_SHIPS.is_empty():
 		return
-	_ship_index = (_ship_index - 1 + list.size()) % list.size()
-	_update_ship_previews()
+	_enemy_ship_index = (_enemy_ship_index - 1 + ENEMY_SHIPS.size()) % ENEMY_SHIPS.size()
+	_update_enemy_ship_preview()
 
-
-func _next_ship() -> void:
-	var list: Array[Dictionary] = _current_ship_list()
-	if list.is_empty():
+func _next_enemy_ship() -> void:
+	if ENEMY_SHIPS.is_empty():
 		return
-	_ship_index = (_ship_index + 1) % list.size()
-	_update_ship_previews()
-
-
-func _toggle_skin() -> void:
-	if _render_mode == ShipRenderer.RenderMode.CHROME:
-		_render_mode = ShipRenderer.RenderMode.NEON
-		_skin_btn.text = "NEON"
-	else:
-		_render_mode = ShipRenderer.RenderMode.CHROME
-		_skin_btn.text = "CHROME"
-	_shield_renderer.render_mode = _render_mode
-	_hull_renderer.render_mode = _render_mode
+	_enemy_ship_index = (_enemy_ship_index + 1) % ENEMY_SHIPS.size()
+	_update_enemy_ship_preview()
 
 
 # ── Save / Status ──
@@ -415,11 +408,9 @@ func _save_config() -> void:
 
 
 func _update_status() -> void:
-	_status_label.text = "Shield: R%.2f G%.2f B%.2f  dur=%.2fs  rad=%.1fx  int=%.1f   |   Hull: R%.1f G%.1f B%.1f  dur=%.2fs  spd=%.1f" % [
-		_config.shield_color_r, _config.shield_color_g, _config.shield_color_b,
-		_config.shield_duration, _config.shield_radius_mult, _config.shield_intensity,
-		_config.hull_peak_r, _config.hull_peak_g, _config.hull_peak_b,
-		_config.hull_duration, _config.hull_blink_speed,
+	_status_label.text = "Player: shd=%.2fs hull=%.2fs  |  Enemy: shd=%.2fs hull=%.2fs" % [
+		_config.shield_duration, _config.hull_duration,
+		_config.enemy_shield_duration, _config.enemy_hull_duration,
 	]
 
 
@@ -429,14 +420,8 @@ func _style_panel(panel: Panel) -> void:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.06, 0.06, 0.1, 0.9)
 	sb.border_color = Color(0.3, 0.3, 0.4, 0.5)
-	sb.border_width_top = 1
-	sb.border_width_bottom = 1
-	sb.border_width_left = 1
-	sb.border_width_right = 1
-	sb.corner_radius_top_left = 4
-	sb.corner_radius_top_right = 4
-	sb.corner_radius_bottom_left = 4
-	sb.corner_radius_bottom_right = 4
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(4)
 	panel.add_theme_stylebox_override("panel", sb)
 
 

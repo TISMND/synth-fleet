@@ -29,11 +29,6 @@ var _deep_debug_grid: Node2D = null
 var _bg_debug_grid: Node2D = null
 var _fg_debug_grid: Node2D = null
 var _debug_grids_visible: bool = false
-var _presence_loops: Dictionary = {}   # ship_id -> presence_loop_path
-var _presence_active: Dictionary = {}  # ship_id -> bool (currently unmuted)
-var _presence_poll_timer: float = 0.0
-const PRESENCE_POLL_INTERVAL: float = 0.5  # seconds between polls
-
 # Nebula status effects
 var _nebula_areas: Array = []  # Array of {area: Area2D, nebula_data: NebulaData}
 var _active_nebula_counts: Dictionary = {}  # nebula_id -> int (ref count of overlapping zones)
@@ -153,7 +148,7 @@ func _ready() -> void:
 	_wave_manager.name = "WaveManager"
 	_game_viewport.add_child(_wave_manager)
 	_wave_manager.all_waves_cleared.connect(_on_all_waves_cleared)
-	_wave_manager.presence_pre_trigger.connect(_on_presence_pre_trigger)
+
 
 	# HUD stays on root viewport — LED bars must NOT go through ACES tonemapping
 	# or their led_glow HDR rects get boosted and bloom blows out. Root bloom
@@ -179,9 +174,6 @@ func _ready() -> void:
 	_player_base_speed = _player.speed
 	_player_base_modulate_a = _player.modulate.a
 
-	# Pre-register presence loops for all enemy types used in this level (start muted)
-	_register_presence_loops()
-
 	# Start immediately
 	LoopMixer.start_all()
 	_start_waves()
@@ -204,11 +196,6 @@ func _process(delta: float) -> void:
 		_fg_debug_grid.position.y = fmod(_flight_distance, _fg_debug_grid.line_spacing)
 	if _wave_manager and not _death_sequence_active:
 		_wave_manager.advance_scroll(_scroll_distance)
-	# Poll presence loops on a timer instead of relying on register/unregister symmetry
-	_presence_poll_timer += delta
-	if _presence_poll_timer >= PRESENCE_POLL_INTERVAL:
-		_presence_poll_timer = 0.0
-		_poll_presence_loops()
 	# Apply nebula status effects each frame
 	if not _death_sequence_active:
 		_apply_nebula_bar_effects(delta)
@@ -283,80 +270,6 @@ func _input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("ui_cancel"):
 		_return_to_menu()
-
-
-func _register_presence_loops() -> void:
-	## Scan all enemy ship IDs used in encounters and add their presence loops to LoopMixer (muted).
-	var seen_ids: Dictionary = {}
-	if _level_data:
-		for enc in _level_data.encounters:
-			var sid: String = str(enc.get("ship_id", ""))
-			if sid != "" and not seen_ids.has(sid):
-				seen_ids[sid] = true
-	for sid in seen_ids:
-		var ship: ShipData = ShipDataManager.load_by_id(sid)
-		if ship and ship.presence_loop_path != "":
-			var loop_id: String = "presence_" + sid
-			_presence_loops[sid] = ship.presence_loop_path
-			_presence_active[sid] = false
-			if not LoopMixer.has_loop(loop_id):
-				LoopMixer.add_loop(loop_id, ship.presence_loop_path, "Enemies", 0.0, true)
-
-
-func _on_presence_pre_trigger(sid: String, loop_path: String) -> void:
-	## Pre-fade: unmute the loop early so audio fades in before enemies appear on screen.
-	if sid == "" or loop_path == "":
-		return
-	var loop_id: String = "presence_" + sid
-	# Lazily register if not pre-registered
-	if not _presence_loops.has(sid):
-		_presence_loops[sid] = loop_path
-		_presence_active[sid] = false
-		if not LoopMixer.has_loop(loop_id):
-			LoopMixer.add_loop(loop_id, loop_path, "Enemies", 0.0, true)
-			if LoopMixer.is_playing():
-				LoopMixer.start_all()
-	# Only unmute if not already active
-	if not _presence_active.get(sid, false):
-		_presence_active[sid] = true
-		LoopMixer.unmute(loop_id, 2000)
-
-
-func _poll_presence_loops() -> void:
-	## Ground-truth poll: check which enemy ship_ids are actually in the scene tree
-	## and mute/unmute presence loops accordingly. Self-healing — no counters to drift.
-	var live_sids: Dictionary = {}
-	for node in get_tree().get_nodes_in_group("enemies"):
-		var enemy: Enemy = node as Enemy
-		if enemy and enemy.ship_id != "" and enemy.presence_loop_path != "":
-			live_sids[enemy.ship_id] = enemy.presence_loop_path
-
-	for sid in _presence_loops:
-		var loop_id: String = "presence_" + sid
-		var is_alive: bool = live_sids.has(sid)
-		var was_active: bool = bool(_presence_active.get(sid, false))
-
-		if is_alive and not was_active:
-			# Enemies present but loop is muted — unmute
-			_presence_active[sid] = true
-			LoopMixer.unmute(loop_id, 2000)
-		elif not is_alive and was_active:
-			# No enemies present but loop is playing — mute
-			_presence_active[sid] = false
-			LoopMixer.mute(loop_id, 2000)
-
-	# Handle enemies with loops not pre-registered (e.g. fallback wave spawns)
-	for sid in live_sids:
-		if not _presence_loops.has(sid):
-			var loop_path: String = str(live_sids[sid])
-			var loop_id: String = "presence_" + sid
-			_presence_loops[sid] = loop_path
-			_presence_active[sid] = true
-			if not LoopMixer.has_loop(loop_id):
-				LoopMixer.add_loop(loop_id, loop_path, "Enemies", 0.0, true)
-				if LoopMixer.is_playing():
-					LoopMixer.start_all()
-			LoopMixer.unmute(loop_id, 2000)
 
 
 func _on_nebula_entered(_area: Area2D, ndata: NebulaData) -> void:

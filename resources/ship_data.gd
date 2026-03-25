@@ -109,19 +109,11 @@ func to_dict() -> Dictionary:
 	if type == "enemy":
 		d["visual_id"] = visual_id
 		d["weapon_id"] = weapon_id
-		if presence_loop_path != "":
-			d["presence_loop_path"] = presence_loop_path
 		d["explosion_color"] = [explosion_color.r, explosion_color.g, explosion_color.b, explosion_color.a]
 		d["explosion_size"] = explosion_size
 		d["enable_screen_shake"] = enable_screen_shake
 	# Level assignment (saved for all ship types)
 	d["level"] = level
-	# Hit effects (saved for all ship types)
-	if shield_style_id != "":
-		d["shield_style_id"] = shield_style_id
-	d["hull_flash_opacity"] = hull_flash_opacity
-	d["hull_flash_duration"] = hull_flash_duration
-	d["hull_blink_speed"] = hull_blink_speed
 	# Collision hitbox (saved for all ship types)
 	d["collision_shape"] = collision_shape
 	d["collision_width"] = collision_width
