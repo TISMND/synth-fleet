@@ -29,6 +29,7 @@ var _scroll_distance: float = 0.0
 var _stagger_queue: Array[Dictionary] = []  # Pending staggered spawns
 var _projectiles_container: Node2D = null
 var _pre_triggered_encounters: Dictionary = {}  # encounter index -> bool
+var bake_manager: EnemyBakeManager = null
 
 const PRESENCE_LEAD_DISTANCE: float = 160.0  # ~2s at 80px/s scroll speed
 
@@ -224,6 +225,7 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 		enemy.health = 30
 		enemy.enemy_color = ENEMY_COLORS[randi() % ENEMY_COLORS.size()]
 
+	enemy.bake_manager = bake_manager
 	enemy.rotate_with_path = bool(spawn_data.get("rotate_with_path", false))
 
 	# Weapons active flag from encounter data
@@ -301,6 +303,7 @@ func _on_spawn() -> void:
 	var speed_max: float = float(wave.get("speed_max", 150.0))
 
 	var enemy := Enemy.new()
+	enemy.bake_manager = bake_manager
 	enemy.position = Vector2(randf_range(100.0, 1820.0), -30.0)
 	enemy.drift_speed = randf_range(speed_min, speed_max)
 	enemy.health = health_val

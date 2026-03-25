@@ -17,6 +17,7 @@ var _nebula_container: Node2D = null
 var _doodad_container: Node2D = null
 var _bg_shader_mat: ShaderMaterial = null  # reference for setting scroll_offset on static shaders
 var _game_viewport: SubViewport = null
+var _bake_manager: EnemyBakeManager = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
 var _scroll_speed: float = 80.0
@@ -128,6 +129,14 @@ func _ready() -> void:
 	_enemies.name = "Enemies"
 	_game_viewport.add_child(_enemies)
 
+	# Pre-bake enemy ship viewports (shared rendering for performance)
+	_bake_manager = EnemyBakeManager.new()
+	_bake_manager.name = "EnemyBakeManager"
+	_game_viewport.add_child(_bake_manager)
+	if _level_data:
+		var appearances: Array = _collect_enemy_appearances(_level_data)
+		_bake_manager.register_appearances(appearances, _game_viewport)
+
 	# Player
 	_player = Node2D.new()
 	_player.set_script(load("res://scripts/game/player_ship.gd"))
@@ -213,7 +222,31 @@ func _process(delta: float) -> void:
 		_hud.update_credits(GameState.credits)
 
 
+func _collect_enemy_appearances(level: LevelData) -> Array:
+	## Scan level encounters to find unique (visual_id, render_mode, color) combos.
+	var seen: Dictionary = {}
+	var result: Array = []
+	for enc in level.encounters:
+		var enc_dict: Dictionary = enc as Dictionary
+		var sid: String = str(enc_dict.get("ship_id", ""))
+		if sid == "":
+			continue
+		var ship: ShipData = ShipDataManager.load_by_id(sid)
+		if not ship:
+			continue
+		var vid: String = ship.visual_id if ship.visual_id != "" else "sentinel"
+		var rmode: String = ship.render_mode if ship.render_mode != "" else "neon"
+		var color: Color = WaveManager.ENEMY_COLORS[sid.hash() % WaveManager.ENEMY_COLORS.size()]
+		var key: String = "%s|%s|%s" % [vid, rmode, color.to_html()]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		result.append({"visual_id": vid, "render_mode": rmode, "color": color})
+	return result
+
+
 func _start_waves() -> void:
+	_wave_manager.bake_manager = _bake_manager
 	if _level_data:
 		_scroll_distance = 0.0
 		_flight_distance = 0.0

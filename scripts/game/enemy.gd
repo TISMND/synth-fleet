@@ -32,6 +32,12 @@ var _melee_target: Node2D = null
 var weapons_active: bool = true
 
 var _renderer: ShipRenderer = null
+var _baked_sprite: Sprite2D = null
+var _flash_material: ShaderMaterial = null
+var _hit_flash: float = 0.0
+var _hull_flash_duration: float = 0.1
+var _hull_blink_speed: float = 8.0
+var _hull_flash_opacity: float = 0.5
 var _shield_field: FieldRenderer = null
 var _weapon_controller: EnemyWeaponController = null
 
@@ -39,6 +45,7 @@ var _weapon_controller: EnemyWeaponController = null
 var ship_data_ref: ShipData = null
 var player_ref: Node2D = null
 var projectiles_container: Node2D = null
+var bake_manager: EnemyBakeManager = null
 
 
 func _ready() -> void:
@@ -57,20 +64,37 @@ func _ready() -> void:
 		col_shape.shape = circle
 	add_child(col_shape)
 
-	# Add ShipRenderer for visual drawing instead of hardcoded _draw()
-	_renderer = ShipRenderer.new()
-	_renderer.ship_id = -1
-	_renderer.enemy_visual_id = visual_id if visual_id != "" else "sentinel"
-	_renderer.render_mode = ShipRenderer.RenderMode.CHROME if render_mode_str == "chrome" else ShipRenderer.RenderMode.NEON
-	_renderer.hull_color = enemy_color
-	_renderer.accent_color = Color(1.0, 0.2, 0.6)
-	add_child(_renderer)
-
 	# Per-ship hull flash settings
 	if ship_data_ref:
-		_renderer.hull_flash_opacity = ship_data_ref.hull_flash_opacity
-		_renderer.hull_blink_speed = ship_data_ref.hull_blink_speed
-		_renderer.hull_flash_duration = ship_data_ref.hull_flash_duration
+		_hull_flash_opacity = ship_data_ref.hull_flash_opacity
+		_hull_blink_speed = ship_data_ref.hull_blink_speed
+		_hull_flash_duration = ship_data_ref.hull_flash_duration
+
+	# Try shared bake viewport first — falls back to per-instance ShipRenderer
+	var vid: String = visual_id if visual_id != "" else "sentinel"
+	var bake_tex: ViewportTexture = null
+	if bake_manager:
+		bake_tex = bake_manager.get_texture(vid, render_mode_str, enemy_color)
+
+	if bake_tex:
+		_baked_sprite = Sprite2D.new()
+		_baked_sprite.texture = bake_tex
+		_flash_material = bake_manager.create_flash_material()
+		_baked_sprite.material = _flash_material
+		add_child(_baked_sprite)
+	else:
+		# Fallback: per-instance ShipRenderer (for unregistered appearances or no bake manager)
+		_renderer = ShipRenderer.new()
+		_renderer.ship_id = -1
+		_renderer.enemy_visual_id = vid
+		_renderer.render_mode = ShipRenderer.RenderMode.CHROME if render_mode_str == "chrome" else ShipRenderer.RenderMode.NEON
+		_renderer.hull_color = enemy_color
+		_renderer.accent_color = Color(1.0, 0.2, 0.6)
+		if ship_data_ref:
+			_renderer.hull_flash_opacity = _hull_flash_opacity
+			_renderer.hull_blink_speed = _hull_blink_speed
+			_renderer.hull_flash_duration = _hull_flash_duration
+		add_child(_renderer)
 	# Per-ship shield hit visual via FieldRenderer
 	var style_id: String = ship_data_ref.shield_style_id if ship_data_ref else ""
 	if style_id != "":
@@ -131,6 +155,16 @@ func set_melee_target(target: Node2D) -> void:
 
 
 func _process(delta: float) -> void:
+	# Baked sprite hit flash (per-instance, independent of shared viewport)
+	if _hit_flash > 0.0 and _flash_material:
+		_hit_flash -= delta
+		var t: float = clampf(_hit_flash / maxf(_hull_flash_duration, 0.001), 0.0, 1.0)
+		var on: bool = fmod(t * _hull_blink_speed, 2.0) > 1.0
+		_flash_material.set_shader_parameter("flash_mix", _hull_flash_opacity if on else 0.0)
+		if _hit_flash <= 0.0:
+			_hit_flash = 0.0
+			_flash_material.set_shader_parameter("flash_mix", 0.0)
+
 	# Store position before movement for lead prediction
 	set_meta("_prev_pos", global_position)
 	set_meta("_prev_dt", delta)
@@ -199,7 +233,9 @@ func take_damage(amount: int, skips_shields: bool = false) -> void:
 	if remaining > 0:
 		health -= remaining
 		SfxPlayer.play("enemy_hull_hit")
-		if _renderer:
+		if _baked_sprite:
+			_hit_flash = _hull_flash_duration
+		elif _renderer:
 			_renderer.trigger_hull_flash()
 	if health <= 0:
 		if _weapon_controller:
