@@ -9,7 +9,7 @@
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
 	"damage": 10,
-	"description": "",
+	"description": "Standard pew-pew",
 	"direction_deg": 0.0,
 	"display_name": "Fire Pick",
 	"effect_profile": {
@@ -21,6 +21,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 490,
+	"fade_out_ms": 490,
 	"fire_pattern": "dual",
 	"fire_triggers": [
 		0.0,
@@ -112,6 +114,5 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
-	"transition_mode": "fade",
-	"transition_ms": 490
+	"transition_mode": "fade"
 }

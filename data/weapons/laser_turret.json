@@ -10,7 +10,7 @@
 	"beam_style_id": "beam_1",
 	"beam_transition_time": 0.26,
 	"damage": 10,
-	"description": "",
+	"description": "Auto-tracking laser turret. Heat generating, but significant damage increase over standard turrets.",
 	"direction_deg": 0.0,
 	"display_name": "Laser Turret",
 	"effect_profile": {
@@ -22,6 +22,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 840,
+	"fade_out_ms": 840,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -46,6 +48,5 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 127.0,
 	"sweep_duration": 1.0,
-	"transition_mode": "fade",
-	"transition_ms": 840
+	"transition_mode": "fade"
 }

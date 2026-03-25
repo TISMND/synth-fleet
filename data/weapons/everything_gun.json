@@ -9,7 +9,7 @@
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
 	"damage": 100,
-	"description": "",
+	"description": "Extremely slow rate of fire that consumes a great deal of energy, but inflects immense regular and splash damage.",
 	"direction_deg": 0.0,
 	"display_name": "Everything Gun",
 	"effect_profile": {
@@ -21,6 +21,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 110,
+	"fade_out_ms": 110,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -39,6 +41,5 @@
 	"splash_radius": 200.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.0,
-	"transition_mode": "fade",
-	"transition_ms": 110
+	"transition_mode": "fade"
 }

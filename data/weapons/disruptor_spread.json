@@ -9,7 +9,7 @@
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
 	"damage": 25,
-	"description": "",
+	"description": "Simply elegant.",
 	"direction_deg": 0.0,
 	"display_name": "Disruptor Spread",
 	"effect_profile": {
@@ -21,6 +21,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 280,
+	"fade_out_ms": 280,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -97,6 +99,5 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 24.0,
 	"sweep_duration": 0.5,
-	"transition_mode": "fade",
-	"transition_ms": 280
+	"transition_mode": "fade"
 }

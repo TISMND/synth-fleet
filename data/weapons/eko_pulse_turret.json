@@ -9,7 +9,7 @@
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
 	"damage": 3,
-	"description": "",
+	"description": "A reliable and consistent auto-tracking turret.",
 	"direction_deg": 0.0,
 	"display_name": "Eko Pulse Turret",
 	"effect_profile": {
@@ -21,6 +21,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 1110,
+	"fade_out_ms": 1110,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -165,6 +167,5 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.0,
-	"transition_mode": "fade",
-	"transition_ms": 1110
+	"transition_mode": "fade"
 }

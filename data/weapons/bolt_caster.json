@@ -10,7 +10,7 @@
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
 	"damage": 50,
-	"description": "",
+	"description": "Causes significant damage while ripping through multiple enemies.",
 	"direction_deg": 0.0,
 	"display_name": "Bolt Caster",
 	"effect_profile": {
@@ -22,6 +22,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 290,
+	"fade_out_ms": 290,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -50,6 +52,5 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
-	"transition_mode": "fade",
-	"transition_ms": 290
+	"transition_mode": "fade"
 }

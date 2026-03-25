@@ -9,7 +9,7 @@
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
 	"damage": 37,
-	"description": "",
+	"description": "Slow firing, but skips through enemy shields.",
 	"direction_deg": 0.0,
 	"display_name": "Charged Ion Pulse",
 	"effect_profile": {
@@ -21,6 +21,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 330,
+	"fade_out_ms": 330,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0303867403314917,
@@ -48,11 +50,10 @@
 	"pierce_count": 0,
 	"projectile_speed": 1020.0,
 	"projectile_style_id": "square_drop",
-	"skips_shields": false,
+	"skips_shields": true,
 	"splash_enabled": false,
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
-	"transition_mode": "fade",
-	"transition_ms": 330
+	"transition_mode": "fade"
 }

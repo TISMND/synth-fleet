@@ -325,8 +325,9 @@ func _apply_config_to_previews() -> void:
 	_shield_bubble.radius_mult = _config.shield_radius_mult
 	_shield_bubble.intensity = _config.shield_intensity
 
-	# Hull flash
-	_hull_renderer.hull_peak_color = Color(_config.hull_peak_r, _config.hull_peak_g, _config.hull_peak_b, 1.0)
+	# Hull flash — ShipRenderer's flash shader mixes toward white at hull_flash_opacity.
+	# Peak RGB sliders control intensity: use max channel as opacity (1.0 = normal, 5.0 = full).
+	_hull_renderer.hull_flash_opacity = maxf(maxf(_config.hull_peak_r, _config.hull_peak_g), _config.hull_peak_b) / 5.0
 	_hull_renderer.hull_blink_speed = _config.hull_blink_speed
 	_hull_renderer.hull_flash_duration = _config.hull_duration
 

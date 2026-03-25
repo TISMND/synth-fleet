@@ -10,7 +10,7 @@
 	"beam_style_id": "mega_beam",
 	"beam_transition_time": 0.32,
 	"damage": 10,
-	"description": "",
+	"description": "Unleashes forward Hell. Generates heat. Makes cool \"bwah\" sound.",
 	"direction_deg": 0.0,
 	"display_name": "Terror Beam",
 	"effect_profile": {
@@ -22,6 +22,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 750,
+	"fade_out_ms": 750,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -46,6 +48,5 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.0,
-	"transition_mode": "fade",
-	"transition_ms": 750
+	"transition_mode": "fade"
 }

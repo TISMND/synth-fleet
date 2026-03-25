@@ -9,7 +9,7 @@
 	"beam_style_id": "blue_beam",
 	"beam_transition_time": 0.2,
 	"damage": 10,
-	"description": "",
+	"description": "One of the few beam weapons that does not generate heat.",
 	"direction_deg": 0.0,
 	"display_name": "Ion Sweep",
 	"effect_profile": {
@@ -21,6 +21,8 @@
 		},
 		"version": 2
 	},
+	"fade_in_ms": 370,
+	"fade_out_ms": 370,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -45,6 +47,5 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 30.0,
 	"sweep_duration": 4.0,
-	"transition_mode": "fade",
-	"transition_ms": 370
+	"transition_mode": "fade"
 }
