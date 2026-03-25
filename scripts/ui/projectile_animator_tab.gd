@@ -59,6 +59,12 @@ var _color_picker: ColorPickerButton
 var _secondary_color_picker: ColorPickerButton
 var _secondary_color_row: HBoxContainer
 var _flip_toggle: CheckBox
+var _collision_x_slider: HSlider
+var _collision_x_label: Label
+var _collision_y_slider: HSlider
+var _collision_y_label: Label
+var _collision_auto_toggle: CheckBox
+var _collision_section: VBoxContainer
 var _preview_node: ProjectileAnimatorPreview
 
 # Dynamic sections
@@ -365,6 +371,31 @@ func _build_controls(parent: VBoxContainer) -> void:
 	_flip_toggle.button_pressed = false
 	_flip_toggle.toggled.connect(func(_on: bool) -> void: _update_preview())
 	parent.add_child(_flip_toggle)
+
+	_add_separator(parent)
+
+	# Collision
+	_add_section_header(parent, "COLLISION")
+	_collision_auto_toggle = CheckBox.new()
+	_collision_auto_toggle.text = "AUTO (50% of visual scale)"
+	_collision_auto_toggle.button_pressed = true
+	_collision_auto_toggle.toggled.connect(_on_collision_auto_toggled)
+	parent.add_child(_collision_auto_toggle)
+
+	_collision_section = VBoxContainer.new()
+	_collision_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_collision_section.modulate = Color(1, 1, 1, 0.3)
+	parent.add_child(_collision_section)
+
+	var cx_row: Array = _add_slider_row(_collision_section, "Width:", 2.0, 128.0, 12.0, 1.0)
+	_collision_x_slider = cx_row[0]
+	_collision_x_label = cx_row[1]
+	_collision_x_slider.editable = false
+
+	var cy_row: Array = _add_slider_row(_collision_section, "Height:", 2.0, 128.0, 16.0, 1.0)
+	_collision_y_slider = cy_row[0]
+	_collision_y_label = cy_row[1]
+	_collision_y_slider.editable = false
 
 	_add_separator(parent)
 
@@ -690,6 +721,13 @@ func _on_import_mask() -> void:
 
 # ── Event Handlers ─────────────────────────────────────────
 
+func _on_collision_auto_toggled(enabled: bool) -> void:
+	_collision_section.modulate = Color(1, 1, 1, 0.3) if enabled else Color(1, 1, 1, 1.0)
+	_collision_x_slider.editable = not enabled
+	_collision_y_slider.editable = not enabled
+	_update_preview()
+
+
 func _on_shader_changed(_idx: int) -> void:
 	var shader_name: String = _shader_button.get_item_text(_shader_button.selected)
 	_rebuild_shader_params(shader_name)
@@ -732,6 +770,7 @@ func _collect_style_data() -> Dictionary:
 		"shader_params": shader_params,
 		"glow_intensity": 1.5,
 		"base_scale": [_scale_x_slider.value, _scale_y_slider.value],
+		"collision_scale": [0, 0] if _collision_auto_toggle.button_pressed else [_collision_x_slider.value, _collision_y_slider.value],
 		"color": [_color_picker.color.r, _color_picker.color.g, _color_picker.color.b, _color_picker.color.a],
 		"secondary_color": [sec_color.r, sec_color.g, sec_color.b, sec_color.a],
 		"procedural_mask_shape": proc_shape,
@@ -748,6 +787,10 @@ func _update_preview() -> void:
 	data["color"] = _color_picker.color
 	data["secondary_color"] = _secondary_color_picker.color
 	data["base_scale"] = Vector2(_scale_x_slider.value, _scale_y_slider.value)
+	if _collision_auto_toggle.button_pressed:
+		data["collision_scale"] = Vector2(_scale_x_slider.value, _scale_y_slider.value) * 0.5
+	else:
+		data["collision_scale"] = Vector2(_collision_x_slider.value, _collision_y_slider.value)
 	_preview_node.update_style(data)
 
 
@@ -803,6 +846,10 @@ func _on_new() -> void:
 	_shader_button.selected = 0
 	_scale_x_slider.value = 24.0
 	_scale_y_slider.value = 32.0
+	_collision_auto_toggle.button_pressed = true
+	_on_collision_auto_toggled(true)
+	_collision_x_slider.value = 12.0
+	_collision_y_slider.value = 16.0
 	_color_picker.color = Color.CYAN
 	_secondary_color_picker.color = Color(1.0, 0.3, 0.5, 1.0)
 	_secondary_color_row.visible = false
@@ -862,6 +909,17 @@ func _populate_from_style(style: ProjectileStyle) -> void:
 	# Scale
 	_scale_x_slider.value = style.base_scale.x
 	_scale_y_slider.value = style.base_scale.y
+
+	# Collision
+	var is_auto: bool = style.collision_scale.x <= 0.0 or style.collision_scale.y <= 0.0
+	_collision_auto_toggle.button_pressed = is_auto
+	_on_collision_auto_toggled(is_auto)
+	if not is_auto:
+		_collision_x_slider.value = style.collision_scale.x
+		_collision_y_slider.value = style.collision_scale.y
+	else:
+		_collision_x_slider.value = style.base_scale.x * 0.5
+		_collision_y_slider.value = style.base_scale.y * 0.5
 
 	# Mask
 	if style.procedural_mask_shape != "":

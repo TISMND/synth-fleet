@@ -1,7 +1,7 @@
 {
 	"background_shader": "res://assets/shaders/bg_synthwave_pulse.gdshader",
 	"bpm": 110.0,
-	"display_name": "Welcome Void",
+	"display_name": "01 - Welcome Void",
 	"doodads": [],
 	"encounters": [
 		{

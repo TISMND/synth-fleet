@@ -45,7 +45,10 @@ func _ready() -> void:
 
 	var shape := CollisionShape2D.new()
 	var rect := RectangleShape2D.new()
-	rect.size = Vector2(4, 12)
+	if projectile_style:
+		rect.size = projectile_style.get_effective_collision_scale()
+	else:
+		rect.size = Vector2(4, 12)
 	shape.shape = rect
 	add_child(shape)
 	area_entered.connect(_on_area_entered)

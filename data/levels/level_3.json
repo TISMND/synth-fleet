@@ -1,7 +1,7 @@
 {
-	"background_shader": "res://assets/shaders/bg_circuit_board.gdshader",
+	"background_shader": "res://assets/shaders/bg_lava_field.gdshader",
 	"bpm": 110.0,
-	"display_name": "New Level",
+	"display_name": "03 - Where From Here",
 	"doodads": [],
 	"encounters": [],
 	"flight_speed": 160.0,

@@ -2585,6 +2585,15 @@ func _on_play_toggle() -> void:
 			c.deactivate()
 		LoopMixer.stop_all()
 		_clear_projectiles()
+		# Hide all field renderers
+		for entry in _device_previews:
+			var fr: FieldRenderer = entry.get("field_renderer") as FieldRenderer
+			if fr and is_instance_valid(fr):
+				fr.set_opacity(0.0)
+				fr._pulse_active = false
+				if fr._material:
+					fr._material.set_shader_parameter("pulse_intensity", 0.0)
+				fr.visible = false
 		_is_playing = false
 		_play_btn.text = "RUN"
 	else:
@@ -2920,6 +2929,9 @@ func _update_bar_shader(bar_name: String) -> void:
 
 func _update_sim_status() -> void:
 	if not _sim_status_label:
+		return
+	if not _is_playing:
+		_sim_status_label.text = ""
 		return
 	var lines: Array[String] = []
 

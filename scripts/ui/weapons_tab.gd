@@ -82,6 +82,8 @@ var _splash_toggle: CheckBox
 var _splash_radius_slider: HSlider
 var _splash_radius_label: Label
 var _splash_section: VBoxContainer
+var _splash_show_area_toggle: CheckBox
+var _splash_overlay: Node2D
 
 # Skips Shields (Stats subtab)
 var _skips_shields_toggle: CheckBox
@@ -305,6 +307,11 @@ func _build_left_panel() -> Control:
 	# Projectile container
 	_preview_proj_container = Node2D.new()
 	viewport.add_child(_preview_proj_container)
+
+	# Splash radius overlay
+	_splash_overlay = _SplashOverlay.new()
+	_splash_overlay.visible = false
+	viewport.add_child(_splash_overlay)
 
 	# HardpointController (setup deferred until weapon data available)
 	_preview_controller = HardpointController.new()
@@ -829,6 +836,12 @@ func _build_stats_tab() -> Control:
 	_splash_radius_label = splash_row[1]
 	_splash_radius_slider.editable = false
 
+	_splash_show_area_toggle = CheckBox.new()
+	_splash_show_area_toggle.text = "SHOW SPLASH AREA"
+	_splash_show_area_toggle.button_pressed = false
+	_splash_show_area_toggle.toggled.connect(func(_on: bool) -> void: _update_splash_overlay())
+	_splash_section.add_child(_splash_show_area_toggle)
+
 	_add_separator(form)
 
 	# Skips Shields
@@ -869,8 +882,19 @@ func _on_visibility_changed() -> void:
 func _on_splash_toggled(enabled: bool) -> void:
 	_splash_section.modulate = Color(1, 1, 1, 1.0) if enabled else Color(1, 1, 1, 0.3)
 	_splash_radius_slider.editable = enabled
+	_update_splash_overlay()
 	_mark_dirty()
 	_update_preview()
+
+
+func _update_splash_overlay() -> void:
+	if not _splash_overlay:
+		return
+	var show: bool = _splash_toggle.button_pressed and _splash_show_area_toggle.button_pressed
+	_splash_overlay.visible = show
+	if show:
+		_splash_overlay.position = _preview_fire_point.position
+		_splash_overlay.set_radius(_splash_radius_slider.value)
 
 
 # ── Aim Mode Visibility ────────────────────────────────────
@@ -1157,6 +1181,7 @@ func _update_preview() -> void:
 	var data: Dictionary = _collect_weapon_data()
 	_preview_controller.update_from_dict(data)
 	_update_effect_rate_label(data)
+	_update_splash_overlay()
 
 
 func _update_effect_rate_label(data: Dictionary) -> void:
@@ -1327,6 +1352,7 @@ func _on_new() -> void:
 	_splash_toggle.button_pressed = false
 	_on_splash_toggled(false)
 	_splash_radius_slider.value = 40
+	_splash_show_area_toggle.button_pressed = false
 	_skips_shields_toggle.button_pressed = false
 	_is_enemy_weapon_toggle.button_pressed = false
 
@@ -1831,3 +1857,23 @@ func _apply_theme() -> void:
 		if i < specs.size():
 			_stats_bar_base_colors[i] = ThemeManager.resolve_bar_color(specs[i])
 	_refresh_stats_bars()
+
+
+# ── Splash Overlay (inner class) ──────────────────────────
+
+class _SplashOverlay extends Node2D:
+	var _radius: float = 40.0
+
+	func set_radius(r: float) -> void:
+		_radius = r
+		queue_redraw()
+
+	func _draw() -> void:
+		if _radius <= 0.0:
+			return
+		var fill_color := Color(1.0, 0.4, 0.2, 0.1)
+		var outline_color := Color(1.0, 0.4, 0.2, 0.6)
+		# Filled circle
+		draw_circle(Vector2.ZERO, _radius, fill_color)
+		# Outline ring
+		draw_arc(Vector2.ZERO, _radius, 0, TAU, 64, outline_color, 1.5)

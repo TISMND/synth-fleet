@@ -11,6 +11,7 @@ extends Resource
 @export var shader_params: Dictionary = {}
 @export var glow_intensity: float = 1.5
 @export var base_scale: Vector2 = Vector2(24, 32)
+@export var collision_scale: Vector2 = Vector2(0, 0)  # 0,0 = auto-derive from base_scale
 @export var archetype_params: Dictionary = {}
 @export var color: Color = Color.CYAN
 @export var secondary_color: Color = Color(1.0, 0.3, 0.5, 1.0)
@@ -18,6 +19,12 @@ extends Resource
 @export var procedural_mask_feather: float = 0.3
 @export var flip_shader: bool = false  # flip UV.y to reverse shader scroll direction
 @export var effect_profile: Dictionary = {}
+
+
+func get_effective_collision_scale() -> Vector2:
+	if collision_scale.x > 0.0 and collision_scale.y > 0.0:
+		return collision_scale
+	return base_scale * 0.5
 
 
 static func from_dict(data: Dictionary) -> ProjectileStyle:
@@ -32,6 +39,9 @@ static func from_dict(data: Dictionary) -> ProjectileStyle:
 	var scale_data: Array = data.get("base_scale", [24, 32]) as Array
 	if scale_data.size() >= 2:
 		s.base_scale = Vector2(float(scale_data[0]), float(scale_data[1]))
+	var coll_data: Array = data.get("collision_scale", [0, 0]) as Array
+	if coll_data.size() >= 2:
+		s.collision_scale = Vector2(float(coll_data[0]), float(coll_data[1]))
 	s.archetype_params = data.get("archetype_params", {}) as Dictionary
 	var color_data: Array = data.get("color", []) as Array
 	if color_data.size() >= 4:
@@ -60,6 +70,7 @@ func to_dict() -> Dictionary:
 		"shader_params": shader_params,
 		"glow_intensity": glow_intensity,
 		"base_scale": [base_scale.x, base_scale.y],
+		"collision_scale": [collision_scale.x, collision_scale.y],
 		"color": [color.r, color.g, color.b, color.a],
 		"secondary_color": [secondary_color.r, secondary_color.g, secondary_color.b, secondary_color.a],
 		"archetype_params": archetype_params,

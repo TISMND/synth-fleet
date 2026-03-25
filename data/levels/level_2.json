@@ -1,7 +1,7 @@
 {
-	"background_shader": "",
+	"background_shader": "res://assets/shaders/bg_bioluminescent_reef.gdshader",
 	"bpm": 110.0,
-	"display_name": "NebTest",
+	"display_name": "02 - Innit",
 	"doodads": [],
 	"encounters": [
 		{

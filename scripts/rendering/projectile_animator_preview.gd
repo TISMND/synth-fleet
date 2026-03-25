@@ -35,6 +35,7 @@ var _fire_trail_points: Array = []  # Vector2 trail history for ribbon drawing
 var _fire_trail_layers: Array = []  # resolved trail layers for ribbon drawing
 var _fire_ribbon_max_points: int = 30
 var _effect_profile: Dictionary = {}
+var _collision_scale: Vector2 = Vector2(12, 16)
 const FIRE_CYCLE_TRAVEL_TIME: float = 1.5
 const FIRE_CYCLE_PAUSE: float = 0.5
 
@@ -64,6 +65,7 @@ func update_style(data: Dictionary) -> void:
 
 	_archetype = str(data.get("archetype", "bullet"))
 	_preview_color = data.get("color", Color.CYAN) as Color
+	_collision_scale = data.get("collision_scale", Vector2(12, 16)) as Vector2
 	_beam_age = 0.0
 	_fire_cycle_age = 0.0
 	_effect_profile = data.get("effect_profile", {}) as Dictionary
@@ -376,6 +378,27 @@ func _draw() -> void:
 	if _archetype == "pulse_wave" and (not _sprite or not is_instance_valid(_sprite)):
 		draw_set_transform_matrix(grid_xform)
 		_draw_pulse_wave_fallback()
+		draw_set_transform_matrix(Transform2D.IDENTITY)
+
+	# Collision box overlay (drawn in content space)
+	if _archetype == "bullet" and _collision_scale.x > 0.0 and _collision_scale.y > 0.0:
+		draw_set_transform_matrix(grid_xform)
+		var coll_center: Vector2
+		if _fire_cycle_active and _sprite and is_instance_valid(_sprite):
+			coll_center = _sprite.position
+		else:
+			coll_center = Vector2(_viewport_size.x / 2.0, _viewport_size.y / 2.0)
+		var coll_rect := Rect2(
+			coll_center - _collision_scale / 2.0,
+			_collision_scale
+		)
+		var coll_color := Color(1.0, 0.3, 0.3, 0.5)
+		draw_rect(coll_rect, coll_color, false, 1.5)
+		# Corner ticks for clarity
+		var tick: float = 3.0
+		for corner in [coll_rect.position, Vector2(coll_rect.end.x, coll_rect.position.y), coll_rect.end, Vector2(coll_rect.position.x, coll_rect.end.y)]:
+			draw_line(corner + Vector2(-tick, 0), corner + Vector2(tick, 0), coll_color, 1.5)
+			draw_line(corner + Vector2(0, -tick), corner + Vector2(0, tick), coll_color, 1.5)
 		draw_set_transform_matrix(Transform2D.IDENTITY)
 
 	# Zoom level indicator
