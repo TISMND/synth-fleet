@@ -5,6 +5,8 @@ signal died
 signal died_during_power_loss
 signal hull_hit_during_power_loss
 signal hull_hit  # Emitted any time hull takes damage (for warning display)
+signal power_loss_started
+signal power_loss_ended
 
 var ship_data: ShipData = null
 var hull: float = 8.0
@@ -671,6 +673,7 @@ const SHUTDOWN_AUDIO_DURATION: float = 1.5  # Seconds to slow down and fade out 
 func _start_drift() -> void:
 	_drifting = true
 	_drift_timer = 0.0
+	power_loss_started.emit()
 	_shutdown_audio_elapsed = 0.0
 	_play_sfx_cue("powerdown_drift_start")
 	_play_sfx_cue("powerdown_engines_dying", false)
@@ -1187,6 +1190,7 @@ func _process_recovery(delta: float) -> void:
 		_recovery_active = false
 		_restore_loop_playback()
 		_end_drift()
+		power_loss_ended.emit()
 
 
 func _restore_loop_playback() -> void:

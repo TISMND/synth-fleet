@@ -76,6 +76,10 @@ const INTRO_FADE_START: float = 0.5  # seconds before measure boundary to start 
 var _hull_damaged_timer: float = 0.0  # Transient "HULL DAMAGED" display timer
 const HULL_DAMAGED_DISPLAY_TIME: float = 2.0
 
+# Enemy disarm during power loss
+var _power_loss_disarm_active: bool = false
+var _power_loss_disarm_timer: float = 0.0
+
 # Warning alarm audio — looping players keyed by warning ID
 var _alarm_players: Dictionary = {}  # warning_id -> AudioStreamPlayer
 var _active_alarm_ids: Array[String] = []  # Warning IDs currently active (last frame)
@@ -176,6 +180,8 @@ func _ready() -> void:
 	_player.died_during_power_loss.connect(_on_player_died_during_power_loss)
 	_player.hull_hit_during_power_loss.connect(func(): trigger_screen_shake(4.0, 0.2))
 	_player.hull_hit.connect(func(): _hull_damaged_timer = HULL_DAMAGED_DISPLAY_TIME)
+	_player.power_loss_started.connect(_on_power_loss_started)
+	_player.power_loss_ended.connect(_on_power_loss_ended)
 
 	# Wave manager
 	_wave_manager = WaveManager.new()
@@ -265,7 +271,14 @@ func _start_intro() -> void:
 
 
 func _process_intro(delta: float) -> void:
+	var prev_time: float = _intro_timer
 	_intro_timer += delta
+
+	# Activate power cores at the first hit (timer crosses 0)
+	if prev_time < 0.0 and _intro_timer >= 0.0 and _player:
+		for c in _player._core_controllers:
+			c.activate()
+		_player._update_hud_cores()
 
 	# Hit 1 = time 0 (level number). Hit 2 = 2 measures in (level name + bar fill).
 	# Total intro = 4 measures.
@@ -341,6 +354,12 @@ func _process(delta: float) -> void:
 	if not _death_sequence_active:
 		_apply_nebula_bar_effects(delta)
 		_check_measure_boundary_key_shift()
+	# Disarm newly spawned enemies during power loss (catch stragglers every 0.5s)
+	if _power_loss_disarm_active:
+		_power_loss_disarm_timer += delta
+		if _power_loss_disarm_timer >= 0.5:
+			_power_loss_disarm_timer = 0.0
+			_disarm_all_enemies()
 	# Death explosion sequence
 	if _death_sequence_active:
 		_process_death_sequence(delta)
@@ -925,6 +944,34 @@ func _process_screen_shake(delta: float) -> void:
 
 
 # ── Death during power loss ──────────────────────────────────────────
+
+func _on_power_loss_started() -> void:
+	_power_loss_disarm_active = true
+	_power_loss_disarm_timer = 0.0
+	_disarm_all_enemies()
+
+
+func _on_power_loss_ended() -> void:
+	_power_loss_disarm_active = false
+	_rearm_all_enemies()
+
+
+func _disarm_all_enemies() -> void:
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if node.has_method("_ready"):  # It's an Enemy
+			if node.get("_weapon_controller") != null:
+				node._weapon_controller.set_weapons_enabled(false)
+			if node.get("is_melee") == true:
+				node.is_melee = false
+				node.drift_speed = 30.0
+
+
+func _rearm_all_enemies() -> void:
+	for node in get_tree().get_nodes_in_group("enemies"):
+		if node.has_method("_ready"):
+			if node.get("_weapon_controller") != null:
+				node._weapon_controller.set_weapons_enabled(true)
+
 
 func _on_player_died_during_power_loss() -> void:
 	if _death_sequence_active or _power_death_active:
