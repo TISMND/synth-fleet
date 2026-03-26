@@ -47,6 +47,7 @@ var _electric_arc_container: Node2D = null  # Parent for arc lines
 var _electric_arc_timer: float = 0.0  # Countdown to next arc spawn
 var _electric_arc_max: int = 3  # Max simultaneous arcs
 var _is_dead: bool = false  # True once hull reaches 0 — stops all processing
+var _is_invulnerable: bool = false  # Brief immunity during power loss drift
 var _electric_crisis_active: bool = false
 var _electric_overdraw: bool = false  # True when weapons tried to drain electric below 0
 var _shield_at_crisis_start: float = -1.0  # Shield snapshot when engine penalty begins
@@ -576,6 +577,8 @@ func _update_hud_hardpoints() -> void:
 
 
 func take_damage(amount: float, skips_shields: bool = false) -> void:
+	if _is_invulnerable:
+		return
 	var remaining: float = amount
 	if shield > 0.0 and not skips_shields:
 		# Shield DR: shields absorb the full hit but take reduced actual damage.

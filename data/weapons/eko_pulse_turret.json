@@ -8,7 +8,7 @@
 	"beam_passthrough": true,
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
-	"damage": 3,
+	"damage": 4,
 	"description": "A reliable and consistent auto-tracking turret.",
 	"direction_deg": 0.0,
 	"display_name": "Eko Pulse Turret",
