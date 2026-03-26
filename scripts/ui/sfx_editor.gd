@@ -49,8 +49,8 @@ func _build_ui() -> void:
 	_bg_rect = ColorRect.new()
 	_bg_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_bg_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bg_rect.color = Color(0.02, 0.02, 0.03, 1.0)
 	add_child(_bg_rect)
-	ThemeManager.apply_grid_background(_bg_rect)
 
 	# VHS overlay
 	var vhs_layer := CanvasLayer.new()
@@ -162,27 +162,27 @@ func _build_ui() -> void:
 	spacer_2.custom_minimum_size = Vector2(0, 12)
 	vbox.add_child(spacer_2)
 
-	# Alarms section
-	_add_section_header(vbox, "ALARMS & WARNINGS", "Continuous or repeated alerts when system bars hit critical thresholds")
-	for event_id in ["electric_alarm", "heat_alarm", "fire_alarm", "shield_critical", "hull_critical", "system_warning_beep"]:
+	# Warning alarms section
+	_add_section_header(vbox, "WARNING ALARMS", "Loop while warning condition is active — stop when condition clears")
+	for event_id in ["alarm_heat", "alarm_fire", "alarm_low_power", "alarm_overdraw", "alarm_shields_low", "alarm_hull_damaged", "alarm_hull_critical"]:
+		_add_event_row(vbox, event_id)
+
+	var spacer_2b := Control.new()
+	spacer_2b.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_2b)
+
+	# Power failure section
+	_add_section_header(vbox, "POWER FAILURE", "The instant of power loss — these fire when electric hits zero")
+	for event_id in ["power_failure", "monitor_shutoff", "monitor_static", "electric_sparks"]:
 		_add_event_row(vbox, event_id)
 
 	var spacer_3 := Control.new()
 	spacer_3.custom_minimum_size = Vector2(0, 12)
 	vbox.add_child(spacer_3)
 
-	# Power failure section
-	_add_section_header(vbox, "POWER FAILURE", "The instant of power loss — these all fire at once when electric hits zero")
-	for event_id in ["power_failure", "monitor_shutoff", "monitor_static", "electric_sparks", "engine_sputter", "hull_damage_powerless"]:
-		_add_event_row(vbox, event_id)
-
-	var spacer_4 := Control.new()
-	spacer_4.custom_minimum_size = Vector2(0, 12)
-	vbox.add_child(spacer_4)
-
 	# Reboot sequence section
 	_add_section_header(vbox, "REBOOT SEQUENCE", "CRT terminal reboot after power is restored — character-by-character diagnostic display")
-	for event_id in ["reboot_char_thunk", "reboot_line_beep", "reboot_complete"]:
+	for event_id in ["reboot_char_thunk", "reboot_line_beep"]:
 		_add_event_row(vbox, event_id)
 
 	var spacer_5 := Control.new()
@@ -367,6 +367,8 @@ func _add_event_row(parent: VBoxContainer, event_id: String) -> void:
 
 func _populate_from_config() -> void:
 	for event_id in SfxConfig.EVENT_IDS:
+		if not _file_buttons.has(event_id):
+			continue  # Event not shown in editor — skip
 		var ev: Dictionary = _config.get_event(event_id)
 		var file_path: String = ev["file_path"]
 
@@ -649,7 +651,7 @@ func _auto_save() -> void:
 
 func _apply_theme() -> void:
 	if _bg_rect:
-		ThemeManager.apply_grid_background(_bg_rect)
+		_bg_rect.color = Color(0.02, 0.02, 0.03, 1.0)
 	if _vhs_overlay:
 		ThemeManager.apply_vhs_overlay(_vhs_overlay)
 	if _title_label:

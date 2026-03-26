@@ -25,6 +25,14 @@ const EVENT_IDS: Array[String] = [
 	"engine_sputter",
 	"electric_sparks",
 	"system_warning_beep",
+	# Warning alarms — loop while condition is active, stop when cleared
+	"alarm_heat",
+	"alarm_fire",
+	"alarm_low_power",
+	"alarm_overdraw",
+	"alarm_shields_low",
+	"alarm_hull_damaged",
+	"alarm_hull_critical",
 	# Staged power-down cues (in sequence order)
 	"powerdown_shields_bleed",
 	"powerdown_engines_dying",
@@ -67,6 +75,14 @@ const EVENT_LABELS: Dictionary = {
 	"engine_sputter": "ENGINE SPUTTER",
 	"electric_sparks": "ELECTRIC SPARKS",
 	"system_warning_beep": "SYSTEM WARNING BEEP",
+	# Warning alarms
+	"alarm_heat": "ALARM: HEAT",
+	"alarm_fire": "ALARM: FIRE",
+	"alarm_low_power": "ALARM: LOW POWER",
+	"alarm_overdraw": "ALARM: OVERDRAW",
+	"alarm_shields_low": "ALARM: SHIELDS LOW",
+	"alarm_hull_damaged": "ALARM: HULL DAMAGED",
+	"alarm_hull_critical": "ALARM: HULL CRITICAL",
 	# Staged power-down cues
 	"powerdown_shields_bleed": "1. SHIELDS BLEEDING",
 	"powerdown_engines_dying": "2. ENGINES DYING",
@@ -102,6 +118,14 @@ const EVENT_DESCRIPTIONS: Dictionary = {
 	"shield_critical": "Shield bar nearly depleted",
 	"hull_critical": "Hull bar nearly depleted — ship close to destruction",
 	"system_warning_beep": "General-purpose warning beep for HUD alerts",
+	# Warning alarms — loop while condition is active
+	"alarm_heat": "Loops while thermal > 90% — rising heat warning",
+	"alarm_fire": "Loops while thermal overflow is damaging hull — urgent fire alert",
+	"alarm_low_power": "Loops while electric < 10% — low energy warning",
+	"alarm_overdraw": "Loops while electric is pulling from shields/engines — critical power drain",
+	"alarm_shields_low": "Loops while shields < 10% — shield depletion warning",
+	"alarm_hull_damaged": "Plays briefly when hull takes a hit — impact alert",
+	"alarm_hull_critical": "Loops while hull < 15% — imminent destruction warning",
 	# Power Failure (the moment systems go dark)
 	"power_failure": "The instant all power cuts — main power-out sound",
 	"monitor_shutoff": "CRT display switching off with a click/thud",

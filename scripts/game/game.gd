@@ -67,6 +67,10 @@ var _screen_shake_original_pos: Vector2 = Vector2.ZERO
 var _hull_damaged_timer: float = 0.0  # Transient "HULL DAMAGED" display timer
 const HULL_DAMAGED_DISPLAY_TIME: float = 2.0
 
+# Warning alarm audio — looping players keyed by warning ID
+var _alarm_players: Dictionary = {}  # warning_id -> AudioStreamPlayer
+var _active_alarm_ids: Array[String] = []  # Warning IDs currently active (last frame)
+
 const NEBULA_STYLES: Dictionary = {
 	"classic_fbm": {"shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "dual": false},
 	"wispy_filaments": {"shader": "res://assets/shaders/nebula_wispy_filaments.gdshader", "dual": false},
@@ -514,6 +518,7 @@ func _get_time_to_next_measure() -> float:
 func _on_player_died() -> void:
 	if _death_sequence_active or _power_death_active:
 		return  # Prevent double-trigger
+	_stop_all_alarms()
 	_death_sequence_active = true
 	_death_timer = 0.0
 	_death_explosion_accum = 0.0
@@ -695,6 +700,73 @@ func _update_warning_rotator(delta: float) -> void:
 
 	_hud.update_warnings_rotator(warnings)
 
+	# Alarm audio — start/stop looping sounds based on active warnings
+	var current_ids: Array[String] = []
+	for w in warnings:
+		current_ids.append(str(w["id"]))
+
+	# Stop alarms that are no longer active
+	for old_id in _active_alarm_ids:
+		if old_id not in current_ids:
+			_stop_alarm(old_id)
+
+	# Start alarms that are newly active
+	for new_id in current_ids:
+		if new_id not in _active_alarm_ids:
+			_start_alarm(new_id)
+
+	_active_alarm_ids = current_ids
+
+
+func _start_alarm(warning_id: String) -> void:
+	var alarm_event_id: String = "alarm_" + warning_id
+	if _alarm_players.has(warning_id):
+		return  # Already playing
+	var cfg: SfxConfig = SfxConfigManager.load_config()
+	var ev: Dictionary = cfg.get_event(alarm_event_id)
+	var file_path: String = str(ev.get("file_path", ""))
+	print("[ALARM] Starting '%s' → event='%s' file='%s'" % [warning_id, alarm_event_id, file_path])
+	if file_path == "":
+		print("[ALARM] No file assigned for '%s' — skipping" % alarm_event_id)
+		return
+	var stream: AudioStream = load(file_path) as AudioStream
+	if not stream:
+		print("[ALARM] Failed to load stream: %s" % file_path)
+		return
+	var player := AudioStreamPlayer.new()
+	player.stream = stream
+	player.bus = "SFX"
+	player.volume_db = float(ev.get("volume_db", 0.0))
+	# Re-trigger on finish so it loops continuously while the condition is active
+	player.finished.connect(func():
+		if _alarm_players.has(warning_id) and is_instance_valid(player):
+			player.play()
+	)
+	print("[ALARM] Playing '%s' at %.1f dB on bus SFX" % [alarm_event_id, player.volume_db])
+	add_child(player)
+	player.play()
+	_alarm_players[warning_id] = player
+
+
+func _stop_alarm(warning_id: String) -> void:
+	if not _alarm_players.has(warning_id):
+		return
+	var player: AudioStreamPlayer = _alarm_players[warning_id]
+	if player and is_instance_valid(player):
+		player.stop()
+		player.queue_free()
+	_alarm_players.erase(warning_id)
+
+
+func _stop_all_alarms() -> void:
+	for wid in _alarm_players:
+		var player: AudioStreamPlayer = _alarm_players[wid]
+		if player and is_instance_valid(player):
+			player.stop()
+			player.queue_free()
+	_alarm_players.clear()
+	_active_alarm_ids.clear()
+
 
 func _make_warning(warning_id: String) -> Dictionary:
 	var entry: Dictionary = _warning_colors.get(warning_id, WARNING_DEFAULTS.get(warning_id, {}))
@@ -737,6 +809,7 @@ func _process_screen_shake(delta: float) -> void:
 func _on_player_died_during_power_loss() -> void:
 	if _death_sequence_active or _power_death_active:
 		return
+	_stop_all_alarms()
 	_power_death_active = true
 	_power_death_timer = 0.0
 	_power_death_explosion_accum = 0.0
@@ -808,6 +881,7 @@ func _process_power_loss_death(delta: float) -> void:
 
 
 func _return_to_menu() -> void:
+	_stop_all_alarms()
 	LoopMixer.remove_all_loops()
 	if _wave_manager:
 		_wave_manager.stop()
