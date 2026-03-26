@@ -56,7 +56,9 @@ var _boss_list: Array[BossData] = []
 var _filtered_boss_list: Array[BossData] = []
 var _selected_boss_index: int = -1
 var _working_boss: BossData = null
-var _boss_tab: String = "core"  # "core", "segments", "enrage"
+var _boss_tab: String = "core"  # "core", "weapons", "health", "hitbox", "destruction", "alignment", "enrage"
+var _weapon_preview_controllers: Array = []  # Array of HardpointController for multi-weapon preview
+var _weapon_preview_fire_points: Array = []  # Array of Node2D fire points for multi-weapon preview
 var _selected_segment_index: int = -1
 var _boss_preview_nodes: Array = []  # ShipRenderers in viewport for composite preview
 var _explosion_color_rect: ColorRect = null
@@ -1257,30 +1259,42 @@ func _build_bosses_right_panel() -> void:
 		vbox.add_child(hint)
 		return
 
-	# Tab bar
-	var tab_row := HBoxContainer.new()
-	tab_row.add_theme_constant_override("separation", 6)
-	tab_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_child(tab_row)
+	# Tab bar — multi-row
+	var tab_names: Array[String] = ["CORE", "WEAPONS", "HEALTH", "HITBOX", "DESTRUCTION", "ALIGNMENT", "ENRAGE"]
+	var row1_names: Array[String] = ["CORE", "WEAPONS", "HEALTH", "HITBOX"]
+	var row2_names: Array[String] = ["DESTRUCTION", "ALIGNMENT", "ENRAGE"]
 
-	for tab_name in ["CORE", "SEGMENTS", "ENRAGE"]:
-		var btn := Button.new()
-		btn.text = tab_name
-		btn.toggle_mode = true
-		var tab_key: String = tab_name.to_lower()
-		btn.button_pressed = (_boss_tab == tab_key)
-		btn.pressed.connect(func() -> void:
-			_boss_tab = tab_key
-			_rebuild_right_panel()
-		)
-		tab_row.add_child(btn)
-		ThemeManager.apply_button_style(btn)
+	var tab_grid := VBoxContainer.new()
+	tab_grid.add_theme_constant_override("separation", 4)
+	vbox.add_child(tab_grid)
+
+	for row_names in [row1_names, row2_names]:
+		var tab_row := HBoxContainer.new()
+		tab_row.add_theme_constant_override("separation", 4)
+		tab_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		tab_grid.add_child(tab_row)
+		for tab_name: String in row_names:
+			var btn := Button.new()
+			btn.text = tab_name
+			btn.toggle_mode = true
+			var tab_key: String = tab_name.to_lower()
+			btn.button_pressed = (_boss_tab == tab_key)
+			btn.pressed.connect(func() -> void:
+				_boss_tab = tab_key
+				_rebuild_right_panel()
+			)
+			tab_row.add_child(btn)
+			ThemeManager.apply_button_style(btn)
 
 	_add_section_spacer(vbox)
 
 	match _boss_tab:
 		"core": _build_boss_core_tab(vbox)
-		"segments": _build_boss_segments_tab(vbox)
+		"weapons": _build_boss_weapons_tab(vbox)
+		"health": _build_boss_health_tab(vbox)
+		"hitbox": _build_boss_hitbox_tab(vbox)
+		"destruction": _build_boss_destruction_tab(vbox)
+		"alignment": _build_boss_alignment_tab(vbox)
 		"enrage": _build_boss_enrage_tab(vbox)
 
 	# Spacer + buttons
@@ -1387,311 +1401,751 @@ func _build_boss_core_tab(vbox: VBoxContainer) -> void:
 
 	_add_section_spacer(vbox)
 
-	# ── IMMUNITY ──
-	var immune_check := CheckButton.new()
-	immune_check.text = "Immune until all segments destroyed"
-	immune_check.button_pressed = _working_boss.core_immune_until_segments_dead
-	immune_check.toggled.connect(func(pressed: bool) -> void:
+	# ── SEGMENTS ──
+	var seg_header := Label.new()
+	seg_header.text = "SEGMENTS"
+	seg_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(seg_header)
+
+	for i in range(_working_boss.segments.size()):
+		var seg: Dictionary = _working_boss.segments[i] as Dictionary
+		var seg_ship_id: String = str(seg.get("ship_id", ""))
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		vbox.add_child(row)
+
+		var seg_lbl := Label.new()
+		seg_lbl.text = "Seg %d" % i
+		seg_lbl.custom_minimum_size.x = 40
+		row.add_child(seg_lbl)
+
+		var seg_dd := OptionButton.new()
+		seg_dd.clip_text = true
+		seg_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		seg_dd.add_item("(none)")
+		var seg_selected: int = 0
+		for j in range(all_enemies.size()):
+			var s: ShipData = all_enemies[j]
+			var elabel: String = s.display_name if s.display_name != "" else s.id
+			seg_dd.add_item(elabel)
+			seg_dd.set_item_metadata(j + 1, s.id)
+			if s.id == seg_ship_id:
+				seg_selected = j + 1
+		seg_dd.selected = seg_selected
+		var captured_i: int = i
+		seg_dd.item_selected.connect(func(idx: int) -> void:
+			if not _working_boss or captured_i >= _working_boss.segments.size():
+				return
+			var s: Dictionary = _working_boss.segments[captured_i] as Dictionary
+			if idx == 0:
+				s["ship_id"] = ""
+				s["weapon_overrides"] = []
+			else:
+				s["ship_id"] = str(seg_dd.get_item_metadata(idx))
+				s["weapon_overrides"] = []
+			_working_boss.segments[captured_i] = s
+			_update_boss_preview()
+			_rebuild_right_panel()
+		)
+		row.add_child(seg_dd)
+
+	# Add / Remove buttons
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 6)
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_row)
+
+	var add_btn := Button.new()
+	add_btn.text = "ADD SEGMENT"
+	add_btn.pressed.connect(func() -> void:
 		if _working_boss:
-			_working_boss.core_immune_until_segments_dead = pressed
+			_working_boss.segments.append(BossData._default_segment())
+			_update_boss_preview()
+			_rebuild_right_panel()
 	)
-	vbox.add_child(immune_check)
+	btn_row.add_child(add_btn)
+	ThemeManager.apply_button_style(add_btn)
+
+	if _working_boss.segments.size() > 0:
+		var rem_btn := Button.new()
+		rem_btn.text = "REMOVE LAST"
+		rem_btn.pressed.connect(func() -> void:
+			if _working_boss and _working_boss.segments.size() > 0:
+				# Clean up required_segment_destroys references
+				var last_idx: int = _working_boss.segments.size() - 1
+				_working_boss.required_segment_destroys.erase(last_idx)
+				_working_boss.segments.remove_at(last_idx)
+				_update_boss_preview()
+				_rebuild_right_panel()
+		)
+		btn_row.add_child(rem_btn)
+		ThemeManager.apply_button_style(rem_btn)
 
 	_add_section_spacer(vbox)
 
-	# ── SHIP STATS (health, hitbox, weapons) ──
+	# ── DETACH CONFIG (per segment) ──
+	if _working_boss.segments.size() > 0:
+		var detach_header := Label.new()
+		detach_header.text = "DETACH"
+		detach_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(detach_header)
+
+		for i in range(_working_boss.segments.size()):
+			var seg: Dictionary = _working_boss.segments[i] as Dictionary
+			var can_detach: bool = bool(seg.get("can_detach", false))
+
+			var seg_label := Label.new()
+			seg_label.text = "Segment %d" % i
+			seg_label.add_theme_color_override("font_color", Color(0.0, 0.9, 1.0))
+			vbox.add_child(seg_label)
+
+			var detach_check := CheckButton.new()
+			detach_check.text = "Can Detach"
+			detach_check.button_pressed = can_detach
+			var captured_i2: int = i
+			detach_check.toggled.connect(func(pressed: bool) -> void:
+				if _working_boss and captured_i2 < _working_boss.segments.size():
+					var s: Dictionary = _working_boss.segments[captured_i2] as Dictionary
+					s["can_detach"] = pressed
+					_working_boss.segments[captured_i2] = s
+					_rebuild_right_panel()
+			)
+			vbox.add_child(detach_check)
+
+			if can_detach:
+				var reattach_check := CheckButton.new()
+				reattach_check.text = "Reattach after path"
+				reattach_check.button_pressed = bool(seg.get("reattach", true))
+				reattach_check.toggled.connect(func(pressed: bool) -> void:
+					if _working_boss and captured_i2 < _working_boss.segments.size():
+						var s: Dictionary = _working_boss.segments[captured_i2] as Dictionary
+						s["reattach"] = pressed
+						_working_boss.segments[captured_i2] = s
+				)
+				vbox.add_child(reattach_check)
+
+				# Detach speed
+				var spd_row := HBoxContainer.new()
+				spd_row.add_theme_constant_override("separation", 6)
+				vbox.add_child(spd_row)
+				var spd_lbl := Label.new()
+				spd_lbl.text = "SPEED"
+				spd_lbl.custom_minimum_size.x = 50
+				spd_row.add_child(spd_lbl)
+				var spd_slider := HSlider.new()
+				spd_slider.min_value = 50.0
+				spd_slider.max_value = 500.0
+				spd_slider.step = 10.0
+				spd_slider.value = float(seg.get("detach_speed", 200.0))
+				spd_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				spd_row.add_child(spd_slider)
+				var spd_val := Label.new()
+				spd_val.text = str(int(spd_slider.value))
+				spd_val.custom_minimum_size.x = 40
+				spd_row.add_child(spd_val)
+				spd_slider.value_changed.connect(func(val: float) -> void:
+					spd_val.text = str(int(val))
+					if _working_boss and captured_i2 < _working_boss.segments.size():
+						var s: Dictionary = _working_boss.segments[captured_i2] as Dictionary
+						s["detach_speed"] = val
+						_working_boss.segments[captured_i2] = s
+				)
+
+				# HP threshold
+				var thr_row := HBoxContainer.new()
+				thr_row.add_theme_constant_override("separation", 6)
+				vbox.add_child(thr_row)
+				var thr_lbl := Label.new()
+				thr_lbl.text = "HP %"
+				thr_lbl.custom_minimum_size.x = 50
+				thr_row.add_child(thr_lbl)
+				var thr_slider := HSlider.new()
+				thr_slider.min_value = 0.0
+				thr_slider.max_value = 1.0
+				thr_slider.step = 0.05
+				thr_slider.value = float(seg.get("detach_hp_threshold", 0.0))
+				thr_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				thr_row.add_child(thr_slider)
+				var thr_val := Label.new()
+				thr_val.text = "%.0f%%" % (thr_slider.value * 100.0)
+				thr_val.custom_minimum_size.x = 40
+				thr_row.add_child(thr_val)
+				thr_slider.value_changed.connect(func(val: float) -> void:
+					thr_val.text = "%.0f%%" % (val * 100.0)
+					if _working_boss and captured_i2 < _working_boss.segments.size():
+						var s: Dictionary = _working_boss.segments[captured_i2] as Dictionary
+						s["detach_hp_threshold"] = val
+						_working_boss.segments[captured_i2] = s
+				)
+
+
+func _build_boss_weapons_tab(vbox: VBoxContainer) -> void:
+	## Dedicated weapons tab — labeled dropdowns for every hardpoint on core + all segments.
+	# ── CORE WEAPONS ──
 	if _working_boss.core_ship_id != "":
-		_build_boss_ship_stats(vbox, _working_boss.core_ship_id, _working_boss.core_weapon_overrides, func(overrides: Array) -> void:
+		var core_label := Label.new()
+		core_label.text = "CORE"
+		core_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		core_label.add_theme_color_override("font_color", Color(0.0, 0.9, 1.0))
+		vbox.add_child(core_label)
+		_build_weapon_overrides_section(vbox, _working_boss.core_ship_id, _working_boss.core_weapon_overrides, func(overrides: Array) -> void:
 			if _working_boss:
 				_working_boss.core_weapon_overrides = overrides
 		)
+		_add_section_spacer(vbox)
 
+	# ── SEGMENT WEAPONS ──
+	for i in range(_working_boss.segments.size()):
+		var seg: Dictionary = _working_boss.segments[i] as Dictionary
+		var seg_ship_id: String = str(seg.get("ship_id", ""))
+		if seg_ship_id == "":
+			continue
+		var ship: ShipData = ShipDataManager.load_by_id(seg_ship_id)
+		var seg_name: String = ship.display_name if ship and ship.display_name != "" else seg_ship_id
+		var seg_label := Label.new()
+		seg_label.text = "SEGMENT %d — %s" % [i, seg_name]
+		seg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		seg_label.add_theme_color_override("font_color", Color(0.0, 0.9, 1.0))
+		vbox.add_child(seg_label)
+		var seg_overrides: Array = seg.get("weapon_overrides", []) as Array
+		var captured_i: int = i
+		_build_weapon_overrides_section(vbox, seg_ship_id, seg_overrides, func(new_overrides: Array) -> void:
+			if _working_boss and captured_i < _working_boss.segments.size():
+				var s: Dictionary = _working_boss.segments[captured_i] as Dictionary
+				s["weapon_overrides"] = new_overrides
+				_working_boss.segments[captured_i] = s
+		)
+		_add_section_spacer(vbox)
 
-func _build_boss_ship_stats(vbox: VBoxContainer, ship_id: String, weapon_overrides: Array, on_weapon_change: Callable) -> void:
-	## Builds health sliders, hitbox controls, weapon overrides, and weapon preview for a boss part.
-	## Edits are applied directly to the ShipData file for the referenced ship_id.
-	var ship: ShipData = ShipDataManager.load_by_id(ship_id)
-	if not ship:
-		return
-
-	# ── HEALTH ──
-	var health_label := Label.new()
-	health_label.text = "HEALTH"
-	health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(health_label)
-
-	var hull_hp: float = float(ship.stats.get("hull_hp", 50))
-	var shield_hp: float = float(ship.stats.get("shield_hp", 0))
-
-	var hull_row := HBoxContainer.new()
-	hull_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(hull_row)
-	var hull_lbl := Label.new()
-	hull_lbl.text = "HULL"
-	hull_lbl.custom_minimum_size.x = 40
-	hull_row.add_child(hull_lbl)
-	var hull_slider := HSlider.new()
-	hull_slider.min_value = 10
-	hull_slider.max_value = 1000
-	hull_slider.step = 5
-	hull_slider.value = hull_hp
-	hull_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hull_row.add_child(hull_slider)
-	var hull_val := Label.new()
-	hull_val.text = str(int(hull_hp))
-	hull_val.custom_minimum_size.x = 40
-	hull_row.add_child(hull_val)
-	var captured_ship_id: String = ship_id
-	hull_slider.value_changed.connect(func(val: float) -> void:
-		hull_val.text = str(int(val))
-		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
-		if s:
-			s.stats["hull_hp"] = val
-			ShipDataManager.save(captured_ship_id, s.to_dict())
-	)
-
-	var shd_row := HBoxContainer.new()
-	shd_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(shd_row)
-	var shd_lbl := Label.new()
-	shd_lbl.text = "SHD"
-	shd_lbl.custom_minimum_size.x = 40
-	shd_row.add_child(shd_lbl)
-	var shd_slider := HSlider.new()
-	shd_slider.min_value = 0
-	shd_slider.max_value = 500
-	shd_slider.step = 5
-	shd_slider.value = shield_hp
-	shd_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	shd_row.add_child(shd_slider)
-	var shd_val := Label.new()
-	shd_val.text = str(int(shield_hp))
-	shd_val.custom_minimum_size.x = 40
-	shd_row.add_child(shd_val)
-	shd_slider.value_changed.connect(func(val: float) -> void:
-		shd_val.text = str(int(val))
-		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
-		if s:
-			s.stats["shield_hp"] = val
-			ShipDataManager.save(captured_ship_id, s.to_dict())
-	)
-
-	_add_section_spacer(vbox)
-
-	# ── HITBOX ──
-	var hitbox_label := Label.new()
-	hitbox_label.text = "HITBOX"
-	hitbox_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(hitbox_label)
-
-	var shape_hbox := HBoxContainer.new()
-	shape_hbox.add_theme_constant_override("separation", 6)
-	vbox.add_child(shape_hbox)
-	var shape_lbl := Label.new()
-	shape_lbl.text = "SHAPE"
-	shape_lbl.custom_minimum_size.x = 40
-	shape_hbox.add_child(shape_lbl)
-	var shape_dd := OptionButton.new()
-	shape_dd.clip_text = true
-	shape_dd.add_item("Circle", 0)
-	shape_dd.add_item("Rectangle", 1)
-	shape_dd.add_item("Capsule", 2)
-	match ship.collision_shape:
-		"rectangle": shape_dd.selected = 1
-		"capsule": shape_dd.selected = 2
-		_: shape_dd.selected = 0
-	shape_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	shape_dd.item_selected.connect(func(idx: int) -> void:
-		var shapes: Array[String] = ["circle", "rectangle", "capsule"]
-		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
-		if s:
-			s.collision_shape = shapes[idx]
-			ShipDataManager.save(captured_ship_id, s.to_dict())
-		if _hitbox_overlay:
-			_hitbox_overlay.queue_redraw()
-	)
-	shape_hbox.add_child(shape_dd)
-
-	# Width
-	var w_row := HBoxContainer.new()
-	w_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(w_row)
-	var w_lbl := Label.new()
-	w_lbl.text = "W"
-	w_lbl.custom_minimum_size.x = 40
-	w_row.add_child(w_lbl)
-	var w_slider := HSlider.new()
-	w_slider.min_value = 6
-	w_slider.max_value = 400
-	w_slider.step = 2
-	w_slider.value = ship.collision_width
-	w_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	w_row.add_child(w_slider)
-	var w_val := Label.new()
-	w_val.text = str(int(ship.collision_width))
-	w_val.custom_minimum_size.x = 40
-	w_row.add_child(w_val)
-	w_slider.value_changed.connect(func(val: float) -> void:
-		w_val.text = str(int(val))
-		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
-		if s:
-			s.collision_width = val
-			ShipDataManager.save(captured_ship_id, s.to_dict())
-		if _hitbox_overlay:
-			_hitbox_overlay.queue_redraw()
-	)
-
-	# Height
-	var h_row := HBoxContainer.new()
-	h_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(h_row)
-	var h_lbl := Label.new()
-	h_lbl.text = "H"
-	h_lbl.custom_minimum_size.x = 40
-	h_row.add_child(h_lbl)
-	var h_slider := HSlider.new()
-	h_slider.min_value = 6
-	h_slider.max_value = 400
-	h_slider.step = 2
-	h_slider.value = ship.collision_height
-	h_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h_row.add_child(h_slider)
-	var h_val := Label.new()
-	h_val.text = str(int(ship.collision_height))
-	h_val.custom_minimum_size.x = 40
-	h_row.add_child(h_val)
-	h_slider.value_changed.connect(func(val: float) -> void:
-		h_val.text = str(int(val))
-		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
-		if s:
-			s.collision_height = val
-			ShipDataManager.save(captured_ship_id, s.to_dict())
-		if _hitbox_overlay:
-			_hitbox_overlay.queue_redraw()
-	)
-
-	# Offset X
-	var ox_row := HBoxContainer.new()
-	ox_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(ox_row)
-	var ox_lbl := Label.new()
-	ox_lbl.text = "OX"
-	ox_lbl.custom_minimum_size.x = 40
-	ox_row.add_child(ox_lbl)
-	var ox_slider := HSlider.new()
-	ox_slider.min_value = -200
-	ox_slider.max_value = 200
-	ox_slider.step = 1
-	ox_slider.value = ship.collision_offset_x
-	ox_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ox_row.add_child(ox_slider)
-	var ox_val := Label.new()
-	ox_val.text = str(int(ship.collision_offset_x))
-	ox_val.custom_minimum_size.x = 40
-	ox_row.add_child(ox_val)
-	ox_slider.value_changed.connect(func(val: float) -> void:
-		ox_val.text = str(int(val))
-		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
-		if s:
-			s.collision_offset_x = val
-			ShipDataManager.save(captured_ship_id, s.to_dict())
-		if _hitbox_overlay:
-			_hitbox_overlay.queue_redraw()
-	)
-
-	# Offset Y
-	var oy_row := HBoxContainer.new()
-	oy_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(oy_row)
-	var oy_lbl := Label.new()
-	oy_lbl.text = "OY"
-	oy_lbl.custom_minimum_size.x = 40
-	oy_row.add_child(oy_lbl)
-	var oy_slider := HSlider.new()
-	oy_slider.min_value = -200
-	oy_slider.max_value = 200
-	oy_slider.step = 1
-	oy_slider.value = ship.collision_offset_y
-	oy_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	oy_row.add_child(oy_slider)
-	var oy_val := Label.new()
-	oy_val.text = str(int(ship.collision_offset_y))
-	oy_val.custom_minimum_size.x = 40
-	oy_row.add_child(oy_val)
-	oy_slider.value_changed.connect(func(val: float) -> void:
-		oy_val.text = str(int(val))
-		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
-		if s:
-			s.collision_offset_y = val
-			ShipDataManager.save(captured_ship_id, s.to_dict())
-		if _hitbox_overlay:
-			_hitbox_overlay.queue_redraw()
-	)
-
-	_add_section_spacer(vbox)
-
-	# ── WEAPONS ──
-	_build_weapon_overrides_section(vbox, ship_id, weapon_overrides, on_weapon_change)
-
-	# ── WEAPON PREVIEW ──
+	# ── PREVIEW ALL WEAPONS ──
 	var preview_btn := Button.new()
-	preview_btn.text = "PREVIEW WEAPON"
+	preview_btn.text = "PREVIEW ALL WEAPONS"
 	preview_btn.custom_minimum_size = Vector2(0, 34)
 	preview_btn.pressed.connect(func() -> void:
 		if _weapon_preview_active:
-			_stop_weapon_preview()
-			preview_btn.text = "PREVIEW WEAPON"
+			_stop_boss_weapon_preview_all()
+			preview_btn.text = "PREVIEW ALL WEAPONS"
 		else:
-			_start_boss_weapon_preview(ship_id, weapon_overrides)
+			_start_boss_weapon_preview_all()
 			preview_btn.text = "STOP"
 	)
 	ThemeManager.apply_button_style(preview_btn)
 	vbox.add_child(preview_btn)
 
 
-func _start_boss_weapon_preview(ship_id: String, weapon_overrides: Array) -> void:
-	## Start weapon preview for a boss part — uses first available weapon.
-	var ship: ShipData = ShipDataManager.load_by_id(ship_id)
-	if not ship:
-		return
-	# Find the weapon to preview: first override, or ship default
-	var weapon_id: String = ship.weapon_id
-	if weapon_overrides.size() > 0:
-		var first_ovr: Dictionary = weapon_overrides[0] as Dictionary
-		weapon_id = str(first_ovr.get("weapon_id", weapon_id))
-	if weapon_id == "":
-		return
-	var weapon: WeaponData = WeaponDataManager.load_by_id(weapon_id)
-	if not weapon:
+func _build_boss_health_tab(vbox: VBoxContainer) -> void:
+	## Dedicated health tab — hull/shield sliders for core + all segments.
+	var parts: Array[Dictionary] = _get_boss_parts_with_labels()
+	for part in parts:
+		var ship_id: String = part["ship_id"]
+		var label_text: String = part["label"]
+		var ship: ShipData = ShipDataManager.load_by_id(ship_id)
+		if not ship:
+			continue
+
+		var part_label := Label.new()
+		part_label.text = label_text
+		part_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		part_label.add_theme_color_override("font_color", Color(0.0, 0.9, 1.0))
+		vbox.add_child(part_label)
+
+		var hull_hp: float = float(ship.stats.get("hull_hp", 50))
+		var shield_hp: float = float(ship.stats.get("shield_hp", 0))
+		var captured_id: String = ship_id
+
+		# Hull
+		var hull_row := HBoxContainer.new()
+		hull_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(hull_row)
+		var hull_lbl := Label.new()
+		hull_lbl.text = "HULL"
+		hull_lbl.custom_minimum_size.x = 40
+		hull_row.add_child(hull_lbl)
+		var hull_slider := HSlider.new()
+		hull_slider.min_value = 10
+		hull_slider.max_value = 1000
+		hull_slider.step = 5
+		hull_slider.value = hull_hp
+		hull_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hull_row.add_child(hull_slider)
+		var hull_val := Label.new()
+		hull_val.text = str(int(hull_hp))
+		hull_val.custom_minimum_size.x = 40
+		hull_row.add_child(hull_val)
+		hull_slider.value_changed.connect(func(val: float) -> void:
+			hull_val.text = str(int(val))
+			var s: ShipData = ShipDataManager.load_by_id(captured_id)
+			if s:
+				s.stats["hull_hp"] = val
+				ShipDataManager.save(captured_id, s.to_dict())
+		)
+
+		# Shield
+		var shd_row := HBoxContainer.new()
+		shd_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(shd_row)
+		var shd_lbl := Label.new()
+		shd_lbl.text = "SHD"
+		shd_lbl.custom_minimum_size.x = 40
+		shd_row.add_child(shd_lbl)
+		var shd_slider := HSlider.new()
+		shd_slider.min_value = 0
+		shd_slider.max_value = 500
+		shd_slider.step = 5
+		shd_slider.value = shield_hp
+		shd_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		shd_row.add_child(shd_slider)
+		var shd_val := Label.new()
+		shd_val.text = str(int(shield_hp))
+		shd_val.custom_minimum_size.x = 40
+		shd_row.add_child(shd_val)
+		shd_slider.value_changed.connect(func(val: float) -> void:
+			shd_val.text = str(int(val))
+			var s: ShipData = ShipDataManager.load_by_id(captured_id)
+			if s:
+				s.stats["shield_hp"] = val
+				ShipDataManager.save(captured_id, s.to_dict())
+		)
+
+		_add_section_spacer(vbox)
+
+
+func _build_boss_hitbox_tab(vbox: VBoxContainer) -> void:
+	## Dedicated hitbox tab — shape/W/H for core + all segments.
+	var parts: Array[Dictionary] = _get_boss_parts_with_labels()
+	for part in parts:
+		var ship_id: String = part["ship_id"]
+		var label_text: String = part["label"]
+		var ship: ShipData = ShipDataManager.load_by_id(ship_id)
+		if not ship:
+			continue
+
+		var part_label := Label.new()
+		part_label.text = label_text
+		part_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		part_label.add_theme_color_override("font_color", Color(0.0, 0.9, 1.0))
+		vbox.add_child(part_label)
+
+		var captured_id: String = ship_id
+
+		# Shape
+		var shape_hbox := HBoxContainer.new()
+		shape_hbox.add_theme_constant_override("separation", 6)
+		vbox.add_child(shape_hbox)
+		var shape_lbl := Label.new()
+		shape_lbl.text = "SHAPE"
+		shape_lbl.custom_minimum_size.x = 50
+		shape_hbox.add_child(shape_lbl)
+		var shape_dd := OptionButton.new()
+		shape_dd.clip_text = true
+		shape_dd.add_item("Circle", 0)
+		shape_dd.add_item("Rectangle", 1)
+		shape_dd.add_item("Capsule", 2)
+		match ship.collision_shape:
+			"rectangle": shape_dd.selected = 1
+			"capsule": shape_dd.selected = 2
+			_: shape_dd.selected = 0
+		shape_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		shape_dd.item_selected.connect(func(idx: int) -> void:
+			var shapes: Array[String] = ["circle", "rectangle", "capsule"]
+			var s: ShipData = ShipDataManager.load_by_id(captured_id)
+			if s:
+				s.collision_shape = shapes[idx]
+				ShipDataManager.save(captured_id, s.to_dict())
+			if _hitbox_overlay:
+				_hitbox_overlay.queue_redraw()
+		)
+		shape_hbox.add_child(shape_dd)
+
+		# Width
+		var w_row := HBoxContainer.new()
+		w_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(w_row)
+		var w_lbl := Label.new()
+		w_lbl.text = "W"
+		w_lbl.custom_minimum_size.x = 50
+		w_row.add_child(w_lbl)
+		var w_slider := HSlider.new()
+		w_slider.min_value = 6
+		w_slider.max_value = 400
+		w_slider.step = 2
+		w_slider.value = ship.collision_width
+		w_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		w_row.add_child(w_slider)
+		var w_val := Label.new()
+		w_val.text = str(int(ship.collision_width))
+		w_val.custom_minimum_size.x = 40
+		w_row.add_child(w_val)
+		w_slider.value_changed.connect(func(val: float) -> void:
+			w_val.text = str(int(val))
+			var s: ShipData = ShipDataManager.load_by_id(captured_id)
+			if s:
+				s.collision_width = val
+				ShipDataManager.save(captured_id, s.to_dict())
+			if _hitbox_overlay:
+				_hitbox_overlay.queue_redraw()
+		)
+
+		# Height
+		var h_row := HBoxContainer.new()
+		h_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(h_row)
+		var h_lbl := Label.new()
+		h_lbl.text = "H"
+		h_lbl.custom_minimum_size.x = 50
+		h_row.add_child(h_lbl)
+		var h_slider := HSlider.new()
+		h_slider.min_value = 6
+		h_slider.max_value = 400
+		h_slider.step = 2
+		h_slider.value = ship.collision_height
+		h_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h_row.add_child(h_slider)
+		var h_val := Label.new()
+		h_val.text = str(int(ship.collision_height))
+		h_val.custom_minimum_size.x = 40
+		h_row.add_child(h_val)
+		h_slider.value_changed.connect(func(val: float) -> void:
+			h_val.text = str(int(val))
+			var s: ShipData = ShipDataManager.load_by_id(captured_id)
+			if s:
+				s.collision_height = val
+				ShipDataManager.save(captured_id, s.to_dict())
+			if _hitbox_overlay:
+				_hitbox_overlay.queue_redraw()
+		)
+
+		_add_section_spacer(vbox)
+
+
+func _build_boss_destruction_tab(vbox: VBoxContainer) -> void:
+	## Checkboxes for which segments must be destroyed before core is vulnerable.
+	var header := Label.new()
+	header.text = "DESTROY BEFORE CORE"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(header)
+
+	var hint := Label.new()
+	hint.text = "Check segments that must be destroyed\nbefore the core takes damage."
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	hint.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(hint)
+
+	_add_section_spacer(vbox)
+
+	if _working_boss.segments.size() == 0:
+		var none_label := Label.new()
+		none_label.text = "No segments added yet."
+		none_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		none_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		vbox.add_child(none_label)
 		return
 
+	for i in range(_working_boss.segments.size()):
+		var seg: Dictionary = _working_boss.segments[i] as Dictionary
+		var seg_ship_id: String = str(seg.get("ship_id", ""))
+		var ship: ShipData = ShipDataManager.load_by_id(seg_ship_id) if seg_ship_id != "" else null
+		var seg_name: String = ship.display_name if ship and ship.display_name != "" else seg_ship_id
+		if seg_name == "":
+			seg_name = "(no ship)"
+
+		var check := CheckButton.new()
+		check.text = "Segment %d — %s" % [i, seg_name]
+		check.button_pressed = _working_boss.required_segment_destroys.has(i)
+		var captured_i: int = i
+		check.toggled.connect(func(pressed: bool) -> void:
+			if not _working_boss:
+				return
+			if pressed and not _working_boss.required_segment_destroys.has(captured_i):
+				_working_boss.required_segment_destroys.append(captured_i)
+			elif not pressed:
+				_working_boss.required_segment_destroys.erase(captured_i)
+			# Derive boolean for backward compat
+			_working_boss.core_immune_until_segments_dead = _working_boss.required_segment_destroys.size() > 0
+		)
+		vbox.add_child(check)
+
+
+func _build_boss_alignment_tab(vbox: VBoxContainer) -> void:
+	## Offset tweaking for segments and collision offsets.
+	if _working_boss.segments.size() == 0:
+		var none_label := Label.new()
+		none_label.text = "No segments to align."
+		none_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		none_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		vbox.add_child(none_label)
+		return
+
+	# ── SEGMENT POSITIONS ──
+	var pos_header := Label.new()
+	pos_header.text = "SEGMENT POSITIONS"
+	pos_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(pos_header)
+
+	for i in range(_working_boss.segments.size()):
+		var seg: Dictionary = _working_boss.segments[i] as Dictionary
+		var seg_ship_id: String = str(seg.get("ship_id", ""))
+		var ship: ShipData = ShipDataManager.load_by_id(seg_ship_id) if seg_ship_id != "" else null
+		var seg_name: String = ship.display_name if ship and ship.display_name != "" else seg_ship_id
+		if seg_name == "":
+			seg_name = "(no ship)"
+
+		var seg_label := Label.new()
+		seg_label.text = "Segment %d — %s" % [i, seg_name]
+		seg_label.add_theme_color_override("font_color", Color(0.0, 0.9, 1.0))
+		vbox.add_child(seg_label)
+
+		var offset_arr: Array = seg.get("offset", [0.0, 0.0]) as Array
+		var ox: float = float(offset_arr[0]) if offset_arr.size() > 0 else 0.0
+		var oy: float = float(offset_arr[1]) if offset_arr.size() > 1 else 0.0
+		var captured_i: int = i
+
+		# X offset
+		var x_row := HBoxContainer.new()
+		x_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(x_row)
+		var x_lbl := Label.new()
+		x_lbl.text = "X"
+		x_lbl.custom_minimum_size.x = 20
+		x_row.add_child(x_lbl)
+		var x_slider := HSlider.new()
+		x_slider.min_value = -300.0
+		x_slider.max_value = 300.0
+		x_slider.step = 1.0
+		x_slider.value = ox
+		x_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		x_row.add_child(x_slider)
+		var x_val := Label.new()
+		x_val.text = str(int(ox))
+		x_val.custom_minimum_size.x = 40
+		x_row.add_child(x_val)
+		x_slider.value_changed.connect(func(val: float) -> void:
+			x_val.text = str(int(val))
+			if _working_boss and captured_i < _working_boss.segments.size():
+				var s: Dictionary = _working_boss.segments[captured_i] as Dictionary
+				var off: Array = s.get("offset", [0.0, 0.0]) as Array
+				s["offset"] = [val, float(off[1]) if off.size() > 1 else 0.0]
+				_working_boss.segments[captured_i] = s
+				_update_boss_preview()
+		)
+
+		# Y offset
+		var y_row := HBoxContainer.new()
+		y_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(y_row)
+		var y_lbl := Label.new()
+		y_lbl.text = "Y"
+		y_lbl.custom_minimum_size.x = 20
+		y_row.add_child(y_lbl)
+		var y_slider := HSlider.new()
+		y_slider.min_value = -300.0
+		y_slider.max_value = 300.0
+		y_slider.step = 1.0
+		y_slider.value = oy
+		y_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		y_row.add_child(y_slider)
+		var y_val := Label.new()
+		y_val.text = str(int(oy))
+		y_val.custom_minimum_size.x = 40
+		y_row.add_child(y_val)
+		y_slider.value_changed.connect(func(val: float) -> void:
+			y_val.text = str(int(val))
+			if _working_boss and captured_i < _working_boss.segments.size():
+				var s: Dictionary = _working_boss.segments[captured_i] as Dictionary
+				var off: Array = s.get("offset", [0.0, 0.0]) as Array
+				s["offset"] = [float(off[0]) if off.size() > 0 else 0.0, val]
+				_working_boss.segments[captured_i] = s
+				_update_boss_preview()
+		)
+
+		_add_section_spacer(vbox)
+
+	# ── COLLISION OFFSETS ──
+	var col_header := Label.new()
+	col_header.text = "COLLISION OFFSETS"
+	col_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(col_header)
+
+	var parts: Array[Dictionary] = _get_boss_parts_with_labels()
+	for part in parts:
+		var ship_id: String = part["ship_id"]
+		var label_text: String = part["label"]
+		var ship: ShipData = ShipDataManager.load_by_id(ship_id)
+		if not ship:
+			continue
+
+		var part_label := Label.new()
+		part_label.text = label_text
+		part_label.add_theme_color_override("font_color", Color(0.0, 0.9, 1.0))
+		vbox.add_child(part_label)
+
+		var captured_id: String = ship_id
+
+		# Offset X
+		var ox_row := HBoxContainer.new()
+		ox_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(ox_row)
+		var ox_lbl := Label.new()
+		ox_lbl.text = "OX"
+		ox_lbl.custom_minimum_size.x = 30
+		ox_row.add_child(ox_lbl)
+		var ox_slider := HSlider.new()
+		ox_slider.min_value = -200
+		ox_slider.max_value = 200
+		ox_slider.step = 1
+		ox_slider.value = ship.collision_offset_x
+		ox_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ox_row.add_child(ox_slider)
+		var ox_val := Label.new()
+		ox_val.text = str(int(ship.collision_offset_x))
+		ox_val.custom_minimum_size.x = 40
+		ox_row.add_child(ox_val)
+		ox_slider.value_changed.connect(func(val: float) -> void:
+			ox_val.text = str(int(val))
+			var s: ShipData = ShipDataManager.load_by_id(captured_id)
+			if s:
+				s.collision_offset_x = val
+				ShipDataManager.save(captured_id, s.to_dict())
+			if _hitbox_overlay:
+				_hitbox_overlay.queue_redraw()
+		)
+
+		# Offset Y
+		var oy_row := HBoxContainer.new()
+		oy_row.add_theme_constant_override("separation", 6)
+		vbox.add_child(oy_row)
+		var oy_lbl := Label.new()
+		oy_lbl.text = "OY"
+		oy_lbl.custom_minimum_size.x = 30
+		oy_row.add_child(oy_lbl)
+		var oy_slider := HSlider.new()
+		oy_slider.min_value = -200
+		oy_slider.max_value = 200
+		oy_slider.step = 1
+		oy_slider.value = ship.collision_offset_y
+		oy_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		oy_row.add_child(oy_slider)
+		var oy_val := Label.new()
+		oy_val.text = str(int(ship.collision_offset_y))
+		oy_val.custom_minimum_size.x = 40
+		oy_row.add_child(oy_val)
+		oy_slider.value_changed.connect(func(val: float) -> void:
+			oy_val.text = str(int(val))
+			var s: ShipData = ShipDataManager.load_by_id(captured_id)
+			if s:
+				s.collision_offset_y = val
+				ShipDataManager.save(captured_id, s.to_dict())
+			if _hitbox_overlay:
+				_hitbox_overlay.queue_redraw()
+		)
+
+		_add_section_spacer(vbox)
+
+
+func _get_boss_parts_with_labels() -> Array[Dictionary]:
+	## Returns an array of {ship_id, label} for core + all segments with assigned ships.
+	var parts: Array[Dictionary] = []
+	if _working_boss.core_ship_id != "":
+		var core_ship: ShipData = ShipDataManager.load_by_id(_working_boss.core_ship_id)
+		var core_name: String = core_ship.display_name if core_ship and core_ship.display_name != "" else _working_boss.core_ship_id
+		parts.append({"ship_id": _working_boss.core_ship_id, "label": "CORE — %s" % core_name})
+	for i in range(_working_boss.segments.size()):
+		var seg: Dictionary = _working_boss.segments[i] as Dictionary
+		var seg_ship_id: String = str(seg.get("ship_id", ""))
+		if seg_ship_id == "":
+			continue
+		var ship: ShipData = ShipDataManager.load_by_id(seg_ship_id)
+		var seg_name: String = ship.display_name if ship and ship.display_name != "" else seg_ship_id
+		parts.append({"ship_id": seg_ship_id, "label": "SEG %d — %s" % [i, seg_name]})
+	return parts
+
+
+func _start_boss_weapon_preview_all() -> void:
+	## Start weapon preview for ALL boss parts — fires every weapon simultaneously.
+	_stop_boss_weapon_preview_all()
 	_weapon_preview_active = true
 
-	# Create fire point at center of viewport
-	_weapon_preview_fire_point = Node2D.new()
 	var vp_size: Vector2 = get_viewport_rect().size
-	_weapon_preview_fire_point.position = Vector2(
+	var center := Vector2(
 		LEFT_PANEL_W + (vp_size.x - LEFT_PANEL_W - RIGHT_PANEL_W) * 0.5,
 		(vp_size.y - HUD_HEIGHT) * 0.5
 	)
-	_ship_viewport.add_child(_weapon_preview_fire_point)
 
-	_weapon_preview_controller = HardpointController.new()
-	_weapon_preview_controller.is_enemy = true
-	_weapon_preview_fire_point.add_child(_weapon_preview_controller)
-	_weapon_preview_controller.setup(weapon, 180.0 + weapon.direction_deg, _weapon_preview_container)
+	# Collect all (ship_id, weapon_overrides, offset) tuples
+	var weapon_parts: Array[Dictionary] = []
+	if _working_boss.core_ship_id != "":
+		weapon_parts.append({"ship_id": _working_boss.core_ship_id, "overrides": _working_boss.core_weapon_overrides, "offset": Vector2.ZERO})
+	for i in range(_working_boss.segments.size()):
+		var seg: Dictionary = _working_boss.segments[i] as Dictionary
+		var seg_ship_id: String = str(seg.get("ship_id", ""))
+		if seg_ship_id == "":
+			continue
+		var offset_arr: Array = seg.get("offset", [0.0, 0.0]) as Array
+		var off := Vector2(float(offset_arr[0]) if offset_arr.size() > 0 else 0.0, float(offset_arr[1]) if offset_arr.size() > 1 else 0.0)
+		weapon_parts.append({"ship_id": seg_ship_id, "overrides": seg.get("weapon_overrides", []) as Array, "offset": off})
+
+	for part in weapon_parts:
+		var ship: ShipData = ShipDataManager.load_by_id(part["ship_id"])
+		if not ship:
+			continue
+		var overrides: Array = part["overrides"] as Array
+		var offset: Vector2 = part["offset"] as Vector2
+
+		# Determine hardpoint count
+		var hp_count: int = ship.hardpoint_offsets.size()
+		if hp_count == 0:
+			hp_count = 1
+
+		# Build override lookup
+		var override_map: Dictionary = {}
+		for ovr in overrides:
+			var d: Dictionary = ovr as Dictionary
+			override_map[int(d.get("hardpoint_index", 0))] = str(d.get("weapon_id", ""))
+
+		for hp_idx in range(hp_count):
+			var weapon_id: String = str(override_map.get(hp_idx, ""))
+			if weapon_id == "":
+				weapon_id = ship.weapon_id
+			if weapon_id == "":
+				continue
+			var weapon: WeaponData = WeaponDataManager.load_by_id(weapon_id)
+			if not weapon:
+				continue
+
+			var fire_point := Node2D.new()
+			fire_point.position = center + offset
+			_ship_viewport.add_child(fire_point)
+			_weapon_preview_fire_points.append(fire_point)
+
+			var controller := HardpointController.new()
+			controller.is_enemy = true
+			fire_point.add_child(controller)
+			controller.setup(weapon, 180.0 + weapon.direction_deg, _weapon_preview_container)
+			controller.activate()
+			_weapon_preview_controllers.append(controller)
 
 	LoopMixer.start_all()
-	_weapon_preview_controller.activate()
+
+
+func _stop_boss_weapon_preview_all() -> void:
+	_weapon_preview_active = false
+	for controller: HardpointController in _weapon_preview_controllers:
+		if controller and is_instance_valid(controller):
+			controller.cleanup()
+	_weapon_preview_controllers.clear()
+	for fp: Node2D in _weapon_preview_fire_points:
+		if fp and is_instance_valid(fp):
+			fp.queue_free()
+	_weapon_preview_fire_points.clear()
+	if _weapon_preview_container:
+		for child in _weapon_preview_container.get_children():
+			child.queue_free()
 
 
 func _build_weapon_overrides_section(vbox: VBoxContainer, ship_id: String, overrides: Array, on_change: Callable) -> void:
 	## Builds per-hardpoint weapon dropdown rows for a given enemy ship.
-	var weap_label := Label.new()
-	weap_label.text = "WEAPONS"
-	weap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(weap_label)
-
 	var ship: ShipData = ShipDataManager.load_by_id(ship_id)
 	if not ship:
 		return
@@ -1765,300 +2219,6 @@ func _build_weapon_overrides_section(vbox: VBoxContainer, ship_id: String, overr
 			on_change.call(new_overrides)
 		)
 		row.add_child(dd)
-
-
-func _build_boss_segments_tab(vbox: VBoxContainer) -> void:
-	var seg_header := Label.new()
-	seg_header.text = "SEGMENTS"
-	seg_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(seg_header)
-
-	# Segment list
-	for i in range(_working_boss.segments.size()):
-		var seg: Dictionary = _working_boss.segments[i] as Dictionary
-		var seg_ship_id: String = str(seg.get("ship_id", ""))
-		var offset_arr: Array = seg.get("offset", [0.0, 0.0]) as Array
-		var ox: float = float(offset_arr[0]) if offset_arr.size() > 0 else 0.0
-		var oy: float = float(offset_arr[1]) if offset_arr.size() > 1 else 0.0
-
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
-		vbox.add_child(row)
-
-		var seg_label := Label.new()
-		var ship_name: String = seg_ship_id if seg_ship_id != "" else "(none)"
-		seg_label.text = "%d: %s (%.0f, %.0f)" % [i, ship_name, ox, oy]
-		seg_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var is_selected: bool = (i == _selected_segment_index)
-		if is_selected:
-			seg_label.add_theme_color_override("font_color", Color(0.0, 0.9, 1.0))
-		row.add_child(seg_label)
-
-		var sel_btn := Button.new()
-		sel_btn.text = "EDIT" if not is_selected else "..."
-		var captured_i: int = i
-		sel_btn.pressed.connect(func() -> void:
-			_selected_segment_index = captured_i
-			_rebuild_right_panel()
-		)
-		ThemeManager.apply_button_style(sel_btn)
-		row.add_child(sel_btn)
-
-	# Add / Remove buttons
-	var btn_row := HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 6)
-	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_child(btn_row)
-
-	var add_btn := Button.new()
-	add_btn.text = "ADD SEGMENT"
-	add_btn.pressed.connect(func() -> void:
-		if _working_boss:
-			_working_boss.segments.append(BossData._default_segment())
-			_selected_segment_index = _working_boss.segments.size() - 1
-			_update_boss_preview()
-			_rebuild_right_panel()
-	)
-	btn_row.add_child(add_btn)
-	ThemeManager.apply_button_style(add_btn)
-
-	if _selected_segment_index >= 0 and _selected_segment_index < _working_boss.segments.size():
-		var rem_btn := Button.new()
-		rem_btn.text = "REMOVE"
-		rem_btn.pressed.connect(func() -> void:
-			if _working_boss and _selected_segment_index >= 0 and _selected_segment_index < _working_boss.segments.size():
-				_working_boss.segments.remove_at(_selected_segment_index)
-				_selected_segment_index = mini(_selected_segment_index, _working_boss.segments.size() - 1)
-				_update_boss_preview()
-				_rebuild_right_panel()
-		)
-		btn_row.add_child(rem_btn)
-		ThemeManager.apply_button_style(rem_btn)
-
-	_add_section_spacer(vbox)
-
-	# Selected segment detail
-	if _selected_segment_index >= 0 and _selected_segment_index < _working_boss.segments.size():
-		_build_segment_detail(vbox, _selected_segment_index)
-
-
-func _build_segment_detail(vbox: VBoxContainer, seg_idx: int) -> void:
-	var seg: Dictionary = _working_boss.segments[seg_idx] as Dictionary
-
-	var detail_label := Label.new()
-	detail_label.text = "SEGMENT %d" % seg_idx
-	detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(detail_label)
-
-	# Ship picker
-	var ship_hbox := HBoxContainer.new()
-	ship_hbox.add_theme_constant_override("separation", 6)
-	vbox.add_child(ship_hbox)
-	var ship_lbl := Label.new()
-	ship_lbl.text = "SHIP"
-	ship_lbl.custom_minimum_size.x = 50
-	ship_hbox.add_child(ship_lbl)
-
-	var ship_dd := OptionButton.new()
-	ship_dd.clip_text = true
-	ship_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ship_dd.add_item("(none)")
-	var all_enemies: Array[ShipData] = ShipDataManager.load_all_by_type("enemy")
-	var ship_selected: int = 0
-	var current_ship_id: String = str(seg.get("ship_id", ""))
-	for i in range(all_enemies.size()):
-		var s: ShipData = all_enemies[i]
-		var label: String = s.display_name if s.display_name != "" else s.id
-		ship_dd.add_item(label)
-		ship_dd.set_item_metadata(i + 1, s.id)
-		if s.id == current_ship_id:
-			ship_selected = i + 1
-	ship_dd.selected = ship_selected
-	ship_dd.item_selected.connect(func(idx: int) -> void:
-		if not _working_boss or seg_idx >= _working_boss.segments.size():
-			return
-		var s: Dictionary = _working_boss.segments[seg_idx] as Dictionary
-		if idx == 0:
-			s["ship_id"] = ""
-			s["weapon_overrides"] = []
-		else:
-			s["ship_id"] = str(ship_dd.get_item_metadata(idx))
-			s["weapon_overrides"] = []
-		_working_boss.segments[seg_idx] = s
-		_update_boss_preview()
-		_rebuild_right_panel()
-	)
-	ship_hbox.add_child(ship_dd)
-
-	_add_section_spacer(vbox)
-
-	# Offset sliders
-	var offset_label := Label.new()
-	offset_label.text = "OFFSET"
-	offset_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(offset_label)
-
-	var offset_arr: Array = seg.get("offset", [0.0, 0.0]) as Array
-	var ox: float = float(offset_arr[0]) if offset_arr.size() > 0 else 0.0
-	var oy: float = float(offset_arr[1]) if offset_arr.size() > 1 else 0.0
-
-	# X offset
-	var x_row := HBoxContainer.new()
-	x_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(x_row)
-	var x_lbl := Label.new()
-	x_lbl.text = "X"
-	x_lbl.custom_minimum_size.x = 20
-	x_row.add_child(x_lbl)
-	var x_slider := HSlider.new()
-	x_slider.min_value = -300.0
-	x_slider.max_value = 300.0
-	x_slider.step = 1.0
-	x_slider.value = ox
-	x_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	x_row.add_child(x_slider)
-	var x_val := Label.new()
-	x_val.text = str(int(ox))
-	x_val.custom_minimum_size.x = 40
-	x_row.add_child(x_val)
-	x_slider.value_changed.connect(func(val: float) -> void:
-		x_val.text = str(int(val))
-		if _working_boss and seg_idx < _working_boss.segments.size():
-			var s: Dictionary = _working_boss.segments[seg_idx] as Dictionary
-			var off: Array = s.get("offset", [0.0, 0.0]) as Array
-			s["offset"] = [val, float(off[1]) if off.size() > 1 else 0.0]
-			_working_boss.segments[seg_idx] = s
-			_update_boss_preview()
-	)
-
-	# Y offset
-	var y_row := HBoxContainer.new()
-	y_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(y_row)
-	var y_lbl := Label.new()
-	y_lbl.text = "Y"
-	y_lbl.custom_minimum_size.x = 20
-	y_row.add_child(y_lbl)
-	var y_slider := HSlider.new()
-	y_slider.min_value = -300.0
-	y_slider.max_value = 300.0
-	y_slider.step = 1.0
-	y_slider.value = oy
-	y_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	y_row.add_child(y_slider)
-	var y_val := Label.new()
-	y_val.text = str(int(oy))
-	y_val.custom_minimum_size.x = 40
-	y_row.add_child(y_val)
-	y_slider.value_changed.connect(func(val: float) -> void:
-		y_val.text = str(int(val))
-		if _working_boss and seg_idx < _working_boss.segments.size():
-			var s: Dictionary = _working_boss.segments[seg_idx] as Dictionary
-			var off: Array = s.get("offset", [0.0, 0.0]) as Array
-			s["offset"] = [float(off[0]) if off.size() > 0 else 0.0, val]
-			_working_boss.segments[seg_idx] = s
-			_update_boss_preview()
-	)
-
-	_add_section_spacer(vbox)
-
-	# Ship stats (health, hitbox, weapons, preview)
-	var seg_ship_id: String = str(seg.get("ship_id", ""))
-	if seg_ship_id != "":
-		var seg_overrides: Array = seg.get("weapon_overrides", []) as Array
-		_build_boss_ship_stats(vbox, seg_ship_id, seg_overrides, func(new_overrides: Array) -> void:
-			if _working_boss and seg_idx < _working_boss.segments.size():
-				var s: Dictionary = _working_boss.segments[seg_idx] as Dictionary
-				s["weapon_overrides"] = new_overrides
-				_working_boss.segments[seg_idx] = s
-		)
-
-	_add_section_spacer(vbox)
-
-	# Detach config
-	var detach_label := Label.new()
-	detach_label.text = "DETACH"
-	detach_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(detach_label)
-
-	var can_detach: bool = bool(seg.get("can_detach", false))
-	var detach_check := CheckButton.new()
-	detach_check.text = "Can Detach"
-	detach_check.button_pressed = can_detach
-	detach_check.toggled.connect(func(pressed: bool) -> void:
-		if _working_boss and seg_idx < _working_boss.segments.size():
-			var s: Dictionary = _working_boss.segments[seg_idx] as Dictionary
-			s["can_detach"] = pressed
-			_working_boss.segments[seg_idx] = s
-			_rebuild_right_panel()
-	)
-	vbox.add_child(detach_check)
-
-	if can_detach:
-		var reattach_check := CheckButton.new()
-		reattach_check.text = "Reattach after path"
-		reattach_check.button_pressed = bool(seg.get("reattach", true))
-		reattach_check.toggled.connect(func(pressed: bool) -> void:
-			if _working_boss and seg_idx < _working_boss.segments.size():
-				var s: Dictionary = _working_boss.segments[seg_idx] as Dictionary
-				s["reattach"] = pressed
-				_working_boss.segments[seg_idx] = s
-		)
-		vbox.add_child(reattach_check)
-
-		# Detach speed
-		var spd_row := HBoxContainer.new()
-		spd_row.add_theme_constant_override("separation", 6)
-		vbox.add_child(spd_row)
-		var spd_lbl := Label.new()
-		spd_lbl.text = "SPEED"
-		spd_lbl.custom_minimum_size.x = 50
-		spd_row.add_child(spd_lbl)
-		var spd_slider := HSlider.new()
-		spd_slider.min_value = 50.0
-		spd_slider.max_value = 500.0
-		spd_slider.step = 10.0
-		spd_slider.value = float(seg.get("detach_speed", 200.0))
-		spd_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		spd_row.add_child(spd_slider)
-		var spd_val := Label.new()
-		spd_val.text = str(int(spd_slider.value))
-		spd_val.custom_minimum_size.x = 40
-		spd_row.add_child(spd_val)
-		spd_slider.value_changed.connect(func(val: float) -> void:
-			spd_val.text = str(int(val))
-			if _working_boss and seg_idx < _working_boss.segments.size():
-				var s: Dictionary = _working_boss.segments[seg_idx] as Dictionary
-				s["detach_speed"] = val
-				_working_boss.segments[seg_idx] = s
-		)
-
-		# HP threshold
-		var thr_row := HBoxContainer.new()
-		thr_row.add_theme_constant_override("separation", 6)
-		vbox.add_child(thr_row)
-		var thr_lbl := Label.new()
-		thr_lbl.text = "HP %"
-		thr_lbl.custom_minimum_size.x = 50
-		thr_row.add_child(thr_lbl)
-		var thr_slider := HSlider.new()
-		thr_slider.min_value = 0.0
-		thr_slider.max_value = 1.0
-		thr_slider.step = 0.05
-		thr_slider.value = float(seg.get("detach_hp_threshold", 0.0))
-		thr_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		thr_row.add_child(thr_slider)
-		var thr_val := Label.new()
-		thr_val.text = "%.0f%%" % (thr_slider.value * 100.0)
-		thr_val.custom_minimum_size.x = 40
-		thr_row.add_child(thr_val)
-		thr_slider.value_changed.connect(func(val: float) -> void:
-			thr_val.text = "%.0f%%" % (val * 100.0)
-			if _working_boss and seg_idx < _working_boss.segments.size():
-				var s: Dictionary = _working_boss.segments[seg_idx] as Dictionary
-				s["detach_hp_threshold"] = val
-				_working_boss.segments[seg_idx] = s
-		)
 
 
 func _build_boss_enrage_tab(vbox: VBoxContainer) -> void:
@@ -2362,15 +2522,18 @@ func _stop_weapon_preview() -> void:
 	if _weapon_preview_btn:
 		_weapon_preview_btn.text = "PREVIEW"
 
-	# Cleanup controller (removes loop from LoopMixer)
+	# Cleanup single controller (enemy editor)
 	if _weapon_preview_controller:
 		_weapon_preview_controller.cleanup()
 		_weapon_preview_controller = null
 
-	# Remove fire point
+	# Remove single fire point (enemy editor)
 	if _weapon_preview_fire_point and is_instance_valid(_weapon_preview_fire_point):
 		_weapon_preview_fire_point.queue_free()
 		_weapon_preview_fire_point = null
+
+	# Cleanup boss multi-weapon preview
+	_stop_boss_weapon_preview_all()
 
 	# Clear any remaining projectiles
 	if _weapon_preview_container:

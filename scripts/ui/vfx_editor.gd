@@ -1,6 +1,7 @@
 extends Control
-## VFX Editor — four live previews: Player Shield/Hull + Enemy Shield/Hull.
-## Browses player ship designs + enemy ships by renderer ID, with skin toggle.
+## VFX Editor — five field-style-based hit effect previews.
+## Each section: pick a FieldStyle from dev studio + set radius.
+## Immune section adds a second "impact" field style at point of contact.
 
 var _config: VfxConfig
 var _vhs_overlay: ColorRect
@@ -26,34 +27,25 @@ const ENEMY_SHIPS: Array[Dictionary] = [
 
 var _player_ship_index: int = 4  # Default to Stiletto
 var _enemy_ship_index: int = 0
-var _player_skin: int = ShipRenderer.RenderMode.CHROME
-var _enemy_skin: int = ShipRenderer.RenderMode.NEON
 
-# Preview nodes — player
-var _player_shield_renderer: ShipRenderer
-var _player_shield_bubble: ShieldBubbleEffect
-var _player_hull_renderer: ShipRenderer
-# Preview nodes — enemy
-var _enemy_shield_renderer: ShipRenderer
-var _enemy_shield_bubble: ShieldBubbleEffect
-var _enemy_hull_renderer: ShipRenderer
-# Preview nodes — immune
-var _immune_renderer: ShipRenderer
-var _immune_bubble: ShieldBubbleEffect
+# All available field style IDs (shared across sections)
+var _field_style_ids: Array[String] = []
+
+# Per-section state: {config_key: {renderer, field, style_index, style_label}}
+var _sections: Dictionary = {}
 
 # Ship labels
 var _player_ship_label: Label
 var _enemy_ship_label: Label
 
-# Slider references for live update
-var _sliders: Dictionary = {}  # key -> HSlider
-
 
 func _ready() -> void:
 	_config = VfxConfigManager.load_config()
+	_field_style_ids = FieldStyleManager.list_ids()
+	_field_style_ids.sort()
+
 	_setup_vhs_overlay()
 	_build_ui()
-	_apply_config_to_previews()
 	_update_player_ship_preview()
 	_update_enemy_ship_preview()
 
@@ -82,7 +74,6 @@ func _build_ui() -> void:
 
 	_build_top_bar()
 
-	# Scrollable content area for four sections
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scroll.offset_top = 60
@@ -97,10 +88,10 @@ func _build_ui() -> void:
 	content.add_theme_constant_override("separation", 20)
 	scroll.add_child(content)
 
-	_build_player_shield_section(content)
-	_build_player_hull_section(content)
-	_build_enemy_shield_section(content)
-	_build_enemy_hull_section(content)
+	_build_hit_section(content, "PLAYER SHIELD HIT", "player_shield", false)
+	_build_hit_section(content, "PLAYER HULL HIT", "player_hull", false)
+	_build_hit_section(content, "ENEMY SHIELD HIT", "enemy_shield", true)
+	_build_hit_section(content, "ENEMY HULL HIT", "enemy_hull", true)
 	_build_immune_section(content)
 
 	_build_bottom_bar()
@@ -134,8 +125,21 @@ func _build_top_bar() -> void:
 	top_bar.add_child(spacer2)
 
 
-func _build_section(parent: VBoxContainer, section_title: String, is_shield: bool, is_enemy: bool) -> void:
-	# Section header with ship selector
+func _build_hit_section(parent: VBoxContainer, section_title: String, config_key: String, is_enemy: bool) -> void:
+	## Builds one hit section: header with ship browser, preview panel with FieldRenderer,
+	## field style picker + radius slider.
+	var style_id_key: String = config_key + "_field_style_id"
+	var radius_key: String = config_key + "_radius"
+
+	# Find initial style index from config
+	var current_style_id: String = str(_config.get(style_id_key))
+	var style_index: int = 0
+	if current_style_id != "":
+		var idx: int = _field_style_ids.find(current_style_id)
+		if idx >= 0:
+			style_index = idx
+
+	# Header with ship browser
 	var header_row := HBoxContainer.new()
 	header_row.add_theme_constant_override("separation", 10)
 	parent.add_child(header_row)
@@ -146,7 +150,6 @@ func _build_section(parent: VBoxContainer, section_title: String, is_shield: boo
 	header_row.add_child(header)
 	ThemeManager.apply_text_glow(header, "header")
 
-	# Ship browsing controls
 	var prev_btn := Button.new()
 	prev_btn.text = "<"
 	prev_btn.pressed.connect(_prev_player_ship if not is_enemy else _prev_enemy_ship)
@@ -166,13 +169,15 @@ func _build_section(parent: VBoxContainer, section_title: String, is_shield: boo
 	ThemeManager.apply_button_style(next_btn)
 
 	if not is_enemy:
-		_player_ship_label = ship_label
-		ship_label.text = str(PLAYER_SHIPS[0]["name"])
+		if not _player_ship_label:
+			_player_ship_label = ship_label
+		ship_label.text = str(PLAYER_SHIPS[_player_ship_index]["name"])
 	else:
-		_enemy_ship_label = ship_label
-		ship_label.text = str(ENEMY_SHIPS[0]["name"]) if ENEMY_SHIPS.size() > 0 else "(none)"
+		if not _enemy_ship_label:
+			_enemy_ship_label = ship_label
+		ship_label.text = str(ENEMY_SHIPS[_enemy_ship_index]["name"]) if ENEMY_SHIPS.size() > 0 else "(none)"
 
-	# Content row: preview panel (left) + sliders (right)
+	# Content row: preview panel + controls
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 20)
 	parent.add_child(row)
@@ -187,108 +192,169 @@ func _build_section(parent: VBoxContainer, section_title: String, is_shield: boo
 	renderer.position = Vector2(140, 110)
 	renderer.scale = Vector2(0.7, 0.7)
 	renderer.animate = true
+	if is_enemy:
+		renderer.ship_id = -1
+		renderer.enemy_visual_id = str(ENEMY_SHIPS[_enemy_ship_index]["visual_id"]) if ENEMY_SHIPS.size() > 0 else "sentinel"
+		renderer.render_mode = ShipRenderer.RenderMode.NEON
+	else:
+		renderer.ship_id = int(PLAYER_SHIPS[_player_ship_index]["id"])
+		renderer.render_mode = ShipRenderer.RenderMode.CHROME
 	panel.add_child(renderer)
 
-	var bubble: ShieldBubbleEffect = null
-	if is_shield:
-		bubble = ShieldBubbleEffect.new()
-		bubble.position = renderer.position
-		panel.add_child(bubble)
+	var field := FieldRenderer.new()
+	field.position = renderer.position
+	panel.add_child(field)
 
-	# Store references
-	if not is_enemy:
-		if is_shield:
-			_player_shield_renderer = renderer
-			_player_shield_bubble = bubble
-		else:
-			_player_hull_renderer = renderer
-	else:
-		if is_shield:
-			_enemy_shield_renderer = renderer
-			_enemy_shield_bubble = bubble
-		else:
-			_enemy_hull_renderer = renderer
-		renderer.render_mode = ShipRenderer.RenderMode.NEON
+	# Controls
+	var controls_vbox := VBoxContainer.new()
+	controls_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controls_vbox.add_theme_constant_override("separation", 8)
+	row.add_child(controls_vbox)
 
-	# Sliders
-	var slider_vbox := VBoxContainer.new()
-	slider_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider_vbox.add_theme_constant_override("separation", 4)
-	row.add_child(slider_vbox)
+	# Field style selector
+	var style_label := _build_style_selector(controls_vbox, "Field Style", config_key)
 
-	if is_shield:
-		var prefix: String = "enemy_" if is_enemy else ""
-		_add_slider_row_vbox(slider_vbox, prefix + "shield_color_r", "Color R", 0.0, 1.0, _config.get(prefix + "shield_color_r"))
-		_add_slider_row_vbox(slider_vbox, prefix + "shield_color_g", "Color G", 0.0, 1.0, _config.get(prefix + "shield_color_g"))
-		_add_slider_row_vbox(slider_vbox, prefix + "shield_color_b", "Color B", 0.0, 1.0, _config.get(prefix + "shield_color_b"))
-		_add_slider_row_vbox(slider_vbox, prefix + "shield_duration", "Duration", 0.05, 0.5, _config.get(prefix + "shield_duration"))
-		_add_slider_row_vbox(slider_vbox, prefix + "shield_radius_mult", "Radius", 0.5, 2.0, _config.get(prefix + "shield_radius_mult"))
-		_add_slider_row_vbox(slider_vbox, prefix + "shield_intensity", "Intensity", 0.2, 2.0, _config.get(prefix + "shield_intensity"))
-	else:
-		var prefix: String = "enemy_" if is_enemy else ""
-		_add_slider_row_vbox(slider_vbox, prefix + "hull_peak_r", "Peak R", 1.0, 5.0, _config.get(prefix + "hull_peak_r"))
-		_add_slider_row_vbox(slider_vbox, prefix + "hull_peak_g", "Peak G", 1.0, 5.0, _config.get(prefix + "hull_peak_g"))
-		_add_slider_row_vbox(slider_vbox, prefix + "hull_peak_b", "Peak B", 1.0, 5.0, _config.get(prefix + "hull_peak_b"))
-		_add_slider_row_vbox(slider_vbox, prefix + "hull_duration", "Duration", 0.04, 0.4, _config.get(prefix + "hull_duration"))
-		_add_slider_row_vbox(slider_vbox, prefix + "hull_blink_speed", "Blink Speed", 2.0, 14.0, _config.get(prefix + "hull_blink_speed"))
+	# Radius slider
+	_build_radius_slider(controls_vbox, radius_key, float(_config.get(radius_key)))
 
+	# Store section state
+	_sections[config_key] = {
+		"renderer": renderer,
+		"field": field,
+		"style_index": style_index,
+		"style_label": style_label,
+		"style_id_key": style_id_key,
+		"radius_key": radius_key,
+		"is_enemy": is_enemy,
+	}
 
-func _build_player_shield_section(parent: VBoxContainer) -> void:
-	_build_section(parent, "PLAYER SHIELD HIT", true, false)
-
-func _build_player_hull_section(parent: VBoxContainer) -> void:
-	_build_section(parent, "PLAYER HULL FLASH", false, false)
-
-func _build_enemy_shield_section(parent: VBoxContainer) -> void:
-	_build_section(parent, "ENEMY SHIELD HIT", true, true)
-
-func _build_enemy_hull_section(parent: VBoxContainer) -> void:
-	_build_section(parent, "ENEMY HULL FLASH", false, true)
+	# Build initial field
+	_rebuild_field(config_key)
 
 
 func _build_immune_section(parent: VBoxContainer) -> void:
-	# Header (no ship browser — immune effect is universal)
-	var header := Label.new()
-	header.text = "IMMUNE HIT"
-	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	parent.add_child(header)
-	ThemeManager.apply_text_glow(header, "header")
+	# Build the main immune field section using shared pattern
+	_build_hit_section(parent, "IMMUNE HIT (Enemy)", "immune", true)
 
+	# Add the immune impact sub-section (second field style + radius within same section)
+	var sec: Dictionary = _sections["immune"]
+
+	# Find the controls vbox — it's the last child of the content row
+	var content_row: HBoxContainer = sec["field"].get_parent().get_parent() as HBoxContainer
+	# Actually, need to find the controls_vbox from the row. Let me add it differently.
+	# The impact controls go below the immune section as a nested row.
+
+	var impact_row := HBoxContainer.new()
+	impact_row.add_theme_constant_override("separation", 20)
+	parent.add_child(impact_row)
+
+	# Spacer to align with preview panel
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(280, 0)
+	impact_row.add_child(spacer)
+
+	var impact_controls := VBoxContainer.new()
+	impact_controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	impact_controls.add_theme_constant_override("separation", 8)
+	impact_row.add_child(impact_controls)
+
+	var impact_header := Label.new()
+	impact_header.text = "IMMUNE IMPACT (at hit point)"
+	impact_controls.add_child(impact_header)
+	ThemeManager.apply_text_glow(impact_header, "body")
+
+	# Impact style index
+	var current_impact_id: String = _config.immune_impact_field_style_id
+	var impact_index: int = 0
+	if current_impact_id != "":
+		var idx: int = _field_style_ids.find(current_impact_id)
+		if idx >= 0:
+			impact_index = idx
+
+	var impact_style_label := _build_style_selector(impact_controls, "Impact Style", "immune_impact")
+	_build_radius_slider(impact_controls, "immune_impact_radius", _config.immune_impact_radius)
+
+	_sections["immune_impact"] = {
+		"renderer": null,
+		"field": null,
+		"style_index": impact_index,
+		"style_label": impact_style_label,
+		"style_id_key": "immune_impact_field_style_id",
+		"radius_key": "immune_impact_radius",
+		"is_enemy": true,
+	}
+
+
+# ── Shared UI builders ──
+
+func _build_style_selector(parent: VBoxContainer, label_text: String, section_key: String) -> Label:
+	var style_row := HBoxContainer.new()
+	style_row.add_theme_constant_override("separation", 8)
+	parent.add_child(style_row)
+
+	var lbl := Label.new()
+	lbl.text = label_text
+	lbl.custom_minimum_size.x = 90
+	style_row.add_child(lbl)
+	ThemeManager.apply_text_glow(lbl, "body")
+
+	var prev_btn := Button.new()
+	prev_btn.text = "<"
+	prev_btn.pressed.connect(_on_prev_style.bind(section_key))
+	style_row.add_child(prev_btn)
+	ThemeManager.apply_button_style(prev_btn)
+
+	var style_label := Label.new()
+	style_label.custom_minimum_size.x = 180
+	style_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	style_row.add_child(style_label)
+	ThemeManager.apply_text_glow(style_label, "body")
+
+	var next_btn := Button.new()
+	next_btn.text = ">"
+	next_btn.pressed.connect(_on_next_style.bind(section_key))
+	style_row.add_child(next_btn)
+	ThemeManager.apply_button_style(next_btn)
+
+	# Set initial text
+	var current_id: String = str(_config.get(section_key + "_field_style_id"))
+	if current_id != "" and _field_style_ids.has(current_id):
+		style_label.text = current_id
+	elif _field_style_ids.size() > 0:
+		style_label.text = _field_style_ids[0]
+	else:
+		style_label.text = "(none)"
+
+	return style_label
+
+
+func _build_radius_slider(parent: VBoxContainer, key: String, value: float) -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 20)
+	row.add_theme_constant_override("separation", 8)
 	parent.add_child(row)
 
-	# Preview panel
-	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(280, 220)
-	row.add_child(panel)
-	_style_panel(panel)
+	var lbl := Label.new()
+	lbl.text = "Radius"
+	lbl.custom_minimum_size.x = 90
+	row.add_child(lbl)
+	ThemeManager.apply_text_glow(lbl, "body")
 
-	_immune_renderer = ShipRenderer.new()
-	_immune_renderer.position = Vector2(140, 110)
-	_immune_renderer.scale = Vector2(0.7, 0.7)
-	_immune_renderer.animate = true
-	_immune_renderer.ship_id = 4  # Stiletto
-	_immune_renderer.render_mode = ShipRenderer.RenderMode.CHROME
-	panel.add_child(_immune_renderer)
+	var slider := HSlider.new()
+	slider.min_value = 10.0
+	slider.max_value = 200.0
+	slider.step = 1.0
+	slider.value = value
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 200
+	slider.value_changed.connect(_on_radius_changed.bind(key))
+	row.add_child(slider)
 
-	_immune_bubble = ShieldBubbleEffect.new()
-	_immune_bubble.position = _immune_renderer.position
-	_immune_bubble.ship_radius = ShipRenderer.get_ship_scale(4) * 50.0
-	panel.add_child(_immune_bubble)
-
-	# Sliders
-	var slider_vbox := VBoxContainer.new()
-	slider_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider_vbox.add_theme_constant_override("separation", 4)
-	row.add_child(slider_vbox)
-
-	_add_slider_row_vbox(slider_vbox, "immune_color_r", "Color R", 0.0, 1.0, _config.immune_color_r)
-	_add_slider_row_vbox(slider_vbox, "immune_color_g", "Color G", 0.0, 1.0, _config.immune_color_g)
-	_add_slider_row_vbox(slider_vbox, "immune_color_b", "Color B", 0.0, 1.0, _config.immune_color_b)
-	_add_slider_row_vbox(slider_vbox, "immune_duration", "Duration", 0.05, 0.5, _config.immune_duration)
-	_add_slider_row_vbox(slider_vbox, "immune_radius_mult", "Radius", 0.5, 2.0, _config.immune_radius_mult)
-	_add_slider_row_vbox(slider_vbox, "immune_intensity", "Intensity", 0.2, 2.0, _config.immune_intensity)
+	var val_lbl := Label.new()
+	val_lbl.name = key + "_val"
+	val_lbl.text = "%.0f" % value
+	val_lbl.custom_minimum_size.x = 50
+	row.add_child(val_lbl)
+	ThemeManager.apply_text_glow(val_lbl, "body")
 
 
 func _build_bottom_bar() -> void:
@@ -320,94 +386,101 @@ func _build_bottom_bar() -> void:
 	ThemeManager.apply_button_style(save_btn)
 
 
-# ── Slider factory ──
+# ── Style cycling ──
 
-func _add_slider_row_vbox(parent: VBoxContainer, key: String, label_text: String, min_val: float, max_val: float, value: float) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	parent.add_child(row)
-
-	var lbl := Label.new()
-	lbl.text = label_text
-	lbl.custom_minimum_size.x = 90
-	row.add_child(lbl)
-	ThemeManager.apply_text_glow(lbl, "body")
-
-	var slider := HSlider.new()
-	slider.min_value = min_val
-	slider.max_value = max_val
-	slider.step = 0.01
-	slider.value = value
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.custom_minimum_size.x = 200
-	slider.value_changed.connect(_on_slider_changed.bind(key))
-	row.add_child(slider)
-	_sliders[key] = slider
-
-	var val_lbl := Label.new()
-	val_lbl.name = key + "_val"
-	val_lbl.text = "%.2f" % value
-	val_lbl.custom_minimum_size.x = 50
-	row.add_child(val_lbl)
-	ThemeManager.apply_text_glow(val_lbl, "body")
+func _on_prev_style(section_key: String) -> void:
+	if _field_style_ids.is_empty():
+		return
+	var sec: Dictionary = _sections[section_key]
+	var idx: int = int(sec["style_index"])
+	idx = (idx - 1 + _field_style_ids.size()) % _field_style_ids.size()
+	sec["style_index"] = idx
+	_apply_style_change(section_key)
 
 
-func _on_slider_changed(value: float, key: String) -> void:
-	_config.set(key, value)
+func _on_next_style(section_key: String) -> void:
+	if _field_style_ids.is_empty():
+		return
+	var sec: Dictionary = _sections[section_key]
+	var idx: int = int(sec["style_index"])
+	idx = (idx + 1) % _field_style_ids.size()
+	sec["style_index"] = idx
+	_apply_style_change(section_key)
 
-	var val_node: Label = find_child(key + "_val", true, false) as Label
-	if val_node:
-		val_node.text = "%.2f" % value
 
-	_apply_config_to_previews()
+func _apply_style_change(section_key: String) -> void:
+	var sec: Dictionary = _sections[section_key]
+	var idx: int = int(sec["style_index"])
+	var style_id: String = _field_style_ids[idx]
+	var style_id_key: String = str(sec["style_id_key"])
+	var label: Label = sec["style_label"] as Label
+	label.text = style_id
+	_config.set(style_id_key, style_id)
+	_rebuild_field(section_key)
 	_trigger_effects()
 	_update_status()
 
 
+# ── Radius slider ──
+
+func _on_radius_changed(value: float, key: String) -> void:
+	_config.set(key, value)
+	var val_node: Label = find_child(key + "_val", true, false) as Label
+	if val_node:
+		val_node.text = "%.0f" % value
+
+	# Find which section this radius belongs to and rebuild its field
+	for section_key in _sections:
+		var sec: Dictionary = _sections[section_key]
+		if str(sec["radius_key"]) == key:
+			_rebuild_field(section_key)
+			break
+
+	_trigger_effects()
+	_update_status()
+
+
+# ── Field rebuild ──
+
+func _rebuild_field(section_key: String) -> void:
+	var sec: Dictionary = _sections[section_key]
+	var field: FieldRenderer = sec["field"] as FieldRenderer
+	if not field:
+		return  # immune_impact has no preview field
+
+	# Remove old sprite children
+	for child in field.get_children():
+		child.queue_free()
+
+	if _field_style_ids.is_empty():
+		return
+	var idx: int = int(sec["style_index"])
+	var style_id: String = _field_style_ids[idx]
+	var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
+	if not style:
+		return
+	var radius_key: String = str(sec["radius_key"])
+	var radius: float = float(_config.get(radius_key))
+	field.setup(style, radius)
+
+
 # ── Preview management ──
-
-func _apply_config_to_previews() -> void:
-	# Player shield
-	_player_shield_bubble.shield_color = Color(_config.shield_color_r, _config.shield_color_g, _config.shield_color_b)
-	_player_shield_bubble.flash_duration = _config.shield_duration
-	_player_shield_bubble.radius_mult = _config.shield_radius_mult
-	_player_shield_bubble.intensity = _config.shield_intensity
-
-	# Player hull
-	_player_hull_renderer.hull_flash_opacity = maxf(maxf(_config.hull_peak_r, _config.hull_peak_g), _config.hull_peak_b) / 5.0
-	_player_hull_renderer.hull_blink_speed = _config.hull_blink_speed
-	_player_hull_renderer.hull_flash_duration = _config.hull_duration
-
-	# Enemy shield
-	_enemy_shield_bubble.shield_color = Color(_config.enemy_shield_color_r, _config.enemy_shield_color_g, _config.enemy_shield_color_b)
-	_enemy_shield_bubble.flash_duration = _config.enemy_shield_duration
-	_enemy_shield_bubble.radius_mult = _config.enemy_shield_radius_mult
-	_enemy_shield_bubble.intensity = _config.enemy_shield_intensity
-
-	# Enemy hull
-	_enemy_hull_renderer.hull_flash_opacity = maxf(maxf(_config.enemy_hull_peak_r, _config.enemy_hull_peak_g), _config.enemy_hull_peak_b) / 5.0
-	_enemy_hull_renderer.hull_blink_speed = _config.enemy_hull_blink_speed
-	_enemy_hull_renderer.hull_flash_duration = _config.enemy_hull_duration
-
-	# Immune
-	if _immune_bubble:
-		_immune_bubble.shield_color = Color(_config.immune_color_r, _config.immune_color_g, _config.immune_color_b)
-		_immune_bubble.flash_duration = _config.immune_duration
-		_immune_bubble.radius_mult = _config.immune_radius_mult
-		_immune_bubble.intensity = _config.immune_intensity
-
 
 func _update_player_ship_preview() -> void:
 	if PLAYER_SHIPS.is_empty():
 		return
 	var entry: Dictionary = PLAYER_SHIPS[_player_ship_index]
 	var sid: int = int(entry["id"])
-	_player_shield_renderer.ship_id = sid
-	_player_hull_renderer.ship_id = sid
-	_player_shield_renderer.render_mode = _player_skin
-	_player_hull_renderer.render_mode = _player_skin
-	_player_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(sid) * 50.0
-	_player_ship_label.text = str(entry["name"])
+	for section_key in _sections:
+		var sec: Dictionary = _sections[section_key]
+		if bool(sec["is_enemy"]):
+			continue
+		var renderer: ShipRenderer = sec["renderer"] as ShipRenderer
+		if renderer:
+			renderer.ship_id = sid
+			renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	if _player_ship_label:
+		_player_ship_label.text = str(entry["name"])
 
 
 func _update_enemy_ship_preview() -> void:
@@ -415,23 +488,25 @@ func _update_enemy_ship_preview() -> void:
 		return
 	var entry: Dictionary = ENEMY_SHIPS[_enemy_ship_index]
 	var vis_id: String = str(entry["visual_id"])
-	_enemy_shield_renderer.ship_id = -1
-	_enemy_shield_renderer.enemy_visual_id = vis_id
-	_enemy_hull_renderer.ship_id = -1
-	_enemy_hull_renderer.enemy_visual_id = vis_id
-	_enemy_shield_renderer.render_mode = _enemy_skin
-	_enemy_hull_renderer.render_mode = _enemy_skin
-	_enemy_shield_bubble.ship_radius = ShipRenderer.get_ship_scale(-1) * 50.0
-	_enemy_ship_label.text = str(entry["name"])
+	for section_key in _sections:
+		var sec: Dictionary = _sections[section_key]
+		if not bool(sec["is_enemy"]):
+			continue
+		var renderer: ShipRenderer = sec["renderer"] as ShipRenderer
+		if renderer:
+			renderer.ship_id = -1
+			renderer.enemy_visual_id = vis_id
+			renderer.render_mode = ShipRenderer.RenderMode.NEON
+	if _enemy_ship_label:
+		_enemy_ship_label.text = str(entry["name"])
 
 
 func _trigger_effects() -> void:
-	_player_shield_bubble.trigger()
-	_player_hull_renderer.trigger_hull_flash(_config.hull_duration)
-	_enemy_shield_bubble.trigger()
-	_enemy_hull_renderer.trigger_hull_flash(_config.enemy_hull_duration)
-	if _immune_bubble:
-		_immune_bubble.trigger()
+	for section_key in _sections:
+		var sec: Dictionary = _sections[section_key]
+		var field: FieldRenderer = sec["field"] as FieldRenderer
+		if field:
+			field.pulse()
 	_auto_timer = 0.0
 
 
@@ -466,10 +541,17 @@ func _save_config() -> void:
 
 
 func _update_status() -> void:
-	_status_label.text = "Player: shd=%.2fs hull=%.2fs  |  Enemy: shd=%.2fs hull=%.2fs" % [
-		_config.shield_duration, _config.hull_duration,
-		_config.enemy_shield_duration, _config.enemy_hull_duration,
-	]
+	var parts: Array[String] = []
+	for section_key in ["player_shield", "player_hull", "enemy_shield", "enemy_hull", "immune"]:
+		if not _sections.has(section_key):
+			continue
+		var sec: Dictionary = _sections[section_key]
+		var style_id_key: String = str(sec["style_id_key"])
+		var sid: String = str(_config.get(style_id_key))
+		if sid == "":
+			sid = "(none)"
+		parts.append("%s: %s" % [section_key, sid])
+	_status_label.text = "  |  ".join(parts)
 
 
 # ── Styling helpers ──

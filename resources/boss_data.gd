@@ -9,6 +9,7 @@ class_name BossData extends Resource
 @export var core_ship_id: String = ""             # References ShipData (type="enemy")
 @export var core_weapon_overrides: Array = []     # [{hardpoint_index: int, weapon_id: String}]
 @export var core_immune_until_segments_dead: bool = false  # Core takes no damage while any segment alive
+@export var required_segment_destroys: Array = []  # Segment indices that must be destroyed before core is vulnerable
 
 # Segments — Array of Dictionaries (see _default_segment())
 @export var segments: Array = []
@@ -52,6 +53,14 @@ static func from_dict(data: Dictionary) -> BossData:
 			"weapon_id": str(d.get("weapon_id", "")),
 		})
 	b.core_immune_until_segments_dead = bool(data.get("core_immune_until_segments_dead", false))
+	var raw_req_destroys: Array = data.get("required_segment_destroys", []) as Array
+	b.required_segment_destroys = []
+	for idx in raw_req_destroys:
+		b.required_segment_destroys.append(int(idx))
+	# Back-compat: if old boolean is set but no specific segments listed, mark all
+	if b.core_immune_until_segments_dead and b.required_segment_destroys.is_empty():
+		# Will be populated when segments are loaded below — defer to save
+		pass
 
 	# Segments
 	var raw_segments: Array = data.get("segments", []) as Array
@@ -119,6 +128,7 @@ func to_dict() -> Dictionary:
 		"core_ship_id": core_ship_id,
 		"core_weapon_overrides": core_weapon_overrides,
 		"core_immune_until_segments_dead": core_immune_until_segments_dead,
+		"required_segment_destroys": required_segment_destroys,
 		"segments": segments,
 		"enrage_threshold": enrage_threshold,
 		"enrage_speed_mult": enrage_speed_mult,

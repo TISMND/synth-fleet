@@ -132,23 +132,10 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_electric_arc_container.z_index = 2
 	add_child(_electric_arc_container)
 
-	# Universal player hit effects from VFX config
+	# Universal player hit effects from VFX config — field-based
 	var vfx: VfxConfig = VfxConfigManager.load_config()
-	_ship_renderer.hull_flash_opacity = maxf(maxf(vfx.hull_peak_r, vfx.hull_peak_g), vfx.hull_peak_b) / 5.0
-	_ship_renderer.hull_blink_speed = vfx.hull_blink_speed
-	_ship_renderer.hull_flash_duration = vfx.hull_duration
-	# Shield hit — ShieldBubbleEffect from VFX config, always circular
-	var shield_radius: float = maxf(ship.collision_width, ship.collision_height) * 0.5
-	if shield_radius <= 0.0:
-		shield_radius = ShipRenderer.get_ship_scale(_ship_renderer.ship_id) * 50.0
-	var shield_bubble := ShieldBubbleEffect.new()
-	shield_bubble.ship_radius = shield_radius
-	shield_bubble.shield_color = Color(vfx.shield_color_r, vfx.shield_color_g, vfx.shield_color_b)
-	shield_bubble.flash_duration = vfx.shield_duration
-	shield_bubble.radius_mult = vfx.shield_radius_mult
-	shield_bubble.intensity = vfx.shield_intensity
-	shield_bubble.name = "ShieldField"
-	add_child(shield_bubble)
+	_setup_hit_field("ShieldField", vfx.player_shield_field_style_id, vfx.player_shield_radius)
+	_setup_hit_field("HullField", vfx.player_hull_field_style_id, vfx.player_hull_radius)
 
 	# Create hardpoint controllers from loadout assignments — all fire from center
 	var assignments: Dictionary = loadout.hardpoint_assignments
@@ -238,6 +225,19 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 
 	# Apply persisted per-slot volumes from hangar settings
 	_apply_stored_volumes()
+
+
+func _setup_hit_field(node_name: String, style_id: String, radius: float) -> void:
+	if style_id == "":
+		return
+	var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
+	if not style:
+		return
+	var field := FieldRenderer.new()
+	field.name = node_name
+	field._stay_visible = false
+	add_child(field)
+	field.setup(style, radius)
 
 
 func _apply_stored_volumes() -> void:
@@ -596,17 +596,18 @@ func take_damage(amount: float, skips_shields: bool = false) -> void:
 			# 100% reduction: shields absorb everything, take no damage
 			remaining = 0.0
 		SfxPlayer.play("player_shield_hit")
-		var shield_bubble: ShieldBubbleEffect = get_node_or_null("ShieldField") as ShieldBubbleEffect
-		if shield_bubble:
-			shield_bubble.trigger()
+		var shield_field: FieldRenderer = get_node_or_null("ShieldField") as FieldRenderer
+		if shield_field:
+			shield_field.pulse()
 	if remaining > 0.0:
 		# Apply hull damage reduction from active devices
 		if _active_hull_dr > 0.0:
 			remaining *= (1.0 - _active_hull_dr / 100.0)
 		hull = maxf(hull - remaining, 0.0)
 		SfxPlayer.play("player_hull_hit")
-		if _ship_renderer:
-			_ship_renderer.trigger_hull_flash()
+		var hull_field: FieldRenderer = get_node_or_null("HullField") as FieldRenderer
+		if hull_field:
+			hull_field.pulse()
 		hull_hit.emit()
 		if _drifting or _blackout_active:
 			hull_hit_during_power_loss.emit()

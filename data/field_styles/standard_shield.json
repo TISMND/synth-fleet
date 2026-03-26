@@ -1,0 +1,24 @@
+{
+	"color": [
+		0.0,
+		1.0,
+		1.0,
+		1.0
+	],
+	"display_name": "Standard Shield",
+	"field_shader": "pulse_barrier",
+	"glow_intensity": 0.4,
+	"id": "standard_shield",
+	"pulse_brightness": 0.0,
+	"pulse_tint": 0.0,
+	"radius_ratio": 0.6,
+	"shader_params": {
+		"barrier_width": 0.02,
+		"flash_intensity": 2.0,
+		"outer_radius": 0.54,
+		"pulse_decay": 1.0
+	},
+	"ship_active_hdr": 0.0,
+	"ship_pulse_hdr": 0.0,
+	"ship_tint_strength": 0.0
+}

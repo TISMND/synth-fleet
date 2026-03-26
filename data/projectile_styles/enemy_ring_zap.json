@@ -1,0 +1,84 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		36.0,
+		104.0
+	],
+	"collision_scale": [
+		0,
+		0
+	],
+	"color": [
+		1.0,
+		0.140625,
+		0.0,
+		1.0
+	],
+	"display_name": "enemy_ring_zap",
+	"effect_profile": {
+		"defaults": {
+			"muzzle": [
+				{
+					"color": [
+						1.0,
+						0.141176477074623,
+						0.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.15,
+						"particle_count": 4.0,
+						"spread_angle": 30.0
+					},
+					"type": "directional_flash"
+				}
+			],
+			"trail": [
+				{
+					"color": [
+						1.0,
+						0.7734375,
+						0.0,
+						1.0
+					],
+					"params": {
+						"length": 13.0,
+						"width_end": 2.0,
+						"width_start": 4.5
+					},
+					"type": "ribbon"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "pulse",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "enemy_ring_zap",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"brightness": 4.0,
+		"color_mix": 0.0,
+		"edge_softness": 1.0,
+		"fade_rate": 1.4,
+		"ring_count": 4.0,
+		"ring_speed": 4.0,
+		"ring_width": 0.02
+	}
+}

@@ -1,9 +1,9 @@
 {
 	"collision_height": 278.0,
-	"collision_offset_x": -188.0,
+	"collision_offset_x": -189.0,
 	"collision_offset_y": -2.0,
 	"collision_shape": "capsule",
-	"collision_width": 94.0,
+	"collision_width": 96.0,
 	"display_name": "Archon Wing (L)",
 	"enable_screen_shake": false,
 	"explosion_color": [

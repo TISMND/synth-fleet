@@ -1,12 +1,7 @@
 {
 	"core_immune_until_segments_dead": true,
 	"core_ship_id": "enemy_archon_core",
-	"core_weapon_overrides": [
-		{
-			"hardpoint_index": 0,
-			"weapon_id": "enemy_orange_wall"
-		}
-	],
+	"core_weapon_overrides": [],
 	"display_name": "Archon",
 	"enrage_core_render_mode": "ember",
 	"enrage_core_weapon_overrides": [],
@@ -27,19 +22,15 @@
 			"detach_path_id": "",
 			"detach_speed": 200.0,
 			"offset": [
-				-11.0,
+				-9.0,
 				-1.0
 			],
 			"reattach": true,
 			"ship_id": "enemy_archon_wing_l",
 			"weapon_overrides": [
 				{
-					"hardpoint_index": 1,
-					"weapon_id": "enemy_speck_turret"
-				},
-				{
 					"hardpoint_index": 0,
-					"weapon_id": "enemy_speck_turret"
+					"weapon_id": "enemy_red_ring_streak"
 				}
 			]
 		},
@@ -56,12 +47,8 @@
 			"ship_id": "enemy_archon_wing_r",
 			"weapon_overrides": [
 				{
-					"hardpoint_index": 1,
-					"weapon_id": "enemy_speck_turret"
-				},
-				{
 					"hardpoint_index": 0,
-					"weapon_id": "enemy_speck_turret"
+					"weapon_id": "enemy_red_ring_streak"
 				}
 			]
 		},
@@ -71,15 +58,15 @@
 			"detach_path_id": "",
 			"detach_speed": 190.0,
 			"offset": [
-				-1.0,
-				-70.0
+				-2.0,
+				-71.0
 			],
 			"reattach": true,
 			"ship_id": "enemy_archon_turret",
 			"weapon_overrides": [
 				{
 					"hardpoint_index": 0,
-					"weapon_id": "enemy_short_beam"
+					"weapon_id": "enemy_ultra_beam"
 				}
 			]
 		}

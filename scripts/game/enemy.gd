@@ -46,11 +46,6 @@ var is_boss_immune: bool = false      # if true, takes no damage (plays immune V
 var _renderer: ShipRenderer = null
 var _baked_sprite: Sprite2D = null
 var _flash_material: ShaderMaterial = null
-var _hit_flash: float = 0.0
-var _hull_flash_duration: float = 0.1
-var _hull_blink_speed: float = 8.0
-var _hull_flash_opacity: float = 0.5
-var _shield_bubble: ShieldBubbleEffect = null
 var _weapon_controller: EnemyWeaponController = null
 
 # Set externally before adding to scene tree for weapon setup
@@ -82,12 +77,6 @@ func _ready() -> void:
 		col_shape.shape = circle
 	add_child(col_shape)
 
-	# Load universal enemy hit effect params from VFX config
-	var vfx: VfxConfig = VfxConfigManager.load_config()
-	_hull_flash_opacity = maxf(maxf(vfx.enemy_hull_peak_r, vfx.enemy_hull_peak_g), vfx.enemy_hull_peak_b) / 5.0
-	_hull_blink_speed = vfx.enemy_hull_blink_speed
-	_hull_flash_duration = vfx.enemy_hull_duration
-
 	# Try shared bake viewport first — falls back to per-instance ShipRenderer
 	var vid: String = visual_id if visual_id != "" else "sentinel"
 	var bake_tex: ViewportTexture = null
@@ -109,22 +98,12 @@ func _ready() -> void:
 		_renderer.render_mode = ShipRenderer.RenderMode.CHROME if render_mode_str == "chrome" else ShipRenderer.RenderMode.NEON
 		_renderer.hull_color = enemy_color
 		_renderer.accent_color = Color(1.0, 0.2, 0.6)
-		_renderer.hull_flash_opacity = _hull_flash_opacity
-		_renderer.hull_blink_speed = _hull_blink_speed
-		_renderer.hull_flash_duration = _hull_flash_duration
 		add_child(_renderer)
 
-	# Universal shield hit effect — always circular, diameter = max hitbox dimension
-	var shield_radius: float = ShipRenderer.get_ship_scale(-1) * 50.0
-	if ship_data_ref:
-		shield_radius = maxf(ship_data_ref.collision_width, ship_data_ref.collision_height) * 0.5
-	_shield_bubble = ShieldBubbleEffect.new()
-	_shield_bubble.ship_radius = shield_radius
-	_shield_bubble.shield_color = Color(vfx.enemy_shield_color_r, vfx.enemy_shield_color_g, vfx.enemy_shield_color_b)
-	_shield_bubble.flash_duration = vfx.enemy_shield_duration
-	_shield_bubble.radius_mult = vfx.enemy_shield_radius_mult
-	_shield_bubble.intensity = vfx.enemy_shield_intensity
-	add_child(_shield_bubble)
+	# Universal enemy hit effects from VFX config — field-based
+	var vfx: VfxConfig = VfxConfigManager.load_config()
+	_setup_hit_field("ShieldField", vfx.enemy_shield_field_style_id, vfx.enemy_shield_radius)
+	_setup_hit_field("HullField", vfx.enemy_hull_field_style_id, vfx.enemy_hull_radius)
 
 	# Setup weapon controller if ship has a weapon assigned
 	var has_weapon: bool = ship_data_ref and ship_data_ref.weapon_id != ""
@@ -182,16 +161,6 @@ func set_melee_target(target: Node2D) -> void:
 
 
 func _process(delta: float) -> void:
-	# Baked sprite hit flash (per-instance, independent of shared viewport)
-	if _hit_flash > 0.0 and _flash_material:
-		_hit_flash -= delta
-		var t: float = clampf(_hit_flash / maxf(_hull_flash_duration, 0.001), 0.0, 1.0)
-		var on: bool = fmod(t * _hull_blink_speed, 2.0) > 1.0
-		_flash_material.set_shader_parameter("flash_mix", _hull_flash_opacity if on else 0.0)
-		if _hit_flash <= 0.0:
-			_hit_flash = 0.0
-			_flash_material.set_shader_parameter("flash_mix", 0.0)
-
 	# Store position before movement for lead prediction
 	set_meta("_prev_pos", global_position)
 	set_meta("_prev_dt", delta)
@@ -278,15 +247,15 @@ func take_damage(amount: int, skips_shields: bool = false) -> void:
 		shield -= absorbed
 		remaining -= absorbed
 		SfxPlayer.play("enemy_shield_hit")
-		if _shield_bubble:
-			_shield_bubble.trigger()
+		var shield_field: FieldRenderer = get_node_or_null("ShieldField") as FieldRenderer
+		if shield_field:
+			shield_field.pulse()
 	if remaining > 0:
 		health -= remaining
 		SfxPlayer.play("enemy_hull_hit")
-		if _baked_sprite:
-			_hit_flash = _hull_flash_duration
-		elif _renderer:
-			_renderer.trigger_hull_flash()
+		var hull_field: FieldRenderer = get_node_or_null("HullField") as FieldRenderer
+		if hull_field:
+			hull_field.pulse()
 	if health <= 0:
 		_die()
 
@@ -324,25 +293,51 @@ func _update_immunity() -> void:
 	is_boss_immune = any_alive
 
 
+func _setup_hit_field(node_name: String, style_id: String, radius: float) -> void:
+	if style_id == "":
+		return
+	var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
+	if not style:
+		return
+	var field := FieldRenderer.new()
+	field.name = node_name
+	field._stay_visible = false
+	add_child(field)
+	field.setup(style, radius)
+
+
 func _play_immune_hit() -> void:
 	SfxPlayer.play("immune_hit")
-	# Show immune bubble effect
 	var vfx: VfxConfig = VfxConfigManager.load_config()
-	var bubble := ShieldBubbleEffect.new()
-	var hit_radius: float = 30.0
-	if ship_data_ref:
-		hit_radius = maxf(ship_data_ref.collision_width, ship_data_ref.collision_height) * 0.5
-	bubble.ship_radius = hit_radius
-	bubble.shield_color = Color(vfx.immune_color_r, vfx.immune_color_g, vfx.immune_color_b)
-	bubble.flash_duration = vfx.immune_duration
-	bubble.radius_mult = vfx.immune_radius_mult
-	bubble.intensity = vfx.immune_intensity
-	add_child(bubble)
-	bubble.trigger()
-	# Auto-cleanup after flash
-	get_tree().create_timer(vfx.immune_duration + 0.1).timeout.connect(func() -> void:
-		if is_instance_valid(bubble):
-			bubble.queue_free()
-	)
+
+	# Main immune field effect (around ship)
+	if vfx.immune_field_style_id != "":
+		var style: FieldStyle = FieldStyleManager.load_by_id(vfx.immune_field_style_id)
+		if style:
+			var field := FieldRenderer.new()
+			field._stay_visible = false
+			add_child(field)
+			field.setup(style, vfx.immune_radius)
+			field.pulse()
+			var cleanup_time: float = style.pulse_total_duration + 0.1
+			get_tree().create_timer(cleanup_time).timeout.connect(func() -> void:
+				if is_instance_valid(field):
+					field.queue_free()
+			)
+
+	# Impact field effect (smaller burst at point of contact)
+	if vfx.immune_impact_field_style_id != "":
+		var impact_style: FieldStyle = FieldStyleManager.load_by_id(vfx.immune_impact_field_style_id)
+		if impact_style:
+			var impact := FieldRenderer.new()
+			impact._stay_visible = false
+			add_child(impact)
+			impact.setup(impact_style, vfx.immune_impact_radius)
+			impact.pulse()
+			var impact_cleanup: float = impact_style.pulse_total_duration + 0.1
+			get_tree().create_timer(impact_cleanup).timeout.connect(func() -> void:
+				if is_instance_valid(impact):
+					impact.queue_free()
+			)
 
 
