@@ -1,19 +1,20 @@
 {
 	"color": [
-		1.43269240856171,
-		1.43269240856171,
-		1.43269240856171,
+		0.45748308300972,
+		0.45748308300972,
+		0.45748308300972,
 		1.0
 	],
 	"display_name": "Hex",
 	"field_shader": "hex_grid",
 	"glow_intensity": 0.6,
-	"id": "hex_wip",
+	"id": "hex",
 	"pulse_brightness": 0.0,
+	"pulse_tint": 0.0,
 	"radius_ratio": 0.0,
 	"shader_params": {
 		"edge_density": 0.5,
-		"hex_size": 0.11,
+		"hex_size": 0.08,
 		"line_thickness": 0.06,
 		"outer_radius": 0.63,
 		"scroll_speed": 0.2
