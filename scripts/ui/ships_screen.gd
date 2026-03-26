@@ -713,6 +713,10 @@ func _update_boss_preview() -> void:
 	_boss_preview_nodes.clear()
 	if not _working_boss or not _ship_viewport:
 		return
+	# Show hitbox overlay for boss parts
+	if _hitbox_overlay:
+		_hitbox_overlay.visible = true
+		_hitbox_overlay.queue_redraw()
 	var vp_size: Vector2 = get_viewport_rect().size
 	var center := Vector2(
 		LEFT_PANEL_W + (vp_size.x - LEFT_PANEL_W - RIGHT_PANEL_W) * 0.5,
@@ -1503,6 +1507,8 @@ func _build_boss_ship_stats(vbox: VBoxContainer, ship_id: String, weapon_overrid
 		if s:
 			s.collision_shape = shapes[idx]
 			ShipDataManager.save(captured_ship_id, s.to_dict())
+		if _hitbox_overlay:
+			_hitbox_overlay.queue_redraw()
 	)
 	shape_hbox.add_child(shape_dd)
 
@@ -1531,6 +1537,8 @@ func _build_boss_ship_stats(vbox: VBoxContainer, ship_id: String, weapon_overrid
 		if s:
 			s.collision_width = val
 			ShipDataManager.save(captured_ship_id, s.to_dict())
+		if _hitbox_overlay:
+			_hitbox_overlay.queue_redraw()
 	)
 
 	# Height
@@ -1558,6 +1566,8 @@ func _build_boss_ship_stats(vbox: VBoxContainer, ship_id: String, weapon_overrid
 		if s:
 			s.collision_height = val
 			ShipDataManager.save(captured_ship_id, s.to_dict())
+		if _hitbox_overlay:
+			_hitbox_overlay.queue_redraw()
 	)
 
 	_add_section_spacer(vbox)
@@ -1577,7 +1587,6 @@ func _build_boss_ship_stats(vbox: VBoxContainer, ship_id: String, weapon_overrid
 			_start_boss_weapon_preview(ship_id, weapon_overrides)
 			preview_btn.text = "STOP"
 	)
-	preview_btn.disabled = (ship.weapon_id == "" and weapon_overrides.size() == 0)
 	ThemeManager.apply_button_style(preview_btn)
 	vbox.add_child(preview_btn)
 
@@ -1657,7 +1666,7 @@ func _build_weapon_overrides_section(vbox: VBoxContainer, ship_id: String, overr
 		vbox.add_child(row)
 
 		var lbl := Label.new()
-		lbl.text = "HP %d" % hp_idx
+		lbl.text = "Slot %d" % hp_idx
 		lbl.custom_minimum_size.x = 40
 		row.add_child(lbl)
 
@@ -2575,7 +2584,11 @@ class _HitboxOverlay extends Node2D:
 		var col_w: float = 30.0
 		var col_h: float = 30.0
 
-		if viewer._category == "ENEMIES" and viewer._working_enemy:
+		if viewer._category == "BOSSES" and viewer._working_boss:
+			# Draw hitbox for each boss part at its preview position
+			_draw_boss_hitboxes()
+			return
+		elif viewer._category == "ENEMIES" and viewer._working_enemy:
 			col_shape = viewer._working_enemy.collision_shape
 			col_w = viewer._working_enemy.collision_width
 			col_h = viewer._working_enemy.collision_height
@@ -2642,6 +2655,75 @@ class _HitboxOverlay extends Node2D:
 			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
 		for i in points.size() - 1:
 			draw_line(points[i], points[i + 1], color, 1.5)
+
+	func _draw_boss_hitboxes() -> void:
+		var boss: BossData = viewer._working_boss
+		if not boss:
+			return
+		# Collect all ship IDs with their preview positions
+		var parts: Array[Dictionary] = []
+		# Core
+		if boss.core_ship_id != "":
+			var vp_size: Vector2 = viewer.get_viewport_rect().size
+			var center := Vector2(
+				viewer.LEFT_PANEL_W + (vp_size.x - viewer.LEFT_PANEL_W - viewer.RIGHT_PANEL_W) * 0.5,
+				(vp_size.y - viewer.HUD_HEIGHT) * 0.5
+			)
+			parts.append({"ship_id": boss.core_ship_id, "pos": center})
+			# Segments
+			for seg in boss.segments:
+				var sd: Dictionary = seg as Dictionary
+				var seg_sid: String = str(sd.get("ship_id", ""))
+				if seg_sid == "":
+					continue
+				var offset_arr: Array = sd.get("offset", [0.0, 0.0]) as Array
+				var ox: float = float(offset_arr[0]) if offset_arr.size() > 0 else 0.0
+				var oy: float = float(offset_arr[1]) if offset_arr.size() > 1 else 0.0
+				parts.append({"ship_id": seg_sid, "pos": center + Vector2(ox, oy)})
+
+		var outline_color := Color(0.2, 1.0, 0.4, 0.6)
+		var fill_color := Color(0.2, 1.0, 0.4, 0.08)
+
+		for part in parts:
+			var ship: ShipData = ShipDataManager.load_by_id(str(part["ship_id"]))
+			if not ship:
+				continue
+			var pos: Vector2 = part["pos"] as Vector2
+			var cs: String = ship.collision_shape
+			var cw: float = ship.collision_width
+			var ch: float = ship.collision_height
+			match cs:
+				"rectangle":
+					var rect := Rect2(pos - Vector2(cw, ch) * 0.5, Vector2(cw, ch))
+					draw_rect(rect, fill_color, true)
+					draw_rect(rect, outline_color, false, 1.5)
+				"capsule":
+					var is_horiz: bool = cw > ch
+					var cap_r: float = minf(cw, ch) * 0.5
+					var long_h: float = maxf(cw, ch) * 0.5
+					var body_h: float = maxf(long_h - cap_r, 0.0)
+					if is_horiz:
+						var body_rect := Rect2(pos.x - body_h, pos.y - cap_r, body_h * 2.0, ch)
+						draw_rect(body_rect, fill_color, true)
+						_draw_circle_fill(pos + Vector2(-body_h, 0), cap_r, fill_color)
+						_draw_circle_fill(pos + Vector2(body_h, 0), cap_r, fill_color)
+						_draw_arc_outline(pos + Vector2(-body_h, 0), cap_r, PI * 0.5, PI * 1.5, outline_color)
+						_draw_arc_outline(pos + Vector2(body_h, 0), cap_r, -PI * 0.5, PI * 0.5, outline_color)
+						draw_line(pos + Vector2(-body_h, -cap_r), pos + Vector2(body_h, -cap_r), outline_color, 1.5)
+						draw_line(pos + Vector2(-body_h, cap_r), pos + Vector2(body_h, cap_r), outline_color, 1.5)
+					else:
+						var body_rect := Rect2(pos.x - cap_r, pos.y - body_h, cw, body_h * 2.0)
+						draw_rect(body_rect, fill_color, true)
+						_draw_circle_fill(pos + Vector2(0, -body_h), cap_r, fill_color)
+						_draw_circle_fill(pos + Vector2(0, body_h), cap_r, fill_color)
+						_draw_arc_outline(pos + Vector2(0, -body_h), cap_r, PI, TAU, outline_color)
+						_draw_arc_outline(pos + Vector2(0, body_h), cap_r, 0, PI, outline_color)
+						draw_line(pos + Vector2(-cap_r, -body_h), pos + Vector2(-cap_r, body_h), outline_color, 1.5)
+						draw_line(pos + Vector2(cap_r, -body_h), pos + Vector2(cap_r, body_h), outline_color, 1.5)
+				_:
+					var radius: float = cw * 0.5
+					_draw_circle_fill(pos, radius, fill_color)
+					_draw_arc_outline(pos, radius, 0, TAU, outline_color)
 
 
 class _ExhaustDraw extends Node2D:
