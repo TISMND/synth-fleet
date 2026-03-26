@@ -70,6 +70,8 @@ func _ready() -> void:
 		var col_result: Dictionary = _make_collision_shape(ship_data_ref)
 		col_shape.shape = col_result["shape"]
 		col_shape.rotation = float(col_result["rotation"])
+		if "collision_offset_x" in ship_data_ref:
+			col_shape.position = Vector2(ship_data_ref.collision_offset_x, ship_data_ref.collision_offset_y)
 	else:
 		var circle := CircleShape2D.new()
 		circle.radius = maxf(float(maxi(grid_size.x, grid_size.y)) * 0.4, 12.0)

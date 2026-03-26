@@ -12,13 +12,13 @@
 			"is_melee": false,
 			"path_id": "path_1",
 			"rotate_with_path": false,
-			"ship_id": "enemy_archon_core",
+			"ship_id": "enemy_1",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 568.337028824834,
+			"trigger_y": 459.778270509978,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 19.1574279379157
+			"x_offset": -34.0576496674058
 		}
 	],
 	"flight_speed": 160.0,

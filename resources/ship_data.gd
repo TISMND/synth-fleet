@@ -52,6 +52,8 @@ const DEFAULT_HP: Dictionary = {
 @export var collision_shape: String = "circle"  # "circle", "rectangle", "capsule"
 @export var collision_width: float = 30.0       # Width (or diameter for circle)
 @export var collision_height: float = 30.0      # Height (ignored for circle)
+@export var collision_offset_x: float = 0.0     # Hitbox X offset from center
+@export var collision_offset_y: float = 0.0     # Hitbox Y offset from center
 
 
 static func from_dict(data: Dictionary) -> ShipData:
@@ -94,6 +96,8 @@ static func from_dict(data: Dictionary) -> ShipData:
 	s.collision_shape = data.get("collision_shape", "circle")
 	s.collision_width = float(data.get("collision_width", 30.0))
 	s.collision_height = float(data.get("collision_height", 30.0))
+	s.collision_offset_x = float(data.get("collision_offset_x", 0.0))
+	s.collision_offset_y = float(data.get("collision_offset_y", 0.0))
 	return s
 
 
@@ -122,4 +126,6 @@ func to_dict() -> Dictionary:
 	d["collision_shape"] = collision_shape
 	d["collision_width"] = collision_width
 	d["collision_height"] = collision_height
+	d["collision_offset_x"] = collision_offset_x
+	d["collision_offset_y"] = collision_offset_y
 	return d

@@ -1570,6 +1570,64 @@ func _build_boss_ship_stats(vbox: VBoxContainer, ship_id: String, weapon_overrid
 			_hitbox_overlay.queue_redraw()
 	)
 
+	# Offset X
+	var ox_row := HBoxContainer.new()
+	ox_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(ox_row)
+	var ox_lbl := Label.new()
+	ox_lbl.text = "OX"
+	ox_lbl.custom_minimum_size.x = 40
+	ox_row.add_child(ox_lbl)
+	var ox_slider := HSlider.new()
+	ox_slider.min_value = -200
+	ox_slider.max_value = 200
+	ox_slider.step = 1
+	ox_slider.value = ship.collision_offset_x
+	ox_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ox_row.add_child(ox_slider)
+	var ox_val := Label.new()
+	ox_val.text = str(int(ship.collision_offset_x))
+	ox_val.custom_minimum_size.x = 40
+	ox_row.add_child(ox_val)
+	ox_slider.value_changed.connect(func(val: float) -> void:
+		ox_val.text = str(int(val))
+		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
+		if s:
+			s.collision_offset_x = val
+			ShipDataManager.save(captured_ship_id, s.to_dict())
+		if _hitbox_overlay:
+			_hitbox_overlay.queue_redraw()
+	)
+
+	# Offset Y
+	var oy_row := HBoxContainer.new()
+	oy_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(oy_row)
+	var oy_lbl := Label.new()
+	oy_lbl.text = "OY"
+	oy_lbl.custom_minimum_size.x = 40
+	oy_row.add_child(oy_lbl)
+	var oy_slider := HSlider.new()
+	oy_slider.min_value = -200
+	oy_slider.max_value = 200
+	oy_slider.step = 1
+	oy_slider.value = ship.collision_offset_y
+	oy_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	oy_row.add_child(oy_slider)
+	var oy_val := Label.new()
+	oy_val.text = str(int(ship.collision_offset_y))
+	oy_val.custom_minimum_size.x = 40
+	oy_row.add_child(oy_val)
+	oy_slider.value_changed.connect(func(val: float) -> void:
+		oy_val.text = str(int(val))
+		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
+		if s:
+			s.collision_offset_y = val
+			ShipDataManager.save(captured_ship_id, s.to_dict())
+		if _hitbox_overlay:
+			_hitbox_overlay.queue_redraw()
+	)
+
 	_add_section_spacer(vbox)
 
 	# ── WEAPONS ──
@@ -2585,13 +2643,14 @@ class _HitboxOverlay extends Node2D:
 		var col_h: float = 30.0
 
 		if viewer._category == "BOSSES" and viewer._working_boss:
-			# Draw hitbox for each boss part at its preview position
 			_draw_boss_hitboxes()
 			return
 		elif viewer._category == "ENEMIES" and viewer._working_enemy:
 			col_shape = viewer._working_enemy.collision_shape
 			col_w = viewer._working_enemy.collision_width
 			col_h = viewer._working_enemy.collision_height
+			if "collision_offset_x" in viewer._working_enemy:
+				ship_pos += Vector2(viewer._working_enemy.collision_offset_x, viewer._working_enemy.collision_offset_y)
 		elif viewer._category == "PLAYER":
 			col_shape = str(viewer._working_stats.get("collision_shape", "circle"))
 			col_w = float(viewer._working_stats.get("collision_width", 30.0))
@@ -2688,7 +2747,9 @@ class _HitboxOverlay extends Node2D:
 			var ship: ShipData = ShipDataManager.load_by_id(str(part["ship_id"]))
 			if not ship:
 				continue
-			var pos: Vector2 = part["pos"] as Vector2
+			var col_ox: float = float(ship.collision_offset_x) if "collision_offset_x" in ship else 0.0
+			var col_oy: float = float(ship.collision_offset_y) if "collision_offset_y" in ship else 0.0
+			var pos: Vector2 = (part["pos"] as Vector2) + Vector2(col_ox, col_oy)
 			var cs: String = ship.collision_shape
 			var cw: float = ship.collision_width
 			var ch: float = ship.collision_height

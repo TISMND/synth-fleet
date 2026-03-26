@@ -1,27 +1,53 @@
 {
-	"id": "enemy_archon_wing_l",
+	"collision_height": 278.0,
+	"collision_offset_x": -188.0,
+	"collision_offset_y": -2.0,
+	"collision_shape": "capsule",
+	"collision_width": 94.0,
 	"display_name": "Archon Wing (L)",
+	"enable_screen_shake": false,
+	"explosion_color": [
+		0.0,
+		0.899999976158142,
+		1.0,
+		1.0
+	],
+	"explosion_size": 2.0,
+	"grid_size": [
+		200,
+		180
+	],
+	"hardpoint_offsets": [
+		[
+			-165.0,
+			110.0
+		],
+		[
+			-20.0,
+			-10.0
+		]
+	],
+	"hardpoints": [],
+	"id": "enemy_archon_wing_l",
+	"level": "boss",
+	"lines": [],
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 100.0,
+		"core_slots": 1.0,
+		"electric_segments": 8.0,
+		"field_slots": 2.0,
+		"hull_hp": 340.0,
+		"hull_segments": 8.0,
+		"particle_slots": 1.0,
+		"shield_hp": 135.0,
+		"shield_regen": 0.5,
+		"shield_segments": 10.0,
+		"speed": 40.0,
+		"thermal_segments": 6.0,
+		"weapon_slots": 3.0
+	},
 	"type": "enemy",
 	"visual_id": "archon_wing_l",
-	"render_mode": "neon",
-	"grid_size": [200, 180],
-	"weapon_id": "",
-	"hardpoint_offsets": [
-		[-165.0, 110.0],
-		[-20.0, -10.0]
-	],
-	"level": "boss",
-	"collision_shape": "capsule",
-	"collision_width": 180.0,
-	"collision_height": 70.0,
-	"explosion_color": [0.0, 0.9, 1.0, 1.0],
-	"explosion_size": 2.0,
-	"enable_screen_shake": false,
-	"stats": {
-		"hull_hp": 180,
-		"shield_hp": 60,
-		"shield_regen": 0.5,
-		"speed": 40,
-		"acceleration": 100
-	}
+	"weapon_id": ""
 }

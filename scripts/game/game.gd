@@ -63,6 +63,15 @@ var _screen_shake_remaining: float = 0.0
 var _screen_shake_amplitude: float = 0.0
 var _screen_shake_original_pos: Vector2 = Vector2.ZERO
 
+# Level intro sequence
+var _intro_active: bool = false
+var _intro_timer: float = 0.0
+var _intro_measure_dur: float = 2.18  # seconds per measure, calculated from BPM
+var _intro_phase: int = 0  # 0=level number, 1=level name + bar fill, 2=done
+var _intro_title_box: Control = null
+const INTRO_LOOP_PATH: String = "res://assets/audio/atmosphere/intro_loop.wav"
+const INTRO_FADE_START: float = 0.5  # seconds before measure boundary to start text fade
+
 # Warning rotator state
 var _hull_damaged_timer: float = 0.0  # Transient "HULL DAMAGED" display timer
 const HULL_DAMAGED_DISPLAY_TIME: float = 2.0
@@ -199,12 +208,119 @@ func _ready() -> void:
 	_player_base_speed = _player.speed
 	_player_base_modulate_a = _player.modulate.a
 
-	# Start immediately
-	LoopMixer.start_all()
+	# Waves start immediately (scroll-based spawning)
 	_start_waves()
 
+	# Level intro — titles + bar fill overlay, 1.5s silence then all loops start in sync
+	_start_intro()
+
+	# Delay all loop playback by 1.5s so intro loop and weapon loops start from beat 1 together
+	get_tree().create_timer(1.5).timeout.connect(func(): LoopMixer.start_all())
+
+
+# ── Level intro sequence ──────────────────────────────────────────────
+
+func _start_intro() -> void:
+	var bpm: float = _level_data.bpm if _level_data else 110.0
+	_intro_measure_dur = 60.0 / maxf(bpm, 1.0) * 4.0  # 4/4 time
+	_intro_active = true
+	_intro_timer = -1.5  # 1.5 second delay before first hit
+	_intro_phase = 0
+
+	# Start bars fully dark
+	if _hud:
+		_hud.start_intro_bars()
+
+	# Extract level number and name from display_name (e.g. "01 - Welcome Void")
+	var level_num: String = "LEVEL 1"
+	var level_name: String = ""
+	if _level_data:
+		var dn: String = _level_data.display_name
+		var dash_pos: int = dn.find(" - ")
+		if dash_pos >= 0:
+			level_num = "LEVEL " + dn.substr(0, dash_pos).strip_edges()
+			level_name = dn.substr(dash_pos + 3).strip_edges()
+		else:
+			level_num = "LEVEL"
+			level_name = dn
+
+	# Create title box (holographic style)
+	_intro_title_box = _IntroTitleBox.new()
+	_intro_title_box.level_number_text = level_num
+	_intro_title_box.level_name_text = level_name
+	_intro_title_box.measure_duration = _intro_measure_dur
+	_intro_title_box.fade_lead_time = INTRO_FADE_START
+	var box_w: float = 400.0
+	var box_h: float = 80.0
+	_intro_title_box.box_size = Vector2(box_w, box_h)
+	_intro_title_box.position = Vector2((1920 - box_w) * 0.5, 440)
+	_intro_title_box.size = Vector2(box_w, box_h)
+	_intro_title_box.z_index = 55
+	_intro_title_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_intro_title_box)
+
+	# Add intro loop to LoopMixer — starts with start_all() after 1.5s delay, in sync with weapons
+	if INTRO_LOOP_PATH != "" and FileAccess.file_exists(INTRO_LOOP_PATH):
+		LoopMixer.add_loop("__intro_loop", INTRO_LOOP_PATH, "Atmosphere", 0.0, false)
+
+
+func _process_intro(delta: float) -> void:
+	_intro_timer += delta
+
+	# Hit 1 = time 0 (level number). Hit 2 = 2 measures in (level name + bar fill).
+	# Total intro = 4 measures.
+	var hit2_time: float = _intro_measure_dur * 2.0
+	var end_time: float = _intro_measure_dur * 4.0
+
+	# Phase 0: showing level number (measures 1-2)
+	if _intro_phase == 0 and _intro_timer >= hit2_time:
+		_intro_phase = 1
+		# Fade out intro loop when second title appears
+		var fade_ms: int = int(_intro_measure_dur * 4.0 * 1000.0)
+		LoopMixer.mute("__intro_loop", fade_ms)
+		# Remove after fade completes
+		get_tree().create_timer(_intro_measure_dur * 4.0 + 0.5).timeout.connect(func():
+			LoopMixer.remove_loop("__intro_loop")
+		)
+
+	# Phase 1: showing level name + filling bars (measures 3-4)
+	if _intro_phase == 1:
+		var phase1_elapsed: float = _intro_timer - hit2_time
+		var fill_dur: float = _intro_measure_dur * 2.0
+		var bar_t: float = clampf(phase1_elapsed / fill_dur, 0.0, 1.0)
+		if _hud:
+			_hud.process_intro_bar_fill(bar_t)
+		if _intro_timer >= end_time:
+			_end_intro()
+
+	# Update title box timing
+	if _intro_title_box:
+		_intro_title_box.intro_time = _intro_timer
+
+
+func _end_intro() -> void:
+	_intro_active = false
+	_intro_phase = 2
+
+	# Stop intro bars, restore normal rendering
+	if _hud:
+		_hud.stop_intro_bars()
+
+	# Remove title box
+	if _intro_title_box:
+		_intro_title_box.queue_free()
+		_intro_title_box = null
+
+	# Intro loop fade already started at phase 1 transition — nothing to do here
+
+
+# ── Main game loop ───────────────────────────────────────────────────
 
 func _process(delta: float) -> void:
+	# Intro sequence — runs alongside scrolling/parallax but blocks waves/combat
+	if _intro_active:
+		_process_intro(delta)
+
 	if _parallax_bg:
 		_parallax_bg.scroll_offset.y += _scroll_speed * delta
 	_scroll_distance += _scroll_speed * delta
@@ -1323,4 +1439,119 @@ class _GameOverBox extends Control:
 		var text_x: float = (w - text_size.x) * 0.5
 		var text_y: float = (h + text_size.y * 0.6) * 0.5
 		var text_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.95 * flicker)
+		draw_string(font, Vector2(text_x, text_y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_col)
+
+
+class _IntroTitleBox extends Control:
+	## Holographic level intro title — shows level number then level name.
+	## Cut in instantly, fade out before each transition.
+	var box_size: Vector2 = Vector2(400, 80)
+	var level_number_text: String = "LEVEL 01"
+	var level_name_text: String = "Welcome Void"
+	var measure_duration: float = 2.18
+	var fade_lead_time: float = 0.5
+	var intro_time: float = 0.0  # Set by game.gd each frame
+	var _time: float = 0.0
+
+	const COL := Color(0.3, 0.6, 1.0)  # Blue
+	const HDR: float = 2.8
+	const BORDER_W: float = 2.0
+	const GLOW_LAYERS: int = 4
+	const GLOW_SPREAD: float = 3.0
+	const SCANLINE_SPACING: float = 3.0
+	const SCANLINE_ALPHA: float = 0.3
+	const SCANLINE_SCROLL: float = 45.0
+	const FLICKER_SPEED: float = 5.0
+	const FLICKER_AMOUNT: float = 0.12
+
+	func _process(delta: float) -> void:
+		_time += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		# Determine which text to show and its alpha
+		var text: String = ""
+		var font_size: int = 42
+		var alpha: float = 0.0
+
+		var hit2_time: float = measure_duration * 2.0
+		var end_time: float = measure_duration * 4.0
+
+		var visible_time: float = 0.5  # Title visible at full brightness for 0.5s
+		# Fade duration: enough time to reach 0 before the next title cuts in
+		var fade1_dur: float = hit2_time - visible_time  # Must be fully gone by hit2_time
+
+		if intro_time < 0.0:
+			# Pre-delay — nothing visible yet
+			return
+		elif intro_time < hit2_time:
+			# Phase 0: level number — cut in, start fading at 0.5s, gone before hit 2
+			text = level_number_text
+			font_size = 42
+			if intro_time < visible_time:
+				alpha = 1.0
+			else:
+				alpha = 1.0 - clampf((intro_time - visible_time) / fade1_dur, 0.0, 1.0)
+		elif intro_time < end_time:
+			# Phase 1: level name — cut in at hit 2, start fading at hit2 + 0.5s
+			text = level_name_text
+			font_size = 32
+			var phase1_time: float = intro_time - hit2_time
+			var phase1_dur: float = measure_duration * 2.0
+			var fade2_dur: float = phase1_dur - visible_time
+			if phase1_time < visible_time:
+				alpha = 1.0
+			else:
+				alpha = 1.0 - clampf((phase1_time - visible_time) / fade2_dur, 0.0, 1.0)
+
+		if text == "" or alpha <= 0.01:
+			return
+
+		var flicker: float = 1.0 - FLICKER_AMOUNT * (0.5 + 0.5 * sin(_time * FLICKER_SPEED + sin(_time * 2.3) * 3.0))
+		var w: float = box_size.x
+		var h: float = box_size.y
+		var eff_alpha: float = alpha * flicker
+
+		# Glow layers
+		for gi in range(GLOW_LAYERS, 0, -1):
+			var t: float = float(gi) / float(GLOW_LAYERS)
+			var expand: float = t * GLOW_SPREAD * float(GLOW_LAYERS)
+			var glow_alpha: float = (1.0 - t) * 0.15 * eff_alpha
+			var glow_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, glow_alpha)
+			draw_rect(Rect2(Vector2(-expand, -expand), Vector2(w + expand * 2.0, h + expand * 2.0)),
+				glow_col, false, BORDER_W + expand * 0.5)
+
+		# Main border
+		draw_rect(Rect2(Vector2.ZERO, Vector2(w, h)),
+			Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.9 * eff_alpha), false, BORDER_W)
+
+		# Corner marks
+		var cm_len: float = 12.0
+		var cm_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.7 * eff_alpha)
+		var cm_off: float = -4.0
+		draw_line(Vector2(cm_off, cm_off), Vector2(cm_off + cm_len, cm_off), cm_col, 1.5)
+		draw_line(Vector2(cm_off, cm_off), Vector2(cm_off, cm_off + cm_len), cm_col, 1.5)
+		draw_line(Vector2(w - cm_off, cm_off), Vector2(w - cm_off - cm_len, cm_off), cm_col, 1.5)
+		draw_line(Vector2(w - cm_off, cm_off), Vector2(w - cm_off, cm_off + cm_len), cm_col, 1.5)
+		draw_line(Vector2(cm_off, h - cm_off), Vector2(cm_off + cm_len, h - cm_off), cm_col, 1.5)
+		draw_line(Vector2(cm_off, h - cm_off), Vector2(cm_off, h - cm_off - cm_len), cm_col, 1.5)
+		draw_line(Vector2(w - cm_off, h - cm_off), Vector2(w - cm_off - cm_len, h - cm_off), cm_col, 1.5)
+		draw_line(Vector2(w - cm_off, h - cm_off), Vector2(w - cm_off, h - cm_off - cm_len), cm_col, 1.5)
+
+		# Scanlines
+		var scan_col := Color(COL.r * HDR * 0.5, COL.g * HDR * 0.5, COL.b * HDR * 0.5, SCANLINE_ALPHA * eff_alpha)
+		var scroll_offset: float = fmod(_time * SCANLINE_SCROLL, SCANLINE_SPACING)
+		var y: float = scroll_offset
+		while y < h:
+			draw_line(Vector2(BORDER_W, y), Vector2(w - BORDER_W, y), scan_col, 1.0)
+			y += SCANLINE_SPACING
+
+		# Text — centered
+		var font: Font = ThemeManager.get_font("font_header")
+		if not font:
+			font = ThemeDB.fallback_font
+		var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+		var text_x: float = (w - text_size.x) * 0.5
+		var text_y: float = (h + text_size.y * 0.6) * 0.5
+		var text_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.95 * eff_alpha)
 		draw_string(font, Vector2(text_x, text_y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_col)

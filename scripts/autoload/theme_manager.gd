@@ -421,8 +421,22 @@ func apply_led_bar(bar: ProgressBar, fill_color: Color, value_ratio: float, segm
 		glow_rect = ColorRect.new()
 		glow_rect.name = "led_glow"
 		glow_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		glow_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 		bar.add_child(glow_rect)
+	# Clip glow rect to only the filled portion so OFF segments stay dark and colorless
+	if vertical:
+		glow_rect.anchor_left = 0.0
+		glow_rect.anchor_right = 1.0
+		glow_rect.anchor_top = 1.0 - value_ratio
+		glow_rect.anchor_bottom = 1.0
+	else:
+		glow_rect.anchor_left = 0.0
+		glow_rect.anchor_right = value_ratio
+		glow_rect.anchor_top = 0.0
+		glow_rect.anchor_bottom = 1.0
+	glow_rect.offset_left = 0.0
+	glow_rect.offset_top = 0.0
+	glow_rect.offset_right = 0.0
+	glow_rect.offset_bottom = 0.0
 	# HDR color for bloom, low alpha so it doesn't overpower the shader visual
 	glow_rect.color = Color(
 		fill_color.r * hdr_mult,
@@ -497,8 +511,16 @@ func apply_supercharged_bar(bar: ProgressBar, fill_color: Color, value_ratio: fl
 		glow_rect = ColorRect.new()
 		glow_rect.name = "led_glow"
 		glow_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		glow_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 		bar.add_child(glow_rect)
+	# Clip glow rect to only the filled portion (supercharged bars are always horizontal)
+	glow_rect.anchor_left = 0.0
+	glow_rect.anchor_right = value_ratio
+	glow_rect.anchor_top = 0.0
+	glow_rect.anchor_bottom = 1.0
+	glow_rect.offset_left = 0.0
+	glow_rect.offset_top = 0.0
+	glow_rect.offset_right = 0.0
+	glow_rect.offset_bottom = 0.0
 	glow_rect.color = Color(
 		fill_color.r * hdr_mult,
 		fill_color.g * hdr_mult,

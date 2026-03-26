@@ -39,6 +39,9 @@ var _power_death_final_elapsed: float = 0.0
 var _bar_kill_masks: Dictionary = {}   # bar_name -> int bitmask (bit N = segment N killed)
 var _bar_flicker_timers: Dictionary = {}  # bar_name -> Array[float] (per-segment flicker countdown)
 
+# Intro bar fill
+var _intro_bar_active: bool = false
+
 
 func _ready() -> void:
 	_build_ui()
@@ -241,6 +244,12 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 	if glow_rect:
 		if not _power_death_active or hull_exempt:
 			glow_rect.color.a = 0.15 * ratio
+			# Keep glow rect clipped to filled portion so OFF segments stay dark
+			var is_vert: bool = entry.get("vertical", false) as bool
+			if is_vert:
+				glow_rect.anchor_top = 1.0 - ratio
+			else:
+				glow_rect.anchor_right = ratio
 		# During power death, glow managed by kill animation (except hull)
 	else:
 		# First time or after theme change — full rebuild
@@ -548,6 +557,88 @@ func stop_power_death_bars() -> void:
 		if glow:
 			var ratio: float = bar.value / maxf(bar.max_value, 1.0)
 			glow.color.a = 0.15 * ratio
+			var is_vert: bool = entry.get("vertical", false) as bool
+			if is_vert:
+				glow.anchor_top = 1.0 - ratio
+			else:
+				glow.anchor_right = ratio
+
+
+# ── Intro bar fill — all bars dark → full during level intro ──────────
+
+func start_intro_bars() -> void:
+	## Kill all bar segments for the intro (ship powering on).
+	_intro_bar_active = true
+	for bar_name in _bars:
+		var seg: int = int(_bar_segments.get(bar_name, 8))
+		var mask: int = (1 << seg) - 1  # All bits set = all segments killed
+		_bar_kill_masks[bar_name] = mask
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		if bar.material is ShaderMaterial:
+			var mat: ShaderMaterial = bar.material as ShaderMaterial
+			mat.set_shader_parameter("segment_kill_mask", mask)
+			mat.set_shader_parameter("fill_ratio", 1.0)  # All segments visible for the fill effect
+		var glow: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+		if glow:
+			glow.color.a = 0.0
+			# Collapse glow rect — no segments lit yet
+			var is_vert: bool = entry.get("vertical", false) as bool
+			if is_vert:
+				glow.anchor_top = 1.0
+			else:
+				glow.anchor_right = 0.0
+
+
+func process_intro_bar_fill(t: float) -> void:
+	## Animate bars from dark to full. t goes 0.0 → 1.0 over the fill duration.
+	if not _intro_bar_active:
+		return
+	for bar_name in _bars:
+		var seg: int = int(_bar_segments.get(bar_name, 8))
+		var alive_count: int = int(float(seg) * t)
+		alive_count = clampi(alive_count, 0, seg)
+		var mask: int = 0
+		for i in seg:
+			if i >= alive_count:
+				mask = mask | (1 << i)
+		_bar_kill_masks[bar_name] = mask
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		if bar.material is ShaderMaterial:
+			(bar.material as ShaderMaterial).set_shader_parameter("segment_kill_mask", mask)
+		var glow: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+		if glow:
+			glow.color.a = 0.15 * t
+			# Expand glow rect as segments light up
+			var is_vert: bool = entry.get("vertical", false) as bool
+			if is_vert:
+				glow.anchor_top = 1.0 - t
+			else:
+				glow.anchor_right = t
+
+
+func stop_intro_bars() -> void:
+	## End intro bar fill — restore normal rendering.
+	_intro_bar_active = false
+	for bar_name in _bars:
+		_bar_kill_masks[bar_name] = 0
+		var entry: Dictionary = _bars[bar_name]
+		var bar: ProgressBar = entry["bar"]
+		if bar.material is ShaderMaterial:
+			var mat: ShaderMaterial = bar.material as ShaderMaterial
+			mat.set_shader_parameter("segment_kill_mask", 0)
+			var ratio: float = bar.value / maxf(bar.max_value, 1.0)
+			mat.set_shader_parameter("fill_ratio", ratio)
+		var glow: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
+		if glow:
+			var ratio: float = bar.value / maxf(bar.max_value, 1.0)
+			glow.color.a = 0.15 * ratio
+			var is_vert: bool = entry.get("vertical", false) as bool
+			if is_vert:
+				glow.anchor_top = 1.0 - ratio
+			else:
+				glow.anchor_right = ratio
 
 
 func process_power_death_bars(delta: float) -> void:
