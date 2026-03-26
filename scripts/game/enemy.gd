@@ -59,6 +59,10 @@ var player_ref: Node2D = null
 var projectiles_container: Node2D = null
 var shared_renderer: EnemySharedRenderer = null
 
+# Boss weapon overrides — Array of {hardpoint_index: int, weapon_id: String}
+# When non-empty, these override the ship's weapon_id for specific hardpoints
+var weapon_overrides: Array = []
+
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -123,12 +127,17 @@ func _ready() -> void:
 	add_child(_shield_bubble)
 
 	# Setup weapon controller if ship has a weapon assigned
-	if ship_data_ref and ship_data_ref.weapon_id != "" and projectiles_container:
+	var has_weapon: bool = ship_data_ref and ship_data_ref.weapon_id != ""
+	var has_overrides: bool = weapon_overrides.size() > 0
+	if (has_weapon or has_overrides) and ship_data_ref and projectiles_container:
 		_weapon_controller = EnemyWeaponController.new()
 		_weapon_controller.projectile_color = enemy_color
 		_weapon_controller.weapons_enabled = weapons_active
 		add_child(_weapon_controller)
-		_weapon_controller.setup(ship_data_ref, self, player_ref, projectiles_container)
+		if has_overrides:
+			_weapon_controller.setup_with_overrides(ship_data_ref, weapon_overrides, self, player_ref, projectiles_container)
+		else:
+			_weapon_controller.setup(ship_data_ref, self, player_ref, projectiles_container)
 
 	# Always clean up weapon controller when leaving tree (death, off-screen, etc.)
 	tree_exiting.connect(_on_cleanup)

@@ -278,7 +278,8 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 	core_enemy.boss_strafe_width = 300.0
 
 	# Apply per-hardpoint weapon overrides for core
-	# (Stored in BossData, applied via EnemyWeaponController later when we have that integration)
+	if boss.core_weapon_overrides.size() > 0:
+		core_enemy.weapon_overrides = boss.core_weapon_overrides
 
 	core_enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
 	_enemies_container.add_child(core_enemy)
@@ -297,6 +298,11 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 		var seg_enemy: Enemy = _make_boss_part(seg_ship_id, Vector2(spawn_x + ox, spawn_y + oy), enc_weapons_active)
 		if not seg_enemy:
 			continue
+
+		# Apply per-hardpoint weapon overrides for segment
+		var seg_weapon_ovr: Array = sd.get("weapon_overrides", []) as Array
+		if seg_weapon_ovr.size() > 0:
+			seg_enemy.weapon_overrides = seg_weapon_ovr
 
 		# Link segment to core
 		seg_enemy.boss_core = core_enemy
@@ -328,10 +334,10 @@ func _make_boss_part(ship_id: String, pos: Vector2, weapons_active: bool) -> Ene
 	enemy.shared_renderer = shared_renderer
 	enemy.position = pos
 
-	if ship.weapon_id != "":
-		enemy.ship_data_ref = ship
-		enemy.player_ref = _player_ref
-		enemy.projectiles_container = _projectiles_container
+	# Always set refs for boss parts — weapon may come from overrides, not ship.weapon_id
+	enemy.ship_data_ref = ship
+	enemy.player_ref = _player_ref
+	enemy.projectiles_container = _projectiles_container
 
 	return enemy
 

@@ -1,7 +1,7 @@
 {
 	"collision_height": 230.0,
 	"collision_offset_x": 0.0,
-	"collision_offset_y": -45.0,
+	"collision_offset_y": -43.0,
 	"collision_shape": "capsule",
 	"collision_width": 400.0,
 	"display_name": "Archon Core",

@@ -1,5 +1,7 @@
 {
-	"collision_height": 60.0,
+	"collision_height": 58.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "circle",
 	"collision_width": 46.0,
 	"display_name": "Archon Turret",
