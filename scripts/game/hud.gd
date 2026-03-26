@@ -54,9 +54,11 @@ var _spark_particles: Array = []  # Active spark nodes
 var _smoke_spawn_accum: float = 0.0
 var _spark_spawn_accum: float = 0.0
 var _fire_time: float = 0.0
-const FIRE_RAMP_SPEED: float = 0.4  # How fast intensity ramps up/down per second
-const SMOKE_SPAWN_RATE: float = 8.0  # Puffs per second at full intensity
-const SPARK_SPAWN_RATE: float = 12.0  # Sparks per second at full intensity
+var _fire_ramp_speed: float = 0.4
+var _fire_smoke_rate: float = 8.0
+var _fire_spark_rate: float = 12.0
+var _fire_flicker_amount: float = 0.08
+const FIRE_SAVE_PATH := "user://settings/fire_audition.json"
 
 
 func _ready() -> void:
@@ -677,6 +679,36 @@ func register_chrome_materials() -> void:
 		_spark_container = Node2D.new()
 		_spark_container.z_index = 56
 		add_child(_spark_container)
+	# Load tuned fire values from audition screen
+	_load_fire_tuning()
+
+
+func _load_fire_tuning() -> void:
+	## Load fire effect tuning from audition save file.
+	## Colors get applied to chrome panel shaders, rates stored in instance vars.
+	if not FileAccess.file_exists(FIRE_SAVE_PATH):
+		return
+	var file := FileAccess.open(FIRE_SAVE_PATH, FileAccess.READ)
+	if not file:
+		return
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK or not json.data is Dictionary:
+		return
+	var data: Dictionary = json.data
+	_fire_ramp_speed = float(data.get("ramp_speed", _fire_ramp_speed))
+	_fire_smoke_rate = float(data.get("smoke_rate", _fire_smoke_rate))
+	_fire_spark_rate = float(data.get("spark_rate", _fire_spark_rate))
+	_fire_flicker_amount = float(data.get("flicker_amount", _fire_flicker_amount))
+	# Apply color ramp to all chrome shaders
+	var color_keys: Array = ["color_1", "color_2", "color_3", "color_4"]
+	var shader_keys: Array = ["heat_color_1", "heat_color_2", "heat_color_3", "heat_color_4"]
+	for i in 4:
+		if data.has(color_keys[i]):
+			var arr: Array = data[color_keys[i]]
+			var v := Vector3(float(arr[0]), float(arr[1]), float(arr[2]))
+			for mat in _chrome_materials:
+				if is_instance_valid(mat):
+					(mat as ShaderMaterial).set_shader_parameter(shader_keys[i], v)
 
 
 func set_fire_intensity(target: float) -> void:
@@ -699,9 +731,9 @@ func process_fire_effect(delta: float) -> void:
 
 	# Ramp intensity toward target
 	if _fire_intensity < _fire_target_intensity:
-		_fire_intensity = minf(_fire_intensity + FIRE_RAMP_SPEED * delta, _fire_target_intensity)
+		_fire_intensity = minf(_fire_intensity + _fire_ramp_speed * delta, _fire_target_intensity)
 	elif _fire_intensity > _fire_target_intensity:
-		_fire_intensity = maxf(_fire_intensity - FIRE_RAMP_SPEED * 1.5 * delta, _fire_target_intensity)
+		_fire_intensity = maxf(_fire_intensity - _fire_ramp_speed * 1.5 * delta, _fire_target_intensity)
 
 	# Deactivate when fully cooled
 	if _fire_target_intensity <= 0.0 and _fire_intensity <= 0.001:
@@ -713,7 +745,7 @@ func process_fire_effect(delta: float) -> void:
 	# Add subtle flicker at high heat
 	var flicker: float = 0.0
 	if _fire_intensity > 0.5:
-		var flicker_amount: float = (_fire_intensity - 0.5) * 0.08
+		var flicker_amount: float = (_fire_intensity - 0.5) * _fire_flicker_amount
 		flicker = sin(_fire_time * 13.7) * cos(_fire_time * 7.3) * flicker_amount
 	var shader_heat: float = clampf(_fire_intensity + flicker, 0.0, 1.0)
 	for mat in _chrome_materials:
@@ -722,7 +754,7 @@ func process_fire_effect(delta: float) -> void:
 
 	# Spawn smoke puffs — rise from panel edges
 	if _fire_intensity > 0.1:
-		var rate: float = SMOKE_SPAWN_RATE * _fire_intensity * _fire_intensity
+		var rate: float = _fire_smoke_rate * _fire_intensity * _fire_intensity
 		_smoke_spawn_accum += rate * delta
 		while _smoke_spawn_accum >= 1.0:
 			_smoke_spawn_accum -= 1.0
@@ -731,7 +763,7 @@ func process_fire_effect(delta: float) -> void:
 	# Spawn sparks at higher intensity
 	if _fire_intensity > 0.4:
 		var spark_factor: float = (_fire_intensity - 0.4) / 0.6
-		var rate: float = SPARK_SPAWN_RATE * spark_factor * spark_factor
+		var rate: float = _fire_spark_rate * spark_factor * spark_factor
 		_spark_spawn_accum += rate * delta
 		while _spark_spawn_accum >= 1.0:
 			_spark_spawn_accum -= 1.0

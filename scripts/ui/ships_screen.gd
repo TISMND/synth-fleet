@@ -2093,10 +2093,10 @@ func _start_boss_weapon_preview_all() -> void:
 		var overrides: Array = part["overrides"] as Array
 		var offset: Vector2 = part["offset"] as Vector2
 
-		# Determine hardpoint count
-		var hp_count: int = ship.hardpoint_offsets.size()
-		if hp_count == 0:
-			hp_count = 1
+		# Determine hardpoint offsets — empty means single center hardpoint
+		var hp_offsets: Array = ship.hardpoint_offsets
+		if hp_offsets.size() == 0:
+			hp_offsets = [[0, 0]]
 
 		# Build override lookup
 		var override_map: Dictionary = {}
@@ -2104,7 +2104,7 @@ func _start_boss_weapon_preview_all() -> void:
 			var d: Dictionary = ovr as Dictionary
 			override_map[int(d.get("hardpoint_index", 0))] = str(d.get("weapon_id", ""))
 
-		for hp_idx in range(hp_count):
+		for hp_idx in range(hp_offsets.size()):
 			var weapon_id: String = str(override_map.get(hp_idx, ""))
 			if weapon_id == "":
 				weapon_id = ship.weapon_id
@@ -2114,15 +2114,20 @@ func _start_boss_weapon_preview_all() -> void:
 			if not weapon:
 				continue
 
+			# Apply individual hardpoint offset from ship data
+			var hp_off: Variant = hp_offsets[hp_idx]
+			var hp_ox: float = float(hp_off[0]) if hp_off is Array and hp_off.size() >= 1 else 0.0
+			var hp_oy: float = float(hp_off[1]) if hp_off is Array and hp_off.size() >= 2 else 0.0
+
 			var fire_point := Node2D.new()
-			fire_point.position = center + offset
+			fire_point.position = center + offset + Vector2(hp_ox, hp_oy)
 			_ship_viewport.add_child(fire_point)
 			_weapon_preview_fire_points.append(fire_point)
 
 			var controller := HardpointController.new()
 			controller.is_enemy = true
 			fire_point.add_child(controller)
-			controller.setup(weapon, 180.0 + weapon.direction_deg, _weapon_preview_container)
+			controller.setup(weapon, 180.0 + weapon.direction_deg, _weapon_preview_container, hp_idx)
 			controller.activate()
 			_weapon_preview_controllers.append(controller)
 
