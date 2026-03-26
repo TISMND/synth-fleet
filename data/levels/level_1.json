@@ -6,6 +6,7 @@
 	"doodads": [],
 	"encounters": [
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -20,6 +21,7 @@
 			"x_offset": -83.7010676156582
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -34,6 +36,7 @@
 			"x_offset": 480.0
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -48,6 +51,7 @@
 			"x_offset": -384.341637010676
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_3",
 			"is_melee": true,
@@ -62,6 +66,7 @@
 			"x_offset": 81.9928825622776
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -76,6 +81,7 @@
 			"x_offset": 531.245551601423
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -90,6 +96,7 @@
 			"x_offset": 23.9145907473309
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -104,6 +111,7 @@
 			"x_offset": 3.41637010676157
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": false,
@@ -118,6 +126,7 @@
 			"x_offset": 0.0
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -132,6 +141,7 @@
 			"x_offset": 136.654804270463
 		},
 		{
+			"boss_id": "",
 			"count": 14,
 			"formation_id": "",
 			"is_melee": true,
@@ -146,6 +156,7 @@
 			"x_offset": 464.626334519573
 		},
 		{
+			"boss_id": "",
 			"count": 14,
 			"formation_id": "",
 			"is_melee": true,
@@ -160,6 +171,7 @@
 			"x_offset": -321.138790035587
 		},
 		{
+			"boss_id": "",
 			"count": 14,
 			"formation_id": "",
 			"is_melee": true,
@@ -174,6 +186,7 @@
 			"x_offset": 76.8683274021352
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_3",
 			"is_melee": true,
@@ -188,6 +201,7 @@
 			"x_offset": -476.583629893238
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -202,6 +216,7 @@
 			"x_offset": 316.014234875445
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": true,
@@ -216,6 +231,7 @@
 			"x_offset": -450.960854092527
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": true,
@@ -230,6 +246,7 @@
 			"x_offset": 517.580071174377
 		},
 		{
+			"boss_id": "",
 			"count": 15,
 			"formation_id": "formation_3",
 			"is_melee": true,
@@ -244,6 +261,7 @@
 			"x_offset": -480.0
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -258,6 +276,7 @@
 			"x_offset": -5.12455516014235
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": false,
@@ -272,6 +291,7 @@
 			"x_offset": -241.660840678287
 		},
 		{
+			"boss_id": "",
 			"count": 15,
 			"formation_id": "",
 			"is_melee": false,
@@ -286,6 +306,7 @@
 			"x_offset": -27.6718403547672
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": false,
@@ -300,6 +321,7 @@
 			"x_offset": 40.4434589800444
 		},
 		{
+			"boss_id": "",
 			"count": 8,
 			"formation_id": "",
 			"is_melee": false,
@@ -314,6 +336,7 @@
 			"x_offset": -444.878048780488
 		},
 		{
+			"boss_id": "",
 			"count": 8,
 			"formation_id": "",
 			"is_melee": false,
@@ -328,6 +351,7 @@
 			"x_offset": 404.434589800443
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -342,6 +366,7 @@
 			"x_offset": 485.321507760533
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": false,
@@ -356,6 +381,7 @@
 			"x_offset": 285.232815964523
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -370,6 +396,7 @@
 			"x_offset": 318.839747181036
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -384,6 +411,7 @@
 			"x_offset": 42.5720620842572
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -398,6 +426,7 @@
 			"x_offset": 327.80487804878
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -412,6 +441,7 @@
 			"x_offset": 591.751662971175
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -426,6 +456,7 @@
 			"x_offset": -644.966740576496
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -440,6 +471,7 @@
 			"x_offset": -387.405764966741
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -454,6 +486,7 @@
 			"x_offset": -127.716186252772
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -468,6 +501,7 @@
 			"x_offset": -734.368070953437
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -482,6 +516,7 @@
 			"x_offset": 323.547671840354
 		},
 		{
+			"boss_id": "",
 			"count": 10,
 			"formation_id": "",
 			"is_melee": false,
@@ -496,6 +531,7 @@
 			"x_offset": 476.807095343681
 		},
 		{
+			"boss_id": "",
 			"count": 10,
 			"formation_id": "",
 			"is_melee": false,
@@ -510,6 +546,7 @@
 			"x_offset": -670.509977827051
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -524,6 +561,7 @@
 			"x_offset": 751.39689578714
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -538,6 +576,7 @@
 			"x_offset": -25.5432372505543
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": false,
@@ -552,6 +591,7 @@
 			"x_offset": -745.011086474501
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -566,6 +606,7 @@
 			"x_offset": 600.266075388026
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -580,6 +621,7 @@
 			"x_offset": 76.629711751663
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -594,6 +636,7 @@
 			"x_offset": -578.980044345898
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -608,6 +651,7 @@
 			"x_offset": -762.039911308204
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -622,6 +666,7 @@
 			"x_offset": 742.882483370288
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "",
 			"is_melee": true,
@@ -636,6 +681,7 @@
 			"x_offset": 44.7006651884701
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -650,6 +696,7 @@
 			"x_offset": -649.223946784923
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -664,6 +711,7 @@
 			"x_offset": -238.40354767184
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -678,6 +726,7 @@
 			"x_offset": 872.727272727273
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,
@@ -692,6 +741,7 @@
 			"x_offset": -129.844789356984
 		},
 		{
+			"boss_id": "",
 			"count": 10,
 			"formation_id": "",
 			"is_melee": false,
@@ -706,6 +756,7 @@
 			"x_offset": -76.629711751663
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": false,
@@ -720,6 +771,7 @@
 			"x_offset": -197.960088691796
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": false,
@@ -734,6 +786,7 @@
 			"x_offset": -468.292682926829
 		},
 		{
+			"boss_id": "",
 			"count": 15,
 			"formation_id": "",
 			"is_melee": false,
@@ -748,6 +801,7 @@
 			"x_offset": -29.80044345898
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": false,
@@ -762,6 +816,7 @@
 			"x_offset": 559.822616407982
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": false,
@@ -776,6 +831,7 @@
 			"x_offset": -517.250554323725
 		},
 		{
+			"boss_id": "",
 			"count": 7,
 			"formation_id": "",
 			"is_melee": false,
@@ -790,6 +846,7 @@
 			"x_offset": 97.9157427937916
 		},
 		{
+			"boss_id": "",
 			"count": 1,
 			"formation_id": "formation_4",
 			"is_melee": true,

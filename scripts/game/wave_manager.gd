@@ -107,6 +107,12 @@ func _spawn_encounter(enc: Dictionary) -> void:
 	if not _enemies_container:
 		return
 
+	# Boss encounter — spawn entire boss composition
+	var boss_id: String = str(enc.get("boss_id", ""))
+	if boss_id != "":
+		_spawn_boss_encounter(enc, boss_id)
+		return
+
 	var path_id: String = str(enc.get("path_id", ""))
 	var formation_id: String = str(enc.get("formation_id", ""))
 	var ship_id: String = str(enc.get("ship_id", "enemy_1"))
@@ -246,6 +252,88 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 
 	enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
 	_enemies_container.add_child(enemy)
+
+
+func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
+	var boss: BossData = BossDataManager.load_by_id(boss_id)
+	if not boss:
+		push_warning("WaveManager: boss '%s' not found" % boss_id)
+		return
+
+	var x_offset: float = float(enc.get("x_offset", 0.0))
+	var spawn_x: float = 960.0 + x_offset
+	var spawn_y: float = -100.0  # Start above screen, strafe will drift to boss_strafe_y
+	var strafe_speed: float = float(enc.get("speed", 80.0))
+	var enc_weapons_active: bool = bool(enc.get("weapons_active", true))
+
+	# Spawn core enemy
+	var core_enemy: Enemy = _make_boss_part(boss.core_ship_id, Vector2(spawn_x, spawn_y), enc_weapons_active)
+	if not core_enemy:
+		push_warning("WaveManager: boss core ship '%s' not found" % boss.core_ship_id)
+		return
+
+	core_enemy.is_boss_strafe = true
+	core_enemy.boss_strafe_y = 200.0
+	core_enemy.boss_strafe_speed = strafe_speed
+	core_enemy.boss_strafe_width = 300.0
+
+	# Apply per-hardpoint weapon overrides for core
+	# (Stored in BossData, applied via EnemyWeaponController later when we have that integration)
+
+	core_enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
+	_enemies_container.add_child(core_enemy)
+
+	# Spawn segments
+	for seg_dict in boss.segments:
+		var sd: Dictionary = seg_dict as Dictionary
+		var seg_ship_id: String = str(sd.get("ship_id", ""))
+		if seg_ship_id == "":
+			continue
+		var offset_arr: Array = sd.get("offset", [0.0, 0.0]) as Array
+		var ox: float = float(offset_arr[0]) if offset_arr.size() > 0 else 0.0
+		var oy: float = float(offset_arr[1]) if offset_arr.size() > 1 else 0.0
+		var seg_offset := Vector2(ox, oy)
+
+		var seg_enemy: Enemy = _make_boss_part(seg_ship_id, Vector2(spawn_x + ox, spawn_y + oy), enc_weapons_active)
+		if not seg_enemy:
+			continue
+
+		# Link segment to core
+		seg_enemy.boss_core = core_enemy
+		seg_enemy.boss_segment_offset = seg_offset
+		core_enemy.boss_segments.append(seg_enemy)
+
+		seg_enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
+		_enemies_container.add_child(seg_enemy)
+
+	# Set immunity on core if configured
+	if boss.core_immune_until_segments_dead and core_enemy.boss_segments.size() > 0:
+		core_enemy.is_boss_immune = true
+
+
+func _make_boss_part(ship_id: String, pos: Vector2, weapons_active: bool) -> Enemy:
+	var ship: ShipData = ShipDataManager.load_by_id(ship_id)
+	if not ship:
+		return null
+
+	var enemy := Enemy.new()
+	enemy.health = int(ship.stats.get("hull_hp", 30))
+	enemy.shield = int(ship.stats.get("shield_hp", 0))
+	enemy.enemy_color = ENEMY_COLORS[ship_id.hash() % ENEMY_COLORS.size()]
+	enemy.visual_id = ship.visual_id if ship.visual_id != "" else "sentinel"
+	enemy.render_mode_str = ship.render_mode if ship.render_mode != "" else "neon"
+	enemy.grid_size = ship.grid_size
+	enemy.ship_id = ship_id
+	enemy.weapons_active = weapons_active
+	enemy.shared_renderer = shared_renderer
+	enemy.position = pos
+
+	if ship.weapon_id != "":
+		enemy.ship_data_ref = ship
+		enemy.player_ref = _player_ref
+		enemy.projectiles_container = _projectiles_container
+
+	return enemy
 
 
 func start() -> void:

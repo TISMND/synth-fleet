@@ -242,25 +242,41 @@ func _process(delta: float) -> void:
 
 func _collect_enemy_appearances(level: LevelData) -> Array:
 	## Scan level encounters to find unique (visual_id, render_mode, color) combos.
+	## Also scans boss encounters for all boss part appearances.
 	var seen: Dictionary = {}
 	var result: Array = []
 	for enc in level.encounters:
 		var enc_dict: Dictionary = enc as Dictionary
+		# Boss encounter — register all parts
+		var boss_id: String = str(enc_dict.get("boss_id", ""))
+		if boss_id != "":
+			var boss: BossData = BossDataManager.load_by_id(boss_id)
+			if boss:
+				_register_ship_appearance(boss.core_ship_id, seen, result)
+				for seg in boss.segments:
+					var sd: Dictionary = seg as Dictionary
+					var seg_sid: String = str(sd.get("ship_id", ""))
+					if seg_sid != "":
+						_register_ship_appearance(seg_sid, seen, result)
+			continue
 		var sid: String = str(enc_dict.get("ship_id", ""))
-		if sid == "":
-			continue
-		var ship: ShipData = ShipDataManager.load_by_id(sid)
-		if not ship:
-			continue
-		var vid: String = ship.visual_id if ship.visual_id != "" else "sentinel"
-		var rmode: String = ship.render_mode if ship.render_mode != "" else "neon"
-		var color: Color = WaveManager.ENEMY_COLORS[sid.hash() % WaveManager.ENEMY_COLORS.size()]
-		var key: String = "%s|%s|%s" % [vid, rmode, color.to_html()]
-		if seen.has(key):
-			continue
-		seen[key] = true
-		result.append({"visual_id": vid, "render_mode": rmode, "color": color})
+		if sid != "":
+			_register_ship_appearance(sid, seen, result)
 	return result
+
+
+func _register_ship_appearance(sid: String, seen: Dictionary, result: Array) -> void:
+	var ship: ShipData = ShipDataManager.load_by_id(sid)
+	if not ship:
+		return
+	var vid: String = ship.visual_id if ship.visual_id != "" else "sentinel"
+	var rmode: String = ship.render_mode if ship.render_mode != "" else "neon"
+	var color: Color = WaveManager.ENEMY_COLORS[sid.hash() % WaveManager.ENEMY_COLORS.size()]
+	var key: String = "%s|%s|%s" % [vid, rmode, color.to_html()]
+	if seen.has(key):
+		return
+	seen[key] = true
+	result.append({"visual_id": vid, "render_mode": rmode, "color": color})
 
 
 func _start_waves() -> void:
@@ -564,10 +580,6 @@ func _process_death_sequence(delta: float) -> void:
 
 
 func _show_game_over() -> void:
-	# Light blue with slight HDR for glow pickup
-	var title_color: Color = Color(0.6, 0.85, 1.0) * 1.1
-	var subtitle_color: Color = Color(0.5, 0.75, 0.95)
-
 	_game_over_overlay = Control.new()
 	_game_over_overlay.name = "GameOverOverlay"
 	_game_over_overlay.size = Vector2(1920, 1080)
@@ -576,45 +588,37 @@ func _show_game_over() -> void:
 	add_child(_game_over_overlay)
 
 	# Semi-transparent dark background
-	var bg: ColorRect = ColorRect.new()
+	var bg := ColorRect.new()
 	bg.size = Vector2(1920, 1080)
 	bg.color = Color(0.0, 0.0, 0.0, 0.5)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_game_over_overlay.add_child(bg)
 
-	# Container for centered text
-	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.size = Vector2(1920, 1080)
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_game_over_overlay.add_child(vbox)
+	# Holographic warning box — same style as in-game warnings, larger
+	var box := _GameOverBox.new()
+	var box_w: float = 460.0
+	var box_h: float = 100.0
+	box.box_size = Vector2(box_w, box_h)
+	box.position = Vector2((1920 - box_w) * 0.5, 420)
+	box.size = Vector2(box_w, box_h)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_game_over_overlay.add_child(box)
 
-	# "GAME OVER" label
-	var title: Label = Label.new()
-	title.text = "GAME OVER"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_override("font", ThemeManager.get_font("header"))
-	title.add_theme_font_size_override("font_size", 96)
-	title.add_theme_color_override("font_color", title_color)
-	ThemeManager.apply_text_glow(title, "header")
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_child(title)
-
-	# Spacer
-	var spacer: Control = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 30)
-	vbox.add_child(spacer)
-
-	# "press any key to return to hangar"
-	var subtitle: Label = Label.new()
+	# "press any key to return to hangar" below the box
+	var subtitle := Label.new()
 	subtitle.text = "press any key to return to hangar"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_override("font", ThemeManager.get_font("body"))
-	subtitle.add_theme_font_size_override("font_size", 28)
-	subtitle.add_theme_color_override("font_color", subtitle_color)
-	ThemeManager.apply_text_glow(subtitle, "body")
+	subtitle.position = Vector2(0, 550)
+	subtitle.size = Vector2(1920, 40)
+	var sub_col := Color(0.5, 0.75, 0.95)
+	subtitle.add_theme_color_override("font_color", sub_col)
+	subtitle.add_theme_font_size_override("font_size", 22)
+	var body_font: Font = ThemeManager.get_font("font_body")
+	if body_font:
+		subtitle.add_theme_font_override("font", body_font)
+	subtitle.modulate = Color(1.5, 1.5, 1.5, 1.0)  # Mild HDR
 	subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_child(subtitle)
+	_game_over_overlay.add_child(subtitle)
 
 
 # ── Warning rotator conditions ────────────────────────────────────────
@@ -1248,3 +1252,75 @@ class _SpeckField extends Control:
 			var col := Color(speck_color.r, speck_color.g, speck_color.b, speck_color.a * twinkle)
 			var r: float = _sizes[i] * (0.85 + 0.15 * twinkle)
 			draw_circle(_positions[i], r, col)
+
+
+class _GameOverBox extends Control:
+	## Holographic "GAME OVER" box — same style as warning badges, larger, always on.
+	var box_size: Vector2 = Vector2(460, 100)
+	var _time: float = 0.0
+
+	const COL := Color(1.0, 0.15, 0.1)
+	const HDR: float = 3.0
+	const BORDER_W: float = 2.5
+	const GLOW_LAYERS: int = 5
+	const GLOW_SPREAD: float = 3.5
+	const SCANLINE_SPACING: float = 3.0
+	const SCANLINE_ALPHA: float = 0.35
+	const SCANLINE_SCROLL: float = 45.0
+	const FLICKER_SPEED: float = 5.0
+	const FLICKER_AMOUNT: float = 0.15
+
+	func _process(delta: float) -> void:
+		_time += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var flicker: float = 1.0 - FLICKER_AMOUNT * (0.5 + 0.5 * sin(_time * FLICKER_SPEED + sin(_time * 2.3) * 3.0))
+		var w: float = box_size.x
+		var h: float = box_size.y
+
+		# Glow layers
+		for gi in range(GLOW_LAYERS, 0, -1):
+			var t: float = float(gi) / float(GLOW_LAYERS)
+			var expand: float = t * GLOW_SPREAD * float(GLOW_LAYERS)
+			var glow_alpha: float = (1.0 - t) * 0.15 * flicker
+			var glow_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, glow_alpha)
+			draw_rect(Rect2(Vector2(-expand, -expand), Vector2(w + expand * 2.0, h + expand * 2.0)),
+				glow_col, false, BORDER_W + expand * 0.5)
+
+		# Main border
+		draw_rect(Rect2(Vector2.ZERO, Vector2(w, h)),
+			Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.9 * flicker), false, BORDER_W)
+
+		# Corner marks
+		var cm_len: float = 16.0
+		var cm_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.7 * flicker)
+		var cm_off: float = -5.0
+		draw_line(Vector2(cm_off, cm_off), Vector2(cm_off + cm_len, cm_off), cm_col, 2.0)
+		draw_line(Vector2(cm_off, cm_off), Vector2(cm_off, cm_off + cm_len), cm_col, 2.0)
+		draw_line(Vector2(w - cm_off, cm_off), Vector2(w - cm_off - cm_len, cm_off), cm_col, 2.0)
+		draw_line(Vector2(w - cm_off, cm_off), Vector2(w - cm_off, cm_off + cm_len), cm_col, 2.0)
+		draw_line(Vector2(cm_off, h - cm_off), Vector2(cm_off + cm_len, h - cm_off), cm_col, 2.0)
+		draw_line(Vector2(cm_off, h - cm_off), Vector2(cm_off, h - cm_off - cm_len), cm_col, 2.0)
+		draw_line(Vector2(w - cm_off, h - cm_off), Vector2(w - cm_off - cm_len, h - cm_off), cm_col, 2.0)
+		draw_line(Vector2(w - cm_off, h - cm_off), Vector2(w - cm_off, h - cm_off - cm_len), cm_col, 2.0)
+
+		# Scanlines
+		var scan_col := Color(COL.r * HDR * 0.5, COL.g * HDR * 0.5, COL.b * HDR * 0.5, SCANLINE_ALPHA * flicker)
+		var scroll_offset: float = fmod(_time * SCANLINE_SCROLL, SCANLINE_SPACING)
+		var y: float = scroll_offset
+		while y < h:
+			draw_line(Vector2(BORDER_W, y), Vector2(w - BORDER_W, y), scan_col, 1.0)
+			y += SCANLINE_SPACING
+
+		# "GAME OVER" text
+		var font: Font = ThemeManager.get_font("font_header")
+		if not font:
+			font = ThemeDB.fallback_font
+		var font_size: int = 52
+		var text: String = "GAME OVER"
+		var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+		var text_x: float = (w - text_size.x) * 0.5
+		var text_y: float = (h + text_size.y * 0.6) * 0.5
+		var text_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.95 * flicker)
+		draw_string(font, Vector2(text_x, text_y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_col)

@@ -4,7 +4,23 @@
 	"deep_background": "",
 	"display_name": "02 - Innit",
 	"doodads": [],
-	"encounters": [],
+	"encounters": [
+		{
+			"boss_id": "boss_archon",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_1",
+			"rotate_with_path": false,
+			"ship_id": "enemy_archon_core",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 568.337028824834,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 19.1574279379157
+		}
+	],
 	"flight_speed": 160.0,
 	"id": "level_2",
 	"level_length": 10000.0,

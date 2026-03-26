@@ -1245,15 +1245,9 @@ func _build_bosses_right_panel() -> void:
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(header)
 
-	# NEW button when no boss selected
 	if not _working_boss:
-		var new_btn := Button.new()
-		new_btn.text = "NEW BOSS"
-		new_btn.pressed.connect(_create_new_boss)
-		vbox.add_child(new_btn)
-		ThemeManager.apply_button_style(new_btn)
 		var hint := Label.new()
-		hint.text = "Select or create a boss"
+		hint.text = "Select a boss"
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 		vbox.add_child(hint)
@@ -1289,12 +1283,6 @@ func _build_bosses_right_panel() -> void:
 	var spacer_bottom := Control.new()
 	spacer_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(spacer_bottom)
-
-	var new_btn := Button.new()
-	new_btn.text = "NEW BOSS"
-	new_btn.pressed.connect(_create_new_boss)
-	vbox.add_child(new_btn)
-	ThemeManager.apply_button_style(new_btn)
 
 	var save_btn := Button.new()
 	save_btn.text = "SAVE"
@@ -1407,12 +1395,227 @@ func _build_boss_core_tab(vbox: VBoxContainer) -> void:
 
 	_add_section_spacer(vbox)
 
-	# ── WEAPONS (per-hardpoint) ──
+	# ── SHIP STATS (health, hitbox, weapons) ──
 	if _working_boss.core_ship_id != "":
-		_build_weapon_overrides_section(vbox, _working_boss.core_ship_id, _working_boss.core_weapon_overrides, func(overrides: Array) -> void:
+		_build_boss_ship_stats(vbox, _working_boss.core_ship_id, _working_boss.core_weapon_overrides, func(overrides: Array) -> void:
 			if _working_boss:
 				_working_boss.core_weapon_overrides = overrides
 		)
+
+
+func _build_boss_ship_stats(vbox: VBoxContainer, ship_id: String, weapon_overrides: Array, on_weapon_change: Callable) -> void:
+	## Builds health sliders, hitbox controls, weapon overrides, and weapon preview for a boss part.
+	## Edits are applied directly to the ShipData file for the referenced ship_id.
+	var ship: ShipData = ShipDataManager.load_by_id(ship_id)
+	if not ship:
+		return
+
+	# ── HEALTH ──
+	var health_label := Label.new()
+	health_label.text = "HEALTH"
+	health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(health_label)
+
+	var hull_hp: float = float(ship.stats.get("hull_hp", 50))
+	var shield_hp: float = float(ship.stats.get("shield_hp", 0))
+
+	var hull_row := HBoxContainer.new()
+	hull_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(hull_row)
+	var hull_lbl := Label.new()
+	hull_lbl.text = "HULL"
+	hull_lbl.custom_minimum_size.x = 40
+	hull_row.add_child(hull_lbl)
+	var hull_slider := HSlider.new()
+	hull_slider.min_value = 10
+	hull_slider.max_value = 1000
+	hull_slider.step = 5
+	hull_slider.value = hull_hp
+	hull_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hull_row.add_child(hull_slider)
+	var hull_val := Label.new()
+	hull_val.text = str(int(hull_hp))
+	hull_val.custom_minimum_size.x = 40
+	hull_row.add_child(hull_val)
+	var captured_ship_id: String = ship_id
+	hull_slider.value_changed.connect(func(val: float) -> void:
+		hull_val.text = str(int(val))
+		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
+		if s:
+			s.stats["hull_hp"] = val
+			ShipDataManager.save(captured_ship_id, s.to_dict())
+	)
+
+	var shd_row := HBoxContainer.new()
+	shd_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(shd_row)
+	var shd_lbl := Label.new()
+	shd_lbl.text = "SHD"
+	shd_lbl.custom_minimum_size.x = 40
+	shd_row.add_child(shd_lbl)
+	var shd_slider := HSlider.new()
+	shd_slider.min_value = 0
+	shd_slider.max_value = 500
+	shd_slider.step = 5
+	shd_slider.value = shield_hp
+	shd_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shd_row.add_child(shd_slider)
+	var shd_val := Label.new()
+	shd_val.text = str(int(shield_hp))
+	shd_val.custom_minimum_size.x = 40
+	shd_row.add_child(shd_val)
+	shd_slider.value_changed.connect(func(val: float) -> void:
+		shd_val.text = str(int(val))
+		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
+		if s:
+			s.stats["shield_hp"] = val
+			ShipDataManager.save(captured_ship_id, s.to_dict())
+	)
+
+	_add_section_spacer(vbox)
+
+	# ── HITBOX ──
+	var hitbox_label := Label.new()
+	hitbox_label.text = "HITBOX"
+	hitbox_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(hitbox_label)
+
+	var shape_hbox := HBoxContainer.new()
+	shape_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(shape_hbox)
+	var shape_lbl := Label.new()
+	shape_lbl.text = "SHAPE"
+	shape_lbl.custom_minimum_size.x = 40
+	shape_hbox.add_child(shape_lbl)
+	var shape_dd := OptionButton.new()
+	shape_dd.clip_text = true
+	shape_dd.add_item("Circle", 0)
+	shape_dd.add_item("Rectangle", 1)
+	shape_dd.add_item("Capsule", 2)
+	match ship.collision_shape:
+		"rectangle": shape_dd.selected = 1
+		"capsule": shape_dd.selected = 2
+		_: shape_dd.selected = 0
+	shape_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shape_dd.item_selected.connect(func(idx: int) -> void:
+		var shapes: Array[String] = ["circle", "rectangle", "capsule"]
+		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
+		if s:
+			s.collision_shape = shapes[idx]
+			ShipDataManager.save(captured_ship_id, s.to_dict())
+	)
+	shape_hbox.add_child(shape_dd)
+
+	# Width
+	var w_row := HBoxContainer.new()
+	w_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(w_row)
+	var w_lbl := Label.new()
+	w_lbl.text = "W"
+	w_lbl.custom_minimum_size.x = 40
+	w_row.add_child(w_lbl)
+	var w_slider := HSlider.new()
+	w_slider.min_value = 6
+	w_slider.max_value = 400
+	w_slider.step = 2
+	w_slider.value = ship.collision_width
+	w_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	w_row.add_child(w_slider)
+	var w_val := Label.new()
+	w_val.text = str(int(ship.collision_width))
+	w_val.custom_minimum_size.x = 40
+	w_row.add_child(w_val)
+	w_slider.value_changed.connect(func(val: float) -> void:
+		w_val.text = str(int(val))
+		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
+		if s:
+			s.collision_width = val
+			ShipDataManager.save(captured_ship_id, s.to_dict())
+	)
+
+	# Height
+	var h_row := HBoxContainer.new()
+	h_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(h_row)
+	var h_lbl := Label.new()
+	h_lbl.text = "H"
+	h_lbl.custom_minimum_size.x = 40
+	h_row.add_child(h_lbl)
+	var h_slider := HSlider.new()
+	h_slider.min_value = 6
+	h_slider.max_value = 400
+	h_slider.step = 2
+	h_slider.value = ship.collision_height
+	h_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h_row.add_child(h_slider)
+	var h_val := Label.new()
+	h_val.text = str(int(ship.collision_height))
+	h_val.custom_minimum_size.x = 40
+	h_row.add_child(h_val)
+	h_slider.value_changed.connect(func(val: float) -> void:
+		h_val.text = str(int(val))
+		var s: ShipData = ShipDataManager.load_by_id(captured_ship_id)
+		if s:
+			s.collision_height = val
+			ShipDataManager.save(captured_ship_id, s.to_dict())
+	)
+
+	_add_section_spacer(vbox)
+
+	# ── WEAPONS ──
+	_build_weapon_overrides_section(vbox, ship_id, weapon_overrides, on_weapon_change)
+
+	# ── WEAPON PREVIEW ──
+	var preview_btn := Button.new()
+	preview_btn.text = "PREVIEW WEAPON"
+	preview_btn.custom_minimum_size = Vector2(0, 34)
+	preview_btn.pressed.connect(func() -> void:
+		if _weapon_preview_active:
+			_stop_weapon_preview()
+			preview_btn.text = "PREVIEW WEAPON"
+		else:
+			_start_boss_weapon_preview(ship_id, weapon_overrides)
+			preview_btn.text = "STOP"
+	)
+	preview_btn.disabled = (ship.weapon_id == "" and weapon_overrides.size() == 0)
+	ThemeManager.apply_button_style(preview_btn)
+	vbox.add_child(preview_btn)
+
+
+func _start_boss_weapon_preview(ship_id: String, weapon_overrides: Array) -> void:
+	## Start weapon preview for a boss part — uses first available weapon.
+	var ship: ShipData = ShipDataManager.load_by_id(ship_id)
+	if not ship:
+		return
+	# Find the weapon to preview: first override, or ship default
+	var weapon_id: String = ship.weapon_id
+	if weapon_overrides.size() > 0:
+		var first_ovr: Dictionary = weapon_overrides[0] as Dictionary
+		weapon_id = str(first_ovr.get("weapon_id", weapon_id))
+	if weapon_id == "":
+		return
+	var weapon: WeaponData = WeaponDataManager.load_by_id(weapon_id)
+	if not weapon:
+		return
+
+	_weapon_preview_active = true
+
+	# Create fire point at center of viewport
+	_weapon_preview_fire_point = Node2D.new()
+	var vp_size: Vector2 = get_viewport_rect().size
+	_weapon_preview_fire_point.position = Vector2(
+		LEFT_PANEL_W + (vp_size.x - LEFT_PANEL_W - RIGHT_PANEL_W) * 0.5,
+		(vp_size.y - HUD_HEIGHT) * 0.5
+	)
+	_ship_viewport.add_child(_weapon_preview_fire_point)
+
+	_weapon_preview_controller = HardpointController.new()
+	_weapon_preview_controller.is_enemy = true
+	_weapon_preview_fire_point.add_child(_weapon_preview_controller)
+	_weapon_preview_controller.setup(weapon, 180.0 + weapon.direction_deg, _weapon_preview_container)
+
+	LoopMixer.start_all()
+	_weapon_preview_controller.activate()
 
 
 func _build_weapon_overrides_section(vbox: VBoxContainer, ship_id: String, overrides: Array, on_change: Callable) -> void:
@@ -1692,11 +1895,11 @@ func _build_segment_detail(vbox: VBoxContainer, seg_idx: int) -> void:
 
 	_add_section_spacer(vbox)
 
-	# Per-hardpoint weapons for this segment
+	# Ship stats (health, hitbox, weapons, preview)
 	var seg_ship_id: String = str(seg.get("ship_id", ""))
 	if seg_ship_id != "":
 		var seg_overrides: Array = seg.get("weapon_overrides", []) as Array
-		_build_weapon_overrides_section(vbox, seg_ship_id, seg_overrides, func(new_overrides: Array) -> void:
+		_build_boss_ship_stats(vbox, seg_ship_id, seg_overrides, func(new_overrides: Array) -> void:
 			if _working_boss and seg_idx < _working_boss.segments.size():
 				var s: Dictionary = _working_boss.segments[seg_idx] as Dictionary
 				s["weapon_overrides"] = new_overrides

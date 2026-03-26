@@ -7,8 +7,8 @@
 	"grid_size": [200, 180],
 	"weapon_id": "",
 	"hardpoint_offsets": [
-		[110.0, 60.0],
-		[50.0, -28.0]
+		[165.0, 110.0],
+		[20.0, -10.0]
 	],
 	"level": "boss",
 	"collision_shape": "capsule",

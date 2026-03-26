@@ -73,6 +73,8 @@ var _enc_hint: Label                  # "Click map to place" hint
 var _enc_path_dropdown: OptionButton
 var _enc_fm_dropdown: OptionButton
 var _enc_ship_dropdown: OptionButton
+var _enc_boss_dropdown: OptionButton
+var _enc_boss_label: Label
 var _enc_speed_spin: SpinBox
 var _enc_count_spin: SpinBox
 var _enc_spacing_spin: SpinBox
@@ -139,6 +141,8 @@ var _path_id_to_curve: Dictionary = {}  # path_id -> Curve2D
 # Level filter for ship dropdown
 var _enc_level_filter: OptionButton
 var _cached_ships_by_level: Dictionary = {}  # level_id -> Array of {id, name}
+var _cached_boss_ids: Array[String] = []
+var _cached_boss_names: Array[String] = []
 
 # Clipboard for copy/paste
 var _clipboard: Dictionary = {}  # Copied encounter or nebula dict
@@ -237,6 +241,15 @@ func _cache_dropdown_data() -> void:
 		if not _cached_ships_by_level.has(level_id):
 			_cached_ships_by_level[level_id] = []
 		_cached_ships_by_level[level_id].append({"id": s.id, "name": sname})
+
+	# Cache boss list
+	_cached_boss_ids.clear()
+	_cached_boss_names.clear()
+	var bosses: Array[BossData] = BossDataManager.load_all()
+	for b in bosses:
+		_cached_boss_ids.append(b.id)
+		var bname: String = b.display_name if b.display_name != "" else b.id
+		_cached_boss_names.append(bname)
 
 	_cached_nebula_ids.clear()
 	_cached_nebula_names.clear()
@@ -1083,6 +1096,7 @@ func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
 					"path_id": str(_enc_path_dropdown.get_item_metadata(_enc_path_dropdown.selected)) if _enc_path_dropdown.selected >= 0 else "",
 					"formation_id": str(_enc_fm_dropdown.get_item_metadata(_enc_fm_dropdown.selected)) if _enc_fm_dropdown.selected >= 0 else "",
 					"ship_id": str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected)) if _enc_ship_dropdown.selected >= 0 else "enemy_1",
+					"boss_id": str(_enc_boss_dropdown.get_item_metadata(_enc_boss_dropdown.selected)) if _enc_boss_dropdown.selected >= 0 else "",
 					"speed": _enc_speed_spin.value,
 					"count": int(_enc_count_spin.value),
 					"spacing": _enc_spacing_spin.value,
@@ -1500,6 +1514,26 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	)
 	_enc_content.add_child(_enc_ship_dropdown)
 
+	# Boss dropdown
+	_enc_boss_label = Label.new()
+	_enc_boss_label.text = "BOSS (overrides ship)"
+	ThemeManager.apply_text_glow(_enc_boss_label, "body")
+	_enc_content.add_child(_enc_boss_label)
+
+	_enc_boss_dropdown = OptionButton.new()
+	_enc_boss_dropdown.add_item("(none)", 0)
+	_enc_boss_dropdown.set_item_metadata(0, "")
+	for i in range(_cached_boss_ids.size()):
+		_enc_boss_dropdown.add_item(_cached_boss_names[i], i + 1)
+		_enc_boss_dropdown.set_item_metadata(i + 1, _cached_boss_ids[i])
+	_enc_boss_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["boss_id"] = str(_enc_boss_dropdown.get_item_metadata(idx))
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	_enc_content.add_child(_enc_boss_dropdown)
+
 	# Speed
 	var sep2 := HSeparator.new()
 	_enc_content.add_child(sep2)
@@ -1883,6 +1917,16 @@ func _update_right_panel() -> void:
 				break
 		if _enc_ship_dropdown.item_count > 0:
 			_enc_ship_dropdown.select(ship_select)
+
+		# Update boss dropdown
+		var current_boss_id: String = str(enc.get("boss_id", ""))
+		var boss_select: int = 0
+		for i in range(_enc_boss_dropdown.item_count):
+			if str(_enc_boss_dropdown.get_item_metadata(i)) == current_boss_id:
+				boss_select = i
+				break
+		if _enc_boss_dropdown.item_count > 0:
+			_enc_boss_dropdown.select(boss_select)
 
 		# Update spinbox values
 		_enc_speed_spin.value = float(enc.get("speed", 200.0))

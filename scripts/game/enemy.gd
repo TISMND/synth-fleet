@@ -30,6 +30,19 @@ var _melee_target: Node2D = null
 # Whether this enemy's weapons are active (set by encounter data)
 var weapons_active: bool = true
 
+# Boss strafe mode — hovers near top, oscillates left/right
+var is_boss_strafe: bool = false
+var boss_strafe_y: float = 200.0      # Y position to hover at
+var boss_strafe_speed: float = 80.0   # horizontal oscillation speed (pixels/sec amplitude)
+var boss_strafe_width: float = 300.0  # how far left/right from center
+var _boss_strafe_time: float = 0.0
+
+# Boss segment linking
+var boss_core: Enemy = null           # if set, this segment follows the core
+var boss_segment_offset: Vector2 = Vector2.ZERO  # offset from core position
+var boss_segments: Array = []         # core tracks its segments (Array[Enemy])
+var is_boss_immune: bool = false      # if true, takes no damage (plays immune VFX/SFX instead)
+
 var _renderer: ShipRenderer = null
 var _baked_sprite: Sprite2D = null
 var _flash_material: ShaderMaterial = null
@@ -172,6 +185,24 @@ func _process(delta: float) -> void:
 	set_meta("_prev_pos", global_position)
 	set_meta("_prev_dt", delta)
 
+	# Boss segment — follow core position + offset
+	if boss_core and is_instance_valid(boss_core):
+		position = boss_core.position + boss_segment_offset
+		rotation = boss_core.rotation
+		return
+	elif boss_core and not is_instance_valid(boss_core):
+		# Core was destroyed — segment dies too
+		queue_free()
+		return
+
+	# Boss strafe — hover at top, oscillate left/right
+	if is_boss_strafe:
+		_boss_strafe_time += delta
+		var center_x: float = 960.0
+		position.x = center_x + sin(_boss_strafe_time * boss_strafe_speed / boss_strafe_width) * boss_strafe_width
+		position.y = move_toward(position.y, boss_strafe_y, 60.0 * delta)
+		return
+
 	if is_melee:
 		# Melee chase mode — turn-rate-limited steering toward player
 		if is_instance_valid(_melee_target):
@@ -225,6 +256,11 @@ func _spawn_explosion() -> void:
 
 
 func take_damage(amount: int, skips_shields: bool = false) -> void:
+	# Immune boss core — deflect damage, play immune feedback
+	if is_boss_immune:
+		_play_immune_hit()
+		return
+
 	var remaining: int = amount
 	if shield > 0 and not skips_shields:
 		var absorbed: int = mini(remaining, shield)
@@ -241,12 +277,61 @@ func take_damage(amount: int, skips_shields: bool = false) -> void:
 		elif _renderer:
 			_renderer.trigger_hull_flash()
 	if health <= 0:
-		if _weapon_controller:
-			_weapon_controller.cleanup()
-			_weapon_controller = null
-		SfxPlayer.play_random_explosion()
-		GameState.add_credits(10)
-		_spawn_explosion()
-		queue_free()
+		_die()
+
+
+func _die() -> void:
+	if _weapon_controller:
+		_weapon_controller.cleanup()
+		_weapon_controller = null
+	SfxPlayer.play_random_explosion()
+	GameState.add_credits(10)
+	_spawn_explosion()
+	# If this is a boss core, kill all remaining segments
+	for seg in boss_segments:
+		if is_instance_valid(seg):
+			var segment: Enemy = seg as Enemy
+			segment.boss_core = null  # Prevent recursive death
+			segment._die()
+	boss_segments.clear()
+	# If this is a segment, unregister from core
+	if boss_core and is_instance_valid(boss_core):
+		boss_core.boss_segments.erase(self)
+		boss_core._update_immunity()
+	queue_free()
+
+
+func _update_immunity() -> void:
+	## Recalculate immunity: immune if any segment is still alive.
+	if not is_boss_immune:
+		return  # Was never immune, skip
+	var any_alive := false
+	for seg in boss_segments:
+		if is_instance_valid(seg):
+			any_alive = true
+			break
+	is_boss_immune = any_alive
+
+
+func _play_immune_hit() -> void:
+	SfxPlayer.play("immune_hit")
+	# Show immune bubble effect
+	var vfx: VfxConfig = VfxConfigManager.load_config()
+	var bubble := ShieldBubbleEffect.new()
+	var hit_radius: float = 30.0
+	if ship_data_ref:
+		hit_radius = maxf(ship_data_ref.collision_width, ship_data_ref.collision_height) * 0.5
+	bubble.ship_radius = hit_radius
+	bubble.shield_color = Color(vfx.immune_color_r, vfx.immune_color_g, vfx.immune_color_b)
+	bubble.flash_duration = vfx.immune_duration
+	bubble.radius_mult = vfx.immune_radius_mult
+	bubble.intensity = vfx.immune_intensity
+	add_child(bubble)
+	bubble.trigger()
+	# Auto-cleanup after flash
+	get_tree().create_timer(vfx.immune_duration + 0.1).timeout.connect(func() -> void:
+		if is_instance_valid(bubble):
+			bubble.queue_free()
+	)
 
 

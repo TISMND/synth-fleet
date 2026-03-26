@@ -32,6 +32,7 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"path_id": str(enc.get("path_id", "")),
 			"formation_id": str(enc.get("formation_id", "")),
 			"ship_id": str(enc.get("ship_id", "enemy_1")),
+			"boss_id": str(enc.get("boss_id", "")),
 			"speed": float(enc.get("speed", 200.0)),
 			"count": int(enc.get("count", 1)),
 			"spacing": float(enc.get("spacing", 200.0)),
