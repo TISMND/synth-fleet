@@ -15,6 +15,7 @@
 	"enrage_threshold": 0.4,
 	"id": "boss_archon",
 	"level": "boss",
+	"required_segment_destroys": [],
 	"segments": [
 		{
 			"can_detach": false,
@@ -30,6 +31,10 @@
 			"weapon_overrides": [
 				{
 					"hardpoint_index": 0,
+					"weapon_id": "enemy_red_ring_streak"
+				},
+				{
+					"hardpoint_index": 1,
 					"weapon_id": "enemy_red_ring_streak"
 				}
 			]
@@ -48,6 +53,10 @@
 			"weapon_overrides": [
 				{
 					"hardpoint_index": 0,
+					"weapon_id": "enemy_red_ring_streak"
+				},
+				{
+					"hardpoint_index": 1,
 					"weapon_id": "enemy_red_ring_streak"
 				}
 			]

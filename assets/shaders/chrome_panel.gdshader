@@ -16,6 +16,9 @@ uniform vec4 divider_color : source_color = vec4(0.35, 0.38, 0.45, 0.8);
 uniform float chrome_top_brightness : hint_range(0.0, 1.0) = 0.7;
 uniform float chrome_base_brightness : hint_range(0.0, 1.0) = 0.4;
 
+// Heat effect: 0.0 = cold, 1.0 = white hot
+uniform float heat_intensity : hint_range(0.0, 1.0) = 0.0;
+
 void fragment() {
 	// Capture modulate alpha per CLAUDE.md shader gotcha
 	float mod_a = COLOR.a;
@@ -42,6 +45,35 @@ void fragment() {
 	float half_thick = divider_thickness * 0.5;
 	float line_alpha = smoothstep(half_thick, half_thick * 0.3, dist);
 	col = mix(col, divider_color.rgb, line_alpha * divider_color.a);
+
+	// Heat effect: dark metal → dull red → bright orange → white hot
+	// Uses HDR values (>1.0) so bloom picks it up at higher intensities
+	if (heat_intensity > 0.0) {
+		float h = heat_intensity;
+		// Heat color ramp: black-body radiation approximation
+		// 0.0-0.3: dark cherry red glow
+		// 0.3-0.6: bright red-orange
+		// 0.6-0.8: orange-yellow
+		// 0.8-1.0: white hot with HDR bloom
+		vec3 heat_color;
+		if (h < 0.3) {
+			float t = h / 0.3;
+			heat_color = vec3(0.6 * t, 0.02 * t, 0.0);
+		} else if (h < 0.6) {
+			float t = (h - 0.3) / 0.3;
+			heat_color = vec3(0.6 + 0.4 * t, 0.02 + 0.28 * t, 0.0);
+		} else if (h < 0.8) {
+			float t = (h - 0.6) / 0.2;
+			heat_color = vec3(1.0 + 0.5 * t, 0.3 + 0.5 * t, 0.05 * t);
+		} else {
+			float t = (h - 0.8) / 0.2;
+			heat_color = vec3(1.5 + 1.0 * t, 0.8 + 1.2 * t, 0.05 + 1.45 * t);
+		}
+		// Variation: edges and highlight areas heat faster (thinner metal)
+		float edge_heat = (1.0 - left_edge) * 0.3 + (1.0 - right_edge) * 0.3;
+		float heat_variation = 1.0 + edge_heat + highlight * 0.2;
+		col = mix(col, heat_color * heat_variation, smoothstep(0.0, 0.15, h));
+	}
 
 	COLOR = vec4(col, base_color.a * mod_a);
 }

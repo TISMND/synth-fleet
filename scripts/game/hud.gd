@@ -42,6 +42,22 @@ var _bar_flicker_timers: Dictionary = {}  # bar_name -> Array[float] (per-segmen
 # Intro bar fill
 var _intro_bar_active: bool = false
 
+# Fire / overheat effect
+var _fire_active: bool = false
+var _fire_intensity: float = 0.0  # 0.0 = cold, 1.0 = white hot
+var _fire_target_intensity: float = 0.0
+var _chrome_materials: Array = []  # ShaderMaterial refs for all 3 panels
+var _smoke_container: Node2D = null
+var _spark_container: Node2D = null
+var _smoke_particles: Array = []  # Active smoke puff nodes
+var _spark_particles: Array = []  # Active spark nodes
+var _smoke_spawn_accum: float = 0.0
+var _spark_spawn_accum: float = 0.0
+var _fire_time: float = 0.0
+const FIRE_RAMP_SPEED: float = 0.4  # How fast intensity ramps up/down per second
+const SMOKE_SPAWN_RATE: float = 8.0  # Puffs per second at full intensity
+const SPARK_SPAWN_RATE: float = 12.0  # Sparks per second at full intensity
+
 
 func _ready() -> void:
 	_build_ui()
@@ -639,6 +655,254 @@ func stop_intro_bars() -> void:
 				glow.anchor_top = 1.0 - ratio
 			else:
 				glow.anchor_right = ratio
+
+
+# ── Fire / overheat effect — heated metal + smoke + sparks ────────────
+
+func register_chrome_materials() -> void:
+	## Collect ShaderMaterial refs from all 3 chrome panels for heat tinting.
+	## Call after _build_ui() from game.gd once HUD is set up.
+	_chrome_materials.clear()
+	for key in ["left_panel", "right_panel", "bottom_panel"]:
+		var panel_data: Dictionary = _hud_result.get(key, {})
+		var root_node: Control = panel_data.get("root", null) as Control
+		if root_node and root_node.material is ShaderMaterial:
+			_chrome_materials.append(root_node.material)
+	# Create containers for particle effects (above HUD panels, below VHS overlay)
+	if not _smoke_container:
+		_smoke_container = Node2D.new()
+		_smoke_container.z_index = 55
+		add_child(_smoke_container)
+	if not _spark_container:
+		_spark_container = Node2D.new()
+		_spark_container.z_index = 56
+		add_child(_spark_container)
+
+
+func set_fire_intensity(target: float) -> void:
+	## Set target heat intensity (0.0 = cold, 1.0 = white hot).
+	## Actual intensity ramps toward target smoothly.
+	_fire_target_intensity = clampf(target, 0.0, 1.0)
+	if target > 0.0 and not _fire_active:
+		_fire_active = true
+	elif target <= 0.0:
+		# Will deactivate once intensity reaches 0
+		pass
+
+
+func process_fire_effect(delta: float) -> void:
+	## Advance fire visuals each frame. Call from game._process().
+	if not _fire_active and _fire_intensity <= 0.0:
+		return
+
+	_fire_time += delta
+
+	# Ramp intensity toward target
+	if _fire_intensity < _fire_target_intensity:
+		_fire_intensity = minf(_fire_intensity + FIRE_RAMP_SPEED * delta, _fire_target_intensity)
+	elif _fire_intensity > _fire_target_intensity:
+		_fire_intensity = maxf(_fire_intensity - FIRE_RAMP_SPEED * 1.5 * delta, _fire_target_intensity)
+
+	# Deactivate when fully cooled
+	if _fire_target_intensity <= 0.0 and _fire_intensity <= 0.001:
+		_fire_intensity = 0.0
+		_fire_active = false
+		_clear_fire_particles()
+
+	# Update chrome panel shaders with heat intensity
+	# Add subtle flicker at high heat
+	var flicker: float = 0.0
+	if _fire_intensity > 0.5:
+		var flicker_amount: float = (_fire_intensity - 0.5) * 0.08
+		flicker = sin(_fire_time * 13.7) * cos(_fire_time * 7.3) * flicker_amount
+	var shader_heat: float = clampf(_fire_intensity + flicker, 0.0, 1.0)
+	for mat in _chrome_materials:
+		if is_instance_valid(mat):
+			(mat as ShaderMaterial).set_shader_parameter("heat_intensity", shader_heat)
+
+	# Spawn smoke puffs — rise from panel edges
+	if _fire_intensity > 0.1:
+		var rate: float = SMOKE_SPAWN_RATE * _fire_intensity * _fire_intensity
+		_smoke_spawn_accum += rate * delta
+		while _smoke_spawn_accum >= 1.0:
+			_smoke_spawn_accum -= 1.0
+			_spawn_smoke_puff()
+
+	# Spawn sparks at higher intensity
+	if _fire_intensity > 0.4:
+		var spark_factor: float = (_fire_intensity - 0.4) / 0.6
+		var rate: float = SPARK_SPAWN_RATE * spark_factor * spark_factor
+		_spark_spawn_accum += rate * delta
+		while _spark_spawn_accum >= 1.0:
+			_spark_spawn_accum -= 1.0
+			_spawn_spark()
+
+	# Update existing particles
+	_update_smoke_particles(delta)
+	_update_spark_particles(delta)
+
+
+func _spawn_smoke_puff() -> void:
+	## Create a smoke puff that rises from a random panel edge.
+	var puff := _SmokePuff.new()
+	# Pick a random spawn location along panel edges
+	var spawn_x: float
+	var spawn_y: float
+	var roll: float = randf()
+	if roll < 0.3:
+		# Left panel
+		spawn_x = randf_range(0.0, float(HudBuilder.SIDE_PANEL_WIDTH))
+		spawn_y = randf_range(60.0, 1080.0 - float(HudBuilder.BOTTOM_BAR_HEIGHT))
+	elif roll < 0.6:
+		# Right panel
+		spawn_x = randf_range(1920.0 - float(HudBuilder.SIDE_PANEL_WIDTH), 1920.0)
+		spawn_y = randf_range(60.0, 1080.0 - float(HudBuilder.BOTTOM_BAR_HEIGHT))
+	else:
+		# Bottom panel
+		spawn_x = randf_range(200.0, 1720.0)
+		spawn_y = 1080.0 - float(HudBuilder.BOTTOM_BAR_HEIGHT) + randf_range(0.0, 20.0)
+	puff.position = Vector2(spawn_x, spawn_y)
+	puff.velocity = Vector2(randf_range(-15.0, 15.0), randf_range(-60.0, -30.0))
+	puff.lifetime = randf_range(1.2, 2.5)
+	puff.max_lifetime = puff.lifetime
+	puff.base_size = randf_range(8.0, 20.0) * (0.5 + _fire_intensity * 0.5)
+	puff.base_alpha = randf_range(0.15, 0.35) * minf(_fire_intensity * 2.0, 1.0)
+	_smoke_container.add_child(puff)
+	_smoke_particles.append(puff)
+
+
+func _spawn_spark() -> void:
+	## Create a spark that flies outward from a panel edge.
+	var spark := _Spark.new()
+	var roll: float = randf()
+	var spawn_x: float
+	var spawn_y: float
+	if roll < 0.35:
+		# Left panel edge
+		spawn_x = float(HudBuilder.SIDE_PANEL_WIDTH) + randf_range(-5.0, 5.0)
+		spawn_y = randf_range(100.0, 1080.0 - float(HudBuilder.BOTTOM_BAR_HEIGHT) - 50.0)
+	elif roll < 0.7:
+		# Right panel edge
+		spawn_x = 1920.0 - float(HudBuilder.SIDE_PANEL_WIDTH) + randf_range(-5.0, 5.0)
+		spawn_y = randf_range(100.0, 1080.0 - float(HudBuilder.BOTTOM_BAR_HEIGHT) - 50.0)
+	else:
+		# Bottom panel top edge
+		spawn_x = randf_range(100.0, 1820.0)
+		spawn_y = 1080.0 - float(HudBuilder.BOTTOM_BAR_HEIGHT) + randf_range(-5.0, 5.0)
+	spark.position = Vector2(spawn_x, spawn_y)
+	# Sparks fly outward/upward with some randomness
+	var angle: float = randf_range(-PI * 0.8, -PI * 0.2)  # Mostly upward
+	var speed: float = randf_range(80.0, 250.0)
+	spark.velocity = Vector2(cos(angle), sin(angle)) * speed
+	spark.lifetime = randf_range(0.3, 0.8)
+	spark.max_lifetime = spark.lifetime
+	spark.gravity = 200.0
+	spark.base_color = Color(1.0, randf_range(0.4, 0.9), randf_range(0.0, 0.2))
+	spark.hdr_mult = randf_range(2.0, 4.0)
+	_spark_container.add_child(spark)
+	_spark_particles.append(spark)
+
+
+func _update_smoke_particles(delta: float) -> void:
+	var i: int = _smoke_particles.size() - 1
+	while i >= 0:
+		var puff: _SmokePuff = _smoke_particles[i]
+		puff.lifetime -= delta
+		if puff.lifetime <= 0.0:
+			puff.queue_free()
+			_smoke_particles.remove_at(i)
+		else:
+			puff.position += puff.velocity * delta
+			# Smoke drifts and slows
+			puff.velocity.x += randf_range(-20.0, 20.0) * delta
+			puff.velocity.y -= 5.0 * delta  # Accelerate upward slightly
+			puff.queue_redraw()
+		i -= 1
+
+
+func _update_spark_particles(delta: float) -> void:
+	var i: int = _spark_particles.size() - 1
+	while i >= 0:
+		var spark: _Spark = _spark_particles[i]
+		spark.lifetime -= delta
+		if spark.lifetime <= 0.0:
+			spark.queue_free()
+			_spark_particles.remove_at(i)
+		else:
+			spark.velocity.y += spark.gravity * delta
+			spark.position += spark.velocity * delta
+			spark.queue_redraw()
+		i -= 1
+
+
+func _clear_fire_particles() -> void:
+	for puff in _smoke_particles:
+		if is_instance_valid(puff):
+			puff.queue_free()
+	_smoke_particles.clear()
+	for spark in _spark_particles:
+		if is_instance_valid(spark):
+			spark.queue_free()
+	_spark_particles.clear()
+	# Reset chrome shaders to cold
+	for mat in _chrome_materials:
+		if is_instance_valid(mat):
+			(mat as ShaderMaterial).set_shader_parameter("heat_intensity", 0.0)
+
+
+# ── Smoke puff particle (procedural draw) ────────────────────────────
+
+class _SmokePuff extends Node2D:
+	var velocity: Vector2 = Vector2.ZERO
+	var lifetime: float = 2.0
+	var max_lifetime: float = 2.0
+	var base_size: float = 12.0
+	var base_alpha: float = 0.25
+
+	func _draw() -> void:
+		var t: float = 1.0 - (lifetime / maxf(max_lifetime, 0.001))
+		# Smoke expands and fades
+		var current_size: float = base_size * (1.0 + t * 2.5)
+		var alpha: float = base_alpha * (1.0 - t * t)  # Quadratic fade out
+		# Wispy gray-white smoke
+		var gray: float = 0.4 + t * 0.3  # Lighter as it rises and dissipates
+		var col := Color(gray, gray * 0.95, gray * 0.9, alpha)
+		# Draw as layered circles for soft look
+		draw_circle(Vector2.ZERO, current_size, Color(col.r, col.g, col.b, alpha * 0.3))
+		draw_circle(Vector2.ZERO, current_size * 0.7, Color(col.r, col.g, col.b, alpha * 0.5))
+		draw_circle(Vector2.ZERO, current_size * 0.4, Color(col.r, col.g, col.b, alpha * 0.7))
+
+
+# ── Spark particle (procedural draw with HDR for bloom) ──────────────
+
+class _Spark extends Node2D:
+	var velocity: Vector2 = Vector2.ZERO
+	var lifetime: float = 0.5
+	var max_lifetime: float = 0.5
+	var gravity: float = 200.0
+	var base_color: Color = Color(1.0, 0.6, 0.1)
+	var hdr_mult: float = 3.0
+
+	func _draw() -> void:
+		var t: float = 1.0 - (lifetime / maxf(max_lifetime, 0.001))
+		var alpha: float = 1.0 - t * t
+		# HDR color for bloom pickup
+		var col := Color(
+			base_color.r * hdr_mult,
+			base_color.g * hdr_mult,
+			base_color.b * hdr_mult,
+			alpha
+		)
+		# Core point
+		draw_circle(Vector2.ZERO, 2.0, col)
+		# Glow halo
+		var glow_col := Color(col.r, col.g, col.b, alpha * 0.3)
+		draw_circle(Vector2.ZERO, 5.0, glow_col)
+		# Motion trail — short line behind the spark
+		var trail_len: float = minf(velocity.length() * 0.03, 12.0)
+		var trail_dir: Vector2 = -velocity.normalized() * trail_len
+		var trail_col := Color(col.r * 0.7, col.g * 0.7, col.b * 0.5, alpha * 0.5)
+		draw_line(Vector2.ZERO, trail_dir, trail_col, 1.5)
 
 
 func process_power_death_bars(delta: float) -> void:

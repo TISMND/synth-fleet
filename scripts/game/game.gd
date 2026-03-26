@@ -199,6 +199,7 @@ func _ready() -> void:
 
 	# Pass ship segment counts to HUD
 	_hud.set_bar_segments(ship.stats)
+	_hud.register_chrome_materials()
 
 	# Wire HUD to player for hardpoint + core display
 	_player._hud = _hud
@@ -229,9 +230,7 @@ func _start_intro() -> void:
 	_intro_timer = -1.5  # 1.5 second delay before first hit
 	_intro_phase = 0
 
-	# Start bars fully dark
-	if _hud:
-		_hud.start_intro_bars()
+	# Bars start in natural state — no charge-up animation
 
 	# Extract level number and name from display_name (e.g. "01 - Welcome Void")
 	var level_num: String = "LEVEL 1"
@@ -287,13 +286,8 @@ func _process_intro(delta: float) -> void:
 			LoopMixer.remove_loop("__intro_loop")
 		)
 
-	# Phase 1: showing level name + filling bars (measures 3-4)
+	# Phase 1: showing level name (measures 3-4), end intro when done
 	if _intro_phase == 1:
-		var phase1_elapsed: float = _intro_timer - hit2_time
-		var fill_dur: float = _intro_measure_dur * 2.0
-		var bar_t: float = clampf(phase1_elapsed / fill_dur, 0.0, 1.0)
-		if _hud:
-			_hud.process_intro_bar_fill(bar_t)
 		if _intro_timer >= end_time:
 			_end_intro()
 
@@ -306,9 +300,7 @@ func _end_intro() -> void:
 	_intro_active = false
 	_intro_phase = 2
 
-	# Stop intro bars, restore normal rendering
-	if _hud:
-		_hud.stop_intro_bars()
+	# Bars already in natural state — no intro bars to stop
 
 	# Remove title box
 	if _intro_title_box:
@@ -356,6 +348,7 @@ func _process(delta: float) -> void:
 		_hud.update_bar_pulses(delta)
 		_hud.process_power_death_bars(delta)
 		_hud.process_shield_arcs(delta)
+		_hud.process_fire_effect(delta)
 		_hud.update_credits(GameState.credits)
 		if not _player._drifting and not _player._blackout_active:
 			_update_warning_rotator(delta)
@@ -825,6 +818,18 @@ func _update_warning_rotator(delta: float) -> void:
 
 	_hud.update_warnings_rotator(warnings)
 
+	# Fire effect on HUD panels — drive heat intensity from thermal state
+	var fire_heat: float = 0.0
+	if thermal_ratio > 0.9:
+		if p.thermal >= p.thermal_max - 0.1:
+			# FIRE: ramp from 0.3 to 1.0 based on how long we've been at max
+			# Immediate entry at 0.3, ramps via the HUD's own smoothing
+			fire_heat = 0.7 + thermal_ratio * 0.3
+		else:
+			# HEAT: subtle warmth, 0.0 at 90% → 0.3 at 100%
+			fire_heat = (thermal_ratio - 0.9) / 0.1 * 0.3
+	_hud.set_fire_intensity(fire_heat)
+
 	# Alarm audio — start/stop looping sounds based on active warnings
 	var current_ids: Array[String] = []
 	for w in warnings:
@@ -936,6 +941,7 @@ func _on_power_loss_started() -> void:
 	_stop_all_alarms()
 	if _hud:
 		_hud.update_warnings_rotator([])
+		_hud.set_fire_intensity(0.0)
 
 
 func _on_power_loss_ended() -> void:
