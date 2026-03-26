@@ -79,6 +79,7 @@ const HULL_DAMAGED_DISPLAY_TIME: float = 2.0
 # Enemy disarm during power loss
 var _power_loss_disarm_active: bool = false
 var _power_loss_disarm_timer: float = 0.0
+var _enemy_pre_power_loss_state: Dictionary = {}  # enemy instance_id -> {weapons_enabled, is_melee, melee_speed}
 
 # Warning alarm audio — looping players keyed by warning ID
 var _alarm_players: Dictionary = {}  # warning_id -> AudioStreamPlayer
@@ -948,29 +949,52 @@ func _process_screen_shake(delta: float) -> void:
 func _on_power_loss_started() -> void:
 	_power_loss_disarm_active = true
 	_power_loss_disarm_timer = 0.0
+	_enemy_pre_power_loss_state.clear()
 	_disarm_all_enemies()
 
 
 func _on_power_loss_ended() -> void:
 	_power_loss_disarm_active = false
-	_rearm_all_enemies()
+	_restore_all_enemies()
+	_enemy_pre_power_loss_state.clear()
 
 
 func _disarm_all_enemies() -> void:
 	for node in get_tree().get_nodes_in_group("enemies"):
-		if node.has_method("_ready"):  # It's an Enemy
+		var eid: int = node.get_instance_id()
+		# Only snapshot state once per enemy (don't overwrite with already-disarmed state)
+		if not _enemy_pre_power_loss_state.has(eid):
+			var was_armed: bool = false
 			if node.get("_weapon_controller") != null:
-				node._weapon_controller.set_weapons_enabled(false)
-			if node.get("is_melee") == true:
-				node.is_melee = false
-				node.drift_speed = 30.0
+				was_armed = node._weapon_controller.weapons_enabled
+			_enemy_pre_power_loss_state[eid] = {
+				"weapons_enabled": was_armed,
+				"is_melee": node.get("is_melee") == true,
+				"melee_speed": float(node.get("melee_speed")) if node.get("melee_speed") != null else 200.0,
+			}
+		# Disarm
+		if node.get("_weapon_controller") != null:
+			node._weapon_controller.set_weapons_enabled(false)
+		if node.get("is_melee") == true:
+			node.is_melee = false
+			node.drift_speed = 30.0
 
 
-func _rearm_all_enemies() -> void:
+func _restore_all_enemies() -> void:
 	for node in get_tree().get_nodes_in_group("enemies"):
-		if node.has_method("_ready"):
+		var eid: int = node.get_instance_id()
+		if _enemy_pre_power_loss_state.has(eid):
+			var state: Dictionary = _enemy_pre_power_loss_state[eid]
+			# Restore weapons to their original state
 			if node.get("_weapon_controller") != null:
-				node._weapon_controller.set_weapons_enabled(true)
+				node._weapon_controller.set_weapons_enabled(bool(state["weapons_enabled"]))
+			# Restore melee behavior
+			if bool(state["is_melee"]):
+				node.is_melee = true
+				node.melee_speed = float(state["melee_speed"])
+		else:
+			# Enemy spawned during power loss with no snapshot — leave as-is
+			pass
 
 
 func _on_player_died_during_power_loss() -> void:
