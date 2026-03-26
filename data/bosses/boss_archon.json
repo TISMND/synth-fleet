@@ -35,7 +35,7 @@
 				},
 				{
 					"hardpoint_index": 1,
-					"weapon_id": "enemy_red_ring_streak"
+					"weapon_id": "enemy_speck_turret"
 				}
 			]
 		},
@@ -57,7 +57,7 @@
 				},
 				{
 					"hardpoint_index": 1,
-					"weapon_id": "enemy_red_ring_streak"
+					"weapon_id": "enemy_speck_turret"
 				}
 			]
 		},

@@ -47,6 +47,9 @@ var _electric_arc_container: Node2D = null  # Parent for arc lines
 var _electric_arc_timer: float = 0.0  # Countdown to next arc spawn
 var _electric_arc_max: int = 3  # Max simultaneous arcs
 var _is_dead: bool = false  # True once hull reaches 0 — stops all processing
+var _death_drifting: bool = false  # Drift/spin during death explosion sequence
+var _death_drift_rotation_speed: float = 0.0
+var _death_drift_spin_direction: float = 1.0
 var _is_invulnerable: bool = false  # Brief immunity during power loss drift
 var _electric_crisis_active: bool = false
 var _electric_overdraw: bool = false  # True when weapons tried to drain electric below 0
@@ -84,12 +87,8 @@ var _shutdown_audio_elapsed: float = 0.0
 var _shutdown_audio_done: bool = false
 var _recovery_cores_activated: bool = false
 var _recovery_pitch_start_time: float = -1.0  # When pitch ramp started
-const RECOVERY_PITCH_DURATION: float = 5.0  # Seconds for speed to recover
-const RECOVERY_PITCH_START: float = 0.7  # Starting pitch_scale (noticeably slow but recognizable)
-const RECOVERY_VOLUME_START: float = 0.0  # No volume curve — instant full volume
 var _recovery_sfx_screen_fired: bool = false
 var _recovery_sfx_systems_fired: bool = false
-const RECOVERY_DURATION: float = 3.5  # Seconds for bars to animate back up
 signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
 signal final_power_death()  # Emitted once when power fully dies — for external systems
 
@@ -101,7 +100,6 @@ const THERMAL_COOLING_RATE: float = 15.0  # hp/sec cooling when no heat sources 
 const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segments (40 points)
 const ELECTRIC_SHIELD_BLEED_MULT: float = 1.5  # Overdraw penalty: 1.5x cost from shields
 const BLACKOUT_MAX_SPIN: float = 0.2  # Max radians/sec — gentle drift
-const BLACKOUT_FADE_SPEED: float = 0.196  # Power drain per second (~5s from 1.0 to 0.02)
 
 
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
@@ -132,10 +130,9 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_electric_arc_container.z_index = 2
 	add_child(_electric_arc_container)
 
-	# Universal player hit effects from VFX config — field-based
+	# Universal player hit effects from VFX config
 	var vfx: VfxConfig = VfxConfigManager.load_config()
 	_setup_hit_field("ShieldField", vfx.player_shield_field_style_id, vfx.player_shield_radius)
-	_setup_hit_field("HullField", vfx.player_hull_field_style_id, vfx.player_hull_radius)
 
 	# Create hardpoint controllers from loadout assignments — all fire from center
 	var assignments: Dictionary = loadout.hardpoint_assignments
@@ -240,6 +237,25 @@ func _setup_hit_field(node_name: String, style_id: String, radius: float) -> voi
 	field.setup(style, radius)
 
 
+func _flash_hull_hit() -> void:
+	if not _ship_renderer:
+		return
+	var vfx: VfxConfig = VfxConfigManager.load_config()
+	var color_arr: Array = vfx.player_hull_flash_color
+	var flash_color := Color(float(color_arr[0]), float(color_arr[1]), float(color_arr[2]), 1.0)
+	var intensity: float = vfx.player_hull_flash_intensity
+	var duration: float = vfx.player_hull_flash_duration
+	var count: int = vfx.player_hull_flash_count
+	var step_time: float = duration / (count * 2.0)
+	var tween := create_tween()
+	for i in count:
+		var bright := flash_color * intensity
+		bright.a = 1.0
+		tween.tween_property(_ship_renderer, "modulate", bright, step_time * 0.1)
+		tween.tween_property(_ship_renderer, "modulate", Color.WHITE, step_time * 0.9)
+	tween.tween_property(_ship_renderer, "modulate", Color.WHITE, 0.0)
+
+
 func _apply_stored_volumes() -> void:
 	# Weapon slots (weapon_N)
 	for i in GameState.get_weapon_slot_count():
@@ -275,6 +291,8 @@ func _apply_stored_volumes() -> void:
 
 func _process(delta: float) -> void:
 	if _is_dead:
+		if _death_drifting:
+			_process_death_drift(delta)
 		return
 	# Apply device modifiers to speed/accel
 	_apply_device_modifiers()
@@ -605,9 +623,7 @@ func take_damage(amount: float, skips_shields: bool = false) -> void:
 			remaining *= (1.0 - _active_hull_dr / 100.0)
 		hull = maxf(hull - remaining, 0.0)
 		SfxPlayer.play("player_hull_hit")
-		var hull_field: FieldRenderer = get_node_or_null("HullField") as FieldRenderer
-		if hull_field:
-			hull_field.pulse()
+		_flash_hull_hit()
 		hull_hit.emit()
 		if _drifting or _blackout_active:
 			hull_hit_during_power_loss.emit()
@@ -670,7 +686,6 @@ func _update_hud_devices() -> void:
 # Phase 2: BLACKOUT — 3 seconds after drift starts. Screen darkens, HUD dims, thermal dumps.
 #           (Placeholder for future CRT distortion + LED bar death animations.)
 
-const DRIFT_TO_BLACKOUT_DELAY: float = 1.0  # Seconds of drift before blackout begins
 
 const SHUTDOWN_AUDIO_DURATION: float = 1.5  # Seconds to slow down and fade out loops
 
@@ -721,7 +736,7 @@ func _process_drift(delta: float) -> void:
 	rotation += _drift_rotation_speed * _drift_spin_direction * delta
 
 	# After delay, trigger blackout (darkness + HUD effects)
-	if _drift_timer >= DRIFT_TO_BLACKOUT_DELAY and not _blackout_active:
+	if _drift_timer >= PowerLossSequence.DRIFT_TO_BLACKOUT_DELAY and not _blackout_active:
 		_play_sfx_cue("power_failure")
 		_play_sfx_cue("powerdown_crt_flicker_start")
 		_start_blackout()
@@ -772,7 +787,7 @@ func _start_blackout() -> void:
 
 func _process_blackout(delta: float) -> void:
 	# Drive power level down — takes ~5 seconds to reach near-zero
-	_blackout_power = maxf(_blackout_power - BLACKOUT_FADE_SPEED * delta, 0.02)
+	_blackout_power = maxf(_blackout_power - PowerLossSequence.BLACKOUT_FADE_SPEED * delta, 0.02)
 
 	# Visual — CRT shader
 	if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
@@ -835,9 +850,9 @@ func _process_blackout(delta: float) -> void:
 		# Speed ramp runs during text phase if cores activated early
 		if _recovery_cores_activated and _recovery_pitch_start_time >= 0.0:
 			_recovery_pitch_start_time += delta
-			var pitch_t: float = clampf(_recovery_pitch_start_time / RECOVERY_PITCH_DURATION, 0.0, 1.0)
+			var pitch_t: float = clampf(_recovery_pitch_start_time / PowerLossSequence.RECOVERY_PITCH_DURATION, 0.0, 1.0)
 			var pitch_eased: float = pitch_t * pitch_t
-			LoopMixer.set_all_pitch_scale(lerpf(RECOVERY_PITCH_START, 1.0, pitch_eased))
+			LoopMixer.set_all_pitch_scale(lerpf(PowerLossSequence.RECOVERY_PITCH_START, 1.0, pitch_eased))
 	_process_recovery(delta)
 
 
@@ -863,25 +878,7 @@ func _shutdown_all_components() -> void:
 
 func _start_reboot_sequence() -> void:
 	# Lines prefixed with ">" are in the fast/scrolling reboot phase
-	_reboot_text_queue = [
-		"SYSTEM POWER FAILURE",
-		"",
-		"SUBSYSTEM DIAGNOSTIC",
-		"Main reactor .......... OFFLINE",
-		"Backup capacitor ...... 40%",
-		"Shield generator ...... OFFLINE",
-		"Weapon bus ............ NO SIGNAL",
-		"",
-		">CORE RESTART SEQUENCE",
-		">Bypassing main reactor safety...",
-		">Rerouting emergency power...",
-		">Shield generator: STANDBY",
-		">Weapon bus: LOCKED",
-		">Thermal vents: PURGING",
-		">Regenerating power core...",
-		"",
-		"SUCCESS",
-	]
+	_reboot_text_queue = PowerLossSequence.REBOOT_TEXT_LINES.duplicate()
 	_reboot_text_index = -1  # -1 = cursor blink phase
 	_reboot_char_index = 0
 	_reboot_char_timer = 0.0
@@ -943,15 +940,6 @@ func _start_reboot_sequence() -> void:
 	add_child(_reboot_typing_player)
 
 
-const REBOOT_BLINK_DURATION: float = 0.5  # Seconds of cursor blinking before text starts
-const REBOOT_BLINK_RATE: float = 0.5  # Cursor blink toggle interval
-const REBOOT_CHAR_SLOW: float = 0.006  # Seconds per char — diagnosis phase
-const REBOOT_CHAR_FAST: float = 0.003  # Seconds per char — reboot phase
-const REBOOT_LINE_PAUSE_SLOW: float = 0.3  # Pause between lines — diagnosis
-const REBOOT_LINE_PAUSE_FAST: float = 0.1  # Pause between lines — reboot (faster turnover)
-const REBOOT_HEADER_PAUSE: float = 0.6  # Longer pause after ALL-CAPS lines
-const REBOOT_PARAGRAPH_PAUSE: float = 0.5  # Pause for empty lines
-const REBOOT_MAX_VISIBLE_LINES: int = 14  # Max lines before scrolling
 
 func _process_reboot_text(delta: float) -> void:
 	if not _reboot_label:
@@ -960,10 +948,10 @@ func _process_reboot_text(delta: float) -> void:
 	# Phase -1: blinking cursor only
 	if _reboot_text_index < 0:
 		_reboot_blink_timer += delta
-		var blink_on: bool = fmod(_reboot_blink_timer, REBOOT_BLINK_RATE * 2.0) < REBOOT_BLINK_RATE
+		var blink_on: bool = fmod(_reboot_blink_timer, PowerLossSequence.REBOOT_BLINK_RATE * 2.0) < PowerLossSequence.REBOOT_BLINK_RATE
 		# Blink cursor at the same position text will start (bottom of label area)
 		_update_reboot_display("", blink_on)
-		if _reboot_blink_timer >= REBOOT_BLINK_DURATION:
+		if _reboot_blink_timer >= PowerLossSequence.REBOOT_BLINK_DURATION:
 			_reboot_text_index = 0
 			_reboot_char_index = 0
 			_reboot_char_timer = 0.0
@@ -991,7 +979,7 @@ func _process_reboot_text(delta: float) -> void:
 	if current_line == "":
 		if _reboot_typing_player and _reboot_typing_player.playing:
 			_reboot_typing_player.stop()
-		if _reboot_char_timer >= REBOOT_PARAGRAPH_PAUSE:
+		if _reboot_char_timer >= PowerLossSequence.REBOOT_PARAGRAPH_PAUSE:
 			_reboot_char_timer = 0.0
 			_reboot_completed_lines.append("")
 			_reboot_text_index += 1
@@ -999,7 +987,7 @@ func _process_reboot_text(delta: float) -> void:
 			# Display updates on next frame with the new line
 		return
 
-	var char_speed: float = REBOOT_CHAR_FAST if _reboot_scrolling else REBOOT_CHAR_SLOW
+	var char_speed: float = PowerLossSequence.REBOOT_CHAR_FAST if _reboot_scrolling else PowerLossSequence.REBOOT_CHAR_SLOW
 
 	# Specific line triggers — fire once when line starts typing
 	if _reboot_char_index == 0 and _reboot_char_timer < char_speed:
@@ -1008,7 +996,7 @@ func _process_reboot_text(delta: float) -> void:
 			if not _recovery_cores_activated:
 				_recovery_cores_activated = true
 				_recovery_pitch_start_time = 0.0
-				LoopMixer.set_all_pitch_scale(RECOVERY_PITCH_START)
+				LoopMixer.set_all_pitch_scale(PowerLossSequence.RECOVERY_PITCH_START)
 				LoopMixer.set_all_volume_offset(0.0)  # Instant full volume — no fade
 				for c in _core_controllers:
 					if c.has_method("activate"):
@@ -1041,8 +1029,8 @@ func _process_reboot_text(delta: float) -> void:
 		# Keep cursor visible during pause, then advance
 		# both completion AND new line start on same frame = no bump
 		var is_header: bool = current_line == current_line.to_upper() and current_line.length() > 2
-		var line_pause: float = REBOOT_LINE_PAUSE_FAST if _reboot_scrolling else REBOOT_LINE_PAUSE_SLOW
-		var pause: float = REBOOT_HEADER_PAUSE if is_header else line_pause
+		var line_pause: float = PowerLossSequence.REBOOT_LINE_PAUSE_FAST if _reboot_scrolling else PowerLossSequence.REBOOT_LINE_PAUSE_SLOW
+		var pause: float = PowerLossSequence.REBOOT_HEADER_PAUSE if is_header else line_pause
 		if _reboot_char_timer >= pause:
 			_reboot_char_timer = 0.0
 			_play_sfx_cue("reboot_line_beep")
@@ -1136,13 +1124,13 @@ func _process_recovery(delta: float) -> void:
 	if not _recovery_active:
 		return
 	_recovery_elapsed += delta
-	var t: float = clampf(_recovery_elapsed / RECOVERY_DURATION, 0.0, 1.0)
+	var t: float = clampf(_recovery_elapsed / PowerLossSequence.RECOVERY_DURATION, 0.0, 1.0)
 
 	# Animate electric from 0 to 50% (penalty for power failure)
 	electric = lerpf(0.0, electric_max * 0.5, t)
 	# Animate shield from 0 to 25%
 	shield = lerpf(0.0, shield_max * 0.25, t)
-	if int(t * 10) != int((t - delta / RECOVERY_DURATION) * 10):
+	if int(t * 10) != int((t - delta / PowerLossSequence.RECOVERY_DURATION) * 10):
 		print("[RECOVERY] t=%.2f elec=%.0f/%.0f shield=%.0f/%.0f" % [t, electric, electric_max, shield, shield_max])
 	# Thermal stays at 0
 	thermal = 0.0
@@ -1157,8 +1145,8 @@ func _process_recovery(delta: float) -> void:
 	if t >= 0.01 and not _recovery_cores_activated:
 		_recovery_cores_activated = true
 		# Set all loop players to very low pitch BEFORE activating
-		LoopMixer.set_all_pitch_scale(RECOVERY_PITCH_START)
-		LoopMixer.set_all_volume_offset(RECOVERY_VOLUME_START)
+		LoopMixer.set_all_pitch_scale(PowerLossSequence.RECOVERY_PITCH_START)
+		LoopMixer.set_all_volume_offset(PowerLossSequence.RECOVERY_VOLUME_START)
 		for c in _core_controllers:
 			if c.has_method("activate"):
 				c.activate()
@@ -1168,9 +1156,9 @@ func _process_recovery(delta: float) -> void:
 	# Speed ramp continues from text phase into recovery phase
 	if _recovery_pitch_start_time >= 0.0:
 		_recovery_pitch_start_time += delta
-		var pitch_t: float = clampf(_recovery_pitch_start_time / RECOVERY_PITCH_DURATION, 0.0, 1.0)
+		var pitch_t: float = clampf(_recovery_pitch_start_time / PowerLossSequence.RECOVERY_PITCH_DURATION, 0.0, 1.0)
 		var pitch_eased: float = pitch_t * pitch_t
-		LoopMixer.set_all_pitch_scale(lerpf(RECOVERY_PITCH_START, 1.0, pitch_eased))
+		LoopMixer.set_all_pitch_scale(lerpf(PowerLossSequence.RECOVERY_PITCH_START, 1.0, pitch_eased))
 
 	# Staged SFX during recovery
 	if t >= 0.5 and not _recovery_sfx_screen_fired:
@@ -1267,27 +1255,6 @@ func _clear_electric_arcs() -> void:
 	_electric_arcs.clear()
 
 
-const SFX_CUE_DISPLAY: Dictionary = {
-	"electric_sparks": "",  # Pre-drift — no visual cue
-	"powerdown_shields_bleed": "",  # Pre-drift — no visual cue
-	"powerdown_engines_dying": "ENGINE FAILURE",
-	"powerdown_drift_start": "GYRO LOCK LOST",
-	"power_failure": "CATASTROPHIC FAILURE",
-	"powerdown_crt_flicker_start": "DISPLAY CORRUPTION",
-	"powerdown_screen_75": "SIGNAL DEGRADING",
-	"powerdown_screen_50": "SIGNAL CRITICAL",
-	"powerdown_screen_25": "SIGNAL LOST",
-	"monitor_static": "STATIC BURST",
-	"monitor_shutoff": "DISPLAY OFFLINE",
-	"powerdown_final_death": "TOTAL BLACKOUT",
-	"powerup_electric_restored": "COLD START INITIATED",
-	"powerup_bars_charging": "SUBSYSTEMS CHARGING",
-	"powerup_core_regen": "CORE REGENERATING",
-	"powerup_screen_on": "DISPLAY ONLINE",
-	"powerup_systems_online": "SYSTEMS NOMINAL",
-	"powerup_restored": "RESTORATION COMPLETE",
-	"reboot_line_beep": "",  # Don't show for line beeps
-}
 
 ## SFX visual cue — shows sci-fi status text on screen when triggered
 func _play_sfx_cue(event_id: String, use_ui_bus: bool = true) -> void:
@@ -1296,7 +1263,7 @@ func _play_sfx_cue(event_id: String, use_ui_bus: bool = true) -> void:
 	else:
 		SfxPlayer.play(event_id)
 	# Show on-screen label with sci-fi display name
-	var display: String = str(SFX_CUE_DISPLAY.get(event_id, ""))
+	var display: String = str(PowerLossSequence.CUE_DISPLAY_LABELS.get(event_id, ""))
 	if display == "":
 		return
 	if not _sfx_debug_label:
@@ -1561,10 +1528,41 @@ func _any_heat_source_active() -> bool:
 
 func disable_for_death() -> void:
 	_is_dead = true
+	_death_drifting = true
+	# Carry over existing spin if already drifting from power loss, otherwise start fresh
+	if _drifting:
+		_death_drift_rotation_speed = _drift_rotation_speed
+		_death_drift_spin_direction = _drift_spin_direction
+	else:
+		_death_drift_rotation_speed = 0.0
+		_death_drift_spin_direction = 1.0 if randf() > 0.5 else -1.0
 	stop_all()
 	if _player_area:
 		_player_area.set_deferred("monitoring", false)
 		_player_area.set_deferred("monitorable", false)
+
+
+const DEATH_DRIFT_MAX_SPIN: float = 0.2  # rad/sec — same as power loss drift
+const DEATH_DRIFT_SPIN_RAMP: float = 4.0  # seconds to reach max spin
+const DEATH_DRIFT_DECEL: float = 6.0  # px/s² coast deceleration
+
+
+func _process_death_drift(delta: float) -> void:
+	# Coast existing velocity to a slow stop
+	_velocity = _velocity.move_toward(Vector2.ZERO, DEATH_DRIFT_DECEL * delta)
+	position += _velocity * delta
+	# Clamp to screen
+	var clamped_x: float = clampf(position.x, 50.0, 1870.0)
+	var clamped_y: float = clampf(position.y, 50.0, 936.0)
+	if position.x != clamped_x:
+		_velocity.x = 0.0
+		position.x = clamped_x
+	if position.y != clamped_y:
+		_velocity.y = 0.0
+		position.y = clamped_y
+	# Gradual spin — ramps up to max over DEATH_DRIFT_SPIN_RAMP seconds
+	_death_drift_rotation_speed = minf(_death_drift_rotation_speed + (DEATH_DRIFT_MAX_SPIN / DEATH_DRIFT_SPIN_RAMP) * delta, DEATH_DRIFT_MAX_SPIN)
+	rotation += _death_drift_rotation_speed * _death_drift_spin_direction * delta
 
 
 func apply_bar_effects(effects: Dictionary) -> void:

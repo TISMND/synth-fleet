@@ -652,7 +652,6 @@ func _on_player_died() -> void:
 	_death_sequence_active = true
 	_death_timer = 0.0
 	_death_explosion_accum = 0.0
-	_death_player_pos = _player.global_position
 	_player.disable_for_death()
 	if _wave_manager:
 		_wave_manager.stop()
@@ -663,6 +662,7 @@ func _process_death_sequence(delta: float) -> void:
 	if _game_over_overlay:
 		return
 	_death_timer += delta
+	var player_pos: Vector2 = _player.global_position if _player else _death_player_pos
 	# Spawn staggered explosions — interval decreases for crescendo effect
 	var progress: float = clampf(_death_timer / DEATH_EXPLOSION_DURATION, 0.0, 1.0)
 	var spawn_interval: float = lerpf(0.4, 0.12, progress)
@@ -673,7 +673,7 @@ func _process_death_sequence(delta: float) -> void:
 		var explosion: ExplosionEffect = ExplosionEffect.new()
 		explosion.explosion_color = Color(1.0, lerpf(0.6, 0.3, progress), lerpf(0.2, 0.1, progress))
 		explosion.explosion_size = lerpf(0.5, 2.0, progress)
-		explosion.global_position = _death_player_pos + offset
+		explosion.global_position = player_pos + offset
 		_game_viewport.add_child(explosion)
 		SfxPlayer.play("explosion_1")
 	# Flicker the ship during explosions
@@ -685,7 +685,7 @@ func _process_death_sequence(delta: float) -> void:
 		final_explosion.explosion_color = Color(1.0, 0.4, 0.1)
 		final_explosion.explosion_size = 3.5
 		final_explosion.enable_screen_shake = true
-		final_explosion.global_position = _death_player_pos
+		final_explosion.global_position = player_pos
 		_game_viewport.add_child(final_explosion)
 		SfxPlayer.play("explosion_1")
 		if _player:

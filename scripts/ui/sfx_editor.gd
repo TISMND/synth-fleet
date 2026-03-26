@@ -1,5 +1,5 @@
 extends Control
-## SFX Editor screen — two tabs: SFX (one-shot event sounds) and LOOPS (loop balancing).
+## SFX Editor screen — three tabs: SFX (one-shot event sounds), LOOPS (loop balancing), EVENTS (timeline).
 
 var _config: SfxConfig
 var _vhs_overlay: ColorRect
@@ -12,9 +12,11 @@ var _preview_tween: Tween
 # Tab system
 var _tab_sfx_btn: Button
 var _tab_loops_btn: Button
+var _tab_events_btn: Button
 var _sfx_content: ScrollContainer
 var _loops_content: Control  # LoopBalancer instance
-var _active_tab: int = 0  # 0 = SFX, 1 = LOOPS
+var _events_content: Control  # PowerLossTimeline instance
+var _active_tab: int = 0  # 0 = SFX, 1 = LOOPS, 2 = EVENTS
 
 # Per-event UI refs keyed by event ID
 var _file_buttons: Dictionary = {}      # OptionButton
@@ -98,6 +100,13 @@ func _build_ui() -> void:
 	_tab_loops_btn.button_pressed = false
 	_tab_loops_btn.pressed.connect(_on_tab_loops)
 	top_bar.add_child(_tab_loops_btn)
+
+	_tab_events_btn = Button.new()
+	_tab_events_btn.text = "EVENTS"
+	_tab_events_btn.toggle_mode = true
+	_tab_events_btn.button_pressed = false
+	_tab_events_btn.pressed.connect(_on_tab_events)
+	top_bar.add_child(_tab_events_btn)
 
 	# Spacer to push BACK to the right
 	var right_spacer := Control.new()
@@ -215,6 +224,18 @@ func _build_ui() -> void:
 	_loops_content.visible = false
 	add_child(_loops_content)
 
+	# Events content (PowerLossTimeline panel — built from script)
+	var timeline_script: GDScript = load("res://scripts/ui/power_loss_timeline.gd") as GDScript
+	_events_content = Control.new()
+	_events_content.set_script(timeline_script)
+	_events_content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_events_content.offset_top = 60.0
+	_events_content.offset_left = 20.0
+	_events_content.offset_right = -20.0
+	_events_content.offset_bottom = -20.0
+	_events_content.visible = false
+	add_child(_events_content)
+
 
 # --- Tab switching ---
 
@@ -225,11 +246,14 @@ func _on_tab_sfx() -> void:
 	_active_tab = 0
 	_tab_sfx_btn.button_pressed = true
 	_tab_loops_btn.button_pressed = false
+	_tab_events_btn.button_pressed = false
 	_sfx_content.visible = true
 	_loops_content.visible = false
-	# Stop loops preview when switching away
+	_events_content.visible = false
 	if _loops_content.has_method("stop_preview"):
 		_loops_content.stop_preview()
+	if _events_content.has_method("stop_playback"):
+		_events_content.stop_playback()
 
 
 func _on_tab_loops() -> void:
@@ -239,12 +263,35 @@ func _on_tab_loops() -> void:
 	_active_tab = 1
 	_tab_sfx_btn.button_pressed = false
 	_tab_loops_btn.button_pressed = true
+	_tab_events_btn.button_pressed = false
 	_sfx_content.visible = false
 	_loops_content.visible = true
+	_events_content.visible = false
 	# Stop SFX preview when switching away
 	if _preview_tween and _preview_tween.is_valid():
 		_preview_tween.kill()
 	_preview_player.stop()
+	if _events_content.has_method("stop_playback"):
+		_events_content.stop_playback()
+
+
+func _on_tab_events() -> void:
+	if _active_tab == 2:
+		_tab_events_btn.button_pressed = true
+		return
+	_active_tab = 2
+	_tab_sfx_btn.button_pressed = false
+	_tab_loops_btn.button_pressed = false
+	_tab_events_btn.button_pressed = true
+	_sfx_content.visible = false
+	_loops_content.visible = false
+	_events_content.visible = true
+	# Stop other tab previews
+	if _preview_tween and _preview_tween.is_valid():
+		_preview_tween.kill()
+	_preview_player.stop()
+	if _loops_content.has_method("stop_preview"):
+		_loops_content.stop_preview()
 
 
 func _add_section_header(parent: VBoxContainer, text: String, description: String = "") -> void:
@@ -639,6 +686,8 @@ func _on_back() -> void:
 	_preview_player.stop()
 	if _loops_content and _loops_content.has_method("stop_preview"):
 		_loops_content.stop_preview()
+	if _events_content and _events_content.has_method("stop_playback"):
+		_events_content.stop_playback()
 	get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
 
 
@@ -662,6 +711,8 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_tab_sfx_btn)
 	if _tab_loops_btn:
 		ThemeManager.apply_button_style(_tab_loops_btn)
+	if _tab_events_btn:
+		ThemeManager.apply_button_style(_tab_events_btn)
 	for header in _section_headers:
 		if is_instance_valid(header):
 			ThemeManager.apply_text_glow(header, "header")
@@ -675,6 +726,9 @@ func _apply_theme() -> void:
 	# Theme the loops tab content
 	if _loops_content and _loops_content.has_method("apply_theme"):
 		_loops_content.apply_theme()
+	# Theme the events tab content
+	if _events_content and _events_content.has_method("apply_theme"):
+		_events_content.apply_theme()
 
 
 func _input(event: InputEvent) -> void:

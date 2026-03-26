@@ -100,10 +100,9 @@ func _ready() -> void:
 		_renderer.accent_color = Color(1.0, 0.2, 0.6)
 		add_child(_renderer)
 
-	# Universal enemy hit effects from VFX config — field-based
+	# Universal enemy hit effects from VFX config
 	var vfx: VfxConfig = VfxConfigManager.load_config()
 	_setup_hit_field("ShieldField", vfx.enemy_shield_field_style_id, vfx.enemy_shield_radius)
-	_setup_hit_field("HullField", vfx.enemy_hull_field_style_id, vfx.enemy_hull_radius)
 
 	# Setup weapon controller if ship has a weapon assigned
 	var has_weapon: bool = ship_data_ref and ship_data_ref.weapon_id != ""
@@ -253,9 +252,7 @@ func take_damage(amount: int, skips_shields: bool = false) -> void:
 	if remaining > 0:
 		health -= remaining
 		SfxPlayer.play("enemy_hull_hit")
-		var hull_field: FieldRenderer = get_node_or_null("HullField") as FieldRenderer
-		if hull_field:
-			hull_field.pulse()
+		_flash_hull_hit()
 	if health <= 0:
 		_die()
 
@@ -306,6 +303,25 @@ func _setup_hit_field(node_name: String, style_id: String, radius: float) -> voi
 	field.setup(style, radius)
 
 
+func _flash_hull_hit() -> void:
+	if not _renderer:
+		return
+	var vfx: VfxConfig = VfxConfigManager.load_config()
+	var color_arr: Array = vfx.enemy_hull_flash_color
+	var flash_color := Color(float(color_arr[0]), float(color_arr[1]), float(color_arr[2]), 1.0)
+	var intensity: float = vfx.enemy_hull_flash_intensity
+	var duration: float = vfx.enemy_hull_flash_duration
+	var count: int = vfx.enemy_hull_flash_count
+	var step_time: float = duration / (count * 2.0)
+	var tween := create_tween()
+	for i in count:
+		var bright := flash_color * intensity
+		bright.a = 1.0
+		tween.tween_property(_renderer, "modulate", bright, step_time * 0.1)
+		tween.tween_property(_renderer, "modulate", Color.WHITE, step_time * 0.9)
+	tween.tween_property(_renderer, "modulate", Color.WHITE, 0.0)
+
+
 func _play_immune_hit() -> void:
 	SfxPlayer.play("immune_hit")
 	var vfx: VfxConfig = VfxConfigManager.load_config()
@@ -325,19 +341,26 @@ func _play_immune_hit() -> void:
 					field.queue_free()
 			)
 
-	# Impact field effect (smaller burst at point of contact)
-	if vfx.immune_impact_field_style_id != "":
-		var impact_style: FieldStyle = FieldStyleManager.load_by_id(vfx.immune_impact_field_style_id)
-		if impact_style:
-			var impact := FieldRenderer.new()
-			impact._stay_visible = false
-			add_child(impact)
-			impact.setup(impact_style, vfx.immune_impact_radius)
-			impact.pulse()
-			var impact_cleanup: float = impact_style.pulse_total_duration + 0.1
-			get_tree().create_timer(impact_cleanup).timeout.connect(func() -> void:
-				if is_instance_valid(impact):
-					impact.queue_free()
-			)
+	# Impact burst using projectile-style effects at point of contact
+	if vfx.immune_impact_projectile_style_id != "":
+		var proj_style: ProjectileStyle = ProjectileStyleManager.load_by_id(vfx.immune_impact_projectile_style_id)
+		if proj_style and not proj_style.effect_profile.is_empty():
+			var layers: Dictionary = EffectLayerRenderer.resolve_layers(proj_style.effect_profile, 0)
+			var base_color: Color = proj_style.color
+			var impact_scale: float = vfx.immune_impact_scale
+			# Spawn impact emitters
+			var impact_layers: Array = layers.get("impact", []) as Array
+			for layer in impact_layers:
+				var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer as Dictionary, base_color)
+				if emitter:
+					emitter.scale *= impact_scale
+					add_child(emitter)
+			# Spawn muzzle emitters as additional burst
+			var muzzle_layers: Array = layers.get("muzzle", []) as Array
+			for layer in muzzle_layers:
+				var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer as Dictionary, base_color)
+				if emitter:
+					emitter.scale *= impact_scale
+					add_child(emitter)
 
 

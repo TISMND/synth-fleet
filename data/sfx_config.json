@@ -177,13 +177,13 @@
 		"powerdown_screen_50": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
-			"file_path": "res://assets/audio/sfx/power/power down subtle.wav",
+			"file_path": "res://assets/audio/sfx/power/powerdown_very_subtle.wav",
 			"volume_db": 0.0
 		},
 		"powerdown_screen_75": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
-			"file_path": "",
+			"file_path": "res://assets/audio/sfx/power/power down subtle.wav",
 			"volume_db": 0.0
 		},
 		"powerdown_shields_bleed": {

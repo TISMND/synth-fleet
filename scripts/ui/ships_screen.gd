@@ -59,6 +59,7 @@ var _working_boss: BossData = null
 var _boss_tab: String = "core"  # "core", "weapons", "health", "hitbox", "destruction", "alignment", "enrage"
 var _weapon_preview_controllers: Array = []  # Array of HardpointController for multi-weapon preview
 var _weapon_preview_fire_points: Array = []  # Array of Node2D fire points for multi-weapon preview
+var _weapon_preview_loop_ids: Array[String] = []  # Loop IDs registered for preview (for guaranteed cleanup)
 var _selected_segment_index: int = -1
 var _boss_preview_nodes: Array = []  # ShipRenderers in viewport for composite preview
 var _explosion_color_rect: ColorRect = null
@@ -2128,14 +2129,23 @@ func _start_boss_weapon_preview_all() -> void:
 			controller.is_enemy = true
 			fire_point.add_child(controller)
 			controller.setup(weapon, 180.0 + weapon.direction_deg, _weapon_preview_container, hp_idx)
+			var loop_id: String = controller.get_loop_id()
+			if loop_id != "":
+				_weapon_preview_loop_ids.append(loop_id)
 			controller.activate()
 			_weapon_preview_controllers.append(controller)
 
-	LoopMixer.start_all()
+	# Start only preview loops (not every loop in LoopMixer)
+	for lid in _weapon_preview_loop_ids:
+		LoopMixer.start_loop(lid)
 
 
 func _stop_boss_weapon_preview_all() -> void:
 	_weapon_preview_active = false
+	# Force-remove loops first — guaranteed cleanup even if controllers are already freed
+	for lid in _weapon_preview_loop_ids:
+		LoopMixer.remove_loop(lid)
+	_weapon_preview_loop_ids.clear()
 	for controller: HardpointController in _weapon_preview_controllers:
 		if controller and is_instance_valid(controller):
 			controller.cleanup()
@@ -2518,7 +2528,9 @@ func _start_weapon_preview() -> void:
 	_weapon_preview_controller.setup(weapon, 180.0 + weapon.direction_deg, _weapon_preview_container)
 
 	# Start playback and activate (unmute loop)
-	LoopMixer.start_all()
+	var lid: String = _weapon_preview_controller.get_loop_id()
+	if lid != "":
+		LoopMixer.start_loop(lid)
 	_weapon_preview_controller.activate()
 
 
@@ -2529,6 +2541,9 @@ func _stop_weapon_preview() -> void:
 
 	# Cleanup single controller (enemy editor)
 	if _weapon_preview_controller:
+		var lid: String = _weapon_preview_controller.get_loop_id()
+		if lid != "":
+			LoopMixer.remove_loop(lid)
 		_weapon_preview_controller.cleanup()
 		_weapon_preview_controller = null
 

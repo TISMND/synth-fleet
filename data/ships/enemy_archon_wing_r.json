@@ -1,9 +1,9 @@
 {
-	"collision_height": 288.0,
+	"collision_height": 270.0,
 	"collision_offset_x": 192.0,
 	"collision_offset_y": -6.0,
 	"collision_shape": "capsule",
-	"collision_width": 82.0,
+	"collision_width": 76.0,
 	"display_name": "Archon Wing (R)",
 	"enable_screen_shake": false,
 	"explosion_color": [

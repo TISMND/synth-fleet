@@ -19,11 +19,12 @@ uniform float chrome_base_brightness : hint_range(0.0, 1.0) = 0.4;
 // Heat effect: 0.0 = cold, 1.0 = white hot
 uniform float heat_intensity : hint_range(0.0, 1.0) = 0.0;
 
-// Heat color ramp — 4 stage colors (HDR values OK, >1.0 triggers bloom)
-uniform vec3 heat_color_1 = vec3(0.6, 0.02, 0.0);   // Stage 1: dark cherry red (0.0-0.3)
-uniform vec3 heat_color_2 = vec3(1.0, 0.3, 0.0);     // Stage 2: bright orange (0.3-0.6)
-uniform vec3 heat_color_3 = vec3(1.5, 0.8, 0.05);    // Stage 3: orange-yellow HDR (0.6-0.8)
-uniform vec3 heat_color_4 = vec3(2.5, 2.0, 1.5);     // Stage 4: white hot HDR (0.8-1.0)
+// Heat color ramp — 2 stages, each with base color + HDR multiplier
+// HDR mult pushes color >1.0 for bloom at any stage
+uniform vec3 heat_color_1 = vec3(0.8, 0.1, 0.0);    // Stage 1: warm (0-50%)
+uniform float heat_hdr_1 : hint_range(0.1, 5.0) = 1.5;
+uniform vec3 heat_color_2 = vec3(1.0, 0.85, 0.6);   // Stage 2: hot (50-100%)
+uniform float heat_hdr_2 : hint_range(0.1, 5.0) = 3.0;
 
 void fragment() {
 	// Capture modulate alpha per CLAUDE.md shader gotcha
@@ -52,24 +53,18 @@ void fragment() {
 	float line_alpha = smoothstep(half_thick, half_thick * 0.3, dist);
 	col = mix(col, divider_color.rgb, line_alpha * divider_color.a);
 
-	// Heat effect: dark metal → dull red → bright orange → white hot
-	// Uses uniform colors so stages are tunable from the audition screen
+	// Heat effect: 2-stage color ramp with per-stage HDR multiplier
 	if (heat_intensity > 0.0) {
 		float h = heat_intensity;
-		// Interpolate through 4-stage color ramp
 		vec3 heat_color;
-		if (h < 0.3) {
-			float t = h / 0.3;
-			heat_color = heat_color_1 * t;
-		} else if (h < 0.6) {
-			float t = (h - 0.3) / 0.3;
-			heat_color = mix(heat_color_1, heat_color_2, t);
-		} else if (h < 0.8) {
-			float t = (h - 0.6) / 0.2;
-			heat_color = mix(heat_color_2, heat_color_3, t);
+		if (h < 0.5) {
+			float t = h / 0.5;
+			// Fade in from black to stage 1
+			heat_color = heat_color_1 * heat_hdr_1 * t;
 		} else {
-			float t = (h - 0.8) / 0.2;
-			heat_color = mix(heat_color_3, heat_color_4, t);
+			float t = (h - 0.5) / 0.5;
+			// Blend stage 1 → stage 2
+			heat_color = mix(heat_color_1 * heat_hdr_1, heat_color_2 * heat_hdr_2, t);
 		}
 		// Variation: edges and highlight areas heat faster (thinner metal)
 		float edge_heat = (1.0 - left_edge) * 0.3 + (1.0 - right_edge) * 0.3;
