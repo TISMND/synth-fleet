@@ -1,7 +1,8 @@
 {
 	"aim_mode": "fixed",
 	"bar_effects": {
-		"electric": -1.2
+		"electric": -0.599999999999994,
+		"shield": 0.900000000000006
 	},
 	"beam_dps": 50.0,
 	"beam_duration": 0.3,
@@ -9,9 +10,9 @@
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
 	"damage": 37,
-	"description": "Slow firing, but skips through enemy shields.",
+	"description": "Perfect tuning allows each pulse to slightly recharge shields, and penetrate the enemy's.",
 	"direction_deg": 0.0,
-	"display_name": "Charged Ion Pulse",
+	"display_name": "Tuned Ion Pulse",
 	"effect_profile": {
 		"defaults": {
 
@@ -42,7 +43,7 @@
 		0.903314917127072,
 		0.964779005524862
 	],
-	"id": "charged_ion_pulse",
+	"id": "tuned_ion_pulse",
 	"is_enemy_weapon": false,
 	"loop_file_path": "res://loop_zips/sorted/keys/Oscillating Spoons - 120 BPM - 7 - Keys - FRANCMOODY_115_sh101_loop_pulse_F#maj.wav",
 	"loop_length_bars": 8,
@@ -51,8 +52,8 @@
 	"projectile_speed": 1020.0,
 	"projectile_style_id": "square_drop",
 	"skips_shields": true,
-	"splash_enabled": false,
-	"splash_radius": 0.0,
+	"splash_enabled": true,
+	"splash_radius": 40.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
 	"transition_mode": "fade"

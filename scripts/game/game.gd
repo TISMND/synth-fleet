@@ -76,11 +76,6 @@ const INTRO_FADE_START: float = 0.5  # seconds before measure boundary to start 
 var _hull_damaged_timer: float = 0.0  # Transient "HULL DAMAGED" display timer
 const HULL_DAMAGED_DISPLAY_TIME: float = 2.0
 
-# Enemy disarm during power loss
-var _power_loss_disarm_active: bool = false
-var _power_loss_disarm_timer: float = 0.0
-var _enemy_pre_power_loss_state: Dictionary = {}  # enemy instance_id -> {weapons_enabled, is_melee, melee_speed}
-
 # Warning alarm audio — looping players keyed by warning ID
 var _alarm_players: Dictionary = {}  # warning_id -> AudioStreamPlayer
 var _active_alarm_ids: Array[String] = []  # Warning IDs currently active (last frame)
@@ -275,11 +270,6 @@ func _process_intro(delta: float) -> void:
 	var prev_time: float = _intro_timer
 	_intro_timer += delta
 
-	# Activate power cores at the first hit (timer crosses 0)
-	if prev_time < 0.0 and _intro_timer >= 0.0 and _player:
-		for c in _player._core_controllers:
-			c.activate()
-		_player._update_hud_cores()
 
 	# Hit 1 = time 0 (level number). Hit 2 = 2 measures in (level name + bar fill).
 	# Total intro = 4 measures.
@@ -355,13 +345,6 @@ func _process(delta: float) -> void:
 	if not _death_sequence_active:
 		_apply_nebula_bar_effects(delta)
 		_check_measure_boundary_key_shift()
-	# During power loss: decelerate enemies each frame + catch new spawns every 0.5s
-	if _power_loss_disarm_active:
-		_decelerate_all_enemies(delta)
-		_power_loss_disarm_timer += delta
-		if _power_loss_disarm_timer >= 0.5:
-			_power_loss_disarm_timer = 0.0
-			_snapshot_and_disarm_enemies()
 	# Death explosion sequence
 	if _death_sequence_active:
 		_process_death_sequence(delta)
@@ -374,7 +357,8 @@ func _process(delta: float) -> void:
 		_hud.process_power_death_bars(delta)
 		_hud.process_shield_arcs(delta)
 		_hud.update_credits(GameState.credits)
-		_update_warning_rotator(delta)
+		if not _player._drifting and not _player._blackout_active:
+			_update_warning_rotator(delta)
 
 
 func _collect_enemy_appearances(level: LevelData) -> Array:
@@ -948,71 +932,14 @@ func _process_screen_shake(delta: float) -> void:
 # ── Death during power loss ──────────────────────────────────────────
 
 func _on_power_loss_started() -> void:
-	_power_loss_disarm_active = true
-	_power_loss_disarm_timer = 0.0
-	_enemy_pre_power_loss_state.clear()
-	_snapshot_and_disarm_enemies()
-	# Brief player invincibility for stray shots in flight
-	if _player:
-		_player._is_invulnerable = true
-		get_tree().create_timer(1.5).timeout.connect(func():
-			if _player and is_instance_valid(_player):
-				_player._is_invulnerable = false
-		)
+	# Kill all warning alarms and visual warnings — ship is going dark
+	_stop_all_alarms()
+	if _hud:
+		_hud.update_warnings_rotator([])
 
 
 func _on_power_loss_ended() -> void:
-	_power_loss_disarm_active = false
-	_restore_all_enemies()
-	_enemy_pre_power_loss_state.clear()
-
-
-func _snapshot_and_disarm_enemies() -> void:
-	## Snapshot original state and disable weapons. Speeds are lerped in _process.
-	for node in get_tree().get_nodes_in_group("enemies"):
-		var eid: int = node.get_instance_id()
-		if not _enemy_pre_power_loss_state.has(eid):
-			var was_armed: bool = false
-			if node.get("_weapon_controller") != null:
-				was_armed = node._weapon_controller.weapons_enabled
-			_enemy_pre_power_loss_state[eid] = {
-				"weapons_enabled": was_armed,
-				"is_melee": node.get("is_melee") == true,
-				"melee_speed": float(node.get("melee_speed")) if node.get("melee_speed") != null else 200.0,
-				"path_speed": float(node.get("path_speed")) if node.get("path_speed") != null else 200.0,
-				"drift_speed": float(node.get("drift_speed")) if node.get("drift_speed") != null else 100.0,
-			}
-		# Disable weapons immediately
-		if node.get("_weapon_controller") != null:
-			node._weapon_controller.set_weapons_enabled(false)
-
-
-func _decelerate_all_enemies(delta: float) -> void:
-	## Smoothly lerp all enemy speeds toward 0. Called every frame during power loss.
-	var lerp_rate: float = 1.5
-	for node in get_tree().get_nodes_in_group("enemies"):
-		if node.get("melee_speed") != null:
-			node.melee_speed = lerpf(node.melee_speed, 0.0, lerp_rate * delta)
-		if node.get("path_speed") != null:
-			node.path_speed = lerpf(node.path_speed, 0.0, lerp_rate * delta)
-		if node.get("drift_speed") != null:
-			node.drift_speed = lerpf(node.drift_speed, 0.0, lerp_rate * delta)
-
-
-func _restore_all_enemies() -> void:
-	for node in get_tree().get_nodes_in_group("enemies"):
-		var eid: int = node.get_instance_id()
-		if _enemy_pre_power_loss_state.has(eid):
-			var state: Dictionary = _enemy_pre_power_loss_state[eid]
-			# Restore weapons to original state
-			if node.get("_weapon_controller") != null:
-				node._weapon_controller.set_weapons_enabled(bool(state["weapons_enabled"]))
-			# Restore melee behavior and original speeds
-			if bool(state["is_melee"]):
-				node.is_melee = true
-			node.melee_speed = float(state["melee_speed"])
-			node.path_speed = float(state["path_speed"])
-			node.drift_speed = float(state["drift_speed"])
+	pass  # Warnings resume naturally via _update_warning_rotator
 
 
 func _on_player_died_during_power_loss() -> void:
