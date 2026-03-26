@@ -1,0 +1,83 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		30.0,
+		30.0
+	],
+	"collision_scale": [
+		0,
+		0
+	],
+	"color": [
+		0.4296875,
+		1.0,
+		0.0,
+		1.0
+	],
+	"display_name": "enemy green commet",
+	"effect_profile": {
+		"defaults": {
+			"muzzle": [
+				{
+					"color": [
+						0.1953125,
+						1.0,
+						0.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.1,
+						"particle_count": 2.0,
+						"spread_angle": 360.0
+					},
+					"type": "radial_burst"
+				}
+			],
+			"trail": [
+				{
+					"color": [
+						0.0,
+						0.575030267238617,
+						0.0194258857518435,
+						1.0
+					],
+					"params": {
+						"length": 19.0,
+						"width_end": 4.5,
+						"width_start": 24.0
+					},
+					"type": "ribbon"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "toxic",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "enemy_green_commet",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"brightness": 0.5,
+		"bubble_density": 4.0,
+		"bubble_speed": 2.5,
+		"color_mix": 0.0,
+		"drip_intensity": 1.0,
+		"edge_softness": 1.0
+	}
+}

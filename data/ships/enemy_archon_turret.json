@@ -1,0 +1,24 @@
+{
+	"id": "enemy_archon_turret",
+	"display_name": "Archon Turret",
+	"type": "enemy",
+	"visual_id": "archon_turret",
+	"render_mode": "neon",
+	"grid_size": [64, 64],
+	"weapon_id": "",
+	"hardpoint_offsets": [],
+	"level": "boss",
+	"collision_shape": "circle",
+	"collision_width": 60.0,
+	"collision_height": 60.0,
+	"explosion_color": [1.0, 0.5, 0.2, 1.0],
+	"explosion_size": 1.0,
+	"enable_screen_shake": false,
+	"stats": {
+		"hull_hp": 80,
+		"shield_hp": 0,
+		"shield_regen": 0.0,
+		"speed": 40,
+		"acceleration": 100
+	}
+}

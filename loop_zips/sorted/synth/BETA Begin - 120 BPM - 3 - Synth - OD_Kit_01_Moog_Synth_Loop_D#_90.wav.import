@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cb1gmkha4oo73"
+path="res://.godot/imported/BETA Begin - 120 BPM - 3 - Synth - OD_Kit_01_Moog_Synth_Loop_D#_90.wav-32b1ffcdb61ecf36bbe518d98e07db15.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/synth/BETA Begin - 120 BPM - 3 - Synth - OD_Kit_01_Moog_Synth_Loop_D#_90.wav"
+dest_files=["res://.godot/imported/BETA Begin - 120 BPM - 3 - Synth - OD_Kit_01_Moog_Synth_Loop_D#_90.wav-32b1ffcdb61ecf36bbe518d98e07db15.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

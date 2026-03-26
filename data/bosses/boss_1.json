@@ -1,0 +1,11 @@
+{
+	"core_immune_until_segments_dead": false,
+	"core_ship_id": "",
+	"core_weapon_overrides": [],
+	"display_name": "New Boss",
+	"enrage_speed_mult": 1.5,
+	"enrage_threshold": 0.5,
+	"id": "boss_1",
+	"level": "geometric",
+	"segments": []
+}

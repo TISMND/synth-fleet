@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://b2k82y136idl"
+path="res://.godot/imported/BETA Begin - 120 BPM - 4 - Pads - nw_vhs_105_synth_loop_tracking_string_Bmin.wav-8629124aca1091a6879fde92b2a8811b.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/pads/BETA Begin - 120 BPM - 4 - Pads - nw_vhs_105_synth_loop_tracking_string_Bmin.wav"
+dest_files=["res://.godot/imported/BETA Begin - 120 BPM - 4 - Pads - nw_vhs_105_synth_loop_tracking_string_Bmin.wav-8629124aca1091a6879fde92b2a8811b.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

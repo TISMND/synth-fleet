@@ -43,6 +43,7 @@ const LEVEL_OPTIONS: Array[Dictionary] = [
 	{"id": "geometric", "label": "GEOMETRIC"},
 	{"id": "vehicle", "label": "VEHICLE"},
 	{"id": "lifeform", "label": "LIFEFORM"},
+	{"id": "boss", "label": "BOSS"},
 ]
 var _enemy_ships: Array[ShipData] = []  # all enemies
 var _filtered_enemy_ships: Array[ShipData] = []  # filtered by level
@@ -511,6 +512,12 @@ func _switch_category(cat: String) -> void:
 			_hud_replica.visible = false
 		_selected_enemy_index = -1
 		_working_enemy = null
+		# Auto-select "BOSS" in the level filter dropdown
+		_selected_level = "boss"
+		for i in range(LEVEL_OPTIONS.size()):
+			if LEVEL_OPTIONS[i]["id"] == "boss":
+				_level_dropdown.selected = i
+				break
 		_filter_bosses()
 		_ship_selector.boss_list = _filtered_boss_list
 		if _filtered_boss_list.size() > 0:

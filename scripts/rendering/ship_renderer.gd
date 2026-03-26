@@ -418,6 +418,10 @@ func _draw_enemy_ship() -> void:
 		"aegis": _draw_aegis()
 		"helix": _draw_helix()
 		"conduit": _draw_conduit()
+		"archon_core": _draw_archon_core()
+		"archon_wing_l": _draw_archon_wing(-1.0)
+		"archon_wing_r": _draw_archon_wing(1.0)
+		"archon_turret": _draw_archon_turret()
 		_: _draw_sentinel()  # Default fallback
 
 func _draw_sentinel() -> void:
@@ -2763,3 +2767,293 @@ func _draw_spore_circle(center: Vector2, radius: float, width: float) -> void:
 	# Wandering highlight
 	var wander: Vector2 = center + Vector2(cos(time * 0.7) * 6.0, sin(time * 0.9) * 6.0)
 	draw_circle(wander, 3.0, Color(1, 1, 1, 0.3 + sin(time * 2.0) * 0.2))
+
+
+# ── Boss: Archon (Geometric Arch) ──────────────────────────────
+
+func _draw_archon_core() -> void:
+	var s := 7.0
+	var hw: float = 20.0 * s
+	var band_h: float = 10.0 * s
+	var crown_y: float = -14.0 * s
+
+	# Main slab — angular with sharp beveled edges
+	var body := PackedVector2Array([
+		Vector2(-hw + 4.0 * s, crown_y - 3.0 * s),   # top-left point
+		Vector2(hw - 4.0 * s, crown_y - 3.0 * s),     # top-right point
+		Vector2(hw + 2.0 * s, crown_y + 2.0 * s),     # right upper notch
+		Vector2(hw + 4.0 * s, crown_y + band_h * 0.5), # right spike
+		Vector2(hw + 2.0 * s, crown_y + band_h - 2.0 * s),
+		Vector2(hw - 4.0 * s, crown_y + band_h + 1.0 * s),  # bottom-right point
+		Vector2(-hw + 4.0 * s, crown_y + band_h + 1.0 * s), # bottom-left point
+		Vector2(-hw - 2.0 * s, crown_y + band_h - 2.0 * s),
+		Vector2(-hw - 4.0 * s, crown_y + band_h * 0.5), # left spike
+		Vector2(-hw - 2.0 * s, crown_y + 2.0 * s),
+	])
+	_poly(body, hull_color, 3.0 * s)
+
+	# V-cut armor seams — angular lines across the face
+	var mid_y: float = crown_y + band_h * 0.5
+	_line(Vector2(-hw + 2.0 * s, mid_y - 1.5 * s), Vector2(0, mid_y - 3.0 * s), detail_color, 0.7 * s)
+	_line(Vector2(0, mid_y - 3.0 * s), Vector2(hw - 2.0 * s, mid_y - 1.5 * s), detail_color, 0.7 * s)
+	_line(Vector2(-hw + 2.0 * s, mid_y + 1.5 * s), Vector2(0, mid_y + 3.0 * s), detail_color, 0.7 * s)
+	_line(Vector2(0, mid_y + 3.0 * s), Vector2(hw - 2.0 * s, mid_y + 1.5 * s), detail_color, 0.7 * s)
+
+	# Spinning inner triangles — angular machinery visible through the hull
+	for gi in range(3):
+		var gx: float = (-10.0 + float(gi) * 10.0) * s
+		var gr: float = 3.5 * s
+		var spin: float = time * (1.2 + float(gi) * 0.4) * (1.0 if gi % 2 == 0 else -1.0)
+		var tri := PackedVector2Array()
+		for vi in range(3):
+			var angle: float = TAU * float(vi) / 3.0 + spin
+			tri.append(Vector2(gx + cos(angle) * gr, mid_y + sin(angle) * gr))
+		_poly(tri, Color(accent_color.r, accent_color.g, accent_color.b, 0.5), 0.8 * s)
+
+	# Pulsing diamond energy nodes along the channel
+	var phase: float = time * 2.5
+	for i in range(12):
+		var t: float = float(i) / 11.0
+		var px: float = lerpf(-hw + 5.0 * s, hw - 5.0 * s, t)
+		var pulse: float = sin(phase + t * 8.0) * 0.5 + 0.5
+		var nr: float = 1.2 * s
+		var nd := PackedVector2Array([
+			Vector2(px, mid_y - nr), Vector2(px + nr, mid_y),
+			Vector2(px, mid_y + nr), Vector2(px - nr, mid_y),
+		])
+		_poly(nd, Color(accent_color.r, accent_color.g, accent_color.b, 0.15 + pulse * 0.45), 0.5 * s)
+
+	# Angular end caps — arrow-shaped reinforcements
+	for side_val in [-1.0, 1.0]:
+		var ex: float = side_val * (hw - 2.0 * s)
+		var cap := PackedVector2Array([
+			Vector2(ex, crown_y + 2.0 * s),
+			Vector2(ex + side_val * 3.0 * s, mid_y),
+			Vector2(ex, crown_y + band_h - 2.0 * s),
+		])
+		_poly(cap, accent_color, 1.0 * s)
+
+	# Central bay — angular trapezoid housing
+	var bay_top: float = crown_y + band_h + 1.0 * s
+	var bay_bot: float = bay_top + 10.0 * s
+	var bay := PackedVector2Array([
+		Vector2(-8.0 * s, bay_top),
+		Vector2(8.0 * s, bay_top),
+		Vector2(5.0 * s, bay_bot),
+		Vector2(-5.0 * s, bay_bot),
+	])
+	_poly(bay, hull_color, 2.0 * s)
+	# Bay diamond emitter
+	var bay_pulse: float = 0.3 + sin(time * 1.8) * 0.25
+	var bay_cy: float = bay_top + 5.0 * s
+	var br: float = 3.5 * s
+	var bay_diamond := PackedVector2Array([
+		Vector2(0, bay_cy - br), Vector2(br, bay_cy),
+		Vector2(0, bay_cy + br), Vector2(-br, bay_cy),
+	])
+	_poly(bay_diamond, Color(engine_color.r, engine_color.g, engine_color.b, bay_pulse), 1.2 * s)
+
+	# Crown nexus — sharp diamond with rotating inner cross
+	var crown_pulse: float = 0.5 + sin(time * 2.0) * 0.3
+	var cp := Vector2(0, crown_y - 5.0 * s)
+	var dr: float = 5.0 * s
+	var diamond := PackedVector2Array([
+		cp + Vector2(0, -dr * 1.3), cp + Vector2(dr, 0),
+		cp + Vector2(0, dr * 1.3), cp + Vector2(-dr, 0),
+	])
+	_poly(diamond, Color(accent_color.r, accent_color.g, accent_color.b, crown_pulse), 2.0 * s)
+	# Spinning cross inside the diamond
+	var cross_spin: float = time * 1.5
+	var cr: float = 3.0 * s
+	for ci in range(4):
+		var angle: float = TAU * float(ci) / 4.0 + cross_spin
+		_line(cp, cp + Vector2(cos(angle) * cr, sin(angle) * cr), Color(1.0, 1.0, 1.0, crown_pulse * 0.6), 0.8 * s)
+
+
+func _draw_archon_wing(side: float) -> void:
+	## Angular sweeping wing with sharp edges and spinning inner machinery.
+	var s := 5.0
+	var seg_count: int = 16
+	var total_reach: float = 38.0 * s
+	var hook_depth: float = 32.0 * s
+	var wing_width: float = 7.0 * s
+
+	# Build wing centerline path
+	var path_pts: Array[Vector2] = []
+	for i in range(seg_count + 1):
+		var t: float = float(i) / float(seg_count)
+		var x: float = side * total_reach * (1.0 - (1.0 - t) * (1.0 - t))
+		var hook_t: float = clampf((t - 0.45) / 0.55, 0.0, 1.0)
+		var y: float = -10.0 * s + hook_t * hook_t * hook_depth
+		path_pts.append(Vector2(x, y))
+
+	# Build thick wing polygon
+	var outer_pts := PackedVector2Array()
+	var inner_pts := PackedVector2Array()
+	for i in range(path_pts.size()):
+		var t: float = float(i) / float(seg_count)
+		var pt: Vector2 = path_pts[i]
+		var w: float = wing_width * lerpf(1.0, 0.5, t)
+		var perp := Vector2(0, 1)
+		if i > 0:
+			var tangent: Vector2 = (path_pts[i] - path_pts[i - 1]).normalized()
+			perp = Vector2(-tangent.y, tangent.x)
+		outer_pts.append(pt - perp * w)
+		inner_pts.append(pt + perp * w)
+
+	var wing := PackedVector2Array()
+	for pt in outer_pts:
+		wing.append(pt)
+	for i in range(inner_pts.size() - 1, -1, -1):
+		wing.append(inner_pts[i])
+	_poly(wing, hull_color, 2.5 * s)
+
+	# Angled structural ribs — V-shaped cross-beams instead of straight
+	for ri in range(7):
+		var t: float = (float(ri) + 1.0) / 8.0
+		var idx: int = int(t * float(seg_count))
+		var pt: Vector2 = path_pts[idx]
+		var w: float = wing_width * lerpf(1.0, 0.5, t)
+		var perp := Vector2(0, 1)
+		if idx > 0:
+			var tangent: Vector2 = (path_pts[idx] - path_pts[idx - 1]).normalized()
+			perp = Vector2(-tangent.y, tangent.x)
+		var offset := Vector2(side * 2.0 * s, 0)
+		_line(pt - perp * w, pt + offset, detail_color, 0.7 * s)
+		_line(pt + offset, pt + perp * w, detail_color, 0.7 * s)
+
+	# Armored spine — angular segmented line
+	for i in range(path_pts.size() - 1):
+		if i % 2 == 0:
+			_line(path_pts[i], path_pts[i + 1], accent_color, 1.0 * s)
+
+	# Spinning diamond greebles at regular intervals along the wing
+	for gi in range(4):
+		var t: float = 0.12 + float(gi) * 0.2
+		var idx: int = int(t * float(seg_count))
+		var pt: Vector2 = path_pts[idx]
+		var gr: float = 2.5 * s
+		var spin: float = time * (1.5 + float(gi) * 0.3) * (1.0 if gi % 2 == 0 else -1.0)
+		var greeble := PackedVector2Array()
+		for vi in range(4):
+			var angle: float = TAU * float(vi) / 4.0 + spin
+			greeble.append(pt + Vector2(cos(angle) * gr, sin(angle) * gr))
+		_poly(greeble, Color(accent_color.r, accent_color.g, accent_color.b, 0.4), 0.6 * s)
+
+	# Outer cannon mount — angular diamond housing at the hooked tip
+	var tip_t: float = 0.85
+	var tip_idx: int = int(tip_t * float(seg_count))
+	var tip_pt: Vector2 = path_pts[tip_idx]
+	var cannon_pulse: float = 0.4 + sin(time * 2.5) * 0.3
+	var cw: float = 5.0 * s
+	var cannon_diamond := PackedVector2Array([
+		tip_pt + Vector2(0, -cw), tip_pt + Vector2(cw, 0),
+		tip_pt + Vector2(0, cw), tip_pt + Vector2(-cw, 0),
+	])
+	_poly(cannon_diamond, Color(engine_color.r, engine_color.g, engine_color.b, cannon_pulse), 1.5 * s)
+	# Spinning triangle inside cannon
+	var cspin: float = time * 2.0
+	var ct := PackedVector2Array()
+	for vi in range(3):
+		var angle: float = TAU * float(vi) / 3.0 + cspin
+		ct.append(tip_pt + Vector2(cos(angle) * 3.0 * s, sin(angle) * 3.0 * s))
+	_poly(ct, Color(hull_color.r, hull_color.g, hull_color.b, 0.6), 0.8 * s)
+
+	# Inner turret mount — mid-wing diamond platform
+	var mid_t: float = 0.35
+	var mid_idx: int = int(mid_t * float(seg_count))
+	var mid_pt: Vector2 = path_pts[mid_idx]
+	var mr: float = 3.5 * s
+	var mid_diamond := PackedVector2Array([
+		mid_pt + Vector2(0, -mr), mid_pt + Vector2(mr, 0),
+		mid_pt + Vector2(0, mr), mid_pt + Vector2(-mr, 0),
+	])
+	_poly(mid_diamond, Color(accent_color.r, accent_color.g, accent_color.b, 0.5), 0.8 * s)
+
+	# Traveling edge diamonds — sharp indicators
+	for ni in range(8):
+		var t: float = (float(ni) + 0.5) / 8.0
+		var idx: int = int(t * float(seg_count))
+		var pt: Vector2 = path_pts[idx]
+		var w: float = wing_width * lerpf(1.0, 0.5, t)
+		var perp := Vector2(0, 1)
+		if idx > 0:
+			var tangent: Vector2 = (path_pts[idx] - path_pts[idx - 1]).normalized()
+			perp = Vector2(-tangent.y, tangent.x)
+		var glow: float = fmod(time * 2.5 + float(ni) * 0.4, 1.0)
+		var la: float = 0.55 if glow < 0.2 else 0.12
+		var ep: Vector2 = pt - perp * w
+		var er: float = 1.3 * s
+		var edge_d := PackedVector2Array([
+			ep + Vector2(0, -er), ep + Vector2(er, 0),
+			ep + Vector2(0, er), ep + Vector2(-er, 0),
+		])
+		_poly(edge_d, Color(accent_color.r, accent_color.g, accent_color.b, la), 0.4 * s)
+
+
+func _draw_archon_turret() -> void:
+	var s := 3.0
+
+	# Outer base — sharp square, slowly rotating
+	var base_r: float = 10.0 * s
+	var base := PackedVector2Array()
+	var base_spin: float = time * 0.2
+	for i in range(4):
+		var angle: float = TAU * float(i) / 4.0 + base_spin + PI * 0.25
+		base.append(Vector2(cos(angle) * base_r, sin(angle) * base_r))
+	_poly(base, hull_color, 2.0 * s)
+
+	# Inner diamond — contra-rotating
+	var inner_r: float = 7.0 * s
+	var inner := PackedVector2Array()
+	for i in range(4):
+		var angle: float = TAU * float(i) / 4.0 - time * 0.5
+		inner.append(Vector2(cos(angle) * inner_r, sin(angle) * inner_r))
+	_poly(inner, accent_color, 1.5 * s)
+
+	# Spinning triangle inside that
+	var tri_r: float = 4.5 * s
+	var tri := PackedVector2Array()
+	for i in range(3):
+		var angle: float = TAU * float(i) / 3.0 + time * 0.8
+		tri.append(Vector2(cos(angle) * tri_r, sin(angle) * tri_r))
+	_poly(tri, detail_color, 1.0 * s)
+
+	# Sharp cross at center — static frame
+	var cr: float = 8.5 * s
+	_line(Vector2(-cr, 0), Vector2(cr, 0), Color(detail_color.r, detail_color.g, detail_color.b, 0.25), 0.5 * s)
+	_line(Vector2(0, -cr), Vector2(0, cr), Color(detail_color.r, detail_color.g, detail_color.b, 0.25), 0.5 * s)
+
+	# Central core — pulsing diamond
+	var core_pulse: float = 0.5 + sin(time * 3.0) * 0.3
+	var core_r: float = 2.5 * s
+	var core_d := PackedVector2Array([
+		Vector2(0, -core_r), Vector2(core_r, 0),
+		Vector2(0, core_r), Vector2(-core_r, 0),
+	])
+	_poly(core_d, Color(1.0, 1.0, 1.0, core_pulse * 0.8), 1.0 * s)
+
+	# Barrel housing — angular trapezoid pointing forward (down)
+	var barrel := PackedVector2Array([
+		Vector2(-3.0 * s, -1.0 * s), Vector2(3.0 * s, -1.0 * s),
+		Vector2(2.0 * s, 14.0 * s), Vector2(-2.0 * s, 14.0 * s),
+	])
+	_poly(barrel, hull_color, 1.2 * s)
+
+	# Aiming indicator — glowing line from barrel tip
+	var aim_len: float = 24.0 * s
+	var aim_pulse: float = 0.3 + sin(time * 4.0) * 0.2
+	var aim_start := Vector2(0, 14.0 * s)
+	var aim_end := Vector2(0, aim_len)
+	_line(aim_start, aim_end, Color(engine_color.r, engine_color.g, engine_color.b, aim_pulse), 1.5 * s)
+	# Targeting reticle — diamond instead of circle
+	var tr: float = 3.5 * s
+	var reticle := PackedVector2Array([
+		aim_end + Vector2(0, -tr), aim_end + Vector2(tr, 0),
+		aim_end + Vector2(0, tr), aim_end + Vector2(-tr, 0),
+	])
+	_poly(reticle, Color(engine_color.r, engine_color.g, engine_color.b, aim_pulse * 1.5), 0.8 * s)
+	# Crosshair arms
+	var ch: float = 5.0 * s
+	_line(aim_end + Vector2(-ch, 0), aim_end + Vector2(ch, 0), Color(engine_color.r, engine_color.g, engine_color.b, aim_pulse), 0.8 * s)
+	_line(aim_end + Vector2(0, -ch), aim_end + Vector2(0, ch), Color(engine_color.r, engine_color.g, engine_color.b, aim_pulse), 0.8 * s)

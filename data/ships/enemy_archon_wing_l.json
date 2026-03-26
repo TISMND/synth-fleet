@@ -1,0 +1,27 @@
+{
+	"id": "enemy_archon_wing_l",
+	"display_name": "Archon Wing (L)",
+	"type": "enemy",
+	"visual_id": "archon_wing_l",
+	"render_mode": "neon",
+	"grid_size": [200, 180],
+	"weapon_id": "",
+	"hardpoint_offsets": [
+		[-110.0, 60.0],
+		[-50.0, -28.0]
+	],
+	"level": "boss",
+	"collision_shape": "capsule",
+	"collision_width": 180.0,
+	"collision_height": 70.0,
+	"explosion_color": [0.0, 0.9, 1.0, 1.0],
+	"explosion_size": 2.0,
+	"enable_screen_shake": false,
+	"stats": {
+		"hull_hp": 180,
+		"shield_hp": 60,
+		"shield_regen": 0.5,
+		"speed": 40,
+		"acceleration": 100
+	}
+}

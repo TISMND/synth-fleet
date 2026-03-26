@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://gxtd1ngmqm7p"
+path="res://.godot/imported/BETA Begin - 120 BPM - 1 - Drums - 003_b__Drum_Beat_124bpm_Cm_-_80SCYBERPUNK_Zenhiser.wav-50156bb65933666744423b9e12916074.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/drums/BETA Begin - 120 BPM - 1 - Drums - 003_b__Drum_Beat_124bpm_Cm_-_80SCYBERPUNK_Zenhiser.wav"
+dest_files=["res://.godot/imported/BETA Begin - 120 BPM - 1 - Drums - 003_b__Drum_Beat_124bpm_Cm_-_80SCYBERPUNK_Zenhiser.wav-50156bb65933666744423b9e12916074.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

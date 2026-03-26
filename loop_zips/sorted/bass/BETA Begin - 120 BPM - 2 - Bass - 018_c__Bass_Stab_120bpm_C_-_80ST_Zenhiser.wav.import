@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://rpfaw7bvlssd"
+path="res://.godot/imported/BETA Begin - 120 BPM - 2 - Bass - 018_c__Bass_Stab_120bpm_C_-_80ST_Zenhiser.wav-82fb68e3db49860d601b1031925b85b1.sample"
+
+[deps]
+
+source_file="res://loop_zips/sorted/bass/BETA Begin - 120 BPM - 2 - Bass - 018_c__Bass_Stab_120bpm_C_-_80ST_Zenhiser.wav"
+dest_files=["res://.godot/imported/BETA Begin - 120 BPM - 2 - Bass - 018_c__Bass_Stab_120bpm_C_-_80ST_Zenhiser.wav-82fb68e3db49860d601b1031925b85b1.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -1,132 +1,98 @@
 extends Control
-## Auditions screen — side-by-side speck style previews for comparing colors,
-## shapes, and effects. Each slab shows a dark viewport with twinkling specks
-## scrolling upward, labeled with the style name.
+## Auditions screen — warning box variants for different game events.
+## All use preset 9 style (corner marks, chromatic) with per-warning colors.
+## HDR slider + color picker per warning, values persist to user://settings/.
 
-const SLAB_WIDTH: int = 280
-const SLAB_HEIGHT: int = 400
-const SPECK_COUNT: int = 80
-const SCROLL_SPEED: float = 40.0
+const SLAB_WIDTH: int = 320
+const SLAB_HEIGHT: int = 180
+const BOX_W: float = 220.0
+const BOX_H: float = 70.0
 
 var _vhs_overlay: ColorRect
 var _bg: ColorRect
 var _title_label: Label
 var _back_button: Button
-var _slabs: Array = []  # Array of slab dicts for _process updates
+var _slab_data: Array = []
+var _saved_values: Dictionary = {}  # warning_id -> {hdr, color_r, color_g, color_b}
 
-# Audition presets — each is a color/shape/effect combo to compare
-const PRESETS: Array = [
-	{
-		"name": "Cool Blue (default)",
-		"colors": [
-			{"color": Color(0.3, 0.3, 0.55, 0.4), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.5, 0.5, 0.8, 0.55), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(0.7, 0.7, 1.0, 0.7), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
-	{
-		"name": "Warm Amber",
-		"colors": [
-			{"color": Color(0.5, 0.35, 0.15, 0.35), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.8, 0.55, 0.2, 0.5), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(1.0, 0.75, 0.3, 0.65), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
-	{
-		"name": "Neon Pink",
-		"colors": [
-			{"color": Color(0.4, 0.15, 0.3, 0.35), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.7, 0.2, 0.5, 0.5), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(1.0, 0.4, 0.7, 0.65), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
-	{
-		"name": "Pale Violet",
-		"colors": [
-			{"color": Color(0.35, 0.25, 0.5, 0.35), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.55, 0.4, 0.8, 0.5), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(0.75, 0.6, 1.0, 0.65), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
-	{
-		"name": "Mint Green",
-		"colors": [
-			{"color": Color(0.2, 0.4, 0.35, 0.35), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.3, 0.65, 0.55, 0.5), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(0.5, 0.9, 0.75, 0.65), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
-	{
-		"name": "Pure White",
-		"colors": [
-			{"color": Color(0.4, 0.4, 0.4, 0.3), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.65, 0.65, 0.65, 0.45), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(0.9, 0.9, 0.95, 0.65), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
-	{
-		"name": "Synth Cyan",
-		"colors": [
-			{"color": Color(0.1, 0.35, 0.45, 0.35), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.15, 0.6, 0.75, 0.5), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(0.3, 0.85, 1.0, 0.65), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
-	{
-		"name": "Gold Dust",
-		"colors": [
-			{"color": Color(0.45, 0.35, 0.1, 0.35), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.75, 0.6, 0.15, 0.5), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(1.0, 0.85, 0.3, 0.65), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
-	{
-		"name": "Deep Red",
-		"colors": [
-			{"color": Color(0.4, 0.12, 0.1, 0.35), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.7, 0.18, 0.15, 0.5), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(1.0, 0.3, 0.25, 0.6), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
-	{
-		"name": "Mixed Cool/Warm",
-		"colors": [
-			{"color": Color(0.3, 0.3, 0.55, 0.4), "size_min": 0.6, "size_max": 1.4},
-			{"color": Color(0.7, 0.5, 0.3, 0.5), "size_min": 0.8, "size_max": 1.8},
-			{"color": Color(0.9, 0.8, 0.95, 0.65), "size_min": 1.0, "size_max": 2.2},
-		],
-	},
+const SAVE_PATH := "user://settings/warning_auditions.json"
+
+# Base style (preset 9: violet corner marks chromatic)
+const BASE_STYLE: Dictionary = {
+	"border_width": 2.0,
+	"glow_layers": 4,
+	"glow_spread": 3.0,
+	"scanline_spacing": 3.0,
+	"scanline_alpha": 0.35,
+	"scanline_scroll": 45.0,
+	"flicker_speed": 7.0,
+	"flicker_amount": 0.22,
+	"corner_marks": true,
+	"double_border": false,
+}
+
+# Warning types — paired: orange watch / red warning for each system
+const WARNINGS: Array = [
+	# Thermal
+	{"id": "heat", "label": "HEAT", "color": Color(1.0, 0.4, 0.1), "hdr": 2.8},
+	{"id": "fire", "label": "FIRE", "color": Color(1.0, 0.2, 0.0), "hdr": 3.0},
+	# Electric
+	{"id": "low_power", "label": "LOW POWER", "color": Color(0.7, 0.3, 1.0), "hdr": 2.8},
+	{"id": "overdraw", "label": "OVERDRAW", "color": Color(1.0, 0.15, 0.1), "hdr": 3.2},
+	# Shields
+	{"id": "shields_low", "label": "SHIELDS LOW", "color": Color(1.0, 0.4, 0.1), "hdr": 2.8},
+	{"id": "shield_break", "label": "SHIELD BREAK", "color": Color(1.0, 0.15, 0.1), "hdr": 3.0},
+	# Hull
+	{"id": "hull_damaged", "label": "HULL DAMAGED", "color": Color(1.0, 0.4, 0.1), "hdr": 2.5},
+	{"id": "hull_critical", "label": "HULL CRITICAL", "color": Color(1.0, 0.15, 0.1), "hdr": 3.2},
 ]
 
 
 func _ready() -> void:
+	_load_saved()
 	_build_ui()
 	_apply_theme()
 	ThemeManager.theme_changed.connect(_apply_theme)
 
 
-func _process(delta: float) -> void:
-	for slab in _slabs:
-		var scroll_val: float = slab["scroll"]
-		scroll_val += SCROLL_SPEED * delta
-		slab["scroll"] = scroll_val
-		var fields: Array = slab["fields"]
-		for field in fields:
-			var f: _AuditionSpeckField = field as _AuditionSpeckField
-			if f:
-				f.scroll_y = scroll_val * f.motion_scale
-				f.queue_redraw()
+func _load_saved() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if not file:
+		return
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) == OK and json.data is Dictionary:
+		_saved_values = json.data
+
+
+func _save_values() -> void:
+	DirAccess.make_dir_recursive_absolute("user://settings/")
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(_saved_values, "\t"))
+
+
+func _get_warning_color(warning_id: String, default_color: Color) -> Color:
+	if _saved_values.has(warning_id):
+		var d: Dictionary = _saved_values[warning_id]
+		return Color(float(d.get("r", default_color.r)), float(d.get("g", default_color.g)), float(d.get("b", default_color.b)))
+	return default_color
+
+
+func _get_warning_hdr(warning_id: String, default_hdr: float) -> float:
+	if _saved_values.has(warning_id):
+		return float(_saved_values[warning_id].get("hdr", default_hdr))
+	return default_hdr
 
 
 func _build_ui() -> void:
-	# Grid background
 	_bg = ColorRect.new()
 	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_bg)
 	ThemeManager.apply_grid_background(_bg)
 
-	# Main scroll
 	var main_scroll := ScrollContainer.new()
 	main_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
@@ -142,7 +108,6 @@ func _build_ui() -> void:
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_scroll.add_child(main_vbox)
 
-	# Header
 	var header_hbox := HBoxContainer.new()
 	header_hbox.add_theme_constant_override("separation", 20)
 	main_vbox.add_child(header_hbox)
@@ -153,40 +118,37 @@ func _build_ui() -> void:
 	header_hbox.add_child(_back_button)
 
 	_title_label = Label.new()
-	_title_label.text = "AUDITIONS — Speck Styles"
+	_title_label.text = "AUDITIONS — Warning Types"
 	_title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_hbox.add_child(_title_label)
 
-	# Slab grid — wrap flow of preset slabs
 	var flow := HFlowContainer.new()
 	flow.add_theme_constant_override("h_separation", 16)
 	flow.add_theme_constant_override("v_separation", 16)
 	flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.add_child(flow)
 
-	for i in PRESETS.size():
+	for i in WARNINGS.size():
 		_build_slab(i, flow)
 
 	_setup_vhs_overlay()
 
 
 func _build_slab(index: int, parent: HFlowContainer) -> void:
-	var preset: Dictionary = PRESETS[index]
-	var preset_name: String = str(preset["name"])
-	var color_layers: Array = preset["colors"]
+	var warning: Dictionary = WARNINGS[index]
+	var warning_id: String = str(warning["id"])
+	var warning_label: String = str(warning["label"])
+	var default_color: Color = warning["color"]
+	var default_hdr: float = float(warning["hdr"])
+
+	var current_color: Color = _get_warning_color(warning_id, default_color)
+	var current_hdr: float = _get_warning_hdr(warning_id, default_hdr)
 
 	var slab_vbox := VBoxContainer.new()
 	slab_vbox.add_theme_constant_override("separation", 4)
 	parent.add_child(slab_vbox)
 
-	# Label
-	var label := Label.new()
-	label.text = preset_name
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	slab_vbox.add_child(label)
-	ThemeManager.apply_text_glow(label, "body")
-
-	# Viewport for dark preview
+	# Viewport with etch grid
 	var vpc := SubViewportContainer.new()
 	vpc.stretch = true
 	vpc.custom_minimum_size = Vector2(SLAB_WIDTH, SLAB_HEIGHT)
@@ -201,57 +163,143 @@ func _build_slab(index: int, parent: HFlowContainer) -> void:
 
 	VFXFactory.add_bloom_to_viewport(vp)
 
-	# Dark background
 	var bg := ColorRect.new()
-	bg.color = Color(0.02, 0.02, 0.04, 1.0)
+	bg.color = Color(0.02, 0.01, 0.04, 1.0)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vp.add_child(bg)
 
-	# Build 3 speck sub-layers with different motion scales
-	var fields: Array = []
-	var motion_scales: Array[float] = [0.25, 0.5, 0.75]
-	var counts: Array[int] = [50, 30, 15]
-
-	for layer_idx in range(color_layers.size()):
-		var layer_def: Dictionary = color_layers[layer_idx]
-		var col: Color = layer_def["color"]
-		var s_min: float = float(layer_def["size_min"])
-		var s_max: float = float(layer_def["size_max"])
-		var ms: float = motion_scales[layer_idx] if layer_idx < motion_scales.size() else 0.5
-		var count: int = counts[layer_idx] if layer_idx < counts.size() else 30
-
-		var field := _AuditionSpeckField.new()
-		field.speck_count = count
-		field.speck_color = col
-		field.speck_size_min = s_min
-		field.speck_size_max = s_max
-		field.speck_seed = index * 100 + layer_idx * 10
-		field.motion_scale = ms
-		field.field_width = float(SLAB_WIDTH)
-		field.field_height = float(SLAB_HEIGHT)
-		field.size = Vector2(SLAB_WIDTH, SLAB_HEIGHT)
-		vp.add_child(field)
-		fields.append(field)
-
-	# Etch grid overlay — same shader as level 1 background, layered on top of specks
 	var etch_shader: Shader = load("res://assets/shaders/bg_synthwave_pulse.gdshader") as Shader
 	if etch_shader:
 		var etch_rect := ColorRect.new()
 		etch_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 		etch_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var mat := ShaderMaterial.new()
-		mat.shader = etch_shader
-		etch_rect.material = mat
+		var etch_mat := ShaderMaterial.new()
+		etch_mat.shader = etch_shader
+		etch_rect.material = etch_mat
 		vp.add_child(etch_rect)
 
-	_slabs.append({
-		"scroll": 0.0,
-		"fields": fields,
-		"label": label,
+	# Warning box
+	var live_preset: Dictionary = BASE_STYLE.duplicate(true)
+	live_preset["color"] = current_color
+	live_preset["hdr"] = current_hdr
+
+	var box := _WarningBoxDraw.new()
+	box.preset = live_preset
+	box.box_size = Vector2(BOX_W, BOX_H)
+	box.position = Vector2((SLAB_WIDTH - BOX_W) * 0.5, (SLAB_HEIGHT - BOX_H) * 0.5)
+	box.size = Vector2(BOX_W, BOX_H)
+	vp.add_child(box)
+
+	# Warning text label
+	var warn_label := Label.new()
+	warn_label.text = warning_label
+	warn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warn_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	warn_label.size = Vector2(BOX_W, BOX_H)
+	warn_label.position = box.position
+	warn_label.modulate = Color(current_hdr, current_hdr, current_hdr, 1.0)
+	warn_label.add_theme_color_override("font_color", current_color)
+	warn_label.add_theme_font_size_override("font_size", 24)
+	var hdr_font: Font = ThemeManager.get_font("font_header")
+	if hdr_font:
+		warn_label.add_theme_font_override("font", hdr_font)
+	var text_shader: Shader = load("res://assets/shaders/crt_scanline_text.gdshader") as Shader
+	if text_shader:
+		var text_mat := ShaderMaterial.new()
+		text_mat.shader = text_shader
+		warn_label.material = text_mat
+	warn_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vp.add_child(warn_label)
+
+	# Controls row — color picker + HDR slider
+	var controls := HBoxContainer.new()
+	controls.add_theme_constant_override("separation", 8)
+	controls.custom_minimum_size.x = SLAB_WIDTH
+	slab_vbox.add_child(controls)
+
+	# Color picker
+	var color_btn := ColorPickerButton.new()
+	color_btn.color = current_color
+	color_btn.custom_minimum_size = Vector2(40, 24)
+	controls.add_child(color_btn)
+
+	# HDR label
+	var hdr_label := Label.new()
+	hdr_label.text = "HDR"
+	hdr_label.custom_minimum_size.x = 28
+	ThemeManager.apply_text_glow(hdr_label, "body")
+	controls.add_child(hdr_label)
+
+	# HDR slider
+	var slider := HSlider.new()
+	slider.min_value = 0.5
+	slider.max_value = 5.0
+	slider.step = 0.1
+	slider.value = current_hdr
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controls.add_child(slider)
+
+	var val_label := Label.new()
+	val_label.text = "%.1f" % current_hdr
+	val_label.custom_minimum_size.x = 28
+	ThemeManager.apply_text_glow(val_label, "body")
+	controls.add_child(val_label)
+
+	var slab_idx: int = _slab_data.size()
+	_slab_data.append({
+		"box": box,
+		"warn_label": warn_label,
+		"preset": live_preset,
+		"val_label": val_label,
+		"warning_id": warning_id,
 	})
 
+	slider.value_changed.connect(func(val: float) -> void:
+		var entry: Dictionary = _slab_data[slab_idx]
+		entry["preset"]["hdr"] = val
+		var lbl: Label = entry["warn_label"]
+		lbl.modulate = Color(val, val, val, 1.0)
+		var vlbl: Label = entry["val_label"]
+		vlbl.text = "%.1f" % val
+		_update_saved(str(entry["warning_id"]), val, -1.0, -1.0, -1.0)
+	)
 
-# ── Theme ────────────────────────────────────────────────────────
+	color_btn.color_changed.connect(func(col: Color) -> void:
+		var entry: Dictionary = _slab_data[slab_idx]
+		entry["preset"]["color"] = col
+		var lbl: Label = entry["warn_label"]
+		lbl.add_theme_color_override("font_color", col)
+		_update_saved(str(entry["warning_id"]), -1.0, col.r, col.g, col.b)
+	)
+
+
+func _update_saved(warning_id: String, hdr: float, r: float, g: float, b: float) -> void:
+	if not _saved_values.has(warning_id):
+		# Find default from WARNINGS
+		var default_color := Color.WHITE
+		var default_hdr: float = 2.8
+		for w in WARNINGS:
+			if str(w["id"]) == warning_id:
+				default_color = w["color"]
+				default_hdr = float(w["hdr"])
+				break
+		_saved_values[warning_id] = {
+			"hdr": default_hdr,
+			"r": default_color.r,
+			"g": default_color.g,
+			"b": default_color.b,
+		}
+	var d: Dictionary = _saved_values[warning_id]
+	if hdr >= 0.0:
+		d["hdr"] = hdr
+	if r >= 0.0:
+		d["r"] = r
+	if g >= 0.0:
+		d["g"] = g
+	if b >= 0.0:
+		d["b"] = b
+	_save_values()
+
 
 func _apply_theme() -> void:
 	if _bg:
@@ -267,9 +315,6 @@ func _apply_theme() -> void:
 		_title_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	if _vhs_overlay:
 		ThemeManager.apply_vhs_overlay(_vhs_overlay)
-	for slab in _slabs:
-		var lbl: Label = slab["label"]
-		ThemeManager.apply_text_glow(lbl, "body")
 
 
 func _setup_vhs_overlay() -> void:
@@ -292,47 +337,84 @@ func _input(event: InputEvent) -> void:
 		_on_back()
 
 
-# ── Audition speck field (self-contained, no ParallaxLayer needed) ──
+# ── Procedural warning box — _draw() based, same pipeline as ships ──────
 
-class _AuditionSpeckField extends Control:
-	var speck_count: int = 40
-	var speck_color: Color = Color(0.5, 0.5, 0.8, 0.6)
-	var speck_size_min: float = 0.8
-	var speck_size_max: float = 2.0
-	var speck_seed: int = 1
-	var motion_scale: float = 0.5
-	var scroll_y: float = 0.0
-	var field_width: float = 280.0
-	var field_height: float = 400.0
-	var _positions: PackedVector2Array = PackedVector2Array()
-	var _sizes: PackedFloat32Array = PackedFloat32Array()
-	var _phases: PackedFloat32Array = PackedFloat32Array()
-	var _speeds: PackedFloat32Array = PackedFloat32Array()
+class _WarningBoxDraw extends Control:
+	var preset: Dictionary = {}
+	var box_size: Vector2 = Vector2(220, 70)
 	var _time: float = 0.0
-
-	func _ready() -> void:
-		var rng := RandomNumberGenerator.new()
-		rng.seed = speck_seed
-		# Generate enough specks to tile vertically
-		for i in speck_count:
-			_positions.append(Vector2(rng.randf() * field_width, rng.randf() * field_height))
-			_sizes.append(rng.randf_range(speck_size_min, speck_size_max))
-			_phases.append(rng.randf() * TAU)
-			_speeds.append(rng.randf_range(0.8, 2.5))
 
 	func _process(delta: float) -> void:
 		_time += delta
+		queue_redraw()
 
 	func _draw() -> void:
-		for i in _positions.size():
-			var base_pos: Vector2 = _positions[i]
-			# Scroll: wrap vertically
-			var y: float = fmod(base_pos.y - scroll_y, field_height)
-			if y < 0.0:
-				y += field_height
-			var pos := Vector2(base_pos.x, y)
+		if preset.is_empty():
+			return
+		var col: Color = preset.get("color", Color.RED)
+		var border_w: float = float(preset["border_width"])
+		var glow_layers: int = int(preset["glow_layers"])
+		var glow_spread: float = float(preset["glow_spread"])
+		var hdr: float = float(preset.get("hdr", 2.5))
+		var scan_spacing: float = float(preset["scanline_spacing"])
+		var scan_alpha: float = float(preset["scanline_alpha"])
+		var scan_scroll: float = float(preset["scanline_scroll"])
+		var flicker_spd: float = float(preset["flicker_speed"])
+		var flicker_amt: float = float(preset["flicker_amount"])
+		var has_corners: bool = bool(preset["corner_marks"])
+		var has_double: bool = bool(preset["double_border"])
 
-			var twinkle: float = 0.6 + 0.4 * sin(_time * _speeds[i] + _phases[i])
-			var col := Color(speck_color.r, speck_color.g, speck_color.b, speck_color.a * twinkle)
-			var r: float = _sizes[i] * (0.85 + 0.15 * twinkle)
-			draw_circle(pos, r, col)
+		var flicker: float = 1.0 - flicker_amt * (0.5 + 0.5 * sin(_time * flicker_spd + sin(_time * 2.3) * 3.0))
+
+		var w: float = box_size.x
+		var h: float = box_size.y
+		var rect := Rect2(Vector2.ZERO, box_size)
+
+		# Glow layers
+		for gi in range(glow_layers, 0, -1):
+			var t: float = float(gi) / float(glow_layers)
+			var expand: float = t * glow_spread * float(glow_layers)
+			var glow_alpha: float = (1.0 - t) * 0.15 * flicker
+			var glow_col := Color(col.r * hdr, col.g * hdr, col.b * hdr, glow_alpha)
+			var glow_rect := Rect2(
+				Vector2(-expand, -expand),
+				Vector2(w + expand * 2.0, h + expand * 2.0)
+			)
+			draw_rect(glow_rect, glow_col, false, border_w + expand * 0.5)
+
+		# Main border
+		var border_col := Color(col.r * hdr, col.g * hdr, col.b * hdr, 0.9 * flicker)
+		draw_rect(rect, border_col, false, border_w)
+
+		# Double border
+		if has_double:
+			var inset: float = border_w * 2.5 + 2.0
+			var inner_rect := Rect2(
+				Vector2(inset, inset),
+				Vector2(w - inset * 2.0, h - inset * 2.0)
+			)
+			var inner_col := Color(col.r * hdr * 0.7, col.g * hdr * 0.7, col.b * hdr * 0.7, 0.6 * flicker)
+			draw_rect(inner_rect, inner_col, false, maxf(border_w * 0.5, 1.0))
+
+		# Corner marks
+		if has_corners:
+			var cm_len: float = 12.0
+			var cm_col := Color(col.r * hdr, col.g * hdr, col.b * hdr, 0.7 * flicker)
+			var cm_w: float = maxf(border_w * 0.8, 1.0)
+			var cm_off: float = -4.0
+			draw_line(Vector2(cm_off, cm_off), Vector2(cm_off + cm_len, cm_off), cm_col, cm_w)
+			draw_line(Vector2(cm_off, cm_off), Vector2(cm_off, cm_off + cm_len), cm_col, cm_w)
+			draw_line(Vector2(w - cm_off, cm_off), Vector2(w - cm_off - cm_len, cm_off), cm_col, cm_w)
+			draw_line(Vector2(w - cm_off, cm_off), Vector2(w - cm_off, cm_off + cm_len), cm_col, cm_w)
+			draw_line(Vector2(cm_off, h - cm_off), Vector2(cm_off + cm_len, h - cm_off), cm_col, cm_w)
+			draw_line(Vector2(cm_off, h - cm_off), Vector2(cm_off, h - cm_off - cm_len), cm_col, cm_w)
+			draw_line(Vector2(w - cm_off, h - cm_off), Vector2(w - cm_off - cm_len, h - cm_off), cm_col, cm_w)
+			draw_line(Vector2(w - cm_off, h - cm_off), Vector2(w - cm_off, h - cm_off - cm_len), cm_col, cm_w)
+
+		# Scanlines
+		var scan_col := Color(col.r * hdr * 0.5, col.g * hdr * 0.5, col.b * hdr * 0.5, scan_alpha * flicker)
+		var scroll_offset: float = fmod(_time * scan_scroll, scan_spacing)
+		var y: float = scroll_offset
+		while y < h:
+			draw_line(Vector2(border_w, y), Vector2(w - border_w, y), scan_col, 1.0)
+			y += scan_spacing

@@ -55,6 +55,10 @@ static func draw_enemy_on(ci: CanvasItem, visual_id: String, at_origin: Vector2,
 		"leviathan": ctx.draw_leviathan(o)
 		"marauder": ctx.draw_marauder(o)
 		"wraith": ctx.draw_wraith(o)
+		"archon_core": ctx.draw_archon_core(o)
+		"archon_wing_l": ctx.draw_archon_wing(o, -1.0)
+		"archon_wing_r": ctx.draw_archon_wing(o, 1.0)
+		"archon_turret": ctx.draw_archon_turret(o)
 		_: ctx.draw_sentinel(o)
 
 ## Draw a sentinel enemy thumbnail on any CanvasItem.
@@ -963,3 +967,54 @@ class _DrawCtx:
 		# Dark center void
 		mc(o, 3.0 * s, Color(0.0, 0.0, 0.0, 0.5))
 		mc(o, 1.5 * s, Color(1.0, 1.0, 1.0, 0.7))
+
+	func draw_archon_core(o: Vector2) -> void:
+		var s := 0.30
+		# Wide inverted-U arch
+		var hw: float = 22.0 * s
+		var hh: float = 16.0 * s
+		var arch := PackedVector2Array()
+		arch.append(o + Vector2(-hw, hh * 0.4))
+		arch.append(o + Vector2(-hw, -hh * 0.3))
+		for i in range(9):
+			var t: float = float(i) / 8.0
+			var angle: float = PI + t * PI
+			arch.append(o + Vector2(cos(angle) * hw, sin(angle) * hh * 0.7 - hh * 0.5))
+		arch.append(o + Vector2(hw, -hh * 0.3))
+		arch.append(o + Vector2(hw, hh * 0.4))
+		mp(arch, cyan, 0.8)
+		# Inner cavity cutout hint
+		var inner_hw: float = 14.0 * s
+		for i in range(7):
+			var t: float = float(i) / 6.0
+			var angle: float = PI + t * PI
+			var px: float = cos(angle) * inner_hw
+			var py: float = sin(angle) * 10.0 * s - hh * 0.3
+			mc(o + Vector2(px, py), 0.8 * s, Color(magenta.r, magenta.g, magenta.b, 0.3))
+		# Crown diamond
+		mc(o + Vector2(0, -hh * 0.85), 2.0 * s, Color(magenta.r, magenta.g, magenta.b, 0.6))
+
+	func draw_archon_wing(o: Vector2, side: float = 1.0) -> void:
+		var s := 0.18
+		var reach: float = 36.0 * s
+		var hook: float = 28.0 * s
+		var wing := PackedVector2Array()
+		for i in range(9):
+			var t: float = float(i) / 8.0
+			var x: float = side * reach * (1.0 - (1.0 - t) * (1.0 - t))
+			var ht: float = clampf((t - 0.5) / 0.5, 0.0, 1.0)
+			var y: float = -4.0 * s + ht * ht * hook
+			wing.append(o + Vector2(x, y))
+		mp(wing, cyan, 0.5)
+		mc(o + Vector2(side * reach * 0.95, hook * 0.7), 1.2 * s, teal)
+
+	func draw_archon_turret(o: Vector2) -> void:
+		var s := 0.25
+		var base := PackedVector2Array()
+		for i in range(8):
+			var angle: float = TAU * float(i) / 8.0
+			base.append(o + Vector2(cos(angle) * 8.0 * s, sin(angle) * 8.0 * s))
+		mp(base, cyan, 0.6)
+		mc(o, 3.0 * s, Color(magenta.r, magenta.g, magenta.b, 0.5))
+		ml(o, o + Vector2(0, 12.0 * s), teal, 0.5)
+		mc(o + Vector2(0, 12.0 * s), 1.0 * s, teal)

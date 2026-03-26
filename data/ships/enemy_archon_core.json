@@ -1,0 +1,26 @@
+{
+	"id": "enemy_archon_core",
+	"display_name": "Archon Core",
+	"type": "enemy",
+	"visual_id": "archon_core",
+	"render_mode": "neon",
+	"grid_size": [300, 200],
+	"weapon_id": "",
+	"hardpoint_offsets": [
+		[0.0, 20.0]
+	],
+	"level": "boss",
+	"collision_shape": "rectangle",
+	"collision_width": 280.0,
+	"collision_height": 140.0,
+	"explosion_color": [0.0, 0.9, 1.0, 1.0],
+	"explosion_size": 3.0,
+	"enable_screen_shake": true,
+	"stats": {
+		"hull_hp": 400,
+		"shield_hp": 200,
+		"shield_regen": 2.0,
+		"speed": 40,
+		"acceleration": 100
+	}
+}

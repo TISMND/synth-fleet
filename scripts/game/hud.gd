@@ -15,6 +15,7 @@ var _weapon_icons: Array = []  # Array of dicts from _build_bezeled_icon
 var _core_icons: Array = []
 var _device_icons: Array = []
 var _warning_labels: Array = []  # Warning label nodes from bottom panel
+var _warning_rotator: _WarningRotator = null  # Upper-center cycling warning display
 var _bars: Dictionary = {}  # keyed by spec name -> {"bar": ProgressBar, "label": Label, "vertical": bool}
 var _bar_segments: Dictionary = {}  # bar_name -> int segment count
 var _bar_base_colors: Dictionary = {}  # bar_name -> Color
@@ -59,6 +60,11 @@ func _build_ui() -> void:
 	_menu_hint.position = Vector2(20, 20)
 	_menu_hint.text = "ESC: Menu"
 	add_child(_menu_hint)
+
+	# Warning rotator — upper center, cycles active warnings
+	_warning_rotator = _WarningRotator.new()
+	_warning_rotator.position = Vector2(960 - 110, 60)  # Centered horizontally, near top
+	add_child(_warning_rotator)
 
 	# Build 3-panel HUD via HudBuilder
 	var side_top: float = 60.0
@@ -223,18 +229,19 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 
 	# Only update fill_ratio on existing shader — don't rebuild the entire LED bar
 	# During power death, fill_ratio is forced to 1.0 so all segments are visible for flicker
+	var hull_exempt: bool = _power_death_active and bar_name == "HULL"
 	if bar.material is ShaderMaterial:
 		var mat: ShaderMaterial = bar.material as ShaderMaterial
-		if _power_death_active:
+		if _power_death_active and not hull_exempt:
 			mat.set_shader_parameter("fill_ratio", 1.0)
 		else:
 			mat.set_shader_parameter("fill_ratio", ratio)
 	# Update glow rect alpha to match fill
 	var glow_rect: ColorRect = bar.get_node_or_null("led_glow") as ColorRect
 	if glow_rect:
-		if not _power_death_active:
+		if not _power_death_active or hull_exempt:
 			glow_rect.color.a = 0.15 * ratio
-		# During power death, glow managed by kill animation
+		# During power death, glow managed by kill animation (except hull)
 	else:
 		# First time or after theme change — full rebuild
 		var seg: int = int(_bar_segments.get(bar_name, -1))
@@ -242,7 +249,7 @@ func _update_bar(bar_name: String, current: float, max_val: float, color_key: St
 		ThemeManager.apply_led_bar(bar, ThemeManager.get_color(color_key), ratio, seg, is_vertical)
 		HudBuilder.update_bar_bezel(entry, seg)
 		# Re-force fill_ratio if in power death (apply_led_bar resets it)
-		if _power_death_active and bar.material is ShaderMaterial:
+		if _power_death_active and not hull_exempt and bar.material is ShaderMaterial:
 			(bar.material as ShaderMaterial).set_shader_parameter("fill_ratio", 1.0)
 
 
@@ -353,6 +360,13 @@ func _update_warnings(ratios: Dictionary) -> void:
 			HudBuilder.set_warning_active(lbl, false, warning_color)
 
 
+func update_warnings_rotator(active_warnings: Array) -> void:
+	## Feed the upper-center warning rotator with currently active warning IDs.
+	## Each entry: {"id": "heat", "label": "HEAT", "color": Color(...), "hdr": 2.8}
+	if _warning_rotator:
+		_warning_rotator.set_active_warnings(active_warnings)
+
+
 func update_credits(amount: int) -> void:
 	_credits_label.text = "CR: " + str(amount)
 
@@ -445,6 +459,8 @@ func start_power_death_bars() -> void:
 	_bar_kill_masks.clear()
 	_bar_flicker_timers.clear()
 	for bar_name in _bars:
+		if bar_name == "HULL":
+			continue  # Hull bar stays alive during power loss
 		_bar_kill_masks[bar_name] = 0
 		var seg: int = int(_bar_segments.get(bar_name, 8))
 		var timers: Array[float] = []
@@ -466,6 +482,8 @@ func final_power_death_bars() -> void:
 	stop_shield_arcs()
 	# Stop all flickering — no more revivals
 	for bar_name in _bar_flicker_timers:
+		if bar_name == "HULL":
+			continue
 		var timers: Array = _bar_flicker_timers[bar_name]
 		for i in timers.size():
 			timers[i] = 0.0
@@ -510,6 +528,10 @@ func stop_power_death_bars() -> void:
 	_power_death_elapsed = 0.0
 	_power_death_final = false
 	_power_death_final_elapsed = 0.0
+	# Restore hull bar modulate (was flickering during power loss)
+	if _bars.has("HULL"):
+		var hull_bar: ProgressBar = _bars["HULL"]["bar"]
+		hull_bar.modulate.a = 1.0
 	# Restore all segments and fill ratios
 	for bar_name in _bars:
 		_bar_kill_masks[bar_name] = 0
@@ -547,6 +569,8 @@ func process_power_death_bars(delta: float) -> void:
 	var kill_chance: float = kill_rate * delta
 
 	for bar_name in _bars:
+		if bar_name == "HULL":
+			continue  # Hull bar stays alive — handled separately below
 		var entry: Dictionary = _bars[bar_name]
 		var bar: ProgressBar = entry["bar"]
 		if not bar.material is ShaderMaterial:
@@ -603,6 +627,12 @@ func process_power_death_bars(delta: float) -> void:
 			var ratio: float = bar.value / maxf(bar.max_value, 1.0)
 			var alive_frac: float = float(alive_count) / maxf(float(seg), 1.0)
 			glow.color.a = 0.15 * ratio * alive_frac
+
+	# Hull bar: subtle flicker to convey failing power, but still functional
+	if _bars.has("HULL"):
+		var hull_entry: Dictionary = _bars["HULL"]
+		var hull_bar: ProgressBar = hull_entry["bar"]
+		hull_bar.modulate.a = 0.5 + randf() * 0.5
 
 
 func update_hardpoints(data: Array) -> void:
@@ -691,3 +721,117 @@ func update_devices(data: Array) -> void:
 			var active: bool = data[i].get("active", false) as bool
 			_device_icons[i]["active"] = active
 			HudBuilder.apply_bezeled_icon_theme(_device_icons[i])
+
+
+# ── Warning Rotator — upper-center cycling warning display ───────────────
+
+class _WarningRotator extends Control:
+	## Cycles through active warnings: 500ms visible, 500ms off, then next warning.
+	## Draws procedurally with HDR colors (same pipeline as ships/bars on root viewport).
+	const BOX_W: float = 220.0
+	const BOX_H: float = 50.0
+	const CYCLE_ON: float = 0.5   # seconds visible
+	const CYCLE_OFF: float = 0.5  # seconds dark
+	const HULL_DAMAGED_DURATION: float = 2.0  # seconds before "HULL DAMAGED" auto-clears
+
+	# Style params (preset 9: corner marks chromatic)
+	const BORDER_W: float = 2.0
+	const GLOW_LAYERS: int = 4
+	const GLOW_SPREAD: float = 3.0
+	const SCANLINE_SPACING: float = 3.0
+	const SCANLINE_ALPHA: float = 0.35
+	const SCANLINE_SCROLL: float = 45.0
+	const FLICKER_SPEED: float = 7.0
+	const FLICKER_AMOUNT: float = 0.22
+
+	var _active_warnings: Array = []  # Array of {id, label, color, hdr}
+	var _cycle_timer: float = 0.0
+	var _current_index: int = 0
+	var _showing: bool = true
+	var _time: float = 0.0
+
+	func _ready() -> void:
+		size = Vector2(BOX_W, BOX_H)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func set_active_warnings(warnings: Array) -> void:
+		_active_warnings = warnings
+		if _active_warnings.is_empty():
+			_current_index = 0
+			visible = false
+			return
+		visible = true
+		if _current_index >= _active_warnings.size():
+			_current_index = 0
+
+	func _process(delta: float) -> void:
+		_time += delta
+		if _active_warnings.is_empty():
+			return
+		_cycle_timer += delta
+		var cycle_total: float = CYCLE_ON + CYCLE_OFF
+		if _cycle_timer >= cycle_total:
+			_cycle_timer -= cycle_total
+			_current_index = (_current_index + 1) % _active_warnings.size()
+		_showing = _cycle_timer < CYCLE_ON
+		queue_redraw()
+
+	func _draw() -> void:
+		if _active_warnings.is_empty() or not _showing:
+			return
+		if _current_index >= _active_warnings.size():
+			return
+
+		var warning: Dictionary = _active_warnings[_current_index]
+		var col: Color = warning.get("color", Color.RED)
+		var hdr: float = float(warning.get("hdr", 2.8))
+		var label_text: String = str(warning.get("label", "WARNING"))
+
+		var flicker: float = 1.0 - FLICKER_AMOUNT * (0.5 + 0.5 * sin(_time * FLICKER_SPEED + sin(_time * 2.3) * 3.0))
+		var w: float = BOX_W
+		var h: float = BOX_H
+
+		# Glow layers
+		for gi in range(GLOW_LAYERS, 0, -1):
+			var t: float = float(gi) / float(GLOW_LAYERS)
+			var expand: float = t * GLOW_SPREAD * float(GLOW_LAYERS)
+			var glow_alpha: float = (1.0 - t) * 0.15 * flicker
+			var glow_col := Color(col.r * hdr, col.g * hdr, col.b * hdr, glow_alpha)
+			draw_rect(Rect2(Vector2(-expand, -expand), Vector2(w + expand * 2.0, h + expand * 2.0)),
+				glow_col, false, BORDER_W + expand * 0.5)
+
+		# Main border
+		draw_rect(Rect2(Vector2.ZERO, Vector2(w, h)),
+			Color(col.r * hdr, col.g * hdr, col.b * hdr, 0.9 * flicker), false, BORDER_W)
+
+		# Corner marks
+		var cm_len: float = 10.0
+		var cm_col := Color(col.r * hdr, col.g * hdr, col.b * hdr, 0.7 * flicker)
+		var cm_off: float = -3.0
+		draw_line(Vector2(cm_off, cm_off), Vector2(cm_off + cm_len, cm_off), cm_col, 1.5)
+		draw_line(Vector2(cm_off, cm_off), Vector2(cm_off, cm_off + cm_len), cm_col, 1.5)
+		draw_line(Vector2(w - cm_off, cm_off), Vector2(w - cm_off - cm_len, cm_off), cm_col, 1.5)
+		draw_line(Vector2(w - cm_off, cm_off), Vector2(w - cm_off, cm_off + cm_len), cm_col, 1.5)
+		draw_line(Vector2(cm_off, h - cm_off), Vector2(cm_off + cm_len, h - cm_off), cm_col, 1.5)
+		draw_line(Vector2(cm_off, h - cm_off), Vector2(cm_off, h - cm_off - cm_len), cm_col, 1.5)
+		draw_line(Vector2(w - cm_off, h - cm_off), Vector2(w - cm_off - cm_len, h - cm_off), cm_col, 1.5)
+		draw_line(Vector2(w - cm_off, h - cm_off), Vector2(w - cm_off, h - cm_off - cm_len), cm_col, 1.5)
+
+		# Scanlines
+		var scan_col := Color(col.r * hdr * 0.5, col.g * hdr * 0.5, col.b * hdr * 0.5, SCANLINE_ALPHA * flicker)
+		var scroll_offset: float = fmod(_time * SCANLINE_SCROLL, SCANLINE_SPACING)
+		var y: float = scroll_offset
+		while y < h:
+			draw_line(Vector2(BORDER_W, y), Vector2(w - BORDER_W, y), scan_col, 1.0)
+			y += SCANLINE_SPACING
+
+		# Label text — draw_string centered
+		var font: Font = ThemeManager.get_font("font_header")
+		if not font:
+			font = ThemeDB.fallback_font
+		var font_size: int = 22
+		var text_size: Vector2 = font.get_string_size(label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+		var text_x: float = (w - text_size.x) * 0.5
+		var text_y: float = (h + text_size.y * 0.6) * 0.5
+		var text_col := Color(col.r * hdr, col.g * hdr, col.b * hdr, 0.95 * flicker)
+		draw_string(font, Vector2(text_x, text_y), label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_col)

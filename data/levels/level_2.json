@@ -1,40 +1,13 @@
 {
 	"background_shader": "res://assets/shaders/bg_bioluminescent_reef.gdshader",
 	"bpm": 110.0,
+	"deep_background": "",
 	"display_name": "02 - Innit",
 	"doodads": [],
-	"encounters": [
-		{
-			"count": 20,
-			"formation_id": "",
-			"is_melee": false,
-			"path_id": "path_5",
-			"rotate_with_path": false,
-			"ship_id": "enemy_1",
-			"spacing": 200.0,
-			"speed": 300.0,
-			"trigger_y": 981.481481481485,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": 0.0
-		}
-	],
+	"encounters": [],
 	"flight_speed": 160.0,
 	"id": "level_2",
 	"level_length": 10000.0,
-	"nebula_placements": [
-		{
-			"nebula_id": "nebula_5",
-			"radius": 525.0,
-			"trigger_y": 785.847548793607,
-			"x_offset": 18.2371790138952
-		},
-		{
-			"nebula_id": "nebula_5",
-			"radius": 1000.0,
-			"trigger_y": 2176.92946058091,
-			"x_offset": 3.98340248962654
-		}
-	],
+	"nebula_placements": [],
 	"scroll_speed": 80.0
 }

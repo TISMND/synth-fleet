@@ -26,8 +26,10 @@ var _flash_shader: Shader = null
 
 # Large enemies get bigger viewports for visual fidelity
 const LARGE_ENEMY_VISUALS: Array[String] = ["leviathan", "marauder", "ironclad", "wraith", "colossus", "monolith", "nexus", "pylon", "aegis", "helix", "conduit"]
+const BOSS_ENEMY_VISUALS: Array[String] = ["archon_core", "archon_wing_l", "archon_wing_r", "archon_turret"]
 const BAKE_SIZE_SMALL: int = 128
 const BAKE_SIZE_LARGE: int = 256
+const BAKE_SIZE_BOSS: int = 512
 
 
 func _ready() -> void:
@@ -61,6 +63,8 @@ func get_texture(visual_id: String, render_mode_str: String, color: Color) -> Vi
 
 ## Get the bake viewport size for proper Sprite2D centering.
 func get_bake_size(visual_id: String) -> int:
+	if visual_id in BOSS_ENEMY_VISUALS:
+		return BAKE_SIZE_BOSS
 	return BAKE_SIZE_LARGE if visual_id in LARGE_ENEMY_VISUALS else BAKE_SIZE_SMALL
 
 
@@ -108,7 +112,7 @@ func _make_key(visual_id: String, render_mode_str: String, color: Color) -> Stri
 
 
 func _create_bake_viewport(key: String, visual_id: String, render_mode_str: String, color: Color, parent_node: Node) -> void:
-	var bake_size: int = BAKE_SIZE_LARGE if visual_id in LARGE_ENEMY_VISUALS else BAKE_SIZE_SMALL
+	var bake_size: int = get_bake_size(visual_id)
 
 	var vp := SubViewport.new()
 	vp.name = "Bake_" + key.replace("|", "_")

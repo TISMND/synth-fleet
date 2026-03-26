@@ -17,6 +17,7 @@ var _nebula_container: Node2D = null
 var _doodad_container: Node2D = null
 var _bg_shader_mat: ShaderMaterial = null  # reference for setting scroll_offset on static shaders
 var _game_viewport: SubViewport = null
+var _game_viewport_container: SubViewportContainer = null
 var _shared_renderer: EnemySharedRenderer = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
@@ -51,6 +52,21 @@ var _death_player_pos: Vector2 = Vector2.ZERO  # Snapshot of player position at 
 var _game_over_overlay: Control = null
 const DEATH_EXPLOSION_DURATION: float = 3.0
 
+# Death during power loss — dramatic bulkhead collapse
+var _power_death_active: bool = false
+var _power_death_timer: float = 0.0
+var _power_death_explosion_accum: float = 0.0
+const POWER_DEATH_DURATION: float = 2.5
+
+# Screen shake (general purpose — reusable for any damage event)
+var _screen_shake_remaining: float = 0.0
+var _screen_shake_amplitude: float = 0.0
+var _screen_shake_original_pos: Vector2 = Vector2.ZERO
+
+# Warning rotator state
+var _hull_damaged_timer: float = 0.0  # Transient "HULL DAMAGED" display timer
+const HULL_DAMAGED_DISPLAY_TIME: float = 2.0
+
 const NEBULA_STYLES: Dictionary = {
 	"classic_fbm": {"shader": "res://assets/shaders/nebula_classic_fbm.gdshader", "dual": false},
 	"wispy_filaments": {"shader": "res://assets/shaders/nebula_wispy_filaments.gdshader", "dual": false},
@@ -70,6 +86,7 @@ var level_id: String = ""
 
 
 func _ready() -> void:
+	_load_warning_colors()
 	# Force fresh SFX cache on every game start
 	SfxPlayer.reload()
 	# Reassign key bindings to sequential 1-2-3... based on current ship's slot counts
@@ -96,6 +113,7 @@ func _ready() -> void:
 	# Game content renders in its own SubViewport with HDR + ACES + bloom —
 	# the exact same pipeline that component tab previews use.
 	var svc := SubViewportContainer.new()
+	_game_viewport_container = svc
 	svc.name = "GameViewportContainer"
 	svc.position = Vector2.ZERO
 	svc.size = Vector2(1920, 1080)
@@ -142,6 +160,9 @@ func _ready() -> void:
 	_player.setup(ship, loadout, _projectiles)
 	_player.position = Vector2(960, 850)
 	_player.died.connect(_on_player_died)
+	_player.died_during_power_loss.connect(_on_player_died_during_power_loss)
+	_player.hull_hit_during_power_loss.connect(func(): trigger_screen_shake(4.0, 0.2))
+	_player.hull_hit.connect(func(): _hull_damaged_timer = HULL_DAMAGED_DISPLAY_TIME)
 
 	# Wave manager
 	_wave_manager = WaveManager.new()
@@ -203,12 +224,16 @@ func _process(delta: float) -> void:
 	# Death explosion sequence
 	if _death_sequence_active:
 		_process_death_sequence(delta)
-	if _hud and _player and not _game_over_overlay:
+	if _power_death_active:
+		_process_power_loss_death(delta)
+	_process_screen_shake(delta)
+	if _hud and _player and not _game_over_overlay and not _power_death_active:
 		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
 		_hud.update_bar_pulses(delta)
 		_hud.process_power_death_bars(delta)
 		_hud.process_shield_arcs(delta)
 		_hud.update_credits(GameState.credits)
+		_update_warning_rotator(delta)
 
 
 func _collect_enemy_appearances(level: LevelData) -> Array:
@@ -487,7 +512,7 @@ func _get_time_to_next_measure() -> float:
 
 
 func _on_player_died() -> void:
-	if _death_sequence_active:
+	if _death_sequence_active or _power_death_active:
 		return  # Prevent double-trigger
 	_death_sequence_active = true
 	_death_timer = 0.0
@@ -585,6 +610,201 @@ func _show_game_over() -> void:
 	ThemeManager.apply_text_glow(subtitle, "body")
 	subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(subtitle)
+
+
+# ── Warning rotator conditions ────────────────────────────────────────
+
+# Warning colors — loaded from audition save file if available, otherwise defaults
+var _warning_colors: Dictionary = {}  # id -> {color, hdr}
+const WARNING_DEFAULTS: Dictionary = {
+	"heat": {"color": Color(1.0, 0.4, 0.1), "hdr": 2.8},
+	"fire": {"color": Color(1.0, 0.2, 0.0), "hdr": 3.0},
+	"low_power": {"color": Color(0.7, 0.3, 1.0), "hdr": 2.8},
+	"overdraw": {"color": Color(1.0, 0.15, 0.1), "hdr": 3.2},
+	"shields_low": {"color": Color(1.0, 0.4, 0.1), "hdr": 2.8},
+	"hull_damaged": {"color": Color(1.0, 0.4, 0.1), "hdr": 2.5},
+	"hull_critical": {"color": Color(1.0, 0.15, 0.1), "hdr": 3.2},
+}
+const WARNING_LABELS: Dictionary = {
+	"heat": "HEAT",
+	"fire": "FIRE",
+	"low_power": "LOW POWER",
+	"overdraw": "OVERDRAW",
+	"shields_low": "SHIELDS LOW",
+	"hull_damaged": "HULL DAMAGED",
+	"hull_critical": "HULL CRITICAL",
+}
+
+func _load_warning_colors() -> void:
+	_warning_colors = WARNING_DEFAULTS.duplicate(true)
+	var path := "user://settings/warning_auditions.json"
+	if not FileAccess.file_exists(path):
+		return
+	var file := FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK or not json.data is Dictionary:
+		return
+	var data: Dictionary = json.data
+	for warning_id in data:
+		if WARNING_DEFAULTS.has(warning_id):
+			var saved: Dictionary = data[warning_id]
+			_warning_colors[warning_id] = {
+				"color": Color(float(saved.get("r", 1.0)), float(saved.get("g", 0.3)), float(saved.get("b", 0.1))),
+				"hdr": float(saved.get("hdr", WARNING_DEFAULTS[warning_id]["hdr"])),
+			}
+
+
+func _update_warning_rotator(delta: float) -> void:
+	if _hull_damaged_timer > 0.0:
+		_hull_damaged_timer -= delta
+
+	var warnings: Array = []
+	var p: Node2D = _player
+
+	# Heat: thermal > 90%
+	var thermal_ratio: float = p.thermal / maxf(p.thermal_max, 1.0)
+	if thermal_ratio > 0.9:
+		# Fire: thermal is at max (overflow damaging hull)
+		if p.thermal >= p.thermal_max - 0.1:
+			warnings.append(_make_warning("fire"))
+		else:
+			warnings.append(_make_warning("heat"))
+
+	# Low Power: electric < 10%
+	var electric_ratio: float = p.electric / maxf(p.electric_max, 1.0)
+	if electric_ratio < 0.1 and p.electric_max > 0.0:
+		# Overdraw: pulling from shields/engines
+		if p._electric_overdraw or (p._electric_crisis_active and p.electric <= 0.1):
+			warnings.append(_make_warning("overdraw"))
+		else:
+			warnings.append(_make_warning("low_power"))
+
+	# Shields Low: < 10%
+	var shield_ratio: float = p.shield / maxf(p.shield_max, 1.0)
+	if shield_ratio < 0.1 and p.shield_max > 0.0 and p.shield < p.shield_max:
+		warnings.append(_make_warning("shields_low"))
+
+	# Hull Critical: < 15% (takes priority over Hull Damaged)
+	var hull_ratio: float = p.hull / maxf(p.hull_max, 1.0)
+	if hull_ratio < 0.15 and p.hull_max > 0.0:
+		warnings.append(_make_warning("hull_critical"))
+	elif _hull_damaged_timer > 0.0:
+		warnings.append(_make_warning("hull_damaged"))
+
+	_hud.update_warnings_rotator(warnings)
+
+
+func _make_warning(warning_id: String) -> Dictionary:
+	var entry: Dictionary = _warning_colors.get(warning_id, WARNING_DEFAULTS.get(warning_id, {}))
+	return {
+		"id": warning_id,
+		"label": WARNING_LABELS.get(warning_id, warning_id.to_upper()),
+		"color": entry.get("color", Color.RED),
+		"hdr": entry.get("hdr", 2.8),
+	}
+
+
+# ── Screen shake ─────────────────────────────────────────────────────
+
+func trigger_screen_shake(amplitude: float, duration: float) -> void:
+	if not _game_viewport_container:
+		return
+	if _screen_shake_remaining <= 0.0:
+		_screen_shake_original_pos = _game_viewport_container.position
+	_screen_shake_amplitude = maxf(_screen_shake_amplitude, amplitude)
+	_screen_shake_remaining = maxf(_screen_shake_remaining, duration)
+
+
+func _process_screen_shake(delta: float) -> void:
+	if _screen_shake_remaining <= 0.0:
+		return
+	_screen_shake_remaining -= delta
+	if _screen_shake_remaining <= 0.0:
+		_game_viewport_container.position = _screen_shake_original_pos
+		_screen_shake_amplitude = 0.0
+		return
+	var intensity: float = minf(_screen_shake_remaining / 0.15, 1.0)
+	var t: float = float(Time.get_ticks_msec()) / 1000.0
+	var ox: float = sin(t * 55.0) * _screen_shake_amplitude * intensity
+	var oy: float = cos(t * 40.0) * _screen_shake_amplitude * intensity * 0.7
+	_game_viewport_container.position = _screen_shake_original_pos + Vector2(ox, oy)
+
+
+# ── Death during power loss ──────────────────────────────────────────
+
+func _on_player_died_during_power_loss() -> void:
+	if _death_sequence_active or _power_death_active:
+		return
+	_power_death_active = true
+	_power_death_timer = 0.0
+	_power_death_explosion_accum = 0.0
+	if _player:
+		_death_player_pos = _player.global_position
+		_player.disable_for_death()
+	if _wave_manager:
+		_wave_manager.stop()
+	# Big initial shake + explosion
+	trigger_screen_shake(8.0, 0.5)
+	SfxPlayer.play("explosion_1")
+
+
+func _process_power_loss_death(delta: float) -> void:
+	_power_death_timer += delta
+	var progress: float = clampf(_power_death_timer / POWER_DEATH_DURATION, 0.0, 1.0)
+
+	# Phase 1 (0-1s): Escalating impacts, text corruption starts
+	if _power_death_timer < 1.0:
+		var spawn_interval: float = lerpf(0.4, 0.2, _power_death_timer)
+		_power_death_explosion_accum += delta
+		while _power_death_explosion_accum >= spawn_interval:
+			_power_death_explosion_accum -= spawn_interval
+			var offset := Vector2(randf_range(-50.0, 50.0), randf_range(-50.0, 50.0))
+			var explosion := ExplosionEffect.new()
+			explosion.explosion_color = Color(1.0, 0.5, 0.2)
+			explosion.explosion_size = lerpf(0.4, 1.2, _power_death_timer)
+			explosion.global_position = _death_player_pos + offset
+			_game_viewport.add_child(explosion)
+			SfxPlayer.play("explosion_1")
+			trigger_screen_shake(lerpf(3.0, 6.0, _power_death_timer), 0.15)
+		if _player:
+			_player.corrupt_reboot_text(lerpf(0.05, 0.3, _power_death_timer))
+
+	# Phase 2 (1-2s): Heavy sustained shake, full text scramble, rapid flicker
+	elif _power_death_timer < 2.0:
+		var phase2_t: float = (_power_death_timer - 1.0)
+		trigger_screen_shake(lerpf(8.0, 12.0, phase2_t), 0.3)
+		# Spawn explosions faster
+		_power_death_explosion_accum += delta
+		while _power_death_explosion_accum >= 0.12:
+			_power_death_explosion_accum -= 0.12
+			var offset := Vector2(randf_range(-60.0, 60.0), randf_range(-60.0, 60.0))
+			var explosion := ExplosionEffect.new()
+			explosion.explosion_color = Color(1.0, lerpf(0.4, 0.2, phase2_t), 0.1)
+			explosion.explosion_size = lerpf(1.0, 2.5, phase2_t)
+			explosion.global_position = _death_player_pos + offset
+			_game_viewport.add_child(explosion)
+			SfxPlayer.play("explosion_1")
+		if _player:
+			_player.corrupt_reboot_text(lerpf(0.4, 1.0, phase2_t))
+			_player.modulate.a = 0.2 + randf() * 0.6
+
+	# Phase 3 (2-2.5s): Bright flash and exit
+	else:
+		var phase3_t: float = (_power_death_timer - 2.0) / 0.5
+		if _player and _player.visible:
+			_player.visible = false
+		# Flash: add a bright overlay that ramps up then triggers scene change
+		if phase3_t < 0.6:
+			# Flash building
+			trigger_screen_shake(12.0, 0.1)
+		if _power_death_timer >= POWER_DEATH_DURATION:
+			# Clean up and exit
+			if _player:
+				_player.cleanup_power_loss()
+			_power_death_active = false
+			_return_to_menu()
 
 
 func _return_to_menu() -> void:

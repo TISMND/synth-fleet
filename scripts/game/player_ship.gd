@@ -2,6 +2,9 @@ extends Node2D
 ## Player ship — chrome Stiletto rendering with banking, movement, health, and hardpoint controllers.
 
 signal died
+signal died_during_power_loss
+signal hull_hit_during_power_loss
+signal hull_hit  # Emitted any time hull takes damage (for warning display)
 
 var ship_data: ShipData = null
 var hull: float = 8.0
@@ -393,6 +396,13 @@ func _input(event: InputEvent) -> void:
 		_electric_overdraw = true
 		print("[DEBUG] F9: Forced power death — electric=0, shield=0")
 		return
+	# DEBUG: F10 = force death during power loss (only works if already drifting/blackout)
+	if event is InputEventKey and (event as InputEventKey).pressed and (event as InputEventKey).keycode == KEY_F10:
+		if _drifting or _blackout_active:
+			hull = 0.0
+			died_during_power_loss.emit()
+			print("[DEBUG] F10: Forced death during power loss")
+		return
 
 	# Lock all component controls during power death sequence
 	if _drifting:
@@ -588,14 +598,18 @@ func take_damage(amount: float, skips_shields: bool = false) -> void:
 		# Apply hull damage reduction from active devices
 		if _active_hull_dr > 0.0:
 			remaining *= (1.0 - _active_hull_dr / 100.0)
-		# During power death sequence, keep hull at minimum 1 segment (10 points)
-		var hull_floor: float = 10.0 if _drifting or _blackout_active else 0.0
-		hull = maxf(hull - remaining, hull_floor)
+		hull = maxf(hull - remaining, 0.0)
 		SfxPlayer.play("player_hull_hit")
 		if _ship_renderer:
 			_ship_renderer.trigger_hull_flash()
+		hull_hit.emit()
+		if _drifting or _blackout_active:
+			hull_hit_during_power_loss.emit()
 	if hull <= 0.0:
-		died.emit()
+		if _drifting or _blackout_active:
+			died_during_power_loss.emit()
+		else:
+			died.emit()
 
 
 func _update_hud_cores() -> void:
@@ -1064,6 +1078,41 @@ func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
 	_reboot_label.text = padded
 
 
+# ── Power-loss death helpers ─────────────────────────────────────────────
+
+func corrupt_reboot_text(severity: float) -> void:
+	## Replace random characters in the reboot label with static glitch symbols.
+	if not _reboot_label:
+		return
+	var text: String = _reboot_label.text
+	var corrupted: String = ""
+	var glitch_chars: Array[String] = ["#", "@", "$", "%", "&", "!", "~", "^", "*", "?"]
+	for ch in text:
+		if ch == "\n" or ch == " " or ch == "[" or ch == "]" or ch == "/":
+			corrupted += ch
+		elif randf() < severity:
+			corrupted += glitch_chars[randi() % glitch_chars.size()]
+		else:
+			corrupted += ch
+	_reboot_label.text = corrupted
+
+
+func cleanup_power_loss() -> void:
+	## Clean up all power-loss state and nodes for scene exit.
+	if _reboot_label and is_instance_valid(_reboot_label):
+		_reboot_label.queue_free()
+		_reboot_label = null
+	if _reboot_typing_player and is_instance_valid(_reboot_typing_player):
+		_reboot_typing_player.stop()
+		_reboot_typing_player.queue_free()
+		_reboot_typing_player = null
+	_remove_blackout_audio()
+	_drifting = false
+	_blackout_active = false
+	_recovery_active = false
+	_reboot_finished = false
+
+
 # ── Recovery sequence — bars animate back up after reboot completes ──────────
 
 func _start_recovery() -> void:
@@ -1526,6 +1575,7 @@ func apply_bar_effects(effects: Dictionary) -> void:
 					var overflow: float = (thermal + delta_val) - thermal_max
 					thermal = thermal_max
 					hull = maxf(hull - overflow, 0.0)
+					hull_hit.emit()
 					if _hud and _hud.has_method("trigger_drain_wave"):
 						_hud.trigger_drain_wave("HULL")
 					if hull <= 0.0:
