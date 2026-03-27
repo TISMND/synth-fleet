@@ -29,10 +29,10 @@
 						1.0
 					],
 					"params": {
-						"lifetime": 0.15,
+						"lifetime": 0.55,
 						"particle_count": 40.0,
-						"radius": 52.0,
-						"speed_scale": 1.4
+						"radius": 113.0,
+						"speed_scale": 2.6
 					},
 					"type": "nova_flash"
 				}

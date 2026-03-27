@@ -346,8 +346,22 @@ func _process(delta: float) -> void:
 		speed *= curve
 		acceleration *= curve
 
-	# Acceleration-based movement
-	var input_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	# Acceleration-based movement — WASD overrides mouse when pressed
+	var kbd_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var input_dir: Vector2
+	if kbd_dir.length_squared() > 0.0:
+		input_dir = kbd_dir
+	else:
+		var mouse_pos: Vector2 = get_global_mouse_position()
+		var to_mouse: Vector2 = mouse_pos - global_position
+		var dist: float = to_mouse.length()
+		const MOUSE_DEAD_ZONE: float = 8.0
+		const MOUSE_FULL_ZONE: float = 80.0
+		if dist <= MOUSE_DEAD_ZONE:
+			input_dir = Vector2.ZERO
+		else:
+			var strength: float = clampf((dist - MOUSE_DEAD_ZONE) / (MOUSE_FULL_ZONE - MOUSE_DEAD_ZONE), 0.0, 1.0)
+			input_dir = to_mouse.normalized() * strength
 	var target_velocity: Vector2 = input_dir * speed
 	_velocity = _velocity.move_toward(target_velocity, acceleration * delta)
 	position += _velocity * delta

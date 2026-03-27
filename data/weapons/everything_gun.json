@@ -1,7 +1,7 @@
 {
 	"aim_mode": "fixed",
 	"bar_effects": {
-		"electric": -9.3
+		"electric": -12.8
 	},
 	"beam_dps": 50.0,
 	"beam_duration": 0.3,
@@ -38,7 +38,7 @@
 	"projectile_style_id": "balot",
 	"skips_shields": false,
 	"splash_enabled": true,
-	"splash_radius": 200.0,
+	"splash_radius": 260.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.0,
 	"transition_mode": "fade"

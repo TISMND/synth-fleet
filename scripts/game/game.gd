@@ -124,6 +124,7 @@ var level_id: String = ""
 
 
 func _ready() -> void:
+	Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
 	_load_warning_colors()
 	# Force fresh SFX cache on every game start
 	SfxPlayer.reload()
@@ -1265,6 +1266,7 @@ func _cleanup_boss_transition_overlay() -> void:
 
 
 func _return_to_menu() -> void:
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_stop_all_alarms()
 	LoopMixer.remove_all_loops()
 	if _wave_manager:

@@ -6,6 +6,9 @@ static var initial_mode: String = "workshop"  # Set before navigating: "workshop
 var _ship_renderer: ShipRenderer
 var _ship_name_label: Label
 var _center_vbox: VBoxContainer
+var _left_panel: VBoxContainer
+var _right_margin: MarginContainer
+var _center_top_spacer: Control
 var _weapon_section: VBoxContainer
 var _core_section: VBoxContainer
 var _field_section: VBoxContainer
@@ -105,6 +108,7 @@ func _ready() -> void:
 	_mode = initial_mode
 	_cache_weapons()
 	_init_slot_active()
+	_auto_select_first_fg()
 	_build_ui()
 	_load_ship()
 	call_deferred("_setup_vhs_overlay")
@@ -143,12 +147,8 @@ func _apply_theme() -> void:
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var header_font: Font = ThemeManager.get_font("font_header")
 
-	# Title
-	_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	if header_font:
-		_title.add_theme_font_override("font", header_font)
-	ThemeManager.apply_header_chrome(_title)
+	# Back button
+	_darken_button(_back_btn)
 
 	# Ship name
 	_ship_name_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
@@ -484,6 +484,17 @@ func _get_equipped_ids() -> Array[String]:
 
 
 func _add_picker_item(item_id: String, label: String, description: String, slot_key: String, equipped_ids: Array[String], component_type: String, rates: Dictionary = {}) -> void:
+	# Skip items already equipped in other slots
+	if item_id in equipped_ids:
+		var current_sd: Dictionary = GameState.slot_config.get(slot_key, {})
+		var current_id: String = ""
+		if slot_key.begins_with("weapon_"):
+			current_id = str(current_sd.get("weapon_id", ""))
+		else:
+			current_id = str(current_sd.get("device_id", ""))
+		if item_id != current_id:
+			return
+
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var accent: Color = ThemeManager.get_color("accent")
 	var bg_color: Color = ThemeManager.get_color("background")
@@ -584,38 +595,28 @@ func _add_picker_item(item_id: String, label: String, description: String, slot_
 	_picker_desc_wrappers[item_id] = desc_wrapper
 	_picker_desc_labels[item_id] = desc_lbl
 
-	# Grey out if already equipped elsewhere
-	var is_duplicate: bool = item_id in equipped_ids
-	var current_sd: Dictionary = GameState.slot_config.get(slot_key, {})
-	var current_id: String = ""
-	if slot_key.begins_with("weapon_"):
-		current_id = str(current_sd.get("weapon_id", ""))
-	else:
-		current_id = str(current_sd.get("device_id", ""))
-	if is_duplicate and item_id != current_id:
-		panel.modulate = Color(1, 1, 1, 0.3)
-		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	else:
-		# Clickable — use invisible button overlay
-		var click_btn := Button.new()
-		click_btn.flat = true
-		click_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		click_btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		click_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		# Transparent style so the panel shows through
-		var empty_sb := StyleBoxEmpty.new()
-		click_btn.add_theme_stylebox_override("normal", empty_sb)
-		click_btn.add_theme_stylebox_override("hover", empty_sb)
-		click_btn.add_theme_stylebox_override("pressed", empty_sb)
-		click_btn.add_theme_stylebox_override("focus", empty_sb)
-		var bound_key: String = slot_key
-		var bound_id: String = item_id
-		var bound_type: String = component_type
-		click_btn.pressed.connect(func() -> void: _select_item_typed(bound_key, bound_id, bound_type))
-		panel.add_child(click_btn)
+	# Clickable — use invisible button overlay
+	var click_btn := Button.new()
+	click_btn.flat = true
+	click_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	click_btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	click_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	# Transparent style so the panel shows through
+	var empty_sb := StyleBoxEmpty.new()
+	click_btn.add_theme_stylebox_override("normal", empty_sb)
+	click_btn.add_theme_stylebox_override("hover", empty_sb)
+	click_btn.add_theme_stylebox_override("pressed", empty_sb)
+	click_btn.add_theme_stylebox_override("focus", empty_sb)
+	var bound_key: String = slot_key
+	var bound_id: String = item_id
+	var bound_type: String = component_type
+	click_btn.pressed.connect(func() -> void: _select_item_typed(bound_key, bound_id, bound_type))
+	panel.add_child(click_btn)
 
 	# Highlight + expand description if currently equipped in this slot
-	if item_id == current_id and item_id != "":
+	var cur_sd: Dictionary = GameState.slot_config.get(slot_key, {})
+	var cur_equipped: String = str(cur_sd.get("weapon_id", str(cur_sd.get("device_id", ""))))
+	if item_id == cur_equipped and item_id != "":
 		_highlight_picker_panel(panel)
 		# Deferred expand — label needs a frame to measure
 		var expand_id: String = item_id
@@ -643,9 +644,47 @@ func _add_picker_category(title: String) -> void:
 func _populate_right_panel(slot_key: String) -> void:
 	_clear_right_panel()
 	_right_panel.visible = true
+	_right_panel_header.visible = false
 	_picker_item_panels.clear()
 
 	var body_font: Font = ThemeManager.get_font("font_body")
+
+	# Header row: back arrow + "SELECT COMPONENT"
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 8)
+	header_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_panel_list.add_child(header_row)
+
+	var back_arrow_btn := Button.new()
+	back_arrow_btn.text = "\u2190"
+	back_arrow_btn.custom_minimum_size = Vector2(52, 36)
+	_darken_button(back_arrow_btn)
+	back_arrow_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 6)
+	back_arrow_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	back_arrow_btn.add_theme_color_override("font_hover_color", ThemeManager.get_color("header"))
+	back_arrow_btn.pressed.connect(func() -> void:
+		_expanded_slot = ""
+		_unhighlight_all_slot_btns()
+		_restore_net_effect_panel()
+	)
+	header_row.add_child(back_arrow_btn)
+
+	var select_lbl := Label.new()
+	select_lbl.text = "SELECT COMPONENT"
+	select_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	select_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	select_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	select_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	select_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
+	var hdr_font: Font = ThemeManager.get_font("font_header")
+	if hdr_font:
+		select_lbl.add_theme_font_override("font", hdr_font)
+	ThemeManager.apply_text_glow(select_lbl, "header")
+	header_row.add_child(select_lbl)
+
+	var header_spacer := Control.new()
+	header_spacer.custom_minimum_size.y = 4
+	_right_panel_list.add_child(header_spacer)
 	var equipped_ids: Array[String] = _get_equipped_ids()
 
 	if slot_key.begins_with("weapon_"):
@@ -865,11 +904,7 @@ func _rebuild_workshop_content() -> void:
 		child.queue_free()
 	_ws_slot_rows.clear()
 
-	var presets: Array = KeyBindingManager.get_combo_presets()
 	var body_font: Font = ThemeManager.get_font("font_body")
-
-	# Fire group tab bar (no key labels)
-	_build_fg_tab_bar(_workshop_content, presets, true)
 
 	# Scroll container for slot rows
 	var scroll := ScrollContainer.new()
@@ -1264,7 +1299,7 @@ func _restore_net_effect_panel() -> void:
 
 
 func _show_net_effect_panel(active_totals: Dictionary) -> void:
-	## Show net effect summary in the right panel (default when no slot picker is open).
+	## Show ship effects + firegroups in the right panel (default when no slot picker is open).
 	if not _right_panel:
 		return
 	_clear_right_panel()
@@ -1278,29 +1313,67 @@ func _show_net_effect_panel(active_totals: Dictionary) -> void:
 	top_pad.custom_minimum_size.y = 30
 	_right_panel_list.add_child(top_pad)
 
-	# When simulator isn't running, zero out the totals so bars show empty
-	var display_totals: Dictionary = active_totals if _is_playing else {}
-	_build_fg_totals(display_totals, body_font, _right_panel_list, not _is_playing)
+	# ── FIREGROUPS section (top, fixed height) ──
+	var fg_panel := PanelContainer.new()
+	fg_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var fg_style := StyleBoxFlat.new()
+	fg_style.bg_color = Color(0.0, 0.0, 0.0, 0.8)
+	fg_style.corner_radius_top_left = 4
+	fg_style.corner_radius_top_right = 4
+	fg_style.corner_radius_bottom_left = 4
+	fg_style.corner_radius_bottom_right = 4
+	fg_style.content_margin_left = 12
+	fg_style.content_margin_right = 12
+	fg_style.content_margin_top = 8
+	fg_style.content_margin_bottom = 8
+	fg_panel.add_theme_stylebox_override("panel", fg_style)
 
-	# Status effects section (when simulator is running)
+	var fg_vbox := VBoxContainer.new()
+	fg_vbox.add_theme_constant_override("separation", 4)
+	fg_panel.add_child(fg_vbox)
+
+	var fg_header := Label.new()
+	fg_header.text = "FIREGROUPS"
+	fg_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fg_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fg_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	fg_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
+	var header_font: Font = ThemeManager.get_font("font_header")
+	if header_font:
+		fg_header.add_theme_font_override("font", header_font)
+	ThemeManager.apply_text_glow(fg_header, "header")
+	fg_vbox.add_child(fg_header)
+
 	if _is_playing:
-		var status_lines: Array[String] = _get_sim_status_lines()
-		if not status_lines.is_empty():
-			var status_spacer := Control.new()
-			status_spacer.custom_minimum_size.y = 12
-			_right_panel_list.add_child(status_spacer)
-			for line in status_lines:
-				var status_lbl := Label.new()
-				status_lbl.text = line
-				status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-				status_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5, 0.9))
-				status_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-				if body_font:
-					status_lbl.add_theme_font_override("font", body_font)
-				_right_panel_list.add_child(status_lbl)
+		var fg_bar_spacer := Control.new()
+		fg_bar_spacer.custom_minimum_size.y = 8
+		fg_vbox.add_child(fg_bar_spacer)
+		var presets: Array = KeyBindingManager.get_combo_presets()
+		_build_fg_tab_bar(fg_vbox, presets, true)
+	else:
+		var fg_hint := Label.new()
+		fg_hint.text = "[Run simulator to access firegroups]"
+		fg_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		fg_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		fg_hint.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.3))
+		fg_hint.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
+		if body_font:
+			fg_hint.add_theme_font_override("font", body_font)
+		fg_vbox.add_child(fg_hint)
+
+	_right_panel_list.add_child(fg_panel)
+
+	# ── SHIP EFFECTS section (below, grows with status lines) ──
+	var se_spacer := Control.new()
+	se_spacer.custom_minimum_size.y = 16
+	_right_panel_list.add_child(se_spacer)
+
+	var display_totals: Dictionary = active_totals if _is_playing else {}
+	var status_lines: Array = _get_sim_status_lines() if _is_playing else []
+	_build_fg_totals(display_totals, body_font, _right_panel_list, not _is_playing, status_lines)
 
 
-func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxContainer = null, show_na: bool = false) -> void:
+func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxContainer = null, show_na: bool = false, status_lines: Array = []) -> void:
 	if not parent:
 		parent = _controls_content
 	var totals_spacer := Control.new()
@@ -1326,13 +1399,15 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 	totals_panel.add_child(totals_vbox)
 
 	var totals_header := Label.new()
-	totals_header.text = "NET EFFECT"
+	totals_header.text = "SHIP EFFECTS"
 	totals_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	totals_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	totals_header.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.6))
-	totals_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-	if body_font:
-		totals_header.add_theme_font_override("font", body_font)
+	totals_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	totals_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
+	var hdr_font: Font = ThemeManager.get_font("font_header")
+	if hdr_font:
+		totals_header.add_theme_font_override("font", hdr_font)
+	ThemeManager.apply_text_glow(totals_header, "header")
 	totals_vbox.add_child(totals_header)
 
 	# Simulator hint between header and bars (only when not running)
@@ -1342,7 +1417,7 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		hint.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.3))
-		hint.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		hint.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
 		if body_font:
 			hint.add_theme_font_override("font", body_font)
 		totals_vbox.add_child(hint)
@@ -1434,6 +1509,22 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 			_fg_total_format_label(val_lbl, display_val)
 		total_row.add_child(val_lbl)
 		_fg_total_labels[bar_type] = val_lbl
+
+	# Status warnings inside the panel (when simulator is running)
+	if not status_lines.is_empty():
+		var status_sep := Control.new()
+		status_sep.custom_minimum_size.y = 8
+		totals_vbox.add_child(status_sep)
+		var status_size: int = ThemeManager.get_font_size("font_size_body") - 2
+		for line in status_lines:
+			var status_lbl := Label.new()
+			status_lbl.text = line
+			status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			status_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5, 0.9))
+			status_lbl.add_theme_font_size_override("font_size", status_size)
+			if body_font:
+				status_lbl.add_theme_font_override("font", body_font)
+			totals_vbox.add_child(status_lbl)
 
 	parent.add_child(totals_panel)
 
@@ -1610,7 +1701,9 @@ func _finish_save_combo(physical_keycode: int, key_label: String) -> void:
 	_fg_active_index = KeyBindingManager.get_combo_presets().size() - 1
 	for slot_key in _slot_active:
 		_slot_active[slot_key] = true
-	if _mode == "controls":
+	if _mode == "workshop":
+		_rebuild_workshop_content()
+	elif _mode == "controls":
 		_rebuild_controls_content()
 		_show_fire_groups_panel()
 	_sync_preview_active_states()
@@ -1718,6 +1811,23 @@ func _rebuild_audio_content() -> void:
 	_audio_sliders.clear()
 
 	var body_font: Font = ThemeManager.get_font("font_body")
+
+	# Screen title (only in audio mode where left panel is hidden)
+	if _mode == "audio":
+		var audio_title := Label.new()
+		audio_title.text = "SHIP AUDIO MIX"
+		audio_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		audio_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		audio_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+		audio_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
+		var hdr_font: Font = ThemeManager.get_font("font_header")
+		if hdr_font:
+			audio_title.add_theme_font_override("font", hdr_font)
+		ThemeManager.apply_text_glow(audio_title, "header")
+		_audio_content.add_child(audio_title)
+		var title_spacer := Control.new()
+		title_spacer.custom_minimum_size.y = 12
+		_audio_content.add_child(title_spacer)
 
 	# Master volume bar — larger, white, controls overall level
 	var master_panel := PanelContainer.new()
@@ -1924,6 +2034,18 @@ func _rebuild_audio_content() -> void:
 	bottom_row.add_child(_audio_reset_btn)
 	_darken_button(_audio_reset_btn)
 
+	# Back button for audio mode (left panel is hidden)
+	if _mode == "audio":
+		var audio_back_spacer := Control.new()
+		audio_back_spacer.custom_minimum_size.y = 10
+		_audio_content.add_child(audio_back_spacer)
+		var audio_back_btn := Button.new()
+		audio_back_btn.text = "\u2190  BACK"
+		audio_back_btn.custom_minimum_size = Vector2(160, 36)
+		audio_back_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		audio_back_btn.pressed.connect(_on_back)
+		_audio_content.add_child(audio_back_btn)
+		_darken_button(audio_back_btn)
 
 
 func _apply_fine_led(bar: ProgressBar, color: Color, ratio: float) -> void:
@@ -2142,13 +2264,18 @@ func _build_ui() -> void:
 	left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left_vbox.size_flags_stretch_ratio = 1.0
 	root.add_child(left_vbox)
+	_left_panel = left_vbox
 
-	_title = Label.new()
-	_title.text = "LOADOUT" if _mode == "workshop" else "COMPONENT AUDIO MIX"
-	left_vbox.add_child(_title)
+	_back_btn = Button.new()
+	_back_btn.text = "\u2190  BACK"
+	_back_btn.custom_minimum_size = Vector2(160, 36)
+	_back_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_back_btn.pressed.connect(_on_back)
+	left_vbox.add_child(_back_btn)
 
+	# Ship name label kept as hidden stub (referenced by _load_ship)
 	_ship_name_label = Label.new()
-	_ship_name_label.text = ""
+	_ship_name_label.visible = false
 	left_vbox.add_child(_ship_name_label)
 
 	# Ship preview with vertical status bars flanking — mirrors game HUD layout.
@@ -2255,8 +2382,12 @@ func _build_ui() -> void:
 	var sim_header := Label.new()
 	sim_header.text = "SIMULATOR"
 	sim_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sim_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body") - 2)
-	sim_header.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.5))
+	sim_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
+	sim_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	var sim_hdr_font: Font = ThemeManager.get_font("font_header")
+	if sim_hdr_font:
+		sim_header.add_theme_font_override("font", sim_hdr_font)
+	ThemeManager.apply_text_glow(sim_header, "header")
 	sim_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sim_vbox.add_child(sim_header)
 
@@ -2317,6 +2448,11 @@ func _build_ui() -> void:
 	_center_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	center_margin.add_child(_center_vbox)
 
+	# Top spacer to align slots with simulator / right panel
+	_center_top_spacer = Control.new()
+	_center_top_spacer.custom_minimum_size.y = 60
+	_center_vbox.add_child(_center_top_spacer)
+
 	# Stub containers for removed modes (kept so existing toggle code doesn't null-ref)
 	_functional_content = VBoxContainer.new()
 	_functional_content.visible = false
@@ -2338,27 +2474,19 @@ func _build_ui() -> void:
 	_workshop_content.visible = (_mode == "workshop")
 	_center_vbox.add_child(_workshop_content)
 
-	# Bottom button
-	_back_btn = Button.new()
-	_back_btn.text = "BACK"
-	_back_btn.custom_minimum_size.y = 40
-	_back_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_back_btn.pressed.connect(_on_back)
-	_center_vbox.add_child(_back_btn)
-
 	# RIGHT — item picker panel
-	var right_margin := MarginContainer.new()
-	right_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_margin.size_flags_stretch_ratio = 0.8
-	right_margin.add_theme_constant_override("margin_left", 10)
-	root.add_child(right_margin)
+	_right_margin = MarginContainer.new()
+	_right_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_right_margin.size_flags_stretch_ratio = 0.8
+	_right_margin.add_theme_constant_override("margin_left", 10)
+	root.add_child(_right_margin)
 
 	# Outer VBox to push content down from top
 	var right_outer := VBoxContainer.new()
 	right_outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_margin.add_child(right_outer)
+	_right_margin.add_child(right_outer)
 
 	# Top spacer — inset from top edge
 	var right_spacer := Control.new()
@@ -2406,6 +2534,15 @@ func _build_ui() -> void:
 	_right_panel_list = VBoxContainer.new()
 	_right_panel_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_right_panel_scroll.add_child(_right_panel_list)
+
+	# Audio mode: hide simulator/ship preview and right panel, center the audio content
+	if _mode == "audio":
+		_left_panel.visible = false
+		_right_margin.visible = false
+		_center_top_spacer.custom_minimum_size.y = 150
+		# Constrain audio content to middle half of screen
+		_audio_content.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_audio_content.custom_minimum_size.x = 600
 
 
 func _create_bar_cell(text: String, color: Color, seg_count: int = -1) -> Dictionary:
@@ -2792,9 +2929,9 @@ func _update_bar_shader(bar_name: String) -> void:
 		mat.set_shader_parameter("fill_ratio", bar.value / maxf(bar.max_value, 1.0))
 
 
-func _get_sim_status_lines() -> Array[String]:
+func _get_sim_status_lines() -> Array:
 	## Collect status effect lines from bar states and device modifiers.
-	var lines: Array[String] = []
+	var lines: Array = []
 
 	# Check bar values for critical states
 	for bar_name in _bars:
@@ -2830,7 +2967,7 @@ func _get_sim_status_lines() -> Array[String]:
 	return lines
 
 
-var _prev_status_lines: Array[String] = []
+var _prev_status_lines: Array = []
 
 func _update_sim_status() -> void:
 	# Clear viewport overlay — status now lives in net effect panel
@@ -2839,7 +2976,7 @@ func _update_sim_status() -> void:
 	if not _is_playing or _expanded_slot != "":
 		return
 	# Only rebuild when status lines actually change
-	var lines: Array[String] = _get_sim_status_lines()
+	var lines: Array = _get_sim_status_lines()
 	if lines != _prev_status_lines:
 		_prev_status_lines = lines
 		_restore_net_effect_panel()

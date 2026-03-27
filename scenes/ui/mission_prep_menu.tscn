@@ -25,37 +25,18 @@ stretch_mode = 6
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = 4
+anchors_preset = 8
+anchor_left = 0.5
 anchor_top = 0.5
+anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = 60.0
+offset_left = -150.0
 offset_top = -200.0
-offset_right = 360.0
+offset_right = 150.0
 offset_bottom = 200.0
+grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 16
-
-[node name="TitleLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-text = "MISSION PREP"
-
-[node name="ChangeShipButton" type="Button" parent="VBoxContainer"]
-layout_mode = 2
-disabled = true
-text = "CHANGE SHIP"
-
-[node name="LoadoutButton" type="Button" parent="VBoxContainer"]
-layout_mode = 2
-text = "LOADOUT"
-
-[node name="CrewButton" type="Button" parent="VBoxContainer"]
-layout_mode = 2
-disabled = true
-text = "CREW"
-
-[node name="AudioMixButton" type="Button" parent="VBoxContainer"]
-layout_mode = 2
-text = "COMPONENT AUDIO MIX"
 
 [node name="TutorialButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
@@ -65,6 +46,24 @@ text = "TUTORIAL"
 [node name="LaunchButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "LAUNCH"
+
+[node name="LoadoutButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "COMPONENT LOADOUT"
+
+[node name="AudioMixButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "SHIP AUDIO MIX"
+
+[node name="ChangeShipButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+disabled = true
+text = "CHANGE SHIP"
+
+[node name="CrewButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+disabled = true
+text = "CREW"
 
 [node name="BackButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2

@@ -856,7 +856,7 @@ func _build_stats_tab() -> Control:
 	_splash_section.modulate = Color(1, 1, 1, 0.3)
 	form.add_child(_splash_section)
 
-	var splash_row := _add_slider_row(_splash_section, "Radius:", 10, 200, 40, 5)
+	var splash_row := _add_slider_row(_splash_section, "Radius:", 10, 300, 40, 5)
 	_splash_radius_slider = splash_row[0]
 	_splash_radius_label = splash_row[1]
 	_splash_radius_slider.editable = false

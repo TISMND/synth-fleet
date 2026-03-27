@@ -50,15 +50,26 @@ func _on_launch() -> void:
 
 
 func _on_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/play_menu.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 
 func _apply_styles() -> void:
-	var title: Label = $VBoxContainer/TitleLabel
-	ThemeManager.apply_text_glow(title, "header")
 	for child in $VBoxContainer.get_children():
 		if child is Button:
-			ThemeManager.apply_button_style(child as Button)
+			var btn: Button = child as Button
+			ThemeManager.apply_button_style(btn)
+			# Darken backgrounds for readability against bright hangar backdrop
+			for state in ["normal", "hover", "pressed", "focus"]:
+				var sb: StyleBox = btn.get_theme_stylebox(state)
+				if sb and sb is StyleBoxFlat:
+					var dark: StyleBoxFlat = (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
+					if state == "hover":
+						dark.bg_color = Color(0.18, 0.18, 0.18, 0.95)
+					elif state == "pressed":
+						dark.bg_color = Color(0.12, 0.12, 0.12, 0.95)
+					else:
+						dark.bg_color = Color(0.06, 0.06, 0.06, 0.95)
+					btn.add_theme_stylebox_override(state, dark)
 
 
 func _setup_vhs_overlay() -> void:
