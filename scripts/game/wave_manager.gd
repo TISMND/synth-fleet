@@ -6,6 +6,7 @@ extends Node
 signal wave_started(wave_index: int, total_waves: int)
 signal wave_cleared(wave_index: int, total_waves: int)
 signal all_waves_cleared
+signal boss_transition_triggered(enc: Dictionary)
 
 
 var _waves: Array = []
@@ -105,6 +106,12 @@ func _check_encounter_triggers() -> void:
 
 func _spawn_encounter(enc: Dictionary) -> void:
 	if not _enemies_container:
+		return
+
+	# Boss transition encounter — emit signal for game.gd to handle the sequence
+	var enc_type: String = str(enc.get("encounter_type", ""))
+	if enc_type == "boss_transition":
+		boss_transition_triggered.emit(enc)
 		return
 
 	# Boss encounter — spawn entire boss composition

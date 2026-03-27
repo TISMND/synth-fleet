@@ -55,6 +55,17 @@ const EVENT_IDS: Array[String] = [
 	"purge_venting",
 	"purge_complete",
 	"purge_engines_restored",
+	# Boss transition cues
+	"boss_wave_start",
+	"boss_wave_hit",
+	"boss_silence",
+	"boss_warning",
+	"boss_message_1",
+	"boss_message_2",
+	"boss_remodulate",
+	"boss_message_3",
+	"boss_control_restored",
+	"boss_transition_end",
 ]
 
 const EVENT_LABELS: Dictionary = {
@@ -111,6 +122,17 @@ const EVENT_LABELS: Dictionary = {
 	"purge_venting": "2. VENTING (50%)",
 	"purge_complete": "3. PURGE COMPLETE",
 	"purge_engines_restored": "4. ENGINES RESTORED",
+	# Boss transition cues
+	"boss_wave_start": "BOSS WAVE START",
+	"boss_wave_hit": "BOSS WAVE HIT",
+	"boss_silence": "BOSS SILENCE",
+	"boss_warning": "BOSS WARNING",
+	"boss_message_1": "BOSS MESSAGE 1",
+	"boss_message_2": "BOSS MESSAGE 2",
+	"boss_remodulate": "BOSS REMODULATE",
+	"boss_message_3": "BOSS MESSAGE 3",
+	"boss_control_restored": "BOSS CONTROL RESTORED",
+	"boss_transition_end": "BOSS TRANSITION END",
 }
 
 const EVENT_DESCRIPTIONS: Dictionary = {
@@ -171,6 +193,17 @@ const EVENT_DESCRIPTIONS: Dictionary = {
 	"purge_venting": "Midpoint — thermal at 50%, active venting sound, steam/gas release",
 	"purge_complete": "Thermal cleared — vents close, mechanical clunk, components reactivate",
 	"purge_engines_restored": "Engines back to full power — thrust ramp-up, speed restored",
+	# Boss transition cues
+	"boss_wave_start": "Energy wave begins sweeping from top of screen",
+	"boss_wave_hit": "Wave reaches player — drift starts, music dies",
+	"boss_silence": "All loops fully silent — dramatic pause",
+	"boss_warning": "Holographic warning box appears with boss name",
+	"boss_message_1": "First message typeout begins",
+	"boss_message_2": "Second message typeout begins",
+	"boss_remodulate": "Key and BPM shift applied",
+	"boss_message_3": "Final message typeout begins",
+	"boss_control_restored": "Player regains control",
+	"boss_transition_end": "Transition complete — ready for boss",
 }
 
 var events: Dictionary = {}

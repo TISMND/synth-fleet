@@ -85,6 +85,13 @@ var _enc_turn_speed_spin: SpinBox
 var _enc_weapons_active_check: CheckButton
 var _enc_center_btn: Button
 var _enc_delete_btn: Button
+var _enc_type_dropdown: OptionButton
+var _enc_key_shift_spin: SpinBox
+var _enc_key_shift_label: Label
+var _enc_bpm_shift_spin: SpinBox
+var _enc_bpm_shift_label: Label
+# Nodes to hide when encounter_type is "boss_transition"
+var _enc_normal_only_nodes: Array[Control] = []
 
 # Right panel — mode toggle + nebula controls
 var _mode_toggle_box: HBoxContainer
@@ -1093,6 +1100,7 @@ func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
 			var x_offset: float = _canvas_x_to_level_x(pos.x)
 			if trigger_y >= 0.0 and trigger_y <= _selected_level.level_length:
 				var enc: Dictionary = {
+					"encounter_type": str(_enc_type_dropdown.get_item_metadata(_enc_type_dropdown.selected)) if _enc_type_dropdown.selected >= 0 else "",
 					"path_id": str(_enc_path_dropdown.get_item_metadata(_enc_path_dropdown.selected)) if _enc_path_dropdown.selected >= 0 else "",
 					"formation_id": str(_enc_fm_dropdown.get_item_metadata(_enc_fm_dropdown.selected)) if _enc_fm_dropdown.selected >= 0 else "",
 					"ship_id": str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected)) if _enc_ship_dropdown.selected >= 0 else "enemy_1",
@@ -1106,6 +1114,8 @@ func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
 					"is_melee": _enc_melee_check.button_pressed,
 					"turn_speed": _enc_turn_speed_spin.value,
 					"weapons_active": _enc_weapons_active_check.button_pressed,
+					"key_shift_semitones": int(_enc_key_shift_spin.value),
+					"bpm_shift": _enc_bpm_shift_spin.value,
 				}
 				_selected_level.encounters.append(enc)
 				_selected_encounter_idx = _selected_level.encounters.size() - 1
@@ -1427,11 +1437,35 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_content.add_theme_constant_override("separation", 6)
 	_right_panel_vbox.add_child(_enc_content)
 
+	# Encounter type dropdown
+	var type_label := Label.new()
+	type_label.text = "ENCOUNTER TYPE"
+	ThemeManager.apply_text_glow(type_label, "body")
+	_enc_content.add_child(type_label)
+
+	_enc_type_dropdown = OptionButton.new()
+	_enc_type_dropdown.add_item("Normal", 0)
+	_enc_type_dropdown.set_item_metadata(0, "")
+	_enc_type_dropdown.add_item("Boss Transition", 1)
+	_enc_type_dropdown.set_item_metadata(1, "boss_transition")
+	_enc_type_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["encounter_type"] = str(_enc_type_dropdown.get_item_metadata(idx))
+			_save_current_level()
+			_update_enc_type_visibility()
+			_map_canvas.queue_redraw()
+	)
+	_enc_content.add_child(_enc_type_dropdown)
+
+	var type_sep := HSeparator.new()
+	_enc_content.add_child(type_sep)
+
 	# Path dropdown
 	var path_label := Label.new()
 	path_label.text = "PATH"
 	ThemeManager.apply_text_glow(path_label, "body")
 	_enc_content.add_child(path_label)
+	_enc_normal_only_nodes.append(path_label)
 
 	_enc_path_dropdown = OptionButton.new()
 	for i in range(_cached_path_ids.size()):
@@ -1534,14 +1568,50 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	)
 	_enc_content.add_child(_enc_boss_dropdown)
 
+	# Key shift (boss transition only)
+	_enc_key_shift_label = Label.new()
+	_enc_key_shift_label.text = "KEY SHIFT (semitones)"
+	ThemeManager.apply_text_glow(_enc_key_shift_label, "body")
+	_enc_content.add_child(_enc_key_shift_label)
+	_enc_key_shift_spin = SpinBox.new()
+	_enc_key_shift_spin.min_value = -12
+	_enc_key_shift_spin.max_value = 12
+	_enc_key_shift_spin.step = 1
+	_enc_key_shift_spin.value = 0
+	_enc_key_shift_spin.value_changed.connect(func(v: float) -> void:
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["key_shift_semitones"] = int(v)
+			_save_current_level()
+	)
+	_enc_content.add_child(_enc_key_shift_spin)
+
+	# BPM shift (boss transition only)
+	_enc_bpm_shift_label = Label.new()
+	_enc_bpm_shift_label.text = "BPM SHIFT"
+	ThemeManager.apply_text_glow(_enc_bpm_shift_label, "body")
+	_enc_content.add_child(_enc_bpm_shift_label)
+	_enc_bpm_shift_spin = SpinBox.new()
+	_enc_bpm_shift_spin.min_value = -30
+	_enc_bpm_shift_spin.max_value = 30
+	_enc_bpm_shift_spin.step = 1
+	_enc_bpm_shift_spin.value = 0
+	_enc_bpm_shift_spin.value_changed.connect(func(v: float) -> void:
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["bpm_shift"] = v
+			_save_current_level()
+	)
+	_enc_content.add_child(_enc_bpm_shift_spin)
+
 	# Speed
 	var sep2 := HSeparator.new()
 	_enc_content.add_child(sep2)
+	_enc_normal_only_nodes.append(sep2)
 
 	var speed_label := Label.new()
 	speed_label.text = "SPEED"
 	ThemeManager.apply_text_glow(speed_label, "body")
 	_enc_content.add_child(speed_label)
+	_enc_normal_only_nodes.append(speed_label)
 	_enc_speed_spin = SpinBox.new()
 	_enc_speed_spin.min_value = 50
 	_enc_speed_spin.max_value = 1000
@@ -1937,7 +2007,38 @@ func _update_right_panel() -> void:
 		_enc_turn_speed_spin.value = float(enc.get("turn_speed", 90.0))
 		_enc_weapons_active_check.button_pressed = bool(enc.get("weapons_active", true))
 
+		# Encounter type
+		var enc_type: String = str(enc.get("encounter_type", ""))
+		_enc_type_dropdown.select(1 if enc_type == "boss_transition" else 0)
+		_enc_key_shift_spin.value = int(enc.get("key_shift_semitones", 0))
+		_enc_bpm_shift_spin.value = float(enc.get("bpm_shift", 0.0))
+
+	_update_enc_type_visibility()
 	_update_melee_ui_state()
+
+
+func _update_enc_type_visibility() -> void:
+	var is_transition: bool = _enc_type_dropdown.selected == 1
+	# Hide normal-encounter-only controls during boss transition
+	for node in _enc_normal_only_nodes:
+		node.visible = not is_transition
+	_enc_path_dropdown.visible = not is_transition
+	_enc_fm_dropdown.visible = not is_transition
+	_enc_level_filter.visible = not is_transition
+	_enc_ship_dropdown.visible = not is_transition
+	_enc_speed_spin.visible = not is_transition
+	_enc_count_spin.visible = not is_transition
+	_enc_spacing_spin.visible = not is_transition
+	_enc_rotate_check.visible = not is_transition
+	_enc_melee_check.visible = not is_transition
+	_enc_turn_speed_spin.visible = not is_transition
+	_enc_turn_speed_label.visible = not is_transition
+	_enc_weapons_active_check.visible = not is_transition
+	# Show boss-transition-only controls
+	_enc_key_shift_label.visible = is_transition
+	_enc_key_shift_spin.visible = is_transition
+	_enc_bpm_shift_label.visible = is_transition
+	_enc_bpm_shift_spin.visible = is_transition
 
 
 func _update_melee_ui_state() -> void:
@@ -2362,7 +2463,16 @@ class _MapCanvasDraw extends Control:
 
 			var is_selected: bool = (i == s._selected_encounter_idx or i in s._selected_encounter_indices)
 			var enc_is_melee: bool = bool(enc.get("is_melee", false))
-			var color := Color(1.0, 0.5, 0.2) if is_selected else (Color(1.0, 0.3, 0.3) if enc_is_melee else Color(0.4, 0.8, 1.0))
+			var enc_type: String = str(enc.get("encounter_type", ""))
+			var color: Color
+			if is_selected:
+				color = Color(1.0, 0.5, 0.2)
+			elif enc_type == "boss_transition":
+				color = Color(1.0, 0.9, 0.2)  # Yellow for boss transitions
+			elif enc_is_melee:
+				color = Color(1.0, 0.3, 0.3)
+			else:
+				color = Color(0.4, 0.8, 1.0)
 
 			# Path curve preview (draw behind marker when selected, skip for melee)
 			if is_selected and not enc_is_melee:

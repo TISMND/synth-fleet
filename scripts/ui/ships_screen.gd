@@ -2180,12 +2180,14 @@ func _build_weapon_overrides_section(vbox: VBoxContainer, ship_id: String, overr
 	# Default weapon from the ship's weapon_id
 	var default_weapon_id: String = ship.weapon_id
 
-	# Build override lookup
+	# Build override lookups
 	var override_map: Dictionary = {}
+	var lead_map: Dictionary = {}
 	for ovr in overrides:
 		var d: Dictionary = ovr as Dictionary
 		var hp_idx: int = int(d.get("hardpoint_index", 0))
 		override_map[hp_idx] = str(d.get("weapon_id", ""))
+		lead_map[hp_idx] = float(d.get("audio_lead_sec", 0.0))
 
 	for hp_idx in range(hp_count):
 		var row := HBoxContainer.new()
@@ -2215,25 +2217,51 @@ func _build_weapon_overrides_section(vbox: VBoxContainer, ship_id: String, overr
 		dd.selected = selected
 
 		var captured_idx: int = hp_idx
+
+		# Audio lead spinner
+		var lead_spin := SpinBox.new()
+		lead_spin.min_value = 0.0
+		lead_spin.max_value = 30.0
+		lead_spin.step = 0.5
+		lead_spin.suffix = "s"
+		lead_spin.custom_minimum_size.x = 70
+		lead_spin.tooltip_text = "Audio lead (seconds before boss arrival)"
+		lead_spin.value = float(lead_map.get(hp_idx, 0.0))
+
 		dd.item_selected.connect(func(item_idx: int) -> void:
 			if not _working_boss:
 				return
-			# Rebuild overrides array
 			var new_overrides: Array = []
-			# Copy existing overrides for other hardpoints
 			for existing in overrides:
 				var ed: Dictionary = existing as Dictionary
 				if int(ed.get("hardpoint_index", -1)) != captured_idx:
 					new_overrides.append(existing)
-			# Add new override if not default
 			if item_idx > 0:
 				new_overrides.append({
 					"hardpoint_index": captured_idx,
 					"weapon_id": str(dd.get_item_metadata(item_idx)),
+					"audio_lead_sec": lead_spin.value,
+				})
+			on_change.call(new_overrides)
+		)
+		lead_spin.value_changed.connect(func(_v: float) -> void:
+			if not _working_boss:
+				return
+			var new_overrides: Array = []
+			for existing in overrides:
+				var ed: Dictionary = existing as Dictionary
+				if int(ed.get("hardpoint_index", -1)) != captured_idx:
+					new_overrides.append(existing)
+			if dd.selected > 0:
+				new_overrides.append({
+					"hardpoint_index": captured_idx,
+					"weapon_id": str(dd.get_item_metadata(dd.selected)),
+					"audio_lead_sec": lead_spin.value,
 				})
 			on_change.call(new_overrides)
 		)
 		row.add_child(dd)
+		row.add_child(lead_spin)
 
 
 func _build_boss_enrage_tab(vbox: VBoxContainer) -> void:

@@ -58,6 +58,31 @@ var _power_death_timer: float = 0.0
 var _power_death_explosion_accum: float = 0.0
 const POWER_DEATH_DURATION: float = 2.5
 
+# Boss transition sequence
+var _boss_transition_active: bool = false
+var _boss_transition_timer: float = 0.0
+var _boss_transition_enc: Dictionary = {}
+var _boss_transition_overlay: Control = null
+var _boss_transition_warning_box: Control = null
+var _boss_transition_typeout_label: Label = null
+var _boss_transition_typeout_text: String = ""
+var _boss_transition_typeout_idx: int = 0
+var _boss_transition_typeout_accum: float = 0.0
+var _boss_transition_lead_loops: Array[String] = []  # Loop IDs registered for audio lead
+
+# Boss transition timeline constants (seconds)
+const BT_WAVE_START: float = 0.0
+const BT_WAVE_HIT: float = 0.3
+const BT_SILENCE: float = 2.0
+const BT_WARNING: float = 3.0
+const BT_MESSAGE_1: float = 3.5
+const BT_MESSAGE_2: float = 5.0
+const BT_REMODULATE: float = 6.0
+const BT_MESSAGE_3: float = 7.0
+const BT_CONTROL_RESTORED: float = 7.5
+const BT_TRANSITION_END: float = 8.0
+const BT_TYPEOUT_SPEED: float = 0.03  # seconds per character
+
 # Screen shake (general purpose — reusable for any damage event)
 var _screen_shake_remaining: float = 0.0
 var _screen_shake_amplitude: float = 0.0
@@ -184,6 +209,7 @@ func _ready() -> void:
 	_wave_manager.name = "WaveManager"
 	_game_viewport.add_child(_wave_manager)
 	_wave_manager.all_waves_cleared.connect(_on_all_waves_cleared)
+	_wave_manager.boss_transition_triggered.connect(_on_boss_transition)
 
 
 	# HUD stays on root viewport — LED bars must NOT go through ACES tonemapping
@@ -342,6 +368,8 @@ func _process(delta: float) -> void:
 		_process_death_sequence(delta)
 	if _power_death_active:
 		_process_power_loss_death(delta)
+	if _boss_transition_active:
+		_process_boss_transition(delta)
 	_process_screen_shake(delta)
 	if _hud and _player and not _game_over_overlay and not _power_death_active:
 		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
@@ -1022,6 +1050,220 @@ func _process_power_loss_death(delta: float) -> void:
 			_show_game_over()
 
 
+# ── Boss transition sequence ──────────────────────────────────────────
+
+func _on_boss_transition(enc: Dictionary) -> void:
+	if _boss_transition_active or _death_sequence_active or _power_death_active:
+		return
+	_boss_transition_active = true
+	_boss_transition_timer = 0.0
+	_boss_transition_enc = enc
+
+	# Pre-register boss weapon loops with audio lead times
+	var boss_id: String = str(enc.get("boss_id", ""))
+	if boss_id != "":
+		var boss: BossData = BossDataManager.load_by_id(boss_id)
+		if boss:
+			_preregister_boss_lead_loops(boss)
+
+
+func _preregister_boss_lead_loops(boss: BossData) -> void:
+	## Register and start (muted) all boss weapon loops that have audio_lead_sec > 0.
+	## Schedule unmutes relative to BT_TRANSITION_END (when boss is expected to arrive).
+	var all_overrides: Array = []
+	for ovr in boss.core_weapon_overrides:
+		all_overrides.append(ovr)
+	for seg in boss.segments:
+		var sd: Dictionary = seg as Dictionary
+		for ovr in sd.get("weapon_overrides", []):
+			all_overrides.append(ovr)
+
+	for ovr in all_overrides:
+		var d: Dictionary = ovr as Dictionary
+		var lead: float = float(d.get("audio_lead_sec", 0.0))
+		if lead <= 0.0:
+			continue
+		var weapon_id: String = str(d.get("weapon_id", ""))
+		if weapon_id == "":
+			continue
+		var weapon: WeaponData = WeaponDataManager.load_by_id(weapon_id)
+		if not weapon or weapon.loop_file_path == "":
+			continue
+		var hp_idx: int = int(d.get("hardpoint_index", 0))
+		var loop_id: String = weapon_id + "_hp_" + str(hp_idx)
+		if LoopMixer.has_loop(loop_id):
+			continue
+		LoopMixer.add_loop(loop_id, weapon.loop_file_path, "Enemies", 0.0, true)
+		LoopMixer.start_loop(loop_id)
+		_boss_transition_lead_loops.append(loop_id)
+		# Schedule unmute: unmute at (BT_TRANSITION_END - lead) seconds into the transition
+		var unmute_at: float = maxf(BT_TRANSITION_END - lead, 0.0)
+		get_tree().create_timer(unmute_at).timeout.connect(func() -> void:
+			if LoopMixer.has_loop(loop_id):
+				LoopMixer.unmute(loop_id, 500)
+		)
+
+
+func _process_boss_transition(delta: float) -> void:
+	var prev_t: float = _boss_transition_timer
+	_boss_transition_timer += delta
+
+	# Helper: did we just cross a threshold?
+	var crossed := func(t: float) -> bool:
+		return prev_t < t and _boss_transition_timer >= t
+
+	# 0.0s — Energy wave visual + SFX
+	if crossed.call(BT_WAVE_START):
+		SfxPlayer.play("boss_wave_start")
+		_spawn_boss_wave_visual()
+
+	# 0.3s — Wave hits player, drift starts, music dies
+	if crossed.call(BT_WAVE_HIT):
+		SfxPlayer.play("boss_wave_hit")
+		if _player:
+			_player.start_boss_transition_drift()
+		LoopMixer.mute_all(1500)
+
+	# 2.0s — Full silence
+	if crossed.call(BT_SILENCE):
+		SfxPlayer.play("boss_silence")
+
+	# 3.0s — Warning box appears
+	if crossed.call(BT_WARNING):
+		SfxPlayer.play("boss_warning")
+		_show_boss_transition_warning()
+
+	# 3.5s — First message typeout
+	if crossed.call(BT_MESSAGE_1):
+		SfxPlayer.play("boss_message_1")
+		_start_boss_typeout("Large field destabilizing tuning.")
+
+	# 5.0s — Second message
+	if crossed.call(BT_MESSAGE_2):
+		SfxPlayer.play("boss_message_2")
+		_start_boss_typeout("Remodulating.")
+
+	# 6.0s — Key + BPM shift
+	if crossed.call(BT_REMODULATE):
+		SfxPlayer.play("boss_remodulate")
+		var key_shift: int = int(_boss_transition_enc.get("key_shift_semitones", 0))
+		var bpm_shift: float = float(_boss_transition_enc.get("bpm_shift", 0.0))
+		if key_shift != 0:
+			LoopMixer.set_pitch_shift(float(key_shift), 1.0)
+		if bpm_shift != 0.0 and _level_data:
+			var ratio: float = (_level_data.bpm + bpm_shift) / maxf(_level_data.bpm, 1.0)
+			LoopMixer.set_all_pitch_scale(ratio)
+
+	# 7.0s — Final message
+	if crossed.call(BT_MESSAGE_3):
+		SfxPlayer.play("boss_message_3")
+		_start_boss_typeout("Systems recalibrated.")
+
+	# 7.5s — Player control restored
+	if crossed.call(BT_CONTROL_RESTORED):
+		SfxPlayer.play("boss_control_restored")
+		if _player:
+			_player.end_boss_transition_drift()
+
+	# 8.0s — Transition complete, clean up overlay
+	if crossed.call(BT_TRANSITION_END):
+		SfxPlayer.play("boss_transition_end")
+		_boss_transition_active = false
+		_cleanup_boss_transition_overlay()
+
+	# Process typeout animation
+	_process_boss_typeout(delta)
+
+
+func _spawn_boss_wave_visual() -> void:
+	## Full-screen energy wave sweeping from top to bottom.
+	var wave := ColorRect.new()
+	wave.size = Vector2(1920, 40)
+	wave.position = Vector2(0, -40)
+	wave.color = Color(0.5, 0.9, 1.0, 0.9)
+	wave.z_index = 50
+	wave.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_game_viewport.add_child(wave)
+	var tween := create_tween()
+	tween.tween_property(wave, "position:y", 1080.0, 0.4).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tween.parallel().tween_property(wave, "modulate:a", 0.0, 0.4).set_delay(0.2)
+	tween.tween_callback(wave.queue_free)
+
+
+func _show_boss_transition_warning() -> void:
+	## Holographic warning box with boss name + typeout area below.
+	_boss_transition_overlay = Control.new()
+	_boss_transition_overlay.name = "BossTransitionOverlay"
+	_boss_transition_overlay.size = Vector2(1920, 1080)
+	_boss_transition_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_transition_overlay.z_index = 55
+	add_child(_boss_transition_overlay)
+
+	# Warning box
+	var boss_id: String = str(_boss_transition_enc.get("boss_id", ""))
+	var boss_name: String = "UNKNOWN"
+	if boss_id != "":
+		var boss: BossData = BossDataManager.load_by_id(boss_id)
+		if boss and boss.display_name != "":
+			boss_name = boss.display_name.to_upper()
+
+	var box := _GameOverBox.new()
+	var box_w: float = 500.0
+	var box_h: float = 80.0
+	box.box_size = Vector2(box_w, box_h)
+	box.position = Vector2((1920 - box_w) * 0.5, 350)
+	box.size = Vector2(box_w, box_h)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box._override_text = "WARNING: " + boss_name
+	_boss_transition_overlay.add_child(box)
+	_boss_transition_warning_box = box
+
+	# Typeout label below the warning
+	_boss_transition_typeout_label = Label.new()
+	_boss_transition_typeout_label.position = Vector2(0, 460)
+	_boss_transition_typeout_label.size = Vector2(1920, 200)
+	_boss_transition_typeout_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boss_transition_typeout_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+	_boss_transition_typeout_label.add_theme_font_size_override("font_size", 18)
+	var body_font: Font = ThemeManager.get_font("font_body")
+	if body_font:
+		_boss_transition_typeout_label.add_theme_font_override("font", body_font)
+	_boss_transition_typeout_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_transition_overlay.add_child(_boss_transition_typeout_label)
+
+
+func _start_boss_typeout(text: String) -> void:
+	_boss_transition_typeout_text = text
+	_boss_transition_typeout_idx = 0
+	_boss_transition_typeout_accum = 0.0
+	if _boss_transition_typeout_label:
+		_boss_transition_typeout_label.text = ""
+
+
+func _process_boss_typeout(delta: float) -> void:
+	if _boss_transition_typeout_idx >= _boss_transition_typeout_text.length():
+		return
+	_boss_transition_typeout_accum += delta
+	while _boss_transition_typeout_accum >= BT_TYPEOUT_SPEED and _boss_transition_typeout_idx < _boss_transition_typeout_text.length():
+		_boss_transition_typeout_accum -= BT_TYPEOUT_SPEED
+		_boss_transition_typeout_idx += 1
+		if _boss_transition_typeout_label:
+			_boss_transition_typeout_label.text = _boss_transition_typeout_text.substr(0, _boss_transition_typeout_idx)
+
+
+func _cleanup_boss_transition_overlay() -> void:
+	if _boss_transition_overlay and is_instance_valid(_boss_transition_overlay):
+		var tween := create_tween()
+		tween.tween_property(_boss_transition_overlay, "modulate:a", 0.0, 1.0)
+		tween.tween_callback(func() -> void:
+			if _boss_transition_overlay and is_instance_valid(_boss_transition_overlay):
+				_boss_transition_overlay.queue_free()
+				_boss_transition_overlay = null
+		)
+	_boss_transition_warning_box = null
+	_boss_transition_typeout_label = null
+
+
 func _return_to_menu() -> void:
 	_stop_all_alarms()
 	LoopMixer.remove_all_loops()
@@ -1395,6 +1637,7 @@ class _SpeckField extends Control:
 class _GameOverBox extends Control:
 	## Holographic "GAME OVER" box — same style as warning badges, larger, always on.
 	var box_size: Vector2 = Vector2(460, 100)
+	var _override_text: String = ""  # If set, display this instead of "GAME OVER"
 	var _time: float = 0.0
 
 	const COL := Color(1.0, 0.15, 0.1)
@@ -1456,7 +1699,7 @@ class _GameOverBox extends Control:
 		if not font:
 			font = ThemeDB.fallback_font
 		var font_size: int = 52
-		var text: String = "GAME OVER"
+		var text: String = _override_text if _override_text != "" else "GAME OVER"
 		var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 		var text_x: float = (w - text_size.x) * 0.5
 		var text_y: float = (h + text_size.y * 0.6) * 0.5

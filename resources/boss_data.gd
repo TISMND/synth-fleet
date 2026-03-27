@@ -54,6 +54,7 @@ static func from_dict(data: Dictionary) -> BossData:
 		b.core_weapon_overrides.append({
 			"hardpoint_index": int(d.get("hardpoint_index", 0)),
 			"weapon_id": str(d.get("weapon_id", "")),
+			"audio_lead_sec": float(d.get("audio_lead_sec", 0.0)),
 		})
 	b.core_immune_until_segments_dead = bool(data.get("core_immune_until_segments_dead", false))
 	var raw_req_destroys: Array = data.get("required_segment_destroys", []) as Array
@@ -78,6 +79,7 @@ static func from_dict(data: Dictionary) -> BossData:
 			parsed_ovr.append({
 				"hardpoint_index": int(wd.get("hardpoint_index", 0)),
 				"weapon_id": str(wd.get("weapon_id", "")),
+				"audio_lead_sec": float(wd.get("audio_lead_sec", 0.0)),
 			})
 		b.segments.append({
 			"ship_id": str(sd.get("ship_id", "")),

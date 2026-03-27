@@ -7,9 +7,12 @@
 	"encounters": [
 		{
 			"boss_id": "boss_archon",
+			"bpm_shift": 0.0,
 			"count": 1,
+			"encounter_type": "",
 			"formation_id": "",
 			"is_melee": false,
+			"key_shift_semitones": 0,
 			"path_id": "path_1",
 			"rotate_with_path": false,
 			"ship_id": "enemy_conduit",

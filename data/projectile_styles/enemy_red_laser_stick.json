@@ -1,0 +1,46 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		34.0,
+		74.0
+	],
+	"collision_scale": [
+		6.0,
+		62.0
+	],
+	"color": [
+		1.0,
+		0.0,
+		0.0,
+		1.0
+	],
+	"display_name": "enemy_red_laser_stick",
+	"effect_profile": {
+
+	},
+	"fill_shader": "beam",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "enemy_red_laser_stick",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 3.0,
+		"beam_speed": 3.5,
+		"beam_width": 0.1,
+		"brightness": 1.8,
+		"color_mix": 0.0,
+		"edge_softness": 1.0,
+		"flicker_rate": 4.0
+	}
+}

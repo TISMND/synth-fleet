@@ -29,6 +29,7 @@ static func from_dict(data: Dictionary) -> LevelData:
 	l.encounters = []
 	for enc in raw_enc:
 		l.encounters.append({
+			"encounter_type": str(enc.get("encounter_type", "")),
 			"path_id": str(enc.get("path_id", "")),
 			"formation_id": str(enc.get("formation_id", "")),
 			"ship_id": str(enc.get("ship_id", "enemy_1")),
@@ -42,6 +43,8 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"is_melee": bool(enc.get("is_melee", false)),
 			"turn_speed": float(enc.get("turn_speed", 90.0)),
 			"weapons_active": bool(enc.get("weapons_active", true)),
+			"key_shift_semitones": int(enc.get("key_shift_semitones", 0)),
+			"bpm_shift": float(enc.get("bpm_shift", 0.0)),
 		})
 	var raw_doodads: Array = data.get("doodads", [])
 	l.doodads = []

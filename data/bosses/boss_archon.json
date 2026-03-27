@@ -3,6 +3,7 @@
 	"core_ship_id": "enemy_archon_core",
 	"core_weapon_overrides": [
 		{
+			"audio_lead_sec": 0.0,
 			"hardpoint_index": 0,
 			"weapon_id": "enemy_ultra_beam"
 		}
@@ -11,12 +12,12 @@
 	"enrage_core_render_mode": "ember",
 	"enrage_core_weapon_overrides": [
 		{
-			"hardpoint_index": 0,
-			"weapon_id": "enemy_orange_wall"
+			"hardpoint_index": 2,
+			"weapon_id": "enemy_red_stick"
 		},
 		{
-			"hardpoint_index": 2,
-			"weapon_id": "enemy_yellow_dagger"
+			"hardpoint_index": 0,
+			"weapon_id": "enemy_red_stick"
 		}
 	],
 	"enrage_hardpoint_overrides": [
@@ -59,10 +60,12 @@
 			"ship_id": "enemy_archon_wing_l",
 			"weapon_overrides": [
 				{
+					"audio_lead_sec": 0.0,
 					"hardpoint_index": 0,
 					"weapon_id": "enemy_red_ring_streak"
 				},
 				{
+					"audio_lead_sec": 0.0,
 					"hardpoint_index": 1,
 					"weapon_id": "enemy_speck_turret"
 				}
@@ -81,10 +84,12 @@
 			"ship_id": "enemy_archon_wing_r",
 			"weapon_overrides": [
 				{
+					"audio_lead_sec": 0.0,
 					"hardpoint_index": 0,
 					"weapon_id": "enemy_red_ring_streak"
 				},
 				{
+					"audio_lead_sec": 0.0,
 					"hardpoint_index": 1,
 					"weapon_id": "enemy_speck_turret"
 				}

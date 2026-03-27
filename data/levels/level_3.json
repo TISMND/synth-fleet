@@ -4,7 +4,26 @@
 	"deep_background": "",
 	"display_name": "03 - Where From Here",
 	"doodads": [],
-	"encounters": [],
+	"encounters": [
+		{
+			"boss_id": "boss_archon",
+			"bpm_shift": 0.0,
+			"count": 1,
+			"encounter_type": "boss_transition",
+			"formation_id": "",
+			"is_melee": false,
+			"key_shift_semitones": 0,
+			"path_id": "path_1",
+			"rotate_with_path": false,
+			"ship_id": "enemy_archon_core",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 461.906873614191,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -85.1441241685144
+		}
+	],
 	"flight_speed": 160.0,
 	"id": "level_3",
 	"level_length": 10000.0,

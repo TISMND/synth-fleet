@@ -50,6 +50,7 @@ var _is_dead: bool = false  # True once hull reaches 0 — stops all processing
 var _death_drifting: bool = false  # Drift/spin during death explosion sequence
 var _death_drift_rotation_speed: float = 0.0
 var _death_drift_spin_direction: float = 1.0
+var _boss_transition_drifting: bool = false  # Drift during boss transition (no blackout)
 var _is_invulnerable: bool = false  # Brief immunity during power loss drift
 var _electric_crisis_active: bool = false
 var _electric_overdraw: bool = false  # True when weapons tried to drain electric below 0
@@ -763,6 +764,12 @@ func _start_drift() -> void:
 
 func _process_drift(delta: float) -> void:
 	_drift_timer += delta
+
+	# Boss transition drift — spin only, no audio shutdown or blackout
+	if _boss_transition_drifting:
+		_drift_rotation_speed = minf(_drift_rotation_speed + (BLACKOUT_MAX_SPIN / 4.0) * delta, BLACKOUT_MAX_SPIN)
+		rotation += _drift_rotation_speed * _drift_spin_direction * delta
+		return
 
 	# Shutdown audio — slow down and fade out loops over 1.5 seconds
 	if not _shutdown_audio_done:
@@ -1732,6 +1739,35 @@ func _process_death_drift(delta: float) -> void:
 	# Gradual spin — ramps up to max over DEATH_DRIFT_SPIN_RAMP seconds
 	_death_drift_rotation_speed = minf(_death_drift_rotation_speed + (DEATH_DRIFT_MAX_SPIN / DEATH_DRIFT_SPIN_RAMP) * delta, DEATH_DRIFT_MAX_SPIN)
 	rotation += _death_drift_rotation_speed * _death_drift_spin_direction * delta
+
+
+func start_boss_transition_drift() -> void:
+	## Enter drift for boss transition — no blackout, no power-loss cascade.
+	_boss_transition_drifting = true
+	_drifting = true
+	_drift_timer = 0.0
+	_drift_rotation_speed = 0.0
+	_drift_spin_direction = 1.0 if randf() > 0.5 else -1.0
+	# Deactivate all player components
+	for c in _hardpoint_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+	for c in _core_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+	for c in _device_controllers:
+		if c.has_method("deactivate"):
+			c.deactivate()
+
+
+func end_boss_transition_drift() -> void:
+	## Restore control after boss transition drift.
+	_boss_transition_drifting = false
+	_drifting = false
+	_drift_rotation_speed = 0.0
+	# Unwind rotation back to 0
+	var tween := create_tween()
+	tween.tween_property(self, "rotation", 0.0, 0.8).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 
 
 func apply_bar_effects(effects: Dictionary) -> void:
