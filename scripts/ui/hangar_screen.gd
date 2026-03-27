@@ -1,5 +1,7 @@
 extends MarginContainer
-## Hangar Screen — ship thumbnail + stats on left, LOADOUT/FIRE GROUPS/AUDIO MIX tabs center.
+## Hangar Screen — ship preview + stats on left, content (loadout or audio mix) center.
+
+static var initial_mode: String = "workshop"  # Set before navigating: "workshop" or "audio"
 
 var _ship_renderer: ShipRenderer
 var _ship_name_label: Label
@@ -100,6 +102,7 @@ var _fg_total_target: Dictionary = {}   # bar_type -> float (target value)
 
 
 func _ready() -> void:
+	_mode = initial_mode
 	_cache_weapons()
 	_init_slot_active()
 	_build_ui()
@@ -211,51 +214,7 @@ func _apply_theme() -> void:
 	_darken_button(_play_btn)
 	_darken_button(_mute_btn)
 	_darken_button(_reset_btn)
-	_darken_button(_launch_btn)
 	_darken_button(_back_btn)
-	_darken_button(_functional_btn)
-	_darken_button(_workshop_btn)
-	_darken_button(_audio_btn)
-	_darken_button(_controls_btn)
-
-	# Slot buttons in all sections — re-apply base style then color-coding
-	var section_prefixes: Array = [
-		[_weapon_section, "weapon_"],
-		[_core_section, "core_"],
-		[_field_section, "field_"],
-		[_particle_section, "particle_"],
-	]
-	for sp in section_prefixes:
-		var section: VBoxContainer = sp[0]
-		var prefix: String = str(sp[1])
-		var slot_idx: int = 0
-		for child in section.get_children():
-			if child is HBoxContainer:
-				var slot_key: String = prefix + str(slot_idx)
-				for sub in child.get_children():
-					if sub is Button:
-						var btn: Button = sub as Button
-						_darken_button(btn)
-						# Re-apply color-coding for the slot header button (the wide one)
-						if btn.size_flags_horizontal & Control.SIZE_EXPAND_FILL:
-							var slot_color: Color = _get_slot_type_color(slot_key)
-							btn.add_theme_color_override("font_color", Color(slot_color.r, slot_color.g, slot_color.b, 0.7))
-							btn.add_theme_color_override("font_hover_color", Color(slot_color.r, slot_color.g, slot_color.b, 1.0))
-							btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
-				slot_idx += 1
-
-	# Right panel — re-highlight the currently selected panel
-	if _right_panel and _right_panel.visible and _expanded_slot != "":
-		_unhighlight_all_picker_panels()
-		var cur_sd: Dictionary = GameState.slot_config.get(_expanded_slot, {})
-		var cur_id: String = str(cur_sd.get("weapon_id", str(cur_sd.get("device_id", ""))))
-		if cur_id != "" and _picker_item_panels.has(cur_id):
-			_highlight_picker_panel(_picker_item_panels[cur_id])
-
-	# Device section header — handled in section_pairs loop above
-
-	# Mode toggle highlight
-	_update_mode_buttons()
 
 	# Preset section buttons (in controls tab)
 	if _preset_list:
@@ -362,63 +321,8 @@ func _set_bar(bar_name: String, value: int, max_val: int) -> void:
 
 
 func _rebuild_buttons() -> void:
-	# Clear all sections
-	for section in [_weapon_section, _core_section, _field_section, _particle_section]:
-		for child in section.get_children():
-			child.queue_free()
 	_slot_toggle_btns.clear()
 	_slot_btns.clear()
-
-	# Weapon slots
-	for i in GameState.get_weapon_slot_count():
-		var slot_key: String = "weapon_" + str(i)
-		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var item_name: String = "empty"
-		var weapon_id: String = str(slot_data.get("weapon_id", ""))
-		if weapon_id != "":
-			var w: WeaponData = _weapon_cache.get(weapon_id)
-			if w:
-				item_name = w.display_name if w.display_name != "" else w.id
-			else:
-				item_name = weapon_id
-		var row: PanelContainer = _create_slot_row(slot_key, item_name)
-		_weapon_section.add_child(row)
-
-	# Core slots
-	for i in GameState.get_core_slot_count():
-		var slot_key: String = "core_" + str(i)
-		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var item_name: String = "empty"
-		var device_id: String = str(slot_data.get("device_id", ""))
-		if device_id != "":
-			var pc: PowerCoreData = _power_core_cache.get(device_id)
-			if pc:
-				item_name = pc.display_name if pc.display_name != "" else pc.id
-			else:
-				item_name = device_id
-		var row: PanelContainer = _create_slot_row(slot_key, item_name)
-		_core_section.add_child(row)
-
-	# Field slots
-	for i in GameState.get_field_slot_count():
-		var slot_key: String = "field_" + str(i)
-		var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
-		var item_name: String = "empty"
-		var device_id: String = str(slot_data.get("device_id", ""))
-		if device_id != "":
-			var d: DeviceData = _device_cache.get(device_id)
-			if d:
-				item_name = d.display_name if d.display_name != "" else d.id
-			else:
-				item_name = device_id
-		var row: PanelContainer = _create_slot_row(slot_key, item_name)
-		_field_section.add_child(row)
-
-	# Particle slots (coming soon)
-	for i in GameState.get_particle_slot_count():
-		var slot_key: String = "particle_" + str(i)
-		var row: PanelContainer = _create_slot_row(slot_key, "COMING SOON", true)
-		_particle_section.add_child(row)
 
 	_rebuild_audio_content()
 	if _workshop_content and _workshop_content.visible:
@@ -1088,21 +992,7 @@ func _rebuild_workshop_content() -> void:
 
 
 func _update_mode_buttons() -> void:
-	var accent: Color = ThemeManager.get_color("accent")
-	for btn in [_functional_btn, _workshop_btn, _audio_btn, _controls_btn]:
-		btn.remove_theme_color_override("font_color")
-	if _mode == "functional":
-		_functional_btn.add_theme_color_override("font_color", accent)
-	elif _mode == "workshop":
-		_workshop_btn.add_theme_color_override("font_color", accent)
-	elif _mode == "audio":
-		_audio_btn.add_theme_color_override("font_color", accent)
-	else:
-		_controls_btn.add_theme_color_override("font_color", accent)
-	_darken_button(_functional_btn)
-	_darken_button(_workshop_btn)
-	_darken_button(_audio_btn)
-	_darken_button(_controls_btn)
+	pass  # Tab buttons removed — mode set via static var before navigation
 
 
 # ── Key capture ──────────────────────────────────────────────────────────────
@@ -2192,7 +2082,7 @@ func _build_ui() -> void:
 	root.add_child(left_vbox)
 
 	_title = Label.new()
-	_title.text = "HANGAR"
+	_title.text = "LOADOUT" if _mode == "workshop" else "COMPONENT AUDIO MIX"
 	left_vbox.add_child(_title)
 
 	_ship_name_label = Label.new()
@@ -2351,7 +2241,7 @@ func _build_ui() -> void:
 		_sim_status_label.add_theme_font_override("font", status_font)
 	_viewport_container.add_child(_sim_status_label)
 
-	# CENTER — mode toggle + content
+	# CENTER — content area
 	var center_margin := MarginContainer.new()
 	center_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	center_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -2365,135 +2255,34 @@ func _build_ui() -> void:
 	_center_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	center_margin.add_child(_center_vbox)
 
-	# Mode toggle buttons
-	var mode_hbox := HBoxContainer.new()
-	mode_hbox.add_theme_constant_override("separation", 6)
-	_center_vbox.add_child(mode_hbox)
-
-	# Spacer below mode tabs
-	var mode_spacer := Control.new()
-	mode_spacer.custom_minimum_size.y = 6
-	_center_vbox.add_child(mode_spacer)
-
-	_functional_btn = Button.new()
-	_functional_btn.text = "LOADOUT"
-	_functional_btn.custom_minimum_size = Vector2(100, 36)
-	_functional_btn.pressed.connect(func() -> void: _on_mode_toggle("functional"))
-	mode_hbox.add_child(_functional_btn)
-
-	_workshop_btn = Button.new()
-	_workshop_btn.text = "WORKSHOP"
-	_workshop_btn.custom_minimum_size = Vector2(110, 36)
-	_workshop_btn.pressed.connect(func() -> void: _on_mode_toggle("workshop"))
-	mode_hbox.add_child(_workshop_btn)
-
-	# Fire Groups tab hidden — functionality merged into Workshop
-	_controls_btn = Button.new()
-	_controls_btn.text = "FIRE GROUPS"
-	_controls_btn.visible = false
-
-	_audio_btn = Button.new()
-	_audio_btn.text = "AUDIO MIX"
-	_audio_btn.custom_minimum_size = Vector2(100, 36)
-	_audio_btn.pressed.connect(func() -> void: _on_mode_toggle("audio"))
-	mode_hbox.add_child(_audio_btn)
-
-	# FUNCTIONAL content
+	# Stub containers for removed modes (kept so existing toggle code doesn't null-ref)
 	_functional_content = VBoxContainer.new()
-	_functional_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_functional_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_functional_content.add_theme_constant_override("separation", 4)
-	_center_vbox.add_child(_functional_content)
+	_functional_content.visible = false
+	_controls_content = VBoxContainer.new()
+	_controls_content.visible = false
 
-	# Weapons section
-	var weapon_header_bar: PanelContainer = _create_section_header_bar("WEAPONS", "weapon")
-	_functional_content.add_child(weapon_header_bar)
-
-	_weapon_section = VBoxContainer.new()
-	_weapon_section.add_theme_constant_override("separation", 6)
-	_functional_content.add_child(_weapon_section)
-
-	# Spacer between sections
-	var spacer_1 := Control.new()
-	spacer_1.custom_minimum_size.y = 8
-	_functional_content.add_child(spacer_1)
-
-	# Power Cores section
-	var core_header_bar: PanelContainer = _create_section_header_bar("POWER CORES", "core")
-	_functional_content.add_child(core_header_bar)
-
-	_core_section = VBoxContainer.new()
-	_core_section.add_theme_constant_override("separation", 6)
-	_functional_content.add_child(_core_section)
-
-	var spacer_2 := Control.new()
-	spacer_2.custom_minimum_size.y = 8
-	_functional_content.add_child(spacer_2)
-
-	# Field Emitters section
-	var field_header_bar: PanelContainer = _create_section_header_bar("FIELD EMITTERS", "field")
-	_functional_content.add_child(field_header_bar)
-
-	_field_section = VBoxContainer.new()
-	_field_section.add_theme_constant_override("separation", 6)
-	_functional_content.add_child(_field_section)
-
-	var spacer_3 := Control.new()
-	spacer_3.custom_minimum_size.y = 8
-	_functional_content.add_child(spacer_3)
-
-	# Particle Generators section
-	var particle_header_bar: PanelContainer = _create_section_header_bar("PARTICLE GENERATORS", "particle")
-	_functional_content.add_child(particle_header_bar)
-
-	_particle_section = VBoxContainer.new()
-	_particle_section.add_theme_constant_override("separation", 6)
-	_functional_content.add_child(_particle_section)
-
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_functional_content.add_child(spacer)
-
-	# AUDIO content (hidden by default)
+	# AUDIO content
 	_audio_content = VBoxContainer.new()
 	_audio_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_audio_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_audio_content.visible = false
+	_audio_content.visible = (_mode == "audio")
 	_center_vbox.add_child(_audio_content)
 
-	# CONTROLS content (hidden by default)
-	_controls_content = VBoxContainer.new()
-	_controls_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_controls_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_controls_content.visible = false
-	_center_vbox.add_child(_controls_content)
-
-	# WORKSHOP content (hidden by default)
+	# WORKSHOP content (now called LOADOUT externally)
 	_workshop_content = VBoxContainer.new()
 	_workshop_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_workshop_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_workshop_content.add_theme_constant_override("separation", 4)
-	_workshop_content.visible = false
+	_workshop_content.visible = (_mode == "workshop")
 	_center_vbox.add_child(_workshop_content)
 
-	# Bottom buttons (always visible, below all content areas)
-	var bottom_btns := HBoxContainer.new()
-	bottom_btns.add_theme_constant_override("separation", 10)
-	_center_vbox.add_child(bottom_btns)
-
-	_launch_btn = Button.new()
-	_launch_btn.text = "LAUNCH"
-	_launch_btn.custom_minimum_size.y = 40
-	_launch_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_launch_btn.pressed.connect(_on_launch)
-	bottom_btns.add_child(_launch_btn)
-
+	# Bottom button
 	_back_btn = Button.new()
 	_back_btn.text = "BACK"
 	_back_btn.custom_minimum_size.y = 40
 	_back_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_back_btn.pressed.connect(_on_back)
-	bottom_btns.add_child(_back_btn)
+	_center_vbox.add_child(_back_btn)
 
 	# RIGHT — item picker panel
 	var right_margin := MarginContainer.new()
@@ -2684,16 +2473,9 @@ func _darken_button(btn: Button) -> void:
 			btn.add_theme_stylebox_override(state, dark)
 
 
-func _on_launch() -> void:
-	_cleanup_preview()
-	GameState.current_level_id = "level_1"
-	GameState.return_scene = "res://scenes/ui/hangar_screen.tscn"
-	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
-
-
 func _on_back() -> void:
 	_cleanup_preview()
-	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/mission_prep_menu.tscn")
 
 
 # ── Preview management ───────────────────────────────────────────────────────

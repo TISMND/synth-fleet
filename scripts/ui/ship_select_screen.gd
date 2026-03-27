@@ -245,11 +245,11 @@ func _on_select_pressed() -> void:
 		return
 	if GameState.current_ship_index != _selected_index:
 		GameState.set_ship_index(_selected_index)
-	get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/mission_prep_menu.tscn")
 
 
 func _on_back() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/mission_prep_menu.tscn")
 
 
 func _input(event: InputEvent) -> void:

@@ -37,7 +37,7 @@ theme_override_constants/separation = 20
 
 [node name="HangarButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-text = "HANGAR"
+text = "MISSION PREP"
 
 [node name="LevelsButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2

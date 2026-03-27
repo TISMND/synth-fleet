@@ -337,6 +337,7 @@ func _test_scene_loading() -> void:
 		"res://scenes/ui/component_editor.tscn",
 		"res://scenes/ui/environments_screen.tscn",
 		"res://scenes/ui/hangar_screen.tscn",
+		"res://scenes/ui/mission_prep_menu.tscn",
 		"res://scenes/ui/level_select_screen.tscn",
 		"res://scenes/ui/level_editor.tscn",
 		"res://scenes/ui/options_screen.tscn",

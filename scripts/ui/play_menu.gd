@@ -17,7 +17,7 @@ func _ready() -> void:
 
 
 func _on_hangar() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/mission_prep_menu.tscn")
 
 
 func _on_levels() -> void:
