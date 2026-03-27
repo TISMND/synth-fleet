@@ -9,6 +9,7 @@
 	"enemy_hull_flash_duration": 0.1,
 	"enemy_hull_flash_intensity": 2.1,
 	"enemy_shield_field_style_id": "standard_shield",
+	"enemy_shield_pulse_duration": 0.1,
 	"enemy_shield_ratio": 1.83,
 	"immune_field_style_id": "",
 	"immune_impact_color": [
@@ -33,5 +34,6 @@
 	"player_hull_flash_duration": 0.1,
 	"player_hull_flash_intensity": 2.1,
 	"player_shield_field_style_id": "standard_shield",
+	"player_shield_pulse_duration": 0.1,
 	"player_shield_ratio": 1.82
 }

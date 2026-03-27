@@ -30,6 +30,7 @@ var current_level_id: String = ""
 var return_scene: String = ""
 var editing_level_id: String = ""  # Remembers which level was open in the editor
 var show_mouse_nav_indicator: bool = true  # Gameplay setting — show diamond at mouse position
+var mouse_sensitivity: float = 1.0  # Controls setting — 0.25 to 2.0
 
 
 func _ready() -> void:
@@ -49,6 +50,7 @@ func _load_gameplay_settings() -> void:
 		return
 	var data: Dictionary = json.data
 	show_mouse_nav_indicator = bool(data.get("show_mouse_nav_indicator", true))
+	mouse_sensitivity = clampf(float(data.get("mouse_sensitivity", 1.0)), 0.25, 2.0)
 
 
 func _init_slot_config() -> void:

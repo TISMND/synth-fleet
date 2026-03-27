@@ -1841,13 +1841,11 @@ class _IntroTitleBox extends Control:
 # ── Mouse Navigation Indicator ────────────────────────────────────────
 
 class _MouseNavIndicator extends Node2D:
-	## Small hollow diamond at the mouse position — navigation waypoint, not a crosshair.
-	const SIZE: float = 7.0
-	const LINE_W: float = 1.5
-	const COL := Color(0.4, 0.7, 1.0)
-	const HDR: float = 2.0
-	const GLOW_ALPHA: float = 0.15
-	const GLOW_SIZE: float = 12.0
+	## Tiny hollow diamond at the mouse position — subtle navigation hint.
+	const SIZE: float = 4.0
+	const LINE_W: float = 1.0
+	const COL := Color(0.5, 0.7, 1.0)
+	const HDR: float = 1.0
 	var _time: float = 0.0
 
 	func _process(delta: float) -> void:
@@ -1855,17 +1853,10 @@ class _MouseNavIndicator extends Node2D:
 		queue_redraw()
 
 	func _draw() -> void:
-		var pulse: float = 0.85 + 0.15 * sin(_time * 3.0)
-		var col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.8 * pulse)
+		var pulse: float = 0.9 + 0.1 * sin(_time * 2.5)
+		var col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.35 * pulse)
 		var s: float = SIZE
 		var pts: PackedVector2Array = PackedVector2Array([
 			Vector2(0, -s), Vector2(s, 0), Vector2(0, s), Vector2(-s, 0), Vector2(0, -s)
 		])
 		draw_polyline(pts, col, LINE_W, true)
-		# Soft glow
-		var glow_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, GLOW_ALPHA * pulse)
-		var gs: float = GLOW_SIZE
-		var glow_pts: PackedVector2Array = PackedVector2Array([
-			Vector2(0, -gs), Vector2(gs, 0), Vector2(0, gs), Vector2(-gs, 0)
-		])
-		draw_colored_polygon(glow_pts, glow_col)

@@ -120,7 +120,7 @@ func _ready() -> void:
 	# Universal enemy hit effects from VFX config
 	var vfx: VfxConfig = VfxConfigManager.load_config()
 	var extent: float = ship_data_ref.bounding_extent() if ship_data_ref else 40.0
-	_setup_hit_field("ShieldField", vfx.enemy_shield_field_style_id, vfx.enemy_shield_ratio * extent)
+	_setup_hit_field("ShieldField", vfx.enemy_shield_field_style_id, vfx.enemy_shield_ratio * extent, vfx.enemy_shield_pulse_duration)
 
 	# Setup weapon controller if ship has a weapon assigned
 	var has_weapon: bool = ship_data_ref and ship_data_ref.weapon_id != ""
@@ -349,12 +349,14 @@ func _trigger_enrage() -> void:
 		_enrage_weapon_controller.setup_with_overrides(ship_data_ref, boss.enrage_hardpoint_overrides, self, player_ref, projectiles_container)
 
 
-func _setup_hit_field(node_name: String, style_id: String, radius: float) -> void:
+func _setup_hit_field(node_name: String, style_id: String, radius: float, pulse_duration_override: float = 0.0) -> void:
 	if style_id == "":
 		return
 	var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
 	if not style:
 		return
+	if pulse_duration_override > 0.0:
+		style.pulse_total_duration = pulse_duration_override
 	var field := FieldRenderer.new()
 	field.name = node_name
 	field._stay_visible = false

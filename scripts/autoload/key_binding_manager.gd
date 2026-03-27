@@ -58,11 +58,35 @@ var _bindings: Dictionary = {}  # slot_key -> {physical_keycode, label}
 var _combo_presets: Array = []  # [{label, physical_keycode, key_label, pattern}]
 var _slot_volumes: Dictionary = {}  # slot_key -> float (dB, default 0.0)
 
+# Action bindings — keyboard + mouse for global game actions
+const DEFAULT_ACTION_BINDINGS: Dictionary = {
+	"toggle_all_weapons": {"keyboard": 32, "keyboard_label": "Space", "mouse": 1, "mouse_label": "LMB"},  # 1 = MOUSE_BUTTON_LEFT
+	"toggle_all_cores": {"keyboard": 4194325, "keyboard_label": "Shift", "mouse": 2, "mouse_label": "RMB"},  # 2 = MOUSE_BUTTON_RIGHT
+	"thermal_purge": {"keyboard": 86, "keyboard_label": "V", "mouse": 0, "mouse_label": ""},
+	"hardpoints_off": {"keyboard": 67, "keyboard_label": "C", "mouse": 0, "mouse_label": ""},
+}
+var _action_bindings: Dictionary = {}  # action_name -> {keyboard, keyboard_label, mouse, mouse_label}
+
+# Default firegroup keys
+const DEFAULT_FIREGROUP_KEYS: Array = [
+	{"physical_keycode": 82, "label": "R"},
+	{"physical_keycode": 70, "label": "F"},
+	{"physical_keycode": 84, "label": "T"},
+	{"physical_keycode": 71, "label": "G"},
+]
+const MAX_FIREGROUPS: int = 4
+
 
 
 func _ready() -> void:
+	_init_action_bindings()
 	load_bindings()
 	apply_to_input_map()
+
+
+func _init_action_bindings() -> void:
+	for action_name in DEFAULT_ACTION_BINDINGS:
+		_action_bindings[action_name] = DEFAULT_ACTION_BINDINGS[action_name].duplicate()
 
 
 func get_binding(slot_key: String) -> Dictionary:
@@ -207,6 +231,76 @@ func load_bindings() -> void:
 				"pattern": new_pattern,
 			})
 
+	# Default firegroups if none saved — 4 groups with all slots ON
+	if _combo_presets.is_empty():
+		_create_default_firegroups()
+	else:
+		# Pad up to MAX_FIREGROUPS if fewer exist (e.g. user had 3, we want 4)
+		_pad_firegroups_to_max()
+
+	# Cap at MAX_FIREGROUPS
+	while _combo_presets.size() > MAX_FIREGROUPS:
+		_combo_presets.pop_back()
+
+	# Load action bindings
+	var saved_actions: Dictionary = data.get("action_bindings", {}) as Dictionary if data.get("action_bindings") is Dictionary else {}
+	for action_name in saved_actions:
+		var a: Dictionary = saved_actions[action_name] as Dictionary if saved_actions[action_name] is Dictionary else {}
+		if _action_bindings.has(str(action_name)):
+			_action_bindings[str(action_name)] = {
+				"keyboard": int(a.get("keyboard", 0)),
+				"keyboard_label": str(a.get("keyboard_label", "")),
+				"mouse": int(a.get("mouse", 0)),
+				"mouse_label": str(a.get("mouse_label", "")),
+			}
+
+
+func _create_default_firegroups() -> void:
+	## Build 4 default firegroups with all slots ON.
+	var all_on_pattern: Dictionary = {}
+	for i in 6:
+		all_on_pattern["weapon_" + str(i)] = true
+	for i in 3:
+		all_on_pattern["core_" + str(i)] = true
+	for i in 4:
+		all_on_pattern["field_" + str(i)] = true
+	for i in DEFAULT_FIREGROUP_KEYS.size():
+		var key_def: Dictionary = DEFAULT_FIREGROUP_KEYS[i]
+		_combo_presets.append({
+			"label": generate_combo_label(all_on_pattern),
+			"physical_keycode": int(key_def["physical_keycode"]),
+			"key_label": str(key_def["label"]),
+			"pattern": all_on_pattern.duplicate(),
+		})
+
+
+func _pad_firegroups_to_max() -> void:
+	## Add missing default firegroups if fewer than MAX_FIREGROUPS exist.
+	if _combo_presets.size() >= MAX_FIREGROUPS:
+		return
+	var all_on_pattern: Dictionary = {}
+	for i in 6:
+		all_on_pattern["weapon_" + str(i)] = true
+	for i in 3:
+		all_on_pattern["core_" + str(i)] = true
+	for i in 4:
+		all_on_pattern["field_" + str(i)] = true
+	# Find which default keys are already used
+	var used_keycodes: Dictionary = {}
+	for preset in _combo_presets:
+		used_keycodes[int(preset["physical_keycode"])] = true
+	for key_def in DEFAULT_FIREGROUP_KEYS:
+		if _combo_presets.size() >= MAX_FIREGROUPS:
+			break
+		if used_keycodes.has(int(key_def["physical_keycode"])):
+			continue
+		_combo_presets.append({
+			"label": generate_combo_label(all_on_pattern),
+			"physical_keycode": int(key_def["physical_keycode"]),
+			"key_label": str(key_def["label"]),
+			"pattern": all_on_pattern.duplicate(),
+		})
+
 
 func save_bindings() -> void:
 	# Ensure directory exists
@@ -217,6 +311,7 @@ func save_bindings() -> void:
 		"bindings": _bindings,
 		"combo_presets": _combo_presets,
 		"slot_volumes": _slot_volumes,
+		"action_bindings": _action_bindings,
 	}
 
 	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -273,6 +368,27 @@ func apply_to_input_map() -> void:
 
 	# Register combo preset actions
 	_apply_combo_actions()
+
+	# Register action bindings (keyboard + mouse)
+	_apply_action_bindings()
+
+
+func _apply_action_bindings() -> void:
+	for action_name in _action_bindings:
+		var ab: Dictionary = _action_bindings[action_name]
+		if not InputMap.has_action(action_name):
+			InputMap.add_action(action_name)
+		InputMap.action_erase_events(action_name)
+		var pkc: int = int(ab.get("keyboard", 0))
+		if pkc != 0:
+			var ev := InputEventKey.new()
+			ev.physical_keycode = pkc as Key
+			InputMap.action_add_event(action_name, ev)
+		var mouse_btn: int = int(ab.get("mouse", 0))
+		if mouse_btn != 0:
+			var mev := InputEventMouseButton.new()
+			mev.button_index = mouse_btn as MouseButton
+			InputMap.action_add_event(action_name, mev)
 
 
 func _remap_action(action: String, physical_keycode: int) -> void:
@@ -416,6 +532,48 @@ func generate_combo_label(pattern: Dictionary) -> String:
 
 func get_combo_presets() -> Array:
 	return _combo_presets
+
+
+func set_combo_preset_key(index: int, physical_keycode: int, key_label: String) -> void:
+	if index < 0 or index >= _combo_presets.size():
+		return
+	_combo_presets[index]["physical_keycode"] = physical_keycode
+	_combo_presets[index]["key_label"] = key_label
+	apply_to_input_map()
+	save_bindings()
+	bindings_changed.emit()
+
+
+func get_action_binding(action_name: String) -> Dictionary:
+	if _action_bindings.has(action_name):
+		return _action_bindings[action_name]
+	if DEFAULT_ACTION_BINDINGS.has(action_name):
+		return DEFAULT_ACTION_BINDINGS[action_name]
+	return {}
+
+
+func set_action_binding_keyboard(action_name: String, physical_keycode: int, label: String) -> void:
+	if not _action_bindings.has(action_name):
+		return
+	_action_bindings[action_name]["keyboard"] = physical_keycode
+	_action_bindings[action_name]["keyboard_label"] = label
+	apply_to_input_map()
+	save_bindings()
+	bindings_changed.emit()
+
+
+func set_action_binding_mouse(action_name: String, mouse_button: int, label: String) -> void:
+	if not _action_bindings.has(action_name):
+		return
+	_action_bindings[action_name]["mouse"] = mouse_button
+	_action_bindings[action_name]["mouse_label"] = label
+	apply_to_input_map()
+	save_bindings()
+	bindings_changed.emit()
+
+
+func get_all_action_names() -> Array:
+	return _action_bindings.keys()
 
 
 func set_slot_volume(slot_key: String, volume_db: float) -> void:

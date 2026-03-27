@@ -242,6 +242,10 @@ func _build_shield_section(parent: VBoxContainer, section_title: String, config_
 
 	_build_field_style_dropdown(controls_vbox, "Field Style", config_key)
 	_build_ratio_slider(controls_vbox, radius_key, float(_config.get(radius_key)))
+	var dur_key: String = config_key + "_pulse_duration"
+	var dur_val: Variant = _config.get(dur_key)
+	if dur_val != null:
+		_build_param_slider(controls_vbox, "Duration", dur_key, float(dur_val), 0.05, 2.0, 0.05)
 
 	_sections[config_key] = {
 		"renderer": renderer,
@@ -695,6 +699,10 @@ func _rebuild_field(section_key: String) -> void:
 	elif not is_enemy and _player_ship_data:
 		extent = _player_ship_data.bounding_extent()
 	var radius: float = ratio * extent
+	var dur_key: String = section_key + "_pulse_duration"
+	var dur_val: Variant = _config.get(dur_key)
+	if dur_val != null and float(dur_val) > 0.0:
+		style.pulse_total_duration = float(dur_val)
 	field.setup(style, radius)
 
 

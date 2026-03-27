@@ -1055,7 +1055,8 @@ func update_hardpoints(data: Array) -> void:
 			var entry: Dictionary = data[i]
 			var color: Color = entry.get("color", Color.CYAN) as Color
 			var active: bool = entry.get("active", false) as bool
-			var icon_data: Dictionary = HudBuilder._build_bezeled_icon(str(i + 1), active, color, bezel_shader)
+			var key_text: String = str(entry.get("key", str(i + 1)))
+			var icon_data: Dictionary = HudBuilder._build_bezeled_icon(key_text, active, color, bezel_shader)
 			_comp_icons_hbox.add_child(icon_data["container"])
 			_weapon_icons.append(icon_data)
 	else:
@@ -1086,8 +1087,8 @@ func update_cores(data: Array) -> void:
 			var entry: Dictionary = data[i]
 			var color: Color = entry.get("color", Color(0.6, 0.4, 1.0)) as Color
 			var active: bool = entry.get("active", false) as bool
-			var slot_num: int = _weapon_icons.size() + i + 1
-			var icon_data: Dictionary = HudBuilder._build_bezeled_icon(str(slot_num), active, color, bezel_shader)
+			var key_text: String = str(entry.get("key", str(_weapon_icons.size() + i + 1)))
+			var icon_data: Dictionary = HudBuilder._build_bezeled_icon(key_text, active, color, bezel_shader)
 			_comp_icons_hbox.add_child(icon_data["container"])
 			_core_icons.append(icon_data)
 	else:
@@ -1117,8 +1118,8 @@ func update_devices(data: Array) -> void:
 			var entry: Dictionary = data[i]
 			var color: Color = entry.get("color", Color(0.0, 0.8, 1.0)) as Color
 			var active: bool = entry.get("active", false) as bool
-			var slot_num: int = _weapon_icons.size() + _core_icons.size() + i + 1
-			var icon_data: Dictionary = HudBuilder._build_bezeled_icon(str(slot_num), active, color, bezel_shader)
+			var key_text: String = str(entry.get("key", str(_weapon_icons.size() + _core_icons.size() + i + 1)))
+			var icon_data: Dictionary = HudBuilder._build_bezeled_icon(key_text, active, color, bezel_shader)
 			_comp_icons_hbox.add_child(icon_data["container"])
 			_device_icons.append(icon_data)
 	else:

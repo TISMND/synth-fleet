@@ -7,13 +7,13 @@
 	],
 	"display_name": "Standard Shield",
 	"field_shader": "pulse_barrier",
-	"glow_intensity": 0.4,
+	"glow_intensity": 0.3,
 	"id": "standard_shield",
 	"pulse_brightness": 0.0,
 	"pulse_tint": 0.0,
-	"radius_ratio": 0.6,
+	"radius_ratio": 0.55,
 	"shader_params": {
-		"barrier_width": 0.02,
+		"barrier_width": 0.06,
 		"flash_intensity": 2.0,
 		"outer_radius": 0.54,
 		"pulse_decay": 1.0

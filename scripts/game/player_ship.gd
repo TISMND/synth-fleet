@@ -37,7 +37,8 @@ var _active_hull_dr: float = 0.0  # current hull damage reduction % from devices
 var _player_area: Area2D = null
 var _hud: Control = null
 var _weapon_data_per_hp: Array = []
-var _space_state: int = 0  # 0=all off, 1=all on
+var _weapons_toggle_state: int = 0  # 0=all off, 1=all on
+var _cores_toggle_state: int = 0  # 0=all off, 1=all on
 
 # Banking + rendering
 var _bank: float = 0.0
@@ -148,7 +149,7 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	# Universal player hit effects from VFX config
 	var vfx: VfxConfig = VfxConfigManager.load_config()
 	var shield_px: float = vfx.player_shield_ratio * ship_data.bounding_extent()
-	_setup_hit_field("ShieldField", vfx.player_shield_field_style_id, shield_px)
+	_setup_hit_field("ShieldField", vfx.player_shield_field_style_id, shield_px, vfx.player_shield_pulse_duration)
 
 	# Create hardpoint controllers from loadout assignments — all fire from center
 	var assignments: Dictionary = loadout.hardpoint_assignments
@@ -240,12 +241,14 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_apply_stored_volumes()
 
 
-func _setup_hit_field(node_name: String, style_id: String, radius: float) -> void:
+func _setup_hit_field(node_name: String, style_id: String, radius: float, pulse_duration_override: float = 0.0) -> void:
 	if style_id == "":
 		return
 	var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
 	if not style:
 		return
+	if pulse_duration_override > 0.0:
+		style.pulse_total_duration = pulse_duration_override
 	var field := FieldRenderer.new()
 	field.name = node_name
 	field._stay_visible = false
@@ -353,7 +356,7 @@ func _process(delta: float) -> void:
 		input_dir = kbd_dir
 	else:
 		var mouse_pos: Vector2 = get_global_mouse_position()
-		var to_mouse: Vector2 = mouse_pos - global_position
+		var to_mouse: Vector2 = (mouse_pos - global_position) * GameState.mouse_sensitivity
 		var dist: float = to_mouse.length()
 		const MOUSE_DEAD_ZONE: float = 8.0
 		const MOUSE_FULL_ZONE: float = 80.0
@@ -512,38 +515,36 @@ func _input(event: InputEvent) -> void:
 			_update_hud_devices()
 			return
 
-	# Space: toggle all on/off (weapons + cores + devices)
-	if event.is_action_pressed("hardpoints_max"):
-		_space_state = 1 - _space_state
-		# When turning everything off, clear suppression state — user explicitly
-		# wants everything off, so pre-suppress snapshots should not restore later.
-		if _space_state == 0:
+	# Toggle all weapons (Space / LMB)
+	if event.is_action_pressed("toggle_all_weapons"):
+		_weapons_toggle_state = 1 - _weapons_toggle_state
+		if _weapons_toggle_state == 0:
 			if _device_weapons_suppressed:
 				_device_weapons_suppressed = false
 				_pre_suppress_weapon_states.clear()
+		if not _device_weapons_suppressed:
+			for c in _hardpoint_controllers:
+				if _weapons_toggle_state == 1:
+					c.activate()
+				else:
+					c.deactivate()
+		_update_hud_hardpoints()
+		return
+
+	# Toggle all power cores (Shift / RMB)
+	if event.is_action_pressed("toggle_all_cores"):
+		_cores_toggle_state = 1 - _cores_toggle_state
+		if _cores_toggle_state == 0:
 			if _device_cores_suppressed:
 				_device_cores_suppressed = false
 				_pre_suppress_core_states.clear()
-		if not _device_weapons_suppressed:
-			for c in _hardpoint_controllers:
-				if _space_state == 1:
-					c.activate()
-				else:
-					c.deactivate()
 		if not _device_cores_suppressed:
 			for c in _core_controllers:
-				if _space_state == 1:
+				if _cores_toggle_state == 1:
 					c.activate()
 				else:
 					c.deactivate()
-		for c in _device_controllers:
-			if _space_state == 1:
-				c.activate()
-			else:
-				c.deactivate()
-		_update_hud_hardpoints()
 		_update_hud_cores()
-		_update_hud_devices()
 		return
 
 	# Deactivate all (C)
@@ -639,11 +640,14 @@ func _update_hud_hardpoints() -> void:
 		var controller: Node2D = _hardpoint_controllers[i]
 		var hp_info: Dictionary = _weapon_data_per_hp[i]
 		var weapon: WeaponData = hp_info["weapon"]
+		var slot_key: String = "weapon_" + str(i)
+		var key_label: String = KeyBindingManager.get_key_label_for_slot(slot_key)
 		data.append({
 			"label": hp_info["label"],
 			"weapon_name": weapon.display_name if weapon.display_name != "" else weapon.id,
 			"color": Color.CYAN,
 			"active": controller.is_active(),
+			"key": key_label,
 		})
 	_hud.update_hardpoints(data)
 

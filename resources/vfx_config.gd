@@ -7,6 +7,7 @@ class_name VfxConfig extends Resource
 # Player Shield Hit — field overlay
 var player_shield_field_style_id: String = ""
 var player_shield_ratio: float = 1.82
+var player_shield_pulse_duration: float = 0.5
 
 # Player Hull Hit — ship flicker
 var player_hull_flash_color: Array = [1.0, 1.0, 1.0, 1.0]
@@ -17,6 +18,7 @@ var player_hull_flash_count: int = 3
 # Enemy Shield Hit — field overlay (blanket for all enemies)
 var enemy_shield_field_style_id: String = ""
 var enemy_shield_ratio: float = 1.83
+var enemy_shield_pulse_duration: float = 0.5
 
 # Enemy Hull Hit — ship flicker (blanket for all enemies)
 var enemy_hull_flash_color: Array = [1.0, 1.0, 1.0, 1.0]
@@ -42,6 +44,7 @@ static func from_dict(data: Dictionary) -> VfxConfig:
 	# Player Shield
 	config.player_shield_field_style_id = str(data.get("player_shield_field_style_id", ""))
 	config.player_shield_ratio = float(data.get("player_shield_ratio", 1.82))
+	config.player_shield_pulse_duration = float(data.get("player_shield_pulse_duration", 0.5))
 	# Player Hull
 	config.player_hull_flash_color = _parse_color_array(data.get("player_hull_flash_color", [1.0, 1.0, 1.0, 1.0]))
 	config.player_hull_flash_intensity = float(data.get("player_hull_flash_intensity", 2.0))
@@ -50,6 +53,7 @@ static func from_dict(data: Dictionary) -> VfxConfig:
 	# Enemy Shield
 	config.enemy_shield_field_style_id = str(data.get("enemy_shield_field_style_id", ""))
 	config.enemy_shield_ratio = float(data.get("enemy_shield_ratio", 1.83))
+	config.enemy_shield_pulse_duration = float(data.get("enemy_shield_pulse_duration", 0.5))
 	# Enemy Hull
 	config.enemy_hull_flash_color = _parse_color_array(data.get("enemy_hull_flash_color", [1.0, 1.0, 1.0, 1.0]))
 	config.enemy_hull_flash_intensity = float(data.get("enemy_hull_flash_intensity", 2.0))
@@ -72,12 +76,14 @@ func to_dict() -> Dictionary:
 	return {
 		"player_shield_field_style_id": player_shield_field_style_id,
 		"player_shield_ratio": player_shield_ratio,
+		"player_shield_pulse_duration": player_shield_pulse_duration,
 		"player_hull_flash_color": player_hull_flash_color,
 		"player_hull_flash_intensity": player_hull_flash_intensity,
 		"player_hull_flash_duration": player_hull_flash_duration,
 		"player_hull_flash_count": player_hull_flash_count,
 		"enemy_shield_field_style_id": enemy_shield_field_style_id,
 		"enemy_shield_ratio": enemy_shield_ratio,
+		"enemy_shield_pulse_duration": enemy_shield_pulse_duration,
 		"enemy_hull_flash_color": enemy_hull_flash_color,
 		"enemy_hull_flash_intensity": enemy_hull_flash_intensity,
 		"enemy_hull_flash_duration": enemy_hull_flash_duration,

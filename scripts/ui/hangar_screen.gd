@@ -1225,14 +1225,6 @@ func _build_fg_tab_bar(parent: VBoxContainer, presets: Array, show_key_labels: b
 		)
 		tab_bar.add_child(tab_panel)
 
-	var add_btn := Button.new()
-	add_btn.text = "+"
-	add_btn.custom_minimum_size = Vector2(44, 0)
-	add_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	_darken_button(add_btn)
-	add_btn.pressed.connect(_on_add_fire_group)
-	tab_bar.add_child(add_btn)
-
 	var tab_spacer := Control.new()
 	tab_spacer.custom_minimum_size.y = 6
 	parent.add_child(tab_spacer)
@@ -1779,27 +1771,13 @@ func _show_fire_groups_panel() -> void:
 		key_header.add_theme_font_override("font", body_font)
 	_right_panel_list.add_child(key_header)
 
-	var key_btn := Button.new()
-	key_btn.text = "[" + str(preset.get("key_label", "?")) + "]"
-	key_btn.custom_minimum_size = Vector2(70, 42)
-	_darken_button(key_btn)
-	key_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	key_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
-	key_btn.pressed.connect(func() -> void: _start_key_capture("combo_" + str(bound_idx)))
-	_right_panel_list.add_child(key_btn)
-
-	var spacer2 := Control.new()
-	spacer2.custom_minimum_size.y = 20
-	_right_panel_list.add_child(spacer2)
-
-	# Delete button
-	var del_btn := Button.new()
-	del_btn.text = "DELETE FIRE GROUP"
-	del_btn.custom_minimum_size.y = 38
-	_darken_button(del_btn)
-	del_btn.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
-	del_btn.pressed.connect(func() -> void: _delete_fire_group(bound_idx))
-	_right_panel_list.add_child(del_btn)
+	var key_lbl := Label.new()
+	key_lbl.text = "[" + str(preset.get("key_label", "?")) + "]"
+	key_lbl.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	key_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
+	if body_font:
+		key_lbl.add_theme_font_override("font", body_font)
+	_right_panel_list.add_child(key_lbl)
 
 
 # ── Audio mode content ───────────────────────────────────────────────────────
@@ -3203,58 +3181,6 @@ func _exit_tree() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# Key capture mode intercepts all keys
-	if _is_capturing and event is InputEventKey and event.is_pressed() and not event.is_echo():
-		var key_event: InputEventKey = event as InputEventKey
-		get_viewport().set_input_as_handled()
-
-		# ESC cancels
-		if key_event.physical_keycode == KEY_ESCAPE:
-			_end_key_capture()
-			return
-
-		var pkc: int = key_event.physical_keycode as int
-
-		# Check reserved keys
-		if KeyBindingManager.is_key_reserved(pkc):
-			# Flash warning but don't bind
-			if _capture_label:
-				_capture_label.text = "RESERVED KEY!\nPRESS A KEY... (ESC to cancel)"
-			return
-
-		var label: String = OS.get_keycode_string(key_event.physical_keycode)
-		if label == "":
-			label = "KEY_" + str(pkc)
-
-		if _capturing_for == "combo_new":
-			_end_key_capture()
-			_finish_save_combo(pkc, label)
-		elif _capturing_for.begins_with("combo_"):
-			# Rebinding existing combo preset key
-			var idx_str: String = _capturing_for.replace("combo_", "")
-			var idx: int = int(idx_str)
-			var presets: Array = KeyBindingManager.get_combo_presets()
-			if idx >= 0 and idx < presets.size():
-				presets[idx]["physical_keycode"] = pkc
-				presets[idx]["key_label"] = label
-				KeyBindingManager.apply_to_input_map()
-				KeyBindingManager.save_bindings()
-			_end_key_capture()
-			if _mode == "controls":
-				_rebuild_controls_content()
-				_show_fire_groups_panel()
-		else:
-			# Rebinding a slot key
-			KeyBindingManager.set_slot_key(_capturing_for, pkc, label)
-			_end_key_capture()
-			# Rebuild workshop to show updated key label
-			if _mode == "workshop":
-				_rebuild_workshop_content()
-			elif _mode == "controls":
-				_rebuild_controls_content()
-				_show_fire_groups_panel()
-		return
-
 	# Slot key toggling on controls tab — routes through fire group auto-save
 	if _mode == "controls" and _fg_active_index >= 0 and event is InputEventKey and event.is_pressed() and not event.is_echo():
 		var key_event: InputEventKey = event as InputEventKey
