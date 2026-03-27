@@ -384,7 +384,7 @@ func _create_slot_row(slot_key: String, item_name: String, disabled: bool = fals
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+	panel_style.bg_color = Color(0.0, 0.0, 0.0, 0.65)
 	panel_style.corner_radius_top_left = 4
 	panel_style.corner_radius_top_right = 4
 	panel_style.corner_radius_bottom_left = 4
@@ -919,7 +919,7 @@ func _rebuild_workshop_content() -> void:
 			var panel := PanelContainer.new()
 			panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			var ps := StyleBoxFlat.new()
-			ps.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+			ps.bg_color = Color(0.0, 0.0, 0.0, 0.65)
 			ps.corner_radius_top_left = 4
 			ps.corner_radius_top_right = 4
 			ps.corner_radius_bottom_left = 4
@@ -1070,7 +1070,7 @@ func _rebuild_controls_content() -> void:
 		var panel := PanelContainer.new()
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var ps := StyleBoxFlat.new()
-		ps.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+		ps.bg_color = Color(0.0, 0.0, 0.0, 0.65)
 		ps.corner_radius_top_left = 4
 		ps.corner_radius_top_right = 4
 		ps.corner_radius_bottom_left = 4
@@ -1269,29 +1269,38 @@ func _show_net_effect_panel(active_totals: Dictionary) -> void:
 		return
 	_clear_right_panel()
 	_right_panel.visible = true
-	_right_panel_header.text = "NET EFFECT"
-	_right_panel_header.visible = true
-	_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
-	ThemeManager.apply_text_glow(_right_panel_header, "header")
+	_right_panel_header.text = ""
+	_right_panel_header.visible = false
 	var body_font: Font = ThemeManager.get_font("font_body")
-	_build_fg_totals(active_totals, body_font, _right_panel_list)
 
-	# Simulator hint
-	var hint_spacer := Control.new()
-	hint_spacer.custom_minimum_size.y = 12
-	_right_panel_list.add_child(hint_spacer)
-	var hint := Label.new()
-	hint.text = "[Run simulator to test component effects]"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.3))
-	hint.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-	if body_font:
-		hint.add_theme_font_override("font", body_font)
-	_right_panel_list.add_child(hint)
+	# Top padding so content doesn't sit at the very top
+	var top_pad := Control.new()
+	top_pad.custom_minimum_size.y = 30
+	_right_panel_list.add_child(top_pad)
+
+	# When simulator isn't running, zero out the totals so bars show empty
+	var display_totals: Dictionary = active_totals if _is_playing else {}
+	_build_fg_totals(display_totals, body_font, _right_panel_list, not _is_playing)
+
+	# Status effects section (when simulator is running)
+	if _is_playing:
+		var status_lines: Array[String] = _get_sim_status_lines()
+		if not status_lines.is_empty():
+			var status_spacer := Control.new()
+			status_spacer.custom_minimum_size.y = 12
+			_right_panel_list.add_child(status_spacer)
+			for line in status_lines:
+				var status_lbl := Label.new()
+				status_lbl.text = line
+				status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				status_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5, 0.9))
+				status_lbl.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+				if body_font:
+					status_lbl.add_theme_font_override("font", body_font)
+				_right_panel_list.add_child(status_lbl)
 
 
-func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxContainer = null) -> void:
+func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxContainer = null, show_na: bool = false) -> void:
 	if not parent:
 		parent = _controls_content
 	var totals_spacer := Control.new()
@@ -1301,7 +1310,7 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 	var totals_panel := PanelContainer.new()
 	totals_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var tps := StyleBoxFlat.new()
-	tps.bg_color = Color(0.0, 0.0, 0.0, 0.7)
+	tps.bg_color = Color(0.0, 0.0, 0.0, 0.8)
 	tps.corner_radius_top_left = 4
 	tps.corner_radius_top_right = 4
 	tps.corner_radius_bottom_left = 4
@@ -1325,6 +1334,23 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 	if body_font:
 		totals_header.add_theme_font_override("font", body_font)
 	totals_vbox.add_child(totals_header)
+
+	# Simulator hint between header and bars (only when not running)
+	if show_na:
+		var hint := Label.new()
+		hint.text = "[Run simulator to test component effects]"
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hint.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.3))
+		hint.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+		if body_font:
+			hint.add_theme_font_override("font", body_font)
+		totals_vbox.add_child(hint)
+
+	# Spacing after header / hint
+	var header_spacer := Control.new()
+	header_spacer.custom_minimum_size.y = 12
+	totals_vbox.add_child(header_spacer)
 
 	var abbrev: Dictionary = {"shield": "SHIELD", "hull": "HULL", "thermal": "THERMAL", "electric": "ELECTRIC"}
 	var section_size: int = ThemeManager.get_font_size("font_size_section")
@@ -1393,7 +1419,7 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 			"track_height": bar_track_height, "color": bar_color,
 		}
 		# Set initial bar position
-		_update_net_effect_bar(bar_type, display_val)
+		_update_net_effect_bar(bar_type, 0.0 if show_na else display_val)
 
 		# Value label
 		var val_lbl := Label.new()
@@ -1402,7 +1428,10 @@ func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxCo
 		val_lbl.custom_minimum_size.x = 100
 		if body_font:
 			val_lbl.add_theme_font_override("font", body_font)
-		_fg_total_format_label(val_lbl, display_val)
+		if show_na:
+			val_lbl.text = "N/A"
+		else:
+			_fg_total_format_label(val_lbl, display_val)
 		total_row.add_child(val_lbl)
 		_fg_total_labels[bar_type] = val_lbl
 
@@ -1790,7 +1819,7 @@ func _rebuild_audio_content() -> void:
 		var panel := PanelContainer.new()
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var ps := StyleBoxFlat.new()
-		ps.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+		ps.bg_color = Color(0.0, 0.0, 0.0, 0.65)
 		ps.corner_radius_top_left = 4
 		ps.corner_radius_top_right = 4
 		ps.corner_radius_bottom_left = 4
@@ -2331,9 +2360,9 @@ func _build_ui() -> void:
 	right_outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right_margin.add_child(right_outer)
 
-	# Top spacer — keeps list from hugging the top edge
+	# Top spacer — inset from top edge
 	var right_spacer := Control.new()
-	right_spacer.custom_minimum_size.y = 40
+	right_spacer.custom_minimum_size.y = 100
 	right_outer.add_child(right_spacer)
 
 	# Semi-transparent backing panel for readability
@@ -2341,7 +2370,7 @@ func _build_ui() -> void:
 	right_backing.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_backing.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var backing_style := StyleBoxFlat.new()
-	backing_style.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+	backing_style.bg_color = Color(0.0, 0.0, 0.0, 0.65)
 	backing_style.corner_radius_top_left = 6
 	backing_style.corner_radius_top_right = 6
 	backing_style.corner_radius_bottom_left = 6
@@ -2352,6 +2381,11 @@ func _build_ui() -> void:
 	backing_style.content_margin_bottom = 8
 	right_backing.add_theme_stylebox_override("panel", backing_style)
 	right_outer.add_child(right_backing)
+
+	# Bottom spacer — inset from bottom edge
+	var right_bottom_spacer := Control.new()
+	right_bottom_spacer.custom_minimum_size.y = 80
+	right_outer.add_child(right_bottom_spacer)
 
 	_right_panel = VBoxContainer.new()
 	_right_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2420,6 +2454,7 @@ func _on_play_toggle() -> void:
 		if _ship_renderer:
 			_ship_renderer.modulate = Color(1.0, 1.0, 1.0, 1.0)
 		_is_playing = false
+		_prev_status_lines.clear()
 		_play_btn.text = "RUN"
 	else:
 		LoopMixer.start_all()
@@ -2428,6 +2463,9 @@ func _on_play_toggle() -> void:
 		_sync_preview_active_states()
 		_play_btn.text = "STOP"
 	_sync_power_toggle_visibility()
+	# Refresh net effect panel to show real values vs N/A
+	if _expanded_slot == "":
+		_restore_net_effect_panel()
 	_sync_audio_play_btn()
 
 
@@ -2507,11 +2545,11 @@ func _darken_button(btn: Button) -> void:
 		if sb and sb is StyleBoxFlat:
 			var dark: StyleBoxFlat = (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
 			if state == "hover":
-				dark.bg_color = Color(0.18, 0.18, 0.18, 0.9)
+				dark.bg_color = Color(0.18, 0.18, 0.18, 0.95)
 			elif state == "pressed":
-				dark.bg_color = Color(0.12, 0.12, 0.12, 0.9)
+				dark.bg_color = Color(0.12, 0.12, 0.12, 0.95)
 			else:
-				dark.bg_color = Color(0.08, 0.08, 0.08, 0.9)
+				dark.bg_color = Color(0.08, 0.08, 0.08, 0.95)
 			btn.add_theme_stylebox_override(state, dark)
 
 
@@ -2754,12 +2792,8 @@ func _update_bar_shader(bar_name: String) -> void:
 		mat.set_shader_parameter("fill_ratio", bar.value / maxf(bar.max_value, 1.0))
 
 
-func _update_sim_status() -> void:
-	if not _sim_status_label:
-		return
-	if not _is_playing:
-		_sim_status_label.text = ""
-		return
+func _get_sim_status_lines() -> Array[String]:
+	## Collect status effect lines from bar states and device modifiers.
 	var lines: Array[String] = []
 
 	# Check bar values for critical states
@@ -2793,8 +2827,22 @@ func _update_sim_status() -> void:
 			lines.append("SHIELD DMG -%d%%" % int(device.shield_damage_reduction))
 		if device.hull_damage_reduction > 0.0:
 			lines.append("HULL DMG -%d%%" % int(device.hull_damage_reduction))
+	return lines
 
-	_sim_status_label.text = "\n".join(lines)
+
+var _prev_status_lines: Array[String] = []
+
+func _update_sim_status() -> void:
+	# Clear viewport overlay — status now lives in net effect panel
+	if _sim_status_label:
+		_sim_status_label.text = ""
+	if not _is_playing or _expanded_slot != "":
+		return
+	# Only rebuild when status lines actually change
+	var lines: Array[String] = _get_sim_status_lines()
+	if lines != _prev_status_lines:
+		_prev_status_lines = lines
+		_restore_net_effect_panel()
 
 
 func _any_heat_source_active() -> bool:
