@@ -194,6 +194,7 @@ func _add_volume_row(parent: VBoxContainer, display_name: String, bus_name: Stri
 
 	var label_panel := _make_dark_panel()
 	label_panel.custom_minimum_size = Vector2(200, 28)
+	label_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	row.add_child(label_panel)
 	var label := Label.new()
 	label.text = display_name
@@ -203,23 +204,32 @@ func _add_volume_row(parent: VBoxContainer, display_name: String, bus_name: Stri
 	label.offset_right = -4
 	label_panel.add_child(label)
 
+	var slider_panel := _make_dark_panel()
+	slider_panel.custom_minimum_size = Vector2(200, 28)
+	slider_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	row.add_child(slider_panel)
 	var slider := HSlider.new()
 	slider.min_value = 0.0
 	slider.max_value = 100.0
 	slider.step = 1.0
 	slider.value = 100.0
-	slider.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	slider.custom_minimum_size = Vector2(200, 26)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.custom_minimum_size = Vector2(180, 22)
 	slider.value_changed.connect(_on_slider_changed.bind(bus_name))
-	row.add_child(slider)
+	slider_panel.add_child(slider)
 	_sliders[bus_name] = slider
 
+	var val_panel := _make_dark_panel()
+	val_panel.custom_minimum_size = Vector2(60, 28)
+	val_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	row.add_child(val_panel)
 	var val_label := Label.new()
 	val_label.text = "100%"
-	val_label.custom_minimum_size.x = 60
-	val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	val_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	val_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(val_label)
+	val_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	val_panel.add_child(val_label)
 	_value_labels[bus_name] = val_label
 
 
@@ -292,31 +302,46 @@ func _populate_controls_tab() -> void:
 	_add_section_label(_controls_vbox, "MOUSE")
 
 	var sens_row := HBoxContainer.new()
-	sens_row.add_theme_constant_override("separation", 12)
+	sens_row.add_theme_constant_override("separation", 8)
 	_controls_vbox.add_child(sens_row)
 
+	var sens_name_panel := _make_dark_panel()
+	sens_name_panel.custom_minimum_size = Vector2(230, 30)
+	sens_name_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	sens_row.add_child(sens_name_panel)
 	var sens_label := Label.new()
 	sens_label.text = "SENSITIVITY"
-	sens_label.custom_minimum_size.x = 180
 	sens_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	sens_row.add_child(sens_label)
+	sens_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sens_label.offset_left = 8
+	sens_label.offset_right = -4
+	sens_name_panel.add_child(sens_label)
 
+	var sens_slider_panel := _make_dark_panel()
+	sens_slider_panel.custom_minimum_size = Vector2(180, 30)
+	sens_slider_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	sens_row.add_child(sens_slider_panel)
 	_mouse_sens_slider = HSlider.new()
 	_mouse_sens_slider.min_value = 0.25
 	_mouse_sens_slider.max_value = 2.0
 	_mouse_sens_slider.step = 0.05
 	_mouse_sens_slider.value = GameState.mouse_sensitivity
-	_mouse_sens_slider.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_mouse_sens_slider.custom_minimum_size = Vector2(180, 22)
+	_mouse_sens_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mouse_sens_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_mouse_sens_slider.custom_minimum_size = Vector2(160, 22)
 	_mouse_sens_slider.value_changed.connect(_on_mouse_sens_changed)
-	sens_row.add_child(_mouse_sens_slider)
+	sens_slider_panel.add_child(_mouse_sens_slider)
 
+	var sens_val_panel := _make_dark_panel()
+	sens_val_panel.custom_minimum_size = Vector2(60, 30)
+	sens_val_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	sens_row.add_child(sens_val_panel)
 	_mouse_sens_label = Label.new()
 	_mouse_sens_label.text = _format_sens(GameState.mouse_sensitivity)
-	_mouse_sens_label.custom_minimum_size.x = 50
-	_mouse_sens_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_mouse_sens_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_mouse_sens_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	sens_row.add_child(_mouse_sens_label)
+	_mouse_sens_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sens_val_panel.add_child(_mouse_sens_label)
 
 	# ── Component slots ──
 	_add_section_label(_controls_vbox, "COMPONENT SLOTS")
@@ -333,7 +358,9 @@ func _populate_controls_tab() -> void:
 		for i in count:
 			var slot_key: String = prefix + str(i)
 			var key_label: String = KeyBindingManager.get_key_label_for_slot(slot_key)
-			_add_binding_row(_controls_vbox, display + " " + str(i + 1), key_label, "", "slot:" + slot_key, "")
+			var slot_mb: Dictionary = KeyBindingManager.get_mouse_binding(slot_key)
+			var slot_ms_label: String = str(slot_mb.get("mouse_label", ""))
+			_add_binding_row(_controls_vbox, display + " " + str(i + 1), key_label, slot_ms_label, "slot:" + slot_key, "slot_mouse:" + slot_key)
 
 	# ── Actions ──
 	_add_section_label(_controls_vbox, "ACTIONS")
@@ -361,7 +388,10 @@ func _populate_controls_tab() -> void:
 		var preset: Dictionary = presets[i]
 		var fg_label: String = "Group " + str(i + 1)
 		var key_lbl: String = str(preset.get("key_label", "?"))
-		_add_binding_row(_controls_vbox, fg_label, key_lbl, "", "firegroup:" + str(i), "")
+		var fg_key: String = "firegroup_" + str(i)
+		var fg_mb: Dictionary = KeyBindingManager.get_mouse_binding(fg_key)
+		var fg_ms_label: String = str(fg_mb.get("mouse_label", ""))
+		_add_binding_row(_controls_vbox, fg_label, key_lbl, fg_ms_label, "firegroup:" + str(i), "firegroup_mouse:" + str(i))
 
 
 func _add_section_label(parent: VBoxContainer, text: String) -> void:
@@ -378,9 +408,10 @@ func _add_binding_row(parent: VBoxContainer, display_name: String, kb_label: Str
 	row.add_theme_constant_override("separation", 8)
 	parent.add_child(row)
 
-	# Name label with dark backing
+	# Name label with dark backing — SHRINK so buttons aren't pushed off-screen
 	var name_panel := _make_dark_panel()
 	name_panel.custom_minimum_size = Vector2(230, 30)
+	name_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	row.add_child(name_panel)
 	var name_lbl := Label.new()
 	name_lbl.text = display_name
@@ -395,6 +426,7 @@ func _add_binding_row(parent: VBoxContainer, display_name: String, kb_label: Str
 		var kb_btn := Button.new()
 		kb_btn.text = kb_label if kb_label != "" else "\u2014"
 		kb_btn.custom_minimum_size = Vector2(90, 30)
+		kb_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		kb_btn.pressed.connect(_start_capture.bind(kb_target, false))
 		_style_binding_button(kb_btn)
 		row.add_child(kb_btn)
@@ -404,6 +436,7 @@ func _add_binding_row(parent: VBoxContainer, display_name: String, kb_label: Str
 		var ms_btn := Button.new()
 		ms_btn.text = ms_label if ms_label != "" else "\u2014"
 		ms_btn.custom_minimum_size = Vector2(90, 30)
+		ms_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		ms_btn.pressed.connect(_start_capture.bind(ms_target, true))
 		_style_binding_button(ms_btn)
 		row.add_child(ms_btn)
@@ -525,11 +558,17 @@ func _apply_capture_mouse(button_index: int) -> void:
 	var target: String = _capturing_target
 	_end_capture()
 
-	if not target.begins_with("action_mouse:"):
-		return
-	var action_name: String = target.replace("action_mouse:", "")
 	var label: String = _mouse_button_label(button_index)
-	KeyBindingManager.set_action_binding_mouse(action_name, button_index, label)
+
+	if target.begins_with("action_mouse:"):
+		var action_name: String = target.replace("action_mouse:", "")
+		KeyBindingManager.set_action_binding_mouse(action_name, button_index, label)
+	elif target.begins_with("slot_mouse:"):
+		var slot_key: String = target.replace("slot_mouse:", "")
+		KeyBindingManager.set_mouse_binding(slot_key, button_index, label)
+	elif target.begins_with("firegroup_mouse:"):
+		var fg_key: String = "firegroup_" + target.replace("firegroup_mouse:", "")
+		KeyBindingManager.set_mouse_binding(fg_key, button_index, label)
 
 	_populate_controls_tab()
 	_apply_theme()

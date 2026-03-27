@@ -57,6 +57,7 @@ const RESERVED_KEYS: Array = [
 var _bindings: Dictionary = {}  # slot_key -> {physical_keycode, label}
 var _combo_presets: Array = []  # [{label, physical_keycode, key_label, pattern}]
 var _slot_volumes: Dictionary = {}  # slot_key -> float (dB, default 0.0)
+var _mouse_bindings: Dictionary = {}  # slot_key -> {mouse_button, mouse_label}  (slots + firegroups)
 
 # Action bindings — keyboard + mouse for global game actions
 const DEFAULT_ACTION_BINDINGS: Dictionary = {
@@ -254,6 +255,17 @@ func load_bindings() -> void:
 				"mouse_label": str(a.get("mouse_label", "")),
 			}
 
+	# Load mouse bindings for slots and firegroups
+	_mouse_bindings.clear()
+	var saved_mouse: Dictionary = data.get("mouse_bindings", {}) as Dictionary if data.get("mouse_bindings") is Dictionary else {}
+	for key in saved_mouse:
+		var entry: Dictionary = saved_mouse[key] as Dictionary if saved_mouse[key] is Dictionary else {}
+		if entry.has("mouse_button"):
+			_mouse_bindings[str(key)] = {
+				"mouse_button": int(entry["mouse_button"]),
+				"mouse_label": str(entry.get("mouse_label", "")),
+			}
+
 
 func _create_default_firegroups() -> void:
 	## Build 4 default firegroups with all slots ON.
@@ -312,6 +324,7 @@ func save_bindings() -> void:
 		"combo_presets": _combo_presets,
 		"slot_volumes": _slot_volumes,
 		"action_bindings": _action_bindings,
+		"mouse_bindings": _mouse_bindings,
 	}
 
 	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -362,11 +375,22 @@ func apply_to_input_map() -> void:
 		var action: String = get_slot_action(slot_key)
 		var binding: Dictionary = _bindings[slot_key]
 		var pkc: int = int(binding["physical_keycode"])
-		if pkc == 0:
-			continue
-		_remap_action(action, pkc)
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+		InputMap.action_erase_events(action)
+		if pkc != 0:
+			var ev := InputEventKey.new()
+			ev.physical_keycode = pkc as Key
+			InputMap.action_add_event(action, ev)
+		# Also add mouse binding if set
+		var mb: Dictionary = _mouse_bindings.get(slot_key, {})
+		var mouse_btn: int = int(mb.get("mouse_button", 0))
+		if mouse_btn != 0:
+			var mev := InputEventMouseButton.new()
+			mev.button_index = mouse_btn as MouseButton
+			InputMap.action_add_event(action, mev)
 
-	# Register combo preset actions
+	# Register combo preset actions (with mouse bindings)
 	_apply_combo_actions()
 
 	# Register action bindings (keyboard + mouse)
@@ -410,14 +434,21 @@ func _apply_combo_actions() -> void:
 	# Register current combo presets
 	for i in _combo_presets.size():
 		var preset: Dictionary = _combo_presets[i]
-		var pkc: int = int(preset["physical_keycode"])
-		if pkc == 0:
-			continue
 		var action: String = "combo_preset_" + str(i)
 		InputMap.add_action(action)
-		var ev := InputEventKey.new()
-		ev.physical_keycode = pkc as Key
-		InputMap.action_add_event(action, ev)
+		var pkc: int = int(preset["physical_keycode"])
+		if pkc != 0:
+			var ev := InputEventKey.new()
+			ev.physical_keycode = pkc as Key
+			InputMap.action_add_event(action, ev)
+		# Also add mouse binding if set
+		var fg_key: String = "firegroup_" + str(i)
+		var mb: Dictionary = _mouse_bindings.get(fg_key, {})
+		var mouse_btn: int = int(mb.get("mouse_button", 0))
+		if mouse_btn != 0:
+			var mev := InputEventMouseButton.new()
+			mev.button_index = mouse_btn as MouseButton
+			InputMap.action_add_event(action, mev)
 
 
 func set_slot_key(slot_key: String, physical_keycode: int, label: String) -> void:
@@ -574,6 +605,24 @@ func set_action_binding_mouse(action_name: String, mouse_button: int, label: Str
 
 func get_all_action_names() -> Array:
 	return _action_bindings.keys()
+
+
+func get_mouse_binding(key: String) -> Dictionary:
+	## Get mouse binding for a slot key (e.g. "weapon_0") or firegroup key (e.g. "firegroup_0").
+	if _mouse_bindings.has(key):
+		return _mouse_bindings[key]
+	return {"mouse_button": 0, "mouse_label": ""}
+
+
+func set_mouse_binding(key: String, mouse_button: int, mouse_label: String) -> void:
+	## Set mouse binding for a slot or firegroup key.
+	if mouse_button == 0:
+		_mouse_bindings.erase(key)
+	else:
+		_mouse_bindings[key] = {"mouse_button": mouse_button, "mouse_label": mouse_label}
+	apply_to_input_map()
+	save_bindings()
+	bindings_changed.emit()
 
 
 func set_slot_volume(slot_key: String, volume_db: float) -> void:
