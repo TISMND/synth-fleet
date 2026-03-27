@@ -1,19 +1,19 @@
 {
 	"enemy_hull_flash_color": [
 		1.0,
-		0.65,
+		0.7,
 		0.65,
 		1.0
 	],
-	"enemy_hull_flash_count": 3,
+	"enemy_hull_flash_count": 4,
 	"enemy_hull_flash_duration": 0.1,
 	"enemy_hull_flash_intensity": 2.1,
 	"enemy_shield_field_style_id": "standard_shield",
-	"enemy_shield_radius": 73.0,
-	"immune_field_style_id": "hex_wip",
+	"enemy_shield_ratio": 1.83,
+	"immune_field_style_id": "hex",
 	"immune_impact_projectile_style_id": "rect_lightning",
 	"immune_impact_scale": 1.0,
-	"immune_radius": 54.0,
+	"immune_ratio": 1.3,
 	"player_hull_flash_color": [
 		1.0,
 		0.6,
@@ -24,5 +24,5 @@
 	"player_hull_flash_duration": 0.1,
 	"player_hull_flash_intensity": 2.1,
 	"player_shield_field_style_id": "standard_shield",
-	"player_shield_radius": 82.0
+	"player_shield_ratio": 1.82
 }

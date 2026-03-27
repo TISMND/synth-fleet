@@ -102,7 +102,8 @@ func _ready() -> void:
 
 	# Universal enemy hit effects from VFX config
 	var vfx: VfxConfig = VfxConfigManager.load_config()
-	_setup_hit_field("ShieldField", vfx.enemy_shield_field_style_id, vfx.enemy_shield_radius)
+	var extent: float = ship_data_ref.bounding_extent() if ship_data_ref else 40.0
+	_setup_hit_field("ShieldField", vfx.enemy_shield_field_style_id, vfx.enemy_shield_ratio * extent)
 
 	# Setup weapon controller if ship has a weapon assigned
 	var has_weapon: bool = ship_data_ref and ship_data_ref.weapon_id != ""
@@ -299,6 +300,7 @@ func _setup_hit_field(node_name: String, style_id: String, radius: float) -> voi
 	var field := FieldRenderer.new()
 	field.name = node_name
 	field._stay_visible = false
+	field.visible = false
 	add_child(field)
 	field.setup(style, radius)
 
@@ -333,7 +335,8 @@ func _play_immune_hit() -> void:
 			var field := FieldRenderer.new()
 			field._stay_visible = false
 			add_child(field)
-			field.setup(style, vfx.immune_radius)
+			var immune_px: float = vfx.immune_ratio * (ship_data_ref.bounding_extent() if ship_data_ref else 40.0)
+			field.setup(style, immune_px)
 			field.pulse()
 			var cleanup_time: float = style.pulse_total_duration + 0.1
 			get_tree().create_timer(cleanup_time).timeout.connect(func() -> void:

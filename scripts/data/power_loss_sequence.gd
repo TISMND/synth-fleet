@@ -181,9 +181,9 @@ static func get_cues() -> Array[Dictionary]:
 			"phase": str(d["phase"]),
 		})
 
-	# Recovery phase
+	# Recovery phase — screen fade-in starts simultaneously with bars
 	cues.append({"event_id": "powerup_bars_charging", "time": reboot_end, "phase": "RECOVERY"})
-	cues.append({"event_id": "powerup_screen_on", "time": reboot_end + 0.5 * RECOVERY_DURATION, "phase": "RECOVERY"})
+	cues.append({"event_id": "powerup_screen_on", "time": reboot_end, "phase": "RECOVERY"})
 	cues.append({"event_id": "powerup_systems_online", "time": reboot_end + 0.9 * RECOVERY_DURATION, "phase": "RECOVERY"})
 
 	# Add display labels

@@ -56,6 +56,10 @@ const DEFAULT_HP: Dictionary = {
 @export var collision_offset_y: float = 0.0     # Hitbox Y offset from center
 
 
+func bounding_extent() -> float:
+	return maxf(collision_width, collision_height) * 0.5
+
+
 static func from_dict(data: Dictionary) -> ShipData:
 	var s := ShipData.new()
 	s.id = data.get("id", "")

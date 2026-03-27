@@ -45,9 +45,13 @@ var _hull_sections: Dictionary = {}  # {config_prefix: {renderer, flash_timer, .
 var _immune_impact_style_index: int = 0
 var _immune_impact_style_label: Label
 
-# Ship labels
-var _player_ship_label: Label
-var _enemy_ship_label: Label
+# Ship labels (all sections that have ship browsers)
+var _player_ship_labels: Array[Label] = []
+var _enemy_ship_labels: Array[Label] = []
+
+# Cached ShipData for computing bounding extent in preview
+var _player_ship_data: ShipData = null
+var _enemy_ship_data: ShipData = null
 
 
 func _ready() -> void:
@@ -56,6 +60,9 @@ func _ready() -> void:
 	_field_style_ids.sort()
 	_projectile_style_ids = ProjectileStyleManager.list_ids()
 	_projectile_style_ids.sort()
+
+	_player_ship_data = _load_player_ship_data(_player_ship_index)
+	_enemy_ship_data = _load_enemy_ship_data(_enemy_ship_index)
 
 	_setup_vhs_overlay()
 	_build_ui()
@@ -81,6 +88,23 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
+
+
+func _load_player_ship_data(index: int) -> ShipData:
+	var ship_name: String = str(PLAYER_SHIPS[index]["name"]).to_lower()
+	var data: ShipData = ShipDataManager.load_by_id(ship_name)
+	if not data:
+		data = ShipData.new()
+	return data
+
+
+func _load_enemy_ship_data(index: int) -> ShipData:
+	var vis_id: String = str(ENEMY_SHIPS[index]["visual_id"])
+	var all_enemies: Array[ShipData] = ShipDataManager.load_all_by_type("enemy")
+	for s in all_enemies:
+		if s.visual_id == vis_id:
+			return s
+	return ShipData.new()
 
 
 # ── UI Construction ──
@@ -148,7 +172,7 @@ func _build_top_bar() -> void:
 
 func _build_shield_section(parent: VBoxContainer, section_title: String, config_key: String, is_enemy: bool) -> void:
 	var style_id_key: String = config_key + "_field_style_id"
-	var radius_key: String = config_key + "_radius"
+	var radius_key: String = config_key + "_ratio"
 
 	var current_style_id: String = str(_config.get(style_id_key))
 	var style_index: int = 0
@@ -187,12 +211,10 @@ func _build_shield_section(parent: VBoxContainer, section_title: String, config_
 	ThemeManager.apply_button_style(next_btn)
 
 	if not is_enemy:
-		if not _player_ship_label:
-			_player_ship_label = ship_label
+		_player_ship_labels.append(ship_label)
 		ship_label.text = str(PLAYER_SHIPS[_player_ship_index]["name"])
 	else:
-		if not _enemy_ship_label:
-			_enemy_ship_label = ship_label
+		_enemy_ship_labels.append(ship_label)
 		ship_label.text = str(ENEMY_SHIPS[_enemy_ship_index]["name"]) if ENEMY_SHIPS.size() > 0 else "(none)"
 
 	# Content row: preview panel + controls
@@ -220,6 +242,8 @@ func _build_shield_section(parent: VBoxContainer, section_title: String, config_
 
 	var field := FieldRenderer.new()
 	field.position = renderer.position
+	field._stay_visible = false
+	field.visible = false
 	panel.add_child(field)
 
 	# Controls
@@ -229,7 +253,7 @@ func _build_shield_section(parent: VBoxContainer, section_title: String, config_
 	row.add_child(controls_vbox)
 
 	var style_label := _build_field_style_selector(controls_vbox, "Field Style", config_key)
-	_build_radius_slider(controls_vbox, radius_key, float(_config.get(radius_key)))
+	_build_ratio_slider(controls_vbox, radius_key, float(_config.get(radius_key)))
 
 	_sections[config_key] = {
 		"renderer": renderer,
@@ -277,12 +301,10 @@ func _build_hull_section(parent: VBoxContainer, section_title: String, config_pr
 	ThemeManager.apply_button_style(next_btn)
 
 	if not is_enemy:
-		if not _player_ship_label:
-			_player_ship_label = ship_label
+		_player_ship_labels.append(ship_label)
 		ship_label.text = str(PLAYER_SHIPS[_player_ship_index]["name"])
 	else:
-		if not _enemy_ship_label:
-			_enemy_ship_label = ship_label
+		_enemy_ship_labels.append(ship_label)
 		ship_label.text = str(ENEMY_SHIPS[_enemy_ship_index]["name"]) if ENEMY_SHIPS.size() > 0 else "(none)"
 
 	# Content row: preview panel + controls
@@ -470,30 +492,30 @@ func _build_field_style_selector(parent: VBoxContainer, label_text: String, sect
 	return style_label
 
 
-func _build_radius_slider(parent: VBoxContainer, key: String, value: float) -> void:
+func _build_ratio_slider(parent: VBoxContainer, key: String, value: float) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	parent.add_child(row)
 
 	var lbl := Label.new()
-	lbl.text = "Radius"
+	lbl.text = "Ratio"
 	lbl.custom_minimum_size.x = 90
 	row.add_child(lbl)
 	ThemeManager.apply_text_glow(lbl, "body")
 
 	var slider := HSlider.new()
-	slider.min_value = 10.0
-	slider.max_value = 200.0
-	slider.step = 1.0
+	slider.min_value = 0.5
+	slider.max_value = 3.0
+	slider.step = 0.05
 	slider.value = value
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.custom_minimum_size.x = 200
-	slider.value_changed.connect(_on_radius_changed.bind(key))
+	slider.value_changed.connect(_on_ratio_changed.bind(key))
 	row.add_child(slider)
 
 	var val_lbl := Label.new()
 	val_lbl.name = key + "_val"
-	val_lbl.text = "%.0f" % value
+	val_lbl.text = "%.2f" % value
 	val_lbl.custom_minimum_size.x = 50
 	row.add_child(val_lbl)
 	ThemeManager.apply_text_glow(val_lbl, "body")
@@ -723,11 +745,11 @@ func _on_color_changed(value: float, config_prefix: String, channel: int) -> voi
 	_update_status()
 
 
-func _on_radius_changed(value: float, key: String) -> void:
+func _on_ratio_changed(value: float, key: String) -> void:
 	_config.set(key, value)
 	var val_node: Label = find_child(key + "_val", true, false) as Label
 	if val_node:
-		val_node.text = "%.0f" % value
+		val_node.text = "%.2f" % value
 
 	for section_key in _sections:
 		var sec: Dictionary = _sections[section_key]
@@ -758,7 +780,14 @@ func _rebuild_field(section_key: String) -> void:
 	if not style:
 		return
 	var radius_key: String = str(sec["radius_key"])
-	var radius: float = float(_config.get(radius_key))
+	var ratio: float = float(_config.get(radius_key))
+	var is_enemy: bool = bool(sec["is_enemy"])
+	var extent: float = 40.0
+	if is_enemy and _enemy_ship_data:
+		extent = _enemy_ship_data.bounding_extent()
+	elif not is_enemy and _player_ship_data:
+		extent = _player_ship_data.bounding_extent()
+	var radius: float = ratio * extent
 	field.setup(style, radius)
 
 
@@ -787,8 +816,14 @@ func _update_player_ship_preview() -> void:
 		if renderer:
 			renderer.ship_id = sid
 			renderer.render_mode = ShipRenderer.RenderMode.CHROME
-	if _player_ship_label:
-		_player_ship_label.text = str(entry["name"])
+	for lbl in _player_ship_labels:
+		lbl.text = str(entry["name"])
+	# Reload ship data and rebuild fields so ratio preview scales correctly
+	_player_ship_data = _load_player_ship_data(_player_ship_index)
+	for section_key in _sections:
+		var sec: Dictionary = _sections[section_key]
+		if not bool(sec["is_enemy"]):
+			_rebuild_field(section_key)
 
 
 func _update_enemy_ship_preview() -> void:
@@ -816,8 +851,14 @@ func _update_enemy_ship_preview() -> void:
 			renderer.ship_id = -1
 			renderer.enemy_visual_id = vis_id
 			renderer.render_mode = ShipRenderer.RenderMode.NEON
-	if _enemy_ship_label:
-		_enemy_ship_label.text = str(entry["name"])
+	for lbl in _enemy_ship_labels:
+		lbl.text = str(entry["name"])
+	# Reload ship data and rebuild fields so ratio preview scales correctly
+	_enemy_ship_data = _load_enemy_ship_data(_enemy_ship_index)
+	for section_key in _sections:
+		var sec: Dictionary = _sections[section_key]
+		if bool(sec["is_enemy"]):
+			_rebuild_field(section_key)
 
 
 func _trigger_effects() -> void:

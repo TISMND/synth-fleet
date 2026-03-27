@@ -87,7 +87,6 @@ var _shutdown_audio_elapsed: float = 0.0
 var _shutdown_audio_done: bool = false
 var _recovery_cores_activated: bool = false
 var _recovery_pitch_start_time: float = -1.0  # When pitch ramp started
-var _recovery_sfx_screen_fired: bool = false
 var _recovery_sfx_systems_fired: bool = false
 signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
 signal final_power_death()  # Emitted once when power fully dies — for external systems
@@ -132,7 +131,8 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 
 	# Universal player hit effects from VFX config
 	var vfx: VfxConfig = VfxConfigManager.load_config()
-	_setup_hit_field("ShieldField", vfx.player_shield_field_style_id, vfx.player_shield_radius)
+	var shield_px: float = vfx.player_shield_ratio * ship_data.bounding_extent()
+	_setup_hit_field("ShieldField", vfx.player_shield_field_style_id, shield_px)
 
 	# Create hardpoint controllers from loadout assignments — all fire from center
 	var assignments: Dictionary = loadout.hardpoint_assignments
@@ -233,6 +233,7 @@ func _setup_hit_field(node_name: String, style_id: String, radius: float) -> voi
 	var field := FieldRenderer.new()
 	field.name = node_name
 	field._stay_visible = false
+	field.visible = false
 	add_child(field)
 	field.setup(style, radius)
 
@@ -1002,6 +1003,7 @@ func _process_reboot_text(delta: float) -> void:
 					if c.has_method("activate"):
 						c.activate()
 				LoopMixer.start_all()
+				_update_hud_cores()
 		elif current_line == "Regenerating power core...":
 			_play_sfx_cue("powerup_core_regen")
 		elif current_line == "SUCCESS":
@@ -1114,10 +1116,34 @@ func _start_recovery() -> void:
 	_recovery_active = true
 	_recovery_elapsed = 0.0
 	_recovery_cores_activated = false
-	_recovery_sfx_screen_fired = false
 	_recovery_sfx_systems_fired = false
+	# Restore movement control immediately — screen, bars, and controls come back together
+	_drifting = false
+	_is_invulnerable = false
 	_play_sfx_cue("powerup_bars_charging")
+	_play_sfx_cue("powerup_screen_on")
+	# Start CRT overlay fade-in NOW — screen comes back simultaneously with bars
+	_start_screen_recovery()
 	print("[RECOVERY] started — electric_max=%.0f shield_max=%.0f" % [electric_max, shield_max])
+
+
+func _start_screen_recovery() -> void:
+	## Begin CRT overlay fade-in simultaneously with bar recovery.
+	if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
+		var mat: ShaderMaterial = _blackout_overlay.material as ShaderMaterial
+		var start_power: float = _blackout_power
+		var tween: Tween = create_tween()
+		tween.tween_method(func(v: float) -> void:
+			mat.set_shader_parameter("power", v)
+			_blackout_power = v
+		, start_power, 1.0, PowerLossSequence.RECOVERY_DURATION)
+		var overlay_ref: ColorRect = _blackout_overlay
+		tween.tween_callback(func() -> void:
+			overlay_ref.queue_free()
+		)
+		_blackout_overlay = null
+	# Start unwinding blackout audio effects (lowpass + reverb)
+	_remove_blackout_audio()
 
 
 func _process_recovery(delta: float) -> void:
@@ -1151,6 +1177,7 @@ func _process_recovery(delta: float) -> void:
 			if c.has_method("activate"):
 				c.activate()
 		LoopMixer.start_all()
+		_update_hud_cores()
 		_recovery_pitch_start_time = _recovery_elapsed
 
 	# Speed ramp continues from text phase into recovery phase
@@ -1160,10 +1187,7 @@ func _process_recovery(delta: float) -> void:
 		var pitch_eased: float = pitch_t * pitch_t
 		LoopMixer.set_all_pitch_scale(lerpf(PowerLossSequence.RECOVERY_PITCH_START, 1.0, pitch_eased))
 
-	# Staged SFX during recovery
-	if t >= 0.5 and not _recovery_sfx_screen_fired:
-		_recovery_sfx_screen_fired = true
-		_play_sfx_cue("powerup_screen_on")
+	# Staged SFX during recovery (powerup_screen_on now fires at recovery start)
 	if t >= 0.9 and not _recovery_sfx_systems_fired:
 		_recovery_sfx_systems_fired = true
 		_play_sfx_cue("powerup_systems_online")
@@ -1324,25 +1348,12 @@ func _end_drift() -> void:
 		_hud.stop_power_death_bars()
 	if _blackout_active:
 		_blackout_active = false
-		# Power-up: tween CRT overlay + audio back to normal
-		var recovery_power: float = _blackout_power
-		if _blackout_overlay and _blackout_overlay.material is ShaderMaterial:
-			var mat: ShaderMaterial = _blackout_overlay.material as ShaderMaterial
-			var tween: Tween = create_tween()
-			tween.tween_method(func(v: float) -> void:
-				mat.set_shader_parameter("power", v)
-			, recovery_power, 1.0, 2.0)  # Slow power-up matches recovery duration
-			var overlay_ref: ColorRect = _blackout_overlay
-			tween.tween_callback(func() -> void:
-				overlay_ref.queue_free()
-				_remove_blackout_audio()
-			)
+		# CRT overlay fade-in already started in _start_screen_recovery() during recovery.
+		# Clean up any leftover overlay if recovery was skipped (e.g. short drift without blackout).
+		if _blackout_overlay:
+			_blackout_overlay.queue_free()
 			_blackout_overlay = null
-		else:
-			if _blackout_overlay:
-				_blackout_overlay.queue_free()
-				_blackout_overlay = null
-			_remove_blackout_audio()
+		_remove_blackout_audio()
 		_blackout_power = 1.0
 		_blackout_flicker_state = false
 		_blackout_final_death = false

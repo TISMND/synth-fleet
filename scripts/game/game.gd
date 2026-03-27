@@ -655,7 +655,7 @@ func _on_player_died() -> void:
 	_player.disable_for_death()
 	if _wave_manager:
 		_wave_manager.stop()
-	SfxPlayer.play("explosion_1")
+	SfxPlayer.play_random_explosion()
 
 
 func _process_death_sequence(delta: float) -> void:
@@ -675,7 +675,7 @@ func _process_death_sequence(delta: float) -> void:
 		explosion.explosion_size = lerpf(0.5, 2.0, progress)
 		explosion.global_position = player_pos + offset
 		_game_viewport.add_child(explosion)
-		SfxPlayer.play("explosion_1")
+		SfxPlayer.play_random_explosion()
 	# Flicker the ship during explosions
 	if _player and _player.visible:
 		_player.modulate.a = 0.3 + randf() * 0.7
@@ -687,7 +687,7 @@ func _process_death_sequence(delta: float) -> void:
 		final_explosion.enable_screen_shake = true
 		final_explosion.global_position = player_pos
 		_game_viewport.add_child(final_explosion)
-		SfxPlayer.play("explosion_1")
+		SfxPlayer.play_random_explosion()
 		if _player:
 			_player.visible = false
 		_show_game_over()
@@ -962,7 +962,7 @@ func _on_player_died_during_power_loss() -> void:
 		_wave_manager.stop()
 	# Big initial shake + explosion
 	trigger_screen_shake(8.0, 0.5)
-	SfxPlayer.play("explosion_1")
+	SfxPlayer.play_random_explosion()
 
 
 func _process_power_loss_death(delta: float) -> void:
@@ -981,7 +981,7 @@ func _process_power_loss_death(delta: float) -> void:
 			explosion.explosion_size = lerpf(0.4, 1.2, _power_death_timer)
 			explosion.global_position = _death_player_pos + offset
 			_game_viewport.add_child(explosion)
-			SfxPlayer.play("explosion_1")
+			SfxPlayer.play_random_explosion()
 			trigger_screen_shake(lerpf(3.0, 6.0, _power_death_timer), 0.15)
 		if _player:
 			_player.corrupt_reboot_text(lerpf(0.05, 0.3, _power_death_timer))
@@ -1000,7 +1000,7 @@ func _process_power_loss_death(delta: float) -> void:
 			explosion.explosion_size = lerpf(1.0, 2.5, phase2_t)
 			explosion.global_position = _death_player_pos + offset
 			_game_viewport.add_child(explosion)
-			SfxPlayer.play("explosion_1")
+			SfxPlayer.play_random_explosion()
 		if _player:
 			_player.corrupt_reboot_text(lerpf(0.4, 1.0, phase2_t))
 			_player.modulate.a = 0.2 + randf() * 0.6
