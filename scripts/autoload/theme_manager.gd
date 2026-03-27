@@ -199,11 +199,6 @@ func get_environment() -> Environment:
 	return _env
 
 
-func set_glow_enabled(enabled: bool) -> void:
-	if _env:
-		_env.glow_enabled = enabled
-
-
 # ── Typed getters (no Variant leaks) ──────────────────────────
 
 func get_color(key: String) -> Color:
@@ -770,35 +765,6 @@ func _disconnect_btn_glow(btn: Button) -> void:
 	btn.remove_meta("_glow_exit")
 	btn.remove_meta("_glow_down")
 	btn.remove_meta("_glow_up")
-
-
-## Lock a styled button into a specific visual state for preview.
-## Call after apply_button_style(). state: "hover", "pressed", "disabled".
-func lock_button_state(btn: Button, state: String) -> void:
-	_disconnect_btn_glow(btn)
-	if state == "hover":
-		var hover_sb: StyleBox = btn.get_theme_stylebox("hover")
-		btn.add_theme_stylebox_override("normal", hover_sb)
-		btn.add_theme_color_override("font_color", btn.get_theme_color("font_hover_color"))
-		if btn.has_meta("_outline_hover"):
-			btn.add_theme_color_override("font_outline_color", btn.get_meta("_outline_hover") as Color)
-		if btn.has_meta("_glow_sz_hover"):
-			btn.add_theme_constant_override("outline_size", int(btn.get_meta("_glow_sz_hover")))
-	elif state == "pressed":
-		var pressed_sb: StyleBox = btn.get_theme_stylebox("pressed")
-		btn.add_theme_stylebox_override("normal", pressed_sb)
-		btn.add_theme_color_override("font_color", btn.get_theme_color("font_pressed_color"))
-		if btn.has_meta("_outline_press"):
-			btn.add_theme_color_override("font_outline_color", btn.get_meta("_outline_press") as Color)
-		if btn.has_meta("_glow_sz_press"):
-			btn.add_theme_constant_override("outline_size", int(btn.get_meta("_glow_sz_press")))
-	elif state == "disabled":
-		btn.disabled = true
-		if btn.has_meta("_outline_disabled"):
-			btn.add_theme_color_override("font_outline_color", btn.get_meta("_outline_disabled") as Color)
-		if btn.has_meta("_glow_sz_disabled"):
-			btn.add_theme_constant_override("outline_size", int(btn.get_meta("_glow_sz_disabled")))
-	btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 # ── Persistence ───────────────────────────────────────────────

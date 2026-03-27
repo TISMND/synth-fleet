@@ -61,7 +61,7 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - **ShipRegistry** — Static registry of all 9 player ships with stats (hull/shield/thermal/electric segments, speed, slot counts). Pure code, no JSON.
 - **SfxPlayer** — Loads `SfxConfig` and plays one-shot sounds for game events (hits, explosions, UI).
 - **KeyBindingManager** — Persists slot key bindings to `user://settings/keybindings.json`. Applies bindings to Godot InputMap at runtime.
-- **ThemeManager** — Color/glow/font theming. Single active theme saved to `user://settings/aesthetic.json`. Owns the root `WorldEnvironment` with `glow_enabled = true` — this is the **single bloom source** for everything on screen. SubViewports get ACES tonemapping only (no bloom) via `VFXFactory.add_bloom_to_viewport()`. Helpers: `apply_grid_background()`, `apply_button_style()`, `apply_text_glow()`, `apply_vhs_overlay()`, `apply_led_bar()`, `get_environment()`, `set_glow_enabled()`, color/font/float getters. All screens connect `theme_changed` and call helpers in `_apply_theme()` so changes propagate everywhere.
+- **ThemeManager** — Color/glow/font theming. Single active theme saved to `user://settings/aesthetic.json`. Owns the root `WorldEnvironment` with `glow_enabled = true` — this is the **single bloom source** for everything on screen. SubViewports get ACES tonemapping only (no bloom) via `VFXFactory.add_bloom_to_viewport()`. Helpers: `apply_grid_background()`, `apply_button_style()`, `apply_text_glow()`, `apply_vhs_overlay()`, `apply_led_bar()`, `get_environment()`, color/font/float getters. All screens connect `theme_changed` and call helpers in `_apply_theme()` so changes propagate everywhere.
 
 ### Godot gotchas
 > Full list with architecture-specific lessons: see `GODOT_GOTCHAS.md`
@@ -112,7 +112,7 @@ scripts/
   autoload/      Singletons (8 — see list above)
   data/          DataManagers (~19 — WeaponDataManager, ShipDataManager, LevelDataManager, etc.)
   game/          Game logic (game, player_ship, hardpoint_controller, enemy, vfx_factory, etc.)
-  rendering/     Ship rendering (ship_renderer, ship_canvas, ship_thumbnails, shield_bubble_effect)
+  rendering/     Ship rendering (ship_renderer, ship_thumbnails)
   test/          Test runner
   ui/            UI scripts (~44 — component_editor, weapons_tab, waveform_editor, level_editor, etc.)
   util/          Utilities (effect_rate_calculator)

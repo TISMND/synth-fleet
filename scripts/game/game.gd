@@ -1743,8 +1743,9 @@ class _IntroTitleBox extends Control:
 		var end_time: float = measure_duration * 4.0
 
 		var visible_time: float = 0.5  # Title visible at full brightness for 0.5s
-		# Fade duration: enough time to reach 0 before the next title cuts in
-		var fade1_dur: float = hit2_time - visible_time  # Must be fully gone by hit2_time
+		var fade_margin: float = 0.5  # Fully faded this long before next phase
+		# Fade duration: reach 0 with margin to spare before the next title cuts in
+		var fade1_dur: float = hit2_time - visible_time - fade_margin
 
 		if intro_time < 0.0:
 			# Pre-delay — nothing visible yet
@@ -1763,7 +1764,7 @@ class _IntroTitleBox extends Control:
 			font_size = 32
 			var phase1_time: float = intro_time - hit2_time
 			var phase1_dur: float = measure_duration * 2.0
-			var fade2_dur: float = phase1_dur - visible_time
+			var fade2_dur: float = phase1_dur - visible_time - fade_margin
 			if phase1_time < visible_time:
 				alpha = 1.0
 			else:
