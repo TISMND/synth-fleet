@@ -20,8 +20,9 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - Parallax scrolling background with nebula layers
 - Shield/hull/thermal/electric system bars with HUD
 - GameState save/load to user://
-- Dev Studio with component tabs: Weapons, Beams, Fields, Orbiters, Projectile Animator, Power Cores, Key Changes, Nebulas, Orbital Generators, Field Emitters
-- Weapons Tab with subtabs (Timing / Movement / Effects / Stats), waveform editor, loop browser
+- Component Editor tabs: Weapons, Projectiles, Beams, Power Cores, Field Emitters, Orbital Generators, Fields, Orbiters
+- Environments Screen: Nebulas, Key Changes
+- Weapons Tab with subtabs (Timing / Movement / Stats), waveform editor, loop browser
 - Level Editor with encounter placement, wave management
 - Level Select and Ship Select screens
 - Ships Screen with ship rendering preview, explosion editor
@@ -112,14 +113,21 @@ scripts/
   data/          DataManagers (~19 — WeaponDataManager, ShipDataManager, LevelDataManager, etc.)
   game/          Game logic (game, player_ship, hardpoint_controller, enemy, vfx_factory, etc.)
   rendering/     Ship rendering (ship_renderer, ship_canvas, ship_thumbnails, shield_bubble_effect)
-  ui/            UI scripts (~46 — component_editor, weapons_tab, waveform_editor, level_editor, etc.)
+  test/          Test runner
+  ui/            UI scripts (~44 — component_editor, weapons_tab, waveform_editor, level_editor, etc.)
   util/          Utilities (effect_rate_calculator)
 resources/       Resource class definitions (.gd) — populated from JSON at runtime
 data/            Dev-authored JSON content (weapons, ships, styles, etc.) — git-tracked
 assets/
   audio/loops/       Weapon audio loops (Splice WAVs)
   audio/atmosphere/  Level/boss atmospheric loops (Splice WAVs)
-  shaders/           90+ .gdshader files (nebula, field, projectile, bar, UI)
+  audio/sfx/         Sound effects (hits, explosions, alarms, etc.)
+  audio/music/       Music tracks
+  audio/samples/     Audio samples
+  backgrounds/       Background images
+  sprites/           Sprite assets
+  vfx/               VFX textures
+  shaders/           ~70 .gdshader files (nebula, field, projectile, bar, UI)
   fonts/             TTF fonts (Audiowide, Bungee, Orbitron, RussoOne, ShareTechMono)
 ```
 
@@ -140,6 +148,12 @@ res://data/orbital_generators/  Orbital generator definitions
 res://data/power_cores/         Power core definitions
 res://data/projectile_styles/   Projectile visual styles
 res://data/projectile_masks/    Projectile mask PNGs
+res://data/bosses/              Boss definitions
+res://data/buildings/           Building definitions
+res://data/devices/             Device definitions
+res://data/doodads/             Doodad definitions
+res://data/items/               Item definitions
+res://data/orbiter_styles/      Orbiter visual styles
 res://data/loop_config.json     Global loop config
 res://data/sfx_config.json      SFX event mappings
 res://data/vfx_config.json      VFX config
