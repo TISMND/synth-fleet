@@ -316,6 +316,9 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 	if boss.core_immune_until_segments_dead and core_enemy.boss_segments.size() > 0:
 		core_enemy.is_boss_immune = true
 
+	# Store boss data reference for enrage trigger
+	core_enemy._boss_data_ref = boss
+
 
 func _make_boss_part(ship_id: String, pos: Vector2, weapons_active: bool) -> Enemy:
 	var ship: ShipData = ShipDataManager.load_by_id(ship_id)

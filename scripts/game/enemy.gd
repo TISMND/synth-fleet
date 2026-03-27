@@ -37,11 +37,28 @@ var boss_strafe_speed: float = 80.0   # horizontal oscillation speed (pixels/sec
 var boss_strafe_width: float = 300.0  # how far left/right from center
 var _boss_strafe_time: float = 0.0
 
+# Boss V-sweep mode — sweeps between bottom corners and top center
+var is_boss_v_sweep: bool = false
+var boss_v_sweep_speed: float = 250.0
+const _V_SWEEP_POINTS: Array[Vector2] = [
+	Vector2(200.0, 800.0),   # bottom-left
+	Vector2(960.0, 150.0),   # top-center
+	Vector2(1720.0, 800.0),  # bottom-right
+	Vector2(960.0, 150.0),   # top-center
+]
+var _v_sweep_index: int = 0
+var _v_sweep_progress: float = 0.0
+
 # Boss segment linking
 var boss_core: Enemy = null           # if set, this segment follows the core
 var boss_segment_offset: Vector2 = Vector2.ZERO  # offset from core position
 var boss_segments: Array = []         # core tracks its segments (Array[Enemy])
 var is_boss_immune: bool = false      # if true, takes no damage (plays immune VFX/SFX instead)
+
+# Boss enrage state
+var _boss_enraged: bool = false
+var _boss_data_ref: Variant = null    # BossData, set at spawn for enrage config
+var _enrage_weapon_controller: EnemyWeaponController = null
 
 var _renderer: ShipRenderer = null
 var _baked_sprite: Sprite2D = null
@@ -175,6 +192,16 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 
+	# Boss V-sweep — sweep between bottom corners and top center
+	if is_boss_v_sweep:
+		var target: Vector2 = _V_SWEEP_POINTS[_v_sweep_index]
+		var dist: float = position.distance_to(target)
+		if dist < 5.0:
+			_v_sweep_index = (_v_sweep_index + 1) % _V_SWEEP_POINTS.size()
+		else:
+			position = position.move_toward(target, boss_v_sweep_speed * delta)
+		return
+
 	# Boss strafe — hover at top, oscillate left/right
 	if is_boss_strafe:
 		_boss_strafe_time += delta
@@ -262,6 +289,9 @@ func _die() -> void:
 	if _weapon_controller:
 		_weapon_controller.cleanup()
 		_weapon_controller = null
+	if _enrage_weapon_controller:
+		_enrage_weapon_controller.cleanup()
+		_enrage_weapon_controller = null
 	SfxPlayer.play_random_explosion()
 	GameState.add_credits(10)
 	_spawn_explosion()
@@ -281,6 +311,7 @@ func _die() -> void:
 
 func _update_immunity() -> void:
 	## Recalculate immunity: immune if any segment is still alive.
+	## When all segments die, drop immunity and trigger enrage if configured.
 	if not is_boss_immune:
 		return  # Was never immune, skip
 	var any_alive := false
@@ -289,6 +320,33 @@ func _update_immunity() -> void:
 			any_alive = true
 			break
 	is_boss_immune = any_alive
+	if not any_alive and not _boss_enraged:
+		_trigger_enrage()
+
+
+func _trigger_enrage() -> void:
+	_boss_enraged = true
+	if not _boss_data_ref:
+		return
+	var boss: BossData = _boss_data_ref as BossData
+
+	# Switch movement pattern
+	var enrage_movement: String = boss.enrage_movement
+	if enrage_movement == "v_sweep":
+		is_boss_strafe = false
+		is_boss_v_sweep = true
+		boss_v_sweep_speed = boss_strafe_speed * boss.enrage_speed_mult
+
+	# Swap core weapon overrides if configured
+	if boss.enrage_core_weapon_overrides.size() > 0 and _weapon_controller:
+		_weapon_controller.cleanup()
+		_weapon_controller = EnemyWeaponController.new()
+		_weapon_controller.setup_with_overrides(ship_data_ref, boss.enrage_core_weapon_overrides, self, player_ref, projectiles_container)
+
+	# Activate enrage-only hardpoints
+	if boss.enrage_hardpoint_overrides.size() > 0 and ship_data_ref and projectiles_container:
+		_enrage_weapon_controller = EnemyWeaponController.new()
+		_enrage_weapon_controller.setup_with_overrides(ship_data_ref, boss.enrage_hardpoint_overrides, self, player_ref, projectiles_container)
 
 
 func _setup_hit_field(node_name: String, style_id: String, radius: float) -> void:

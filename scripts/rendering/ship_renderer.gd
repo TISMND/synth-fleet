@@ -2901,6 +2901,60 @@ func _draw_archon_core() -> void:
 		var angle: float = TAU * float(ci) / 4.0 + cross_spin
 		_line(cp, cp + Vector2(cos(angle) * cr, sin(angle) * cr), Color(1.0, 1.0, 1.0, crown_pulse * 0.6), 0.8 * s)
 
+	# Integrated turret — drawn at former segment offset (-2, -71)
+	_draw_archon_turret_inline(Vector2(-2.0, -71.0))
+
+
+func _draw_archon_turret_inline(offset: Vector2) -> void:
+	## Turret visual folded into core — rotating squares, barrel, targeting reticle.
+	var ts := 3.0
+
+	# Outer base — sharp square, slowly rotating
+	var base_r: float = 10.0 * ts
+	var base := PackedVector2Array()
+	var base_spin: float = time * 0.2
+	for i in range(4):
+		var angle: float = TAU * float(i) / 4.0 + base_spin + PI * 0.25
+		base.append(offset + Vector2(cos(angle) * base_r, sin(angle) * base_r))
+	_poly(base, hull_color, 2.0 * ts)
+
+	# Inner diamond — contra-rotating
+	var inner_r: float = 7.0 * ts
+	var inner := PackedVector2Array()
+	for i in range(4):
+		var angle: float = TAU * float(i) / 4.0 - time * 0.5
+		inner.append(offset + Vector2(cos(angle) * inner_r, sin(angle) * inner_r))
+	_poly(inner, accent_color, 1.5 * ts)
+
+	# Spinning triangle
+	var tri_r: float = 4.5 * ts
+	var tri := PackedVector2Array()
+	for i in range(3):
+		var angle: float = TAU * float(i) / 3.0 + time * 0.8
+		tri.append(offset + Vector2(cos(angle) * tri_r, sin(angle) * tri_r))
+	_poly(tri, detail_color, 1.0 * ts)
+
+	# Sharp cross at center
+	var tcr: float = 8.5 * ts
+	_line(offset + Vector2(-tcr, 0), offset + Vector2(tcr, 0), Color(detail_color.r, detail_color.g, detail_color.b, 0.25), 0.5 * ts)
+	_line(offset + Vector2(0, -tcr), offset + Vector2(0, tcr), Color(detail_color.r, detail_color.g, detail_color.b, 0.25), 0.5 * ts)
+
+	# Central core — pulsing diamond
+	var core_pulse: float = 0.5 + sin(time * 3.0) * 0.3
+	var tcore_r: float = 2.5 * ts
+	var tcore_d := PackedVector2Array([
+		offset + Vector2(0, -tcore_r), offset + Vector2(tcore_r, 0),
+		offset + Vector2(0, tcore_r), offset + Vector2(-tcore_r, 0),
+	])
+	_poly(tcore_d, Color(1.0, 1.0, 1.0, core_pulse * 0.8), 1.0 * ts)
+
+	# Barrel housing — angular trapezoid pointing forward (down)
+	var barrel := PackedVector2Array([
+		offset + Vector2(-3.0 * ts, -1.0 * ts), offset + Vector2(3.0 * ts, -1.0 * ts),
+		offset + Vector2(2.0 * ts, 14.0 * ts), offset + Vector2(-2.0 * ts, 14.0 * ts),
+	])
+	_poly(barrel, hull_color, 1.2 * ts)
+
 
 func _draw_archon_wing(side: float) -> void:
 	## Angular sweeping wing with sharp edges and spinning inner machinery.

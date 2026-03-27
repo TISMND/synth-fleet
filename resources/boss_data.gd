@@ -15,8 +15,11 @@ class_name BossData extends Resource
 @export var segments: Array = []
 
 # Enrage phase (2-phase: normal → enraged)
-@export var enrage_threshold: float = 0.5          # 0.0–1.0, fraction of total HP remaining
+@export var enrage_trigger: String = "segments_dead"  # "segments_dead" or "health_threshold"
+@export var enrage_threshold: float = 0.5             # Only used if trigger = "health_threshold"
 @export var enrage_speed_mult: float = 1.5
+@export var enrage_movement: String = ""              # "" = no change, "v_sweep" = V-sweep pattern
+@export var enrage_hardpoint_overrides: Array = []    # Hardpoints that activate only during enrage
 @export var enrage_core_weapon_overrides: Array = []
 @export var enrage_segment_weapon_overrides: Dictionary = {}  # seg_index (String) → Array of overrides
 @export var enrage_core_render_mode: String = ""              # "" = no change
@@ -89,8 +92,18 @@ static func from_dict(data: Dictionary) -> BossData:
 		})
 
 	# Enrage
+	b.enrage_trigger = str(data.get("enrage_trigger", "segments_dead"))
 	b.enrage_threshold = float(data.get("enrage_threshold", 0.5))
 	b.enrage_speed_mult = float(data.get("enrage_speed_mult", 1.5))
+	b.enrage_movement = str(data.get("enrage_movement", ""))
+	var raw_enrage_hp: Array = data.get("enrage_hardpoint_overrides", []) as Array
+	b.enrage_hardpoint_overrides = []
+	for entry in raw_enrage_hp:
+		var d: Dictionary = entry as Dictionary
+		b.enrage_hardpoint_overrides.append({
+			"hardpoint_index": int(d.get("hardpoint_index", 0)),
+			"weapon_id": str(d.get("weapon_id", "")),
+		})
 	var raw_enrage_core: Array = data.get("enrage_core_weapon_overrides", []) as Array
 	b.enrage_core_weapon_overrides = []
 	for entry in raw_enrage_core:
@@ -130,8 +143,11 @@ func to_dict() -> Dictionary:
 		"core_immune_until_segments_dead": core_immune_until_segments_dead,
 		"required_segment_destroys": required_segment_destroys,
 		"segments": segments,
+		"enrage_trigger": enrage_trigger,
 		"enrage_threshold": enrage_threshold,
 		"enrage_speed_mult": enrage_speed_mult,
+		"enrage_movement": enrage_movement,
+		"enrage_hardpoint_overrides": enrage_hardpoint_overrides,
 		"enrage_core_weapon_overrides": enrage_core_weapon_overrides,
 		"enrage_segment_weapon_overrides": enrage_segment_weapon_overrides,
 		"enrage_core_render_mode": enrage_core_render_mode,

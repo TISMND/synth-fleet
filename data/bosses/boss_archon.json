@@ -1,24 +1,49 @@
 {
 	"core_immune_until_segments_dead": true,
 	"core_ship_id": "enemy_archon_core",
-	"core_weapon_overrides": [],
+	"core_weapon_overrides": [
+		{
+			"hardpoint_index": 0,
+			"weapon_id": "enemy_ultra_beam"
+		}
+	],
 	"display_name": "Archon",
 	"enrage_core_render_mode": "ember",
-	"enrage_core_weapon_overrides": [],
+	"enrage_core_weapon_overrides": [
+		{
+			"hardpoint_index": 0,
+			"weapon_id": "enemy_orange_wall"
+		},
+		{
+			"hardpoint_index": 2,
+			"weapon_id": "enemy_yellow_dagger"
+		}
+	],
+	"enrage_hardpoint_overrides": [
+		{
+			"hardpoint_index": 1,
+			"weapon_id": "enemy_orange_wall"
+		},
+		{
+			"hardpoint_index": 2,
+			"weapon_id": "enemy_speck_turret"
+		}
+	],
+	"enrage_movement": "v_sweep",
 	"enrage_segment_render_modes": {
 
 	},
 	"enrage_segment_weapon_overrides": {
 
 	},
-	"enrage_speed_mult": 1.5,
-	"enrage_threshold": 0.4,
+	"enrage_speed_mult": 1.8,
+	"enrage_threshold": 0.55,
+	"enrage_trigger": "wings_dead",
 	"id": "boss_archon",
 	"level": "boss",
 	"required_segment_destroys": [
 		0,
-		1,
-		2
+		1
 	],
 	"segments": [
 		{
@@ -62,24 +87,6 @@
 				{
 					"hardpoint_index": 1,
 					"weapon_id": "enemy_speck_turret"
-				}
-			]
-		},
-		{
-			"can_detach": false,
-			"detach_hp_threshold": 0.0,
-			"detach_path_id": "",
-			"detach_speed": 190.0,
-			"offset": [
-				-2.0,
-				-71.0
-			],
-			"reattach": true,
-			"ship_id": "enemy_archon_turret",
-			"weapon_overrides": [
-				{
-					"hardpoint_index": 0,
-					"weapon_id": "enemy_ultra_beam"
 				}
 			]
 		}
