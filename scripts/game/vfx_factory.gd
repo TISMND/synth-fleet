@@ -402,6 +402,61 @@ static func create_impact_emitter(layer: Dictionary, color: Color) -> GPUParticl
 	return emitter
 
 
+## Create a "TV shutoff" deflect impact — a bright flash that collapses into a
+## horizontal line and fades. Sprite + tween based (not particles). Auto-frees.
+static func create_deflect_impact(color: Color, width: float = 40.0, duration: float = 0.35) -> Node2D:
+	var root := Node2D.new()
+
+	# HDR flash color for bloom
+	var hdr := Color(color.r * 3.0, color.g * 3.0, color.b * 3.0, 1.0)
+
+	# Create a white rect sprite to animate
+	var sprite := Sprite2D.new()
+	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+	img.fill(Color.WHITE)
+	sprite.texture = ImageTexture.create_from_image(img)
+	sprite.scale = Vector2(width / 4.0, width * 0.6 / 4.0)
+	sprite.modulate = hdr
+	root.add_child(sprite)
+
+	# Additive blend for glow
+	var canvas_mat := CanvasItemMaterial.new()
+	canvas_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	sprite.material = canvas_mat
+
+	# Animate: flash -> squish to line -> shrink line -> fade
+	root.set_meta("_anim_sprite", sprite)
+	root.set_meta("_anim_width", width)
+	root.set_meta("_anim_duration", duration)
+	root.set_meta("_anim_hdr", hdr)
+	root.ready.connect(func() -> void:
+		var s: Sprite2D = root.get_meta("_anim_sprite") as Sprite2D
+		var w: float = float(root.get_meta("_anim_width"))
+		var dur: float = float(root.get_meta("_anim_duration"))
+		var hdr_col: Color = root.get_meta("_anim_hdr") as Color
+
+		var start_scale := Vector2(w / 4.0, w * 0.6 / 4.0)
+		var line_scale := Vector2(w * 1.2 / 4.0, 0.3 / 4.0)  # Wide thin line
+		var end_scale := Vector2(2.0 / 4.0, 0.15 / 4.0)  # Tiny dot
+
+		var tween := root.create_tween()
+		tween.set_parallel(true)
+
+		# Phase 1 (0 -> 40% of duration): Squish into horizontal line
+		tween.tween_property(s, "scale", line_scale, dur * 0.4).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		tween.tween_property(s, "modulate", hdr_col, dur * 0.1)
+
+		# Phase 2 (40% -> 100%): Shrink line and fade out
+		tween.tween_property(s, "scale", end_scale, dur * 0.6).set_delay(dur * 0.4).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		tween.tween_property(s, "modulate", Color(hdr_col, 0.0), dur * 0.6).set_delay(dur * 0.4).set_ease(Tween.EASE_IN)
+
+		tween.set_parallel(false)
+		tween.tween_callback(root.queue_free)
+	)
+
+	return root
+
+
 # ── Shader Sprite Helpers ───────────────────────────────────
 
 static func _load_energy_shader() -> Shader:

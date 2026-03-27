@@ -10,9 +10,18 @@
 	"enemy_hull_flash_intensity": 2.1,
 	"enemy_shield_field_style_id": "standard_shield",
 	"enemy_shield_ratio": 1.83,
-	"immune_field_style_id": "hex",
-	"immune_impact_projectile_style_id": "rect_lightning",
-	"immune_impact_scale": 1.0,
+	"immune_field_style_id": "",
+	"immune_impact_color": [
+		1.0,
+		1.0,
+		1.0,
+		1.0
+	],
+	"immune_impact_lifetime": 0.15,
+	"immune_impact_particle_count": 5,
+	"immune_impact_radius": 13.0,
+	"immune_impact_speed_scale": 0.5,
+	"immune_impact_type": "deflect",
 	"immune_ratio": 1.3,
 	"player_hull_flash_color": [
 		1.0,

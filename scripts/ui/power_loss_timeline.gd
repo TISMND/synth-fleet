@@ -3,6 +3,60 @@ extends Control
 ## with phase bands, cue markers, playback cursor, and per-cue editing controls.
 ## Timing data sourced from PowerLossSequence (single source of truth with game).
 
+# All power loss event IDs — the complete set managed by this screen
+const POWER_LOSS_EVENT_IDS: Array[String] = [
+	"electric_sparks",
+	"powerdown_shields_bleed",
+	"powerdown_drift_start",
+	"powerdown_engines_dying",
+	"power_failure",
+	"powerdown_crt_flicker_start",
+	"powerdown_screen_75",
+	"powerdown_screen_50",
+	"powerdown_screen_25",
+	"monitor_static",
+	"monitor_shutoff",
+	"powerdown_final_death",
+	"reboot_char_thunk",
+	"reboot_line_beep",
+	"powerup_electric_restored",
+	"powerup_core_regen",
+	"powerup_restored",
+	"powerup_bars_charging",
+	"powerup_screen_on",
+	"powerup_systems_online",
+]
+
+# Thermal vent event IDs — separate emergency sequence
+const THERMAL_VENT_EVENT_IDS: Array[String] = [
+	"purge_start",
+	"purge_venting",
+	"purge_complete",
+	"purge_engines_restored",
+]
+
+const THERMAL_VENT_LABELS: Array[String] = [
+	"PURGE START",
+	"VENTING (50%)",
+	"PURGE COMPLETE",
+	"ENGINES RESTORED",
+]
+
+const THERMAL_VENT_DESCRIPTIONS: Array[String] = [
+	"Vents open — hiss/whoosh as emergency cooling begins",
+	"Midpoint — thermal at 50%, active venting sound",
+	"Thermal cleared — vents close, components reactivate",
+	"Engines back to full power — thrust restored",
+]
+
+# 0 = power loss, 1 = thermal vent
+var _active_event_type: int = 0
+var _event_dropdown: OptionButton
+
+# Thermal vent UI
+var _vent_panel: VBoxContainer  # Container for the thermal vent view
+var _vent_cue_btns: Array = []  # 4 buttons for selecting a cue
+
 var _config: SfxConfig
 var _phases: Array[Dictionary] = []
 var _cues: Array[Dictionary] = []
@@ -39,8 +93,9 @@ var _next_static_idx: int = 0
 var _typing_player: AudioStreamPlayer  # For reboot_char_thunk looping sound
 var _typing_active: bool = false
 
-# Selection
-var _selected_cue_idx: int = -1
+# Selection — track by event_id so non-cue events (reboot_char_thunk etc.) work too
+var _selected_cue_idx: int = -1  # Index into _cues, or -1 if selected via dropdown
+var _selected_event_id_str: String = ""  # The actual selected event ID
 
 # UI refs
 var _play_btn: Button
@@ -49,6 +104,7 @@ var _time_label: Label
 var _phase_label: Label
 var _detail_panel: VBoxContainer  # Per-cue editing controls
 var _detail_title: Label
+var _detail_event_selector: OptionButton  # Dropdown to pick any power loss event
 var _detail_file_btn: OptionButton
 var _detail_vol_slider: HSlider
 var _detail_vol_label: Label
@@ -70,6 +126,9 @@ func _ready() -> void:
 	_reload_sequence_data()
 	_build_ui()
 	_populate_from_config()
+	# Select first event by default
+	if POWER_LOSS_EVENT_IDS.size() > 0:
+		_select_event(POWER_LOSS_EVENT_IDS[0])
 
 
 func _reload_sequence_data() -> void:
@@ -145,10 +204,12 @@ func _build_ui() -> void:
 	event_label.text = "Event:"
 	top_bar.add_child(event_label)
 
-	var event_dropdown := OptionButton.new()
-	event_dropdown.add_item("POWER LOSS")
-	event_dropdown.custom_minimum_size = Vector2(180, 0)
-	top_bar.add_child(event_dropdown)
+	_event_dropdown = OptionButton.new()
+	_event_dropdown.add_item("POWER LOSS")
+	_event_dropdown.add_item("THERMAL VENT")
+	_event_dropdown.custom_minimum_size = Vector2(180, 0)
+	_event_dropdown.item_selected.connect(_on_event_type_changed)
+	top_bar.add_child(_event_dropdown)
 
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -191,13 +252,31 @@ func _build_ui() -> void:
 	# Detail panel for selected cue
 	_detail_panel = VBoxContainer.new()
 	_detail_panel.add_theme_constant_override("separation", 6)
-	_detail_panel.visible = false
 	main_vbox.add_child(_detail_panel)
+
+	# Event selector row — pick any power loss event (including non-timeline ones)
+	var selector_row := HBoxContainer.new()
+	selector_row.add_theme_constant_override("separation", 8)
+	_detail_panel.add_child(selector_row)
+
+	var sel_label := Label.new()
+	sel_label.text = "Sound:"
+	sel_label.custom_minimum_size = Vector2(50, 0)
+	selector_row.add_child(sel_label)
+
+	_detail_event_selector = OptionButton.new()
+	_detail_event_selector.custom_minimum_size = Vector2(300, 0)
+	for eid in POWER_LOSS_EVENT_IDS:
+		var display: String = str(SfxConfig.EVENT_LABELS.get(eid, eid))
+		_detail_event_selector.add_item(display)
+		_detail_event_selector.set_item_metadata(_detail_event_selector.item_count - 1, eid)
+	_detail_event_selector.item_selected.connect(_on_event_selector_changed)
+	selector_row.add_child(_detail_event_selector)
 
 	_detail_title = Label.new()
 	_detail_title.text = ""
-	_detail_title.add_theme_font_size_override("font_size", 16)
-	_detail_panel.add_child(_detail_title)
+	_detail_title.add_theme_font_size_override("font_size", 14)
+	selector_row.add_child(_detail_title)
 
 	# Preview audio player
 	_preview_player = AudioStreamPlayer.new()
@@ -209,6 +288,98 @@ func _build_ui() -> void:
 	add_child(_typing_player)
 
 	_build_detail_controls()
+
+	# ── Thermal vent panel (hidden by default, shown when Event=THERMAL VENT) ──
+	_vent_panel = VBoxContainer.new()
+	_vent_panel.add_theme_constant_override("separation", 12)
+	_vent_panel.visible = false
+	main_vbox.add_child(_vent_panel)
+	_build_vent_panel()
+
+
+func _build_vent_panel() -> void:
+	var desc_label := Label.new()
+	desc_label.text = "Emergency thermal vent sequence — 4 cue points. Select a cue below to assign a sound."
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ThemeManager.apply_text_glow(desc_label, "body")
+	_vent_panel.add_child(desc_label)
+
+	var cue_grid := VBoxContainer.new()
+	cue_grid.add_theme_constant_override("separation", 6)
+	_vent_panel.add_child(cue_grid)
+
+	_vent_cue_btns.clear()
+	for i in THERMAL_VENT_EVENT_IDS.size():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		cue_grid.add_child(row)
+
+		# Stage number + color indicator
+		var stage_label := Label.new()
+		stage_label.text = "%d." % (i + 1)
+		stage_label.custom_minimum_size.x = 20
+		ThemeManager.apply_text_glow(stage_label, "body")
+		row.add_child(stage_label)
+
+		# Cue button — selects this cue for editing in the detail panel
+		var btn := Button.new()
+		btn.text = THERMAL_VENT_LABELS[i]
+		btn.toggle_mode = true
+		btn.custom_minimum_size = Vector2(200, 0)
+		var idx: int = i
+		btn.pressed.connect(func() -> void: _select_vent_cue(idx))
+		row.add_child(btn)
+		_vent_cue_btns.append(btn)
+
+		# Description
+		var desc := Label.new()
+		desc.text = THERMAL_VENT_DESCRIPTIONS[i]
+		desc.modulate.a = 0.6
+		ThemeManager.apply_text_glow(desc, "body")
+		row.add_child(desc)
+
+
+func _on_event_type_changed(idx: int) -> void:
+	if idx == _active_event_type:
+		return
+	_active_event_type = idx
+
+	# Stop any playback
+	_on_stop()
+
+	if idx == 0:
+		# Power loss mode
+		_timeline_control.visible = true
+		_phase_label.visible = true
+		_vent_panel.visible = false
+		# Rebuild the Sound selector with power loss events
+		_rebuild_event_selector(POWER_LOSS_EVENT_IDS)
+		if POWER_LOSS_EVENT_IDS.size() > 0:
+			_select_event(POWER_LOSS_EVENT_IDS[0])
+	else:
+		# Thermal vent mode
+		_timeline_control.visible = false
+		_phase_label.visible = false
+		_vent_panel.visible = true
+		# Rebuild the Sound selector with thermal vent events
+		_rebuild_event_selector(THERMAL_VENT_EVENT_IDS)
+		if THERMAL_VENT_EVENT_IDS.size() > 0:
+			_select_vent_cue(0)
+
+
+func _rebuild_event_selector(event_ids: Array) -> void:
+	_detail_event_selector.clear()
+	for eid in event_ids:
+		var display: String = str(SfxConfig.EVENT_LABELS.get(eid, eid))
+		_detail_event_selector.add_item(display)
+		_detail_event_selector.set_item_metadata(_detail_event_selector.item_count - 1, eid)
+
+
+func _select_vent_cue(idx: int) -> void:
+	for i in _vent_cue_btns.size():
+		(_vent_cue_btns[i] as Button).button_pressed = (i == idx)
+	if idx >= 0 and idx < THERMAL_VENT_EVENT_IDS.size():
+		_select_event(THERMAL_VENT_EVENT_IDS[idx])
 
 
 func _build_detail_controls() -> void:
@@ -356,8 +527,8 @@ func _draw_timeline() -> void:
 	for i in _cues.size():
 		var cue: Dictionary = _cues[i]
 		var cx: float = _time_to_x(float(cue["time"]), w)
-		var is_selected: bool = i == _selected_cue_idx
 		var eid: String = str(cue["event_id"])
+		var is_selected: bool = eid == _selected_event_id_str
 
 		# Skip reboot_line_beep markers to avoid clutter — they're too numerous
 		if eid == "reboot_line_beep":
@@ -428,7 +599,7 @@ func _on_timeline_input(event: InputEvent) -> void:
 func _handle_timeline_click(pos: Vector2) -> void:
 	var w: float = _timeline_control.size.x
 	# Find nearest cue marker
-	var best_idx: int = -1
+	var best_eid: String = ""
 	var best_dist: float = 20.0  # Max click distance in pixels
 	for i in _cues.size():
 		var eid: String = str(_cues[i]["event_id"])
@@ -438,26 +609,53 @@ func _handle_timeline_click(pos: Vector2) -> void:
 		var dist: float = absf(pos.x - cx)
 		if dist < best_dist:
 			best_dist = dist
-			best_idx = i
-	_select_cue(best_idx)
+			best_eid = eid
+
+	# Also check if clicking on a typing region (selects reboot_char_thunk)
+	if best_eid == "":
+		for region in _typing_regions:
+			var rx1: float = _time_to_x(float(region["start"]), w)
+			var rx2: float = _time_to_x(float(region["end"]), w)
+			if pos.x >= rx1 and pos.x <= rx2 and pos.y >= TYPING_BAR_Y and pos.y <= TYPING_BAR_Y + TYPING_BAR_HEIGHT:
+				best_eid = "reboot_char_thunk"
+				break
+
+	if best_eid != "":
+		_select_event(best_eid)
 
 
-func _select_cue(idx: int) -> void:
-	_selected_cue_idx = idx
-	if idx < 0 or idx >= _cues.size():
-		_detail_panel.visible = false
-		_timeline_control.queue_redraw()
-		return
+func _select_event(eid: String) -> void:
+	_selected_event_id_str = eid
 
-	_detail_panel.visible = true
-	var cue: Dictionary = _cues[idx]
-	var eid: String = str(cue["event_id"])
-	var display_label: String = str(cue["display_label"])
+	# Find matching cue index (for timeline highlight, -1 if non-cue event)
+	_selected_cue_idx = -1
+	for i in _cues.size():
+		if str(_cues[i]["event_id"]) == eid:
+			_selected_cue_idx = i
+			break
+
+	# Sync the event selector dropdown
+	_detail_event_selector.set_block_signals(true)
+	for i in _detail_event_selector.item_count:
+		if str(_detail_event_selector.get_item_metadata(i)) == eid:
+			_detail_event_selector.select(i)
+			break
+	_detail_event_selector.set_block_signals(false)
+
+	# Build title — show timeline time if this is a cue event
 	var label_name: String = str(SfxConfig.EVENT_LABELS.get(eid, eid))
-	if display_label != "":
-		_detail_title.text = "%s  —  %s  (T=%.2fs)" % [label_name, display_label, float(cue["time"])]
+	var display_label: String = str(PowerLossSequence.CUE_DISPLAY_LABELS.get(eid, ""))
+	if _selected_cue_idx >= 0:
+		var cue_time: float = float(_cues[_selected_cue_idx]["time"])
+		if display_label != "":
+			_detail_title.text = "%s  (T=%.2fs)" % [display_label, cue_time]
+		else:
+			_detail_title.text = "(T=%.2fs)" % cue_time
 	else:
-		_detail_title.text = "%s  (T=%.2fs)" % [label_name, float(cue["time"])]
+		if display_label != "":
+			_detail_title.text = display_label
+		else:
+			_detail_title.text = ""
 
 	# Populate controls from config
 	var ev: Dictionary = _config.get_event(eid)
@@ -504,12 +702,15 @@ func _select_cue(idx: int) -> void:
 	_timeline_control.queue_redraw()
 
 
+func _on_event_selector_changed(idx: int) -> void:
+	var eid: String = str(_detail_event_selector.get_item_metadata(idx))
+	_select_event(eid)
+
+
 # ── Detail panel handlers ────────────────────────────────────────────────────
 
 func _selected_event_id() -> String:
-	if _selected_cue_idx < 0 or _selected_cue_idx >= _cues.size():
-		return ""
-	return str(_cues[_selected_cue_idx]["event_id"])
+	return _selected_event_id_str
 
 
 func _on_detail_file_selected(idx: int) -> void:
@@ -600,7 +801,8 @@ func _on_play() -> void:
 	_next_static_idx = 0
 	_typing_active = false
 	SfxPlayer.reload()
-	_setup_typing_player()
+	if _active_event_type == 0:
+		_setup_typing_player()
 	_play_btn.disabled = true
 
 
@@ -654,6 +856,11 @@ func _process(delta: float) -> void:
 
 	_playback_time += delta
 
+	if _active_event_type == 1:
+		_process_vent_playback()
+		return
+
+	# ── Power loss playback ──
 	# Fire cues
 	while _next_cue_idx < _cues.size():
 		var cue: Dictionary = _cues[_next_cue_idx]
@@ -707,6 +914,26 @@ func _process(delta: float) -> void:
 
 	# End of sequence
 	if _playback_time >= _total_duration:
+		_on_stop()
+
+
+func _process_vent_playback() -> void:
+	## Thermal vent playback — matches 4s purge duration + 1s recovery
+	const VENT_CUE_TIMES: Array[float] = [0.0, 2.0, 4.0, 5.0]
+	const VENT_TOTAL: float = 6.0
+	while _next_cue_idx < THERMAL_VENT_EVENT_IDS.size():
+		if VENT_CUE_TIMES[_next_cue_idx] > _playback_time:
+			break
+		SfxPlayer.play_ui(THERMAL_VENT_EVENT_IDS[_next_cue_idx])
+		# Highlight the active cue button
+		for i in _vent_cue_btns.size():
+			(_vent_cue_btns[i] as Button).button_pressed = (i == _next_cue_idx)
+		_select_event(THERMAL_VENT_EVENT_IDS[_next_cue_idx])
+		_next_cue_idx += 1
+
+	_time_label.text = "T = %.2fs" % _playback_time
+
+	if _playback_time >= VENT_TOTAL:
 		_on_stop()
 
 
@@ -788,6 +1015,8 @@ func apply_theme() -> void:
 		ThemeManager.apply_button_style(_detail_preview_btn)
 	if _detail_stop_btn:
 		ThemeManager.apply_button_style(_detail_stop_btn)
+	if _detail_event_selector:
+		ThemeManager.apply_button_style(_detail_event_selector)
 	if _detail_file_btn:
 		ThemeManager.apply_button_style(_detail_file_btn)
 	if _time_label:
@@ -802,6 +1031,11 @@ func apply_theme() -> void:
 		ThemeManager.apply_text_glow(_detail_clip_label, "body")
 	if _detail_fade_label:
 		ThemeManager.apply_text_glow(_detail_fade_label, "body")
+	if _event_dropdown:
+		ThemeManager.apply_button_style(_event_dropdown)
+	for btn in _vent_cue_btns:
+		if is_instance_valid(btn):
+			ThemeManager.apply_button_style(btn as Button)
 	_timeline_control.queue_redraw()
 
 

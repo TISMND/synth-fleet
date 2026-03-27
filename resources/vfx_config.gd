@@ -1,8 +1,8 @@
 class_name VfxConfig extends Resource
 ## Configuration for visual hit effects.
-## Shield hits use a FieldStyle + radius (field overlay on ship).
+## Shield hits use a FieldStyle + ratio (field overlay on ship).
 ## Hull hits use a brightness/alpha flicker on the existing ship sprite.
-## Immune hit uses a FieldStyle + radius; immune impact uses a ProjectileStyle for burst effects.
+## Immune hit uses a FieldStyle + ratio; immune impact uses a direct impact effect layer.
 
 # Player Shield Hit — field overlay
 var player_shield_field_style_id: String = ""
@@ -28,9 +28,13 @@ var enemy_hull_flash_count: int = 3
 var immune_field_style_id: String = ""
 var immune_ratio: float = 1.35
 
-# Immune Impact — projectile-style burst at point of contact
-var immune_impact_projectile_style_id: String = ""
-var immune_impact_scale: float = 1.0
+# Immune Impact — direct impact burst at point of contact
+var immune_impact_type: String = ""  # burst, ring_expand, shatter_lines, nova_flash, ripple, or "" for none
+var immune_impact_color: Array = [1.0, 1.0, 1.0, 1.0]
+var immune_impact_particle_count: int = 8
+var immune_impact_lifetime: float = 0.4
+var immune_impact_radius: float = 20.0
+var immune_impact_speed_scale: float = 1.0
 
 
 static func from_dict(data: Dictionary) -> VfxConfig:
@@ -55,8 +59,12 @@ static func from_dict(data: Dictionary) -> VfxConfig:
 	config.immune_field_style_id = str(data.get("immune_field_style_id", ""))
 	config.immune_ratio = float(data.get("immune_ratio", 1.35))
 	# Immune Impact
-	config.immune_impact_projectile_style_id = str(data.get("immune_impact_projectile_style_id", ""))
-	config.immune_impact_scale = float(data.get("immune_impact_scale", 1.0))
+	config.immune_impact_type = str(data.get("immune_impact_type", ""))
+	config.immune_impact_color = _parse_color_array(data.get("immune_impact_color", [1.0, 1.0, 1.0, 1.0]))
+	config.immune_impact_particle_count = int(data.get("immune_impact_particle_count", 8))
+	config.immune_impact_lifetime = float(data.get("immune_impact_lifetime", 0.4))
+	config.immune_impact_radius = float(data.get("immune_impact_radius", 20.0))
+	config.immune_impact_speed_scale = float(data.get("immune_impact_speed_scale", 1.0))
 	return config
 
 
@@ -76,8 +84,12 @@ func to_dict() -> Dictionary:
 		"enemy_hull_flash_count": enemy_hull_flash_count,
 		"immune_field_style_id": immune_field_style_id,
 		"immune_ratio": immune_ratio,
-		"immune_impact_projectile_style_id": immune_impact_projectile_style_id,
-		"immune_impact_scale": immune_impact_scale,
+		"immune_impact_type": immune_impact_type,
+		"immune_impact_color": immune_impact_color,
+		"immune_impact_particle_count": immune_impact_particle_count,
+		"immune_impact_lifetime": immune_impact_lifetime,
+		"immune_impact_radius": immune_impact_radius,
+		"immune_impact_speed_scale": immune_impact_speed_scale,
 	}
 
 

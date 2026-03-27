@@ -154,7 +154,7 @@ func _build_ui() -> void:
 
 	# Hit Sounds section
 	_add_section_header(vbox, "HIT SOUNDS", "Projectile and contact impacts — shield vs hull variants for both player and enemies")
-	for event_id in ["enemy_shield_hit", "enemy_hull_hit", "player_shield_hit", "player_hull_hit"]:
+	for event_id in ["enemy_shield_hit", "enemy_hull_hit", "player_shield_hit", "player_hull_hit", "immune_hit"]:
 		_add_event_row(vbox, event_id)
 
 	# Spacer
@@ -176,41 +176,8 @@ func _build_ui() -> void:
 	for event_id in ["alarm_heat", "alarm_fire", "alarm_low_power", "alarm_overdraw", "alarm_shields_low", "alarm_hull_damaged", "alarm_hull_critical"]:
 		_add_event_row(vbox, event_id)
 
-	var spacer_2b := Control.new()
-	spacer_2b.custom_minimum_size = Vector2(0, 12)
-	vbox.add_child(spacer_2b)
-
-	# Power failure section
-	_add_section_header(vbox, "POWER FAILURE", "The instant of power loss — these fire when electric hits zero")
-	for event_id in ["power_failure", "monitor_shutoff", "monitor_static", "electric_sparks"]:
-		_add_event_row(vbox, event_id)
-
-	var spacer_3 := Control.new()
-	spacer_3.custom_minimum_size = Vector2(0, 12)
-	vbox.add_child(spacer_3)
-
-	# Reboot sequence section
-	_add_section_header(vbox, "REBOOT SEQUENCE", "CRT terminal reboot after power is restored — character-by-character diagnostic display")
-	for event_id in ["reboot_char_thunk", "reboot_line_beep"]:
-		_add_event_row(vbox, event_id)
-
-	var spacer_5 := Control.new()
-	spacer_5.custom_minimum_size = Vector2(0, 12)
-	vbox.add_child(spacer_5)
-
-	# Staged power-down cues (numbered in sequence order)
-	_add_section_header(vbox, "POWER-DOWN SEQUENCE (in order)", "Gradual power failure — fires step by step as electric drains. Shields bleed first, then engines die, drift begins, display degrades in stages, then total blackout.")
-	for event_id in ["powerdown_shields_bleed", "powerdown_engines_dying", "powerdown_drift_start", "powerdown_crt_flicker_start", "powerdown_screen_75", "powerdown_screen_50", "powerdown_screen_25", "powerdown_final_death"]:
-		_add_event_row(vbox, event_id)
-
-	var spacer_6 := Control.new()
-	spacer_6.custom_minimum_size = Vector2(0, 12)
-	vbox.add_child(spacer_6)
-
-	# Staged power-up cues
-	_add_section_header(vbox, "POWER-UP SEQUENCE (recovery)", "Recovery after power restored — fires step by step as systems come back online. Cold start spark, core regen, bars refill, display flickers on, weapons restore, full recovery.")
-	for event_id in ["powerup_electric_restored", "powerup_core_regen", "powerup_bars_charging", "powerup_screen_on", "powerup_systems_online", "powerup_restored"]:
-		_add_event_row(vbox, event_id)
+	# Power loss events (power failure, reboot, power-down, power-up) are managed
+	# exclusively in the EVENTS tab timeline — not shown here.
 
 	# Loops content (LoopBalancer panel — built from script)
 	var loop_balancer_script: GDScript = load("res://scripts/ui/loop_balancer.gd") as GDScript

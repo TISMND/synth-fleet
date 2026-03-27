@@ -1015,11 +1015,11 @@ func _process_power_loss_death(delta: float) -> void:
 			# Flash building
 			trigger_screen_shake(12.0, 0.1)
 		if _power_death_timer >= POWER_DEATH_DURATION:
-			# Clean up and exit
+			# Clean up and show game over screen
 			if _player:
 				_player.cleanup_power_loss()
 			_power_death_active = false
-			_return_to_menu()
+			_show_game_over()
 
 
 func _return_to_menu() -> void:

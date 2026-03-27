@@ -2792,6 +2792,38 @@ func _draw_archon_core() -> void:
 	])
 	_poly(body, hull_color, 3.0 * s)
 
+	# Dorsal ridge — red diamonds along the top edge, corners facing outward
+	var ridge_color := Color(1.0, 0.15, 0.1)
+	var ridge_y: float = crown_y - 3.0 * s  # top edge of main slab
+	var ridge_count: int = 9
+	var ridge_x_start: float = -hw + 6.0 * s
+	var ridge_x_end: float = hw - 6.0 * s
+	var ridge_r: float = 2.8 * s  # diamond radius
+	for ri in range(ridge_count):
+		var rt: float = float(ri) / float(ridge_count - 1)
+		var rx: float = lerpf(ridge_x_start, ridge_x_end, rt)
+		# Outward-facing diamond — tall vertically, point extends above the hull
+		var rdiamond := PackedVector2Array([
+			Vector2(rx, ridge_y - ridge_r * 1.4),  # top point (outward)
+			Vector2(rx + ridge_r * 0.7, ridge_y),   # right
+			Vector2(rx, ridge_y + ridge_r * 0.6),   # bottom (into hull)
+			Vector2(rx - ridge_r * 0.7, ridge_y),   # left
+		])
+		_poly(rdiamond, ridge_color, 1.2 * s)
+
+	# Red corner spurs — larger diamonds at the top corners, angled outward
+	for corner_side in [-1.0, 1.0]:
+		var cx: float = corner_side * (hw - 4.0 * s)
+		var cy: float = crown_y - 3.0 * s
+		var corner_r: float = 4.0 * s
+		var corner_diamond := PackedVector2Array([
+			Vector2(cx, cy - corner_r * 1.2),                  # top (outward)
+			Vector2(cx + corner_side * corner_r * 1.0, cy),    # outer side
+			Vector2(cx, cy + corner_r * 0.5),                  # bottom (into hull)
+			Vector2(cx - corner_side * corner_r * 0.6, cy),    # inner side
+		])
+		_poly(corner_diamond, ridge_color, 1.8 * s)
+
 	# V-cut armor seams — angular lines across the face
 	var mid_y: float = crown_y + band_h * 0.5
 	_line(Vector2(-hw + 2.0 * s, mid_y - 1.5 * s), Vector2(0, mid_y - 3.0 * s), detail_color, 0.7 * s)

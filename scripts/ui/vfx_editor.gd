@@ -32,18 +32,15 @@ var _enemy_ship_index: int = 0
 # All available field style IDs (shared across shield sections)
 var _field_style_ids: Array[String] = []
 
-# All available projectile style IDs (for immune impact)
-var _projectile_style_ids: Array[String] = []
+# Impact types available for immune impact dropdown
+const IMPACT_TYPES: Array[String] = ["", "burst", "ring_expand", "shatter_lines", "nova_flash", "ripple", "deflect"]
+const IMPACT_TYPE_LABELS: Array[String] = ["(None)", "Burst", "Ring Expand", "Shatter Lines", "Nova Flash", "Ripple", "Deflect (TV Off)"]
 
-# Per-section state for shield sections: {config_key: {renderer, field, style_index, style_label}}
+# Per-section state for shield sections: {config_key: {renderer, field, style_id_key, radius_key, is_enemy}}
 var _sections: Dictionary = {}
 
 # Hull flicker state
 var _hull_sections: Dictionary = {}  # {config_prefix: {renderer, flash_timer, ...}}
-
-# Immune impact state
-var _immune_impact_style_index: int = 0
-var _immune_impact_style_label: Label
 
 # Ship labels (all sections that have ship browsers)
 var _player_ship_labels: Array[Label] = []
@@ -58,8 +55,6 @@ func _ready() -> void:
 	_config = VfxConfigManager.load_config()
 	_field_style_ids = FieldStyleManager.list_ids()
 	_field_style_ids.sort()
-	_projectile_style_ids = ProjectileStyleManager.list_ids()
-	_projectile_style_ids.sort()
 
 	_player_ship_data = _load_player_ship_data(_player_ship_index)
 	_enemy_ship_data = _load_enemy_ship_data(_enemy_ship_index)
@@ -174,13 +169,6 @@ func _build_shield_section(parent: VBoxContainer, section_title: String, config_
 	var style_id_key: String = config_key + "_field_style_id"
 	var radius_key: String = config_key + "_ratio"
 
-	var current_style_id: String = str(_config.get(style_id_key))
-	var style_index: int = 0
-	if current_style_id != "":
-		var idx: int = _field_style_ids.find(current_style_id)
-		if idx >= 0:
-			style_index = idx
-
 	# Header with ship browser
 	var header_row := HBoxContainer.new()
 	header_row.add_theme_constant_override("separation", 10)
@@ -252,14 +240,12 @@ func _build_shield_section(parent: VBoxContainer, section_title: String, config_
 	controls_vbox.add_theme_constant_override("separation", 8)
 	row.add_child(controls_vbox)
 
-	var style_label := _build_field_style_selector(controls_vbox, "Field Style", config_key)
+	_build_field_style_dropdown(controls_vbox, "Field Style", config_key)
 	_build_ratio_slider(controls_vbox, radius_key, float(_config.get(radius_key)))
 
 	_sections[config_key] = {
 		"renderer": renderer,
 		"field": field,
-		"style_index": style_index,
-		"style_label": style_label,
 		"style_id_key": style_id_key,
 		"radius_key": radius_key,
 		"is_enemy": is_enemy,
@@ -374,7 +360,7 @@ func _build_immune_section(parent: VBoxContainer) -> void:
 	# Main immune field — reuse shield section builder
 	_build_shield_section(parent, "IMMUNE HIT (Enemy)", "immune", true)
 
-	# Immune Impact sub-section — projectile style browser
+	# Immune Impact sub-section — direct impact effect config
 	var impact_header := Label.new()
 	impact_header.text = "IMMUNE IMPACT (at hit point)"
 	parent.add_child(impact_header)
@@ -394,65 +380,50 @@ func _build_immune_section(parent: VBoxContainer) -> void:
 	impact_controls.add_theme_constant_override("separation", 8)
 	impact_row.add_child(impact_controls)
 
-	var desc := Label.new()
-	desc.text = "Uses impact/muzzle/trail effects from a Projectile Style"
-	impact_controls.add_child(desc)
-	ThemeManager.apply_text_glow(desc, "body")
+	# Impact type dropdown
+	var type_row := HBoxContainer.new()
+	type_row.add_theme_constant_override("separation", 8)
+	impact_controls.add_child(type_row)
 
-	# Projectile style selector
-	var current_id: String = _config.immune_impact_projectile_style_id
-	_immune_impact_style_index = 0
-	if current_id != "" and _projectile_style_ids.has(current_id):
-		_immune_impact_style_index = _projectile_style_ids.find(current_id)
+	var type_lbl := Label.new()
+	type_lbl.text = "Type"
+	type_lbl.custom_minimum_size.x = 90
+	type_row.add_child(type_lbl)
+	ThemeManager.apply_text_glow(type_lbl, "body")
 
-	var style_row := HBoxContainer.new()
-	style_row.add_theme_constant_override("separation", 8)
-	impact_controls.add_child(style_row)
-
-	var lbl := Label.new()
-	lbl.text = "Proj. Style"
-	lbl.custom_minimum_size.x = 90
-	style_row.add_child(lbl)
-	ThemeManager.apply_text_glow(lbl, "body")
-
-	var prev_btn := Button.new()
-	prev_btn.text = "<"
-	prev_btn.pressed.connect(_on_prev_immune_impact_style)
-	style_row.add_child(prev_btn)
-	ThemeManager.apply_button_style(prev_btn)
-
-	_immune_impact_style_label = Label.new()
-	_immune_impact_style_label.custom_minimum_size.x = 180
-	_immune_impact_style_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	style_row.add_child(_immune_impact_style_label)
-	ThemeManager.apply_text_glow(_immune_impact_style_label, "body")
-
-	var next_btn := Button.new()
-	next_btn.text = ">"
-	next_btn.pressed.connect(_on_next_immune_impact_style)
-	style_row.add_child(next_btn)
-	ThemeManager.apply_button_style(next_btn)
-
-	if _projectile_style_ids.size() > 0:
-		_immune_impact_style_label.text = _projectile_style_ids[_immune_impact_style_index]
+	var type_dropdown := OptionButton.new()
+	type_dropdown.custom_minimum_size.x = 220
+	for i in IMPACT_TYPE_LABELS.size():
+		type_dropdown.add_item(IMPACT_TYPE_LABELS[i], i)
+	var current_type_idx: int = IMPACT_TYPES.find(_config.immune_impact_type)
+	if current_type_idx >= 0:
+		type_dropdown.select(current_type_idx)
 	else:
-		_immune_impact_style_label.text = "(none)"
+		type_dropdown.select(0)
+	type_dropdown.item_selected.connect(_on_immune_impact_type_selected)
+	type_row.add_child(type_dropdown)
+	ThemeManager.apply_button_style(type_dropdown)
 
-	# Effect summary label — shows what effects the selected style has
-	var summary_label := Label.new()
-	summary_label.name = "immune_impact_summary"
-	impact_controls.add_child(summary_label)
-	ThemeManager.apply_text_glow(summary_label, "body")
-	_update_immune_impact_summary()
+	# Impact color
+	var color_arr: Array = _config.immune_impact_color
+	_build_impact_color_row(impact_controls, "Color R", 0, float(color_arr[0]))
+	_build_impact_color_row(impact_controls, "Color G", 1, float(color_arr[1]))
+	_build_impact_color_row(impact_controls, "Color B", 2, float(color_arr[2]))
 
-	# Scale slider
-	_build_param_slider(impact_controls, "Scale", "immune_impact_scale",
-		_config.immune_impact_scale, 0.1, 5.0, 0.1)
+	# Impact params
+	_build_param_slider(impact_controls, "Particles", "immune_impact_particle_count",
+		float(_config.immune_impact_particle_count), 1.0, 30.0, 1.0)
+	_build_param_slider(impact_controls, "Lifetime", "immune_impact_lifetime",
+		_config.immune_impact_lifetime, 0.05, 1.0, 0.05)
+	_build_param_slider(impact_controls, "Radius", "immune_impact_radius",
+		_config.immune_impact_radius, 5.0, 60.0, 1.0)
+	_build_param_slider(impact_controls, "Speed", "immune_impact_speed_scale",
+		_config.immune_impact_speed_scale, 0.1, 3.0, 0.1)
 
 
 # ── Shared UI builders ──
 
-func _build_field_style_selector(parent: VBoxContainer, label_text: String, section_key: String) -> Label:
+func _build_field_style_dropdown(parent: VBoxContainer, label_text: String, section_key: String) -> OptionButton:
 	var style_row := HBoxContainer.new()
 	style_row.add_theme_constant_override("separation", 8)
 	parent.add_child(style_row)
@@ -463,33 +434,23 @@ func _build_field_style_selector(parent: VBoxContainer, label_text: String, sect
 	style_row.add_child(lbl)
 	ThemeManager.apply_text_glow(lbl, "body")
 
-	var prev_btn := Button.new()
-	prev_btn.text = "<"
-	prev_btn.pressed.connect(_on_prev_style.bind(section_key))
-	style_row.add_child(prev_btn)
-	ThemeManager.apply_button_style(prev_btn)
+	var dropdown := OptionButton.new()
+	dropdown.custom_minimum_size.x = 220
+	dropdown.add_item("(None)", 0)
+	for i in _field_style_ids.size():
+		dropdown.add_item(_field_style_ids[i], i + 1)
+	style_row.add_child(dropdown)
+	ThemeManager.apply_button_style(dropdown)
 
-	var style_label := Label.new()
-	style_label.custom_minimum_size.x = 180
-	style_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	style_row.add_child(style_label)
-	ThemeManager.apply_text_glow(style_label, "body")
-
-	var next_btn := Button.new()
-	next_btn.text = ">"
-	next_btn.pressed.connect(_on_next_style.bind(section_key))
-	style_row.add_child(next_btn)
-	ThemeManager.apply_button_style(next_btn)
-
+	# Select current value
 	var current_id: String = str(_config.get(section_key + "_field_style_id"))
 	if current_id != "" and _field_style_ids.has(current_id):
-		style_label.text = current_id
-	elif _field_style_ids.size() > 0:
-		style_label.text = _field_style_ids[0]
+		dropdown.select(_field_style_ids.find(current_id) + 1)
 	else:
-		style_label.text = "(none)"
+		dropdown.select(0)
 
-	return style_label
+	dropdown.item_selected.connect(_on_field_style_selected.bind(section_key))
+	return dropdown
 
 
 func _build_ratio_slider(parent: VBoxContainer, key: String, value: float) -> void:
@@ -581,6 +542,35 @@ func _build_color_row(parent: VBoxContainer, label_text: String, config_prefix: 
 	ThemeManager.apply_text_glow(val_lbl, "body")
 
 
+func _build_impact_color_row(parent: VBoxContainer, label_text: String, channel: int, value: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	parent.add_child(row)
+
+	var lbl := Label.new()
+	lbl.text = label_text
+	lbl.custom_minimum_size.x = 90
+	row.add_child(lbl)
+	ThemeManager.apply_text_glow(lbl, "body")
+
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.value = value
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 200
+	slider.value_changed.connect(_on_impact_color_changed.bind(channel))
+	row.add_child(slider)
+
+	var val_lbl := Label.new()
+	val_lbl.name = "immune_impact_color_" + str(channel) + "_val"
+	val_lbl.text = "%.2f" % value
+	val_lbl.custom_minimum_size.x = 50
+	row.add_child(val_lbl)
+	ThemeManager.apply_text_glow(val_lbl, "body")
+
+
 func _build_bottom_bar() -> void:
 	var bar := HBoxContainer.new()
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -610,116 +600,33 @@ func _build_bottom_bar() -> void:
 	ThemeManager.apply_button_style(save_btn)
 
 
-# ── Field style cycling (shield + immune sections) ──
+# ── Field style dropdown callback ──
 
-func _on_prev_style(section_key: String) -> void:
-	if _field_style_ids.is_empty():
-		return
+func _on_field_style_selected(index: int, section_key: String) -> void:
+	var style_id: String = ""
+	if index > 0 and index - 1 < _field_style_ids.size():
+		style_id = _field_style_ids[index - 1]
 	var sec: Dictionary = _sections[section_key]
-	var idx: int = int(sec["style_index"])
-	idx = (idx - 1 + _field_style_ids.size()) % _field_style_ids.size()
-	sec["style_index"] = idx
-	_apply_style_change(section_key)
-
-
-func _on_next_style(section_key: String) -> void:
-	if _field_style_ids.is_empty():
-		return
-	var sec: Dictionary = _sections[section_key]
-	var idx: int = int(sec["style_index"])
-	idx = (idx + 1) % _field_style_ids.size()
-	sec["style_index"] = idx
-	_apply_style_change(section_key)
-
-
-func _apply_style_change(section_key: String) -> void:
-	var sec: Dictionary = _sections[section_key]
-	var idx: int = int(sec["style_index"])
-	var style_id: String = _field_style_ids[idx]
 	var style_id_key: String = str(sec["style_id_key"])
-	var label: Label = sec["style_label"] as Label
-	label.text = style_id
 	_config.set(style_id_key, style_id)
 	_rebuild_field(section_key)
 	_trigger_effects()
 	_update_status()
 
 
-# ── Immune impact projectile style cycling ──
+# ── Immune impact type dropdown callback ──
 
-func _on_prev_immune_impact_style() -> void:
-	if _projectile_style_ids.is_empty():
-		return
-	_immune_impact_style_index = (_immune_impact_style_index - 1 + _projectile_style_ids.size()) % _projectile_style_ids.size()
-	_apply_immune_impact_change()
-
-
-func _on_next_immune_impact_style() -> void:
-	if _projectile_style_ids.is_empty():
-		return
-	_immune_impact_style_index = (_immune_impact_style_index + 1) % _projectile_style_ids.size()
-	_apply_immune_impact_change()
-
-
-func _apply_immune_impact_change() -> void:
-	var style_id: String = _projectile_style_ids[_immune_impact_style_index]
-	_immune_impact_style_label.text = style_id
-	_config.immune_impact_projectile_style_id = style_id
-	_update_immune_impact_summary()
+func _on_immune_impact_type_selected(index: int) -> void:
+	_config.immune_impact_type = IMPACT_TYPES[index]
 	_update_status()
 
 
-func _update_immune_impact_summary() -> void:
-	var summary_node: Label = find_child("immune_impact_summary", true, false) as Label
-	if not summary_node:
-		return
-
-	var style_id: String = _config.immune_impact_projectile_style_id
-	if style_id == "" or not _projectile_style_ids.has(style_id):
-		summary_node.text = "No style selected"
-		return
-
-	var style: ProjectileStyle = ProjectileStyleManager.load_by_id(style_id)
-	if not style:
-		summary_node.text = "Style not found"
-		return
-
-	var profile: Dictionary = style.effect_profile
-	if profile.is_empty():
-		summary_node.text = "No effects defined"
-		return
-
-	var defaults: Dictionary = profile.get("defaults", {}) as Dictionary
-	var parts: Array[String] = []
-
-	var impact_layers: Array = defaults.get("impact", []) as Array
-	if impact_layers.size() > 0:
-		var types: Array[String] = []
-		for layer in impact_layers:
-			var d: Dictionary = layer as Dictionary
-			types.append(str(d.get("type", "?")))
-		parts.append("Impact: " + ", ".join(types))
-
-	var muzzle_layers: Array = defaults.get("muzzle", []) as Array
-	if muzzle_layers.size() > 0:
-		var types: Array[String] = []
-		for layer in muzzle_layers:
-			var d: Dictionary = layer as Dictionary
-			types.append(str(d.get("type", "?")))
-		parts.append("Muzzle: " + ", ".join(types))
-
-	var trail_layers: Array = defaults.get("trail", []) as Array
-	if trail_layers.size() > 0:
-		var types: Array[String] = []
-		for layer in trail_layers:
-			var d: Dictionary = layer as Dictionary
-			types.append(str(d.get("type", "?")))
-		parts.append("Trail: " + ", ".join(types))
-
-	if parts.is_empty():
-		summary_node.text = "No impact/muzzle/trail effects"
-	else:
-		summary_node.text = " | ".join(parts)
+func _on_impact_color_changed(value: float, channel: int) -> void:
+	_config.immune_impact_color[channel] = value
+	var val_node: Label = find_child("immune_impact_color_" + str(channel) + "_val", true, false) as Label
+	if val_node:
+		val_node.text = "%.2f" % value
+	_update_status()
 
 
 # ── Parameter callbacks ──
@@ -727,7 +634,7 @@ func _update_immune_impact_summary() -> void:
 func _on_param_changed(value: float, config_key: String) -> void:
 	_config.set(config_key, value)
 	var step: float = 0.1
-	if config_key.ends_with("_flash_count"):
+	if config_key.ends_with("_flash_count") or config_key.ends_with("_particle_count"):
 		_config.set(config_key, int(value))
 		step = 1.0
 	var val_node: Label = find_child(config_key + "_val", true, false) as Label
@@ -772,10 +679,10 @@ func _rebuild_field(section_key: String) -> void:
 	for child in field.get_children():
 		child.queue_free()
 
-	if _field_style_ids.is_empty():
+	var style_id_key: String = str(sec["style_id_key"])
+	var style_id: String = str(_config.get(style_id_key))
+	if style_id == "":
 		return
-	var idx: int = int(sec["style_index"])
-	var style_id: String = _field_style_ids[idx]
 	var style: FieldStyle = FieldStyleManager.load_by_id(style_id)
 	if not style:
 		return
@@ -969,10 +876,10 @@ func _update_status() -> void:
 		var intensity: float = float(_config.get(prefix + "_flash_intensity"))
 		parts.append("%s: %dx @ %.1f" % [prefix, count, intensity])
 	# Immune impact
-	var impact_id: String = _config.immune_impact_projectile_style_id
-	if impact_id == "":
-		impact_id = "(none)"
-	parts.append("impact: %s" % impact_id)
+	var impact_type: String = _config.immune_impact_type
+	if impact_type == "":
+		impact_type = "(none)"
+	parts.append("impact: %s" % impact_type)
 	_status_label.text = "  |  ".join(parts)
 
 

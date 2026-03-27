@@ -306,22 +306,36 @@ func _setup_hit_field(node_name: String, style_id: String, radius: float) -> voi
 
 
 func _flash_hull_hit() -> void:
-	if not _renderer:
-		return
 	var vfx: VfxConfig = VfxConfigManager.load_config()
-	var color_arr: Array = vfx.enemy_hull_flash_color
-	var flash_color := Color(float(color_arr[0]), float(color_arr[1]), float(color_arr[2]), 1.0)
 	var intensity: float = vfx.enemy_hull_flash_intensity
 	var duration: float = vfx.enemy_hull_flash_duration
 	var count: int = vfx.enemy_hull_flash_count
 	var step_time: float = duration / (count * 2.0)
-	var tween := create_tween()
-	for i in count:
-		var bright := flash_color * intensity
-		bright.a = 1.0
-		tween.tween_property(_renderer, "modulate", bright, step_time * 0.1)
-		tween.tween_property(_renderer, "modulate", Color.WHITE, step_time * 0.9)
-	tween.tween_property(_renderer, "modulate", Color.WHITE, 0.0)
+
+	if _flash_material:
+		# Baked sprite path — animate flash_mix shader uniform (0.0 = off, 1.0 = white)
+		var flash_strength: float = clampf(intensity / 3.0, 0.0, 1.0)
+		var tween := create_tween()
+		for i in count:
+			tween.tween_method(func(v: float) -> void:
+				if _flash_material:
+					_flash_material.set_shader_parameter("flash_mix", v)
+			, flash_strength, 0.0, step_time)
+		tween.tween_callback(func() -> void:
+			if _flash_material:
+				_flash_material.set_shader_parameter("flash_mix", 0.0)
+		)
+	elif _renderer:
+		# Per-instance ShipRenderer fallback — animate modulate
+		var color_arr: Array = vfx.enemy_hull_flash_color
+		var flash_color := Color(float(color_arr[0]), float(color_arr[1]), float(color_arr[2]), 1.0)
+		var tween := create_tween()
+		for i in count:
+			var bright := flash_color * intensity
+			bright.a = 1.0
+			tween.tween_property(_renderer, "modulate", bright, step_time * 0.1)
+			tween.tween_property(_renderer, "modulate", Color.WHITE, step_time * 0.9)
+		tween.tween_property(_renderer, "modulate", Color.WHITE, 0.0)
 
 
 func _play_immune_hit() -> void:
@@ -344,26 +358,26 @@ func _play_immune_hit() -> void:
 					field.queue_free()
 			)
 
-	# Impact burst using projectile-style effects at point of contact
-	if vfx.immune_impact_projectile_style_id != "":
-		var proj_style: ProjectileStyle = ProjectileStyleManager.load_by_id(vfx.immune_impact_projectile_style_id)
-		if proj_style and not proj_style.effect_profile.is_empty():
-			var layers: Dictionary = EffectLayerRenderer.resolve_layers(proj_style.effect_profile, 0)
-			var base_color: Color = proj_style.color
-			var impact_scale: float = vfx.immune_impact_scale
-			# Spawn impact emitters
-			var impact_layers: Array = layers.get("impact", []) as Array
-			for layer in impact_layers:
-				var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer as Dictionary, base_color)
-				if emitter:
-					emitter.scale *= impact_scale
-					add_child(emitter)
-			# Spawn muzzle emitters as additional burst
-			var muzzle_layers: Array = layers.get("muzzle", []) as Array
-			for layer in muzzle_layers:
-				var emitter: GPUParticles2D = VFXFactory.create_muzzle_emitter(layer as Dictionary, base_color)
-				if emitter:
-					emitter.scale *= impact_scale
-					add_child(emitter)
+	# Impact burst at point of contact
+	if vfx.immune_impact_type != "":
+		var color_arr: Array = vfx.immune_impact_color
+		var impact_color := Color(float(color_arr[0]), float(color_arr[1]), float(color_arr[2]), float(color_arr[3]))
+		if vfx.immune_impact_type == "deflect":
+			var deflect := VFXFactory.create_deflect_impact(impact_color, vfx.immune_impact_radius * 2.0, vfx.immune_impact_lifetime * 2.0)
+			if deflect:
+				add_child(deflect)
+		else:
+			var layer: Dictionary = {
+				"type": vfx.immune_impact_type,
+				"params": {
+					"particle_count": vfx.immune_impact_particle_count,
+					"lifetime": vfx.immune_impact_lifetime,
+					"radius": vfx.immune_impact_radius,
+					"speed_scale": vfx.immune_impact_speed_scale,
+				}
+			}
+			var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer, impact_color)
+			if emitter:
+				add_child(emitter)
 
 

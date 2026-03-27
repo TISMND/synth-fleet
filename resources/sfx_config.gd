@@ -6,6 +6,7 @@ const EVENT_IDS: Array[String] = [
 	"enemy_hull_hit",
 	"player_shield_hit",
 	"player_hull_hit",
+	"immune_hit",
 	"explosion_1",
 	"explosion_2",
 	"explosion_3",
@@ -49,6 +50,11 @@ const EVENT_IDS: Array[String] = [
 	"powerup_screen_on",
 	"powerup_systems_online",
 	"powerup_restored",
+	# Thermal purge cues (4 stages)
+	"purge_start",
+	"purge_venting",
+	"purge_complete",
+	"purge_engines_restored",
 ]
 
 const EVENT_LABELS: Dictionary = {
@@ -56,6 +62,7 @@ const EVENT_LABELS: Dictionary = {
 	"enemy_hull_hit": "ENEMY HULL HIT",
 	"player_shield_hit": "PLAYER SHIELD HIT",
 	"player_hull_hit": "PLAYER HULL HIT",
+	"immune_hit": "IMMUNE HIT",
 	"explosion_1": "EXPLOSION 1",
 	"explosion_2": "EXPLOSION 2",
 	"explosion_3": "EXPLOSION 3",
@@ -99,6 +106,11 @@ const EVENT_LABELS: Dictionary = {
 	"powerup_screen_on": "8. DISPLAY ONLINE",
 	"powerup_systems_online": "9. SYSTEMS ONLINE",
 	"powerup_restored": "10. FULL RESTORATION",
+	# Thermal purge cues
+	"purge_start": "1. PURGE START",
+	"purge_venting": "2. VENTING (50%)",
+	"purge_complete": "3. PURGE COMPLETE",
+	"purge_engines_restored": "4. ENGINES RESTORED",
 }
 
 const EVENT_DESCRIPTIONS: Dictionary = {
@@ -107,6 +119,7 @@ const EVENT_DESCRIPTIONS: Dictionary = {
 	"enemy_hull_hit": "Player projectile hits an enemy's hull (no shield remaining)",
 	"player_shield_hit": "Enemy projectile or contact hits the player's shield",
 	"player_hull_hit": "Enemy projectile or contact hits the player's hull directly",
+	"immune_hit": "Projectile hits an immune/invulnerable enemy — deflect feedback",
 	# Explosions
 	"explosion_1": "Small enemy death explosion (drones, small ships)",
 	"explosion_2": "Medium enemy death explosion (standard enemies)",
@@ -153,6 +166,11 @@ const EVENT_DESCRIPTIONS: Dictionary = {
 	"powerup_screen_on": "Step 8: CRT display powers back on — screen flickers to life",
 	"powerup_systems_online": "Step 9: Weapons and navigation systems come back online",
 	"powerup_restored": "Step 10: Full restoration — ship back to normal operation",
+	# Thermal Purge (V key — emergency heat vent)
+	"purge_start": "Purge initiated — vents open, hiss/whoosh as emergency cooling begins",
+	"purge_venting": "Midpoint — thermal at 50%, active venting sound, steam/gas release",
+	"purge_complete": "Thermal cleared — vents close, mechanical clunk, components reactivate",
+	"purge_engines_restored": "Engines back to full power — thrust ramp-up, speed restored",
 }
 
 var events: Dictionary = {}

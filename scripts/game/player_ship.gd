@@ -100,6 +100,21 @@ const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segm
 const ELECTRIC_SHIELD_BLEED_MULT: float = 1.5  # Overdraw penalty: 1.5x cost from shields
 const BLACKOUT_MAX_SPIN: float = 0.2  # Max radians/sec — gentle drift
 
+# Thermal purge — emergency heat vent (V key)
+var _purge_active: bool = false
+var _purge_elapsed: float = 0.0
+var _purge_recovery: bool = false  # True during 1-second speed recovery after purge
+var _purge_recovery_elapsed: float = 0.0
+var _pre_purge_weapon_states: Array = []  # Per-hardpoint active state snapshot
+var _pre_purge_core_states: Array = []
+var _pre_purge_device_states: Array = []
+var _pre_purge_shield: float = -1.0  # Shield level snapshot — restored after purge
+var _purge_thermal_start: float = 0.0  # Thermal at purge start — for midpoint cue
+var _purge_mid_cue_fired: bool = false
+const PURGE_DURATION: float = 4.0  # Fixed purge duration in seconds
+const PURGE_SHIELD_DRAIN_RATE: float = 20.0  # Shield drain per second during purge
+const PURGE_RECOVERY_DURATION: float = 1.0  # Speed recovery curve duration
+
 
 func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void:
 	add_to_group("player")
@@ -319,6 +334,17 @@ func _process(delta: float) -> void:
 		speed = 0.0
 		acceleration = 6.0  # ~10 seconds to stop from 60px/s
 
+	# Thermal purge drift — no input, coast on residual momentum
+	if _purge_active:
+		speed = 0.0
+		acceleration = 3.0  # Very slow deceleration — ship drifts until engines restore
+	elif _purge_recovery:
+		# Speed ramps back up over PURGE_RECOVERY_DURATION
+		var t: float = clampf(_purge_recovery_elapsed / PURGE_RECOVERY_DURATION, 0.0, 1.0)
+		var curve: float = t * t * (3.0 - 2.0 * t)  # Smoothstep curve
+		speed *= curve
+		acceleration *= curve
+
 	# Acceleration-based movement
 	var input_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_velocity: Vector2 = input_dir * speed
@@ -337,6 +363,12 @@ func _process(delta: float) -> void:
 	# Thermal cooling — only when no active component generates heat
 	if thermal > 0.0 and not _any_heat_source_active():
 		thermal = maxf(thermal - THERMAL_COOLING_RATE * delta, 0.0)
+
+	# Thermal purge — accelerated cooling during purge, then speed recovery
+	if _purge_active:
+		_process_thermal_purge(delta)
+	elif _purge_recovery:
+		_process_purge_recovery(delta)
 
 	# Continuous ram damage — DPS while overlapping enemies (Tyrian-style)
 	# Clean up freed enemies first
@@ -426,8 +458,8 @@ func _input(event: InputEvent) -> void:
 			print("[DEBUG] F10: Forced death during power loss")
 		return
 
-	# Lock all component controls during power death sequence
-	if _drifting:
+	# Lock all component controls during power death sequence or thermal purge
+	if _drifting or _purge_active:
 		return
 
 	# Per-slot toggles using dynamic action names from KeyBindingManager
@@ -518,6 +550,12 @@ func _input(event: InputEvent) -> void:
 		_update_hud_hardpoints()
 		_update_hud_cores()
 		_update_hud_devices()
+		return
+
+	# Thermal purge (V) — emergency heat vent with drift
+	if event.is_action_pressed("thermal_purge"):
+		if not _purge_active and not _purge_recovery and thermal > 0.0:
+			_start_thermal_purge()
 		return
 
 	# Combo presets
@@ -691,6 +729,14 @@ func _update_hud_devices() -> void:
 const SHUTDOWN_AUDIO_DURATION: float = 1.5  # Seconds to slow down and fade out loops
 
 func _start_drift() -> void:
+	# Cancel any active thermal purge — power loss takes priority
+	if _purge_active:
+		_purge_active = false
+		_pre_purge_weapon_states.clear()
+		_pre_purge_core_states.clear()
+		_pre_purge_device_states.clear()
+		_pre_purge_shield = -1.0  # Don't restore shields — power loss owns them now
+	_purge_recovery = false
 	_drifting = true
 	_drift_timer = 0.0
 	power_loss_started.emit()
@@ -1535,6 +1581,113 @@ func _any_heat_source_active() -> bool:
 			if pth > 0.0:
 				return true
 	return false
+
+
+# ── Thermal purge — emergency heat vent ──────────────────────────────
+
+func _start_thermal_purge() -> void:
+	## Snapshot active heat-generating components, shut them off, enter purge drift.
+	_purge_active = true
+	_purge_elapsed = 0.0
+	_purge_thermal_start = thermal
+	_purge_mid_cue_fired = false
+	_pre_purge_shield = shield  # Snapshot shield to restore after purge
+	_play_sfx_cue("purge_start")
+
+	# Snapshot and deactivate heat-generating components only
+	_pre_purge_weapon_states.clear()
+	for c in _hardpoint_controllers:
+		var hc: HardpointController = c as HardpointController
+		var was_active: bool = hc.is_active() if hc else false
+		_pre_purge_weapon_states.append(was_active)
+		if was_active and hc.weapon_data:
+			var th: float = float(hc.weapon_data.bar_effects.get("thermal", 0.0))
+			if th > 0.0:
+				hc.deactivate()
+
+	_pre_purge_core_states.clear()
+	for c in _core_controllers:
+		var cc: PowerCoreController = c as PowerCoreController
+		var was_active: bool = cc.is_active() if cc else false
+		_pre_purge_core_states.append(was_active)
+		if was_active and cc.power_core_data:
+			var generates_heat: bool = false
+			if float(cc.power_core_data.bar_effects.get("thermal", 0.0)) > 0.0:
+				generates_heat = true
+			for bet in cc.power_core_data.bar_effect_triggers:
+				if str(bet.get("type", "")) == "thermal" and float(bet.get("value", 0.0)) > 0.0:
+					generates_heat = true
+			if float(cc.power_core_data.passive_effects.get("thermal", 0.0)) > 0.0:
+				generates_heat = true
+			if generates_heat:
+				cc.deactivate()
+
+	_pre_purge_device_states.clear()
+	for c in _device_controllers:
+		var dc: DeviceController = c as DeviceController
+		var was_active: bool = dc.is_active() if dc else false
+		_pre_purge_device_states.append(was_active)
+		if was_active and dc.device_data:
+			var th: float = float(dc.device_data.bar_effects.get("thermal", 0.0))
+			var pth: float = float(dc.device_data.passive_effects.get("thermal", 0.0))
+			if th > 0.0 or pth > 0.0:
+				dc.deactivate()
+
+	_update_hud_hardpoints()
+	_update_hud_cores()
+	_update_hud_devices()
+
+
+func _process_thermal_purge(delta: float) -> void:
+	_purge_elapsed += delta
+	# Fixed-duration cooldown — thermal drops linearly to 0 over PURGE_DURATION
+	var t: float = clampf(_purge_elapsed / PURGE_DURATION, 0.0, 1.0)
+	thermal = _purge_thermal_start * (1.0 - t)
+	# Shield drain — rapid but cosmetic (restored after purge)
+	shield = maxf(shield - PURGE_SHIELD_DRAIN_RATE * delta, 0.0)
+	# Midpoint cue — when we pass 50% of the duration
+	if not _purge_mid_cue_fired and _purge_elapsed >= PURGE_DURATION * 0.5:
+		_purge_mid_cue_fired = true
+		_play_sfx_cue("purge_venting")
+	# End purge when duration is reached
+	if _purge_elapsed >= PURGE_DURATION:
+		thermal = 0.0
+		_end_thermal_purge()
+
+
+func _end_thermal_purge() -> void:
+	_purge_active = false
+	_play_sfx_cue("purge_complete")
+	# Restore shields to pre-purge level
+	if _pre_purge_shield >= 0.0:
+		shield = _pre_purge_shield
+		_pre_purge_shield = -1.0
+	# Restore components that were active before purge
+	for i in _pre_purge_weapon_states.size():
+		if i < _hardpoint_controllers.size() and bool(_pre_purge_weapon_states[i]):
+			_hardpoint_controllers[i].activate()
+	for i in _pre_purge_core_states.size():
+		if i < _core_controllers.size() and bool(_pre_purge_core_states[i]):
+			_core_controllers[i].activate()
+	for i in _pre_purge_device_states.size():
+		if i < _device_controllers.size() and bool(_pre_purge_device_states[i]):
+			_device_controllers[i].activate()
+	_pre_purge_weapon_states.clear()
+	_pre_purge_core_states.clear()
+	_pre_purge_device_states.clear()
+	_update_hud_hardpoints()
+	_update_hud_cores()
+	_update_hud_devices()
+	# Begin speed recovery
+	_purge_recovery = true
+	_purge_recovery_elapsed = 0.0
+
+
+func _process_purge_recovery(delta: float) -> void:
+	_purge_recovery_elapsed += delta
+	if _purge_recovery_elapsed >= PURGE_RECOVERY_DURATION:
+		_purge_recovery = false
+		_play_sfx_cue("purge_engines_restored")
 
 
 func disable_for_death() -> void:
