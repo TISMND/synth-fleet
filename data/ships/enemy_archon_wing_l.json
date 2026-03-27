@@ -3,7 +3,7 @@
 	"collision_offset_x": -189.0,
 	"collision_offset_y": -2.0,
 	"collision_shape": "capsule",
-	"collision_width": 96.0,
+	"collision_width": 70.0,
 	"display_name": "Archon Wing (L)",
 	"enable_screen_shake": false,
 	"explosion_color": [
@@ -40,7 +40,7 @@
 		"hull_hp": 345.0,
 		"hull_segments": 8.0,
 		"particle_slots": 1.0,
-		"shield_hp": 135.0,
+		"shield_hp": 0.0,
 		"shield_regen": 0.5,
 		"shield_segments": 10.0,
 		"speed": 40.0,

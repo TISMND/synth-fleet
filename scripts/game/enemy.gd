@@ -235,10 +235,10 @@ func _spawn_explosion() -> void:
 		container.add_child(explosion)
 
 
-func take_damage(amount: int, skips_shields: bool = false) -> void:
+func take_damage(amount: int, skips_shields: bool = false, hit_position: Vector2 = Vector2.ZERO) -> void:
 	# Immune boss core — deflect damage, play immune feedback
 	if is_boss_immune:
-		_play_immune_hit()
+		_play_immune_hit(hit_position)
 		return
 
 	var remaining: int = amount
@@ -338,9 +338,10 @@ func _flash_hull_hit() -> void:
 		tween.tween_property(_renderer, "modulate", Color.WHITE, 0.0)
 
 
-func _play_immune_hit() -> void:
+func _play_immune_hit(hit_pos: Vector2 = Vector2.ZERO) -> void:
 	SfxPlayer.play("immune_hit")
 	var vfx: VfxConfig = VfxConfigManager.load_config()
+	var local_hit: Vector2 = to_local(hit_pos) if hit_pos != Vector2.ZERO else Vector2.ZERO
 
 	# Main immune field effect (around ship)
 	if vfx.immune_field_style_id != "":
@@ -365,6 +366,7 @@ func _play_immune_hit() -> void:
 		if vfx.immune_impact_type == "deflect":
 			var deflect := VFXFactory.create_deflect_impact(impact_color, vfx.immune_impact_radius * 2.0, vfx.immune_impact_lifetime * 2.0)
 			if deflect:
+				deflect.position = local_hit
 				add_child(deflect)
 		else:
 			var layer: Dictionary = {
@@ -378,6 +380,7 @@ func _play_immune_hit() -> void:
 			}
 			var emitter: GPUParticles2D = VFXFactory.create_impact_emitter(layer, impact_color)
 			if emitter:
+				emitter.position = local_hit
 				add_child(emitter)
 
 

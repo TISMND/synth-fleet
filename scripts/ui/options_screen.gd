@@ -20,6 +20,9 @@ var _bg_rect: ColorRect
 var _title_label: Label
 var _sliders: Dictionary = {}  # bus_name -> HSlider
 var _value_labels: Dictionary = {}  # bus_name -> Label
+var _persist_checkbox: CheckBox = null
+var _persist_label: Label = null
+var _section_label: Label = null
 
 
 func _ready() -> void:
@@ -82,6 +85,32 @@ func _build_ui() -> void:
 		var display_name: String = def[0]
 		var bus_name: String = def[1]
 		_add_volume_row(vbox, display_name, bus_name)
+
+	# Gameplay section
+	var gameplay_spacer := Control.new()
+	gameplay_spacer.custom_minimum_size.y = 20
+	vbox.add_child(gameplay_spacer)
+
+	_section_label = Label.new()
+	_section_label.text = "GAMEPLAY"
+	_section_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	vbox.add_child(_section_label)
+
+	var cb_row := HBoxContainer.new()
+	cb_row.add_theme_constant_override("separation", 16)
+	vbox.add_child(cb_row)
+
+	_persist_label = Label.new()
+	_persist_label.text = "PERSIST ENEMY AUDIO"
+	_persist_label.custom_minimum_size.x = 180
+	_persist_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cb_row.add_child(_persist_label)
+
+	_persist_checkbox = CheckBox.new()
+	_persist_checkbox.text = "Keep enemy weapon loops after death"
+	_persist_checkbox.button_pressed = AudioBusSetup.persist_enemy_audio
+	_persist_checkbox.toggled.connect(_on_persist_toggled)
+	cb_row.add_child(_persist_checkbox)
 
 	# Spacer before back button
 	var spacer2 := Control.new()
@@ -146,6 +175,11 @@ func _on_slider_changed(value: float, bus_name: String) -> void:
 	_save_settings()
 
 
+func _on_persist_toggled(pressed: bool) -> void:
+	AudioBusSetup.persist_enemy_audio = pressed
+	_save_settings()
+
+
 func _on_back() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
@@ -204,6 +238,27 @@ func _apply_theme() -> void:
 				name_label.add_theme_font_size_override("font_size", body_size)
 				name_label.add_theme_color_override("font_color", text_color)
 				ThemeManager.apply_text_glow(name_label, "body")
+
+	# Gameplay section header
+	if _section_label:
+		if body_font:
+			_section_label.add_theme_font_override("font", body_font)
+		_section_label.add_theme_font_size_override("font_size", body_size)
+		_section_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+		ThemeManager.apply_text_glow(_section_label, "body")
+
+	# Persist label + checkbox
+	if _persist_label:
+		if body_font:
+			_persist_label.add_theme_font_override("font", body_font)
+		_persist_label.add_theme_font_size_override("font_size", body_size)
+		_persist_label.add_theme_color_override("font_color", text_color)
+		ThemeManager.apply_text_glow(_persist_label, "body")
+	if _persist_checkbox:
+		if body_font:
+			_persist_checkbox.add_theme_font_override("font", body_font)
+		_persist_checkbox.add_theme_font_size_override("font_size", body_size)
+		_persist_checkbox.add_theme_color_override("font_color", accent_color)
 
 	# Style slider grabber/track with theme colors
 	_style_sliders(accent_color)
@@ -283,6 +338,7 @@ func _save_settings() -> void:
 	for bus_name in _sliders:
 		var slider: HSlider = _sliders[bus_name]
 		data[bus_name] = slider.value
+	data["persist_enemy_audio"] = AudioBusSetup.persist_enemy_audio
 	var json_str: String = JSON.stringify(data, "\t")
 	var file: FileAccess = FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
 	if file:
@@ -311,6 +367,9 @@ func _load_settings() -> void:
 		slider.value = val
 		# Trigger the change to apply to AudioServer
 		_on_slider_changed(val, bus_name)
+	AudioBusSetup.persist_enemy_audio = bool(data.get("persist_enemy_audio", false))
+	if _persist_checkbox:
+		_persist_checkbox.button_pressed = AudioBusSetup.persist_enemy_audio
 
 
 func _input(event: InputEvent) -> void:

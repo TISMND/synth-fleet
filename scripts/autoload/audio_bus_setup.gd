@@ -22,6 +22,10 @@ const GAME_SUB_BUSES: Array[String] = ["Weapons", "SFX", "Enemies", "Atmosphere"
 ## UI bus routes directly to Master, bypassing GameAudio entirely.
 const UI_BUS := "UI"
 
+## When true, enemy weapon loops keep playing after death/despawn (layered music).
+## When false, loops fade out on death (default).
+var persist_enemy_audio: bool = false
+
 
 func _ready() -> void:
 	_ensure_buses()
@@ -86,6 +90,7 @@ func _load_volumes() -> void:
 	if json.parse(json_str) != OK:
 		return
 	var data: Dictionary = json.data
+	persist_enemy_audio = bool(data.get("persist_enemy_audio", false))
 	for bus_name_key in data:
 		var bus_idx: int = AudioServer.get_bus_index(str(bus_name_key))
 		if bus_idx < 0:

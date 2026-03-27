@@ -1,9 +1,9 @@
 {
-	"collision_height": 230.0,
+	"collision_height": 128.0,
 	"collision_offset_x": 0.0,
 	"collision_offset_y": -43.0,
 	"collision_shape": "capsule",
-	"collision_width": 400.0,
+	"collision_width": 316.0,
 	"display_name": "Archon Core",
 	"enable_screen_shake": true,
 	"explosion_color": [
@@ -36,7 +36,7 @@
 		"hull_hp": 1000.0,
 		"hull_segments": 8.0,
 		"particle_slots": 1.0,
-		"shield_hp": 500.0,
+		"shield_hp": 0.0,
 		"shield_regen": 2.0,
 		"shield_segments": 10.0,
 		"speed": 40.0,

@@ -633,7 +633,7 @@ func _update_hud_hardpoints() -> void:
 	_hud.update_hardpoints(data)
 
 
-func take_damage(amount: float, skips_shields: bool = false) -> void:
+func take_damage(amount: float, skips_shields: bool = false, _hit_position: Vector2 = Vector2.ZERO) -> void:
 	if _is_invulnerable:
 		return
 	var remaining: float = amount
@@ -1643,8 +1643,15 @@ func _process_thermal_purge(delta: float) -> void:
 	# Fixed-duration cooldown — thermal drops linearly to 0 over PURGE_DURATION
 	var t: float = clampf(_purge_elapsed / PURGE_DURATION, 0.0, 1.0)
 	thermal = _purge_thermal_start * (1.0 - t)
-	# Shield drain — rapid but cosmetic (restored after purge)
-	shield = maxf(shield - PURGE_SHIELD_DRAIN_RATE * delta, 0.0)
+	# Shields: drop to 0 in the first second, restore to pre-purge level in the last second
+	if _pre_purge_shield >= 0.0:
+		if _purge_elapsed < 1.0:
+			shield = lerpf(_pre_purge_shield, 0.0, clampf(_purge_elapsed / 1.0, 0.0, 1.0))
+		elif _purge_elapsed > PURGE_DURATION - 1.0:
+			var restore_t: float = clampf((_purge_elapsed - (PURGE_DURATION - 1.0)) / 1.0, 0.0, 1.0)
+			shield = lerpf(0.0, _pre_purge_shield, restore_t)
+		else:
+			shield = 0.0
 	# Midpoint cue — when we pass 50% of the duration
 	if not _purge_mid_cue_fired and _purge_elapsed >= PURGE_DURATION * 0.5:
 		_purge_mid_cue_fired = true
@@ -1658,10 +1665,8 @@ func _process_thermal_purge(delta: float) -> void:
 func _end_thermal_purge() -> void:
 	_purge_active = false
 	_play_sfx_cue("purge_complete")
-	# Restore shields to pre-purge level
-	if _pre_purge_shield >= 0.0:
-		shield = _pre_purge_shield
-		_pre_purge_shield = -1.0
+	# Shields already restored during final second of purge
+	_pre_purge_shield = -1.0
 	# Restore components that were active before purge
 	for i in _pre_purge_weapon_states.size():
 		if i < _hardpoint_controllers.size() and bool(_pre_purge_weapon_states[i]):

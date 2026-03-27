@@ -138,9 +138,8 @@ func get_loop_id() -> String:
 func cleanup() -> void:
 	if not _external_loop:
 		if is_enemy:
-			# Enemy loops are ref-counted (shared across same-weapon enemies)
-			# and always fade out over 1.5s to avoid sharp audio cuts
-			LoopMixer.release_loop(_loop_id, 2500)
+			if not AudioBusSetup.persist_enemy_audio:
+				LoopMixer.release_loop(_loop_id, 2500)
 		else:
 			LoopMixer.remove_loop(_loop_id)
 

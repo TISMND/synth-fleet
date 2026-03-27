@@ -234,7 +234,7 @@ func _apply_damage_to_tracked(dmg: int) -> void:
 		else:
 			var target: Node = _resolve_damage_target(area)
 			if target:
-				target.take_damage(dmg, skips_shields)
+				target.take_damage(dmg, skips_shields, area.global_position)
 		i -= 1
 
 
@@ -247,7 +247,7 @@ func _on_area_entered(area: Area2D) -> void:
 			_overlapping_enemies.append(area)
 		# Immediate first-hit damage
 		var initial_dmg: int = int(maxf(damage_per_tick * 0.1, 1.0))
-		target.take_damage(initial_dmg, skips_shields)
+		target.take_damage(initial_dmg, skips_shields, area.global_position)
 		# Spawn impact effect at enemy position
 		_spawn_impact_at(area.global_position)
 

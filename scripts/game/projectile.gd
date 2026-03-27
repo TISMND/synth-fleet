@@ -218,7 +218,7 @@ func _on_area_entered(area: Area2D) -> void:
 	if not area.has_method("take_damage") and area.get_parent() and area.get_parent().has_method("take_damage"):
 		target = area.get_parent()
 	if target.has_method("take_damage"):
-		target.take_damage(damage, skips_shields)
+		target.take_damage(damage, skips_shields, global_position)
 	_pierced_enemies.append(area)
 
 	# Splash damage — hit all enemies within radius (except the direct target)
