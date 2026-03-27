@@ -1,0 +1,44 @@
+{
+	"collision_height": 28.0,
+	"collision_shape": "capsule",
+	"collision_width": 16.0,
+	"display_name": "Shard",
+	"enable_screen_shake": false,
+	"explosion_color": [
+		0.0,
+		0.9,
+		1.0,
+		1.0
+	],
+	"explosion_size": 0.6,
+	"grid_size": [
+		20,
+		28
+	],
+	"hardpoints": [],
+	"id": "enemy_shard",
+	"level": "geometric",
+	"lines": [],
+	"render_mode": "neon",
+	"stats": {
+		"acceleration": 900.0,
+		"core_slots": 0.0,
+		"device_slots": 0.0,
+		"electric_segments": 2.0,
+		"external_slots": 0.0,
+		"field_slots": 0.0,
+		"hull_hp": 8.0,
+		"hull_segments": 2.0,
+		"internal_slots": 0.0,
+		"particle_slots": 0.0,
+		"shield_hp": 0.0,
+		"shield_regen": 0.0,
+		"shield_segments": 0.0,
+		"speed": 280.0,
+		"thermal_segments": 2.0,
+		"weapon_slots": 1.0
+	},
+	"type": "enemy",
+	"visual_id": "shard",
+	"weapon_id": "enemy_speck_turret"
+}

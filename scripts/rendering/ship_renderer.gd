@@ -417,6 +417,7 @@ func _draw_enemy_ship() -> void:
 		"pylon": _draw_pylon()
 		"aegis": _draw_aegis()
 		"helix": _draw_helix()
+		"shard": _draw_shard()
 		"conduit": _draw_conduit()
 		"archon_core": _draw_archon_core()
 		"archon_wing_l": _draw_archon_wing(-1.0)
@@ -562,6 +563,46 @@ func _draw_prism() -> void:
 	var core_r: float = 3.0 * s * (0.8 + pulse * 0.4)
 	draw_circle(Vector2.ZERO, core_r + 2.0, Color(hull_color.r, hull_color.g, hull_color.b, 0.3 * pulse))
 	draw_circle(Vector2.ZERO, core_r, Color(1.0, 1.0, 1.0, 0.7 * pulse))
+
+func _draw_shard() -> void:
+	var s := 1.0
+	# Sleek diamond hull — tall and narrow
+	var diamond := PackedVector2Array([
+		Vector2(0, 16 * s),      # Nose (bottom = forward for enemies)
+		Vector2(7 * s, 0),       # Right flank
+		Vector2(0, -14 * s),     # Tail
+		Vector2(-7 * s, 0),      # Left flank
+	])
+	_poly(diamond, hull_color, 1.4 * s)
+
+	# Inner accent diamond (slightly inset)
+	var inner := PackedVector2Array([
+		Vector2(0, 10 * s),
+		Vector2(4 * s, 0),
+		Vector2(0, -9 * s),
+		Vector2(-4 * s, 0),
+	])
+	_poly(inner, accent_color, 0.8 * s)
+
+	# Rotating square core — the spinning guts
+	var spin: float = time * 1.6
+	var core_r: float = 3.5 * s
+	var sq := PackedVector2Array()
+	for i in range(4):
+		var angle: float = TAU * float(i) / 4.0 + spin
+		sq.append(Vector2(cos(angle) * core_r, sin(angle) * core_r))
+	_poly(sq, detail_color, 1.0 * s)
+
+	# Pulsing center pip
+	var pulse: float = 0.5 + sin(time * 5.0) * 0.5
+	var pip_col := Color(1.0, 1.0, 1.0, 0.7 * pulse)
+	draw_circle(Vector2.ZERO, 1.5 * s, pip_col)
+
+	# Tiny engine flicker at tail
+	var eng_pulse: float = 0.6 + sin(time * 7.0) * 0.4
+	var eng_col := Color(engine_color.r, engine_color.g, engine_color.b, eng_pulse)
+	draw_circle(Vector2(0, -12 * s), 2.0 * s, Color(eng_col.r, eng_col.g, eng_col.b, 0.25 * eng_pulse))
+	draw_circle(Vector2(0, -12 * s), 1.2 * s, eng_col)
 
 func _draw_scythe() -> void:
 	var s := 1.3

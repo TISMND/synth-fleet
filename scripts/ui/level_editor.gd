@@ -85,19 +85,32 @@ var _enc_turn_speed_spin: SpinBox
 var _enc_weapons_active_check: CheckButton
 var _enc_center_btn: Button
 var _enc_delete_btn: Button
-var _enc_type_dropdown: OptionButton
-var _enc_key_shift_spin: SpinBox
-var _enc_key_shift_label: Label
-var _enc_bpm_shift_spin: SpinBox
-var _enc_bpm_shift_label: Label
-# Nodes to hide when encounter_type is "boss_transition"
-var _enc_normal_only_nodes: Array[Control] = []
+
+# Event placement state
+var _event_selected_idx: int = -1
+var _event_dragging: bool = false
+var _event_drag_start: Vector2 = Vector2.ZERO
+var _event_drag_origin_y: float = 0.0
+var _event_drag_origin_x: float = 0.0
+
+# Right panel — event controls
+var _event_content: VBoxContainer
+var _event_hint: Label
+var _event_type_dropdown: OptionButton
+var _event_boss_dropdown: OptionButton
+var _event_key_shift_label: Label
+var _event_key_shift_spin: SpinBox
+var _event_bpm_shift_label: Label
+var _event_bpm_shift_spin: SpinBox
+var _event_center_btn: Button
+var _event_delete_btn: Button
 
 # Right panel — mode toggle + nebula controls
 var _mode_toggle_box: HBoxContainer
 var _mode_enc_btn: Button
 var _mode_neb_btn: Button
 var _mode_doodad_btn: Button
+var _mode_event_btn: Button
 var _right_header: Label
 var _neb_content: VBoxContainer
 var _neb_hint: Label
@@ -1014,6 +1027,8 @@ func _handle_map_input(event: InputEvent) -> void:
 					_map_left_click_nebula(mb.position)
 				elif _edit_mode == "doodads":
 					_map_left_click_doodad(mb.position)
+				elif _edit_mode == "events":
+					_map_left_click_event(mb.position)
 				else:
 					_map_left_click(mb.position, mb.ctrl_pressed)
 			elif mb.button_index == MOUSE_BUTTON_RIGHT:
@@ -1021,6 +1036,8 @@ func _handle_map_input(event: InputEvent) -> void:
 					_map_right_click_nebula(mb.position)
 				elif _edit_mode == "doodads":
 					_map_right_click_doodad(mb.position)
+				elif _edit_mode == "events":
+					_map_right_click_event(mb.position)
 				else:
 					_map_right_click(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -1050,6 +1067,10 @@ func _handle_map_input(event: InputEvent) -> void:
 					_doodad_dragging = false
 					_save_current_level()
 					_update_doodad_right_panel()
+				elif _event_dragging:
+					_event_dragging = false
+					_save_current_level()
+					_update_event_right_panel()
 				elif _map_dragging:
 					_map_dragging = false
 
@@ -1083,6 +1104,13 @@ func _handle_map_input(event: InputEvent) -> void:
 			var delta_x: float = _canvas_x_to_level_x(mm.position.x) - _canvas_x_to_level_x(_doodad_drag_start.x)
 			dd["x"] = _doodad_drag_origin_x + delta_x
 			_map_canvas.queue_redraw()
+		elif _event_dragging and _event_selected_idx >= 0:
+			var ev: Dictionary = _selected_level.events[_event_selected_idx]
+			var delta_y: float = _canvas_y_to_level_y(mm.position.y) - _canvas_y_to_level_y(_event_drag_start.y)
+			ev["trigger_y"] = maxf(_event_drag_origin_y + delta_y, 0.0)
+			var delta_x: float = _canvas_x_to_level_x(mm.position.x) - _canvas_x_to_level_x(_event_drag_start.x)
+			ev["x_offset"] = _event_drag_origin_x + delta_x
+			_map_canvas.queue_redraw()
 		elif _map_dragging:
 			var delta: float = mm.position.y - _map_drag_start_y
 			var level_len: float = _selected_level.level_length
@@ -1100,7 +1128,6 @@ func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
 			var x_offset: float = _canvas_x_to_level_x(pos.x)
 			if trigger_y >= 0.0 and trigger_y <= _selected_level.level_length:
 				var enc: Dictionary = {
-					"encounter_type": str(_enc_type_dropdown.get_item_metadata(_enc_type_dropdown.selected)) if _enc_type_dropdown.selected >= 0 else "",
 					"path_id": str(_enc_path_dropdown.get_item_metadata(_enc_path_dropdown.selected)) if _enc_path_dropdown.selected >= 0 else "",
 					"formation_id": str(_enc_fm_dropdown.get_item_metadata(_enc_fm_dropdown.selected)) if _enc_fm_dropdown.selected >= 0 else "",
 					"ship_id": str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected)) if _enc_ship_dropdown.selected >= 0 else "enemy_1",
@@ -1114,8 +1141,6 @@ func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
 					"is_melee": _enc_melee_check.button_pressed,
 					"turn_speed": _enc_turn_speed_spin.value,
 					"weapons_active": _enc_weapons_active_check.button_pressed,
-					"key_shift_semitones": int(_enc_key_shift_spin.value),
-					"bpm_shift": _enc_bpm_shift_spin.value,
 				}
 				_selected_level.encounters.append(enc)
 				_selected_encounter_idx = _selected_level.encounters.size() - 1
@@ -1393,25 +1418,32 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_right_panel_vbox.add_child(_mode_toggle_box)
 
 	_mode_enc_btn = Button.new()
-	_mode_enc_btn.text = "ENCOUNTERS"
+	_mode_enc_btn.text = "ENC"
 	_mode_enc_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mode_enc_btn.pressed.connect(func() -> void: _set_edit_mode("encounters"))
 	ThemeManager.apply_button_style(_mode_enc_btn)
 	_mode_toggle_box.add_child(_mode_enc_btn)
 
 	_mode_neb_btn = Button.new()
-	_mode_neb_btn.text = "NEBULAS"
+	_mode_neb_btn.text = "NEB"
 	_mode_neb_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mode_neb_btn.pressed.connect(func() -> void: _set_edit_mode("nebulas"))
 	ThemeManager.apply_button_style(_mode_neb_btn)
 	_mode_toggle_box.add_child(_mode_neb_btn)
 
 	_mode_doodad_btn = Button.new()
-	_mode_doodad_btn.text = "DOODADS"
+	_mode_doodad_btn.text = "DOOD"
 	_mode_doodad_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mode_doodad_btn.pressed.connect(func() -> void: _set_edit_mode("doodads"))
 	ThemeManager.apply_button_style(_mode_doodad_btn)
 	_mode_toggle_box.add_child(_mode_doodad_btn)
+
+	_mode_event_btn = Button.new()
+	_mode_event_btn.text = "EVT"
+	_mode_event_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mode_event_btn.pressed.connect(func() -> void: _set_edit_mode("events"))
+	ThemeManager.apply_button_style(_mode_event_btn)
+	_mode_toggle_box.add_child(_mode_event_btn)
 
 	var mode_sep := HSeparator.new()
 	_right_panel_vbox.add_child(mode_sep)
@@ -1437,35 +1469,12 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_content.add_theme_constant_override("separation", 6)
 	_right_panel_vbox.add_child(_enc_content)
 
-	# Encounter type dropdown
-	var type_label := Label.new()
-	type_label.text = "ENCOUNTER TYPE"
-	ThemeManager.apply_text_glow(type_label, "body")
-	_enc_content.add_child(type_label)
-
-	_enc_type_dropdown = OptionButton.new()
-	_enc_type_dropdown.add_item("Normal", 0)
-	_enc_type_dropdown.set_item_metadata(0, "")
-	_enc_type_dropdown.add_item("Boss Transition", 1)
-	_enc_type_dropdown.set_item_metadata(1, "boss_transition")
-	_enc_type_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
-			_selected_level.encounters[_selected_encounter_idx]["encounter_type"] = str(_enc_type_dropdown.get_item_metadata(idx))
-			_save_current_level()
-			_update_enc_type_visibility()
-			_map_canvas.queue_redraw()
-	)
-	_enc_content.add_child(_enc_type_dropdown)
-
-	var type_sep := HSeparator.new()
-	_enc_content.add_child(type_sep)
-
 	# Path dropdown
 	var path_label := Label.new()
 	path_label.text = "PATH"
 	ThemeManager.apply_text_glow(path_label, "body")
 	_enc_content.add_child(path_label)
-	_enc_normal_only_nodes.append(path_label)
+
 
 	_enc_path_dropdown = OptionButton.new()
 	for i in range(_cached_path_ids.size()):
@@ -1528,6 +1537,10 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_level_filter.item_selected.connect(func(idx: int) -> void:
 		var filter_val: String = str(_enc_level_filter.get_item_metadata(idx))
 		_repopulate_ship_dropdown(filter_val)
+		# Show boss dropdown only when filter includes boss ships
+		var show_boss: bool = filter_val == "ALL" or filter_val == "boss"
+		_enc_boss_label.visible = show_boss
+		_enc_boss_dropdown.visible = show_boss
 	)
 	_enc_content.add_child(_enc_level_filter)
 
@@ -1548,9 +1561,9 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	)
 	_enc_content.add_child(_enc_ship_dropdown)
 
-	# Boss dropdown
+	# Boss dropdown (shown when level filter includes boss ships)
 	_enc_boss_label = Label.new()
-	_enc_boss_label.text = "BOSS (overrides ship)"
+	_enc_boss_label.text = "BOSS"
 	ThemeManager.apply_text_glow(_enc_boss_label, "body")
 	_enc_content.add_child(_enc_boss_label)
 
@@ -1568,50 +1581,14 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	)
 	_enc_content.add_child(_enc_boss_dropdown)
 
-	# Key shift (boss transition only)
-	_enc_key_shift_label = Label.new()
-	_enc_key_shift_label.text = "KEY SHIFT (semitones)"
-	ThemeManager.apply_text_glow(_enc_key_shift_label, "body")
-	_enc_content.add_child(_enc_key_shift_label)
-	_enc_key_shift_spin = SpinBox.new()
-	_enc_key_shift_spin.min_value = -12
-	_enc_key_shift_spin.max_value = 12
-	_enc_key_shift_spin.step = 1
-	_enc_key_shift_spin.value = 0
-	_enc_key_shift_spin.value_changed.connect(func(v: float) -> void:
-		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
-			_selected_level.encounters[_selected_encounter_idx]["key_shift_semitones"] = int(v)
-			_save_current_level()
-	)
-	_enc_content.add_child(_enc_key_shift_spin)
-
-	# BPM shift (boss transition only)
-	_enc_bpm_shift_label = Label.new()
-	_enc_bpm_shift_label.text = "BPM SHIFT"
-	ThemeManager.apply_text_glow(_enc_bpm_shift_label, "body")
-	_enc_content.add_child(_enc_bpm_shift_label)
-	_enc_bpm_shift_spin = SpinBox.new()
-	_enc_bpm_shift_spin.min_value = -30
-	_enc_bpm_shift_spin.max_value = 30
-	_enc_bpm_shift_spin.step = 1
-	_enc_bpm_shift_spin.value = 0
-	_enc_bpm_shift_spin.value_changed.connect(func(v: float) -> void:
-		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
-			_selected_level.encounters[_selected_encounter_idx]["bpm_shift"] = v
-			_save_current_level()
-	)
-	_enc_content.add_child(_enc_bpm_shift_spin)
-
 	# Speed
 	var sep2 := HSeparator.new()
 	_enc_content.add_child(sep2)
-	_enc_normal_only_nodes.append(sep2)
 
 	var speed_label := Label.new()
 	speed_label.text = "SPEED"
 	ThemeManager.apply_text_glow(speed_label, "body")
 	_enc_content.add_child(speed_label)
-	_enc_normal_only_nodes.append(speed_label)
 	_enc_speed_spin = SpinBox.new()
 	_enc_speed_spin.min_value = 50
 	_enc_speed_spin.max_value = 1000
@@ -1923,6 +1900,122 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	ThemeManager.apply_button_style(_doodad_delete_btn)
 	_doodad_content.add_child(_doodad_delete_btn)
 
+	# ── Event controls ──
+	_event_hint = Label.new()
+	_event_hint.text = "Click map to place event"
+	_event_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_event_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	_event_hint.visible = false
+	_right_panel_vbox.add_child(_event_hint)
+
+	_event_content = VBoxContainer.new()
+	_event_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_event_content.add_theme_constant_override("separation", 6)
+	_event_content.visible = false
+	_right_panel_vbox.add_child(_event_content)
+
+	var evt_type_label := Label.new()
+	evt_type_label.text = "EVENT TYPE"
+	ThemeManager.apply_text_glow(evt_type_label, "body")
+	_event_content.add_child(evt_type_label)
+
+	_event_type_dropdown = OptionButton.new()
+	_event_type_dropdown.add_item("Boss Transition", 0)
+	_event_type_dropdown.set_item_metadata(0, "boss_transition")
+	_event_type_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _event_selected_idx >= 0 and _selected_level and _event_selected_idx < _selected_level.events.size():
+			_selected_level.events[_event_selected_idx]["event_type"] = str(_event_type_dropdown.get_item_metadata(idx))
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	_event_content.add_child(_event_type_dropdown)
+
+	var evt_sep1 := HSeparator.new()
+	_event_content.add_child(evt_sep1)
+
+	var evt_boss_label := Label.new()
+	evt_boss_label.text = "BOSS"
+	ThemeManager.apply_text_glow(evt_boss_label, "body")
+	_event_content.add_child(evt_boss_label)
+
+	_event_boss_dropdown = OptionButton.new()
+	_event_boss_dropdown.add_item("(none)", 0)
+	_event_boss_dropdown.set_item_metadata(0, "")
+	for i in range(_cached_boss_ids.size()):
+		_event_boss_dropdown.add_item(_cached_boss_names[i], i + 1)
+		_event_boss_dropdown.set_item_metadata(i + 1, _cached_boss_ids[i])
+	_event_boss_dropdown.item_selected.connect(func(idx: int) -> void:
+		if _event_selected_idx >= 0 and _selected_level and _event_selected_idx < _selected_level.events.size():
+			_selected_level.events[_event_selected_idx]["boss_id"] = str(_event_boss_dropdown.get_item_metadata(idx))
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	_event_content.add_child(_event_boss_dropdown)
+
+	var evt_sep2 := HSeparator.new()
+	_event_content.add_child(evt_sep2)
+
+	_event_key_shift_label = Label.new()
+	_event_key_shift_label.text = "KEY SHIFT (semitones)"
+	ThemeManager.apply_text_glow(_event_key_shift_label, "body")
+	_event_content.add_child(_event_key_shift_label)
+
+	_event_key_shift_spin = SpinBox.new()
+	_event_key_shift_spin.min_value = -12
+	_event_key_shift_spin.max_value = 12
+	_event_key_shift_spin.step = 1
+	_event_key_shift_spin.value = 0
+	_event_key_shift_spin.value_changed.connect(func(v: float) -> void:
+		if _event_selected_idx >= 0 and _selected_level and _event_selected_idx < _selected_level.events.size():
+			_selected_level.events[_event_selected_idx]["key_shift_semitones"] = int(v)
+			_save_current_level()
+	)
+	_event_content.add_child(_event_key_shift_spin)
+
+	_event_bpm_shift_label = Label.new()
+	_event_bpm_shift_label.text = "BPM SHIFT"
+	ThemeManager.apply_text_glow(_event_bpm_shift_label, "body")
+	_event_content.add_child(_event_bpm_shift_label)
+
+	_event_bpm_shift_spin = SpinBox.new()
+	_event_bpm_shift_spin.min_value = -30
+	_event_bpm_shift_spin.max_value = 30
+	_event_bpm_shift_spin.step = 1
+	_event_bpm_shift_spin.value = 0
+	_event_bpm_shift_spin.value_changed.connect(func(v: float) -> void:
+		if _event_selected_idx >= 0 and _selected_level and _event_selected_idx < _selected_level.events.size():
+			_selected_level.events[_event_selected_idx]["bpm_shift"] = v
+			_save_current_level()
+	)
+	_event_content.add_child(_event_bpm_shift_spin)
+
+	var evt_sep3 := HSeparator.new()
+	_event_content.add_child(evt_sep3)
+
+	_event_center_btn = Button.new()
+	_event_center_btn.text = "CENTER"
+	_event_center_btn.pressed.connect(func() -> void:
+		if _event_selected_idx >= 0 and _selected_level and _event_selected_idx < _selected_level.events.size():
+			_selected_level.events[_event_selected_idx]["x_offset"] = 0.0
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	ThemeManager.apply_button_style(_event_center_btn)
+	_event_content.add_child(_event_center_btn)
+
+	_event_delete_btn = Button.new()
+	_event_delete_btn.text = "DELETE EVENT"
+	_event_delete_btn.pressed.connect(func() -> void:
+		if _event_selected_idx >= 0 and _selected_level and _event_selected_idx < _selected_level.events.size():
+			_selected_level.events.remove_at(_event_selected_idx)
+			_event_selected_idx = -1
+			_save_current_level()
+			_update_event_right_panel()
+			_map_canvas.queue_redraw()
+	)
+	ThemeManager.apply_button_style(_event_delete_btn)
+	_event_content.add_child(_event_delete_btn)
+
 	_set_edit_mode("encounters")
 	_update_right_panel()
 
@@ -2007,38 +2100,15 @@ func _update_right_panel() -> void:
 		_enc_turn_speed_spin.value = float(enc.get("turn_speed", 90.0))
 		_enc_weapons_active_check.button_pressed = bool(enc.get("weapons_active", true))
 
-		# Encounter type
-		var enc_type: String = str(enc.get("encounter_type", ""))
-		_enc_type_dropdown.select(1 if enc_type == "boss_transition" else 0)
-		_enc_key_shift_spin.value = int(enc.get("key_shift_semitones", 0))
-		_enc_bpm_shift_spin.value = float(enc.get("bpm_shift", 0.0))
+	# Update boss dropdown visibility based on level filter
+	var filter_val: String = ""
+	if _enc_level_filter.selected >= 0:
+		filter_val = str(_enc_level_filter.get_item_metadata(_enc_level_filter.selected))
+	var show_boss: bool = filter_val == "ALL" or filter_val == "boss"
+	_enc_boss_label.visible = show_boss
+	_enc_boss_dropdown.visible = show_boss
 
-	_update_enc_type_visibility()
 	_update_melee_ui_state()
-
-
-func _update_enc_type_visibility() -> void:
-	var is_transition: bool = _enc_type_dropdown.selected == 1
-	# Hide normal-encounter-only controls during boss transition
-	for node in _enc_normal_only_nodes:
-		node.visible = not is_transition
-	_enc_path_dropdown.visible = not is_transition
-	_enc_fm_dropdown.visible = not is_transition
-	_enc_level_filter.visible = not is_transition
-	_enc_ship_dropdown.visible = not is_transition
-	_enc_speed_spin.visible = not is_transition
-	_enc_count_spin.visible = not is_transition
-	_enc_spacing_spin.visible = not is_transition
-	_enc_rotate_check.visible = not is_transition
-	_enc_melee_check.visible = not is_transition
-	_enc_turn_speed_spin.visible = not is_transition
-	_enc_turn_speed_label.visible = not is_transition
-	_enc_weapons_active_check.visible = not is_transition
-	# Show boss-transition-only controls
-	_enc_key_shift_label.visible = is_transition
-	_enc_key_shift_spin.visible = is_transition
-	_enc_bpm_shift_label.visible = is_transition
-	_enc_bpm_shift_spin.visible = is_transition
 
 
 func _update_melee_ui_state() -> void:
@@ -2091,15 +2161,19 @@ func _set_edit_mode(mode: String) -> void:
 	var is_enc: bool = mode == "encounters"
 	var is_neb: bool = mode == "nebulas"
 	var is_dd: bool = mode == "doodads"
+	var is_evt: bool = mode == "events"
 	_mode_enc_btn.modulate = Color(1.2, 1.2, 1.5) if is_enc else Color(0.6, 0.6, 0.7)
 	_mode_neb_btn.modulate = Color(1.2, 1.2, 1.5) if is_neb else Color(0.6, 0.6, 0.7)
 	_mode_doodad_btn.modulate = Color(1.2, 1.2, 1.5) if is_dd else Color(0.6, 0.6, 0.7)
+	_mode_event_btn.modulate = Color(1.2, 1.2, 1.5) if is_evt else Color(0.6, 0.6, 0.7)
 	if is_enc:
 		_right_header.text = "ENCOUNTER"
 	elif is_neb:
 		_right_header.text = "NEBULA"
-	else:
+	elif is_dd:
 		_right_header.text = "DOODAD"
+	else:
+		_right_header.text = "EVENT"
 
 	_enc_hint.visible = is_enc
 	_enc_content.visible = is_enc
@@ -2107,13 +2181,17 @@ func _set_edit_mode(mode: String) -> void:
 	_neb_content.visible = is_neb
 	_doodad_hint.visible = is_dd
 	_doodad_content.visible = is_dd
+	_event_hint.visible = is_evt
+	_event_content.visible = is_evt
 
 	if is_enc:
 		_update_right_panel()
 	elif is_neb:
 		_update_nebula_right_panel()
-	else:
+	elif is_dd:
 		_update_doodad_right_panel()
+	else:
+		_update_event_right_panel()
 	_map_canvas.queue_redraw()
 
 
@@ -2191,6 +2269,128 @@ func _update_doodad_right_panel() -> void:
 	_doodad_rot_spin.value = float(dd.get("rotation_deg", 0.0))
 
 
+# ── Event operations ────────────────────────────────────────────
+
+const EVENT_HIT_RADIUS := 40.0
+
+
+func _update_event_right_panel() -> void:
+	if _edit_mode != "events":
+		return
+	var has_evt: bool = _selected_level != null and _event_selected_idx >= 0 and _event_selected_idx < _selected_level.events.size()
+
+	_event_hint.visible = true
+	if has_evt:
+		_event_hint.text = "Editing event #" + str(_event_selected_idx + 1)
+		_event_hint.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	else:
+		_event_hint.text = "Click map to place event"
+		_event_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+
+	_event_content.modulate = Color.WHITE
+	_event_type_dropdown.disabled = false
+	_event_boss_dropdown.disabled = not has_evt
+	_event_key_shift_spin.editable = has_evt
+	_event_bpm_shift_spin.editable = has_evt
+	_event_center_btn.disabled = not has_evt
+	_event_delete_btn.disabled = not has_evt
+
+	if not has_evt:
+		return
+
+	var ev: Dictionary = _selected_level.events[_event_selected_idx]
+
+	# Update type dropdown
+	var ev_type: String = str(ev.get("event_type", "boss_transition"))
+	for i in range(_event_type_dropdown.item_count):
+		if str(_event_type_dropdown.get_item_metadata(i)) == ev_type:
+			_event_type_dropdown.select(i)
+			break
+
+	# Update boss dropdown
+	var current_boss_id: String = str(ev.get("boss_id", ""))
+	var boss_select: int = 0
+	for i in range(_event_boss_dropdown.item_count):
+		if str(_event_boss_dropdown.get_item_metadata(i)) == current_boss_id:
+			boss_select = i
+			break
+	if _event_boss_dropdown.item_count > 0:
+		_event_boss_dropdown.select(boss_select)
+
+	_event_key_shift_spin.value = int(ev.get("key_shift_semitones", 0))
+	_event_bpm_shift_spin.value = float(ev.get("bpm_shift", 0.0))
+
+
+func _map_left_click_event(click_pos: Vector2) -> void:
+	if not _selected_level:
+		return
+	# Hit test existing events
+	for i in range(_selected_level.events.size()):
+		var ev: Dictionary = _selected_level.events[i]
+		var cy: float = _level_y_to_canvas_y(float(ev["trigger_y"]))
+		var cx: float = _level_x_to_canvas_x(float(ev.get("x_offset", 0.0)))
+		if click_pos.distance_to(Vector2(cx, cy)) < EVENT_HIT_RADIUS:
+			_event_selected_idx = i
+			_event_dragging = true
+			_event_drag_start = click_pos
+			_event_drag_origin_y = float(ev["trigger_y"])
+			_event_drag_origin_x = float(ev.get("x_offset", 0.0))
+			_update_event_right_panel()
+			_map_canvas.queue_redraw()
+			return
+
+	# Place new event
+	var map_rect: Rect2 = _get_map_rect()
+	if map_rect.has_point(click_pos):
+		var trigger_y: float = _canvas_y_to_level_y(click_pos.y)
+		var x_offset: float = _canvas_x_to_level_x(click_pos.x)
+		if trigger_y >= 0.0 and trigger_y <= _selected_level.level_length:
+			var ev_type: String = "boss_transition"
+			if _event_type_dropdown.selected >= 0:
+				ev_type = str(_event_type_dropdown.get_item_metadata(_event_type_dropdown.selected))
+			var ev: Dictionary = {
+				"event_type": ev_type,
+				"trigger_y": trigger_y,
+				"x_offset": x_offset,
+				"boss_id": "",
+				"key_shift_semitones": 0,
+				"bpm_shift": 0.0,
+			}
+			_selected_level.events.append(ev)
+			_event_selected_idx = _selected_level.events.size() - 1
+			_save_current_level()
+			_update_event_right_panel()
+			_map_canvas.queue_redraw()
+			return
+
+	# Click outside map — deselect + scroll drag
+	_event_selected_idx = -1
+	_map_dragging = true
+	_map_drag_start_y = click_pos.y
+	_map_drag_scroll_start = _scroll_offset
+	_update_event_right_panel()
+	_map_canvas.queue_redraw()
+
+
+func _map_right_click_event(click_pos: Vector2) -> void:
+	if not _selected_level:
+		return
+	for i in range(_selected_level.events.size()):
+		var ev: Dictionary = _selected_level.events[i]
+		var cy: float = _level_y_to_canvas_y(float(ev["trigger_y"]))
+		var cx: float = _level_x_to_canvas_x(float(ev.get("x_offset", 0.0)))
+		if click_pos.distance_to(Vector2(cx, cy)) < EVENT_HIT_RADIUS:
+			_selected_level.events.remove_at(i)
+			if _event_selected_idx == i:
+				_event_selected_idx = -1
+			elif _event_selected_idx > i:
+				_event_selected_idx -= 1
+			_save_current_level()
+			_update_event_right_panel()
+			_map_canvas.queue_redraw()
+			return
+
+
 func _map_left_click_doodad(click_pos: Vector2) -> void:
 	if not _selected_level:
 		return
@@ -2263,6 +2463,7 @@ func _select_level(lv: LevelData) -> void:
 	_selected_encounter_idx = -1
 	_nebula_selected_idx = -1
 	_doodad_selected_idx = -1
+	_event_selected_idx = -1
 	_scroll_offset = 0.0
 	_update_level_props_ui()
 	_rebuild_level_list()
@@ -2270,6 +2471,8 @@ func _select_level(lv: LevelData) -> void:
 	_update_nebula_right_panel()
 	if _edit_mode == "doodads":
 		_update_doodad_right_panel()
+	if _edit_mode == "events":
+		_update_event_right_panel()
 	_apply_editor_background()
 	_map_canvas.queue_redraw()
 	if _preview_mode:
@@ -2292,6 +2495,7 @@ func _on_new_level() -> void:
 		"flight_speed": 160.0,
 		"level_length": 10000.0,
 		"encounters": [],
+		"events": [],
 	}
 	LevelDataManager.save(new_id, data)
 	_load_all_levels()
@@ -2463,12 +2667,9 @@ class _MapCanvasDraw extends Control:
 
 			var is_selected: bool = (i == s._selected_encounter_idx or i in s._selected_encounter_indices)
 			var enc_is_melee: bool = bool(enc.get("is_melee", false))
-			var enc_type: String = str(enc.get("encounter_type", ""))
 			var color: Color
 			if is_selected:
 				color = Color(1.0, 0.5, 0.2)
-			elif enc_type == "boss_transition":
-				color = Color(1.0, 0.9, 0.2)  # Yellow for boss transitions
 			elif enc_is_melee:
 				color = Color(1.0, 0.3, 0.3)
 			else:
@@ -2531,6 +2732,50 @@ class _MapCanvasDraw extends Control:
 					var path_name: String = s._path_id_to_name.get(enc_path_id, enc_path_id) as String
 					var path_color := Color(0.5, 0.9, 1.0, 0.7) if is_selected else Color(0.4, 0.7, 0.9, 0.5)
 					draw_string(font3, Vector2(label_x, cy + label_y_offset), path_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, path_color)
+
+
+		# Draw event markers (yellow diamonds, visible in all modes)
+		for i in range(level.events.size()):
+			var ev: Dictionary = level.events[i]
+			var ecy: float = s._level_y_to_canvas_y(float(ev["trigger_y"]))
+			var ecx: float = s._level_x_to_canvas_x(float(ev.get("x_offset", 0.0)))
+
+			if ecy < -30 or ecy > canvas_h + 30:
+				continue
+
+			var is_evt_selected: bool = (s._edit_mode == "events" and i == s._event_selected_idx)
+			var evt_color: Color = Color(1.0, 0.5, 0.2) if is_evt_selected else Color(1.0, 0.9, 0.2)
+
+			# Diamond marker
+			var esz: float = 18.0
+			var epts := PackedVector2Array([
+				Vector2(ecx, ecy - esz),
+				Vector2(ecx + esz * 0.7, ecy),
+				Vector2(ecx, ecy + esz),
+				Vector2(ecx - esz * 0.7, ecy),
+			])
+
+			# Glow
+			if is_evt_selected:
+				for g in range(3, 0, -1):
+					var t: float = float(g) / 3.0
+					var gscale: float = 1.0 + t * 0.8
+					var gpts := PackedVector2Array()
+					for p in epts:
+						gpts.append(Vector2(ecx, ecy) + (p - Vector2(ecx, ecy)) * gscale)
+					draw_colored_polygon(gpts, Color(evt_color, (1.0 - t) * 0.15))
+
+			draw_colored_polygon(epts, evt_color)
+
+			# Label: event type + boss name
+			var ev_type: String = str(ev.get("event_type", ""))
+			var ev_boss_id: String = str(ev.get("boss_id", ""))
+			var evt_label: String = ev_type.replace("_", " ").to_upper()
+			if ev_boss_id != "":
+				evt_label += " — " + ev_boss_id
+			var efont: Font = ThemeDB.fallback_font
+			var elabel_x: float = ecx + esz * 0.7 + 6
+			draw_string(efont, Vector2(elabel_x, ecy + 4), evt_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(evt_color, 0.9))
 
 
 		# Selection box overlay

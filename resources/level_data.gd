@@ -13,6 +13,7 @@ extends Resource
 @export var deep_background: String = ""  # Path to deep bg image (empty = star field only)
 @export var doodads: Array = []  # Array of doodad placement dicts
 @export var nebula_placements: Array = []  # Array of placement dicts
+@export var events: Array = []  # Array of event dicts (boss transitions, etc.)
 
 
 static func from_dict(data: Dictionary) -> LevelData:
@@ -27,9 +28,20 @@ static func from_dict(data: Dictionary) -> LevelData:
 	l.deep_background = str(data.get("deep_background", ""))
 	var raw_enc: Array = data.get("encounters", [])
 	l.encounters = []
+	l.events = []
 	for enc in raw_enc:
+		# Migrate boss_transition encounters to events array
+		if str(enc.get("encounter_type", "")) == "boss_transition":
+			l.events.append({
+				"event_type": "boss_transition",
+				"trigger_y": float(enc.get("trigger_y", 0.0)),
+				"x_offset": float(enc.get("x_offset", 0.0)),
+				"boss_id": str(enc.get("boss_id", "")),
+				"key_shift_semitones": int(enc.get("key_shift_semitones", 0)),
+				"bpm_shift": float(enc.get("bpm_shift", 0.0)),
+			})
+			continue
 		l.encounters.append({
-			"encounter_type": str(enc.get("encounter_type", "")),
 			"path_id": str(enc.get("path_id", "")),
 			"formation_id": str(enc.get("formation_id", "")),
 			"ship_id": str(enc.get("ship_id", "enemy_1")),
@@ -43,8 +55,6 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"is_melee": bool(enc.get("is_melee", false)),
 			"turn_speed": float(enc.get("turn_speed", 90.0)),
 			"weapons_active": bool(enc.get("weapons_active", true)),
-			"key_shift_semitones": int(enc.get("key_shift_semitones", 0)),
-			"bpm_shift": float(enc.get("bpm_shift", 0.0)),
 		})
 	var raw_doodads: Array = data.get("doodads", [])
 	l.doodads = []
@@ -55,6 +65,17 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"y": float(dd.get("y", 0.0)),
 			"scale": float(dd.get("scale", 1.0)),
 			"rotation_deg": float(dd.get("rotation_deg", 0.0)),
+		})
+	# Parse explicit events array (in addition to any migrated from encounters above)
+	var raw_events: Array = data.get("events", [])
+	for ev in raw_events:
+		l.events.append({
+			"event_type": str(ev.get("event_type", "boss_transition")),
+			"trigger_y": float(ev.get("trigger_y", 0.0)),
+			"x_offset": float(ev.get("x_offset", 0.0)),
+			"boss_id": str(ev.get("boss_id", "")),
+			"key_shift_semitones": int(ev.get("key_shift_semitones", 0)),
+			"bpm_shift": float(ev.get("bpm_shift", 0.0)),
 		})
 	var raw_neb: Array = data.get("nebula_placements", [])
 	l.nebula_placements = []
@@ -79,6 +100,7 @@ func to_dict() -> Dictionary:
 		"background_shader": background_shader,
 		"deep_background": deep_background,
 		"encounters": encounters,
+		"events": events,
 		"doodads": doodads,
 		"nebula_placements": nebula_placements,
 	}

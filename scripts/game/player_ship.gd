@@ -23,6 +23,7 @@ var acceleration: float = 1200.0
 var _base_speed: float = 400.0
 var _base_accel: float = 1200.0
 var _velocity: Vector2 = Vector2.ZERO
+var _mouse_activated: bool = false
 var _hardpoint_controllers: Array = []
 var _core_controllers: Array = []  # PowerCoreController instances
 var _core_data_per_slot: Array = []  # [{label, pc}]
@@ -354,7 +355,7 @@ func _process(delta: float) -> void:
 	var input_dir: Vector2
 	if kbd_dir.length_squared() > 0.0:
 		input_dir = kbd_dir
-	else:
+	elif _mouse_activated:
 		var mouse_pos: Vector2 = get_global_mouse_position()
 		var to_mouse: Vector2 = (mouse_pos - global_position) * GameState.mouse_sensitivity
 		var dist: float = to_mouse.length()
@@ -365,6 +366,8 @@ func _process(delta: float) -> void:
 		else:
 			var strength: float = clampf((dist - MOUSE_DEAD_ZONE) / (MOUSE_FULL_ZONE - MOUSE_DEAD_ZONE), 0.0, 1.0)
 			input_dir = to_mouse.normalized() * strength
+	else:
+		input_dir = Vector2.ZERO
 	var target_velocity: Vector2 = input_dir * speed
 	_velocity = _velocity.move_toward(target_velocity, acceleration * delta)
 	position += _velocity * delta

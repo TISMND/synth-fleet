@@ -18,7 +18,7 @@ const BUS_DEFS: Array[Array] = [
 const TAB_NAMES: Array[String] = ["SOUND", "GAMEPLAY", "CONTROLS", "VIDEO"]
 
 var _vhs_overlay: ColorRect
-var _bg_rect: ColorRect
+var _bg_rect: TextureRect
 var _title_label: Label
 var _tab_buttons: Array[Button] = []
 var _tab_panels: Array[Control] = []
@@ -66,9 +66,12 @@ func _ensure_audio_buses() -> void:
 
 
 func _build_ui() -> void:
-	# Grid background
-	_bg_rect = ColorRect.new()
+	# Background image
+	_bg_rect = TextureRect.new()
+	_bg_rect.texture = load("res://assets/backgrounds/options_bg.png")
 	_bg_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_bg_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_bg_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_bg_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_bg_rect)
 	move_child(_bg_rect, 0)
@@ -662,7 +665,6 @@ func _on_theme_changed() -> void:
 
 
 func _apply_theme() -> void:
-	ThemeManager.apply_grid_background(_bg_rect)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 	# Title

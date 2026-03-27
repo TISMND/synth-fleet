@@ -455,6 +455,13 @@ func _on_all_waves_cleared() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Activate mouse control on the player ship after first real mouse movement
+	if _player and not _player._mouse_activated and event is InputEventMouseMotion:
+		_player._mouse_activated = true
+	# Forward mouse button events into the game SubViewport — the container uses
+	# MOUSE_FILTER_IGNORE so mouse clicks don't reach the player ship otherwise.
+	if event is InputEventMouseButton and _game_viewport:
+		_game_viewport.push_input(event)
 	if _game_over_overlay and event.is_pressed() and not event.is_echo():
 		_return_to_menu()
 		return

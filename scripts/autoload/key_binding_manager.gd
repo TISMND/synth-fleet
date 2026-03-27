@@ -507,6 +507,28 @@ func is_key_conflicting(physical_keycode: int, exclude_slot: String = "") -> Str
 	return ""
 
 
+func _clear_mouse_button(mouse_button: int, exclude_slot_key: String, exclude_action: String) -> void:
+	## Remove a mouse button from all bindings except the excluded slot/action.
+	# Clear from slot/firegroup mouse bindings
+	var keys_to_erase: Array = []
+	for key in _mouse_bindings:
+		if key == exclude_slot_key:
+			continue
+		var mb: Dictionary = _mouse_bindings[key]
+		if int(mb.get("mouse_button", 0)) == mouse_button:
+			keys_to_erase.append(key)
+	for key in keys_to_erase:
+		_mouse_bindings.erase(key)
+	# Clear from action bindings
+	for action_name in _action_bindings:
+		if action_name == exclude_action:
+			continue
+		var ab: Dictionary = _action_bindings[action_name]
+		if int(ab.get("mouse", 0)) == mouse_button:
+			ab["mouse"] = 0
+			ab["mouse_label"] = ""
+
+
 func add_combo_preset(label: String, pattern: Dictionary, physical_keycode: int, key_label: String) -> void:
 	_combo_presets.append({
 		"label": label,
@@ -596,6 +618,8 @@ func set_action_binding_keyboard(action_name: String, physical_keycode: int, lab
 func set_action_binding_mouse(action_name: String, mouse_button: int, label: String) -> void:
 	if not _action_bindings.has(action_name):
 		return
+	if mouse_button != 0:
+		_clear_mouse_button(mouse_button, "", action_name)
 	_action_bindings[action_name]["mouse"] = mouse_button
 	_action_bindings[action_name]["mouse_label"] = label
 	apply_to_input_map()
@@ -619,6 +643,7 @@ func set_mouse_binding(key: String, mouse_button: int, mouse_label: String) -> v
 	if mouse_button == 0:
 		_mouse_bindings.erase(key)
 	else:
+		_clear_mouse_button(mouse_button, key, "")
 		_mouse_bindings[key] = {"mouse_button": mouse_button, "mouse_label": mouse_label}
 	apply_to_input_map()
 	save_bindings()

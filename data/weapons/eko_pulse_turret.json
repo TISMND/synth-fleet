@@ -21,8 +21,8 @@
 		},
 		"version": 2
 	},
-	"fade_in_ms": 1110,
-	"fade_out_ms": 1110,
+	"fade_in_ms": 150,
+	"fade_out_ms": 760,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,

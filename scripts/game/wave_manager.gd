@@ -32,6 +32,10 @@ var _projectiles_container: Node2D = null
 var _pre_triggered_encounters: Dictionary = {}  # encounter index -> bool
 var shared_renderer: EnemySharedRenderer = null
 
+# Level events (boss transitions, etc.)
+var _sorted_events: Array[Dictionary] = []
+var _next_event_idx: int = 0
+
 const PRESENCE_LEAD_DISTANCE: float = 160.0  # ~2s at 80px/s scroll speed
 
 const ENEMY_COLORS: Array[Color] = [
@@ -72,6 +76,15 @@ func setup_level(level: LevelData, enemies_container: Node2D, player: Node2D = n
 		return float(a["trigger_y"]) < float(b["trigger_y"])
 	)
 
+	# Sort events by trigger_y
+	_sorted_events.clear()
+	_next_event_idx = 0
+	for ev in level.events:
+		_sorted_events.append(ev.duplicate())
+	_sorted_events.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["trigger_y"]) < float(b["trigger_y"])
+	)
+
 
 func advance_scroll(distance: float) -> void:
 	if not _level_mode:
@@ -79,6 +92,7 @@ func advance_scroll(distance: float) -> void:
 	_scroll_distance = distance
 	_check_presence_pretriggers()
 	_check_encounter_triggers()
+	_check_event_triggers()
 
 
 func _check_presence_pretriggers() -> void:
@@ -104,14 +118,21 @@ func _check_encounter_triggers() -> void:
 			break
 
 
+func _check_event_triggers() -> void:
+	while _next_event_idx < _sorted_events.size():
+		var ev: Dictionary = _sorted_events[_next_event_idx]
+		var trigger_y: float = float(ev["trigger_y"])
+		if _scroll_distance >= trigger_y:
+			var event_type: String = str(ev.get("event_type", ""))
+			if event_type == "boss_transition":
+				boss_transition_triggered.emit(ev)
+			_next_event_idx += 1
+		else:
+			break
+
+
 func _spawn_encounter(enc: Dictionary) -> void:
 	if not _enemies_container:
-		return
-
-	# Boss transition encounter — emit signal for game.gd to handle the sequence
-	var enc_type: String = str(enc.get("encounter_type", ""))
-	if enc_type == "boss_transition":
-		boss_transition_triggered.emit(enc)
 		return
 
 	# Boss encounter — spawn entire boss composition
