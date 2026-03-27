@@ -444,9 +444,9 @@ func _on_slot_toggle(slot_key: String) -> void:
 
 func _toggle_slot_list(slot_key: String) -> void:
 	if _expanded_slot == slot_key:
-		_clear_right_panel()
 		_expanded_slot = ""
 		_unhighlight_all_slot_btns()
+		_restore_net_effect_panel()
 		return
 	_expanded_slot = slot_key
 	_unhighlight_all_slot_btns()
@@ -938,17 +938,22 @@ func _rebuild_workshop_content() -> void:
 			row.add_theme_constant_override("separation", 8)
 			slot_vbox.add_child(row)
 
-			# Power toggle
+			# Power toggle — wrapped in fixed-size container to prevent layout shift
+			var toggle_wrapper := Control.new()
+			toggle_wrapper.custom_minimum_size = Vector2(36, 36)
+			row.add_child(toggle_wrapper)
+
 			var toggle_btn := Button.new()
 			toggle_btn.text = "\u23fb"
 			toggle_btn.custom_minimum_size = Vector2(36, 36)
-			toggle_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			toggle_btn.position = Vector2.ZERO
 			_apply_power_toggle_style(toggle_btn, is_active)
+			toggle_btn.visible = _is_playing  # Only show when simulator is running
 			var bound_slot: String = slot_key
 			toggle_btn.pressed.connect(func() -> void: _on_fg_slot_toggle(bound_slot))
-			row.add_child(toggle_btn)
+			toggle_wrapper.add_child(toggle_btn)
 
-			# Slot name — styled button to open picker (matches loadout aesthetic)
+			# Slot name — styled button to open picker
 			var name_btn := Button.new()
 			name_btn.text = item_name
 			name_btn.custom_minimum_size.y = 54
@@ -965,19 +970,6 @@ func _rebuild_workshop_content() -> void:
 			row.add_child(name_btn)
 			_slot_btns[slot_key] = name_btn
 
-			# Key binding button — shows current bound key, click to rebind
-			var current_binding: Dictionary = KeyBindingManager.get_binding(slot_key)
-			var key_label_text: String = str(current_binding.get("label", "?"))
-			var key_btn := Button.new()
-			key_btn.text = key_label_text
-			key_btn.custom_minimum_size = Vector2(40, 36)
-			key_btn.tooltip_text = "Click to rebind key"
-			_darken_button(key_btn)
-			key_btn.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
-			var capture_key: String = slot_key
-			key_btn.pressed.connect(func() -> void: _start_key_capture(capture_key))
-			row.add_child(key_btn)
-
 			# Rate badges
 			var rate_label_refs: Array = _build_rate_badges(slot_vbox, slot_rates, is_active)
 			_ws_slot_rows[slot_key] = {"toggle_btn": toggle_btn, "name_btn": name_btn, "rate_labels": rate_label_refs}
@@ -987,8 +979,9 @@ func _rebuild_workshop_content() -> void:
 		section_spacer.custom_minimum_size.y = 4
 		slots_vbox.add_child(section_spacer)
 
-	# Totals
-	_build_fg_totals(active_totals, body_font, _workshop_content)
+	# Show net effect in right panel only when no slot picker is open
+	if _expanded_slot == "":
+		_show_net_effect_panel(active_totals)
 
 
 func _update_mode_buttons() -> void:
@@ -1256,6 +1249,46 @@ func _build_rate_badges(parent_vbox: VBoxContainer, slot_rates: Dictionary, is_a
 		rates_hbox.add_child(rate_box)
 		rate_label_refs.append(rl)
 	return rate_label_refs
+
+
+func _restore_net_effect_panel() -> void:
+	## Recalculate active totals and show net effect in right panel.
+	var active_totals: Dictionary = {}
+	var all_slots: Array = _get_all_slot_keys()
+	for slot_key in all_slots:
+		if _slot_active.get(slot_key, true):
+			var slot_rates: Dictionary = _get_slot_rates(slot_key)
+			for bar_type in slot_rates:
+				active_totals[str(bar_type)] = float(active_totals.get(str(bar_type), 0.0)) + float(slot_rates[bar_type])
+	_show_net_effect_panel(active_totals)
+
+
+func _show_net_effect_panel(active_totals: Dictionary) -> void:
+	## Show net effect summary in the right panel (default when no slot picker is open).
+	if not _right_panel:
+		return
+	_clear_right_panel()
+	_right_panel.visible = true
+	_right_panel_header.text = "NET EFFECT"
+	_right_panel_header.visible = true
+	_right_panel_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 2)
+	ThemeManager.apply_text_glow(_right_panel_header, "header")
+	var body_font: Font = ThemeManager.get_font("font_body")
+	_build_fg_totals(active_totals, body_font, _right_panel_list)
+
+	# Simulator hint
+	var hint_spacer := Control.new()
+	hint_spacer.custom_minimum_size.y = 12
+	_right_panel_list.add_child(hint_spacer)
+	var hint := Label.new()
+	hint.text = "[Run simulator to test component effects]"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.3))
+	hint.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_body"))
+	if body_font:
+		hint.add_theme_font_override("font", body_font)
+	_right_panel_list.add_child(hint)
 
 
 func _build_fg_totals(active_totals: Dictionary, body_font: Font, parent: VBoxContainer = null) -> void:
@@ -2394,7 +2427,16 @@ func _on_play_toggle() -> void:
 		_is_playing = true
 		_sync_preview_active_states()
 		_play_btn.text = "STOP"
+	_sync_power_toggle_visibility()
 	_sync_audio_play_btn()
+
+
+func _sync_power_toggle_visibility() -> void:
+	for slot_key in _ws_slot_rows:
+		var entry: Dictionary = _ws_slot_rows[slot_key]
+		var toggle_btn: Button = entry.get("toggle_btn") as Button
+		if toggle_btn:
+			toggle_btn.visible = _is_playing
 
 
 func _on_audio_play_toggle() -> void:
