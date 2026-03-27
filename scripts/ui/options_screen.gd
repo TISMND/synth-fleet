@@ -1,11 +1,11 @@
 extends Control
-## Options screen with volume sliders for each audio bus.
-## Accessible from main menu. Saves/loads settings to user://settings/audio.json.
+## Options screen with tabbed layout: Sound, Gameplay, Controls, Video.
+## Each category saves to its own file under user://settings/.
 
-const SETTINGS_PATH := "user://settings/audio.json"
+const AUDIO_SETTINGS_PATH := "user://settings/audio.json"
+const GAMEPLAY_SETTINGS_PATH := "user://settings/gameplay.json"
 
 # Bus definitions: display name -> AudioServer bus name
-# These buses are created programmatically at startup if they don't exist.
 const BUS_DEFS: Array[Array] = [
 	["MASTER", "Master"],
 	["WEAPONS", "Weapons"],
@@ -15,14 +15,22 @@ const BUS_DEFS: Array[Array] = [
 	["UI", "UI"],
 ]
 
+const TAB_NAMES: Array[String] = ["SOUND", "GAMEPLAY", "CONTROLS", "VIDEO"]
+
 var _vhs_overlay: ColorRect
 var _bg_rect: ColorRect
 var _title_label: Label
+var _tab_buttons: Array[Button] = []
+var _tab_panels: Array[Control] = []
+var _active_tab: int = 0
+
+# Sound tab
 var _sliders: Dictionary = {}  # bus_name -> HSlider
 var _value_labels: Dictionary = {}  # bus_name -> Label
 var _persist_checkbox: CheckBox = null
-var _persist_label: Label = null
-var _section_label: Label = null
+
+# Gameplay tab
+var _mouse_nav_indicator_checkbox: CheckBox = null
 
 
 func _ready() -> void:
@@ -30,12 +38,12 @@ func _ready() -> void:
 	_build_ui()
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
-	_load_settings()
+	_load_audio_settings()
+	_load_gameplay_settings()
 	_apply_theme()
 
 
 func _ensure_audio_buses() -> void:
-	## Create any missing audio buses so sliders have something to control.
 	for def in BUS_DEFS:
 		var bus_name: String = def[1]
 		if bus_name == "Master":
@@ -61,12 +69,12 @@ func _build_ui() -> void:
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 400)
 	margin.add_theme_constant_override("margin_right", 400)
-	margin.add_theme_constant_override("margin_top", 100)
-	margin.add_theme_constant_override("margin_bottom", 100)
+	margin.add_theme_constant_override("margin_top", 80)
+	margin.add_theme_constant_override("margin_bottom", 60)
 	add_child(margin)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 24)
+	vbox.add_theme_constant_override("separation", 16)
 	margin.add_child(vbox)
 
 	# Title
@@ -75,48 +83,37 @@ func _build_ui() -> void:
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_title_label)
 
-	# Spacer
-	var spacer := Control.new()
-	spacer.custom_minimum_size.y = 20
-	vbox.add_child(spacer)
+	# Tab bar
+	var tab_bar := HBoxContainer.new()
+	tab_bar.add_theme_constant_override("separation", 4)
+	tab_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(tab_bar)
 
-	# Volume sliders
-	for def in BUS_DEFS:
-		var display_name: String = def[0]
-		var bus_name: String = def[1]
-		_add_volume_row(vbox, display_name, bus_name)
+	for i in TAB_NAMES.size():
+		var btn := Button.new()
+		btn.text = TAB_NAMES[i]
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size.y = 36
+		btn.pressed.connect(_on_tab_pressed.bind(i))
+		tab_bar.add_child(btn)
+		_tab_buttons.append(btn)
 
-	# Gameplay section
-	var gameplay_spacer := Control.new()
-	gameplay_spacer.custom_minimum_size.y = 20
-	vbox.add_child(gameplay_spacer)
+	# Tab content area
+	var content_area := Control.new()
+	content_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(content_area)
 
-	_section_label = Label.new()
-	_section_label.text = "GAMEPLAY"
-	_section_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	vbox.add_child(_section_label)
+	# Build each tab panel
+	var sound_panel := _build_sound_tab()
+	var gameplay_panel := _build_gameplay_tab()
+	var controls_panel := _build_placeholder_tab("Key bindings coming soon.")
+	var video_panel := _build_placeholder_tab("Video settings coming soon.")
 
-	var cb_row := HBoxContainer.new()
-	cb_row.add_theme_constant_override("separation", 16)
-	vbox.add_child(cb_row)
-
-	_persist_label = Label.new()
-	_persist_label.text = "PERSIST ENEMY AUDIO"
-	_persist_label.custom_minimum_size.x = 180
-	_persist_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	cb_row.add_child(_persist_label)
-
-	_persist_checkbox = CheckBox.new()
-	_persist_checkbox.text = "Keep enemy weapon loops after death"
-	_persist_checkbox.button_pressed = AudioBusSetup.persist_enemy_audio
-	_persist_checkbox.toggled.connect(_on_persist_toggled)
-	cb_row.add_child(_persist_checkbox)
-
-	# Spacer before back button
-	var spacer2 := Control.new()
-	spacer2.custom_minimum_size.y = 30
-	spacer2.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(spacer2)
+	for panel in [sound_panel, gameplay_panel, controls_panel, video_panel]:
+		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		content_area.add_child(panel)
+		_tab_panels.append(panel)
 
 	# Back button
 	var back_btn := Button.new()
@@ -125,20 +122,64 @@ func _build_ui() -> void:
 	back_btn.pressed.connect(_on_back)
 	vbox.add_child(back_btn)
 
+	# Show first tab
+	_select_tab(0)
+
+
+# ── Tab switching ─────────────────────────────────────────────
+
+func _on_tab_pressed(index: int) -> void:
+	_select_tab(index)
+
+
+func _select_tab(index: int) -> void:
+	_active_tab = index
+	for i in _tab_panels.size():
+		_tab_panels[i].visible = (i == index)
+	_style_tab_buttons()
+
+
+# ── Sound tab ─────────────────────────────────────────────────
+
+func _build_sound_tab() -> VBoxContainer:
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 20)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 8
+	vbox.add_child(spacer)
+
+	# Volume sliders
+	for def in BUS_DEFS:
+		var display_name: String = def[0]
+		var bus_name: String = def[1]
+		_add_volume_row(vbox, display_name, bus_name)
+
+	# Persist enemy audio
+	var persist_spacer := Control.new()
+	persist_spacer.custom_minimum_size.y = 8
+	vbox.add_child(persist_spacer)
+
+	_persist_checkbox = CheckBox.new()
+	_persist_checkbox.text = "Keep enemy weapon loops after death"
+	_persist_checkbox.button_pressed = AudioBusSetup.persist_enemy_audio
+	_persist_checkbox.toggled.connect(_on_persist_toggled)
+	vbox.add_child(_persist_checkbox)
+
+	return vbox
+
 
 func _add_volume_row(parent: VBoxContainer, display_name: String, bus_name: String) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	parent.add_child(row)
 
-	# Label for bus name
 	var label := Label.new()
 	label.text = display_name
 	label.custom_minimum_size.x = 180
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(label)
 
-	# Slider
 	var slider := HSlider.new()
 	slider.min_value = 0.0
 	slider.max_value = 100.0
@@ -151,7 +192,6 @@ func _add_volume_row(parent: VBoxContainer, display_name: String, bus_name: Stri
 	row.add_child(slider)
 	_sliders[bus_name] = slider
 
-	# Value label (percentage)
 	var val_label := Label.new()
 	val_label.text = "100%"
 	val_label.custom_minimum_size.x = 60
@@ -172,17 +212,69 @@ func _on_slider_changed(value: float, bus_name: String) -> void:
 	if _value_labels.has(bus_name):
 		var lbl: Label = _value_labels[bus_name]
 		lbl.text = str(int(value)) + "%"
-	_save_settings()
+	_save_audio_settings()
 
 
 func _on_persist_toggled(pressed: bool) -> void:
 	AudioBusSetup.persist_enemy_audio = pressed
-	_save_settings()
+	_save_audio_settings()
 
+
+# ── Gameplay tab ──────────────────────────────────────────────
+
+func _build_gameplay_tab() -> VBoxContainer:
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 20)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 8
+	vbox.add_child(spacer)
+
+	_mouse_nav_indicator_checkbox = CheckBox.new()
+	_mouse_nav_indicator_checkbox.text = "Show mouse navigation indicator"
+	_mouse_nav_indicator_checkbox.button_pressed = GameState.show_mouse_nav_indicator
+	_mouse_nav_indicator_checkbox.toggled.connect(_on_mouse_nav_indicator_toggled)
+	vbox.add_child(_mouse_nav_indicator_checkbox)
+
+	return vbox
+
+
+func _on_mouse_nav_indicator_toggled(pressed: bool) -> void:
+	GameState.show_mouse_nav_indicator = pressed
+	_save_gameplay_settings()
+
+
+# ── Placeholder tabs ──────────────────────────────────────────
+
+func _build_placeholder_tab(message: String) -> VBoxContainer:
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 20)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 40
+	vbox.add_child(spacer)
+
+	var label := Label.new()
+	label.text = message
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	vbox.add_child(label)
+
+	return vbox
+
+
+# ── Navigation ────────────────────────────────────────────────
 
 func _on_back() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
+
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_on_back()
+
+
+# ── VHS overlay ───────────────────────────────────────────────
 
 func _setup_vhs_overlay() -> void:
 	var vhs_layer := CanvasLayer.new()
@@ -195,11 +287,14 @@ func _setup_vhs_overlay() -> void:
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 
-func _apply_theme() -> void:
-	# Grid background
-	ThemeManager.apply_grid_background(_bg_rect)
+# ── Theme ─────────────────────────────────────────────────────
 
-	# VHS overlay
+func _on_theme_changed() -> void:
+	_apply_theme()
+
+
+func _apply_theme() -> void:
+	ThemeManager.apply_grid_background(_bg_rect)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 
 	# Title
@@ -210,13 +305,15 @@ func _apply_theme() -> void:
 	_title_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	ThemeManager.apply_text_glow(_title_label, "header")
 
-	# Body font for labels
 	var body_font: Font = ThemeManager.get_font("font_body")
 	var body_size: int = ThemeManager.get_font_size("font_size_body")
 	var text_color: Color = ThemeManager.get_color("text")
 	var accent_color: Color = ThemeManager.get_color("accent")
 
-	# Style all bus labels and value labels
+	# Tab buttons
+	_style_tab_buttons()
+
+	# Bus labels and value labels
 	for bus_name in _sliders:
 		if _value_labels.has(bus_name):
 			var val_lbl: Label = _value_labels[bus_name]
@@ -225,8 +322,6 @@ func _apply_theme() -> void:
 			val_lbl.add_theme_font_size_override("font_size", body_size)
 			val_lbl.add_theme_color_override("font_color", accent_color)
 
-	# Style row labels (bus name labels are the first child of each HBoxContainer row)
-	# Walk through the slider parents to find the row labels
 	for bus_name in _sliders:
 		var slider: HSlider = _sliders[bus_name]
 		var row: HBoxContainer = slider.get_parent() as HBoxContainer
@@ -239,40 +334,68 @@ func _apply_theme() -> void:
 				name_label.add_theme_color_override("font_color", text_color)
 				ThemeManager.apply_text_glow(name_label, "body")
 
-	# Gameplay section header
-	if _section_label:
-		if body_font:
-			_section_label.add_theme_font_override("font", body_font)
-		_section_label.add_theme_font_size_override("font_size", body_size)
-		_section_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-		ThemeManager.apply_text_glow(_section_label, "body")
+	# Checkboxes
+	for cb in [_persist_checkbox, _mouse_nav_indicator_checkbox]:
+		if cb:
+			if body_font:
+				cb.add_theme_font_override("font", body_font)
+			cb.add_theme_font_size_override("font_size", body_size)
+			cb.add_theme_color_override("font_color", accent_color)
 
-	# Persist label + checkbox
-	if _persist_label:
-		if body_font:
-			_persist_label.add_theme_font_override("font", body_font)
-		_persist_label.add_theme_font_size_override("font_size", body_size)
-		_persist_label.add_theme_color_override("font_color", text_color)
-		ThemeManager.apply_text_glow(_persist_label, "body")
-	if _persist_checkbox:
-		if body_font:
-			_persist_checkbox.add_theme_font_override("font", body_font)
-		_persist_checkbox.add_theme_font_size_override("font_size", body_size)
-		_persist_checkbox.add_theme_color_override("font_color", accent_color)
+	# Placeholder labels
+	for panel in _tab_panels:
+		for child in panel.get_children():
+			if child is Label:
+				if body_font:
+					child.add_theme_font_override("font", body_font)
+				child.add_theme_font_size_override("font_size", body_size)
 
-	# Style slider grabber/track with theme colors
 	_style_sliders(accent_color)
 
-	# Style buttons
+	# All buttons
 	for child in _get_all_children(self):
-		if child is Button:
+		if child is Button and not child in _tab_buttons:
 			ThemeManager.apply_button_style(child as Button)
+
+
+func _style_tab_buttons() -> void:
+	var accent: Color = ThemeManager.get_color("accent")
+	var panel_color: Color = ThemeManager.get_color("panel")
+	var body_font: Font = ThemeManager.get_font("font_body")
+	var body_size: int = ThemeManager.get_font_size("font_size_body")
+
+	for i in _tab_buttons.size():
+		var btn: Button = _tab_buttons[i]
+		var is_active: bool = (i == _active_tab)
+
+		var sb := StyleBoxFlat.new()
+		if is_active:
+			sb.bg_color = Color(accent.r, accent.g, accent.b, 0.25)
+			sb.border_color = accent
+			sb.border_width_bottom = 2
+		else:
+			sb.bg_color = Color(panel_color.r, panel_color.g, panel_color.b, 0.3)
+			sb.border_color = Color(accent.r, accent.g, accent.b, 0.3)
+			sb.border_width_bottom = 1
+		sb.set_corner_radius_all(2)
+		sb.set_content_margin_all(6)
+
+		btn.add_theme_stylebox_override("normal", sb)
+		btn.add_theme_stylebox_override("hover", sb)
+		btn.add_theme_stylebox_override("pressed", sb)
+
+		var font_color: Color = accent if is_active else Color(accent.r, accent.g, accent.b, 0.6)
+		btn.add_theme_color_override("font_color", font_color)
+		btn.add_theme_color_override("font_hover_color", font_color)
+		btn.add_theme_color_override("font_pressed_color", accent)
+		if body_font:
+			btn.add_theme_font_override("font", body_font)
+		btn.add_theme_font_size_override("font_size", body_size)
 
 
 func _style_sliders(accent: Color) -> void:
 	var panel_color: Color = ThemeManager.get_color("panel")
 
-	# Create shared styleboxes for all sliders
 	var track_sb := StyleBoxFlat.new()
 	track_sb.bg_color = Color(panel_color.r, panel_color.g, panel_color.b, 0.6)
 	track_sb.set_corner_radius_all(2)
@@ -283,22 +406,11 @@ func _style_sliders(accent: Color) -> void:
 	fill_sb.set_corner_radius_all(2)
 	fill_sb.set_content_margin_all(0)
 
-	var grabber_sb := StyleBoxFlat.new()
-	grabber_sb.bg_color = accent
-	grabber_sb.set_corner_radius_all(4)
-	grabber_sb.set_content_margin_all(0)
-
-	var grabber_hover_sb := StyleBoxFlat.new()
-	grabber_hover_sb.bg_color = accent.lightened(0.2)
-	grabber_hover_sb.set_corner_radius_all(4)
-	grabber_hover_sb.set_content_margin_all(0)
-
 	for bus_name in _sliders:
 		var slider: HSlider = _sliders[bus_name]
 		slider.add_theme_stylebox_override("slider", track_sb.duplicate())
 		slider.add_theme_stylebox_override("grabber_area", fill_sb.duplicate())
 		slider.add_theme_stylebox_override("grabber_area_highlight", fill_sb.duplicate())
-		# Grabber icon size
 		slider.add_theme_icon_override("grabber", _make_grabber_texture(accent, 14))
 		slider.add_theme_icon_override("grabber_highlight", _make_grabber_texture(accent.lightened(0.2), 16))
 		slider.add_theme_icon_override("grabber_disabled", _make_grabber_texture(ThemeManager.get_color("disabled"), 14))
@@ -328,11 +440,9 @@ func _get_all_children(node: Node) -> Array[Node]:
 	return result
 
 
-func _on_theme_changed() -> void:
-	_apply_theme()
+# ── Settings persistence ──────────────────────────────────────
 
-
-func _save_settings() -> void:
+func _save_audio_settings() -> void:
 	DirAccess.make_dir_recursive_absolute("user://settings")
 	var data: Dictionary = {}
 	for bus_name in _sliders:
@@ -340,19 +450,18 @@ func _save_settings() -> void:
 		data[bus_name] = slider.value
 	data["persist_enemy_audio"] = AudioBusSetup.persist_enemy_audio
 	var json_str: String = JSON.stringify(data, "\t")
-	var file: FileAccess = FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(AUDIO_SETTINGS_PATH, FileAccess.WRITE)
 	if file:
 		file.store_string(json_str)
 		file.close()
 
 
-func _load_settings() -> void:
-	if not FileAccess.file_exists(SETTINGS_PATH):
-		# Apply defaults (100%) to all buses
+func _load_audio_settings() -> void:
+	if not FileAccess.file_exists(AUDIO_SETTINGS_PATH):
 		for bus_name in _sliders:
 			_on_slider_changed(100.0, bus_name)
 		return
-	var file: FileAccess = FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(AUDIO_SETTINGS_PATH, FileAccess.READ)
 	if not file:
 		return
 	var json_str: String = file.get_as_text()
@@ -365,13 +474,36 @@ func _load_settings() -> void:
 		var slider: HSlider = _sliders[bus_name]
 		var val: float = float(data.get(bus_name, 100.0))
 		slider.value = val
-		# Trigger the change to apply to AudioServer
 		_on_slider_changed(val, bus_name)
 	AudioBusSetup.persist_enemy_audio = bool(data.get("persist_enemy_audio", false))
 	if _persist_checkbox:
 		_persist_checkbox.button_pressed = AudioBusSetup.persist_enemy_audio
 
 
-func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		_on_back()
+func _save_gameplay_settings() -> void:
+	DirAccess.make_dir_recursive_absolute("user://settings")
+	var data: Dictionary = {
+		"show_mouse_nav_indicator": GameState.show_mouse_nav_indicator,
+	}
+	var json_str: String = JSON.stringify(data, "\t")
+	var file: FileAccess = FileAccess.open(GAMEPLAY_SETTINGS_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(json_str)
+		file.close()
+
+
+func _load_gameplay_settings() -> void:
+	if not FileAccess.file_exists(GAMEPLAY_SETTINGS_PATH):
+		return
+	var file: FileAccess = FileAccess.open(GAMEPLAY_SETTINGS_PATH, FileAccess.READ)
+	if not file:
+		return
+	var json_str: String = file.get_as_text()
+	file.close()
+	var json := JSON.new()
+	if json.parse(json_str) != OK:
+		return
+	var data: Dictionary = json.data
+	GameState.show_mouse_nav_indicator = bool(data.get("show_mouse_nav_indicator", true))
+	if _mouse_nav_indicator_checkbox:
+		_mouse_nav_indicator_checkbox.button_pressed = GameState.show_mouse_nav_indicator

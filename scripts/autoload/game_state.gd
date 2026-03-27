@@ -29,10 +29,26 @@ var slot_config: Dictionary = {}
 var current_level_id: String = ""
 var return_scene: String = ""
 var editing_level_id: String = ""  # Remembers which level was open in the editor
+var show_mouse_nav_indicator: bool = true  # Gameplay setting — show diamond at mouse position
 
 
 func _ready() -> void:
 	load_game()
+	_load_gameplay_settings()
+
+
+func _load_gameplay_settings() -> void:
+	var path: String = "user://settings/gameplay.json"
+	if not FileAccess.file_exists(path):
+		return
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK:
+		return
+	var data: Dictionary = json.data
+	show_mouse_nav_indicator = bool(data.get("show_mouse_nav_indicator", true))
 
 
 func _init_slot_config() -> void:

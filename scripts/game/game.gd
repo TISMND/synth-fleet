@@ -19,6 +19,7 @@ var _bg_shader_mat: ShaderMaterial = null  # reference for setting scroll_offset
 var _game_viewport: SubViewport = null
 var _game_viewport_container: SubViewportContainer = null
 var _shared_renderer: EnemySharedRenderer = null
+var _mouse_nav_indicator: Node2D = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
 var _scroll_speed: float = 80.0
@@ -205,6 +206,11 @@ func _ready() -> void:
 	_player.power_loss_started.connect(_on_power_loss_started)
 	_player.power_loss_ended.connect(_on_power_loss_ended)
 
+	# Mouse navigation indicator
+	_mouse_nav_indicator = _MouseNavIndicator.new()
+	_mouse_nav_indicator.z_index = 45  # Above game elements, below HUD
+	_game_viewport.add_child(_mouse_nav_indicator)
+
 	# Wave manager
 	_wave_manager = WaveManager.new()
 	_wave_manager.name = "WaveManager"
@@ -381,6 +387,13 @@ func _process(delta: float) -> void:
 		_hud.update_credits(GameState.credits)
 		if not _player._drifting and not _player._blackout_active:
 			_update_warning_rotator(delta)
+	# Mouse navigation indicator
+	if _mouse_nav_indicator:
+		var kbd_active: bool = Input.get_vector("move_left", "move_right", "move_up", "move_down").length_squared() > 0.0
+		var show: bool = GameState.show_mouse_nav_indicator and not kbd_active
+		_mouse_nav_indicator.visible = show
+		if show:
+			_mouse_nav_indicator.position = _game_viewport.get_mouse_position()
 
 
 func _collect_enemy_appearances(level: LevelData) -> Array:
@@ -1823,3 +1836,36 @@ class _IntroTitleBox extends Control:
 		var text_y: float = (h + text_size.y * 0.6) * 0.5
 		var text_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.95 * eff_alpha)
 		draw_string(font, Vector2(text_x, text_y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_col)
+
+
+# ── Mouse Navigation Indicator ────────────────────────────────────────
+
+class _MouseNavIndicator extends Node2D:
+	## Small hollow diamond at the mouse position — navigation waypoint, not a crosshair.
+	const SIZE: float = 7.0
+	const LINE_W: float = 1.5
+	const COL := Color(0.4, 0.7, 1.0)
+	const HDR: float = 2.0
+	const GLOW_ALPHA: float = 0.15
+	const GLOW_SIZE: float = 12.0
+	var _time: float = 0.0
+
+	func _process(delta: float) -> void:
+		_time += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var pulse: float = 0.85 + 0.15 * sin(_time * 3.0)
+		var col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.8 * pulse)
+		var s: float = SIZE
+		var pts: PackedVector2Array = PackedVector2Array([
+			Vector2(0, -s), Vector2(s, 0), Vector2(0, s), Vector2(-s, 0), Vector2(0, -s)
+		])
+		draw_polyline(pts, col, LINE_W, true)
+		# Soft glow
+		var glow_col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, GLOW_ALPHA * pulse)
+		var gs: float = GLOW_SIZE
+		var glow_pts: PackedVector2Array = PackedVector2Array([
+			Vector2(0, -gs), Vector2(gs, 0), Vector2(0, gs), Vector2(-gs, 0)
+		])
+		draw_colored_polygon(glow_pts, glow_col)

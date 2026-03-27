@@ -1313,9 +1313,10 @@ func _show_net_effect_panel(active_totals: Dictionary) -> void:
 	top_pad.custom_minimum_size.y = 30
 	_right_panel_list.add_child(top_pad)
 
-	# ── FIREGROUPS section (top, fixed height) ──
+	# ── FIREGROUPS section (top, fixed height to prevent bounce) ──
 	var fg_panel := PanelContainer.new()
 	fg_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fg_panel.custom_minimum_size.y = 90
 	var fg_style := StyleBoxFlat.new()
 	fg_style.bg_color = Color(0.0, 0.0, 0.0, 0.8)
 	fg_style.corner_radius_top_left = 4
