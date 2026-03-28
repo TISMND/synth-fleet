@@ -105,7 +105,10 @@ func _ready() -> void:
 		_baked_sprite.texture = bake_tex
 		_flash_material = shared_renderer.create_flash_material()
 		_baked_sprite.material = _flash_material
+		# Hide for 1 frame — viewport texture may not be rendered yet
+		_baked_sprite.visible = false
 		add_child(_baked_sprite)
+		_baked_sprite.set_deferred("visible", true)
 		shared_renderer.ref(vid, render_mode_str, enemy_color)
 	else:
 		# Fallback: per-instance ShipRenderer (for unregistered appearances or no bake manager)

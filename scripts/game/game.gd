@@ -1213,7 +1213,7 @@ func _process_boss_transition(delta: float) -> void:
 				if bpm_shift != 0.0 and _level_data:
 					var ratio: float = (_level_data.bpm + bpm_shift) / maxf(_level_data.bpm, 1.0)
 					LoopMixer.set_all_pitch_scale(ratio)
-				LoopMixer.unmute_all(2000)
+				# Don't unmute — player must manually reactivate weapons after control restores
 				break
 
 	# CONTROL_RESTORED / TRANSITION_END — after typing finishes + delays

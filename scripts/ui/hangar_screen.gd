@@ -2594,7 +2594,11 @@ func _sync_power_toggle_visibility() -> void:
 
 
 func _on_audio_play_toggle() -> void:
-	## Play/stop from the audio mix tab — same as main play toggle.
+	## Play/stop from the audio mix tab — activates ALL equipped slots regardless
+	## of simulator toggle state, so the player hears the full mix.
+	if not _is_playing:
+		for slot_key in _slot_active:
+			_slot_active[slot_key] = true
 	_on_play_toggle()
 
 

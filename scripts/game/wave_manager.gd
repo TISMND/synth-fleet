@@ -290,7 +290,7 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 
 	var x_offset: float = float(enc.get("x_offset", 0.0))
 	var spawn_x: float = 960.0 + x_offset
-	var spawn_y: float = -100.0  # Start above screen, strafe will drift to boss_strafe_y
+	var spawn_y: float = -300.0  # Start well above screen — large bosses with segments need headroom
 	var strafe_speed: float = float(enc.get("speed", 80.0))
 	var enc_weapons_active: bool = bool(enc.get("weapons_active", true))
 

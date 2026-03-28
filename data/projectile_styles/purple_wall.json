@@ -62,8 +62,8 @@
 						1.0
 					],
 					"params": {
-						"amount": 16.0,
-						"lifetime": 0.56
+						"amount": 1.0,
+						"lifetime": 0.02
 					},
 					"type": "afterimage"
 				}
@@ -88,11 +88,11 @@
 		1.0
 	],
 	"shader_params": {
-		"animation_speed": 1.1,
+		"animation_speed": 3.0,
 		"brightness": 2.5,
 		"bubble_density": 4.0,
 		"bubble_speed": 2.5,
-		"color_mix": 0.1,
+		"color_mix": 0.05,
 		"drip_intensity": 1.0,
 		"edge_softness": 1.0
 	}

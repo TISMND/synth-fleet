@@ -15,10 +15,10 @@
 			"ship_id": "enemy_conduit",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 1669.48905109489,
+			"trigger_y": 2105.69343065693,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 42.043795620438
+			"x_offset": 49.051094890511
 		}
 	],
 	"events": [

@@ -10,7 +10,7 @@
 	"beam_transition_time": 0.01,
 	"damage": 20,
 	"description": "",
-	"direction_deg": 47.0,
+	"direction_deg": 38.0,
 	"display_name": "V-Star",
 	"effect_profile": {
 		"defaults": {
@@ -80,7 +80,7 @@
 	"loop_length_bars": 8,
 	"mirror_mode": "mirror",
 	"pierce_count": 0,
-	"projectile_speed": 970.0,
+	"projectile_speed": 790.0,
 	"projectile_style_id": "star_power",
 	"skips_shields": false,
 	"splash_enabled": false,
