@@ -49,7 +49,7 @@
 	},
 	"res://loop_zips/sorted/bass/Thinking About Reaction - 120 BPM - 2 - Bass - STCR2_RF_120_Synth_Bass_Dover_WET_Emin.wav": {
 		"display_name": "STCR2_RF_120_Synth_Bass_Dover_WET_Emin",
-		"volume_db": 1.1
+		"volume_db": 3.6
 	},
 	"res://loop_zips/sorted/bass/Tired Robot - 120 BPM - 7 - Bass - ZEN_S80F_115_bass_synth_loop_alabaster_Amin.wav": {
 		"display_name": "ZEN_S80F_115_bass_synth_loop_alabaster_Amin",
@@ -214,6 +214,10 @@
 	"res://loop_zips/sorted/pads/Microdose Sleep - 120 BPM - 6 - Pads - NW_ND2_80_pad_riskybusiness_Emin.wav": {
 		"display_name": "NW_ND2_80_pad_riskybusiness_Emin",
 		"volume_db": -2.3
+	},
+	"res://loop_zips/sorted/pads/NEW Echoey Ritual - 120 BPM - 6 - Pads - nw_ms_85_kit_loop_plastic_pad_Gmaj.wav": {
+		"display_name": "nw_ms_85_kit_loop_plastic_pad_Gmaj",
+		"volume_db": 3.6
 	},
 	"res://loop_zips/sorted/pads/NEW Thin Addition - 120 BPM - 4 - Pads - NW_CSRW_90_kit_loop_sensory_synth_Fmin.wav": {
 		"display_name": "NW_CSRW_90_kit_loop_sensory_synth_Fmin",

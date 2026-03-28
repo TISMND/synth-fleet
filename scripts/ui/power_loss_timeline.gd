@@ -35,6 +35,21 @@ const THERMAL_VENT_EVENT_IDS: Array[String] = [
 	"purge_engines_restored",
 ]
 
+# Boss transition event IDs — disruption + remodulation sequence
+const BOSS_TRANSITION_EVENT_IDS: Array[String] = [
+	"boss_wave_sweep",
+	"boss_wave_hit",
+	"boss_music_degrade",
+	"boss_silence",
+	"boss_music_bleed",
+	"boss_warning",
+	"boss_typing_thunk",
+	"boss_remodulate",
+	"boss_weapons_online",
+	"boss_control_restored",
+	"boss_transition_end",
+]
+
 const THERMAL_VENT_LABELS: Array[String] = [
 	"PURGE START",
 	"VENTING (50%)",
@@ -140,6 +155,15 @@ func _reload_sequence_data() -> void:
 	_build_time_breakpoints()
 
 
+func _reload_boss_transition_data() -> void:
+	_phases = BossTransitionSequence.get_phases()
+	_cues = BossTransitionSequence.get_cues()
+	_typing_regions = BossTransitionSequence.get_typing_regions()
+	_static_times = []  # Boss transition has no static bursts
+	_total_duration = BossTransitionSequence.get_total_duration()
+	_build_time_breakpoints()
+
+
 func _build_time_breakpoints() -> void:
 	_time_breakpoints.clear()
 	# Find phase boundaries
@@ -207,6 +231,7 @@ func _build_ui() -> void:
 	_event_dropdown = OptionButton.new()
 	_event_dropdown.add_item("POWER LOSS")
 	_event_dropdown.add_item("THERMAL VENT")
+	_event_dropdown.add_item("BOSS TRANSITION")
 	_event_dropdown.custom_minimum_size = Vector2(180, 0)
 	_event_dropdown.item_selected.connect(_on_event_type_changed)
 	top_bar.add_child(_event_dropdown)
@@ -349,22 +374,32 @@ func _on_event_type_changed(idx: int) -> void:
 
 	if idx == 0:
 		# Power loss mode
+		_reload_sequence_data()
 		_timeline_control.visible = true
 		_phase_label.visible = true
 		_vent_panel.visible = false
-		# Rebuild the Sound selector with power loss events
 		_rebuild_event_selector(POWER_LOSS_EVENT_IDS)
 		if POWER_LOSS_EVENT_IDS.size() > 0:
 			_select_event(POWER_LOSS_EVENT_IDS[0])
-	else:
+		_timeline_control.queue_redraw()
+	elif idx == 1:
 		# Thermal vent mode
 		_timeline_control.visible = false
 		_phase_label.visible = false
 		_vent_panel.visible = true
-		# Rebuild the Sound selector with thermal vent events
 		_rebuild_event_selector(THERMAL_VENT_EVENT_IDS)
 		if THERMAL_VENT_EVENT_IDS.size() > 0:
 			_select_vent_cue(0)
+	else:
+		# Boss transition mode — uses timeline like power loss
+		_reload_boss_transition_data()
+		_timeline_control.visible = true
+		_phase_label.visible = true
+		_vent_panel.visible = false
+		_rebuild_event_selector(BOSS_TRANSITION_EVENT_IDS)
+		if BOSS_TRANSITION_EVENT_IDS.size() > 0:
+			_select_event(BOSS_TRANSITION_EVENT_IDS[0])
+		_timeline_control.queue_redraw()
 
 
 func _rebuild_event_selector(event_ids: Array) -> void:
@@ -802,7 +837,9 @@ func _on_play() -> void:
 	_typing_active = false
 	SfxPlayer.reload()
 	if _active_event_type == 0:
-		_setup_typing_player()
+		_setup_typing_player_for("reboot_char_thunk")
+	elif _active_event_type == 2:
+		_setup_typing_player_for("boss_typing_thunk")
 	_play_btn.disabled = true
 
 
@@ -818,9 +855,9 @@ func _on_stop() -> void:
 	_timeline_control.queue_redraw()
 
 
-func _setup_typing_player() -> void:
-	## Load reboot_char_thunk for looping playback during typing regions.
-	var ev: Dictionary = _config.get_event("reboot_char_thunk")
+func _setup_typing_player_for(event_id: String) -> void:
+	## Load a typing thunk sound for looping playback during typing regions.
+	var ev: Dictionary = _config.get_event(event_id)
 	var thunk_path: String = str(ev.get("file_path", ""))
 	if thunk_path == "":
 		_typing_player.stream = null
@@ -860,7 +897,7 @@ func _process(delta: float) -> void:
 		_process_vent_playback()
 		return
 
-	# ── Power loss playback ──
+	# ── Timeline-based playback (power loss / boss transition) ──
 	# Fire cues
 	while _next_cue_idx < _cues.size():
 		var cue: Dictionary = _cues[_next_cue_idx]

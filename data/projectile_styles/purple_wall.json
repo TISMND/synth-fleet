@@ -1,0 +1,99 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		112.0,
+		8.0
+	],
+	"collision_scale": [
+		99.0,
+		9.0
+	],
+	"color": [
+		0.621212005615234,
+		0.0,
+		1.0,
+		1.0
+	],
+	"display_name": "purple_wall",
+	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"color": [
+						0.615686297416687,
+						0.0,
+						1.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.15,
+						"particle_count": 8.0,
+						"radius": 20.0,
+						"speed_scale": 1.1
+					},
+					"type": "burst"
+				}
+			],
+			"muzzle": [
+				{
+					"color": [
+						0.768811345100403,
+						0.3984375,
+						1.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.15,
+						"particle_count": 8.0,
+						"spread_angle": 360.0
+					},
+					"type": "spiral_burst"
+				}
+			],
+			"trail": [
+				{
+					"color": [
+						0.228477388620377,
+						0.0,
+						0.37109375,
+						1.0
+					],
+					"params": {
+						"amount": 16.0,
+						"lifetime": 0.56
+					},
+					"type": "afterimage"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "toxic",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "purple_wall",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"brightness": 2.5,
+		"bubble_density": 4.0,
+		"bubble_speed": 2.5,
+		"color_mix": 0.1,
+		"drip_intensity": 1.0,
+		"edge_softness": 1.0
+	}
+}

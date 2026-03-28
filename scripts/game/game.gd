@@ -23,13 +23,10 @@ var _mouse_nav_indicator: Node2D = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
 var _scroll_speed: float = 80.0
-var _flight_speed: float = 160.0
-var _flight_distance: float = 0.0
 
 # Debug parallax grids (F3 toggle)
 var _deep_debug_grid: Node2D = null
 var _bg_debug_grid: Node2D = null
-var _fg_debug_grid: Node2D = null
 var _debug_grids_visible: bool = false
 # Nebula status effects
 var _nebula_areas: Array = []  # Array of {area: Area2D, nebula_data: NebulaData}
@@ -62,27 +59,26 @@ const POWER_DEATH_DURATION: float = 2.5
 # Boss transition sequence
 var _boss_transition_active: bool = false
 var _boss_transition_timer: float = 0.0
-var _boss_transition_enc: Dictionary = {}
+var _boss_transition_event: Dictionary = {}
 var _boss_transition_overlay: Control = null
 var _boss_transition_warning_box: Control = null
-var _boss_transition_typeout_label: Label = null
-var _boss_transition_typeout_text: String = ""
-var _boss_transition_typeout_idx: int = 0
-var _boss_transition_typeout_accum: float = 0.0
 var _boss_transition_lead_loops: Array[String] = []  # Loop IDs registered for audio lead
-
-# Boss transition timeline constants (seconds)
-const BT_WAVE_START: float = 0.0
-const BT_WAVE_HIT: float = 0.3
-const BT_SILENCE: float = 2.0
-const BT_WARNING: float = 3.0
-const BT_MESSAGE_1: float = 3.5
-const BT_MESSAGE_2: float = 5.0
-const BT_REMODULATE: float = 6.0
-const BT_MESSAGE_3: float = 7.0
-const BT_CONTROL_RESTORED: float = 7.5
-const BT_TRANSITION_END: float = 8.0
-const BT_TYPEOUT_SPEED: float = 0.03  # seconds per character
+# Typing system (reboot-style RichTextLabel)
+var _bt_typing_label: RichTextLabel = null
+var _bt_typing_lines: Array[String] = []
+var _bt_typing_line_idx: int = 0
+var _bt_typing_char_idx: int = 0
+var _bt_typing_char_timer: float = 0.0
+var _bt_typing_pause_timer: float = 0.0  # Inter-line pause countdown
+var _bt_typing_completed_lines: Array[String] = []
+var _bt_typing_fast: bool = false
+var _bt_typing_player: AudioStreamPlayer = null
+var _bt_typing_active: bool = false
+var _bt_typing_finished: bool = false
+# Music degradation
+var _bt_degrade_active: bool = false
+var _bt_remodulated: bool = false
+var _bt_debug_y_offset: float = 0.0  # Stacks debug labels vertically
 
 # Screen shake (general purpose — reusable for any damage event)
 var _screen_shake_remaining: float = 0.0
@@ -148,7 +144,6 @@ func _ready() -> void:
 
 	if _level_data:
 		_scroll_speed = _level_data.scroll_speed
-		_flight_speed = _level_data.flight_speed
 
 	# Game content renders in its own SubViewport with HDR + ACES + bloom —
 	# the exact same pipeline that component tab previews use.
@@ -353,17 +348,14 @@ func _process(delta: float) -> void:
 	if _parallax_bg:
 		_parallax_bg.scroll_offset.y += _scroll_speed * delta
 	_scroll_distance += _scroll_speed * delta
-	_flight_distance += _flight_speed * delta
 	if _doodad_container:
 		_doodad_container.position.y = _scroll_distance
 	if _bg_shader_mat:
 		_bg_shader_mat.set_shader_parameter("scroll_offset", _scroll_distance)
 	if _nebula_container:
-		_nebula_container.position.y = _flight_distance
+		_nebula_container.position.y = _scroll_distance
 	if _bg_debug_grid and _bg_debug_grid.visible:
 		_bg_debug_grid.position.y = fmod(_scroll_distance, _bg_debug_grid.line_spacing)
-	if _fg_debug_grid and _fg_debug_grid.visible:
-		_fg_debug_grid.position.y = fmod(_flight_distance, _fg_debug_grid.line_spacing)
 	if _wave_manager and not _death_sequence_active:
 		_wave_manager.advance_scroll(_scroll_distance)
 	# Apply nebula status effects each frame
@@ -439,7 +431,6 @@ func _start_waves() -> void:
 	_wave_manager.shared_renderer = _shared_renderer
 	if _level_data:
 		_scroll_distance = 0.0
-		_flight_distance = 0.0
 		_wave_manager.setup_level(_level_data, _enemies, _player, _projectiles)
 	else:
 		var waves: Array = []
@@ -473,8 +464,6 @@ func _input(event: InputEvent) -> void:
 			_deep_debug_grid.visible = _debug_grids_visible
 		if _bg_debug_grid:
 			_bg_debug_grid.visible = _debug_grids_visible
-		if _fg_debug_grid:
-			_fg_debug_grid.visible = _debug_grids_visible
 		return
 	if event.is_action_pressed("ui_cancel"):
 		_return_to_menu()
@@ -1073,15 +1062,26 @@ func _process_power_loss_death(delta: float) -> void:
 
 # ── Boss transition sequence ──────────────────────────────────────────
 
-func _on_boss_transition(enc: Dictionary) -> void:
+func _on_boss_transition(ev: Dictionary) -> void:
 	if _boss_transition_active or _death_sequence_active or _power_death_active:
 		return
 	_boss_transition_active = true
 	_boss_transition_timer = 0.0
-	_boss_transition_enc = enc
+	_boss_transition_event = ev
+	_bt_degrade_active = false
+	_bt_remodulated = false
+	_bt_typing_active = false
+	_bt_typing_finished = false
+	_bt_typing_fast = false
+	_bt_typing_line_idx = 0
+	_bt_typing_char_idx = 0
+	_bt_typing_char_timer = 0.0
+	_bt_typing_pause_timer = 0.0
+	_bt_typing_completed_lines.clear()
+	_bt_debug_y_offset = 0.0
 
 	# Pre-register boss weapon loops with audio lead times
-	var boss_id: String = str(enc.get("boss_id", ""))
+	var boss_id: String = str(ev.get("boss_id", ""))
 	if boss_id != "":
 		var boss: BossData = BossDataManager.load_by_id(boss_id)
 		if boss:
@@ -1090,7 +1090,8 @@ func _on_boss_transition(enc: Dictionary) -> void:
 
 func _preregister_boss_lead_loops(boss: BossData) -> void:
 	## Register and start (muted) all boss weapon loops that have audio_lead_sec > 0.
-	## Schedule unmutes relative to BT_TRANSITION_END (when boss is expected to arrive).
+	## Schedule unmutes at BOSS_MUSIC_BLEED time for ominous bleed-in.
+	var transition_end: float = BossTransitionSequence.get_transition_end_time()
 	var all_overrides: Array = []
 	for ovr in boss.core_weapon_overrides:
 		all_overrides.append(ovr)
@@ -1117,102 +1118,160 @@ func _preregister_boss_lead_loops(boss: BossData) -> void:
 		LoopMixer.add_loop(loop_id, weapon.loop_file_path, "Enemies", 0.0, true)
 		LoopMixer.start_loop(loop_id)
 		_boss_transition_lead_loops.append(loop_id)
-		# Schedule unmute: unmute at (BT_TRANSITION_END - lead) seconds into the transition
-		var unmute_at: float = maxf(BT_TRANSITION_END - lead, 0.0)
+		# Schedule unmute relative to transition end
+		var unmute_at: float = maxf(transition_end - lead, BossTransitionSequence.BOSS_MUSIC_BLEED)
 		get_tree().create_timer(unmute_at).timeout.connect(func() -> void:
 			if LoopMixer.has_loop(loop_id):
-				LoopMixer.unmute(loop_id, 500)
+				LoopMixer.unmute(loop_id, 2000)  # Slow fade-in for ominous bleed
 		)
 
 
 func _process_boss_transition(delta: float) -> void:
 	var prev_t: float = _boss_transition_timer
 	_boss_transition_timer += delta
+	var t: float = _boss_transition_timer
 
 	# Helper: did we just cross a threshold?
-	var crossed := func(t: float) -> bool:
-		return prev_t < t and _boss_transition_timer >= t
+	var crossed := func(threshold: float) -> bool:
+		return prev_t < threshold and t >= threshold
 
-	# 0.0s — Energy wave visual + SFX
-	if crossed.call(BT_WAVE_START):
-		SfxPlayer.play("boss_wave_start")
+	# ── Phase 1: DISRUPTION ──
+
+	# WAVE_SWEEP — Energy wave sweeps screen
+	if crossed.call(BossTransitionSequence.WAVE_SWEEP):
+		_bt_debug("WAVE_SWEEP", t)
+		SfxPlayer.play("boss_wave_sweep")
 		_spawn_boss_wave_visual()
 
-	# 0.3s — Wave hits player, drift starts, music dies
-	if crossed.call(BT_WAVE_HIT):
+	# WAVE_HIT — Wave passes player, drift begins
+	if crossed.call(BossTransitionSequence.WAVE_HIT):
+		_bt_debug("WAVE_HIT", t)
 		SfxPlayer.play("boss_wave_hit")
 		if _player:
 			_player.start_boss_transition_drift()
-		LoopMixer.mute_all(1500)
+		trigger_screen_shake(4.0, 0.6)
 
-	# 2.0s — Full silence
-	if crossed.call(BT_SILENCE):
+	# MUSIC_DEGRADE_START — Music starts degrading
+	if crossed.call(BossTransitionSequence.MUSIC_DEGRADE_START):
+		_bt_debug("MUSIC_DEGRADE_START", t)
+		SfxPlayer.play("boss_music_degrade")
+		_bt_degrade_active = true
+
+	# Progressive music degradation (runs every frame during degrade window)
+	if _bt_degrade_active and t < BossTransitionSequence.MUSIC_DEGRADE_END:
+		var degrade_t: float = (t - BossTransitionSequence.MUSIC_DEGRADE_START) / (BossTransitionSequence.MUSIC_DEGRADE_END - BossTransitionSequence.MUSIC_DEGRADE_START)
+		degrade_t = clampf(degrade_t, 0.0, 1.0)
+		var vol_offset: float = lerpf(0.0, -60.0, degrade_t)
+		LoopMixer.set_all_volume_offset(vol_offset)
+		var wobble: float = sin(t * 8.0 + sin(t * 3.7) * 2.0) * degrade_t * 0.15
+		LoopMixer.set_all_pitch_scale(1.0 + wobble)
+
+	# MUSIC_DEGRADE_END — Full silence achieved
+	if crossed.call(BossTransitionSequence.MUSIC_DEGRADE_END):
+		_bt_debug("MUSIC_DEGRADE_END (silence)", t)
 		SfxPlayer.play("boss_silence")
+		_bt_degrade_active = false
+		LoopMixer.mute_all(0)
+		LoopMixer.set_all_volume_offset(0.0)
+		LoopMixer.set_all_pitch_scale(1.0)
 
-	# 3.0s — Warning box appears
-	if crossed.call(BT_WARNING):
+	# BOSS_MUSIC_BLEED — Boss music fades in ominously
+	if crossed.call(BossTransitionSequence.BOSS_MUSIC_BLEED):
+		_bt_debug("BOSS_MUSIC_BLEED", t)
+		SfxPlayer.play("boss_music_bleed")
+
+	# WARNING_APPEAR — Warning box + boss name
+	if crossed.call(BossTransitionSequence.WARNING_APPEAR):
+		_bt_debug("WARNING_APPEAR", t)
 		SfxPlayer.play("boss_warning")
 		_show_boss_transition_warning()
 
-	# 3.5s — First message typeout
-	if crossed.call(BT_MESSAGE_1):
-		SfxPlayer.play("boss_message_1")
-		_start_boss_typeout("Large field destabilizing tuning.")
+	# TYPING_START — Diagnostic typing begins
+	if crossed.call(BossTransitionSequence.TYPING_START):
+		_bt_debug("TYPING_START", t)
+		_bt_typing_active = true
+		_bt_typing_lines.clear()
+		for line in BossTransitionSequence.DIAGNOSTIC_LINES:
+			_bt_typing_lines.append(line)
+		_setup_bt_typing_sound()
 
-	# 5.0s — Second message
-	if crossed.call(BT_MESSAGE_2):
-		SfxPlayer.play("boss_message_2")
-		_start_boss_typeout("Remodulating.")
+	# Process typing each frame
+	if _bt_typing_active and not _bt_typing_finished:
+		_process_bt_typing(delta)
 
-	# 6.0s — Key + BPM shift
-	if crossed.call(BT_REMODULATE):
-		SfxPlayer.play("boss_remodulate")
-		var key_shift: int = int(_boss_transition_enc.get("key_shift_semitones", 0))
-		var bpm_shift: float = float(_boss_transition_enc.get("bpm_shift", 0.0))
-		if key_shift != 0:
-			LoopMixer.set_pitch_shift(float(key_shift), 1.0)
-		if bpm_shift != 0.0 and _level_data:
-			var ratio: float = (_level_data.bpm + bpm_shift) / maxf(_level_data.bpm, 1.0)
-			LoopMixer.set_all_pitch_scale(ratio)
+	# REMODULATE — triggered by typing reaching the "Carrier locked" line
+	if not _bt_remodulated and _bt_typing_active:
+		for completed_line in _bt_typing_completed_lines:
+			if completed_line.begins_with("Carrier locked"):
+				_bt_remodulated = true
+				_bt_debug("REMODULATE", t)
+				SfxPlayer.play("boss_remodulate")
+				var key_shift: int = int(_boss_transition_event.get("key_shift_semitones", -2))
+				var bpm_shift: float = float(_boss_transition_event.get("bpm_shift", 10.0))
+				if key_shift != 0:
+					LoopMixer.set_pitch_shift(float(key_shift), 1.5)
+				if bpm_shift != 0.0 and _level_data:
+					var ratio: float = (_level_data.bpm + bpm_shift) / maxf(_level_data.bpm, 1.0)
+					LoopMixer.set_all_pitch_scale(ratio)
+				LoopMixer.unmute_all(2000)
+				break
 
-	# 7.0s — Final message
-	if crossed.call(BT_MESSAGE_3):
-		SfxPlayer.play("boss_message_3")
-		_start_boss_typeout("Systems recalibrated.")
+	# CONTROL_RESTORED / TRANSITION_END — after typing finishes + delays
+	if _bt_typing_finished:
+		_bt_typing_char_timer += delta
+		var elapsed: float = _bt_typing_char_timer
 
-	# 7.5s — Player control restored
-	if crossed.call(BT_CONTROL_RESTORED):
-		SfxPlayer.play("boss_control_restored")
-		if _player:
-			_player.end_boss_transition_drift()
+		if elapsed >= BossTransitionSequence.CONTROL_RESTORE_DELAY:
+			var prev_elapsed: float = elapsed - delta
+			if prev_elapsed < BossTransitionSequence.CONTROL_RESTORE_DELAY:
+				_bt_debug("CONTROL_RESTORED", t)
+				SfxPlayer.play("boss_control_restored")
+				if _player:
+					_player.end_boss_transition_drift()
 
-	# 8.0s — Transition complete, clean up overlay
-	if crossed.call(BT_TRANSITION_END):
-		SfxPlayer.play("boss_transition_end")
-		_boss_transition_active = false
-		_cleanup_boss_transition_overlay()
+		if elapsed >= BossTransitionSequence.TRANSITION_END_DELAY:
+			_bt_debug("TRANSITION_END", t)
+			SfxPlayer.play("boss_transition_end")
+			_boss_transition_active = false
+			_cleanup_boss_transition_overlay()
 
-	# Process typeout animation
-	_process_boss_typeout(delta)
+
+func _bt_debug(milestone: String, time: float) -> void:
+	## Show a debug label on screen for boss transition milestones.
+	## TODO: Remove once timing is finalized.
+	var label := Label.new()
+	label.text = "[%.2fs] %s" % [time, milestone]
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.0))
+	label.position = Vector2(10, 10 + _bt_debug_y_offset)
+	label.z_index = 100
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(label)
+	_bt_debug_y_offset += 18
+	# Fade out after 4 seconds
+	var tw := create_tween()
+	tw.tween_interval(4.0)
+	tw.tween_property(label, "modulate:a", 0.0, 1.0)
+	tw.tween_callback(label.queue_free)
 
 
 func _spawn_boss_wave_visual() -> void:
-	## Full-screen energy wave sweeping from top to bottom.
+	## Full-screen disruption wave sweeping from top to bottom.
 	var wave := ColorRect.new()
-	wave.size = Vector2(1920, 40)
-	wave.position = Vector2(0, -40)
-	wave.color = Color(0.5, 0.9, 1.0, 0.9)
+	wave.size = Vector2(1920, 60)
+	wave.position = Vector2(0, -60)
+	wave.color = Color(0.7, 0.2, 1.0, 0.85)  # Purple-violet for boss disruption
 	wave.z_index = 50
 	wave.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_game_viewport.add_child(wave)
 	var tween := create_tween()
-	tween.tween_property(wave, "position:y", 1080.0, 0.4).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tween.parallel().tween_property(wave, "modulate:a", 0.0, 0.4).set_delay(0.2)
+	tween.tween_property(wave, "position:y", 1080.0, 0.5).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tween.parallel().tween_property(wave, "modulate:a", 0.0, 0.5).set_delay(0.25)
 	tween.tween_callback(wave.queue_free)
 
 
 func _show_boss_transition_warning() -> void:
-	## Holographic warning box with boss name + typeout area below.
+	## Holographic warning box with boss name + diagnostic typing area below.
 	_boss_transition_overlay = Control.new()
 	_boss_transition_overlay.name = "BossTransitionOverlay"
 	_boss_transition_overlay.size = Vector2(1920, 1080)
@@ -1221,7 +1280,7 @@ func _show_boss_transition_warning() -> void:
 	add_child(_boss_transition_overlay)
 
 	# Warning box
-	var boss_id: String = str(_boss_transition_enc.get("boss_id", ""))
+	var boss_id: String = str(_boss_transition_event.get("boss_id", ""))
 	var boss_name: String = "UNKNOWN"
 	if boss_id != "":
 		var boss: BossData = BossDataManager.load_by_id(boss_id)
@@ -1232,47 +1291,174 @@ func _show_boss_transition_warning() -> void:
 	var box_w: float = 500.0
 	var box_h: float = 80.0
 	box.box_size = Vector2(box_w, box_h)
-	box.position = Vector2((1920 - box_w) * 0.5, 350)
+	box.position = Vector2((1920 - box_w) * 0.5, 200)
 	box.size = Vector2(box_w, box_h)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box._override_text = "WARNING: " + boss_name
 	_boss_transition_overlay.add_child(box)
 	_boss_transition_warning_box = box
 
-	# Typeout label below the warning
-	_boss_transition_typeout_label = Label.new()
-	_boss_transition_typeout_label.position = Vector2(0, 460)
-	_boss_transition_typeout_label.size = Vector2(1920, 200)
-	_boss_transition_typeout_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_boss_transition_typeout_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-	_boss_transition_typeout_label.add_theme_font_size_override("font_size", 18)
+	# Diagnostic typing label — reboot-style RichTextLabel
+	_bt_typing_label = RichTextLabel.new()
+	_bt_typing_label.bbcode_enabled = true
+	_bt_typing_label.scroll_active = false
+	_bt_typing_label.position = Vector2(560, 310)
+	_bt_typing_label.size = Vector2(800, 500)
+	_bt_typing_label.add_theme_color_override("default_color", Color(0.3, 1.0, 0.4))
+	_bt_typing_label.add_theme_font_size_override("normal_font_size", 16)
 	var body_font: Font = ThemeManager.get_font("font_body")
 	if body_font:
-		_boss_transition_typeout_label.add_theme_font_override("font", body_font)
-	_boss_transition_typeout_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_boss_transition_overlay.add_child(_boss_transition_typeout_label)
+		_bt_typing_label.add_theme_font_override("normal_font", body_font)
+	_bt_typing_label.modulate = Color(1.8, 1.8, 1.8, 1.0)  # HDR boost for bloom
+	_bt_typing_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Apply CRT scanline shader if available
+	var scanline_shader: Shader = load("res://assets/shaders/crt_scanline_text.gdshader") as Shader
+	if scanline_shader:
+		var mat := ShaderMaterial.new()
+		mat.shader = scanline_shader
+		_bt_typing_label.material = mat
+	_boss_transition_overlay.add_child(_bt_typing_label)
 
 
-func _start_boss_typeout(text: String) -> void:
-	_boss_transition_typeout_text = text
-	_boss_transition_typeout_idx = 0
-	_boss_transition_typeout_accum = 0.0
-	if _boss_transition_typeout_label:
-		_boss_transition_typeout_label.text = ""
+func _setup_bt_typing_sound() -> void:
+	## Set up a looping typing thunk sound (like reboot sequence).
+	if _bt_typing_player and is_instance_valid(_bt_typing_player):
+		_bt_typing_player.queue_free()
+		_bt_typing_player = null
 
-
-func _process_boss_typeout(delta: float) -> void:
-	if _boss_transition_typeout_idx >= _boss_transition_typeout_text.length():
+	var config: SfxConfig = SfxConfigManager.load_config()
+	var thunk_ev: Dictionary = config.get_event("boss_typing_thunk")
+	var thunk_path: String = str(thunk_ev.get("file_path", ""))
+	if thunk_path == "":
 		return
-	_boss_transition_typeout_accum += delta
-	while _boss_transition_typeout_accum >= BT_TYPEOUT_SPEED and _boss_transition_typeout_idx < _boss_transition_typeout_text.length():
-		_boss_transition_typeout_accum -= BT_TYPEOUT_SPEED
-		_boss_transition_typeout_idx += 1
-		if _boss_transition_typeout_label:
-			_boss_transition_typeout_label.text = _boss_transition_typeout_text.substr(0, _boss_transition_typeout_idx)
+
+	var stream: AudioStream = load(thunk_path) as AudioStream
+	if not stream:
+		return
+
+	# Enable looping
+	if stream is AudioStreamWAV:
+		var wav: AudioStreamWAV = stream as AudioStreamWAV
+		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		wav.loop_begin = 0
+		wav.loop_end = int(wav.mix_rate * (float(wav.data.size()) / (wav.mix_rate * (2 if wav.format == AudioStreamWAV.FORMAT_16_BITS else 1) * (2 if wav.stereo else 1))))
+
+	_bt_typing_player = AudioStreamPlayer.new()
+	_bt_typing_player.stream = stream
+	_bt_typing_player.bus = "UI"
+	_bt_typing_player.volume_db = float(thunk_ev.get("volume_db", -10.0))
+	add_child(_bt_typing_player)
+
+
+func _process_bt_typing(delta: float) -> void:
+	## Character-by-character typing, line by line — reboot style.
+	if _bt_typing_line_idx >= _bt_typing_lines.size():
+		_bt_typing_finished = true
+		_bt_typing_char_timer = 0.0  # Repurposed as post-typing elapsed counter
+		_stop_bt_typing_sound()
+		return
+
+	# Inter-line pause
+	if _bt_typing_pause_timer > 0.0:
+		_bt_typing_pause_timer -= delta
+		_stop_bt_typing_sound()
+		return
+
+	var raw_line: String = _bt_typing_lines[_bt_typing_line_idx]
+
+	# Check for fast phase transition
+	if raw_line.begins_with(">") and not _bt_typing_fast:
+		_bt_typing_fast = true
+
+	var display_line: String = raw_line.lstrip(">")
+
+	# Empty line = paragraph pause, advance immediately
+	if display_line == "":
+		_bt_typing_completed_lines.append("")
+		_bt_typing_line_idx += 1
+		_bt_typing_char_idx = 0
+		_bt_typing_pause_timer = BossTransitionSequence.TYPEOUT_PARAGRAPH_PAUSE
+		_update_bt_typing_display()
+		return
+
+	# Type characters
+	var char_speed: float = BossTransitionSequence.TYPEOUT_CHAR_FAST if _bt_typing_fast else BossTransitionSequence.TYPEOUT_CHAR_SPEED
+	_bt_typing_char_timer += delta
+
+	var typed_any: bool = false
+	while _bt_typing_char_timer >= char_speed and _bt_typing_char_idx < display_line.length():
+		_bt_typing_char_timer -= char_speed
+		_bt_typing_char_idx += 1
+		typed_any = true
+
+	if typed_any:
+		_start_bt_typing_sound()
+		_update_bt_typing_display()
+
+	# Line complete
+	if _bt_typing_char_idx >= display_line.length():
+		_stop_bt_typing_sound()
+		_bt_typing_completed_lines.append(display_line)
+
+		# Fire SFX cues for special lines
+		if display_line == "Weapons: ONLINE":
+			SfxPlayer.play("boss_weapons_online")
+		elif display_line == "REMODULATION COMPLETE":
+			SfxPlayer.play("boss_control_restored")
+
+		_bt_typing_line_idx += 1
+		_bt_typing_char_idx = 0
+		_bt_typing_char_timer = 0.0
+
+		# Determine pause duration
+		var is_header: bool = display_line == display_line.to_upper() and display_line.length() > 2
+		_bt_typing_pause_timer = BossTransitionSequence.TYPEOUT_HEADER_PAUSE if is_header else BossTransitionSequence.TYPEOUT_LINE_PAUSE
+		_update_bt_typing_display()
+
+
+func _update_bt_typing_display() -> void:
+	## Render completed lines + current typing line with cursor, bottom-anchored.
+	if not _bt_typing_label or not is_instance_valid(_bt_typing_label):
+		return
+
+	var lines: Array[String] = []
+	for completed in _bt_typing_completed_lines:
+		lines.append(completed)
+
+	# Current line being typed (with cursor)
+	if _bt_typing_line_idx < _bt_typing_lines.size():
+		var raw: String = _bt_typing_lines[_bt_typing_line_idx]
+		var display: String = raw.lstrip(">")
+		if display != "":
+			var partial: String = display.substr(0, _bt_typing_char_idx)
+			lines.append(partial + "[color=#228833]█[/color]")
+
+	# Keep max visible lines (scroll up)
+	var max_lines: int = 14
+	while lines.size() > max_lines:
+		lines.remove_at(0)
+
+	_bt_typing_label.text = "\n".join(lines)
+
+
+func _start_bt_typing_sound() -> void:
+	if _bt_typing_player and is_instance_valid(_bt_typing_player) and not _bt_typing_player.playing:
+		_bt_typing_player.play()
+
+
+func _stop_bt_typing_sound() -> void:
+	if _bt_typing_player and is_instance_valid(_bt_typing_player) and _bt_typing_player.playing:
+		_bt_typing_player.stop()
 
 
 func _cleanup_boss_transition_overlay() -> void:
+	# Stop typing sound
+	_stop_bt_typing_sound()
+	if _bt_typing_player and is_instance_valid(_bt_typing_player):
+		_bt_typing_player.queue_free()
+		_bt_typing_player = null
+
+	# Fade out overlay
 	if _boss_transition_overlay and is_instance_valid(_boss_transition_overlay):
 		var tween := create_tween()
 		tween.tween_property(_boss_transition_overlay, "modulate:a", 0.0, 1.0)
@@ -1282,7 +1468,7 @@ func _cleanup_boss_transition_overlay() -> void:
 				_boss_transition_overlay = null
 		)
 	_boss_transition_warning_box = null
-	_boss_transition_typeout_label = null
+	_bt_typing_label = null
 
 
 func _return_to_menu() -> void:
@@ -1344,7 +1530,7 @@ func _setup_parallax() -> void:
 	_add_speck_layer(0.75,  30, Color(0.3, 0.85, 1.0, 0.65), 0.8, 1.8, 30, -8)  # Near — synth cyan, shrunk
 	# Background layer (speed = scroll_speed) — doodad decorations
 	_setup_doodads()
-	# Foreground layer (speed = flight_speed) — nebulas, debris (handled separately)
+	# Nebula layer — same scroll_speed as encounters/doodads (handled separately)
 
 
 func _setup_doodads() -> void:
@@ -1425,15 +1611,6 @@ func _setup_debug_grids() -> void:
 	_bg_debug_grid.visible = false
 	_game_viewport.add_child(_bg_debug_grid)
 
-	# Foreground grid — scrolls at flight_speed (orange)
-	_fg_debug_grid = _DebugGrid.new()
-	_fg_debug_grid.grid_color = Color(1.0, 0.5, 0.2, 0.4)
-	_fg_debug_grid.label_text = "FOREGROUND"
-	_fg_debug_grid.speed_value = _flight_speed
-	_fg_debug_grid.line_spacing = 200.0
-	_fg_debug_grid.z_index = -4
-	_fg_debug_grid.visible = false
-	_game_viewport.add_child(_fg_debug_grid)
 
 
 func _setup_nebulas() -> void:

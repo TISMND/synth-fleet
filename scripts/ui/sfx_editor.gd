@@ -176,6 +176,15 @@ func _build_ui() -> void:
 	for event_id in ["alarm_heat", "alarm_fire", "alarm_low_power", "alarm_overdraw", "alarm_shields_low", "alarm_hull_damaged", "alarm_hull_critical"]:
 		_add_event_row(vbox, event_id)
 
+	var spacer_3 := Control.new()
+	spacer_3.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_3)
+
+	# Boss transition section
+	_add_section_header(vbox, "BOSS TRANSITION", "Cues during the boss approach sequence — disruption wave, music breakdown, remodulation")
+	for event_id in ["boss_wave_sweep", "boss_wave_hit", "boss_music_degrade", "boss_silence", "boss_music_bleed", "boss_warning", "boss_typing_thunk", "boss_remodulate", "boss_weapons_online", "boss_control_restored", "boss_transition_end"]:
+		_add_event_row(vbox, event_id)
+
 	# Power loss events (power failure, reboot, power-down, power-up) are managed
 	# exclusively in the EVENTS tab timeline — not shown here.
 
