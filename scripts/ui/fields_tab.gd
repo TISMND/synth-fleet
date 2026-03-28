@@ -2,7 +2,7 @@ extends MarginContainer
 ## Fields Tab — visual style editor for field effects (shader + color + pulse settings).
 ## Styles are saved to res://data/field_styles/ and referenced by devices.
 
-const FIELD_SHADERS: Array[String] = ["force_bubble", "hex_grid", "energy_ripple", "plasma_shield", "particle_ring", "pulse_barrier", "inner_glow", "sun_rays", "shimmer", "hologram"]
+const FIELD_SHADERS: Array[String] = ["force_bubble", "hex_grid", "energy_ripple", "plasma_shield", "particle_ring", "pulse_barrier", "inner_glow", "sun_rays", "shimmer", "hologram", "gravity_well", "spiral", "warp_lens", "fountain"]
 
 const FIELD_SHADER_PARAM_DEFS: Dictionary = {
 	"force_bubble": {"refraction_strength": [0.0, 0.3, 0.05, 0.01], "edge_width": [0.0, 0.3, 0.1, 0.01], "wobble_speed": [0.0, 4.0, 1.0, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
@@ -15,6 +15,10 @@ const FIELD_SHADER_PARAM_DEFS: Dictionary = {
 	"sun_rays": {"ray_count": [0.0, 24.0, 8.0, 1.0], "ray_width": [0.0, 0.5, 0.2, 0.01], "ray_rotation_speed": [0.0, 3.0, 0.5, 0.1], "length_variance": [0.0, 1.0, 0.4, 0.05], "width_variance": [0.0, 1.0, 0.3, 0.05], "brightness_variance": [0.0, 1.0, 0.5, 0.05], "chaos_speed": [0.0, 3.0, 0.8, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
 	"shimmer": {"wave_frequency": [0.0, 12.0, 5.0, 0.5], "distortion_strength": [0.0, 0.15, 0.05, 0.01], "rainbow_intensity": [0.0, 1.0, 0.5, 0.05], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
 	"hologram": {"scan_frequency": [0.0, 40.0, 20.0, 1.0], "scan_speed": [0.0, 10.0, 4.0, 0.5], "jitter_intensity": [0.0, 1.0, 0.5, 0.05], "jitter_rate": [0.0, 8.0, 3.0, 0.5], "aberration": [0.0, 0.1, 0.03, 0.005], "outer_radius": [0.0, 1.0, 0.95, 0.01], "blink_interval": [0.0, 8.0, 3.0, 0.1], "blink_duration": [0.0, 1.0, 0.1, 0.01], "blink_irregularity": [0.0, 1.0, 0.5, 0.05]},
+	"gravity_well": {"stream_count": [1.0, 24.0, 10.0, 1.0], "stream_speed": [0.0, 4.0, 1.5, 0.1], "stream_width": [0.01, 0.4, 0.15, 0.01], "curl_amount": [0.0, 3.0, 0.8, 0.1], "fade_sharpness": [0.5, 4.0, 2.0, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"spiral": {"arm_count": [1.0, 8.0, 3.0, 1.0], "arm_width": [0.05, 0.5, 0.25, 0.01], "wind_tightness": [0.5, 6.0, 2.5, 0.1], "rotation_speed": [0.0, 4.0, 1.0, 0.1], "trail_decay": [0.5, 4.0, 1.5, 0.1], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"warp_lens": {"warp_strength": [0.0, 0.3, 0.08, 0.01], "ripple_frequency": [1.0, 12.0, 4.0, 0.5], "ripple_speed": [0.0, 4.0, 1.5, 0.1], "edge_visibility": [0.0, 2.0, 1.0, 0.1], "chromatic_split": [0.0, 0.05, 0.01, 0.005], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
+	"fountain": {"particle_count": [4.0, 48.0, 20.0, 1.0], "emit_speed": [0.2, 4.0, 1.2, 0.1], "particle_size": [0.005, 0.08, 0.03, 0.005], "spread": [0.0, 1.0, 0.3, 0.05], "lifetime_variance": [0.0, 1.0, 0.5, 0.05], "outer_radius": [0.0, 1.0, 0.95, 0.01]},
 }
 
 # UI references

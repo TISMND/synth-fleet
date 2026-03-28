@@ -1,0 +1,26 @@
+{
+	"color": [
+		0.5078125,
+		1.0,
+		0.64239501953125,
+		1.0
+	],
+	"display_name": "green inward spiral",
+	"field_shader": "gravity_well",
+	"glow_intensity": 4.0,
+	"id": "green_inward_spiral",
+	"pulse_brightness": 0.4,
+	"pulse_tint": 0.8,
+	"radius_ratio": 0.55,
+	"shader_params": {
+		"curl_amount": 3.0,
+		"fade_sharpness": 4.0,
+		"outer_radius": 0.38,
+		"stream_count": 10.0,
+		"stream_speed": 2.0,
+		"stream_width": 0.08
+	},
+	"ship_active_hdr": 0.5,
+	"ship_pulse_hdr": 0.65,
+	"ship_tint_strength": 0.25
+}

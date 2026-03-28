@@ -840,10 +840,145 @@
 			"ship_id": "enemy_tesseract",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 14647.4452554744,
+			"trigger_y": 16504.3795620438,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 47.2992700729927
+			"x_offset": 92.8467153284671
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "formation_5",
+			"is_melee": false,
+			"path_id": "path_10",
+			"rotate_with_path": false,
+			"ship_id": "enemy_shard",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 10859.5620437956,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 80.5839416058394
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_marauder",
+			"spacing": 200.0,
+			"speed": 70.0,
+			"trigger_y": 12558.8321167883,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 646.423357664234
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_marauder",
+			"spacing": 200.0,
+			"speed": 70.0,
+			"trigger_y": 12772.5547445256,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 294.306569343066
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_marauder",
+			"spacing": 200.0,
+			"speed": 70.0,
+			"trigger_y": 13208.7591240876,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -355.620437956204
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_marauder",
+			"spacing": 200.0,
+			"speed": 70.0,
+			"trigger_y": 13795.6204379562,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -910.948905109489
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_marauder",
+			"spacing": 200.0,
+			"speed": 70.0,
+			"trigger_y": 14258.102189781,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -24.5255474452555
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_marauder",
+			"spacing": 200.0,
+			"speed": 70.0,
+			"trigger_y": 14575.1824817518,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 912.700729927007
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_marauder",
+			"spacing": 200.0,
+			"speed": 70.0,
+			"trigger_y": 14210.802919708,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 854.890510948905
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_marauder",
+			"spacing": 200.0,
+			"speed": 70.0,
+			"trigger_y": 13651.9708029197,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 187.445255474453
 		}
 	],
 	"events": [
@@ -852,30 +987,54 @@
 			"bpm_shift": 0.0,
 			"event_type": "boss_transition",
 			"key_shift_semitones": 0,
-			"trigger_y": 13410.6569343065,
-			"x_offset": -3.5036496350365
+			"trigger_y": 15334.1605839415,
+			"x_offset": 85.8394160583942
 		}
 	],
 	"id": "level_1",
 	"level_length": 50000.0,
 	"nebula_placements": [
 		{
-			"nebula_id": "nebula_2",
+			"nebula_id": "nebula_6",
 			"radius": 1000.0,
-			"trigger_y": 11664.0875912408,
-			"x_offset": 350.36496350365
+			"trigger_y": 12727.0072992701,
+			"x_offset": 495.766423357664
+		},
+		{
+			"nebula_id": "nebula_6",
+			"radius": 1000.0,
+			"trigger_y": 12916.2043795621,
+			"x_offset": -546.569343065693
 		},
 		{
 			"nebula_id": "nebula_5",
-			"radius": 600.0,
-			"trigger_y": 12103.7956204379,
-			"x_offset": -467.737226277372
+			"radius": 400.0,
+			"trigger_y": 13424.2335766423,
+			"x_offset": 574.598540145985
 		},
 		{
-			"nebula_id": "nebula_2",
-			"radius": 975.0,
-			"trigger_y": 12641.605839416,
-			"x_offset": 458.978102189781
+			"nebula_id": "nebula_6",
+			"radius": 1000.0,
+			"trigger_y": 13862.1897810219,
+			"x_offset": -378.394160583942
+		},
+		{
+			"nebula_id": "nebula_5",
+			"radius": 550.0,
+			"trigger_y": 14286.1313868613,
+			"x_offset": -592.116788321168
+		},
+		{
+			"nebula_id": "nebula_6",
+			"radius": 900.0,
+			"trigger_y": 14354.4525547445,
+			"x_offset": 891.678832116788
+		},
+		{
+			"nebula_id": "nebula_5",
+			"radius": 475.0,
+			"trigger_y": 14568.1751824818,
+			"x_offset": 408.175182481752
 		}
 	],
 	"scroll_speed": 70.0

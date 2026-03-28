@@ -1,17 +1,17 @@
 {
 	"aim_mode": "track",
 	"bar_effects": {
-		"hull": 0.5
+
 	},
 	"beam_dps": 50.0,
 	"beam_duration": 0.05,
 	"beam_passthrough": true,
 	"beam_style_id": "",
 	"beam_transition_time": 0.01,
-	"damage": 30,
+	"damage": 25,
 	"description": "",
 	"direction_deg": 0.0,
-	"display_name": "enemy_red_stick",
+	"display_name": "enemy_side_diamond",
 	"effect_profile": {
 		"defaults": {
 
@@ -21,39 +21,31 @@
 		},
 		"version": 2
 	},
-	"fade_in_ms": 200,
-	"fade_out_ms": 200,
+	"fade_in_ms": 490,
+	"fade_out_ms": 680,
 	"fire_pattern": "single",
 	"fire_triggers": [
-		0.03125,
-		0.09375,
-		0.15625,
-		0.21875,
-		0.28125,
-		0.34375,
-		0.40625,
-		0.46875,
-		0.53125,
-		0.59375,
-		0.65625,
-		0.71875,
-		0.78125,
-		0.84375,
-		0.90625,
-		0.96875
+		0.0,
+		0.1171875,
+		0.25,
+		0.3671875,
+		0.5,
+		0.6171875,
+		0.75,
+		0.8671875
 	],
-	"id": "enemy_red_stick",
+	"id": "enemy_side_diamond",
 	"is_enemy_weapon": true,
-	"loop_file_path": "res://loop_zips/sorted/drums/BETA Begin - 120 BPM - 1 - Drums - 003_b__Drum_Beat_124bpm_Cm_-_80SCYBERPUNK_Zenhiser.wav",
+	"loop_file_path": "res://loop_zips/sorted/pads/Microdose Sleep - 120 BPM - 6 - Pads - NW_ND2_80_pad_riskybusiness_Emin.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
 	"pierce_count": 0,
-	"projectile_speed": 1410.0,
-	"projectile_style_id": "enemy_red_laser_stick",
+	"projectile_speed": 600.0,
+	"projectile_style_id": "enemy_sideways_diamond",
 	"skips_shields": false,
 	"splash_enabled": false,
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
-	"transition_mode": "instant"
+	"transition_mode": "fade"
 }

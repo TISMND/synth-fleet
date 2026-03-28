@@ -1,5 +1,7 @@
 {
 	"collision_height": 30.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "circle",
 	"collision_width": 120.0,
 	"display_name": "Pentorbiter",
@@ -40,5 +42,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "marauder",
-	"weapon_id": "enemy_yellow_dagger"
+	"weapon_id": "enemy_side_diamond"
 }

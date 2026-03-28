@@ -1,0 +1,82 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		48.0,
+		28.0
+	],
+	"collision_scale": [
+		42.0,
+		25.0
+	],
+	"color": [
+		1.0,
+		0.515625,
+		0.0,
+		1.0
+	],
+	"display_name": "enemy_sideways_diamond",
+	"effect_profile": {
+		"defaults": {
+			"muzzle": [
+				{
+					"color": [
+						1.0,
+						0.932230412960052,
+						0.3828125,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.3,
+						"particle_count": 6.0,
+						"spread_angle": 360.0
+					},
+					"type": "radial_burst"
+				}
+			],
+			"trail": [
+				{
+					"color": [
+						0.280769348144531,
+						0.453125,
+						0.18408203125,
+						1.0
+					],
+					"params": {
+						"amount": 8.0,
+						"lifetime": 0.2
+					},
+					"type": "sparkle"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "energy",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "enemy_sideways_diamond",
+	"mask_path": "",
+	"procedural_mask_feather": 0.0,
+	"procedural_mask_shape": "diamond",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.9,
+		"brightness": 1.9,
+		"color_mix": 0.25,
+		"distortion": 0.01,
+		"edge_glow": 2.0,
+		"edge_softness": 1.0,
+		"scroll_speed": 2.5
+	}
+}

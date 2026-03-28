@@ -2,7 +2,7 @@
 	"aim_mode": "fixed",
 	"bar_effects": {
 		"electric": -3.5,
-		"thermal": 0.400000000000006
+		"thermal": 0.599999999999994
 	},
 	"beam_dps": 100.0,
 	"beam_duration": 1.2,

@@ -1,15 +1,20 @@
 {
-	"display_name": "Nebula 5",
+	"bar_effects": {
+		"electric": 1.0,
+		"hull": -10.0,
+		"shield": -10.0
+	},
+	"display_name": "Blue Storm",
 	"id": "nebula_5",
 	"shader_params": {
 		"animation_speed": 2.1,
 		"bottom_opacity": 1.0,
-		"brightness": 2.25,
+		"brightness": 1.7,
 		"density": 0.65,
 		"nebula_color": [
-			0.3,
-			0.4,
-			0.9,
+			0.13427734375,
+			0.224673226475716,
+			0.6875,
 			1.0
 		],
 		"radial_spread": 0.35,
