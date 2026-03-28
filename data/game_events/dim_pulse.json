@@ -1,0 +1,18 @@
+{
+	"id": "dim_pulse",
+	"display_name": "Darkness Pulse",
+	"effects": [
+		{
+			"type": "screen_dim",
+			"brightness": 0.2,
+			"duration": 3.0,
+			"fade_in": 0.8,
+			"fade_out": 1.2
+		},
+		{
+			"type": "sfx",
+			"sfx_event_id": "monitor_shutoff",
+			"delay": 0.0
+		}
+	]
+}

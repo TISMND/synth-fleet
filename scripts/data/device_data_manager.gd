@@ -1,14 +1,10 @@
 class_name DeviceDataManager
 extends RefCounted
-## Read-only facade that searches both field_emitters/ and orbital_generators/
-## for device loading. Editing is done through type-specific managers.
+## Read-only facade for device loading. Editing is done through FieldEmitterDataManager.
 
 
 static func load_by_id(id: String) -> DeviceData:
 	var device: DeviceData = FieldEmitterDataManager.load_by_id(id)
-	if device:
-		return device
-	device = OrbitalGeneratorDataManager.load_by_id(id)
 	if device:
 		return device
 	# Fallback: check legacy res://data/devices/ for migration
@@ -26,14 +22,8 @@ static func load_by_id(id: String) -> DeviceData:
 
 
 static func load_all() -> Array[DeviceData]:
-	var devices: Array[DeviceData] = []
-	devices.append_array(FieldEmitterDataManager.load_all())
-	devices.append_array(OrbitalGeneratorDataManager.load_all())
-	return devices
+	return FieldEmitterDataManager.load_all()
 
 
 static func list_ids() -> Array[String]:
-	var ids: Array[String] = []
-	ids.append_array(FieldEmitterDataManager.list_ids())
-	ids.append_array(OrbitalGeneratorDataManager.list_ids())
-	return ids
+	return FieldEmitterDataManager.list_ids()

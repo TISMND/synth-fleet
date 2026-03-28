@@ -32,6 +32,61 @@ var editing_level_id: String = ""  # Remembers which level was open in the edito
 var show_mouse_nav_indicator: bool = true  # Gameplay setting — show diamond at mouse position
 var mouse_sensitivity: float = 1.0  # Controls setting — 0.25 to 2.0
 
+# Level stats — tracked during gameplay, reset at level start
+var level_stats: Dictionary = {
+	"enemies_destroyed": 0,
+	"enemies_total": 0,
+	"heat_generated": 0.0,
+	"damage_taken": 0.0,
+	"time_elapsed": 0.0,
+	"score": 0,
+}
+
+
+func reset_level_stats() -> void:
+	level_stats = {
+		"enemies_destroyed": 0,
+		"enemies_total": 0,
+		"heat_generated": 0.0,
+		"damage_taken": 0.0,
+		"time_elapsed": 0.0,
+		"score": 0,
+	}
+
+
+func calculate_grade() -> String:
+	var destroyed: int = int(level_stats.get("enemies_destroyed", 0))
+	var total: int = int(level_stats.get("enemies_total", 1))
+	if total == 0:
+		return "S"
+	var kill_pct: float = float(destroyed) / float(total)
+	if kill_pct >= 0.95:
+		return "S"
+	elif kill_pct >= 0.85:
+		return "A"
+	elif kill_pct >= 0.70:
+		return "B"
+	elif kill_pct >= 0.50:
+		return "C"
+	elif kill_pct >= 0.30:
+		return "D"
+	else:
+		return "F"
+
+
+func fade_out_menu_music() -> void:
+	## Fade out and release menu music loops from any screen.
+	## Safe to call even if no menu music is playing.
+	if not has_meta("menu_loop_ids"):
+		return
+	var ids: Array = get_meta("menu_loop_ids") as Array
+	var fade_ms: int = int(get_meta("menu_fade_ms")) if has_meta("menu_fade_ms") else 2000
+	for loop_id in ids:
+		var lid: String = str(loop_id)
+		if LoopMixer.has_loop(lid):
+			LoopMixer.release_loop(lid, fade_ms)
+	set_meta("menu_loop_ids", [] as Array[String])
+
 
 func _ready() -> void:
 	load_game()

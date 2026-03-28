@@ -13,10 +13,27 @@ var _preview_tween: Tween
 var _tab_sfx_btn: Button
 var _tab_loops_btn: Button
 var _tab_events_btn: Button
+var _tab_menu_btn: Button
 var _sfx_content: ScrollContainer
 var _loops_content: Control  # LoopBalancer instance
 var _events_content: Control  # PowerLossTimeline instance
-var _active_tab: int = 0  # 0 = SFX, 1 = LOOPS, 2 = EVENTS
+var _menu_content: ScrollContainer  # Menu music layer editor
+var _active_tab: int = 0  # 0 = SFX, 1 = LOOPS, 2 = EVENTS, 3 = MENU
+
+# Menu music editor state
+var _menu_config: Dictionary = {}
+var _menu_layer_container: VBoxContainer
+var _menu_fade_slider: HSlider
+var _menu_fade_label: Label
+var _menu_browsers: Array = []  # Array of {browser: LoopBrowser, vol_slider: HSlider, bar_spin: SpinBox, active_check: CheckBox, id: String}
+# Menu music preview playback
+var _menu_preview_active: bool = false
+var _menu_preview_elapsed: float = 0.0
+var _menu_preview_bar_dur: float = 2.0
+var _menu_preview_loop_ids: Array[String] = []
+var _menu_preview_start_bars: Dictionary = {}  # loop_id -> int
+var _menu_preview_unmuted: Dictionary = {}  # loop_id -> bool
+var _menu_preview_btn: Button
 
 # Per-event UI refs keyed by event ID
 var _file_buttons: Dictionary = {}      # OptionButton
@@ -24,8 +41,10 @@ var _volume_sliders: Dictionary = {}    # HSlider
 var _volume_labels: Dictionary = {}     # Label
 var _clip_sliders: Dictionary = {}      # HSlider
 var _clip_labels: Dictionary = {}       # Label
-var _fade_sliders: Dictionary = {}      # HSlider
-var _fade_labels: Dictionary = {}       # Label
+var _fade_in_sliders: Dictionary = {}    # HSlider
+var _fade_in_labels: Dictionary = {}    # Label
+var _fade_sliders: Dictionary = {}      # HSlider (fade out)
+var _fade_labels: Dictionary = {}       # Label (fade out)
 var _preview_buttons: Dictionary = {}   # Button
 var _event_labels: Dictionary = {}      # Label
 var _section_headers: Array[Label] = []
@@ -107,6 +126,13 @@ func _build_ui() -> void:
 	_tab_events_btn.button_pressed = false
 	_tab_events_btn.pressed.connect(_on_tab_events)
 	top_bar.add_child(_tab_events_btn)
+
+	_tab_menu_btn = Button.new()
+	_tab_menu_btn.text = "MENU"
+	_tab_menu_btn.toggle_mode = true
+	_tab_menu_btn.button_pressed = false
+	_tab_menu_btn.pressed.connect(_on_tab_menu)
+	top_bar.add_child(_tab_menu_btn)
 
 	# Spacer to push BACK to the right
 	var right_spacer := Control.new()
@@ -212,62 +238,69 @@ func _build_ui() -> void:
 	_events_content.visible = false
 	add_child(_events_content)
 
+	# Menu music content
+	_menu_content = ScrollContainer.new()
+	_menu_content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_menu_content.offset_top = 60.0
+	_menu_content.offset_left = 20.0
+	_menu_content.offset_right = -20.0
+	_menu_content.offset_bottom = -20.0
+	_menu_content.visible = false
+	add_child(_menu_content)
+	_build_menu_tab()
+
 
 # --- Tab switching ---
+
+func _switch_sfx_tab(idx: int) -> void:
+	_active_tab = idx
+	_tab_sfx_btn.button_pressed = (idx == 0)
+	_tab_loops_btn.button_pressed = (idx == 1)
+	_tab_events_btn.button_pressed = (idx == 2)
+	_tab_menu_btn.button_pressed = (idx == 3)
+	_sfx_content.visible = (idx == 0)
+	_loops_content.visible = (idx == 1)
+	_events_content.visible = (idx == 2)
+	_menu_content.visible = (idx == 3)
+	# Stop previews on non-active tabs
+	if idx != 0:
+		if _preview_tween and _preview_tween.is_valid():
+			_preview_tween.kill()
+		_preview_player.stop()
+	if idx != 1 and _loops_content.has_method("stop_preview"):
+		_loops_content.stop_preview()
+	if idx != 2 and _events_content.has_method("stop_playback"):
+		_events_content.stop_playback()
+	if idx != 3:
+		_stop_menu_preview()
+
 
 func _on_tab_sfx() -> void:
 	if _active_tab == 0:
 		_tab_sfx_btn.button_pressed = true
 		return
-	_active_tab = 0
-	_tab_sfx_btn.button_pressed = true
-	_tab_loops_btn.button_pressed = false
-	_tab_events_btn.button_pressed = false
-	_sfx_content.visible = true
-	_loops_content.visible = false
-	_events_content.visible = false
-	if _loops_content.has_method("stop_preview"):
-		_loops_content.stop_preview()
-	if _events_content.has_method("stop_playback"):
-		_events_content.stop_playback()
+	_switch_sfx_tab(0)
 
 
 func _on_tab_loops() -> void:
 	if _active_tab == 1:
 		_tab_loops_btn.button_pressed = true
 		return
-	_active_tab = 1
-	_tab_sfx_btn.button_pressed = false
-	_tab_loops_btn.button_pressed = true
-	_tab_events_btn.button_pressed = false
-	_sfx_content.visible = false
-	_loops_content.visible = true
-	_events_content.visible = false
-	# Stop SFX preview when switching away
-	if _preview_tween and _preview_tween.is_valid():
-		_preview_tween.kill()
-	_preview_player.stop()
-	if _events_content.has_method("stop_playback"):
-		_events_content.stop_playback()
+	_switch_sfx_tab(1)
 
 
 func _on_tab_events() -> void:
 	if _active_tab == 2:
 		_tab_events_btn.button_pressed = true
 		return
-	_active_tab = 2
-	_tab_sfx_btn.button_pressed = false
-	_tab_loops_btn.button_pressed = false
-	_tab_events_btn.button_pressed = true
-	_sfx_content.visible = false
-	_loops_content.visible = false
-	_events_content.visible = true
-	# Stop other tab previews
-	if _preview_tween and _preview_tween.is_valid():
-		_preview_tween.kill()
-	_preview_player.stop()
-	if _loops_content.has_method("stop_preview"):
-		_loops_content.stop_preview()
+	_switch_sfx_tab(2)
+
+
+func _on_tab_menu() -> void:
+	if _active_tab == 3:
+		_tab_menu_btn.button_pressed = true
+		return
+	_switch_sfx_tab(3)
 
 
 func _add_section_header(parent: VBoxContainer, text: String, description: String = "") -> void:
@@ -351,9 +384,32 @@ func _add_event_row(parent: VBoxContainer, event_id: String) -> void:
 	row.add_child(clip_val)
 	_clip_labels[event_id] = clip_val
 
+	# Fade In slider
+	var fade_in_label := Label.new()
+	fade_in_label.text = "FdIn:"
+	fade_in_label.custom_minimum_size = Vector2(36, 0)
+	row.add_child(fade_in_label)
+
+	var fade_in_slider := HSlider.new()
+	fade_in_slider.min_value = 0.0
+	fade_in_slider.max_value = 5.0
+	fade_in_slider.step = 0.01
+	fade_in_slider.value = 0.0
+	fade_in_slider.custom_minimum_size = Vector2(80, 0)
+	fade_in_slider.editable = false
+	fade_in_slider.value_changed.connect(_on_fade_in_changed.bind(event_id))
+	row.add_child(fade_in_slider)
+	_fade_in_sliders[event_id] = fade_in_slider
+
+	var fade_in_val := Label.new()
+	fade_in_val.text = "0.00s"
+	fade_in_val.custom_minimum_size = Vector2(50, 0)
+	row.add_child(fade_in_val)
+	_fade_in_labels[event_id] = fade_in_val
+
 	# Fade Out slider
 	var fade_label := Label.new()
-	fade_label.text = "Fade:"
+	fade_label.text = "FdOut:"
 	fade_label.custom_minimum_size = Vector2(36, 0)
 	row.add_child(fade_label)
 
@@ -420,6 +476,10 @@ func _populate_from_config() -> void:
 		var clip_slider: HSlider = _clip_sliders[event_id]
 		clip_slider.value = float(ev["clip_end_time"])
 		_update_clip_label(event_id)
+
+		var fade_in_slider: HSlider = _fade_in_sliders[event_id]
+		fade_in_slider.value = float(ev["fade_in_duration"])
+		_update_fade_in_label(event_id)
 
 		var fade_slider: HSlider = _fade_sliders[event_id]
 		fade_slider.value = float(ev["fade_out_duration"])
@@ -556,9 +616,11 @@ func _file_path_for_event(event_id: String) -> String:
 
 func _update_sliders_enabled(event_id: String, has_file: bool) -> void:
 	var clip_slider: HSlider = _clip_sliders[event_id]
+	var fade_in_slider: HSlider = _fade_in_sliders[event_id]
 	var fade_slider: HSlider = _fade_sliders[event_id]
 	var preview_btn: Button = _preview_buttons[event_id]
 	clip_slider.editable = has_file
+	fade_in_slider.editable = has_file
 	fade_slider.editable = has_file
 	preview_btn.disabled = not has_file
 
@@ -578,6 +640,12 @@ func _update_clip_label(event_id: String) -> void:
 func _update_fade_label(event_id: String) -> void:
 	var slider: HSlider = _fade_sliders[event_id]
 	var label: Label = _fade_labels[event_id]
+	label.text = "%.2fs" % slider.value
+
+
+func _update_fade_in_label(event_id: String) -> void:
+	var slider: HSlider = _fade_in_sliders[event_id]
+	var label: Label = _fade_in_labels[event_id]
 	label.text = "%.2fs" % slider.value
 
 
@@ -602,6 +670,8 @@ func _on_file_selected(idx: int, event_id: String) -> void:
 	else:
 		var clip_slider: HSlider = _clip_sliders[event_id]
 		clip_slider.value = 0.0
+		var fade_in_slider: HSlider = _fade_in_sliders[event_id]
+		fade_in_slider.value = 0.0
 		var fade_slider: HSlider = _fade_sliders[event_id]
 		fade_slider.value = 0.0
 
@@ -626,6 +696,13 @@ func _on_fade_changed(value: float, event_id: String) -> void:
 	var ev: Dictionary = _config.get_event(event_id)
 	ev["fade_out_duration"] = value
 	_update_fade_label(event_id)
+	_auto_save()
+
+
+func _on_fade_in_changed(value: float, event_id: String) -> void:
+	var ev: Dictionary = _config.get_event(event_id)
+	ev["fade_in_duration"] = value
+	_update_fade_in_label(event_id)
 	_auto_save()
 
 
@@ -656,10 +733,347 @@ func _on_stop_preview() -> void:
 	_preview_player.stop()
 
 
+# --- Menu music tab ---
+
+func _build_menu_tab() -> void:
+	_menu_config = MenuMusicConfigManager.load_config()
+	_menu_browsers.clear()
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_menu_content.add_child(vbox)
+
+	var header := Label.new()
+	header.text = "MENU MUSIC LAYERS"
+	vbox.add_child(header)
+
+	var desc := Label.new()
+	desc.text = "Build up a layered menu song. Each layer unmutes at its Start Bar for a staggered buildup. All loops play from bar 1 simultaneously."
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(desc)
+
+	# BPM
+	var bpm_row := HBoxContainer.new()
+	bpm_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(bpm_row)
+	var bpm_lbl := Label.new()
+	bpm_lbl.text = "BPM"
+	bpm_lbl.custom_minimum_size.x = 120
+	bpm_row.add_child(bpm_lbl)
+	var bpm_slider := HSlider.new()
+	bpm_slider.min_value = 60
+	bpm_slider.max_value = 200
+	bpm_slider.step = 1
+	bpm_slider.value = float(_menu_config.get("bpm", 120))
+	bpm_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bpm_row.add_child(bpm_slider)
+	var bpm_val := Label.new()
+	bpm_val.text = str(int(bpm_slider.value))
+	bpm_val.custom_minimum_size.x = 40
+	bpm_row.add_child(bpm_val)
+	bpm_slider.value_changed.connect(func(v: float):
+		bpm_val.text = str(int(v))
+		_save_menu_config()
+	)
+	# Store ref for _save_menu_config
+	bpm_slider.set_meta("is_bpm", true)
+	vbox.set_meta("bpm_slider", bpm_slider)
+
+	# Fade out duration
+	var fade_row := HBoxContainer.new()
+	fade_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(fade_row)
+	var fade_lbl := Label.new()
+	fade_lbl.text = "Fade Out (ms)"
+	fade_lbl.custom_minimum_size.x = 120
+	fade_row.add_child(fade_lbl)
+	_menu_fade_slider = HSlider.new()
+	_menu_fade_slider.min_value = 0
+	_menu_fade_slider.max_value = 5000
+	_menu_fade_slider.step = 100
+	_menu_fade_slider.value = float(_menu_config.get("fade_out_duration_ms", 2000))
+	_menu_fade_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_menu_fade_slider.value_changed.connect(_on_menu_fade_changed)
+	fade_row.add_child(_menu_fade_slider)
+	_menu_fade_label = Label.new()
+	_menu_fade_label.text = str(int(_menu_fade_slider.value)) + "ms"
+	_menu_fade_label.custom_minimum_size.x = 60
+	fade_row.add_child(_menu_fade_label)
+
+	var sep := HSeparator.new()
+	vbox.add_child(sep)
+
+	# Layer list container
+	_menu_layer_container = VBoxContainer.new()
+	_menu_layer_container.add_theme_constant_override("separation", 16)
+	vbox.add_child(_menu_layer_container)
+
+	# Populate existing layers
+	var layers: Array = _menu_config.get("layers", []) as Array
+	for layer in layers:
+		_add_menu_layer(layer as Dictionary)
+
+	# Button row
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 12)
+	vbox.add_child(btn_row)
+
+	var add_btn := Button.new()
+	add_btn.text = "+ ADD LAYER"
+	add_btn.pressed.connect(_on_add_menu_layer)
+	btn_row.add_child(add_btn)
+
+	_menu_preview_btn = Button.new()
+	_menu_preview_btn.text = "PREVIEW BUILDUP"
+	_menu_preview_btn.pressed.connect(_on_menu_preview_toggle)
+	btn_row.add_child(_menu_preview_btn)
+
+
+func _add_menu_layer(layer_data: Dictionary) -> void:
+	var layer_idx: int = _menu_browsers.size()
+	var layer_id: String = str(layer_data.get("id", "menu_layer_" + str(layer_idx)))
+	var file_path: String = str(layer_data.get("file_path", ""))
+
+	var panel := VBoxContainer.new()
+	panel.add_theme_constant_override("separation", 6)
+	_menu_layer_container.add_child(panel)
+
+	# Header row: layer label + active toggle + mute button + remove
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 12)
+	panel.add_child(header_row)
+
+	var layer_label := Label.new()
+	layer_label.text = "LAYER " + str(layer_idx + 1)
+	header_row.add_child(layer_label)
+
+	var active_check := CheckBox.new()
+	active_check.text = "Active on menu start"
+	active_check.button_pressed = bool(layer_data.get("default_active", true))
+	active_check.toggled.connect(func(_b: bool): _save_menu_config())
+	header_row.add_child(active_check)
+
+	var mute_btn := Button.new()
+	mute_btn.text = "MUTE"
+	mute_btn.toggle_mode = true
+	var audition_id: String = "menu_audition_" + str(layer_idx)
+	mute_btn.pressed.connect(func():
+		if LoopMixer.has_loop(audition_id):
+			if LoopMixer.is_muted(audition_id):
+				LoopMixer.unmute(audition_id, 200)
+				mute_btn.text = "MUTE"
+			else:
+				LoopMixer.mute(audition_id, 200)
+				mute_btn.text = "UNMUTE"
+	)
+	header_row.add_child(mute_btn)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(spacer)
+
+	var remove_btn := Button.new()
+	remove_btn.text = "REMOVE"
+	remove_btn.pressed.connect(func():
+		# Stop audition loop
+		if LoopMixer.has_loop(audition_id):
+			LoopMixer.release_loop(audition_id, 100)
+		# Remove from arrays
+		for i in range(_menu_browsers.size()):
+			var entry: Dictionary = _menu_browsers[i]
+			if str(entry.get("id", "")) == layer_id:
+				_menu_browsers.remove_at(i)
+				break
+		panel.queue_free()
+		call_deferred("_save_menu_config")
+	)
+	header_row.add_child(remove_btn)
+
+	# Start bar + Volume row
+	var settings_row := HBoxContainer.new()
+	settings_row.add_theme_constant_override("separation", 16)
+	panel.add_child(settings_row)
+
+	var bar_lbl := Label.new()
+	bar_lbl.text = "Start Bar"
+	settings_row.add_child(bar_lbl)
+	var bar_spin := SpinBox.new()
+	bar_spin.min_value = 0
+	bar_spin.max_value = 32
+	bar_spin.step = 1
+	bar_spin.value = int(layer_data.get("start_bar", 0))
+	bar_spin.custom_minimum_size = Vector2(80, 0)
+	bar_spin.value_changed.connect(func(_v: float): _save_menu_config())
+	settings_row.add_child(bar_spin)
+
+	var vol_lbl := Label.new()
+	vol_lbl.text = "Volume"
+	settings_row.add_child(vol_lbl)
+	var vol_slider := HSlider.new()
+	vol_slider.min_value = -20.0
+	vol_slider.max_value = 6.0
+	vol_slider.step = 0.5
+	vol_slider.value = float(layer_data.get("volume_db", 0.0))
+	vol_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settings_row.add_child(vol_slider)
+	var vol_val := Label.new()
+	vol_val.text = str(snapped(vol_slider.value, 0.5)) + "dB"
+	vol_val.custom_minimum_size.x = 50
+	settings_row.add_child(vol_val)
+	vol_slider.value_changed.connect(func(v: float):
+		vol_val.text = str(snapped(v, 0.5)) + "dB"
+		_save_menu_config()
+	)
+
+	# LoopBrowser — same component used by weapons tab
+	var browser := LoopBrowser.new()
+	browser._audition_id = audition_id
+	browser.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.add_child(browser)
+
+	# Select the saved path if we have one
+	if file_path != "":
+		browser.call_deferred("select_path", file_path)
+
+	# Wire loop_selected to auto-save
+	browser.loop_selected.connect(func(_path: String, _cat: String): _save_menu_config())
+
+	# Separator
+	var line := HSeparator.new()
+	panel.add_child(line)
+
+	_menu_browsers.append({
+		"id": layer_id,
+		"browser": browser,
+		"vol_slider": vol_slider,
+		"bar_spin": bar_spin,
+		"active_check": active_check,
+		"panel": panel,
+		"audition_id": audition_id,
+	})
+
+
+func _on_add_menu_layer() -> void:
+	var idx: int = _menu_browsers.size()
+	var data: Dictionary = {"id": "menu_layer_" + str(idx), "file_path": "", "volume_db": 0.0, "default_active": true, "start_bar": 0}
+	_add_menu_layer(data)
+	_save_menu_config()
+
+
+func _on_menu_fade_changed(val: float) -> void:
+	_menu_fade_label.text = str(int(val)) + "ms"
+	_save_menu_config()
+
+
+func _save_menu_config() -> void:
+	var layers: Array = []
+	for entry in _menu_browsers:
+		if not is_instance_valid(entry.get("browser")):
+			continue
+		var browser: LoopBrowser = entry["browser"] as LoopBrowser
+		var vol_slider: HSlider = entry["vol_slider"] as HSlider
+		var bar_spin: SpinBox = entry["bar_spin"] as SpinBox
+		var active_check: CheckBox = entry["active_check"] as CheckBox
+		var file_path: String = browser.get_selected_path()
+		layers.append({
+			"id": str(entry.get("id", "")),
+			"file_path": file_path,
+			"volume_db": vol_slider.value,
+			"start_bar": int(bar_spin.value),
+			"default_active": active_check.button_pressed,
+		})
+	# Get BPM from the slider stored on the parent vbox
+	var bpm: int = 120
+	if _menu_layer_container and _menu_layer_container.get_parent():
+		var parent_vbox: Node = _menu_layer_container.get_parent()
+		if parent_vbox.has_meta("bpm_slider"):
+			var bpm_slider: HSlider = parent_vbox.get_meta("bpm_slider") as HSlider
+			bpm = int(bpm_slider.value)
+	var config: Dictionary = {
+		"bpm": bpm,
+		"layers": layers,
+		"fade_out_duration_ms": int(_menu_fade_slider.value),
+	}
+	MenuMusicConfigManager.save_config(config)
+
+
+func _process(delta: float) -> void:
+	if not _menu_preview_active:
+		return
+	_menu_preview_elapsed += delta
+	var current_bar: int = int(_menu_preview_elapsed / _menu_preview_bar_dur)
+	for loop_id in _menu_preview_start_bars:
+		if bool(_menu_preview_unmuted.get(loop_id, false)):
+			continue
+		var start_bar: int = int(_menu_preview_start_bars[loop_id])
+		if current_bar >= start_bar:
+			var bar_pos: float = fmod(_menu_preview_elapsed, _menu_preview_bar_dur)
+			if bar_pos < delta * 2.0 or current_bar > start_bar:
+				LoopMixer.unmute(loop_id, 100)
+				_menu_preview_unmuted[loop_id] = true
+
+
+func _on_menu_preview_toggle() -> void:
+	if _menu_preview_active:
+		_stop_menu_preview()
+	else:
+		_start_menu_preview()
+
+
+func _start_menu_preview() -> void:
+	_stop_menu_preview()
+	# Stop all LoopBrowser audition loops so they don't clash
+	for entry in _menu_browsers:
+		var aud_id: String = str(entry.get("audition_id", ""))
+		if aud_id != "" and LoopMixer.has_loop(aud_id):
+			LoopMixer.mute(aud_id, 50)
+
+	_save_menu_config()
+	var config: Dictionary = MenuMusicConfigManager.load_config()
+	var bpm: float = float(config.get("bpm", 120.0))
+	_menu_preview_bar_dur = 60.0 / maxf(bpm, 1.0) * 4.0
+	_menu_preview_elapsed = 0.0
+	_menu_preview_loop_ids.clear()
+	_menu_preview_start_bars.clear()
+	_menu_preview_unmuted.clear()
+
+	var layers: Array = config.get("layers", []) as Array
+	for layer in layers:
+		var d: Dictionary = layer as Dictionary
+		var lid: String = "menu_preview_" + str(d.get("id", ""))
+		var file_path: String = str(d.get("file_path", ""))
+		var vol: float = float(d.get("volume_db", 0.0))
+		var start_bar: int = int(d.get("start_bar", 0))
+		if file_path == "" or not FileAccess.file_exists(file_path):
+			continue
+		LoopMixer.add_loop(lid, file_path, "Master", vol, true)
+		_menu_preview_loop_ids.append(lid)
+		_menu_preview_start_bars[lid] = start_bar
+		_menu_preview_unmuted[lid] = false
+	if _menu_preview_loop_ids.size() > 0:
+		LoopMixer.start_all()
+		_menu_preview_active = true
+		_menu_preview_btn.text = "STOP PREVIEW"
+
+
+func _stop_menu_preview() -> void:
+	_menu_preview_active = false
+	for loop_id in _menu_preview_loop_ids:
+		if LoopMixer.has_loop(loop_id):
+			LoopMixer.release_loop(loop_id, 100)
+	_menu_preview_loop_ids.clear()
+	_menu_preview_start_bars.clear()
+	_menu_preview_unmuted.clear()
+	if _menu_preview_btn:
+		_menu_preview_btn.text = "PREVIEW BUILDUP"
+
+
 func _on_back() -> void:
 	if _preview_tween and _preview_tween.is_valid():
 		_preview_tween.kill()
 	_preview_player.stop()
+	_stop_menu_preview()
 	if _loops_content and _loops_content.has_method("stop_preview"):
 		_loops_content.stop_preview()
 	if _events_content and _events_content.has_method("stop_playback"):
@@ -689,6 +1103,8 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_tab_loops_btn)
 	if _tab_events_btn:
 		ThemeManager.apply_button_style(_tab_events_btn)
+	if _tab_menu_btn:
+		ThemeManager.apply_button_style(_tab_menu_btn)
 	for header in _section_headers:
 		if is_instance_valid(header):
 			ThemeManager.apply_text_glow(header, "header")

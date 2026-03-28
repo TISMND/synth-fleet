@@ -1,26 +1,25 @@
-class_name OrbiterStyleManager
+class_name GameEventDataManager
 extends RefCounted
-## Reads/writes orbiter style JSON files in res://data/orbiter_styles/
+## Reads/writes game event definition JSON files in res://data/game_events/
 
-const DIR_PATH := "res://data/orbiter_styles/"
+const DIR_PATH := "res://data/game_events/"
 
 
 static func _ensure_dir() -> void:
 	DirAccess.make_dir_recursive_absolute(DIR_PATH)
 
 
-static func save(id: String, data: Dictionary) -> void:
+static func save(data: GameEventData) -> void:
 	_ensure_dir()
-	data["id"] = id
-	var path: String = DIR_PATH + id + ".json"
+	var path: String = DIR_PATH + data.id + ".json"
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if not file:
-		push_error("OrbiterStyleManager: failed to save %s" % path)
+		push_error("GameEventDataManager: failed to save %s" % path)
 		return
-	file.store_string(JSON.stringify(data, "\t"))
+	file.store_string(JSON.stringify(data.to_dict(), "\t"))
 
 
-static func load_by_id(id: String) -> OrbiterStyle:
+static func load_by_id(id: String) -> GameEventData:
 	var path: String = DIR_PATH + id + ".json"
 	if not FileAccess.file_exists(path):
 		return null
@@ -29,28 +28,28 @@ static func load_by_id(id: String) -> OrbiterStyle:
 		return null
 	var json := JSON.new()
 	if json.parse(file.get_as_text()) != OK:
-		push_warning("OrbiterStyleManager: JSON parse error in %s: %s" % [path, json.get_error_message()])
+		push_warning("GameEventDataManager: JSON parse error in %s: %s" % [path, json.get_error_message()])
 		return null
 	var data: Dictionary = json.data
-	return OrbiterStyle.from_dict(data)
+	return GameEventData.from_dict(data)
 
 
-static func load_all() -> Array[OrbiterStyle]:
+static func load_all() -> Array[GameEventData]:
 	_ensure_dir()
-	var styles: Array[OrbiterStyle] = []
+	var events: Array[GameEventData] = []
 	var dir := DirAccess.open(DIR_PATH)
 	if not dir:
-		return styles
+		return events
 	dir.list_dir_begin()
 	var fname: String = dir.get_next()
 	while fname != "":
 		if fname.ends_with(".json"):
-			var s: OrbiterStyle = load_by_id(fname.get_basename())
-			if s:
-				styles.append(s)
+			var e: GameEventData = load_by_id(fname.get_basename())
+			if e:
+				events.append(e)
 		fname = dir.get_next()
 	dir.list_dir_end()
-	return styles
+	return events
 
 
 static func delete(id: String) -> void:

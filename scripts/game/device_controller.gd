@@ -11,7 +11,6 @@ var _active: bool = false
 var _loop_id: String = ""
 var _prev_loop_pos: float = -1.0
 var _field_renderer: FieldRenderer = null
-var _orbiter_renderer: OrbiterRenderer = null
 var _collision_area: Area2D = null
 var _field_style: FieldStyle = null
 
@@ -29,32 +28,19 @@ func setup(device: DeviceData, slot_index: int, ship_node: Node2D) -> void:
 		LoopMixer.add_loop(_loop_id, device.loop_file_path, "Weapons", 0.0, true)
 
 	# Create visual renderer as child of ship_node
-	if device.visual_mode == "orbiter" and device.orbiter_style_id != "":
-		var orb_style: OrbiterStyle = OrbiterStyleManager.load_by_id(device.orbiter_style_id)
-		if orb_style:
-			_orbiter_renderer = OrbiterRenderer.new()
-			ship_node.add_child(_orbiter_renderer)
-			_orbiter_renderer.setup(orb_style)
-			_orbiter_renderer.set_orbit_radius(device.radius)
-			_orbiter_renderer.set_lifetime(device.orbiter_lifetime)
-			_orbiter_renderer.set_fade_durations(device.fade_in_duration, device.fade_out_duration)
-			_orbiter_renderer.visible = false
+	var style: FieldStyle = null
+	if device.field_style_id != "":
+		style = FieldStyleManager.load_by_id(device.field_style_id)
+	if not style:
+		style = FieldStyle.new()
+		style.color = Color(0.0, 1.0, 1.0, 1.0)
+	_field_style = style
 
-	if not _orbiter_renderer:
-		# Field mode (default)
-		var style: FieldStyle = null
-		if device.field_style_id != "":
-			style = FieldStyleManager.load_by_id(device.field_style_id)
-		if not style:
-			style = FieldStyle.new()
-			style.color = Color(0.0, 1.0, 1.0, 1.0)
-		_field_style = style
-
-		_field_renderer = FieldRenderer.new()
-		ship_node.add_child(_field_renderer)
-		_field_renderer.setup(style, device.radius)
-		_field_renderer.set_pulse_timing(device.pulse_total_duration, device.pulse_fade_up, device.pulse_fade_out)
-		_field_renderer.set_opacity(0.0)
+	_field_renderer = FieldRenderer.new()
+	ship_node.add_child(_field_renderer)
+	_field_renderer.setup(style, device.radius)
+	_field_renderer.set_pulse_timing(device.pulse_total_duration, device.pulse_fade_up, device.pulse_fade_out)
+	_field_renderer.set_opacity(0.0)
 
 	# Create collision Area2D on layer 8
 	_collision_area = Area2D.new()
@@ -76,8 +62,6 @@ func activate() -> void:
 	_prev_loop_pos = -1.0
 	var fade_ms: int = _get_fade_in_ms()
 	LoopMixer.unmute(_loop_id, fade_ms)
-	if _orbiter_renderer:
-		_orbiter_renderer.visible = true
 	# Always-on mode: field is permanently visible when device is active
 	if _field_renderer and device_data.active_always_on:
 		_field_renderer.set_opacity(1.0)
@@ -91,9 +75,6 @@ func deactivate() -> void:
 	_active = false
 	var fade_ms: int = _get_fade_out_ms()
 	LoopMixer.mute(_loop_id, fade_ms)
-	if _orbiter_renderer:
-		_orbiter_renderer.remove_all()
-		_orbiter_renderer.visible = false
 	# Kill active envelope and hide field immediately
 	_active_envelope_active = false
 	if _field_renderer:
@@ -117,8 +98,6 @@ func cleanup() -> void:
 	LoopMixer.remove_loop(_loop_id)
 	if _field_renderer and is_instance_valid(_field_renderer):
 		_field_renderer.queue_free()
-	if _orbiter_renderer and is_instance_valid(_orbiter_renderer):
-		_orbiter_renderer.queue_free()
 	if _collision_area and is_instance_valid(_collision_area):
 		_collision_area.queue_free()
 
@@ -197,7 +176,7 @@ func _process(delta: float) -> void:
 	var prev: float = _prev_loop_pos
 	_prev_loop_pos = curr
 
-	# Pass 1: Functional triggers (pulse_triggers) — bar_effects, signal, orbiter spawns
+	# Pass 1: Functional triggers (pulse_triggers) — bar_effects, signal
 	if has_functional:
 		var any_crossed: bool = false
 		for t in device_data.pulse_triggers:
@@ -210,8 +189,6 @@ func _process(delta: float) -> void:
 			if _field_renderer:
 				_active_envelope_active = true
 				_active_envelope_elapsed = 0.0
-			if _orbiter_renderer:
-				_orbiter_renderer.spawn_batch()
 			if not device_data.bar_effects.is_empty():
 				bar_effect_fired.emit(device_data.bar_effects)
 

@@ -105,10 +105,10 @@ func _ready() -> void:
 		_baked_sprite.texture = bake_tex
 		_flash_material = shared_renderer.create_flash_material()
 		_baked_sprite.material = _flash_material
-		# Hide for 1 frame — viewport texture may not be rendered yet
+		# Hide until viewport texture has rendered (2-frame delay)
 		_baked_sprite.visible = false
 		add_child(_baked_sprite)
-		_baked_sprite.set_deferred("visible", true)
+		get_tree().process_frame.connect(_reveal_sprite_frame_1, CONNECT_ONE_SHOT)
 		shared_renderer.ref(vid, render_mode_str, enemy_color)
 	else:
 		# Fallback: per-instance ShipRenderer (for unregistered appearances or no bake manager)
@@ -174,6 +174,19 @@ func _on_cleanup() -> void:
 	if _baked_sprite and shared_renderer:
 		var vid: String = visual_id if visual_id != "" else "sentinel"
 		shared_renderer.unref(vid, render_mode_str, enemy_color)
+
+
+func _reveal_sprite_frame_1() -> void:
+	if not is_instance_valid(self):
+		return
+	if not is_inside_tree():
+		return
+	get_tree().process_frame.connect(_reveal_sprite_frame_2, CONNECT_ONE_SHOT)
+
+
+func _reveal_sprite_frame_2() -> void:
+	if _baked_sprite and is_instance_valid(_baked_sprite):
+		_baked_sprite.visible = true
 
 
 func set_melee_target(target: Node2D) -> void:
@@ -297,6 +310,8 @@ func _die() -> void:
 		_enrage_weapon_controller = null
 	SfxPlayer.play_random_explosion()
 	GameState.add_credits(10)
+	GameState.level_stats["enemies_destroyed"] = int(GameState.level_stats.get("enemies_destroyed", 0)) + 1
+	GameState.level_stats["score"] = int(GameState.level_stats.get("score", 0)) + 10
 	_spawn_explosion()
 	# If this is a boss core, kill all remaining segments
 	for seg in boss_segments:

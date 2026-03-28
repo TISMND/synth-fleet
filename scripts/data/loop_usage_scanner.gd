@@ -38,7 +38,7 @@ static func scan() -> Dictionary:
 			var label: String = "Core: " + pc.display_name
 			_add_usage(usage, core_path, label)
 
-	# Devices (field emitters + orbital generators)
+	# Devices (field emitters)
 	var devices: Array = DeviceDataManager.load_all()
 	for d in devices:
 		var dev_path: String = d.loop_file_path
@@ -53,7 +53,7 @@ static func scan() -> Dictionary:
 
 static func rename_loop_path(old_path: String, new_path: String) -> void:
 	## Update all data files that reference old_path to use new_path instead.
-	## Covers weapons, ships (presence), power cores, field emitters, orbital generators.
+	## Covers weapons, ships (presence), power cores, field emitters.
 
 	# Weapons
 	var weapons: Array[WeaponData] = WeaponDataManager.load_all()
@@ -82,13 +82,6 @@ static func rename_loop_path(old_path: String, new_path: String) -> void:
 		if d.loop_file_path == old_path:
 			d.loop_file_path = new_path
 			FieldEmitterDataManager.save(d.id, d.to_dict())
-
-	# Orbital generators
-	var orbiters: Array = OrbitalGeneratorDataManager.load_all()
-	for d in orbiters:
-		if d.loop_file_path == old_path:
-			d.loop_file_path = new_path
-			OrbitalGeneratorDataManager.save(d.id, d.to_dict())
 
 	# Invalidate cache
 	_cache_frame = -1

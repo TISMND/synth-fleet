@@ -25,7 +25,7 @@ func _on_levels() -> void:
 
 
 func _on_begin() -> void:
-	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
+	SceneLoader.load_scene("res://scenes/game/game.tscn")
 
 
 func _on_back() -> void:

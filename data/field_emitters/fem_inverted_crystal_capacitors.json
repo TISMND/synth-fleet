@@ -13,8 +13,6 @@
 	"disable_power_cores": false,
 	"disable_weapons": false,
 	"display_name": "Inverted Crystal Capacitors",
-	"fade_in_duration": 0.3,
-	"fade_out_duration": 0.3,
 	"field_style_id": "sun_rays",
 	"hull_damage_reduction": 0.0,
 	"id": "fem_inverted_crystal_capacitors",
@@ -23,8 +21,6 @@
 	"mechanic_params": {
 
 	},
-	"orbiter_lifetime": 4.0,
-	"orbiter_style_id": "",
 	"passive_effects": {
 		"electric": 13.35,
 		"hull": -0.549999999999997,
@@ -41,7 +37,6 @@
 	"speed_modifier": -75.0,
 	"transition_mode": "fade",
 	"transition_ms": 1040,
-	"visual_mode": "field",
 	"visual_pulse_triggers": [
 		0.0,
 		0.125,

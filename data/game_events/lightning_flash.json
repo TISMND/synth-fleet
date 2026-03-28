@@ -1,0 +1,23 @@
+{
+	"id": "lightning_flash",
+	"display_name": "Lightning Flash",
+	"effects": [
+		{
+			"type": "lightning_flash",
+			"color": [0.8, 0.85, 1.0, 1.0],
+			"intensity": 2.5,
+			"count": 2,
+			"interval": 0.15
+		},
+		{
+			"type": "screen_shake",
+			"amplitude": 4.0,
+			"duration": 0.3
+		},
+		{
+			"type": "sfx",
+			"sfx_event_id": "electric_sparks",
+			"delay": 0.0
+		}
+	]
+}

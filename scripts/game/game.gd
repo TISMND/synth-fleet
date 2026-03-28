@@ -63,6 +63,8 @@ var _boss_transition_event: Dictionary = {}
 var _boss_transition_overlay: Control = null
 var _boss_transition_warning_box: Control = null
 var _boss_transition_lead_loops: Array[String] = []  # Loop IDs registered for audio lead
+var _boss_health_bar: BossHealthBar = null
+var _boss_enemies: Array = []  # All boss enemy nodes (core + segments) for health tracking
 # Typing system (reboot-style RichTextLabel)
 var _bt_typing_label: RichTextLabel = null
 var _bt_typing_lines: Array[String] = []
@@ -84,6 +86,22 @@ var _bt_debug_y_offset: float = 0.0  # Stacks debug labels vertically
 var _screen_shake_remaining: float = 0.0
 var _screen_shake_amplitude: float = 0.0
 var _screen_shake_original_pos: Vector2 = Vector2.ZERO
+
+# Game events system (visual + SFX events triggered by nebulas, bosses, etc.)
+var _static_overlay: ColorRect = null
+var _static_shader_mat: ShaderMaterial = null
+var _lightning_overlay: ColorRect = null
+var _game_event_cache: Dictionary = {}  # event_id -> GameEventData
+var _nebula_event_timers: Dictionary = {}  # nebula_id -> float (countdown to next event)
+var _events_audition_mode: bool = false  # When true: empty level, hotkeys trigger events
+var _events_audition_ids: Array[String] = []  # Loaded event IDs for hotkey mapping
+var _events_audition_legend: Control = null
+var _tutorial_controller: TutorialController = null
+var _active_lightning_count: int = 0
+var _active_lightning_timer: float = 0.0
+var _active_lightning_interval: float = 0.0
+var _active_lightning_color: Color = Color.WHITE
+var _active_lightning_intensity: float = 1.0
 
 # Level intro sequence
 var _intro_active: bool = false
@@ -123,6 +141,8 @@ var level_id: String = ""
 func _ready() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
 	_load_warning_colors()
+	GameState.reset_level_stats()
+	GameState.fade_out_menu_music()
 	# Force fresh SFX cache on every game start
 	SfxPlayer.reload()
 	# Reassign key bindings to sequential 1-2-3... based on current ship's slot counts
@@ -239,11 +259,25 @@ func _ready() -> void:
 	_player_base_speed = _player.speed
 	_player_base_modulate_a = _player.modulate.a
 
-	# Waves start immediately (scroll-based spawning)
-	_start_waves()
+	# Game event overlays — siblings to game viewport, rendered on top
+	_setup_game_event_overlays()
+
+	# Check for events audition mode
+	if GameState.has_meta("events_audition"):
+		GameState.remove_meta("events_audition")
+		_events_audition_mode = true
+		_setup_events_audition()
+	elif _level_data and _level_data.id == "tutorial":
+		_tutorial_controller = TutorialController.new()
+		add_child(_tutorial_controller)
+		_tutorial_controller.setup(_player, _hud, self)
+	else:
+		# Waves start immediately (scroll-based spawning)
+		_start_waves()
 
 	# Level intro — titles + bar fill overlay, 1.5s silence then all loops start in sync
-	_start_intro()
+	if not _events_audition_mode:
+		_start_intro()
 
 	# Delay all loop playback by 1.5s so intro loop and weapon loops start from beat 1 together
 	get_tree().create_timer(1.5).timeout.connect(func(): LoopMixer.start_all())
@@ -345,6 +379,12 @@ func _process(delta: float) -> void:
 	if _intro_active:
 		_process_intro(delta)
 
+	if not _end_of_level_active:
+		GameState.level_stats["time_elapsed"] = float(GameState.level_stats.get("time_elapsed", 0.0)) + delta
+	if _end_of_level_active:
+		_process_end_of_level(delta)
+	if _tutorial_controller:
+		_tutorial_controller.process(delta)
 	if _parallax_bg:
 		_parallax_bg.scroll_offset.y += _scroll_speed * delta
 	_scroll_distance += _scroll_speed * delta
@@ -361,7 +401,9 @@ func _process(delta: float) -> void:
 	# Apply nebula status effects each frame
 	if not _death_sequence_active:
 		_apply_nebula_bar_effects(delta)
+		_process_nebula_events(delta)
 		_check_measure_boundary_key_shift()
+	_process_lightning_chain(delta)
 	# Death explosion sequence
 	if _death_sequence_active:
 		_process_death_sequence(delta)
@@ -369,6 +411,7 @@ func _process(delta: float) -> void:
 		_process_power_loss_death(delta)
 	if _boss_transition_active:
 		_process_boss_transition(delta)
+	_update_boss_health_bar()
 	_process_screen_shake(delta)
 	if _hud and _player and not _game_over_overlay and not _power_death_active:
 		_hud.update_all_bars(_player.shield, _player.shield_max, _player.hull, _player.hull_max, _player.thermal, _player.thermal_max, _player.electric, _player.electric_max)
@@ -440,9 +483,23 @@ func _start_waves() -> void:
 		_wave_manager.start()
 
 
+var _end_of_level_active: bool = false
+var _end_of_level_overlay: Control = null
+var _end_of_level_typing_lines: Array[String] = []
+var _end_of_level_typing_idx: int = 0
+var _end_of_level_char_idx: int = 0
+var _end_of_level_char_timer: float = 0.0
+var _end_of_level_pause_timer: float = 0.0
+var _end_of_level_completed_lines: Array[String] = []
+var _end_of_level_label: RichTextLabel = null
+var _end_of_level_prompt_visible: bool = false
+var _end_of_level_time: float = 0.0
+
+
 func _on_all_waves_cleared() -> void:
-	# Restart waves continuously
-	_start_waves()
+	if _events_audition_mode:
+		return  # Don't end level in audition mode
+	_start_end_of_level()
 
 
 func _input(event: InputEvent) -> void:
@@ -456,6 +513,9 @@ func _input(event: InputEvent) -> void:
 	if _game_over_overlay and event.is_pressed() and not event.is_echo():
 		_return_to_menu()
 		return
+	if _end_of_level_prompt_visible and event.is_pressed() and not event.is_echo():
+		_return_to_menu()
+		return
 	if _death_sequence_active:
 		return  # Block all input during explosion sequence
 	if event is InputEventKey and event.pressed and not event.is_echo() and event.keycode == KEY_F3:
@@ -465,8 +525,54 @@ func _input(event: InputEvent) -> void:
 		if _bg_debug_grid:
 			_bg_debug_grid.visible = _debug_grids_visible
 		return
+	if _events_audition_mode and event is InputEventKey and event.pressed and not event.is_echo():
+		var key: int = (event as InputEventKey).keycode
+		var idx: int = -1
+		if key >= KEY_1 and key <= KEY_9:
+			idx = key - KEY_1
+		if idx >= 0 and idx < _events_audition_ids.size():
+			trigger_game_event(_events_audition_ids[idx])
+			return
 	if event.is_action_pressed("ui_cancel"):
 		_return_to_menu()
+
+
+func _setup_events_audition() -> void:
+	## Load all game events and build a key legend overlay.
+	var all_events: Array[GameEventData] = GameEventDataManager.load_all()
+	_events_audition_ids.clear()
+	for ev in all_events:
+		_events_audition_ids.append(ev.id)
+
+	# Build legend overlay (top-right)
+	_events_audition_legend = VBoxContainer.new()
+	_events_audition_legend.position = Vector2(1400, 80)
+	_events_audition_legend.z_index = 60
+	_events_audition_legend.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_events_audition_legend)
+
+	var header := Label.new()
+	header.text = "EVENTS AUDITION"
+	header.add_theme_font_size_override("font_size", 20)
+	header.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_events_audition_legend.add_child(header)
+
+	for i in range(mini(_events_audition_ids.size(), 9)):
+		var ev: GameEventData = all_events[i]
+		var lbl := Label.new()
+		lbl.text = "[%d] %s" % [i + 1, ev.display_name]
+		lbl.add_theme_font_size_override("font_size", 16)
+		lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_events_audition_legend.add_child(lbl)
+
+	var esc_lbl := Label.new()
+	esc_lbl.text = "[ESC] Return"
+	esc_lbl.add_theme_font_size_override("font_size", 14)
+	esc_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	esc_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_events_audition_legend.add_child(esc_lbl)
 
 
 func _on_nebula_entered(_area: Area2D, ndata: NebulaData) -> void:
@@ -972,6 +1078,161 @@ func _process_screen_shake(delta: float) -> void:
 	_game_viewport_container.position = _screen_shake_original_pos + Vector2(ox, oy)
 
 
+# ── Game events system ───────────────────────────────────────────────
+
+func _setup_game_event_overlays() -> void:
+	## Create overlay nodes for screen effects. Added as siblings to game viewport
+	## so they render on top of game but below HUD.
+	# Static/interference overlay
+	_static_overlay = ColorRect.new()
+	_static_overlay.name = "StaticOverlay"
+	_static_overlay.position = Vector2.ZERO
+	_static_overlay.size = Vector2(1920, 1080)
+	_static_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_static_overlay.z_index = 40  # Above game, below HUD (50)
+	_static_overlay.visible = false
+	var static_shader: Shader = load("res://assets/shaders/screen_static.gdshader")
+	_static_shader_mat = ShaderMaterial.new()
+	_static_shader_mat.shader = static_shader
+	_static_shader_mat.set_shader_parameter("intensity", 0.0)
+	_static_overlay.material = _static_shader_mat
+	add_child(_static_overlay)
+
+	# Lightning flash overlay
+	_lightning_overlay = ColorRect.new()
+	_lightning_overlay.name = "LightningOverlay"
+	_lightning_overlay.position = Vector2.ZERO
+	_lightning_overlay.size = Vector2(1920, 1080)
+	_lightning_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lightning_overlay.z_index = 41
+	_lightning_overlay.visible = false
+	_lightning_overlay.color = Color(1.0, 1.0, 1.0, 0.0)
+	add_child(_lightning_overlay)
+
+
+func trigger_game_event(event_id: String) -> void:
+	## Fire a game event by ID. Loads and caches the event data, then processes each effect.
+	var event_data: GameEventData = null
+	if _game_event_cache.has(event_id):
+		event_data = _game_event_cache[event_id] as GameEventData
+	else:
+		event_data = GameEventDataManager.load_by_id(event_id)
+		if event_data:
+			_game_event_cache[event_id] = event_data
+	if not event_data:
+		push_warning("Game: unknown game event '%s'" % event_id)
+		return
+	for fx in event_data.effects:
+		var fx_type: String = str(fx.get("type", ""))
+		match fx_type:
+			"screen_shake":
+				var amplitude: float = float(fx.get("amplitude", 5.0))
+				var duration: float = float(fx.get("duration", 0.5))
+				trigger_screen_shake(amplitude, duration)
+			"screen_static":
+				_trigger_screen_static(float(fx.get("intensity", 0.5)), float(fx.get("duration", 0.5)))
+			"lightning_flash":
+				var col_arr: Array = fx.get("color", [1.0, 1.0, 1.0, 1.0]) as Array
+				var col := Color(float(col_arr[0]), float(col_arr[1]), float(col_arr[2]), float(col_arr[3]))
+				_trigger_lightning_flash(col, float(fx.get("intensity", 2.0)), int(fx.get("count", 1)), float(fx.get("interval", 0.15)))
+			"screen_dim":
+				_trigger_screen_dim(float(fx.get("brightness", 0.2)), float(fx.get("duration", 3.0)), float(fx.get("fade_in", 0.5)), float(fx.get("fade_out", 0.8)))
+			"sfx":
+				var sfx_id: String = str(fx.get("sfx_event_id", ""))
+				var delay: float = float(fx.get("delay", 0.0))
+				if delay > 0.0:
+					get_tree().create_timer(delay).timeout.connect(func(): SfxPlayer.play(sfx_id))
+				else:
+					SfxPlayer.play(sfx_id)
+			"hud_flicker":
+				_trigger_hud_flicker(float(fx.get("intensity", 0.5)), float(fx.get("duration", 0.3)))
+
+
+func _trigger_screen_static(intensity: float, duration: float) -> void:
+	if not _static_overlay or not _static_shader_mat:
+		return
+	_static_overlay.visible = true
+	_static_shader_mat.set_shader_parameter("intensity", intensity)
+	var tween: Tween = create_tween()
+	tween.tween_method(func(val: float): _static_shader_mat.set_shader_parameter("intensity", val), intensity, 0.0, duration)
+	tween.tween_callback(func(): _static_overlay.visible = false)
+
+
+func _trigger_lightning_flash(color: Color, intensity: float, count: int, interval: float) -> void:
+	if not _lightning_overlay:
+		return
+	_active_lightning_count = count
+	_active_lightning_timer = 0.0
+	_active_lightning_interval = interval
+	_active_lightning_color = color
+	_active_lightning_intensity = intensity
+	_fire_single_lightning()
+
+
+func _fire_single_lightning() -> void:
+	if not _lightning_overlay:
+		return
+	_lightning_overlay.visible = true
+	var hdr_color := Color(_active_lightning_color.r * _active_lightning_intensity,
+		_active_lightning_color.g * _active_lightning_intensity,
+		_active_lightning_color.b * _active_lightning_intensity, 0.9)
+	_lightning_overlay.color = hdr_color
+	var tween: Tween = create_tween()
+	tween.tween_property(_lightning_overlay, "color:a", 0.0, 0.12)
+	tween.tween_callback(func(): _lightning_overlay.visible = false)
+	_active_lightning_count -= 1
+	if _active_lightning_count > 0:
+		_active_lightning_timer = _active_lightning_interval
+
+
+func _trigger_screen_dim(brightness: float, duration: float, fade_in: float, fade_out: float) -> void:
+	## Dims the game viewport container (not HUD). HUD LEDs stay bright through darkness.
+	if not _game_viewport_container:
+		return
+	var hold_time: float = maxf(duration - fade_in - fade_out, 0.0)
+	var dim_color := Color(brightness, brightness, brightness, 1.0)
+	var tween: Tween = create_tween()
+	tween.tween_property(_game_viewport_container, "modulate", dim_color, fade_in)
+	if hold_time > 0.0:
+		tween.tween_interval(hold_time)
+	tween.tween_property(_game_viewport_container, "modulate", Color.WHITE, fade_out)
+
+
+func _trigger_hud_flicker(intensity: float, duration: float) -> void:
+	if not _hud:
+		return
+	var steps: int = int(duration / 0.05)
+	var tween: Tween = create_tween()
+	for i in range(steps):
+		var target_a: float = 1.0 - intensity * randf()
+		tween.tween_property(_hud, "modulate:a", target_a, 0.05)
+	tween.tween_property(_hud, "modulate:a", 1.0, 0.05)
+
+
+func _process_nebula_events(delta: float) -> void:
+	## Tick nebula event timers. When countdown reaches zero, fire a random event.
+	for nid in _active_nebula_data:
+		var ndata: NebulaData = _active_nebula_data[nid] as NebulaData
+		if ndata.event_ids.is_empty():
+			continue
+		if not _nebula_event_timers.has(nid):
+			_nebula_event_timers[nid] = randf_range(ndata.event_interval_min, ndata.event_interval_max)
+		_nebula_event_timers[nid] = float(_nebula_event_timers[nid]) - delta
+		if float(_nebula_event_timers[nid]) <= 0.0:
+			var event_id: String = ndata.event_ids[randi() % ndata.event_ids.size()]
+			trigger_game_event(event_id)
+			_nebula_event_timers[nid] = randf_range(ndata.event_interval_min, ndata.event_interval_max)
+
+
+func _process_lightning_chain(delta: float) -> void:
+	## Process multi-flash lightning chains (subsequent flashes after the first).
+	if _active_lightning_count <= 0:
+		return
+	_active_lightning_timer -= delta
+	if _active_lightning_timer <= 0.0:
+		_fire_single_lightning()
+
+
 # ── Death during power loss ──────────────────────────────────────────
 
 func _on_power_loss_started() -> void:
@@ -1241,6 +1502,7 @@ func _process_boss_transition(delta: float) -> void:
 			SfxPlayer.play("boss_transition_end")
 			_boss_transition_active = false
 			_cleanup_boss_transition_overlay()
+			_spawn_boss_health_bar()
 
 
 func _bt_debug(milestone: String, time: float) -> void:
@@ -1260,6 +1522,60 @@ func _bt_debug(milestone: String, time: float) -> void:
 	tw.tween_interval(4.0)
 	tw.tween_property(label, "modulate:a", 0.0, 1.0)
 	tw.tween_callback(label.queue_free)
+
+
+func _spawn_boss_health_bar() -> void:
+	## Create boss health bar after transition completes.
+	if _boss_health_bar:
+		return
+	var boss_id: String = str(_boss_transition_event.get("boss_id", ""))
+	var boss_name_str: String = "UNKNOWN"
+	var total_health: float = 0.0
+	if boss_id != "":
+		var boss: BossData = BossDataManager.load_by_id(boss_id)
+		if boss:
+			boss_name_str = boss.display_name if boss.display_name != "" else boss_id
+	# Sum health from all boss-tagged enemies currently alive
+	_boss_enemies.clear()
+	for child in _enemies.get_children():
+		if child.has_meta("boss_part"):
+			_boss_enemies.append(child)
+			total_health += float(child.hull) + float(child.shield)
+	if total_health <= 0.0:
+		total_health = 100.0
+	_boss_health_bar = BossHealthBar.new()
+	_boss_health_bar.name = "BossHealthBar"
+	_boss_health_bar.max_health = total_health
+	_boss_health_bar.current_health = total_health
+	_boss_health_bar.size = Vector2(1920, 80)
+	_boss_health_bar.z_index = 52  # Above HUD
+	add_child(_boss_health_bar)
+
+
+func _update_boss_health_bar() -> void:
+	if not _boss_health_bar:
+		return
+	var total: float = 0.0
+	var alive: bool = false
+	for enemy in _boss_enemies:
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
+			total += float(enemy.hull) + float(enemy.shield)
+			alive = true
+	if alive:
+		var prev: float = _boss_health_bar.current_health
+		_boss_health_bar.current_health = total
+		if total < prev:
+			_boss_health_bar.take_damage(total)
+	else:
+		# Boss defeated — animate out
+		_boss_health_bar.current_health = 0.0
+		var tw: Tween = create_tween()
+		tw.tween_property(_boss_health_bar, "modulate:a", 0.0, 1.0)
+		tw.tween_callback(func():
+			if _boss_health_bar:
+				_boss_health_bar.queue_free()
+				_boss_health_bar = null
+		)
 
 
 func _spawn_boss_wave_visual() -> void:
@@ -1489,9 +1805,9 @@ func _return_to_menu() -> void:
 	var dest: String = GameState.return_scene
 	GameState.return_scene = ""
 	if dest != "":
-		get_tree().change_scene_to_file(dest)
+		SceneLoader.load_scene(dest)
 	else:
-		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+		SceneLoader.load_scene("res://scenes/ui/main_menu.tscn")
 
 
 
@@ -1913,6 +2229,143 @@ class _GameOverBox extends Control:
 		draw_string(font, Vector2(text_x, text_y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_col)
 
 
+# ── End of level ─────────────────────────────────────────────────────
+
+func _start_end_of_level() -> void:
+	if _end_of_level_active:
+		return
+	_end_of_level_active = true
+	_end_of_level_time = 0.0
+
+	# Build stats lines
+	var destroyed: int = int(GameState.level_stats.get("enemies_destroyed", 0))
+	var total: int = int(GameState.level_stats.get("enemies_total", 0))
+	var pct: int = 0
+	if total > 0:
+		pct = int(float(destroyed) / float(total) * 100.0)
+	var heat: int = int(GameState.level_stats.get("heat_generated", 0.0))
+	var score: int = int(GameState.level_stats.get("score", 0))
+	var grade: String = GameState.calculate_grade()
+
+	_end_of_level_typing_lines = [
+		"> MISSION COMPLETE",
+		"",
+		"> ENEMIES DESTROYED: %d/%d (%d%%)" % [destroyed, total, pct],
+		"> HEAT GENERATED: %s" % str(heat),
+		"> SCORE: %s" % str(score),
+		"",
+		"> RATING: %s" % grade,
+	]
+	_end_of_level_typing_idx = 0
+	_end_of_level_char_idx = 0
+	_end_of_level_char_timer = 0.0
+	_end_of_level_pause_timer = 0.3  # Initial pause before typing starts
+	_end_of_level_completed_lines.clear()
+	_end_of_level_prompt_visible = false
+
+	# Disable player weapons
+	if _player:
+		_player.set_meta("level_complete", true)
+
+	# Create overlay
+	_end_of_level_overlay = Control.new()
+	_end_of_level_overlay.name = "EndOfLevelOverlay"
+	_end_of_level_overlay.size = Vector2(1920, 1080)
+	_end_of_level_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_end_of_level_overlay.z_index = 55
+	add_child(_end_of_level_overlay)
+
+	# Semi-transparent background
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0, 0, 0, 0.0)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_end_of_level_overlay.add_child(bg)
+	var bg_tw: Tween = create_tween()
+	bg_tw.tween_property(bg, "color:a", 0.6, 1.5)
+
+	# Typing label — left-aligned, same CRT style as power loss
+	_end_of_level_label = RichTextLabel.new()
+	_end_of_level_label.bbcode_enabled = true
+	_end_of_level_label.scroll_active = false
+	_end_of_level_label.fit_content = true
+	_end_of_level_label.position = Vector2(200, 300)
+	_end_of_level_label.size = Vector2(800, 400)
+	_end_of_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var font: Font = ThemeManager.get_font("font_mono")
+	if font:
+		_end_of_level_label.add_theme_font_override("normal_font", font)
+	_end_of_level_label.add_theme_font_size_override("normal_font_size", 22)
+	_end_of_level_label.add_theme_color_override("default_color", Color(0.3, 1.0, 0.4))
+	_end_of_level_overlay.add_child(_end_of_level_label)
+
+	# Save grade
+	if _level_data:
+		GameState.completed_levels[_level_data.id] = grade
+		GameState.save_game()
+
+
+func _process_end_of_level(delta: float) -> void:
+	_end_of_level_time += delta
+
+	# Pause between lines
+	if _end_of_level_pause_timer > 0.0:
+		_end_of_level_pause_timer -= delta
+		return
+
+	if _end_of_level_typing_idx >= _end_of_level_typing_lines.size():
+		# Typing done — show prompt
+		if not _end_of_level_prompt_visible:
+			_end_of_level_prompt_visible = true
+			_update_end_of_level_text()
+		return
+
+	var line: String = _end_of_level_typing_lines[_end_of_level_typing_idx]
+
+	# Empty lines — instant
+	if line == "":
+		_end_of_level_completed_lines.append("")
+		_end_of_level_typing_idx += 1
+		_end_of_level_pause_timer = 0.1
+		_update_end_of_level_text()
+		return
+
+	# Type characters
+	var char_speed: float = 0.025
+	if line.begins_with("> RATING"):
+		char_speed = 0.06  # Dramatic pause for grade
+	_end_of_level_char_timer += delta
+	while _end_of_level_char_timer >= char_speed and _end_of_level_char_idx < line.length():
+		_end_of_level_char_timer -= char_speed
+		_end_of_level_char_idx += 1
+		SfxPlayer.play_ui("reboot_char_thunk")
+
+	_update_end_of_level_text()
+
+	if _end_of_level_char_idx >= line.length():
+		_end_of_level_completed_lines.append(line)
+		_end_of_level_typing_idx += 1
+		_end_of_level_char_idx = 0
+		_end_of_level_char_timer = 0.0
+		_end_of_level_pause_timer = 0.2
+		SfxPlayer.play_ui("reboot_line_beep")
+
+
+func _update_end_of_level_text() -> void:
+	if not _end_of_level_label:
+		return
+	var text: String = ""
+	for completed_line in _end_of_level_completed_lines:
+		text += completed_line + "\n"
+	# Current line being typed
+	if _end_of_level_typing_idx < _end_of_level_typing_lines.size():
+		var current: String = _end_of_level_typing_lines[_end_of_level_typing_idx]
+		text += current.substr(0, _end_of_level_char_idx)
+	if _end_of_level_prompt_visible:
+		text += "\n\n[color=#8888aa]PRESS ANY KEY TO CONTINUE[/color]"
+	_end_of_level_label.text = "[color=#4dff66]" + text + "[/color]"
+
+
 class _IntroTitleBox extends Control:
 	## Holographic level intro title — shows level number then level name.
 	## Cut in instantly, fade out before each transition.
@@ -1925,7 +2378,7 @@ class _IntroTitleBox extends Control:
 	var _time: float = 0.0
 
 	const COL := Color(0.3, 0.6, 1.0)  # Blue
-	const HDR: float = 2.8
+	const HDR: float = 2.7
 	const BORDER_W: float = 2.0
 	const GLOW_LAYERS: int = 4
 	const GLOW_SPREAD: float = 3.0

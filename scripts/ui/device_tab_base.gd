@@ -97,9 +97,6 @@ var _auto_pulse_timer: float = 0.0
 
 # ── Virtual methods (override in subclasses) ───────────────
 
-func _get_visual_mode() -> String:
-	return "field"
-
 func _get_type_label() -> String:
 	return "DEVICE"
 
@@ -906,10 +903,7 @@ func _collect_device_data() -> Dictionary:
 		"loop_file_path": _loop_browser.get_selected_path() if _loop_browser else "",
 		"loop_length_bars": _waveform_editor.get_detected_bars() if _waveform_editor else 2,
 		"pulse_triggers": triggers,
-		"visual_mode": _get_visual_mode(),
 		"radius": 100.0,
-		"fade_in_duration": 0.3,
-		"fade_out_duration": 0.3,
 		"animation_speed": 1.0,
 		"device_type": _device_type_button.get_item_text(_device_type_button.selected) if _device_type_button else "shield_aura",
 		"mechanic_params": mechanic_params,

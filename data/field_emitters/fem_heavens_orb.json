@@ -13,9 +13,7 @@
 	"disable_power_cores": false,
 	"disable_weapons": true,
 	"display_name": "Heaven's Orb",
-	"fade_in_duration": 0.3,
 	"fade_in_ms": 200,
-	"fade_out_duration": 0.3,
 	"fade_out_ms": 200,
 	"field_style_id": "rainbow_wip",
 	"hull_damage_reduction": 0.0,
@@ -25,8 +23,6 @@
 	"mechanic_params": {
 
 	},
-	"orbiter_lifetime": 4.0,
-	"orbiter_style_id": "",
 	"passive_effects": {
 		"electric": -1.65,
 		"shield": 0.899999999999999,
@@ -40,7 +36,6 @@
 	"shield_damage_reduction": 95.0,
 	"speed_modifier": -50.0,
 	"transition_mode": "instant",
-	"visual_mode": "field",
 	"visual_pulse_triggers": [
 		0.0,
 		0.25,

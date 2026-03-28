@@ -20,7 +20,7 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - Parallax scrolling background with nebula layers
 - Shield/hull/thermal/electric system bars with HUD
 - GameState save/load to user://
-- Component Editor tabs: Weapons, Projectiles, Beams, Power Cores, Field Emitters, Orbital Generators, Fields, Orbiters
+- Component Editor tabs: Weapons, Projectiles, Beams, Power Cores, Field Emitters, Fields
 - Environments Screen: Nebulas, Key Changes
 - Weapons Tab with subtabs (Timing / Movement / Stats), waveform editor, loop browser
 - Level Editor with encounter placement, wave management
@@ -144,7 +144,6 @@ res://data/formations/          Enemy formations
 res://data/key_changes/         Key change definitions
 res://data/levels/              Level definitions
 res://data/nebula_definitions/  Nebula definitions
-res://data/orbital_generators/  Orbital generator definitions
 res://data/power_cores/         Power core definitions
 res://data/projectile_styles/   Projectile visual styles
 res://data/projectile_masks/    Projectile mask PNGs
@@ -153,7 +152,6 @@ res://data/buildings/           Building definitions
 res://data/devices/             Device definitions
 res://data/doodads/             Doodad definitions
 res://data/items/               Item definitions
-res://data/orbiter_styles/      Orbiter visual styles
 res://data/loop_config.json     Global loop config
 res://data/sfx_config.json      SFX event mappings
 res://data/vfx_config.json      VFX config

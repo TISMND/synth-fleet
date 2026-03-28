@@ -217,6 +217,7 @@ static func _default_event() -> Dictionary:
 		"file_path": "",
 		"volume_db": 0.0,
 		"clip_end_time": 0.0,
+		"fade_in_duration": 0.0,
 		"fade_out_duration": 0.0,
 	}
 
@@ -239,6 +240,7 @@ static func from_dict(data: Dictionary) -> SfxConfig:
 				"file_path": str(src.get("file_path", "")),
 				"volume_db": float(src.get("volume_db", 0.0)),
 				"clip_end_time": float(src.get("clip_end_time", 0.0)),
+				"fade_in_duration": float(src.get("fade_in_duration", 0.0)),
 				"fade_out_duration": float(src.get("fade_out_duration", 0.0)),
 			}
 		else:
@@ -254,6 +256,7 @@ func to_dict() -> Dictionary:
 			"file_path": e["file_path"],
 			"volume_db": e["volume_db"],
 			"clip_end_time": e["clip_end_time"],
+			"fade_in_duration": e["fade_in_duration"],
 			"fade_out_duration": e["fade_out_duration"],
 		}
 	return { "events": ev }

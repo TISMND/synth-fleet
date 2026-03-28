@@ -280,6 +280,7 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 
 	enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
 	_enemies_container.add_child(enemy)
+	GameState.level_stats["enemies_total"] = int(GameState.level_stats.get("enemies_total", 0)) + 1
 
 
 func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:

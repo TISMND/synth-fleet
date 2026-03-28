@@ -81,6 +81,15 @@ const KNOWN_SPECIAL_EFFECTS: Array[String] = ["cloak", "slow", "damage_boost"]
 var _key_change_option: OptionButton
 var _key_change_ids: Array[String] = []
 
+# Game events controls
+var _game_event_checks: Dictionary = {}  # event_id -> CheckBox
+var _game_event_ids: Array[String] = []
+var _event_interval_min_slider: HSlider
+var _event_interval_min_value: Label
+var _event_interval_max_slider: HSlider
+var _event_interval_max_value: Label
+var _event_controls_container: VBoxContainer  # Holds interval sliders, disabled when no events
+
 # Preview layering refs
 var _preview_container: Control
 var _preview_bottom: ColorRect
@@ -460,6 +469,66 @@ func _build_effects_section() -> void:
 	_key_change_option.item_selected.connect(_on_key_change_selected)
 	kc_row.add_child(_key_change_option)
 
+	# Game events — trigger visual/SFX events periodically while in nebula
+	var ge_header := Label.new()
+	ge_header.text = "Game Events"
+	ge_header.name = "GameEventsLabel"
+	panel.add_child(ge_header)
+
+	_game_event_checks.clear()
+	_game_event_ids = GameEventDataManager.list_ids()
+	for event_id in _game_event_ids:
+		var event_data: GameEventData = GameEventDataManager.load_by_id(event_id)
+		var check := CheckBox.new()
+		check.text = event_data.display_name if event_data else event_id
+		check.toggled.connect(_on_game_event_toggled.bind(event_id))
+		panel.add_child(check)
+		_game_event_checks[event_id] = check
+
+	_event_controls_container = VBoxContainer.new()
+	_event_controls_container.add_theme_constant_override("separation", 4)
+	panel.add_child(_event_controls_container)
+
+	var min_row := HBoxContainer.new()
+	min_row.add_theme_constant_override("separation", 8)
+	_event_controls_container.add_child(min_row)
+	var min_lbl := Label.new()
+	min_lbl.text = "Min Interval"
+	min_lbl.custom_minimum_size.x = 100
+	min_row.add_child(min_lbl)
+	_event_interval_min_slider = HSlider.new()
+	_event_interval_min_slider.min_value = 1.0
+	_event_interval_min_slider.max_value = 30.0
+	_event_interval_min_slider.step = 0.5
+	_event_interval_min_slider.value = 5.0
+	_event_interval_min_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_event_interval_min_slider.value_changed.connect(_on_event_interval_min_changed)
+	min_row.add_child(_event_interval_min_slider)
+	_event_interval_min_value = Label.new()
+	_event_interval_min_value.text = "5.0s"
+	_event_interval_min_value.custom_minimum_size.x = 45
+	min_row.add_child(_event_interval_min_value)
+
+	var max_row := HBoxContainer.new()
+	max_row.add_theme_constant_override("separation", 8)
+	_event_controls_container.add_child(max_row)
+	var max_lbl := Label.new()
+	max_lbl.text = "Max Interval"
+	max_lbl.custom_minimum_size.x = 100
+	max_row.add_child(max_lbl)
+	_event_interval_max_slider = HSlider.new()
+	_event_interval_max_slider.min_value = 1.0
+	_event_interval_max_slider.max_value = 60.0
+	_event_interval_max_slider.step = 0.5
+	_event_interval_max_slider.value = 12.0
+	_event_interval_max_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_event_interval_max_slider.value_changed.connect(_on_event_interval_max_changed)
+	max_row.add_child(_event_interval_max_slider)
+	_event_interval_max_value = Label.new()
+	_event_interval_max_value.text = "12.0s"
+	_event_interval_max_value.custom_minimum_size.x = 45
+	max_row.add_child(_event_interval_max_value)
+
 
 func _add_slider_row(label_text: String, min_val: float, max_val: float, step: float, default_val: float) -> HSlider:
 	var row := HBoxContainer.new()
@@ -609,6 +678,17 @@ func _select_nebula(id: String) -> void:
 		_key_change_option.selected = 0
 	else:
 		_key_change_option.selected = _key_change_ids.find(data.key_change_id) + 1
+
+	# Game events
+	for event_id in _game_event_checks:
+		var check: CheckBox = _game_event_checks[event_id]
+		check.button_pressed = data.event_ids.has(event_id)
+	_event_interval_min_slider.value = data.event_interval_min
+	_event_interval_min_value.text = str(snapped(data.event_interval_min, 0.5)) + "s"
+	_event_interval_max_slider.value = data.event_interval_max
+	_event_interval_max_value.text = str(snapped(data.event_interval_max, 0.5)) + "s"
+	var has_events: bool = data.event_ids.size() > 0
+	_event_controls_container.visible = has_events
 
 	_suppressing_signals = false
 
@@ -1064,6 +1144,48 @@ func _on_key_change_selected(idx: int) -> void:
 	else:
 		data.key_change_id = _key_change_ids[idx - 1]
 	_auto_save()
+
+
+func _on_game_event_toggled(toggled_on: bool, event_id: String) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if not data:
+		return
+	if toggled_on and not data.event_ids.has(event_id):
+		data.event_ids.append(event_id)
+	elif not toggled_on and data.event_ids.has(event_id):
+		data.event_ids.erase(event_id)
+	_event_controls_container.visible = data.event_ids.size() > 0
+	_auto_save()
+
+
+func _on_event_interval_min_changed(val: float) -> void:
+	_event_interval_min_value.text = str(snapped(val, 0.5)) + "s"
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.event_interval_min = val
+		if data.event_interval_max < val:
+			data.event_interval_max = val
+			_event_interval_max_slider.value = val
+			_event_interval_max_value.text = str(snapped(val, 0.5)) + "s"
+		_auto_save()
+
+
+func _on_event_interval_max_changed(val: float) -> void:
+	_event_interval_max_value.text = str(snapped(val, 0.5)) + "s"
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.event_interval_max = val
+		if data.event_interval_min > val:
+			data.event_interval_min = val
+			_event_interval_min_slider.value = val
+			_event_interval_min_value.text = str(snapped(val, 0.5)) + "s"
+		_auto_save()
 
 
 # ── Utility ───────────────────────────────────────────────────────────────

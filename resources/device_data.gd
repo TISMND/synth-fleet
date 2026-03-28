@@ -10,13 +10,8 @@ extends Resource
 @export var loop_file_path: String = ""
 @export var loop_length_bars: int = 2
 @export var pulse_triggers: Array = []  # Array[float] normalized 0.0–1.0
-@export var visual_mode: String = "field"  # "field" or "orbiter"
 @export var field_style_id: String = ""
-@export var orbiter_style_id: String = ""
-@export var orbiter_lifetime: float = 4.0  # seconds before orbiters fade out (0 = infinite)
 @export var radius: float = 100.0
-@export var fade_in_duration: float = 0.3  # orbiter fade in
-@export var fade_out_duration: float = 0.3  # orbiter fade out
 @export var animation_speed: float = 1.0  # shader animation speed (field style override)
 @export var active_always_on: bool = false  # field stays visible permanently when active
 @export var active_total_duration: float = 1.0  # per-trigger active envelope duration
@@ -50,13 +45,8 @@ static func from_dict(data: Dictionary) -> DeviceData:
 	d.description = str(data.get("description", ""))
 	d.loop_file_path = str(data.get("loop_file_path", ""))
 	d.loop_length_bars = int(data.get("loop_length_bars", 2))
-	d.visual_mode = str(data.get("visual_mode", "field"))
 	d.field_style_id = str(data.get("field_style_id", ""))
-	d.orbiter_style_id = str(data.get("orbiter_style_id", ""))
-	d.orbiter_lifetime = float(data.get("orbiter_lifetime", 4.0))
 	d.radius = float(data.get("radius", 100.0))
-	d.fade_in_duration = float(data.get("fade_in_duration", 0.3))
-	d.fade_out_duration = float(data.get("fade_out_duration", 0.3))
 	d.animation_speed = float(data.get("animation_speed", 1.0))
 	# Active envelope — per-trigger field visibility
 	d.active_always_on = bool(data.get("active_always_on", false))
@@ -134,13 +124,8 @@ func to_dict() -> Dictionary:
 		"loop_file_path": loop_file_path,
 		"loop_length_bars": loop_length_bars,
 		"pulse_triggers": pulse_triggers,
-		"visual_mode": visual_mode,
 		"field_style_id": field_style_id,
-		"orbiter_style_id": orbiter_style_id,
-		"orbiter_lifetime": orbiter_lifetime,
 		"radius": radius,
-		"fade_in_duration": fade_in_duration,
-		"fade_out_duration": fade_out_duration,
 		"animation_speed": animation_speed,
 		"active_always_on": active_always_on,
 		"active_total_duration": active_total_duration,

@@ -1,0 +1,29 @@
+{
+	"background_shader": "",
+	"bpm": 110.0,
+	"deep_background": "",
+	"display_name": "New Level",
+	"doodads": [],
+	"encounters": [
+		{
+			"boss_id": "",
+			"count": 1,
+			"formation_id": "",
+			"is_melee": false,
+			"path_id": "path_1",
+			"rotate_with_path": false,
+			"ship_id": "enemy_1",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 187.445255474453,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 22.7737226277372
+		}
+	],
+	"events": [],
+	"id": "level_4",
+	"level_length": 10000.0,
+	"nebula_placements": [],
+	"scroll_speed": 80.0
+}

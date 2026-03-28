@@ -136,6 +136,9 @@ func _create_bake_viewport(key: String, visual_id: String, render_mode_str: Stri
 
 	# Add as child of the bake manager (which lives in the game viewport tree)
 	parent_node.add_child(vp)
+	# Force one render pass so the texture is warm before any enemy spawns.
+	# UPDATE_ONCE renders exactly one frame then reverts to UPDATE_DISABLED.
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_entries[key] = {"viewport": vp, "renderer": renderer, "ref_count": 0}
 
 

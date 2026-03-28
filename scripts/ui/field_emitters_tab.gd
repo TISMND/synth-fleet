@@ -32,9 +32,6 @@ var _preview_field_sprite: Sprite2D = null
 var _preview_field_material: ShaderMaterial = null
 
 
-func _get_visual_mode() -> String:
-	return "field"
-
 func _get_type_label() -> String:
 	return "FIELD EMITTER"
 
@@ -337,8 +334,6 @@ func _collect_visual_data(data: Dictionary) -> void:
 	data["field_style_id"] = ""
 	if _field_style_button.selected > 0:
 		data["field_style_id"] = _field_style_button.get_item_text(_field_style_button.selected)
-	data["orbiter_style_id"] = ""
-	data["orbiter_lifetime"] = 4.0
 	# Active envelope
 	data["active_always_on"] = _active_always_on_toggle.button_pressed if _active_always_on_toggle else false
 	data["active_total_duration"] = _active_total_dur_slider.value if _active_total_dur_slider else 1.0

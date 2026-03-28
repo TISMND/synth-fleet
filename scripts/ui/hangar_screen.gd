@@ -58,7 +58,7 @@ var _preview_controllers: Array = []  # HardpointController instances
 # Power core preview — lightweight pulse trigger tracking
 var _core_previews: Array = []  # Array of Dicts: {pc, loop_id, prev_pos, triggers}
 
-# Device preview — field emitter / orbital generator pulse trigger tracking
+# Device preview — field emitter pulse trigger tracking
 var _device_previews: Array = []  # Array of Dicts: {device, loop_id, slot_key, prev_pos}
 
 # Mode toggle: "functional", "workshop", "controls", or "audio"
@@ -106,6 +106,7 @@ var _fg_total_target: Dictionary = {}   # bar_type -> float (target value)
 
 func _ready() -> void:
 	_mode = initial_mode
+	GameState.fade_out_menu_music()
 	_cache_weapons()
 	_init_slot_active()
 	_auto_select_first_fg()
@@ -709,8 +710,6 @@ func _populate_right_panel(slot_key: String) -> void:
 		# Show all field-mode devices
 		for did in _device_cache:
 			var d: DeviceData = _device_cache[did]
-			if d.visual_mode != "field":
-				continue
 			var label: String = d.display_name if d.display_name != "" else d.id
 			var rates: Dictionary = EffectRateCalculator.calc_device(d)
 			_add_picker_item(did, label, d.description, slot_key, equipped_ids, "device", rates)
@@ -2763,7 +2762,7 @@ func _sync_preview() -> void:
 
 		# Create FieldRenderer for field-mode devices
 		var field_renderer: FieldRenderer = null
-		if device.visual_mode == "field" and device.field_style_id != "":
+		if device.field_style_id != "":
 			var style: FieldStyle = FieldStyleManager.load_by_id(device.field_style_id)
 			if not style:
 				style = FieldStyle.new()
@@ -3155,7 +3154,7 @@ func _update_ship_field_tint() -> void:
 		var fr: FieldRenderer = entry.get("field_renderer") as FieldRenderer
 		if not fr or not _slot_active.get(slot_key, false):
 			continue
-		if device.visual_mode != "field" or device.field_style_id == "":
+		if device.field_style_id == "":
 			continue
 		var style: FieldStyle = FieldStyleManager.load_by_id(device.field_style_id)
 		if not style:

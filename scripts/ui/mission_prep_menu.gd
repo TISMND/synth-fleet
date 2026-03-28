@@ -40,13 +40,15 @@ func _on_audio_mix() -> void:
 
 
 func _on_tutorial() -> void:
-	pass  # Greyed out for demo
+	GameState.current_level_id = "tutorial"
+	GameState.return_scene = "res://scenes/ui/mission_prep_menu.tscn"
+	SceneLoader.load_scene("res://scenes/game/game.tscn")
 
 
 func _on_launch() -> void:
 	GameState.current_level_id = "level_1"
 	GameState.return_scene = "res://scenes/ui/mission_prep_menu.tscn"
-	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
+	SceneLoader.load_scene("res://scenes/game/game.tscn")
 
 
 func _on_back() -> void:

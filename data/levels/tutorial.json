@@ -1,0 +1,13 @@
+{
+	"background_shader": "",
+	"bpm": 110.0,
+	"deep_background": "",
+	"display_name": "00 - Tutorial",
+	"doodads": [],
+	"encounters": [],
+	"events": [],
+	"id": "tutorial",
+	"level_length": 10000.0,
+	"nebula_placements": [],
+	"scroll_speed": 40.0
+}

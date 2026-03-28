@@ -228,7 +228,7 @@ func _on_play() -> void:
 	var level: LevelData = _levels[_selected_index]
 	GameState.current_level_id = level.id
 	GameState.return_scene = "res://scenes/ui/level_select_screen.tscn"
-	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
+	SceneLoader.load_scene("res://scenes/game/game.tscn")
 
 
 func _on_back() -> void:

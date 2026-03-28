@@ -13,24 +13,20 @@
 	"disable_power_cores": false,
 	"disable_weapons": true,
 	"display_name": "Regenosphere",
-	"fade_in_duration": 0.3,
 	"fade_in_ms": 580,
-	"fade_out_duration": 0.3,
 	"fade_out_ms": 640,
 	"field_style_id": "green_inward_spiral",
-	"hull_damage_reduction": 80.0,
+	"hull_damage_reduction": 35.0,
 	"id": "fem_regenosphere",
 	"loop_file_path": "res://loop_zips/sorted/bass/Globular Barnyard - 120 BPM - 2 - Bass - RF2_90_melodic_loop_confession_Amin.wav",
 	"loop_length_bars": 8,
 	"mechanic_params": {
 
 	},
-	"orbiter_lifetime": 4.0,
-	"orbiter_style_id": "",
 	"passive_effects": {
-		"electric": -1.65,
-		"hull": 3.1,
-		"thermal": 1.6
+		"electric": -2.6,
+		"hull": 3.55,
+		"thermal": 2.05
 	},
 	"pulse_fade_out": 1.08,
 	"pulse_fade_up": 0.13,
@@ -38,9 +34,8 @@
 	"pulse_triggers": [],
 	"radius": 100.0,
 	"shield_damage_reduction": 0.0,
-	"speed_modifier": 20.0,
+	"speed_modifier": 15.0,
 	"transition_mode": "fade",
-	"visual_mode": "field",
 	"visual_pulse_triggers": [
 		0.0,
 		0.125,

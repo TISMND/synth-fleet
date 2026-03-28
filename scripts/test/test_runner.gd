@@ -89,7 +89,6 @@ func _test_json_integrity() -> void:
 		"key_changes": "res://data/key_changes/",
 		"levels": "res://data/levels/",
 		"nebula_definitions": "res://data/nebula_definitions/",
-		"orbital_generators": "res://data/orbital_generators/",
 		"power_cores": "res://data/power_cores/",
 		"projectile_styles": "res://data/projectile_styles/",
 	}

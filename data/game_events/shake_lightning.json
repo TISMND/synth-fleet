@@ -1,0 +1,28 @@
+{
+	"id": "shake_lightning",
+	"display_name": "Shake + Lightning Storm",
+	"effects": [
+		{
+			"type": "screen_shake",
+			"amplitude": 6.0,
+			"duration": 1.5
+		},
+		{
+			"type": "lightning_flash",
+			"color": [0.7, 0.8, 1.0, 1.0],
+			"intensity": 3.0,
+			"count": 4,
+			"interval": 0.25
+		},
+		{
+			"type": "sfx",
+			"sfx_event_id": "electric_sparks",
+			"delay": 0.0
+		},
+		{
+			"type": "sfx",
+			"sfx_event_id": "electric_sparks",
+			"delay": 0.5
+		}
+	]
+}

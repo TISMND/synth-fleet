@@ -16,11 +16,26 @@ var _slab_data: Array = []
 var _saved_values: Dictionary = {}  # warning_id -> {hdr, color_r, color_g, color_b}
 
 # Tab state
-var _active_tab: int = 0  # 0 = warnings, 1 = fire effect
+var _active_tab: int = 0  # 0 = warnings, 1 = fire effect, 2 = boss bar, 3 = events
 var _tab_warnings_btn: Button
 var _tab_fire_btn: Button
+var _tab_boss_bar_btn: Button
+var _tab_events_btn: Button
 var _warnings_content: Control
 var _fire_content: Control
+var _boss_bar_content: Control
+var _events_content: Control
+
+# Boss bar audition state
+var _boss_bar_preview: BossHealthBar = null
+var _boss_bar_health_slider: HSlider
+var _boss_bar_style_option: OptionButton
+var _boss_bar_color_healthy: ColorPickerButton
+var _boss_bar_color_damaged: ColorPickerButton
+var _boss_bar_color_critical: ColorPickerButton
+
+# Events audition state
+var _event_trigger_buttons: Dictionary = {}  # event_id -> Button
 
 const SAVE_PATH := "user://settings/warning_auditions.json"
 const FIRE_SAVE_PATH := "user://settings/fire_audition.json"
@@ -110,9 +125,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _active_tab != 1:
-		return
-	_process_fire_audition(delta)
+	if _active_tab == 1:
+		_process_fire_audition(delta)
 
 
 # ── Warning persistence ──────────────────────────────────────────────
@@ -291,6 +305,18 @@ func _build_ui() -> void:
 	_tab_fire_btn.pressed.connect(_show_fire_tab)
 	header_hbox.add_child(_tab_fire_btn)
 
+	_tab_boss_bar_btn = Button.new()
+	_tab_boss_bar_btn.text = "BOSS BAR"
+	_tab_boss_bar_btn.toggle_mode = true
+	_tab_boss_bar_btn.pressed.connect(_show_boss_bar_tab)
+	header_hbox.add_child(_tab_boss_bar_btn)
+
+	_tab_events_btn = Button.new()
+	_tab_events_btn.text = "EVENTS"
+	_tab_events_btn.toggle_mode = true
+	_tab_events_btn.pressed.connect(_show_events_tab)
+	header_hbox.add_child(_tab_events_btn)
+
 	# ── Warnings content ──
 	_warnings_content = ScrollContainer.new()
 	_warnings_content.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
@@ -315,31 +341,62 @@ func _build_ui() -> void:
 	main_vbox.add_child(_fire_content)
 	_build_fire_tab()
 
+	# ── Boss bar content ──
+	_boss_bar_content = Control.new()
+	_boss_bar_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_boss_bar_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_boss_bar_content.visible = false
+	main_vbox.add_child(_boss_bar_content)
+	_build_boss_bar_tab()
+
+	# ── Events content ──
+	_events_content = ScrollContainer.new()
+	_events_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_events_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_events_content.visible = false
+	main_vbox.add_child(_events_content)
+	_build_events_tab()
+
 	_setup_vhs_overlay()
 
 
-func _show_warnings_tab() -> void:
-	if _active_tab == 0:
-		_tab_warnings_btn.button_pressed = true
+func _switch_to_tab(idx: int) -> void:
+	if _active_tab == idx:
+		# Re-press the already-active tab button
+		match idx:
+			0: _tab_warnings_btn.button_pressed = true
+			1: _tab_fire_btn.button_pressed = true
+			2: _tab_boss_bar_btn.button_pressed = true
+			3: _tab_events_btn.button_pressed = true
 		return
-	_active_tab = 0
-	_tab_warnings_btn.button_pressed = true
-	_tab_fire_btn.button_pressed = false
-	_warnings_content.visible = true
-	_fire_content.visible = false
-	_fire_playing = false
-	_update_fire_play_btn()
+	_active_tab = idx
+	_tab_warnings_btn.button_pressed = (idx == 0)
+	_tab_fire_btn.button_pressed = (idx == 1)
+	_tab_boss_bar_btn.button_pressed = (idx == 2)
+	_tab_events_btn.button_pressed = (idx == 3)
+	_warnings_content.visible = (idx == 0)
+	_fire_content.visible = (idx == 1)
+	_boss_bar_content.visible = (idx == 2)
+	_events_content.visible = (idx == 3)
+	if idx != 1:
+		_fire_playing = false
+		_update_fire_play_btn()
+
+
+func _show_warnings_tab() -> void:
+	_switch_to_tab(0)
 
 
 func _show_fire_tab() -> void:
-	if _active_tab == 1:
-		_tab_fire_btn.button_pressed = true
-		return
-	_active_tab = 1
-	_tab_warnings_btn.button_pressed = false
-	_tab_fire_btn.button_pressed = true
-	_warnings_content.visible = false
-	_fire_content.visible = true
+	_switch_to_tab(1)
+
+
+func _show_boss_bar_tab() -> void:
+	_switch_to_tab(2)
+
+
+func _show_events_tab() -> void:
+	_switch_to_tab(3)
 
 
 # ── Fire effect audition tab ─────────────────────────────────────────
@@ -953,6 +1010,209 @@ func _update_saved(warning_id: String, hdr: float, r: float, g: float, b: float)
 	_save_values()
 
 
+# ── Boss bar audition tab ────────────────────────────────────────────
+
+func _build_boss_bar_tab() -> void:
+	var hsplit := HBoxContainer.new()
+	hsplit.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hsplit.add_theme_constant_override("separation", 20)
+	_boss_bar_content.add_child(hsplit)
+
+	# Left: preview area with black background
+	var preview_panel := PanelContainer.new()
+	preview_panel.custom_minimum_size = Vector2(1200, 0)
+	preview_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hsplit.add_child(preview_panel)
+
+	var preview_bg := ColorRect.new()
+	preview_bg.color = Color(0.02, 0.02, 0.04)
+	preview_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	preview_panel.add_child(preview_bg)
+
+	_boss_bar_preview = BossHealthBar.new()
+	_boss_bar_preview.max_health = 100.0
+	_boss_bar_preview.current_health = 72.0
+	_boss_bar_preview.size = Vector2(1200, 80)
+	preview_panel.add_child(_boss_bar_preview)
+
+	# Right: controls
+	var controls_scroll := ScrollContainer.new()
+	controls_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controls_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hsplit.add_child(controls_scroll)
+
+	var controls := VBoxContainer.new()
+	controls.add_theme_constant_override("separation", 10)
+	controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controls_scroll.add_child(controls)
+
+	# Style selector
+	var style_label := Label.new()
+	style_label.text = "STYLE"
+	controls.add_child(style_label)
+
+	_boss_bar_style_option = OptionButton.new()
+	_boss_bar_style_option.add_item("LED Segments")
+	_boss_bar_style_option.add_item("Holographic")
+	_boss_bar_style_option.selected = _boss_bar_preview.style
+	_boss_bar_style_option.item_selected.connect(func(idx: int):
+		_boss_bar_preview.style = idx
+		_boss_bar_preview.save_settings()
+	)
+	controls.add_child(_boss_bar_style_option)
+
+	# HDR slider
+	var hdr_label := Label.new()
+	hdr_label.text = "HDR INTENSITY"
+	controls.add_child(hdr_label)
+
+	var hdr_row := HBoxContainer.new()
+	hdr_row.add_theme_constant_override("separation", 8)
+	controls.add_child(hdr_row)
+	var hdr_slider := HSlider.new()
+	hdr_slider.min_value = 0.5
+	hdr_slider.max_value = 4.0
+	hdr_slider.step = 0.1
+	hdr_slider.value = _boss_bar_preview.hdr
+	hdr_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hdr_row.add_child(hdr_slider)
+	var hdr_val_label := Label.new()
+	hdr_val_label.text = str(snapped(_boss_bar_preview.hdr, 0.1))
+	hdr_val_label.custom_minimum_size.x = 40
+	hdr_row.add_child(hdr_val_label)
+	hdr_slider.value_changed.connect(func(val: float):
+		_boss_bar_preview.hdr = val
+		hdr_val_label.text = str(snapped(val, 0.1))
+		_boss_bar_preview.save_settings()
+	)
+
+	# Health slider
+	var health_label := Label.new()
+	health_label.text = "HEALTH %"
+	controls.add_child(health_label)
+
+	_boss_bar_health_slider = HSlider.new()
+	_boss_bar_health_slider.min_value = 0.0
+	_boss_bar_health_slider.max_value = 100.0
+	_boss_bar_health_slider.step = 1.0
+	_boss_bar_health_slider.value = 72.0
+	_boss_bar_health_slider.value_changed.connect(func(val: float):
+		_boss_bar_preview.take_damage(val)
+	)
+	controls.add_child(_boss_bar_health_slider)
+
+	# Color pickers
+	var col_healthy_label := Label.new()
+	col_healthy_label.text = "COLOR: HEALTHY"
+	controls.add_child(col_healthy_label)
+	_boss_bar_color_healthy = ColorPickerButton.new()
+	_boss_bar_color_healthy.color = _boss_bar_preview.color_healthy
+	_boss_bar_color_healthy.custom_minimum_size = Vector2(60, 30)
+	_boss_bar_color_healthy.color_changed.connect(func(c: Color):
+		_boss_bar_preview.color_healthy = c
+		_boss_bar_preview.save_settings()
+	)
+	controls.add_child(_boss_bar_color_healthy)
+
+	var col_damaged_label := Label.new()
+	col_damaged_label.text = "COLOR: DAMAGED"
+	controls.add_child(col_damaged_label)
+	_boss_bar_color_damaged = ColorPickerButton.new()
+	_boss_bar_color_damaged.color = _boss_bar_preview.color_damaged
+	_boss_bar_color_damaged.custom_minimum_size = Vector2(60, 30)
+	_boss_bar_color_damaged.color_changed.connect(func(c: Color):
+		_boss_bar_preview.color_damaged = c
+		_boss_bar_preview.save_settings()
+	)
+	controls.add_child(_boss_bar_color_damaged)
+
+	var col_critical_label := Label.new()
+	col_critical_label.text = "COLOR: CRITICAL"
+	controls.add_child(col_critical_label)
+	_boss_bar_color_critical = ColorPickerButton.new()
+	_boss_bar_color_critical.color = _boss_bar_preview.color_critical
+	_boss_bar_color_critical.custom_minimum_size = Vector2(60, 30)
+	_boss_bar_color_critical.color_changed.connect(func(c: Color):
+		_boss_bar_preview.color_critical = c
+		_boss_bar_preview.save_settings()
+	)
+	controls.add_child(_boss_bar_color_critical)
+
+
+# ── Events audition tab ─────────────────────────────────────────────
+
+func _build_events_tab() -> void:
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_events_content.add_child(vbox)
+
+	var desc := Label.new()
+	desc.text = "Visual effects (shake, static, lightning, dimming) only render in the game viewport.\nUse LAUNCH to open an empty game level where you can trigger events with number keys."
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(desc)
+
+	# Launch button
+	var launch_btn := Button.new()
+	launch_btn.text = "LAUNCH EVENTS SIMULATION"
+	launch_btn.pressed.connect(_on_launch_events_sim)
+	vbox.add_child(launch_btn)
+
+	var sep := HSeparator.new()
+	vbox.add_child(sep)
+
+	# Event trigger buttons
+	var events: Array[GameEventData] = GameEventDataManager.load_all()
+	_event_trigger_buttons.clear()
+	for event_data in events:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		vbox.add_child(row)
+
+		var label := Label.new()
+		label.text = event_data.display_name
+		label.custom_minimum_size.x = 200
+		row.add_child(label)
+
+		var trigger_btn := Button.new()
+		trigger_btn.text = "TRIGGER"
+		trigger_btn.pressed.connect(_on_trigger_event_preview.bind(event_data.id))
+		row.add_child(trigger_btn)
+
+		_event_trigger_buttons[event_data.id] = trigger_btn
+
+	if events.is_empty():
+		var empty_label := Label.new()
+		empty_label.text = "No game events defined yet. Create them in data/game_events/"
+		vbox.add_child(empty_label)
+
+
+func _on_trigger_event_preview(event_id: String) -> void:
+	# Trigger a quick visual preview — screen shake won't work outside game scene
+	# but we can flash the screen to confirm the event loads
+	var event_data: GameEventData = GameEventDataManager.load_by_id(event_id)
+	if not event_data:
+		return
+	# Brief flash to confirm trigger (full effect only works in game scene)
+	var flash := ColorRect.new()
+	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	flash.color = Color(1, 1, 1, 0.3)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flash.z_index = 5
+	add_child(flash)
+	var tw: Tween = create_tween()
+	tw.tween_property(flash, "color:a", 0.0, 0.3)
+	tw.tween_callback(flash.queue_free)
+
+
+func _on_launch_events_sim() -> void:
+	_fire_playing = false
+	GameState.return_scene = "res://scenes/ui/auditions_screen.tscn"
+	GameState.current_level_id = "level_1"  # Need a valid level for background/scrolling
+	GameState.set_meta("events_audition", true)
+	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
+
+
 # ── Theme ────────────────────────────────────────────────────────────
 
 func _apply_theme() -> void:
@@ -964,6 +1224,14 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_tab_warnings_btn)
 	if _tab_fire_btn:
 		ThemeManager.apply_button_style(_tab_fire_btn)
+	if _tab_boss_bar_btn:
+		ThemeManager.apply_button_style(_tab_boss_bar_btn)
+	if _tab_events_btn:
+		ThemeManager.apply_button_style(_tab_events_btn)
+	if _boss_bar_content:
+		_apply_theme_recursive(_boss_bar_content)
+	if _events_content:
+		_apply_theme_recursive(_events_content)
 	if _title_label:
 		ThemeManager.apply_text_glow(_title_label, "header")
 		_title_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))

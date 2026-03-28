@@ -2,354 +2,413 @@
 	"events": {
 		"alarm_fire": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/alarms/alarm_2.wav",
 			"volume_db": -15.0
 		},
 		"alarm_heat": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"alarm_hull_critical": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/alarms/alarm_1.wav",
 			"volume_db": -18.0
 		},
 		"alarm_hull_damaged": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"alarm_low_power": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"alarm_overdraw": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/alarms/alarm_distant.wav",
 			"volume_db": -9.0
 		},
 		"alarm_shields_low": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/alarms/alarm_woo.wav",
 			"volume_db": -14.0
 		},
 		"boss_control_restored": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"boss_music_bleed": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Radio/static_subtle.wav",
 			"volume_db": 0.0
 		},
 		"boss_music_degrade": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Radio/channel_flip_then_die.wav",
 			"volume_db": -16.0
 		},
 		"boss_remodulate": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"boss_silence": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Radio/audio_tape_mix_slow_down.wav",
 			"volume_db": -9.5
 		},
 		"boss_transition_end": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"boss_typing_thunk": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Interface/computer typing blips.wav",
 			"volume_db": 0.0
 		},
 		"boss_warning": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Radio/radio_comm_chatter.wav",
 			"volume_db": 0.0
 		},
 		"boss_wave_hit": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"boss_wave_sweep": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/elemental/Woosh Crystal.wav",
 			"volume_db": 6.0
 		},
 		"boss_weapons_online": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Radio/static_subtle.wav",
 			"volume_db": 0.0
 		},
 		"electric_alarm": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/alarm_2.wav",
 			"volume_db": 0.0
 		},
 		"electric_sparks": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"enemy_hull_hit": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/hits/thunk.wav",
 			"volume_db": -23.0
 		},
 		"enemy_shield_hit": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/hits/doom.wav",
 			"volume_db": -31.5
 		},
 		"engine_sputter": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"explosion_1": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/explosions/explosion_slight_echo.wav",
 			"volume_db": -11.0
 		},
 		"explosion_2": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/explosions/explosion_simple.wav",
 			"volume_db": -11.5
 		},
 		"explosion_3": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/explosions/explosion_simple_again.wav",
 			"volume_db": -10.0
 		},
 		"fire_alarm": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"heat_alarm": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/alarm_1.wav",
 			"volume_db": 0.0
 		},
 		"hull_critical": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"hull_damage_powerless": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"immune_hit": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/hits/doop.wav",
 			"volume_db": -18.5
 		},
 		"monitor_shutoff": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"monitor_static": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"player_hull_hit": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/hits/thunk.wav",
 			"volume_db": -20.0
 		},
 		"player_shield_hit": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/hits/doom.wav",
 			"volume_db": -19.5
 		},
 		"power_failure": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/hits/Zap.wav",
 			"volume_db": -25.0
 		},
 		"powerdown_crt_flicker_start": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/electricity_1.wav",
 			"volume_db": -21.0
 		},
 		"powerdown_drift_start": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/clunky power down.wav",
 			"volume_db": -10.0
 		},
 		"powerdown_engines_dying": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"powerdown_final_death": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/violent power down.wav",
 			"volume_db": -5.0
 		},
 		"powerdown_screen_25": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"powerdown_screen_50": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/powerdown_very_subtle.wav",
 			"volume_db": 0.0
 		},
 		"powerdown_screen_75": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/power down subtle.wav",
 			"volume_db": 0.0
 		},
 		"powerdown_shields_bleed": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/electricity_1.wav",
 			"volume_db": -16.5
 		},
 		"powerup_bars_charging": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/power up simple slow.wav",
 			"volume_db": 0.5
 		},
 		"powerup_core_regen": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/power up wobble to woosh.wav",
 			"volume_db": 0.0
 		},
 		"powerup_electric_restored": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/charge up alarm.wav",
 			"volume_db": -1.0
 		},
 		"powerup_restored": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/charge quick bubble.wav",
 			"volume_db": 0.0
 		},
 		"powerup_screen_on": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/power up with beeps.wav",
 			"volume_db": -0.5
 		},
 		"powerup_systems_online": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Interface/Alien typing blips.wav",
 			"volume_db": 6.0
 		},
 		"purge_complete": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/electric_charge.wav",
 			"volume_db": -15.5
 		},
 		"purge_engines_restored": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": -18.0
 		},
 		"purge_start": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/powerdown_very_subtle.wav",
 			"volume_db": -0.5
 		},
 		"purge_venting": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/elemental/Woosh mutara.wav",
 			"volume_db": -5.5
 		},
 		"reboot_char_thunk": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Interface/computer typing blips.wav",
 			"volume_db": 0.0
 		},
 		"reboot_complete": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/power/power up simple slow.wav",
 			"volume_db": -18.5
 		},
 		"reboot_line_beep": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Interface/ButtonBeep_HV.100.wav",
 			"volume_db": -31.0
 		},
 		"shield_critical": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
 		},
 		"system_warning_beep": {
 			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0

@@ -1,7 +1,17 @@
 extends Control
 ## Main menu with navigation to Play sub-menu, Options, Quit, and Dev Studio sub-menu.
+## Menu music: all layers start muted, each unmutes on-beat at its configured start_bar.
+## Music persists across menu screens — fades out only when entering gameplay.
 
 var _vhs_overlay: ColorRect
+var _menu_loop_ids: Array[String] = []
+var _menu_fade_ms: int = 2000
+var _menu_bpm: float = 120.0
+var _bar_duration: float = 2.0  # seconds per bar (4 beats at BPM)
+var _elapsed: float = 0.0
+var _layer_start_bars: Dictionary = {}  # loop_id -> int (bar number to unmute)
+var _layer_unmuted: Dictionary = {}  # loop_id -> bool (already unmuted)
+var _music_active: bool = false
 
 
 func _ready() -> void:
@@ -14,9 +24,70 @@ func _ready() -> void:
 	$VBoxContainer/DevStudioButton.pressed.connect(_on_dev_studio)
 
 	_apply_styles()
+	_start_menu_music()
+
+
+func _process(delta: float) -> void:
+	if not _music_active:
+		return
+	_elapsed += delta
+	var current_bar: int = int(_elapsed / _bar_duration)
+	for loop_id in _layer_start_bars:
+		if bool(_layer_unmuted.get(loop_id, false)):
+			continue
+		var start_bar: int = int(_layer_start_bars[loop_id])
+		if current_bar >= start_bar:
+			var bar_pos: float = fmod(_elapsed, _bar_duration)
+			if bar_pos < delta * 2.0 or current_bar > start_bar:
+				LoopMixer.unmute(loop_id, 100)
+				_layer_unmuted[loop_id] = true
+
+
+func _start_menu_music() -> void:
+	# If loops are already playing (e.g. returning from options), don't restart
+	if GameState.has_meta("menu_loop_ids"):
+		var existing: Array = GameState.get_meta("menu_loop_ids") as Array
+		if existing.size() > 0 and LoopMixer.has_loop(str(existing[0])):
+			_menu_loop_ids.clear()
+			for lid in existing:
+				_menu_loop_ids.append(str(lid))
+			return
+
+	var config: Dictionary = MenuMusicConfigManager.load_config()
+	_menu_fade_ms = int(config.get("fade_out_duration_ms", 2000))
+	_menu_bpm = float(config.get("bpm", 120.0))
+	_bar_duration = 60.0 / maxf(_menu_bpm, 1.0) * 4.0
+	var layers: Array = config.get("layers", []) as Array
+	_menu_loop_ids.clear()
+	_layer_start_bars.clear()
+	_layer_unmuted.clear()
+	_elapsed = 0.0
+
+	for layer in layers:
+		var d: Dictionary = layer as Dictionary
+		var layer_id: String = str(d.get("id", ""))
+		var file_path: String = str(d.get("file_path", ""))
+		var vol: float = float(d.get("volume_db", 0.0))
+		var start_bar: int = int(d.get("start_bar", 0))
+		if layer_id == "" or file_path == "":
+			continue
+		if not FileAccess.file_exists(file_path):
+			push_warning("MenuMusic: missing audio file '%s'" % file_path)
+			continue
+		LoopMixer.add_loop(layer_id, file_path, "Master", vol, true)
+		_menu_loop_ids.append(layer_id)
+		_layer_start_bars[layer_id] = start_bar
+		_layer_unmuted[layer_id] = false
+	if _menu_loop_ids.size() > 0:
+		LoopMixer.start_all()
+		_music_active = true
+	# Store on GameState so any screen can find and fade them
+	GameState.set_meta("menu_loop_ids", _menu_loop_ids.duplicate())
+	GameState.set_meta("menu_fade_ms", _menu_fade_ms)
 
 
 func _on_play() -> void:
+	# Music keeps playing through menu screens — fades when game actually launches
 	get_tree().change_scene_to_file("res://scenes/ui/mission_prep_menu.tscn")
 
 
@@ -29,6 +100,8 @@ func _on_quit() -> void:
 
 
 func _on_dev_studio() -> void:
+	# Fade menu music when entering dev studio, but navigate immediately
+	GameState.fade_out_menu_music()
 	get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
 
 

@@ -1,0 +1,16 @@
+{
+	"id": "screen_static",
+	"display_name": "Screen Static",
+	"effects": [
+		{
+			"type": "screen_static",
+			"intensity": 0.6,
+			"duration": 0.5
+		},
+		{
+			"type": "sfx",
+			"sfx_event_id": "monitor_static",
+			"delay": 0.0
+		}
+	]
+}
