@@ -1540,7 +1540,7 @@ func _spawn_boss_health_bar() -> void:
 	for child in _enemies.get_children():
 		if child.has_meta("boss_part"):
 			_boss_enemies.append(child)
-			total_health += float(child.hull) + float(child.shield)
+			total_health += float(child.health) + float(child.shield)
 	if total_health <= 0.0:
 		total_health = 100.0
 	_boss_health_bar = BossHealthBar.new()
@@ -1559,7 +1559,7 @@ func _update_boss_health_bar() -> void:
 	var alive: bool = false
 	for enemy in _boss_enemies:
 		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
-			total += float(enemy.hull) + float(enemy.shield)
+			total += float(enemy.health) + float(enemy.shield)
 			alive = true
 	if alive:
 		var prev: float = _boss_health_bar.current_health
@@ -1953,6 +1953,8 @@ func _setup_nebulas() -> void:
 		var x_offset: float = float(placement.get("x_offset", 0.0))
 		var radius: float = float(placement.get("radius", 300.0))
 
+		var placement_seed: float = float(placement.get("seed_offset", 0.0))
+
 		var ndata: NebulaData = NebulaDataManager.load_by_id(nebula_id)
 		if not ndata:
 			continue
@@ -1989,7 +1991,7 @@ func _setup_nebulas() -> void:
 		mat.set_shader_parameter("brightness", float(params.get("brightness", defaults["brightness"])))
 		mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
 		mat.set_shader_parameter("density", float(params.get("density", defaults["density"])))
-		mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+		mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])) + placement_seed)
 		mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
 
 		# Create sprite with white texture for shader to render on
@@ -2025,7 +2027,7 @@ func _setup_nebulas() -> void:
 			top_mat.set_shader_parameter("brightness", float(params.get("brightness", defaults["brightness"])))
 			top_mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
 			top_mat.set_shader_parameter("density", float(params.get("density", defaults["density"])))
-			top_mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+			top_mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])) + placement_seed)
 			top_mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
 			top_mat.set_shader_parameter("veil_contrast", float(params.get("veil_contrast", defaults.get("veil_contrast", 0.5))))
 			var top_sprite := Sprite2D.new()
@@ -2068,7 +2070,7 @@ func _setup_nebulas() -> void:
 				if storm_color_arr.size() >= 4:
 					storm_mat.set_shader_parameter("nebula_color", Color(float(storm_color_arr[0]), float(storm_color_arr[1]), float(storm_color_arr[2]), float(storm_color_arr[3])))
 				storm_mat.set_shader_parameter("animation_speed", float(params.get("animation_speed", defaults["animation_speed"])))
-				storm_mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])))
+				storm_mat.set_shader_parameter("seed_offset", float(params.get("seed_offset", defaults["seed_offset"])) + placement_seed)
 				storm_mat.set_shader_parameter("radial_spread", float(params.get("radial_spread", defaults["radial_spread"])))
 				storm_mat.set_shader_parameter("brightness", float(params.get("brightness", defaults["brightness"])))
 				storm_mat.set_shader_parameter("storm_frequency", float(params.get("storm_frequency", defaults.get("storm_frequency", 0.4))))

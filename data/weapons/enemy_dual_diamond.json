@@ -8,7 +8,7 @@
 	"beam_passthrough": true,
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
-	"damage": 10,
+	"damage": 25,
 	"description": "",
 	"direction_deg": 0.0,
 	"display_name": "Enemy Dual Diamond",

@@ -2,28 +2,69 @@
 	"background_shader": "",
 	"bpm": 110.0,
 	"deep_background": "",
-	"display_name": "New Level",
+	"display_name": "Test Level",
 	"doodads": [],
-	"encounters": [
-		{
-			"boss_id": "",
-			"count": 1,
-			"formation_id": "",
-			"is_melee": false,
-			"path_id": "path_1",
-			"rotate_with_path": false,
-			"ship_id": "enemy_1",
-			"spacing": 200.0,
-			"speed": 200.0,
-			"trigger_y": 187.445255474453,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": 22.7737226277372
-		}
-	],
+	"encounters": [],
 	"events": [],
 	"id": "level_4",
 	"level_length": 10000.0,
-	"nebula_placements": [],
+	"nebula_placements": [
+		{
+			"nebula_id": "nebula_6",
+			"radius": 575.0,
+			"seed_offset": 1.0,
+			"trigger_y": 702.481751824818,
+			"x_offset": 494.014598540146
+		},
+		{
+			"nebula_id": "nebula_6",
+			"radius": 575.0,
+			"seed_offset": 1.0,
+			"trigger_y": 1091.38686131387,
+			"x_offset": -714.744525547445
+		},
+		{
+			"nebula_id": "nebula_6",
+			"radius": 575.0,
+			"seed_offset": 1.0,
+			"trigger_y": 569.343065693431,
+			"x_offset": -264.525547445255
+		},
+		{
+			"nebula_id": "nebula_6",
+			"radius": 575.0,
+			"seed_offset": 1.0,
+			"trigger_y": 432.700729927007,
+			"x_offset": -940.729927007299
+		},
+		{
+			"nebula_id": "nebula_6",
+			"radius": 575.0,
+			"seed_offset": 1.0,
+			"trigger_y": 1394.45255474453,
+			"x_offset": 720.0
+		},
+		{
+			"nebula_id": "nebula_5",
+			"radius": 575.0,
+			"seed_offset": 1.0,
+			"trigger_y": 1331.38686131387,
+			"x_offset": -15.7664233576642
+		},
+		{
+			"nebula_id": "nebula_5",
+			"radius": 575.0,
+			"seed_offset": 1.0,
+			"trigger_y": 1991.82481751825,
+			"x_offset": -909.197080291971
+		},
+		{
+			"nebula_id": "nebula_6",
+			"radius": 575.0,
+			"seed_offset": 1.0,
+			"trigger_y": 1884.96350364964,
+			"x_offset": -320.583941605839
+		}
+	],
 	"scroll_speed": 80.0
 }

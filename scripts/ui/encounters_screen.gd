@@ -6,6 +6,7 @@ const LEFT_PANEL_W := 240.0
 const RIGHT_PANEL_W := 200.0
 const SCREEN_W := 1920.0
 const SCREEN_H := 1080.0
+const OFF_SCREEN_MARGIN := 400.0  # Game-space pixels beyond screen edge for off-screen placement
 const WP_RADIUS := 8.0
 const HANDLE_RADIUS := 5.0
 const HIT_RADIUS := 14.0
@@ -49,6 +50,7 @@ var _path_list_vbox: VBoxContainer
 # Canvas
 var _canvas: Control
 var _canvas_rect: Rect2  # The scaled screen-boundary rect within the canvas area
+var _full_rect: Rect2    # Expanded rect including off-screen margin for interaction
 
 # Interaction state
 var _selected_wps: Array[int] = []  # Multi-select: list of selected waypoint indices
@@ -531,29 +533,38 @@ func _build_canvas(parent: HSplitContainer) -> void:
 func _compute_canvas_rect() -> void:
 	var canvas_size: Vector2 = _canvas.size
 	var margin := 30.0
+	var total_w: float = SCREEN_W + OFF_SCREEN_MARGIN * 2
+	var total_h: float = SCREEN_H + OFF_SCREEN_MARGIN * 2
 	var avail_w: float = canvas_size.x - margin * 2
 	var avail_h: float = canvas_size.y - margin * 2 - 50  # room for bottom buttons
-	var scale_x: float = avail_w / SCREEN_W
-	var scale_y: float = avail_h / SCREEN_H
+	var scale_x: float = avail_w / total_w
+	var scale_y: float = avail_h / total_h
 	var s: float = minf(scale_x, scale_y)
-	var rect_w: float = SCREEN_W * s
-	var rect_h: float = SCREEN_H * s
-	var rx: float = (canvas_size.x - rect_w) * 0.5
-	var ry: float = margin
-	_canvas_rect = Rect2(rx, ry, rect_w, rect_h)
+	var full_w: float = total_w * s
+	var full_h: float = total_h * s
+	var fx: float = (canvas_size.x - full_w) * 0.5
+	var fy: float = margin
+	_full_rect = Rect2(fx, fy, full_w, full_h)
+	# Screen boundary rect sits inside the full rect, inset by the scaled margin
+	var margin_px: float = OFF_SCREEN_MARGIN * s
+	_canvas_rect = Rect2(fx + margin_px, fy + margin_px, SCREEN_W * s, SCREEN_H * s)
 
 
 func _screen_to_canvas(screen_pos: Vector2) -> Vector2:
+	# Maps game-space coordinates (which can be negative / beyond screen) to canvas pixels.
+	# Origin of game-space is (0,0) = top-left of screen; off-screen is negative or > SCREEN_W/H.
+	var scale: float = _canvas_rect.size.x / SCREEN_W
 	return Vector2(
-		_canvas_rect.position.x + (screen_pos.x / SCREEN_W) * _canvas_rect.size.x,
-		_canvas_rect.position.y + (screen_pos.y / SCREEN_H) * _canvas_rect.size.y,
+		_canvas_rect.position.x + screen_pos.x * scale,
+		_canvas_rect.position.y + screen_pos.y * scale,
 	)
 
 
 func _canvas_to_screen(canvas_pos: Vector2) -> Vector2:
+	var scale: float = _canvas_rect.size.x / SCREEN_W
 	return Vector2(
-		((canvas_pos.x - _canvas_rect.position.x) / _canvas_rect.size.x) * SCREEN_W,
-		((canvas_pos.y - _canvas_rect.position.y) / _canvas_rect.size.y) * SCREEN_H,
+		(canvas_pos.x - _canvas_rect.position.x) / scale,
+		(canvas_pos.y - _canvas_rect.position.y) / scale,
 	)
 
 
@@ -826,18 +837,16 @@ func _handle_canvas_input(event: InputEvent) -> void:
 			_on_canvas_drag(mm.position)
 		elif _active_tool == Tool.ARC:
 			_arc_preview_pos = mm.position
-			_arc_hovering = _canvas_rect.has_point(mm.position)
+			_arc_hovering = _full_rect.has_point(mm.position)
 			_canvas.queue_redraw()
 
 
 # ── DRAW tool: click to add waypoints ──────────────────────────
 
 func _tool_draw_click(pos: Vector2, prepend: bool = false) -> void:
-	if _canvas_rect.has_point(pos):
+	if _full_rect.has_point(pos):
 		_push_undo()
 		var screen_pos: Vector2 = _canvas_to_screen(pos)
-		screen_pos.x = clampf(screen_pos.x, 0, SCREEN_W)
-		screen_pos.y = clampf(screen_pos.y, 0, SCREEN_H)
 		if prepend:
 			_selected_path.waypoints.insert(0, {
 				"pos": [screen_pos.x, screen_pos.y],
@@ -935,7 +944,7 @@ func _tool_curve_click(pos: Vector2) -> void:
 # ── ARC tool: stamp arc waypoints ──────────────────────────────
 
 func _tool_arc_click(pos: Vector2) -> void:
-	if not _canvas_rect.has_point(pos):
+	if not _full_rect.has_point(pos):
 		return
 	_push_undo()
 	var center: Vector2 = _canvas_to_screen(pos)
@@ -1048,8 +1057,6 @@ func _on_canvas_drag(pos: Vector2) -> void:
 			var idx: int = _selected_wps[j]
 			if idx < _selected_path.waypoints.size():
 				var new_pos: Vector2 = _drag_wp_origins[j] + delta_screen
-				new_pos.x = clampf(new_pos.x, 0, SCREEN_W)
-				new_pos.y = clampf(new_pos.y, 0, SCREEN_H)
 				_selected_path.set_waypoint_pos(idx, new_pos)
 	elif _drag_type == "ctrl_in":
 		if _drag_index >= 0 and _drag_index < _selected_path.waypoints.size():
@@ -1080,8 +1087,8 @@ func _nudge_selected(delta: Vector2) -> void:
 	for idx in _selected_wps:
 		if idx < _selected_path.waypoints.size():
 			var pos: Vector2 = _selected_path.get_waypoint_pos(idx)
-			pos.x = clampf(pos.x + delta.x, 0, SCREEN_W)
-			pos.y = clampf(pos.y + delta.y, 0, SCREEN_H)
+			pos.x = pos.x + delta.x
+			pos.y = pos.y + delta.y
 			_selected_path.set_waypoint_pos(idx, pos)
 	_save_current()
 	_canvas.queue_redraw()
@@ -1619,10 +1626,15 @@ class _CanvasDraw extends Control:
 		var s: Control = screen
 		s._compute_canvas_rect()
 
-		# Screen boundary
+		# Off-screen area (darker background)
+		var full: Rect2 = s._full_rect
+		draw_rect(full, Color(0.03, 0.03, 0.06, 0.4), true)
+
+		# Screen boundary (brighter interior)
 		var rect: Rect2 = s._canvas_rect
 		draw_rect(rect, Color(0.08, 0.08, 0.14, 0.3), true)
-		draw_rect(rect, Color(0.15, 0.15, 0.25, 0.5), false, 2.0)
+		# Bold dashed screen boundary lines so the edge is unmistakable
+		draw_rect(rect, Color(0.6, 0.4, 0.1, 0.7), false, 2.0)
 
 		if not s._selected_path:
 			return

@@ -116,6 +116,8 @@ var _neb_content: VBoxContainer
 var _neb_hint: Label
 var _neb_dropdown: OptionButton
 var _neb_radius_spin: SpinBox
+var _neb_seed_spin: SpinBox
+var _neb_randomize_seed_btn: Button
 var _neb_center_btn: Button
 var _neb_delete_btn: Button
 
@@ -1254,17 +1256,19 @@ func _map_left_click_nebula(pos: Vector2) -> void:
 			_map_canvas.queue_redraw()
 			return
 
-	# Click empty map — place new nebula
+	# Click empty map — place new nebula using current UI "brush" values
 	var map_rect: Rect2 = _get_map_rect()
 	if map_rect.has_point(pos):
 		var trigger_y: float = _canvas_y_to_level_y(pos.y)
 		var x_offset: float = _canvas_x_to_level_x(pos.x)
 		if trigger_y >= 0.0 and trigger_y <= _selected_level.level_length:
+			var brush_neb_id: String = str(_neb_dropdown.get_item_metadata(_neb_dropdown.selected)) if _neb_dropdown.selected >= 0 and _cached_nebula_ids.size() > 0 else ""
 			var neb: Dictionary = {
-				"nebula_id": _cached_nebula_ids[0] if _cached_nebula_ids.size() > 0 else "",
+				"nebula_id": brush_neb_id,
 				"trigger_y": trigger_y,
 				"x_offset": x_offset,
-				"radius": 300.0,
+				"radius": _neb_radius_spin.value,
+				"seed_offset": _neb_seed_spin.value,
 			}
 			_selected_level.nebula_placements.append(neb)
 			_nebula_selected_idx = _selected_level.nebula_placements.size() - 1
@@ -1755,6 +1759,42 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	var neb_sep2 := HSeparator.new()
 	_neb_content.add_child(neb_sep2)
 
+	var seed_label := Label.new()
+	seed_label.text = "SEED OFFSET"
+	ThemeManager.apply_text_glow(seed_label, "body")
+	_neb_content.add_child(seed_label)
+
+	_neb_seed_spin = SpinBox.new()
+	_neb_seed_spin.min_value = 0
+	_neb_seed_spin.max_value = 9999
+	_neb_seed_spin.step = 1
+	_neb_seed_spin.value = 0
+	_neb_seed_spin.value_changed.connect(func(v: float) -> void:
+		if _nebula_selected_idx < 0 or not _selected_level:
+			return
+		if _nebula_selected_idx < _selected_level.nebula_placements.size():
+			_selected_level.nebula_placements[_nebula_selected_idx]["seed_offset"] = v
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	_neb_content.add_child(_neb_seed_spin)
+
+	_neb_randomize_seed_btn = Button.new()
+	_neb_randomize_seed_btn.text = "RANDOMIZE SEED"
+	_neb_randomize_seed_btn.pressed.connect(func() -> void:
+		var new_seed: float = float(randi_range(1, 9999))
+		_neb_seed_spin.value = new_seed
+		if _nebula_selected_idx >= 0 and _selected_level and _nebula_selected_idx < _selected_level.nebula_placements.size():
+			_selected_level.nebula_placements[_nebula_selected_idx]["seed_offset"] = new_seed
+			_save_current_level()
+			_map_canvas.queue_redraw()
+	)
+	ThemeManager.apply_button_style(_neb_randomize_seed_btn)
+	_neb_content.add_child(_neb_randomize_seed_btn)
+
+	var neb_sep3 := HSeparator.new()
+	_neb_content.add_child(neb_sep3)
+
 	_neb_center_btn = Button.new()
 	_neb_center_btn.text = "CENTER"
 	_neb_center_btn.pressed.connect(func() -> void:
@@ -2173,13 +2213,16 @@ func _update_nebula_right_panel() -> void:
 		return
 	var has_neb: bool = _selected_level != null and _nebula_selected_idx >= 0 and _nebula_selected_idx < _selected_level.nebula_placements.size()
 
+	# Controls always active as a "brush" for new placements — same pattern as encounters
 	_neb_hint.visible = not has_neb
-	var disabled: bool = not has_neb
-	_neb_content.modulate = Color(1, 1, 1, 0.3) if disabled else Color.WHITE
-	_neb_dropdown.disabled = disabled
-	_neb_radius_spin.editable = not disabled
-	_neb_center_btn.disabled = disabled
-	_neb_delete_btn.disabled = disabled
+	_neb_content.modulate = Color.WHITE
+	_neb_dropdown.disabled = false
+	_neb_radius_spin.editable = true
+	_neb_seed_spin.editable = true
+	_neb_randomize_seed_btn.disabled = false
+	# CENTER and DELETE only make sense with a selection
+	_neb_center_btn.disabled = not has_neb
+	_neb_delete_btn.disabled = not has_neb
 
 	if not has_neb:
 		return
@@ -2197,6 +2240,7 @@ func _update_nebula_right_panel() -> void:
 		_neb_dropdown.select(neb_select)
 
 	_neb_radius_spin.value = float(neb.get("radius", 300.0))
+	_neb_seed_spin.value = float(neb.get("seed_offset", 0.0))
 
 
 # ── Doodad operations ────────────────────────────────────────────

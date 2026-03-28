@@ -83,6 +83,7 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"trigger_y": float(neb.get("trigger_y", 0.0)),
 			"x_offset": float(neb.get("x_offset", 0.0)),
 			"radius": float(neb.get("radius", 300.0)),
+			"seed_offset": float(neb.get("seed_offset", 0.0)),
 		})
 	return l
 

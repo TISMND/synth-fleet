@@ -2,7 +2,7 @@
 	"display_name": "Blue Plain",
 	"id": "nebula_6",
 	"shader_params": {
-		"animation_speed": 2.1,
+		"animation_speed": 1.55,
 		"bottom_opacity": 1.0,
 		"brightness": 2.35,
 		"density": 0.65,
@@ -27,7 +27,7 @@
 		"storm_strike_size": 0.12,
 		"top_opacity": 1.04,
 		"veil_contrast": 0.27,
-		"wash_opacity": 0.0
+		"wash_opacity": 0.01
 	},
 	"style_id": "classic_fbm"
 }

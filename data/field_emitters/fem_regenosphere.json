@@ -8,10 +8,10 @@
 	"bar_effects": {
 
 	},
-	"description": "",
+	"description": "speed, damage reduction, and the assumed.",
 	"device_type": "shield_aura",
 	"disable_power_cores": false,
-	"disable_weapons": true,
+	"disable_weapons": false,
 	"display_name": "Regenosphere",
 	"fade_in_ms": 580,
 	"fade_out_ms": 640,
@@ -25,8 +25,8 @@
 	},
 	"passive_effects": {
 		"electric": -2.6,
-		"hull": 3.55,
-		"thermal": 2.05
+		"hull": 3.85,
+		"thermal": 2.65
 	},
 	"pulse_fade_out": 1.08,
 	"pulse_fade_up": 0.13,

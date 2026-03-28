@@ -1,5 +1,7 @@
 {
 	"collision_height": 184.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "rectangle",
 	"collision_width": 92.0,
 	"display_name": "Monolith",
@@ -18,15 +20,7 @@
 	"hardpoint_offsets": [
 		[
 			0.0,
-			-48.0
-		],
-		[
-			0.0,
 			0.0
-		],
-		[
-			0.0,
-			48.0
 		]
 	],
 	"hardpoints": [],
@@ -43,7 +37,7 @@
 		"hull_hp": 180.0,
 		"hull_segments": 12.0,
 		"particle_slots": 1.0,
-		"shield_hp": 120.0,
+		"shield_hp": 75.0,
 		"shield_regen": 2.0,
 		"shield_segments": 8.0,
 		"speed": 60.0,
@@ -53,5 +47,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "monolith",
-	"weapon_id": "enemy_speck_burst"
+	"weapon_id": "enemy_dual_diamond"
 }

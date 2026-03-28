@@ -273,6 +273,10 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 		enemy.position = Vector2(960.0 + melee_orig.x + melee_off.x, -30.0 + melee_off.y)
 	elif enemy.path_curve != null and enemy.path_curve.point_count >= 2:
 		var start_pos: Vector2 = enemy.path_curve.sample_baked(0.0)
+		var spawn_pos: Vector2 = start_pos + enemy.path_offset + enemy.path_origin
+		# Ensure path-following enemies start off-screen (safe margin for large sprites)
+		if spawn_pos.y > -200.0:
+			enemy.path_origin.y -= (spawn_pos.y + 200.0)
 		enemy.position = start_pos + enemy.path_offset + enemy.path_origin
 	else:
 		enemy.position = Vector2(randf_range(100.0, 1820.0), -30.0)
@@ -310,6 +314,7 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 	if boss.core_weapon_overrides.size() > 0:
 		core_enemy.weapon_overrides = boss.core_weapon_overrides
 
+	core_enemy.set_meta("boss_part", true)
 	core_enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
 	_enemies_container.add_child(core_enemy)
 
@@ -338,6 +343,7 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 		seg_enemy.boss_segment_offset = seg_offset
 		core_enemy.boss_segments.append(seg_enemy)
 
+		seg_enemy.set_meta("boss_part", true)
 		seg_enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
 		_enemies_container.add_child(seg_enemy)
 
