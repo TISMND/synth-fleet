@@ -25,7 +25,7 @@ const DEFAULT_HP: Dictionary = {
 	"acceleration": 1200,
 	"weapon_slots": 3,
 	"core_slots": 1,
-	"field_slots": 2,
+	"field_slots": 1,
 	"particle_slots": 1,
 	"shield_regen": 1.0,
 }

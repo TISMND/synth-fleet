@@ -65,6 +65,26 @@ func _init_slot_config() -> void:
 		slot_config["particle_" + str(i)] = {"device_id": ""}
 
 
+func _prune_excess_slots() -> void:
+	## Remove slot_config entries that exceed the current ship's slot counts.
+	var limits: Dictionary = {
+		"weapon_": get_weapon_slot_count(),
+		"core_": get_core_slot_count(),
+		"field_": get_field_slot_count(),
+		"particle_": get_particle_slot_count(),
+	}
+	var to_erase: Array = []
+	for key in slot_config:
+		for prefix in limits:
+			if str(key).begins_with(prefix):
+				var idx: int = int(str(key).replace(prefix, ""))
+				if idx >= int(limits[prefix]):
+					to_erase.append(key)
+				break
+	for key in to_erase:
+		slot_config.erase(key)
+
+
 func get_weapon_slot_count() -> int:
 	var ship_stats: Dictionary = _get_current_ship_stats()
 	return int(ship_stats.get("weapon_slots", 3))
@@ -77,7 +97,7 @@ func get_core_slot_count() -> int:
 
 func get_field_slot_count() -> int:
 	var ship_stats: Dictionary = _get_current_ship_stats()
-	return int(ship_stats.get("field_slots", 2))
+	return int(ship_stats.get("field_slots", 1))
 
 
 func get_particle_slot_count() -> int:
@@ -150,6 +170,7 @@ func load_game() -> void:
 		_migrate_slot_config()
 	else:
 		_init_slot_config()
+	_prune_excess_slots()
 
 
 func _set_defaults() -> void:

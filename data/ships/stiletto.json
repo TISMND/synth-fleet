@@ -14,7 +14,7 @@
 		"device_slots": 2.0,
 		"electric_hp": 120.0,
 		"electric_segments": 8.0,
-		"field_slots": 2.0,
+		"field_slots": 1.0,
 		"generator_power": 15.0,
 		"hull_hp": 240.0,
 		"hull_segments": 9.0,

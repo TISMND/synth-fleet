@@ -114,7 +114,7 @@ var _pre_purge_device_states: Array = []
 var _pre_purge_shield: float = -1.0  # Shield level snapshot — restored after purge
 var _purge_thermal_start: float = 0.0  # Thermal at purge start — for midpoint cue
 var _purge_mid_cue_fired: bool = false
-const PURGE_DURATION: float = 4.0  # Fixed purge duration in seconds
+const PURGE_DURATION: float = 5.0  # Fixed purge duration in seconds
 const PURGE_SHIELD_DRAIN_RATE: float = 20.0  # Shield drain per second during purge
 const PURGE_RECOVERY_DURATION: float = 1.0  # Speed recovery curve duration
 

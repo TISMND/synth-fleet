@@ -903,7 +903,7 @@ func _build_player_right_panel() -> void:
 
 	_add_slider_row(vbox, "weapon_slots", "WEAPONS", 1, 6, 1)
 	_add_slider_row(vbox, "core_slots", "CORES", 1, 3, 1)
-	_add_slider_row(vbox, "field_slots", "FIELDS", 0, 4, 1)
+	_add_slider_row(vbox, "field_slots", "FIELDS", 0, 1, 1)
 	_add_slider_row(vbox, "particle_slots", "PARTICLES", 0, 2, 1)
 
 	# Spacer

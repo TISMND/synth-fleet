@@ -57,20 +57,20 @@
 		"boss_music_degrade": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
-			"file_path": "res://assets/audio/sfx/Radio/static_high_pitch.wav",
-			"volume_db": 0.0
+			"file_path": "res://assets/audio/sfx/Radio/channel_flip_then_die.wav",
+			"volume_db": -16.0
 		},
 		"boss_remodulate": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
-			"file_path": "res://assets/audio/sfx/Radio/channel_flip_then_die.wav",
+			"file_path": "",
 			"volume_db": 0.0
 		},
 		"boss_silence": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Radio/audio_tape_mix_slow_down.wav",
-			"volume_db": 0.0
+			"volume_db": -9.5
 		},
 		"boss_transition_end": {
 			"clip_end_time": 0.0,
@@ -105,7 +105,7 @@
 		"boss_weapons_online": {
 			"clip_end_time": 0.0,
 			"fade_out_duration": 0.0,
-			"file_path": "res://assets/audio/sfx/power/power up simple slow.wav",
+			"file_path": "res://assets/audio/sfx/Radio/static_subtle.wav",
 			"volume_db": 0.0
 		},
 		"electric_alarm": {

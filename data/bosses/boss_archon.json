@@ -3,7 +3,7 @@
 	"core_ship_id": "enemy_archon_core",
 	"core_weapon_overrides": [
 		{
-			"audio_lead_sec": 8.0,
+			"audio_lead_sec": 6.0,
 			"hardpoint_index": 0,
 			"weapon_id": "enemy_ultra_beam"
 		}

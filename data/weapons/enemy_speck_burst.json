@@ -8,7 +8,7 @@
 	"beam_passthrough": true,
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
-	"damage": 10,
+	"damage": 12,
 	"description": "",
 	"direction_deg": 0.0,
 	"display_name": "Enemy Speck Burst",
@@ -21,8 +21,8 @@
 		},
 		"version": 2
 	},
-	"fade_in_ms": 1350,
-	"fade_out_ms": 1350,
+	"fade_in_ms": 1050,
+	"fade_out_ms": 1060,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -64,7 +64,7 @@
 	"loop_length_bars": 8,
 	"mirror_mode": "mirror",
 	"pierce_count": 0,
-	"projectile_speed": 280.0,
+	"projectile_speed": 370.0,
 	"projectile_style_id": "enemy_orb",
 	"skips_shields": false,
 	"splash_enabled": false,

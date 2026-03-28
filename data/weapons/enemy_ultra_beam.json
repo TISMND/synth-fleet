@@ -21,8 +21,8 @@
 		},
 		"version": 2
 	},
-	"fade_in_ms": 200,
-	"fade_out_ms": 200,
+	"fade_in_ms": 550,
+	"fade_out_ms": 430,
 	"fire_pattern": "single",
 	"fire_triggers": [
 		0.0,
@@ -43,5 +43,5 @@
 	"splash_radius": 0.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.2,
-	"transition_mode": "instant"
+	"transition_mode": "fade"
 }

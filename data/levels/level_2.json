@@ -23,12 +23,12 @@
 	],
 	"events": [
 		{
-			"boss_id": "",
+			"boss_id": "boss_archon",
 			"bpm_shift": 0.0,
 			"event_type": "boss_transition",
 			"key_shift_semitones": 0,
-			"trigger_y": 539.56204379562,
-			"x_offset": 36.7883211678832
+			"trigger_y": 656.934306569343,
+			"x_offset": 49.0510948905109
 		}
 	],
 	"id": "level_2",

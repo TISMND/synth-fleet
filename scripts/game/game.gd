@@ -1100,29 +1100,36 @@ func _preregister_boss_lead_loops(boss: BossData) -> void:
 		for ovr in sd.get("weapon_overrides", []):
 			all_overrides.append(ovr)
 
+	print("[BT] _preregister_boss_lead_loops: %d overrides found" % all_overrides.size())
 	for ovr in all_overrides:
 		var d: Dictionary = ovr as Dictionary
 		var lead: float = float(d.get("audio_lead_sec", 0.0))
+		var wid: String = str(d.get("weapon_id", ""))
+		print("[BT]   override: weapon=%s  audio_lead_sec=%.1f" % [wid, lead])
 		if lead <= 0.0:
 			continue
-		var weapon_id: String = str(d.get("weapon_id", ""))
+		var weapon_id: String = wid
 		if weapon_id == "":
 			continue
 		var weapon: WeaponData = WeaponDataManager.load_by_id(weapon_id)
 		if not weapon or weapon.loop_file_path == "":
+			print("[BT]   SKIP — no weapon or no loop_file_path")
 			continue
 		var hp_idx: int = int(d.get("hardpoint_index", 0))
 		var loop_id: String = weapon_id + "_hp_" + str(hp_idx)
 		if LoopMixer.has_loop(loop_id):
+			print("[BT]   SKIP — loop already exists: %s" % loop_id)
 			continue
+		print("[BT]   ADDING loop: %s  path=%s  unmute_at=%.1fs" % [loop_id, weapon.loop_file_path, maxf(transition_end - lead, BossTransitionSequence.BOSS_MUSIC_BLEED)])
 		LoopMixer.add_loop(loop_id, weapon.loop_file_path, "Enemies", 0.0, true)
 		LoopMixer.start_loop(loop_id)
 		_boss_transition_lead_loops.append(loop_id)
 		# Schedule unmute relative to transition end
 		var unmute_at: float = maxf(transition_end - lead, BossTransitionSequence.BOSS_MUSIC_BLEED)
 		get_tree().create_timer(unmute_at).timeout.connect(func() -> void:
+			print("[BT]   UNMUTE timer fired for: %s  has_loop=%s" % [loop_id, LoopMixer.has_loop(loop_id)])
 			if LoopMixer.has_loop(loop_id):
-				LoopMixer.unmute(loop_id, 2000)  # Slow fade-in for ominous bleed
+				LoopMixer.unmute(loop_id, 2000)
 		)
 
 

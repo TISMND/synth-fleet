@@ -12,12 +12,14 @@
 	"device_type": "shield_aura",
 	"disable_power_cores": false,
 	"disable_weapons": true,
-	"display_name": "Some Emitter",
+	"display_name": "Heaven's Orb",
 	"fade_in_duration": 0.3,
+	"fade_in_ms": 200,
 	"fade_out_duration": 0.3,
+	"fade_out_ms": 200,
 	"field_style_id": "rainbow_wip",
 	"hull_damage_reduction": 0.0,
-	"id": "fem_some_emitter",
+	"id": "fem_heavens_orb",
 	"loop_file_path": "res://loop_zips/sorted/leads/Please Don't Interest - 120 BPM - 6 - Leads - ZEN_LCS_90_synth_lead_loop_cascade_Fmaj.wav",
 	"loop_length_bars": 8,
 	"mechanic_params": {
@@ -27,6 +29,7 @@
 	"orbiter_style_id": "",
 	"passive_effects": {
 		"electric": -1.65,
+		"shield": 0.899999999999999,
 		"thermal": 3.25
 	},
 	"pulse_fade_out": 0.45,
@@ -37,7 +40,6 @@
 	"shield_damage_reduction": 95.0,
 	"speed_modifier": -50.0,
 	"transition_mode": "instant",
-	"transition_ms": 200,
 	"visual_mode": "field",
 	"visual_pulse_triggers": [
 		0.0,
