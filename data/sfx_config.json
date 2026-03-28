@@ -412,6 +412,41 @@
 			"fade_out_duration": 0.0,
 			"file_path": "",
 			"volume_db": 0.0
+		},
+		"nebula_alarm_1": {
+			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"nebula_alarm_2": {
+			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"nebula_alarm_3": {
+			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"nebula_alarm_4": {
+			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
+		},
+		"nebula_alarm_5": {
+			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "",
+			"volume_db": 0.0
 		}
 	}
 }

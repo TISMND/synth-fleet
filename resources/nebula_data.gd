@@ -12,6 +12,10 @@ extends Resource
 @export var event_ids: Array[String] = []  # references GameEventData IDs to trigger periodically
 @export var event_interval_min: float = 5.0  # minimum seconds between event triggers
 @export var event_interval_max: float = 12.0  # maximum seconds between event triggers
+@export var warning_enabled: bool = false  # show warning box on player HUD while in this nebula
+@export var warning_text: String = ""  # custom text for the warning box
+@export var warning_color: Array = [1.0, 0.4, 0.1, 1.0]  # RGBA warning box color
+@export var alarm_sfx_id: String = ""  # SFX event ID for the alarm sound (e.g. "nebula_alarm_1")
 
 
 static func default_params() -> Dictionary:
@@ -77,6 +81,14 @@ static func from_dict(data: Dictionary) -> NebulaData:
 	n.event_interval_min = float(data.get("event_interval_min", 5.0))
 	n.event_interval_max = float(data.get("event_interval_max", 12.0))
 
+	# Warning box
+	n.warning_enabled = bool(data.get("warning_enabled", false))
+	n.warning_text = str(data.get("warning_text", ""))
+	var raw_warning_color: Array = data.get("warning_color", [1.0, 0.4, 0.1, 1.0]) as Array
+	if raw_warning_color.size() >= 4:
+		n.warning_color = [float(raw_warning_color[0]), float(raw_warning_color[1]), float(raw_warning_color[2]), float(raw_warning_color[3])]
+	n.alarm_sfx_id = str(data.get("alarm_sfx_id", ""))
+
 	return n
 
 
@@ -97,4 +109,9 @@ func to_dict() -> Dictionary:
 		d["event_ids"] = event_ids
 		d["event_interval_min"] = event_interval_min
 		d["event_interval_max"] = event_interval_max
+	if warning_enabled:
+		d["warning_enabled"] = warning_enabled
+		d["warning_text"] = warning_text
+		d["warning_color"] = warning_color
+		d["alarm_sfx_id"] = alarm_sfx_id
 	return d

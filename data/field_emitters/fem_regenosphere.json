@@ -24,7 +24,7 @@
 
 	},
 	"passive_effects": {
-		"electric": -2.6,
+		"electric": -3.2,
 		"hull": 3.85,
 		"thermal": 2.65
 	},

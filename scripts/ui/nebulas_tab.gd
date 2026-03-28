@@ -74,6 +74,14 @@ var _storm_glow_slider: HSlider
 var _storm_glow_value: Label
 var _storm_controls_container: VBoxContainer  # Holds sliders, disabled when storm off
 
+# Warning controls
+var _warning_enabled_check: CheckBox
+var _warning_controls_container: VBoxContainer
+var _warning_text_edit: LineEdit
+var _warning_color_picker: ColorPickerButton
+var _alarm_sfx_option: OptionButton
+const NEBULA_ALARM_IDS: Array[String] = ["nebula_alarm_1", "nebula_alarm_2", "nebula_alarm_3", "nebula_alarm_4", "nebula_alarm_5"]
+
 # Effects tab controls
 var _bar_effect_spinboxes: Dictionary = {}
 var _special_effect_checks: Dictionary = {}
@@ -266,6 +274,7 @@ func _build_ui() -> void:
 	_build_appearance_section()
 	_build_layers_section()
 	_build_storm_section()
+	_build_warning_section()
 	_build_effects_section()
 
 	# Empty state label
@@ -386,6 +395,73 @@ func _build_storm_section() -> void:
 	_storm_glow_slider.value_changed.connect(_on_storm_glow_changed)
 
 	_storm_controls_container.visible = false  # Hidden until toggled on
+
+
+func _build_warning_section() -> void:
+	_active_slider_container = _right_col
+	var panel: VBoxContainer = _right_col
+
+	var section_header := Label.new()
+	section_header.text = "WARNING"
+	section_header.name = "WarningHeader"
+	panel.add_child(section_header)
+
+	# Warning enable toggle
+	_warning_enabled_check = CheckBox.new()
+	_warning_enabled_check.text = "Show Warning Box"
+	_warning_enabled_check.toggled.connect(_on_warning_enabled_toggled)
+	panel.add_child(_warning_enabled_check)
+
+	# Container for warning controls — hidden when warning is off
+	_warning_controls_container = VBoxContainer.new()
+	_warning_controls_container.add_theme_constant_override("separation", 8)
+	panel.add_child(_warning_controls_container)
+
+	# Warning text
+	var text_row := HBoxContainer.new()
+	text_row.add_theme_constant_override("separation", 8)
+	_warning_controls_container.add_child(text_row)
+	var text_lbl := Label.new()
+	text_lbl.text = "Text"
+	text_lbl.custom_minimum_size.x = 80
+	text_row.add_child(text_lbl)
+	_warning_text_edit = LineEdit.new()
+	_warning_text_edit.placeholder_text = "WARNING"
+	_warning_text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_warning_text_edit.text_changed.connect(_on_warning_text_changed)
+	text_row.add_child(_warning_text_edit)
+
+	# Warning color
+	var color_row := HBoxContainer.new()
+	color_row.add_theme_constant_override("separation", 8)
+	_warning_controls_container.add_child(color_row)
+	var color_lbl := Label.new()
+	color_lbl.text = "Color"
+	color_lbl.custom_minimum_size.x = 80
+	color_row.add_child(color_lbl)
+	_warning_color_picker = ColorPickerButton.new()
+	_warning_color_picker.custom_minimum_size = Vector2(60, 30)
+	_warning_color_picker.color = Color(1.0, 0.4, 0.1, 1.0)
+	_warning_color_picker.color_changed.connect(_on_warning_color_changed)
+	color_row.add_child(_warning_color_picker)
+
+	# Alarm SFX dropdown
+	var alarm_row := HBoxContainer.new()
+	alarm_row.add_theme_constant_override("separation", 8)
+	_warning_controls_container.add_child(alarm_row)
+	var alarm_lbl := Label.new()
+	alarm_lbl.text = "Alarm"
+	alarm_lbl.custom_minimum_size.x = 80
+	alarm_row.add_child(alarm_lbl)
+	_alarm_sfx_option = OptionButton.new()
+	_alarm_sfx_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_alarm_sfx_option.add_item("(none)")
+	for i in range(NEBULA_ALARM_IDS.size()):
+		_alarm_sfx_option.add_item("Nebula Alarm " + str(i + 1))
+	_alarm_sfx_option.item_selected.connect(_on_alarm_sfx_selected)
+	alarm_row.add_child(_alarm_sfx_option)
+
+	_warning_controls_container.visible = false  # Hidden until toggled on
 
 
 func _build_effects_section() -> void:
@@ -689,6 +765,18 @@ func _select_nebula(id: String) -> void:
 	_event_interval_max_value.text = str(snapped(data.event_interval_max, 0.5)) + "s"
 	var has_events: bool = data.event_ids.size() > 0
 	_event_controls_container.visible = has_events
+
+	# Warning
+	_warning_enabled_check.button_pressed = data.warning_enabled
+	_warning_controls_container.visible = data.warning_enabled
+	_warning_text_edit.text = data.warning_text
+	var wc: Array = data.warning_color
+	if wc.size() >= 4:
+		_warning_color_picker.color = Color(float(wc[0]), float(wc[1]), float(wc[2]), float(wc[3]))
+	if data.alarm_sfx_id == "" or data.alarm_sfx_id not in NEBULA_ALARM_IDS:
+		_alarm_sfx_option.selected = 0
+	else:
+		_alarm_sfx_option.selected = NEBULA_ALARM_IDS.find(data.alarm_sfx_id) + 1
 
 	_suppressing_signals = false
 
@@ -1105,6 +1193,49 @@ func _on_storm_glow_changed(val: float) -> void:
 		_auto_save()
 
 
+# --- Warning handlers ---
+
+func _on_warning_enabled_toggled(toggled_on: bool) -> void:
+	_warning_controls_container.visible = toggled_on
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.warning_enabled = toggled_on
+		_auto_save()
+
+
+func _on_warning_text_changed(new_text: String) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.warning_text = new_text
+		_auto_save()
+
+
+func _on_warning_color_changed(color: Color) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if data:
+		data.warning_color = [color.r, color.g, color.b, color.a]
+		_auto_save()
+
+
+func _on_alarm_sfx_selected(idx: int) -> void:
+	if _suppressing_signals:
+		return
+	var data: NebulaData = _get_nebula_by_id(_selected_id)
+	if not data:
+		return
+	if idx <= 0:
+		data.alarm_sfx_id = ""
+	else:
+		data.alarm_sfx_id = NEBULA_ALARM_IDS[idx - 1]
+	_auto_save()
+
+
 # --- Effects handlers ---
 
 func _on_bar_effect_changed(val: float, bar_name: String) -> void:
@@ -1229,7 +1360,11 @@ func _apply_theme() -> void:
 	# Storm sub-container
 	_apply_theme_to_container(_storm_controls_container)
 
+	# Warning sub-container
+	_apply_theme_to_container(_warning_controls_container)
+
 	ThemeManager.apply_button_style(_storm_enabled_check)
+	ThemeManager.apply_button_style(_warning_enabled_check)
 	ThemeManager.apply_text_glow(_empty_label, "body")
 
 

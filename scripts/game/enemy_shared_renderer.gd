@@ -9,9 +9,19 @@ extends Node
 ##
 ## Viewports are paused (UPDATE_DISABLED) when no enemies of that type are
 ## alive, so idle types cost zero GPU time.
+##
+## Boss viewports (512x512 with complex procedural _draw) are updated every
+## BOSS_RENDER_INTERVAL frames instead of every frame. The animations
+## (spinning greebles, pulsing lights) are smooth enough at ~20fps while
+## gameplay, collision, and input stay at full framerate.
 
-# Key = "visual_id|render_mode|color_hex" -> { "viewport": SubViewport, "renderer": ShipRenderer, "ref_count": int }
+# Key = "visual_id|render_mode|color_hex" -> { "viewport": SubViewport, "renderer": ShipRenderer, "ref_count": int, "boss": bool }
 var _entries: Dictionary = {}
+
+# Boss viewports render once every N frames instead of every frame.
+const BOSS_RENDER_INTERVAL: int = 3
+var _frame_count: int = 0
+var _active_boss_keys: Array[String] = []
 
 # Flash shader applied per-instance on Sprite2D (not on shared viewport)
 const FLASH_SHADER_CODE := "shader_type canvas_item;
@@ -35,6 +45,19 @@ const BAKE_SIZE_BOSS: int = 512
 func _ready() -> void:
 	_flash_shader = Shader.new()
 	_flash_shader.code = FLASH_SHADER_CODE
+
+
+func _process(_delta: float) -> void:
+	if _active_boss_keys.size() == 0:
+		return
+	_frame_count += 1
+	if _frame_count % BOSS_RENDER_INTERVAL != 0:
+		return
+	for key in _active_boss_keys:
+		if _entries.has(key):
+			var entry: Dictionary = _entries[key]
+			var vp: SubViewport = entry["viewport"]
+			vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
 ## Call during level load to pre-create viewports for all enemy types in the level.
@@ -77,11 +100,16 @@ func ref(visual_id: String, render_mode_str: String, color: Color) -> void:
 	var count: int = int(entry["ref_count"]) + 1
 	entry["ref_count"] = count
 	if count == 1:
-		# First enemy of this type — wake up the viewport
-		var vp: SubViewport = entry["viewport"]
-		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		var renderer: ShipRenderer = entry["renderer"]
 		renderer.animate = true
+		if entry.get("boss", false):
+			# Boss viewports are throttled — managed by _process() via UPDATE_ONCE
+			_active_boss_keys.append(key)
+			var vp: SubViewport = entry["viewport"]
+			vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		else:
+			var vp: SubViewport = entry["viewport"]
+			vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 
 
 ## Called by Enemy when it exits the tree — pauses the viewport when last enemy dies.
@@ -93,11 +121,12 @@ func unref(visual_id: String, render_mode_str: String, color: Color) -> void:
 	var count: int = maxi(int(entry["ref_count"]) - 1, 0)
 	entry["ref_count"] = count
 	if count == 0:
-		# No enemies of this type alive — pause viewport
 		var vp: SubViewport = entry["viewport"]
 		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		var renderer: ShipRenderer = entry["renderer"]
 		renderer.animate = false
+		if entry.get("boss", false):
+			_active_boss_keys.erase(key)
 
 
 ## Create a per-instance flash ShaderMaterial (each enemy gets its own so flash is independent).
@@ -139,7 +168,8 @@ func _create_bake_viewport(key: String, visual_id: String, render_mode_str: Stri
 	# Force one render pass so the texture is warm before any enemy spawns.
 	# UPDATE_ONCE renders exactly one frame then reverts to UPDATE_DISABLED.
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-	_entries[key] = {"viewport": vp, "renderer": renderer, "ref_count": 0}
+	var is_boss: bool = visual_id in BOSS_ENEMY_VISUALS
+	_entries[key] = {"viewport": vp, "renderer": renderer, "ref_count": 0, "boss": is_boss}
 
 
 ## Clean up all bake viewports (call on level exit).
@@ -150,3 +180,4 @@ func cleanup() -> void:
 		if is_instance_valid(vp):
 			vp.queue_free()
 	_entries.clear()
+	_active_boss_keys.clear()

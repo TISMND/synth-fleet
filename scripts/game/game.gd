@@ -64,6 +64,7 @@ var _boss_transition_overlay: Control = null
 var _boss_transition_warning_box: Control = null
 var _boss_transition_lead_loops: Array[String] = []  # Loop IDs registered for audio lead
 var _boss_health_bar: BossHealthBar = null
+var _boss_health_bar_pending: bool = false  # Waiting for boss enemies to spawn before creating bar
 var _boss_enemies: Array = []  # All boss enemy nodes (core + segments) for health tracking
 # Typing system (reboot-style RichTextLabel)
 var _bt_typing_label: RichTextLabel = null
@@ -1525,8 +1526,18 @@ func _bt_debug(milestone: String, time: float) -> void:
 
 
 func _spawn_boss_health_bar() -> void:
-	## Create boss health bar after transition completes.
+	## Request boss health bar — actual creation deferred until boss enemies exist.
 	if _boss_health_bar:
+		return
+	_boss_health_bar_pending = true
+	_try_create_boss_health_bar()
+
+
+func _try_create_boss_health_bar() -> void:
+	## Attempt to find boss-part enemies and create the health bar.
+	## Called each frame while _boss_health_bar_pending is true.
+	if _boss_health_bar:
+		_boss_health_bar_pending = false
 		return
 	var boss_id: String = str(_boss_transition_event.get("boss_id", ""))
 	var boss_name_str: String = "UNKNOWN"
@@ -1541,8 +1552,9 @@ func _spawn_boss_health_bar() -> void:
 		if child.has_meta("boss_part"):
 			_boss_enemies.append(child)
 			total_health += float(child.health) + float(child.shield)
-	if total_health <= 0.0:
-		total_health = 100.0
+	if _boss_enemies.size() == 0:
+		return  # Boss encounter hasn't spawned yet — retry next frame
+	_boss_health_bar_pending = false
 	_boss_health_bar = BossHealthBar.new()
 	_boss_health_bar.name = "BossHealthBar"
 	_boss_health_bar.max_health = total_health
@@ -1553,6 +1565,8 @@ func _spawn_boss_health_bar() -> void:
 
 
 func _update_boss_health_bar() -> void:
+	if _boss_health_bar_pending and not _boss_health_bar:
+		_try_create_boss_health_bar()
 	if not _boss_health_bar:
 		return
 	var total: float = 0.0

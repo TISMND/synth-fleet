@@ -67,6 +67,12 @@ const EVENT_IDS: Array[String] = [
 	"boss_weapons_online",
 	"boss_control_restored",
 	"boss_transition_end",
+	# Nebula alarm cues — selectable per-nebula warning sound
+	"nebula_alarm_1",
+	"nebula_alarm_2",
+	"nebula_alarm_3",
+	"nebula_alarm_4",
+	"nebula_alarm_5",
 ]
 
 const EVENT_LABELS: Dictionary = {
@@ -135,6 +141,12 @@ const EVENT_LABELS: Dictionary = {
 	"boss_weapons_online": "BOSS WEAPONS ONLINE",
 	"boss_control_restored": "BOSS CONTROL RESTORED",
 	"boss_transition_end": "BOSS TRANSITION END",
+	# Nebula alarms
+	"nebula_alarm_1": "NEBULA ALARM 1",
+	"nebula_alarm_2": "NEBULA ALARM 2",
+	"nebula_alarm_3": "NEBULA ALARM 3",
+	"nebula_alarm_4": "NEBULA ALARM 4",
+	"nebula_alarm_5": "NEBULA ALARM 5",
 }
 
 const EVENT_DESCRIPTIONS: Dictionary = {
@@ -207,6 +219,12 @@ const EVENT_DESCRIPTIONS: Dictionary = {
 	"boss_weapons_online": "Weapon bus reconnected — hardpoints hot",
 	"boss_control_restored": "Player regains full control — drift ends",
 	"boss_transition_end": "Transition overlay fades — boss fight begins",
+	# Nebula alarms
+	"nebula_alarm_1": "Nebula warning alarm slot 1 — selectable per-nebula in environments editor",
+	"nebula_alarm_2": "Nebula warning alarm slot 2 — selectable per-nebula in environments editor",
+	"nebula_alarm_3": "Nebula warning alarm slot 3 — selectable per-nebula in environments editor",
+	"nebula_alarm_4": "Nebula warning alarm slot 4 — selectable per-nebula in environments editor",
+	"nebula_alarm_5": "Nebula warning alarm slot 5 — selectable per-nebula in environments editor",
 }
 
 var events: Dictionary = {}
