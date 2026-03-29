@@ -133,10 +133,11 @@ func _build_ui() -> void:
 		tab_bar.add_child(btn)
 		_tab_buttons.append(btn)
 
-	# Tab content area
+	# Tab content area — clip so scroll containers work on small screens
 	var content_area := Control.new()
 	content_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_area.clip_contents = true
 	vbox.add_child(content_area)
 
 	# Build each tab panel
@@ -276,9 +277,11 @@ func _on_mouse_nav_indicator_toggled(pressed: bool) -> void:
 func _build_controls_tab() -> ScrollContainer:
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_controls_vbox = VBoxContainer.new()
 	_controls_vbox.add_theme_constant_override("separation", 12)
 	_controls_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_controls_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_controls_vbox)
 	_populate_controls_tab()
 	return scroll

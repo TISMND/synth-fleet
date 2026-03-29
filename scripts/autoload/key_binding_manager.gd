@@ -160,6 +160,7 @@ func load_bindings() -> void:
 	_combo_presets.clear()
 
 	if not FileAccess.file_exists(SAVE_PATH):
+		_create_default_firegroups()
 		return
 
 	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.READ)
