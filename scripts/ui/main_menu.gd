@@ -50,7 +50,7 @@ func _start_menu_music() -> void:
 		var start_bar: int = int(d.get("start_bar", 0))
 		if layer_id == "" or file_path == "":
 			continue
-		if not FileAccess.file_exists(file_path):
+		if not FileAccess.file_exists(file_path) and not ResourceLoader.exists(file_path):
 			push_warning("MenuMusic: missing audio file '%s'" % file_path)
 			continue
 		LoopMixer.add_loop(layer_id, file_path, "Master", vol, true)

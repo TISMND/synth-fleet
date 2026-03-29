@@ -12,23 +12,27 @@ A Tyrian-style vertical scrolling shooter built in Godot 4.6 / GDScript. Core me
 Game runs with loop-based audio system. Player ship moves, background scrolls, enemies spawn, weapons fire projectiles at beat-synced trigger positions. Weapons mute/unmute audio loops via LoopMixer.
 
 **What works:**
-- Player movement (WASD / arrows), clamped to screen
+- Player movement (WASD / arrows / mouse), clamped to screen. Keyboard and mouse freely toggle based on last input used.
 - LoopMixer: all loops play simultaneously, mute/unmute for perfect sync
 - HardpointController fires projectiles at normalized time positions via LoopMixer (fire_triggers)
 - Enemies spawn with weapons, flight paths, formations; hit by player projectiles
 - Enemy weapon system (enemy projectiles, beam projectiles, pulse waves)
+- Boss system: multi-part bosses with segments, core immunity, enrage phase (weapon swap + skin change + movement change)
+- Boss transition sequence: disruption wave, music degradation, weapon lockout, diagnostic typing, remodulation
+- Boss death: multi-explosion sequence before final blast
 - Parallax scrolling background with nebula layers
 - Shield/hull/thermal/electric system bars with HUD
+- Thermal overflow deals 1.5x hull damage (bypasses shields)
 - GameState save/load to user://
 - Component Editor tabs: Weapons, Projectiles, Beams, Power Cores, Field Emitters, Fields
 - Environments Screen: Nebulas, Key Changes
 - Weapons Tab with subtabs (Timing / Movement / Stats), waveform editor, loop browser
 - Level Editor with encounter placement, wave management
 - Level Select and Ship Select screens
-- Ships Screen with ship rendering preview, explosion editor
+- Ships Screen with ship rendering preview, explosion editor, boss editor with enrage tab
 - Hangar Screen for loadout configuration
-- Styles screen with VHS/CRT parameter tuning + Boss Bar audition (other theme values baked via defaults)
-- Options Screen with per-bus volume controls
+- Styles Screen with VHS/CRT parameter tuning + Boss Bar audition + Headers
+- Options Screen: Sound (per-bus volume), Gameplay, Controls (rebindable keys), Video (V-Sync, Bloom, Glow Quality, Boss Animation Quality)
 - SFX Editor and VFX Editor
 - Movement system: aim modes (fixed/sweep/track), mirror modes (none/mirror/alternate)
 - Effect system: muzzle/trail/impact slots with per-layer color, per-trigger overrides
@@ -37,6 +41,8 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - ShipRenderer with procedural ship drawing + skin system
 - Audio bus hierarchy (GameAudio→Weapons/SFX/Enemies/Atmosphere, UI→Master)
 - KeyBindingManager with customizable slot keybindings
+- Warp-in effect with particle streaks, orb bloom, ship arrival animation
+- Feature Requests screen (playtest joke screen off main menu)
 
 **What's next (rough priority):**
 1. Game loop: victory condition, shop integration, level progression (see TODO.md)
@@ -62,6 +68,7 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - **SfxPlayer** — Loads `SfxConfig` and plays one-shot sounds for game events (hits, explosions, UI).
 - **KeyBindingManager** — Persists slot key bindings to `user://settings/keybindings.json`. Applies bindings to Godot InputMap at runtime.
 - **ThemeManager** — Color/glow/font theming. Single active theme saved to `user://settings/aesthetic.json`. Owns the root `WorldEnvironment` with `glow_enabled = true` — this is the **single bloom source** for everything on screen. SubViewports get ACES tonemapping only (no bloom) via `VFXFactory.add_bloom_to_viewport()`. Helpers: `apply_grid_background()`, `apply_button_style()`, `apply_text_glow()`, `apply_vhs_overlay()`, `apply_led_bar()`, `get_environment()`, color/font/float getters. All screens connect `theme_changed` and call helpers in `_apply_theme()` so changes propagate everywhere.
+- **SceneLoader** — Scene loader with synthwave-styled loading screen overlay.
 
 ### Godot gotchas
 > Full list with architecture-specific lessons: see `GODOT_GOTCHAS.md`
@@ -73,12 +80,13 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - **Custom shaders ignore `modulate`:** Capture `float modulate_alpha = COLOR.a;` at the top of `fragment()` and multiply into final alpha. Without this, `sprite.modulate.a` has zero effect.
 - **Saved settings override code defaults.** `user://settings/aesthetic.json` persists ALL values. New ThemeManager keys only use defaults if absent from saved file.
 - **Shader/slider parameter minimums must be zero.** Use `max(value, 0.001)` in shader math to guard against division by zero. The user must be able to dial any parameter to zero.
+- **Display: 1920x1080, stretch mode `canvas_items`, aspect `keep`.** Non-16:9 monitors get letterboxing. Do not use `expand` — too many hardcoded positions in UI code.
 
 ### Vocabulary
 - **Dev Studio** (`dev_studio_menu.*`) — the main menu with buttons for all dev tools. Not a single screen.
 - **Component Editor** (`component_editor.*`) — tabbed screen for Weapons, Beams, Fields, Projectiles, Power Cores, etc. Accessed via COMPONENTS button.
 - **Environments Screen** (`environments_screen.*`) — Nebulas, Key Changes. Accessed via ENVIRONMENTS button.
-- **Styles Screen** (`style_editor.*`) — Tabbed: VHS/CRT parameters + Boss Bar audition + Headers (font/size/color/bloom). Other theme values (colors, bars, buttons) are baked via ThemeManager defaults + `user://settings/aesthetic.json`.
+- **Styles Screen** (`style_editor.*`) — Tabbed: VHS/CRT parameters + Boss Bar audition + Headers. Other theme values (colors, bars, buttons) are baked via ThemeManager defaults + `user://settings/aesthetic.json`.
 - **Ships Screen** (`ships_screen.*`) — ship config/preview. Not "Ship Viewer."
 - **System Bars** — shield/hull/thermal/electric bars. Each bar has **segments**.
 - `generator_power` is dead — removed stat, do not reintroduce.
@@ -88,6 +96,10 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - Each weapon has an audio loop that plays/mutes in sync via LoopMixer
 - Player toggles weapons ON/OFF (1-9 keys, Space = all on, C = all off)
 - Health = shields (regen) + hull (doesn't) + thermal + electric system bars.
+- Thermal overflow → hull damage at 1.5x multiplier (`THERMAL_OVERFLOW_MULT`), bypasses shields.
+- Electric overdraw → shield bleed at 1.5x multiplier (`ELECTRIC_SHIELD_BLEED_MULT`).
+- Boss enrage: controlled entirely via `enrage_core_weapon_overrides` in BossData (set in enrage tab). No separate hardpoint overrides.
+- Boss transition locks player weapons until "REMODULATION COMPLETE" (`weapons_locked` flag on PlayerShip).
 - Shop between levels/deaths for weapons, upgrades, ships
 
 ### Screen theming pattern
@@ -109,7 +121,7 @@ scenes/
   game/          Game scene (game.tscn)
   ui/            Menus, dev studio, hangar, shop, editors
 scripts/
-  autoload/      Singletons (8 — see list above)
+  autoload/      Singletons (9 — see list above)
   data/          DataManagers (~19 — WeaponDataManager, ShipDataManager, LevelDataManager, etc.)
   game/          Game logic (game, player_ship, hardpoint_controller, enemy, vfx_factory, etc.)
   rendering/     Ship rendering (ship_renderer, ship_thumbnails)
@@ -152,14 +164,16 @@ res://data/buildings/           Building definitions
 res://data/devices/             Device definitions
 res://data/doodads/             Doodad definitions
 res://data/items/               Item definitions
+res://data/game_events/         Game event definitions
 res://data/loop_config.json     Global loop config
+res://data/menu_music_config.json  Menu music layer config
 res://data/sfx_config.json      SFX event mappings
 res://data/vfx_config.json      VFX config
 ```
 Player runtime state stays in `user://` (not tracked):
 ```
 user://save_data.json           GameState persistence
-user://settings/                Global settings (audio, aesthetics, keybindings)
+user://settings/                Global settings (audio, aesthetics, keybindings, video)
 ```
 
 ### Collision layers

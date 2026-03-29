@@ -6,7 +6,7 @@ const FILE_PATH := "res://data/menu_music_config.json"
 
 
 static func load_config() -> Dictionary:
-	if not FileAccess.file_exists(FILE_PATH):
+	if not FileAccess.file_exists(FILE_PATH) and not ResourceLoader.exists(FILE_PATH):
 		return {"layers": [], "fade_out_duration_ms": 2000}
 	var file := FileAccess.open(FILE_PATH, FileAccess.READ)
 	if not file:

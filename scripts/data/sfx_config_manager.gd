@@ -17,7 +17,7 @@ static func save(config: SfxConfig) -> void:
 
 
 static func load_config() -> SfxConfig:
-	if not FileAccess.file_exists(FILE_PATH):
+	if not FileAccess.file_exists(FILE_PATH) and not ResourceLoader.exists(FILE_PATH):
 		return SfxConfig.from_dict({})
 	var file := FileAccess.open(FILE_PATH, FileAccess.READ)
 	if file == null:

@@ -361,7 +361,7 @@ func _start_intro() -> void:
 	add_child(_intro_title_box)
 
 	# Add intro loop to LoopMixer — starts with start_all() after 1.5s delay, in sync with weapons
-	if INTRO_LOOP_PATH != "" and FileAccess.file_exists(INTRO_LOOP_PATH):
+	if INTRO_LOOP_PATH != "" and (FileAccess.file_exists(INTRO_LOOP_PATH) or ResourceLoader.exists(INTRO_LOOP_PATH)):
 		LoopMixer.add_loop("__intro_loop", INTRO_LOOP_PATH, "Atmosphere", 0.0, false)
 
 

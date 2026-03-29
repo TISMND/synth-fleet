@@ -1054,7 +1054,7 @@ func _start_menu_preview() -> void:
 		var file_path: String = str(d.get("file_path", ""))
 		var vol: float = float(d.get("volume_db", 0.0))
 		var start_bar: int = int(d.get("start_bar", 0))
-		if file_path == "" or not FileAccess.file_exists(file_path):
+		if file_path == "" or (not FileAccess.file_exists(file_path) and not ResourceLoader.exists(file_path)):
 			continue
 		LoopMixer.add_loop(lid, file_path, "Master", vol, true)
 		_menu_preview_loop_ids.append(lid)

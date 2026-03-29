@@ -53,16 +53,58 @@ func _apply_styles() -> void:
 				lbl.add_theme_constant_override("shadow_offset_y", 2)
 				lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
 				lbl.add_theme_constant_override("shadow_outline_size", 8)
+				# Cut HDR bloom in half
+				if lbl.material is ShaderMaterial:
+					var mat: ShaderMaterial = lbl.material as ShaderMaterial
+					var current_hdr: float = float(mat.get_shader_parameter("hdr_multiplier"))
+					mat.set_shader_parameter("hdr_multiplier", current_hdr * 0.5)
 			if node is CheckBox:
-				var font: Font = ThemeManager.get_font("body")
-				var font_size: int = ThemeManager.get_font_size("body")
-				var color: Color = ThemeManager.get_color("text")
-				node.add_theme_font_override("font", font)
-				node.add_theme_font_size_override("font_size", font_size)
-				node.add_theme_color_override("font_color", color)
-				node.add_theme_color_override("font_hover_color", color)
-				node.add_theme_color_override("font_pressed_color", color)
+				_style_checkbox(node as CheckBox)
 
+
+
+func _style_checkbox(cb: CheckBox) -> void:
+	var font: Font = ThemeManager.get_font("body")
+	var font_size: int = ThemeManager.get_font_size("body")
+	var accent: Color = ThemeManager.get_color("accent")
+	var text_color: Color = ThemeManager.get_color("text")
+
+	if font:
+		cb.add_theme_font_override("font", font)
+	cb.add_theme_font_size_override("font_size", font_size)
+	cb.add_theme_color_override("font_color", text_color)
+	cb.add_theme_color_override("font_hover_color", accent)
+	cb.add_theme_color_override("font_pressed_color", accent)
+
+	# Consistent flat styleboxes for all states — no size jumping
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color.TRANSPARENT
+		sb.set_content_margin_all(4)
+		cb.add_theme_stylebox_override(state, sb)
+
+	# Replace default check icons with simple colored squares
+	var unchecked := _make_check_icon(20, Color(0.3, 0.3, 0.35))
+	var checked := _make_check_icon(20, accent)
+	cb.add_theme_icon_override("checked", checked)
+	cb.add_theme_icon_override("unchecked", unchecked)
+	cb.add_theme_icon_override("checked_disabled", checked)
+	cb.add_theme_icon_override("unchecked_disabled", unchecked)
+
+
+func _make_check_icon(size: int, color: Color) -> ImageTexture:
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	# Border
+	img.fill(color)
+	# Inner fill — darker for unchecked look, solid for checked
+	var border: int = 2
+	for x in range(border, size - border):
+		for y in range(border, size - border):
+			if color.v < 0.4:
+				img.set_pixel(x, y, Color(0.08, 0.08, 0.1, 0.9))
+			else:
+				img.set_pixel(x, y, color)
+	return ImageTexture.create_from_image(img)
 
 
 func _setup_vhs_overlay() -> void:

@@ -130,7 +130,7 @@
 			"clip_end_time": 0.0,
 			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
-			"file_path": "res://assets/audio/sfx/alarm_2.wav",
+			"file_path": "res://assets/audio/sfx/alarms/alarm_2.wav",
 			"volume_db": 0.0
 		},
 		"electric_sparks": {
@@ -193,7 +193,7 @@
 			"clip_end_time": 0.0,
 			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
-			"file_path": "res://assets/audio/sfx/alarm_1.wav",
+			"file_path": "res://assets/audio/sfx/alarms/alarm_1.wav",
 			"volume_db": 0.0
 		},
 		"hull_critical": {

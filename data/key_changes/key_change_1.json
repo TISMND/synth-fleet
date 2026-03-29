@@ -1,10 +1,10 @@
 {
 	"display_name": "Key Change 1",
 	"enter_sfx_offset": 0.47,
-	"enter_sfx_path": "res://assets/audio/sfx/Woosh with a charge up.wav",
+	"enter_sfx_path": "res://assets/audio/sfx/elemental/Woosh with a charge up.wav",
 	"enter_sfx_volume_db": -15.0,
 	"exit_sfx_offset": 0.0,
-	"exit_sfx_path": "res://assets/audio/sfx/Woosh mutara.wav",
+	"exit_sfx_path": "res://assets/audio/sfx/elemental/Woosh mutara.wav",
 	"exit_sfx_volume_db": 0.0,
 	"fade_duration": 0.32,
 	"id": "key_change_1",

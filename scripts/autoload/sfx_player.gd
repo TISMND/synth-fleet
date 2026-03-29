@@ -17,7 +17,7 @@ func reload() -> void:
 		var path: String = str(ev.get("file_path", ""))
 		if path == "":
 			continue
-		if not FileAccess.file_exists(path):
+		if not FileAccess.file_exists(path) and not ResourceLoader.exists(path):
 			push_warning("SfxPlayer: missing audio file '%s' for event '%s'" % [path, event_id])
 			continue
 		var stream: AudioStream = load(path) as AudioStream

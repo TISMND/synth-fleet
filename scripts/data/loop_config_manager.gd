@@ -13,7 +13,7 @@ static func _load_if_needed() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	if not FileAccess.file_exists(FILE_PATH):
+	if not FileAccess.file_exists(FILE_PATH) and not ResourceLoader.exists(FILE_PATH):
 		_config = {}
 		return
 	var file := FileAccess.open(FILE_PATH, FileAccess.READ)

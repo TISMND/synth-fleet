@@ -21,7 +21,7 @@ static func save(data: DoodadData) -> void:
 
 static func load_by_id(id: String) -> DoodadData:
 	var path: String = DIR_PATH + id + ".json"
-	if not FileAccess.file_exists(path):
+	if not FileAccess.file_exists(path) and not ResourceLoader.exists(path):
 		return null
 	var file := FileAccess.open(path, FileAccess.READ)
 	if not file:

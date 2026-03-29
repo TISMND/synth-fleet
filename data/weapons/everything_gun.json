@@ -1,7 +1,7 @@
 {
 	"aim_mode": "fixed",
 	"bar_effects": {
-		"electric": -12.8
+		"electric": -14.2
 	},
 	"beam_dps": 50.0,
 	"beam_duration": 0.3,

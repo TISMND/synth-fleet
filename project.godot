@@ -16,6 +16,7 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]
 
+SettingsInstaller="*res://scripts/autoload/settings_installer.gd"
 GameState="*res://scripts/autoload/game_state.gd"
 AudioBusSetup="*res://scripts/autoload/audio_bus_setup.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
@@ -32,7 +33,6 @@ window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/mode=3
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
 
 [input]
 
@@ -144,5 +144,6 @@ device_2={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
+textures/vram_compression/import_etc2_astc=true
 viewport/hdr_2d=true
 environment/defaults/default_clear_color=Color(0, 0, 0, 1)
