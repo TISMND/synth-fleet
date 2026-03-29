@@ -99,6 +99,7 @@ var _ram_overlapping: Array[Area2D] = []  # Enemies currently overlapping player
 var _ram_accumulator: float = 0.0  # Fractional damage accumulator
 
 const THERMAL_COOLING_RATE: float = 15.0  # hp/sec cooling when no heat sources active
+const THERMAL_OVERFLOW_MULT: float = 1.5  # Overflow penalty: 1.5x hull damage per excess heat
 const ELECTRIC_THROTTLE_THRESHOLD: float = 40.0  # Start throttling below 4 segments (40 points)
 const ELECTRIC_SHIELD_BLEED_MULT: float = 1.5  # Overdraw penalty: 1.5x cost from shields
 const BLACKOUT_MAX_SPIN: float = 0.2  # Max radians/sec — gentle drift
@@ -1806,7 +1807,7 @@ func apply_bar_effects(effects: Dictionary) -> void:
 					# Thermal overflow — excess heat damages hull directly (bypasses shields)
 					var overflow: float = (thermal + delta_val) - thermal_max
 					thermal = thermal_max
-					hull = maxf(hull - overflow, 0.0)
+					hull = maxf(hull - overflow * THERMAL_OVERFLOW_MULT, 0.0)
 					hull_hit.emit()
 					if _hud and _hud.has_method("trigger_drain_wave"):
 						_hud.trigger_drain_wave("HULL")

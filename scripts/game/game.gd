@@ -113,6 +113,24 @@ var _intro_title_box: Control = null
 const INTRO_LOOP_PATH: String = "res://assets/audio/atmosphere/intro_loop.wav"
 const INTRO_FADE_START: float = 0.5  # seconds before measure boundary to start text fade
 
+# Warp in/out effect state
+var _warp_in_active: bool = false
+var _warp_in_timer: float = 0.0
+var _warp_in_flash_fired: bool = false
+const WARP_IN_DUR: float = 1.3
+const WARP_COLOR: Color = Color(0.3, 0.7, 1.0)
+
+var _warp_out_active: bool = false
+var _warp_out_timer: float = 0.0
+var _warp_out_sendoff_fired: bool = false
+const WARP_OUT_DUR: float = 1.3
+const WARP_OUT_CHARGE: float = 0.35
+const WARP_OUT_DELAY: float = 5.0  # seconds after boss dies before warp-out begins
+var _warp_out_delay_timer: float = 0.0
+var _warp_out_pending: bool = false
+var _warp_out_origin: Vector2 = Vector2(960, 850)  # Snapshot of player pos when warp-out starts
+var _warp_fx_layer: Node2D = null  # Additive-blend draw layer for warp particles/shapes
+
 # Warning rotator state
 var _hull_damaged_timer: float = 0.0  # Transient "HULL DAMAGED" display timer
 const HULL_DAMAGED_DISPLAY_TIME: float = 2.0
@@ -221,6 +239,22 @@ func _ready() -> void:
 	_player.hull_hit.connect(func(): _hull_damaged_timer = HULL_DAMAGED_DISPLAY_TIME)
 	_player.power_loss_started.connect(_on_power_loss_started)
 	_player.power_loss_ended.connect(_on_power_loss_ended)
+
+	# Warp FX layer — additive blend, above ship, for warp particles and shapes
+	_warp_fx_layer = _WarpFXLayer.new()
+	_warp_fx_layer.z_index = 40
+	var warp_mat := CanvasItemMaterial.new()
+	warp_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	_warp_fx_layer.material = warp_mat
+	_game_viewport.add_child(_warp_fx_layer)
+
+	# Start warp-in: hide player below screen, animate arrival
+	# Player collision is disabled during warp so stray enemies don't kill on arrival
+	if _player._player_area:
+		_player._player_area.monitoring = false
+		_player._player_area.monitorable = false
+	if not _events_audition_mode:
+		_start_warp_in()
 
 	# Mouse navigation indicator
 	_mouse_nav_indicator = _MouseNavIndicator.new()
@@ -373,9 +407,302 @@ func _end_intro() -> void:
 	# Intro loop fade already started at phase 1 transition — nothing to do here
 
 
+# ── Warp In effect ───────────────────────────────────────────────────
+
+func _start_warp_in() -> void:
+	_warp_in_active = true
+	_warp_in_timer = 0.0
+	_warp_in_flash_fired = false
+	_player.visible = false
+	# Block player input during warp
+	_player._drifting = true
+
+
+func _process_warp_in(delta: float) -> void:
+	_warp_in_timer += delta
+	_warp_fx_layer.shapes.clear()
+
+	var home: Vector2 = Vector2(960, 850)
+
+	# Pre-arrival streaks (before effect starts)
+	if _warp_in_timer < 0.4:
+		if randf() < _warp_in_timer * 0.5:
+			_warp_fx_layer.emit(
+				Vector2(home.x + randf_range(-60.0, 60.0), 1080.0),
+				Vector2(0.0, -randf_range(300.0, 600.0)), 0.3,
+				Color(WARP_COLOR.r * 1.2, WARP_COLOR.g * 1.2, WARP_COLOR.b * 1.2, 0.3), 2.0)
+		return
+
+	var p: float = clampf((_warp_in_timer - 0.4) / WARP_IN_DUR, 0.0, 1.0)
+
+	# Phase layout:
+	# 0.0–0.25: Orb flash blooms at home (no ship)
+	# 0.15–0.55: Ship streaks in from bottom, decelerating through orb
+	# 0.55–1.0: Ship settles, glow fades
+	var orb_peak: float = 0.2
+
+	# Orb flash
+	if p < 0.5:
+		var orb_t: float = p / 0.5
+		var intensity: float
+		if orb_t < 0.4:
+			intensity = orb_t / 0.4
+		else:
+			intensity = (1.0 - orb_t) / 0.6
+		intensity = maxf(intensity, 0.0)
+		if intensity > 0.01:
+			var orb_r: float = 40.0 + intensity * 70.0
+			_warp_fx_layer.shapes.append([0, home, orb_r,
+				Color(WARP_COLOR.r * 4.0, WARP_COLOR.g * 4.0, WARP_COLOR.b * 4.0, intensity * 0.3)])
+			_warp_fx_layer.shapes.append([0, home, orb_r * 0.5,
+				Color(1.0, 1.0, 1.0, intensity * 0.15)])
+
+	# Flash particles at orb peak
+	if p >= orb_peak and not _warp_in_flash_fired:
+		_warp_in_flash_fired = true
+		for i in 8:
+			var angle: float = randf() * TAU
+			_warp_fx_layer.emit_drag(home,
+				Vector2(cos(angle), sin(angle)) * randf_range(40.0, 100.0),
+				0.5, Color(WARP_COLOR.r * 4.0, WARP_COLOR.g * 4.0, WARP_COLOR.b * 4.0, 0.8), 4.0, 2.0)
+
+	# Ship streak from bottom
+	var ship_start: float = 0.15
+	var ship_arrive: float = 0.55
+	if p >= ship_start:
+		_player.visible = true
+		if p < ship_arrive:
+			var t: float = (p - ship_start) / (ship_arrive - ship_start)
+			var ease_t: float = 1.0 - pow(1.0 - t, 3.0)
+			_player.position.y = lerpf(1080.0 + 150.0, home.y, ease_t)
+			_player.position.x = home.x
+			var stretch: float = 1.0 - t
+			_player._ship_renderer.scale = Vector2(
+				lerpf(1.0, 0.3, stretch),
+				lerpf(1.0, 3.5, stretch))
+			var glow: float = lerpf(1.0, 4.0, stretch)
+			_player._ship_renderer.modulate = Color(
+				lerpf(1.0, WARP_COLOR.r * glow, stretch),
+				lerpf(1.0, WARP_COLOR.g * glow, stretch),
+				lerpf(1.0, WARP_COLOR.b * glow, stretch),
+				lerpf(1.0, 0.3, stretch * stretch))
+			# Trail particles
+			if randf() < 0.5 * stretch:
+				_warp_fx_layer.emit(
+					Vector2(_player.position.x + randf_range(-10.0, 10.0), _player.position.y + 40.0),
+					Vector2(randf_range(-15.0, 15.0), randf_range(100.0, 250.0)),
+					0.25, Color(WARP_COLOR.r * 2.0, WARP_COLOR.g * 2.0, WARP_COLOR.b * 2.0, 0.5), 2.5)
+			# Background streaks
+			if randf() < 0.4 * stretch:
+				_warp_fx_layer.emit(
+					Vector2(home.x + randf_range(-70.0, 70.0), 1080.0),
+					Vector2(0.0, -randf_range(300.0, 600.0)), 0.3,
+					Color(WARP_COLOR.r * 1.5, WARP_COLOR.g * 1.5, WARP_COLOR.b * 1.5, 0.3), 1.5)
+		else:
+			# Settling
+			var settle_t: float = (p - ship_arrive) / (1.0 - ship_arrive)
+			_player.position = home
+			_player._ship_renderer.scale = Vector2.ONE
+			var glow_fade: float = maxf(1.0 - settle_t * 2.5, 0.0)
+			_player._ship_renderer.modulate = Color(
+				1.0 + glow_fade * 0.5, 1.0 + glow_fade * 0.5, 1.0 + glow_fade * 0.5)
+
+	# End warp-in
+	if p >= 1.0:
+		_warp_in_active = false
+		_player.position = home
+		_player._ship_renderer.scale = Vector2.ONE
+		_player._ship_renderer.modulate = Color.WHITE
+		_player._drifting = false
+		_player._velocity = Vector2.ZERO
+		# Re-enable collision
+		if _player._player_area:
+			_player._player_area.monitoring = true
+			_player._player_area.monitorable = true
+		_warp_fx_layer.shapes.clear()
+
+
+# ── Warp Out effect ──────────────────────────────────────────────────
+
+func _start_warp_out() -> void:
+	_warp_out_active = true
+	_warp_out_timer = 0.0
+	_warp_out_sendoff_fired = false
+	if _player:
+		_warp_out_origin = _player.position
+		_player.set_meta("level_complete", true)
+		_player._velocity = Vector2.ZERO
+
+
+func _process_warp_out(delta: float) -> void:
+	_warp_out_timer += delta
+	_warp_fx_layer.shapes.clear()
+
+	var p: float = clampf(_warp_out_timer / WARP_OUT_DUR, 0.0, 1.0)
+	var warp_origin: Vector2 = _warp_out_origin
+
+	if p < WARP_OUT_CHARGE:
+		# Charge: stretch + glow
+		var t: float = p / WARP_OUT_CHARGE
+		var e: float = t * t
+		_player._ship_renderer.scale = Vector2(1.0 - e * 0.7, 1.0 + e * 2.5)
+		var g: float = 1.0 + e * 3.0
+		_player._ship_renderer.modulate = Color(
+			lerpf(1.0, WARP_COLOR.r * g, e),
+			lerpf(1.0, WARP_COLOR.g * g, e),
+			lerpf(1.0, WARP_COLOR.b * g, e))
+		# Ambient streaks
+		if randf() < t * 0.5:
+			_warp_fx_layer.emit(
+				Vector2(warp_origin.x + randf_range(-70.0, 70.0), 0.0),
+				Vector2(0.0, randf_range(300.0, 600.0)), 0.3,
+				Color(WARP_COLOR.r * 1.5, WARP_COLOR.g * 1.5, WARP_COLOR.b * 1.5, 0.4), 1.5)
+	else:
+		# Exit: ship shoots upward
+		var exit_end: float = WARP_OUT_CHARGE + (1.0 - WARP_OUT_CHARGE) * 0.55
+		var sendoff_trigger: float = 0.4
+
+		if p < exit_end:
+			var t: float = (p - WARP_OUT_CHARGE) / (exit_end - WARP_OUT_CHARGE)
+			var e: float = pow(t, 3.5)
+			_player._ship_renderer.scale = Vector2(0.3 * (1.0 - t * 0.5), 3.5 + t * 1.75)
+			_player.position.y = warp_origin.y - e * 1200.0
+			_player._ship_renderer.modulate = Color(
+				WARP_COLOR.r * 4.0, WARP_COLOR.g * 4.0, WARP_COLOR.b * 4.0, 1.0 - t * 0.8)
+			# Trail
+			if randf() < 0.7:
+				_warp_fx_layer.emit(
+					Vector2(_player.position.x + randf_range(-10.0, 10.0), _player.position.y + 50.0),
+					Vector2(randf_range(-15.0, 15.0), randf_range(100.0, 250.0)),
+					0.3, Color(WARP_COLOR.r * 2.5, WARP_COLOR.g * 2.5, WARP_COLOR.b * 2.5, 0.6), 2.5)
+			# Sendoff: The Works — fires once at 40% through exit
+			if t >= sendoff_trigger and not _warp_out_sendoff_fired:
+				_warp_out_sendoff_fired = true
+				# Flash particles
+				for i in 6:
+					var a: float = randf() * TAU
+					_warp_fx_layer.emit_drag(warp_origin,
+						Vector2(cos(a), sin(a)) * randf_range(40.0, 90.0),
+						0.4, Color(WARP_COLOR.r * 4.0, WARP_COLOR.g * 4.0, WARP_COLOR.b * 4.0, 0.8), 4.0, 2.0)
+				# Scatter cone (downward since ship goes up)
+				for i in 10:
+					var a: float = randf_range(0.7, 2.45)
+					_warp_fx_layer.emit_drag(warp_origin,
+						Vector2(cos(a), sin(a)) * randf_range(80.0, 200.0),
+						0.5, Color(WARP_COLOR.r * 2.5, WARP_COLOR.g * 2.5, WARP_COLOR.b * 2.5, 0.6), 3.0, 1.5)
+				# Embers
+				for i in 6:
+					var a: float = randf_range(0.5, 2.65)
+					_warp_fx_layer.emit(warp_origin + Vector2(randf_range(-15.0, 15.0), 0.0),
+						Vector2(cos(a), sin(a)) * randf_range(20.0, 50.0),
+						randf_range(0.9, 1.5), Color(WARP_COLOR.r * 2.0, WARP_COLOR.g * 2.0, WARP_COLOR.b * 2.0, 0.5),
+						randf_range(3.0, 5.0))
+			# Sendoff shapes
+			if _warp_out_sendoff_fired:
+				var st: float = (t - sendoff_trigger) / (1.0 - sendoff_trigger)
+				# Flash
+				if st < 0.4:
+					var intensity: float = (0.4 - st) / 0.4
+					_warp_fx_layer.shapes.append([0, warp_origin, 50.0 + st * 100.0,
+						Color(WARP_COLOR.r * 4.0, WARP_COLOR.g * 4.0, WARP_COLOR.b * 4.0, intensity * 0.2)])
+				# Double ring
+				var r1: float = st * 180.0
+				var r2: float = maxf(st - 0.12, 0.0) / 0.88 * 140.0
+				var a1: float = (1.0 - st) * 0.6
+				if a1 > 0.01:
+					_warp_fx_layer.shapes.append([1, warp_origin, r1, 0.0, TAU, 48,
+						Color(WARP_COLOR.r * 3.0, WARP_COLOR.g * 3.0, WARP_COLOR.b * 3.0, a1), 3.0])
+				if r2 > 1.0:
+					var a2: float = (1.0 - minf(st + 0.12, 1.0)) * 0.4
+					if a2 > 0.01:
+						_warp_fx_layer.shapes.append([1, warp_origin, r2, 0.0, TAU, 36,
+							Color(WARP_COLOR.r * 2.0, WARP_COLOR.g * 2.0, WARP_COLOR.b * 2.0, a2), 2.0])
+		else:
+			# Linger — ship gone, rings fade
+			_player.visible = false
+			var t: float = (p - exit_end) / (1.0 - exit_end)
+			var r1: float = 180.0 + t * 50.0
+			var r2: float = 140.0 + t * 35.0
+			var a: float = (1.0 - t) * 0.2
+			if a > 0.01:
+				_warp_fx_layer.shapes.append([1, warp_origin, r1, 0.0, TAU, 48,
+					Color(WARP_COLOR.r * 2.0, WARP_COLOR.g * 2.0, WARP_COLOR.b * 2.0, a), 2.5])
+				_warp_fx_layer.shapes.append([1, warp_origin, r2, 0.0, TAU, 36,
+					Color(WARP_COLOR.r * 1.5, WARP_COLOR.g * 1.5, WARP_COLOR.b * 1.5, a * 0.5), 2.0])
+
+	# End warp-out → start end-of-level stats
+	if p >= 1.0 and _warp_out_active:
+		_warp_out_active = false
+		_warp_fx_layer.shapes.clear()
+		_start_end_of_level()
+
+
+# ── Warp FX drawing layer ────────────────────────────────────────────
+
+class _WarpFXLayer extends Node2D:
+	var shapes: Array = []
+	var particles: Array = []
+
+	func emit(pos: Vector2, vel: Vector2, life: float, col: Color, sz: float) -> void:
+		if particles.size() < 120:
+			particles.append({"p": pos, "v": vel, "l": life, "ml": life, "c": col, "s": sz})
+
+	func emit_drag(pos: Vector2, vel: Vector2, life: float, col: Color, sz: float, drag: float) -> void:
+		if particles.size() < 120:
+			particles.append({"p": pos, "v": vel, "l": life, "ml": life, "c": col, "s": sz, "drag": drag})
+
+	func tick(delta: float) -> void:
+		var i: int = particles.size() - 1
+		while i >= 0:
+			var pt: Dictionary = particles[i]
+			pt["l"] -= delta
+			if pt["l"] <= 0.0:
+				particles.remove_at(i)
+			else:
+				var pos: Vector2 = pt["p"]
+				var vel: Vector2 = pt["v"]
+				pt["p"] = pos + vel * delta
+				if pt.has("drag"):
+					pt["v"] = vel * (1.0 - float(pt["drag"]) * delta)
+			i -= 1
+
+	func _draw() -> void:
+		for s in shapes:
+			var cmd: int = int(s[0])
+			if cmd == 0:
+				draw_circle(s[1] as Vector2, s[2] as float, s[3] as Color)
+			elif cmd == 1:
+				draw_arc(s[1] as Vector2, s[2] as float, s[3] as float,
+					s[4] as float, s[5] as int, s[6] as Color, s[7] as float)
+		for pt in particles:
+			var t: float = float(pt["l"]) / maxf(float(pt["ml"]), 0.001)
+			var a: float = t * float(pt["c"].a)
+			if a < 0.01:
+				continue
+			var c: Color = pt["c"] as Color
+			var pos: Vector2 = pt["p"] as Vector2
+			var sz: float = float(pt["s"])
+			draw_circle(pos, sz * 2.5, Color(c.r * 0.3, c.g * 0.3, c.b * 0.3, a * 0.15))
+			draw_circle(pos, sz, Color(c.r, c.g, c.b, a))
+
+
 # ── Main game loop ───────────────────────────────────────────────────
 
 func _process(delta: float) -> void:
+	# Warp in/out effects
+	if _warp_in_active:
+		_process_warp_in(delta)
+	if _warp_out_pending:
+		_warp_out_delay_timer += delta
+		if _warp_out_delay_timer >= WARP_OUT_DELAY:
+			_warp_out_pending = false
+			_start_warp_out()
+	if _warp_out_active:
+		_process_warp_out(delta)
+	if _warp_fx_layer:
+		_warp_fx_layer.tick(delta)
+		_warp_fx_layer.queue_redraw()
+
 	# Intro sequence — runs alongside scrolling/parallax but blocks waves/combat
 	if _intro_active:
 		_process_intro(delta)
@@ -499,8 +826,10 @@ var _end_of_level_time: float = 0.0
 
 func _on_all_waves_cleared() -> void:
 	if _events_audition_mode:
-		return  # Don't end level in audition mode
-	_start_end_of_level()
+		return
+	# Begin warp-out delay — ship warps away, then stats screen
+	_warp_out_pending = true
+	_warp_out_delay_timer = 0.0
 
 
 func _input(event: InputEvent) -> void:

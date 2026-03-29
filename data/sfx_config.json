@@ -166,21 +166,21 @@
 			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/explosions/explosion_slight_echo.wav",
-			"volume_db": -11.0
+			"volume_db": -13.5
 		},
 		"explosion_2": {
 			"clip_end_time": 0.0,
 			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/explosions/explosion_simple.wav",
-			"volume_db": -11.5
+			"volume_db": -13.0
 		},
 		"explosion_3": {
 			"clip_end_time": 0.0,
 			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/explosions/explosion_simple_again.wav",
-			"volume_db": -10.0
+			"volume_db": -13.5
 		},
 		"fire_alarm": {
 			"clip_end_time": 0.0,

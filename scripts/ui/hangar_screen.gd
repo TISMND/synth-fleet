@@ -2869,7 +2869,7 @@ func _on_bar_effect_fired(effects: Dictionary) -> void:
 				# Apply overflow as hull damage
 				if _bars.has("HULL"):
 					var hull_bar: ProgressBar = _bars["HULL"]["bar"]
-					hull_bar.value = maxf(hull_bar.value - overflow, 0.0)
+					hull_bar.value = maxf(hull_bar.value - overflow * 1.5, 0.0)
 					_trigger_bar_wave("HULL", -overflow)
 					_update_bar_shader("HULL")
 			else:

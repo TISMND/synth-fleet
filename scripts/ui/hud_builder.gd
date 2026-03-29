@@ -579,7 +579,10 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		if shader:
 			var mat := ShaderMaterial.new()
 			mat.shader = shader
-			mat.set_shader_parameter("divider_y", 0.5)
+			# Divider sits at midpoint of content area (above bottom bar)
+			var content_height: float = _panel_height - BOTTOM_BAR_HEIGHT * 2
+			var divider_uv: float = (content_height * 0.5) / _panel_height
+			mat.set_shader_parameter("divider_y", divider_uv)
 			var accent_color: Color = ThemeManager.get_color("accent")
 			mat.set_shader_parameter("divider_color", Vector4(accent_color.r, accent_color.g, accent_color.b, 0.5))
 			for key in chrome_params:
@@ -618,14 +621,22 @@ static func build_side_panel(mode: String, bar_names: Array, seg_overrides: Dict
 		panel.add_child(chrome_bg)
 		border = panel
 
-	# Use VBoxContainer layout — no manual position math.
+	# Use VBoxContainer inside a MarginContainer — no manual position math.
+	# Bottom margin keeps bar content above the bottom HUD panel.
 	# Structure per zone: spacer (fills top) → bar → pad → label → pad
 	# Container handles repositioning when segment count changes.
+	var content_margin := MarginContainer.new()
+	content_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if mode == "game":
+		content_margin.add_theme_constant_override("margin_bottom", BOTTOM_BAR_HEIGHT * 2)
+	root.add_child(content_margin)
+
 	var main_vbox := VBoxContainer.new()
-	main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_vbox.add_theme_constant_override("separation", 0)
 	main_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(main_vbox)
+	content_margin.add_child(main_vbox)
 
 	var bars_result: Dictionary = {}
 	for i in bar_names.size():

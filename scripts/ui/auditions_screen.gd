@@ -1,20 +1,20 @@
 extends Control
-## Auditions screen — tabbed: Warp Out effects workshop + Events.
+## Auditions screen — tabbed: Warp (locked in/out) + Events.
 
-const CELL_W: int = 350
-const CELL_H: int = 270
 const SHIP_ID: int = 4  # Stiletto
+const WARP_COLOR: Color = Color(0.3, 0.7, 1.0)
+const VP_W: int = 420
+const VP_H: int = 600
 
 var _vhs_overlay: ColorRect
 var _bg: ColorRect
 var _title_label: Label
 var _back_button: Button
 
-# Tab state
 var _active_tab: int = 0
 var _tab_warp_btn: Button
 var _tab_events_btn: Button
-var _warp_content: ScrollContainer
+var _warp_content: Control
 var _events_content: ScrollContainer
 var _event_trigger_buttons: Dictionary = {}
 
@@ -24,8 +24,6 @@ func _ready() -> void:
 	_apply_theme()
 	ThemeManager.theme_changed.connect(_apply_theme)
 
-
-# ── Build UI ─────────────────────────────────────────────────────────
 
 func _build_ui() -> void:
 	_bg = ColorRect.new()
@@ -61,7 +59,7 @@ func _build_ui() -> void:
 	header.add_child(spacer)
 
 	_tab_warp_btn = Button.new()
-	_tab_warp_btn.text = "WARP OUT"
+	_tab_warp_btn.text = "WARP"
 	_tab_warp_btn.toggle_mode = true
 	_tab_warp_btn.button_pressed = true
 	_tab_warp_btn.pressed.connect(func(): _switch_to_tab(0))
@@ -73,12 +71,14 @@ func _build_ui() -> void:
 	_tab_events_btn.pressed.connect(func(): _switch_to_tab(1))
 	header.add_child(_tab_events_btn)
 
-	_warp_content = ScrollContainer.new()
+	# Warp content — two tall viewports side by side
+	_warp_content = HBoxContainer.new()
 	_warp_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_warp_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_warp_content.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	(_warp_content as HBoxContainer).add_theme_constant_override("separation", 40)
+	(_warp_content as HBoxContainer).alignment = BoxContainer.ALIGNMENT_CENTER
 	main_vbox.add_child(_warp_content)
-	_build_warp_grid()
+	_build_warp_panels()
 
 	_events_content = ScrollContainer.new()
 	_events_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -103,97 +103,14 @@ func _switch_to_tab(idx: int) -> void:
 	_events_content.visible = (idx == 1)
 
 
-# ── Warp Out grid ───────────────────────────────────────────────────
+func _build_warp_panels() -> void:
+	var in_cell := _WarpInCell.new()
+	in_cell.setup()
+	_warp_content.add_child(in_cell)
 
-func _build_warp_grid() -> void:
-	var flow := HFlowContainer.new()
-	flow.add_theme_constant_override("h_separation", 16)
-	flow.add_theme_constant_override("v_separation", 16)
-	flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_warp_content.add_child(flow)
-
-	# All cyan, all ~1.3s. Sendoff fires mid-exit (ship is moving but still visible).
-	var C: Color = Color(0.3, 0.7, 1.0)
-	var variants: Array = [
-		["CLEAN", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "none",
-		}],
-		["FLASH", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "flash",
-		}],
-		["SOFT FLASH", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 3.5,
-			"stretch_y": 3.0, "squeeze_x": 0.35, "exit_accel": 3.5,
-			"streak_density": 0.45, "trail_size": 1.5,
-			"sendoff": "flash_soft",
-		}],
-		["RING", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "ring",
-		}],
-		["DOUBLE RING", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "double_ring",
-		}],
-		["SHOCKWAVE", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "shockwave",
-		}],
-		["SCATTER", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "scatter",
-		}],
-		["EMBERS", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "embers",
-		}],
-		["RING + SCATTER", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "ring_scatter",
-		}],
-		["FLASH + RING", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "flash_ring",
-		}],
-		["SHOCKWAVE + EMBERS", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "shockwave_embers",
-		}],
-		["THE WORKS", {
-			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
-			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
-			"streak_density": 0.5, "trail_size": 1.2,
-			"sendoff": "the_works",
-		}],
-	]
-
-	for i in variants.size():
-		var def: Array = variants[i]
-		var cell := _WarpCell.new()
-		cell.setup(i, str(def[0]), C, def[1] as Dictionary)
-		flow.add_child(cell)
+	var out_cell := _WarpOutCell.new()
+	out_cell.setup()
+	_warp_content.add_child(out_cell)
 
 
 # ── Events tab ──────────────────────────────────────────────────────
@@ -309,113 +226,278 @@ func _input(event: InputEvent) -> void:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Light Speed warp cell — sendoff fires AT exit start, not after
+# WARP IN — Streak + Flash, arriving from bottom
+#
+# Timeline: blank → orb flash appears at home → ship streaks in from
+# bottom and decelerates through the flash → ship settles to normal
 # ═══════════════════════════════════════════════════════════════════════
 
-class _WarpCell extends VBoxContainer:
-	const SHIP_HOME: Vector2 = Vector2(175.0, 160.0)
-	const IDLE_DUR: float = 0.7
-	const BLANK_DUR: float = 0.9
-	const W: int = 350
-	const H: int = 270
+class _WarpInCell extends VBoxContainer:
+	# Ship rests at center-ish of the tall viewport
+	const SHIP_HOME: Vector2 = Vector2(210.0, 300.0)
+	const BLANK_DUR: float = 1.0
+	const EFFECT_DUR: float = 1.3
+	const SETTLE_DUR: float = 0.8
 
-	var _idx: int = 0
-	var _label_name: String = ""
-	var _dur: float = 2.0
-	var _color: Color = Color.CYAN
-	var _charge: float = 0.4
-	var _glow_max: float = 3.5
-	var _stretch_y: float = 3.0
-	var _squeeze_x: float = 0.35
-	var _exit_accel: float = 3.0
-	var _streak_density: float = 0.4
-	var _trail_size: float = 1.5
-	var _sendoff: String = "none"
-
-	var _vp: SubViewport
 	var _ship: ShipRenderer
 	var _fx: _FXLayer
 	var _time: float = 0.0
-	var _sendoff_fired: bool = false
+	var _flash_fired: bool = false
 
-	func setup(idx: int, ename: String, col: Color, cfg: Dictionary) -> void:
-		_idx = idx
-		_label_name = ename
-		_color = col
-		_dur = float(cfg.get("dur", 2.0))
-		_charge = float(cfg.get("charge", 0.4))
-		_glow_max = float(cfg.get("glow_max", 3.5))
-		_stretch_y = float(cfg.get("stretch_y", 3.0))
-		_squeeze_x = float(cfg.get("squeeze_x", 0.35))
-		_exit_accel = float(cfg.get("exit_accel", 3.0))
-		_streak_density = float(cfg.get("streak_density", 0.4))
-		_trail_size = float(cfg.get("trail_size", 1.5))
-		_sendoff = str(cfg.get("sendoff", "none"))
-		_time = float(idx) * 0.3
+	func setup() -> void:
+		_time = 0.0
 
 	func _ready() -> void:
-		_build()
+		add_theme_constant_override("separation", 6)
 
-	func _build() -> void:
-		add_theme_constant_override("separation", 4)
+		var title := Label.new()
+		title.text = "WARP IN"
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.add_theme_font_size_override("font_size", 14)
+		ThemeManager.apply_text_glow(title, "header")
+		add_child(title)
 
+		_build_vp()
+		_ship.visible = false
+
+	func _build_vp() -> void:
 		var vpc := SubViewportContainer.new()
 		vpc.stretch = true
-		vpc.custom_minimum_size = Vector2(W, H)
+		vpc.custom_minimum_size = Vector2(VP_W, VP_H)
+		vpc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		add_child(vpc)
-
-		_vp = SubViewport.new()
-		_vp.transparent_bg = false
-		_vp.size = Vector2i(W, H)
-		_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-		vpc.add_child(_vp)
-
-		VFXFactory.add_bloom_to_viewport(_vp)
-
+		var vp := SubViewport.new()
+		vp.transparent_bg = false
+		vp.size = Vector2i(VP_W, VP_H)
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		vpc.add_child(vp)
+		VFXFactory.add_bloom_to_viewport(vp)
 		var bg := ColorRect.new()
 		bg.color = Color(0.01, 0.01, 0.03)
 		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_vp.add_child(bg)
-
+		vp.add_child(bg)
 		var stars := _StarBG.new()
-		stars.init_stars(W, H, 35, _idx + 200)
-		_vp.add_child(stars)
-
+		stars.init_stars(VP_W, VP_H, 50, 500)
+		vp.add_child(stars)
 		_ship = ShipRenderer.new()
 		_ship.ship_id = SHIP_ID
 		_ship.render_mode = ShipRenderer.RenderMode.CHROME
-		_ship.position = SHIP_HOME
 		_ship.z_index = 1
-		_vp.add_child(_ship)
-
+		vp.add_child(_ship)
 		_fx = _FXLayer.new()
 		_fx.z_index = 2
 		var fx_mat := CanvasItemMaterial.new()
 		fx_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		_fx.material = fx_mat
-		_vp.add_child(_fx)
-
-		var label := Label.new()
-		label.text = _label_name
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 12)
-		ThemeManager.apply_text_glow(label, "body")
-		add_child(label)
+		vp.add_child(_fx)
 
 	func _process(delta: float) -> void:
 		_time += delta
-		var cycle: float = IDLE_DUR + _dur + BLANK_DUR
+		var cycle: float = BLANK_DUR + EFFECT_DUR + SETTLE_DUR
 		if _time >= cycle:
 			_time = fmod(_time, cycle)
 			_reset()
 
 		_fx.shapes.clear()
-		_tick_particles(delta)
+		_fx.tick_particles(delta)
 
-		if _time >= IDLE_DUR and _time < IDLE_DUR + _dur:
-			var p: float = (_time - IDLE_DUR) / maxf(_dur, 0.01)
-			_run(p, delta)
-		elif _time >= IDLE_DUR + _dur:
+		if _time < BLANK_DUR:
+			_ship.visible = false
+			# Pre-arrival streaks in final portion of blank
+			if _time > BLANK_DUR * 0.5:
+				var pre_t: float = (_time - BLANK_DUR * 0.5) / (BLANK_DUR * 0.5)
+				if randf() < pre_t * 0.4:
+					_fx.emit(Vector2(SHIP_HOME.x + randf_range(-25.0, 25.0), float(VP_H)),
+						Vector2(0.0, -randf_range(150.0, 300.0)), 0.3, _hdr(1.2, 0.3), 1.0)
+		elif _time < BLANK_DUR + EFFECT_DUR:
+			var p: float = (_time - BLANK_DUR) / EFFECT_DUR
+			_run_arrival(p)
+		else:
+			_ship.visible = true
+			_ship.position = SHIP_HOME
+			_ship.scale = Vector2.ONE
+			_ship.modulate = Color.WHITE
+
+		_fx.queue_redraw()
+
+	func _reset() -> void:
+		_ship.visible = false
+		_ship.position = SHIP_HOME
+		_ship.scale = Vector2.ONE
+		_ship.modulate = Color.WHITE
+		_flash_fired = false
+		_fx.particles.clear()
+		_fx.shapes.clear()
+
+	func _hdr(m: float, a: float) -> Color:
+		return Color(WARP_COLOR.r * m, WARP_COLOR.g * m, WARP_COLOR.b * m, a)
+
+	func _run_arrival(p: float) -> void:
+		# Phase layout within p 0→1:
+		#   0.0–0.25: Orb flash blooms at home position (no ship yet)
+		#   0.15–0.55: Ship streaks in from bottom, decelerating through the orb
+		#   0.55–1.0: Ship settles, glow fades, flash particles dissipate
+
+		var orb_start: float = 0.0
+		var orb_peak: float = 0.2
+		var ship_start: float = 0.15
+		var ship_arrive: float = 0.55
+		var settle_end: float = 1.0
+
+		# ── Orb flash (appears before ship) ──
+		if p < 0.5:
+			var orb_t: float = p / 0.5
+			var orb_intensity: float
+			if orb_t < 0.4:
+				# Bloom in
+				orb_intensity = orb_t / 0.4
+			else:
+				# Fade out
+				orb_intensity = (1.0 - orb_t) / 0.6
+			orb_intensity = maxf(orb_intensity, 0.0)
+			if orb_intensity > 0.01:
+				var orb_r: float = 20.0 + orb_intensity * 35.0
+				_fx.shapes.append([0, SHIP_HOME, orb_r,
+					_hdr(4.0, orb_intensity * 0.3)])
+				_fx.shapes.append([0, SHIP_HOME, orb_r * 0.5,
+					Color(1.0, 1.0, 1.0, orb_intensity * 0.15)])
+
+		# ── Flash particles (fire once near orb peak) ──
+		if p >= orb_peak and not _flash_fired:
+			_flash_fired = true
+			for i in 6:
+				var angle: float = randf() * TAU
+				_fx.emit_drag(SHIP_HOME,
+					Vector2(cos(angle), sin(angle)) * randf_range(25.0, 55.0),
+					0.5, _hdr(4.0, 0.8), 2.5, 2.0)
+
+		# ── Ship streak from bottom ──
+		if p >= ship_start:
+			_ship.visible = true
+			if p < ship_arrive:
+				var t: float = (p - ship_start) / (ship_arrive - ship_start)
+				# Deceleration curve: fast at start, slow at end
+				var ease_t: float = 1.0 - pow(1.0 - t, 3.0)
+				# Start well below viewport, arrive at home
+				_ship.position.y = lerpf(float(VP_H) + 80.0, SHIP_HOME.y, ease_t)
+				_ship.position.x = SHIP_HOME.x
+				# Stretched at start, normal at end
+				var stretch: float = 1.0 - t
+				_ship.scale = Vector2(
+					lerpf(1.0, 0.3, stretch),
+					lerpf(1.0, 3.5, stretch))
+				# Bright glow at start, fading toward normal
+				var glow: float = lerpf(1.0, 4.0, stretch)
+				_ship.modulate = Color(
+					lerpf(1.0, WARP_COLOR.r * glow, stretch),
+					lerpf(1.0, WARP_COLOR.g * glow, stretch),
+					lerpf(1.0, WARP_COLOR.b * glow, stretch),
+					lerpf(1.0, 0.3, stretch * stretch))
+				# Trail streaks above ship (ship moving up, trail below)
+				if randf() < 0.5 * stretch:
+					_fx.emit(Vector2(_ship.position.x + randf_range(-5.0, 5.0), _ship.position.y + 20.0),
+						Vector2(randf_range(-8.0, 8.0), randf_range(60.0, 140.0)),
+						0.25, _hdr(2.0, 0.5), 1.2)
+				# Background streaks moving upward (matching ship direction)
+				if randf() < 0.4 * stretch:
+					_fx.emit(Vector2(SHIP_HOME.x + randf_range(-35.0, 35.0), float(VP_H)),
+						Vector2(0.0, -randf_range(180.0, 350.0)), 0.3, _hdr(1.5, 0.3), 0.8)
+			else:
+				# Settling
+				var settle_t: float = (p - ship_arrive) / (settle_end - ship_arrive)
+				_ship.position = SHIP_HOME
+				_ship.scale = Vector2.ONE
+				var glow_fade: float = maxf(1.0 - settle_t * 2.5, 0.0)
+				_ship.modulate = Color(
+					1.0 + glow_fade * 0.5,
+					1.0 + glow_fade * 0.5,
+					1.0 + glow_fade * 0.5)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# WARP OUT — The Works (light speed + flash + rings + scatter + embers)
+# ═══════════════════════════════════════════════════════════════════════
+
+class _WarpOutCell extends VBoxContainer:
+	const SHIP_HOME: Vector2 = Vector2(210.0, 300.0)
+	const IDLE_DUR: float = 0.8
+	const EFFECT_DUR: float = 1.3
+	const BLANK_DUR: float = 1.0
+
+	const CHARGE: float = 0.35
+	const GLOW_MAX: float = 4.0
+	const STRETCH_Y: float = 3.5
+	const SQUEEZE_X: float = 0.3
+	const EXIT_ACCEL: float = 3.5
+
+	var _ship: ShipRenderer
+	var _fx: _FXLayer
+	var _time: float = 0.5  # offset so they don't sync
+	var _sendoff_fired: bool = false
+
+	func setup() -> void:
+		pass
+
+	func _ready() -> void:
+		add_theme_constant_override("separation", 6)
+
+		var title := Label.new()
+		title.text = "WARP OUT"
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.add_theme_font_size_override("font_size", 14)
+		ThemeManager.apply_text_glow(title, "header")
+		add_child(title)
+
+		_build_vp()
+		_ship.position = SHIP_HOME
+
+	func _build_vp() -> void:
+		var vpc := SubViewportContainer.new()
+		vpc.stretch = true
+		vpc.custom_minimum_size = Vector2(VP_W, VP_H)
+		vpc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		add_child(vpc)
+		var vp := SubViewport.new()
+		vp.transparent_bg = false
+		vp.size = Vector2i(VP_W, VP_H)
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		vpc.add_child(vp)
+		VFXFactory.add_bloom_to_viewport(vp)
+		var bg := ColorRect.new()
+		bg.color = Color(0.01, 0.01, 0.03)
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		vp.add_child(bg)
+		var stars := _StarBG.new()
+		stars.init_stars(VP_W, VP_H, 50, 501)
+		vp.add_child(stars)
+		_ship = ShipRenderer.new()
+		_ship.ship_id = SHIP_ID
+		_ship.render_mode = ShipRenderer.RenderMode.CHROME
+		_ship.z_index = 1
+		vp.add_child(_ship)
+		_fx = _FXLayer.new()
+		_fx.z_index = 2
+		var fx_mat := CanvasItemMaterial.new()
+		fx_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		_fx.material = fx_mat
+		vp.add_child(_fx)
+
+	func _process(delta: float) -> void:
+		_time += delta
+		var cycle: float = IDLE_DUR + EFFECT_DUR + BLANK_DUR
+		if _time >= cycle:
+			_time = fmod(_time, cycle)
+			_reset()
+
+		_fx.shapes.clear()
+		_fx.tick_particles(delta)
+
+		if _time < IDLE_DUR:
+			pass  # ship at rest
+		elif _time < IDLE_DUR + EFFECT_DUR:
+			var p: float = (_time - IDLE_DUR) / EFFECT_DUR
+			_run_departure(p)
+		else:
 			_ship.visible = false
 
 		_fx.queue_redraw()
@@ -429,284 +511,80 @@ class _WarpCell extends VBoxContainer:
 		_fx.particles.clear()
 		_fx.shapes.clear()
 
-	func _tick_particles(delta: float) -> void:
-		var i: int = _fx.particles.size() - 1
-		while i >= 0:
-			var pt: Dictionary = _fx.particles[i]
-			pt["l"] -= delta
-			if pt["l"] <= 0.0:
-				_fx.particles.remove_at(i)
-			else:
-				var pos: Vector2 = pt["p"]
-				var vel: Vector2 = pt["v"]
-				pt["p"] = pos + vel * delta
-				# Apply drag if present
-				if pt.has("drag"):
-					var d: float = float(pt["drag"])
-					pt["v"] = vel * (1.0 - d * delta)
-			i -= 1
+	func _hdr(m: float, a: float) -> Color:
+		return Color(WARP_COLOR.r * m, WARP_COLOR.g * m, WARP_COLOR.b * m, a)
 
-	func _emit(pos: Vector2, vel: Vector2, life: float, col: Color, sz: float) -> void:
-		if _fx.particles.size() < 80:
-			_fx.particles.append({"p": pos, "v": vel, "l": life, "ml": life, "c": col, "s": sz})
-
-	func _emit_drag(pos: Vector2, vel: Vector2, life: float, col: Color, sz: float, drag: float) -> void:
-		if _fx.particles.size() < 80:
-			_fx.particles.append({"p": pos, "v": vel, "l": life, "ml": life, "c": col, "s": sz, "drag": drag})
-
-	func _hdr(mult: float, a: float) -> Color:
-		return Color(_color.r * mult, _color.g * mult, _color.b * mult, a)
-
-	# ── Main effect: charge → exit (sendoff at ~40% through exit) → linger ──
-
-	func _run(p: float, dt: float) -> void:
+	func _run_departure(p: float) -> void:
 		# Phase 1: Charge
-		if p < _charge:
-			var t: float = p / _charge
-			var ease_t: float = t * t
-			_ship.scale = Vector2(
-				1.0 - ease_t * (1.0 - _squeeze_x),
-				1.0 + ease_t * (_stretch_y - 1.0))
-			var glow: float = 1.0 + ease_t * (_glow_max - 1.0)
+		if p < CHARGE:
+			var t: float = p / CHARGE
+			var e: float = t * t
+			_ship.scale = Vector2(1.0 - e * (1.0 - SQUEEZE_X), 1.0 + e * (STRETCH_Y - 1.0))
+			var g: float = 1.0 + e * (GLOW_MAX - 1.0)
 			_ship.modulate = Color(
-				lerpf(1.0, _color.r * glow, ease_t),
-				lerpf(1.0, _color.g * glow, ease_t),
-				lerpf(1.0, _color.b * glow, ease_t))
-			# Ambient streaks
-			if randf() < t * _streak_density:
-				var x_off: float = randf_range(-35.0, 35.0)
-				_emit(Vector2(SHIP_HOME.x + x_off, float(H)),
-					Vector2(0.0, -randf_range(180.0, 350.0)),
-					0.3, _hdr(1.5, 0.4), _trail_size * 0.7)
+				lerpf(1.0, WARP_COLOR.r * g, e),
+				lerpf(1.0, WARP_COLOR.g * g, e),
+				lerpf(1.0, WARP_COLOR.b * g, e))
+			if randf() < t * 0.5:
+				_fx.emit(Vector2(SHIP_HOME.x + randf_range(-35.0, 35.0), float(VP_H)),
+					Vector2(0.0, -randf_range(180.0, 350.0)), 0.3, _hdr(1.5, 0.4), 0.8)
 			return
 
-		# Phase 2: Exit — ship dashes upward
-		var exit_frac: float = 0.55
-		var exit_end: float = _charge + (1.0 - _charge) * exit_frac
-		var sendoff_trigger: float = 0.4  # fire sendoff at 40% through exit
+		# Phase 2: Exit — ship shoots upward
+		var exit_end: float = CHARGE + (1.0 - CHARGE) * 0.55
+		var sendoff_trigger: float = 0.4
 
 		if p < exit_end:
-			var t: float = (p - _charge) / (exit_end - _charge)
-			var ease_t: float = pow(t, _exit_accel)
-
-			_ship.scale = Vector2(
-				_squeeze_x * (1.0 - t * 0.5),
-				_stretch_y + t * (_stretch_y * 0.5))
-			_ship.position.y = SHIP_HOME.y - ease_t * 500.0
-			_ship.modulate = Color(
-				_color.r * _glow_max,
-				_color.g * _glow_max,
-				_color.b * _glow_max,
-				1.0 - t * 0.8)
-
-			# Trail particles
-			if randf() < _streak_density + 0.2:
-				_emit(Vector2(_ship.position.x + randf_range(-5.0, 5.0), _ship.position.y + 25.0),
-					Vector2(randf_range(-8.0, 8.0), randf_range(60.0, 150.0)),
-					0.3, _hdr(2.5, 0.6), _trail_size)
-			if randf() < 0.4:
-				_emit(Vector2(SHIP_HOME.x + randf_range(-3.0, 3.0), _ship.position.y + 40.0),
-					Vector2(0.0, 100.0), 0.2, _hdr(1.8, 0.3), _trail_size * 0.6)
-
-			# Sendoff fires once at 40% through exit (ship moving but still on screen)
+			var t: float = (p - CHARGE) / (exit_end - CHARGE)
+			var e: float = pow(t, EXIT_ACCEL)
+			_ship.scale = Vector2(SQUEEZE_X * (1.0 - t * 0.5), STRETCH_Y + t * STRETCH_Y * 0.5)
+			_ship.position.y = SHIP_HOME.y - e * 600.0
+			_ship.modulate = Color(WARP_COLOR.r * GLOW_MAX, WARP_COLOR.g * GLOW_MAX,
+				WARP_COLOR.b * GLOW_MAX, 1.0 - t * 0.8)
+			# Trail
+			if randf() < 0.7:
+				_fx.emit(Vector2(_ship.position.x + randf_range(-5.0, 5.0), _ship.position.y + 25.0),
+					Vector2(randf_range(-8.0, 8.0), randf_range(60.0, 150.0)), 0.3, _hdr(2.5, 0.6), 1.2)
+			# Sendoff: The Works
 			if t >= sendoff_trigger and not _sendoff_fired:
 				_sendoff_fired = true
-				_fire_sendoff()
-
-			# Sendoff shapes (only draw after sendoff has fired)
+				for i in 5:
+					var a: float = randf() * TAU
+					_fx.emit_drag(SHIP_HOME, Vector2(cos(a), sin(a)) * randf_range(25.0, 50.0),
+						0.4, _hdr(4.0, 0.8), 2.5, 2.0)
+				for i in 8:
+					var a: float = randf_range(0.7, 2.45)
+					_fx.emit_drag(SHIP_HOME, Vector2(cos(a), sin(a)) * randf_range(50.0, 120.0),
+						0.5, _hdr(2.5, 0.6), 1.8, 1.5)
+				for i in 5:
+					var a: float = randf_range(0.5, 2.65)
+					_fx.emit(SHIP_HOME + Vector2(randf_range(-10.0, 10.0), 0.0),
+						Vector2(cos(a), sin(a)) * randf_range(12.0, 30.0),
+						randf_range(0.9, 1.5), _hdr(2.0, 0.5), randf_range(2.0, 3.0))
+			# Sendoff shapes
 			if _sendoff_fired:
-				var sendoff_t: float = (t - sendoff_trigger) / (1.0 - sendoff_trigger)
-				_draw_sendoff_shapes(sendoff_t)
-
+				var st: float = (t - sendoff_trigger) / (1.0 - sendoff_trigger)
+				if st < 0.4:
+					_fx.shapes.append([0, SHIP_HOME, 25.0 + st * 55.0,
+						_hdr(4.0, (0.4 - st) / 0.4 * 0.2)])
+				var r1: float = st * 100.0
+				var r2: float = maxf(st - 0.12, 0.0) / 0.88 * 75.0
+				var a1: float = (1.0 - st) * 0.6
+				if a1 > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(3.0, a1), 2.5])
+				if r2 > 1.0:
+					var a2: float = (1.0 - minf(st + 0.12, 1.0)) * 0.4
+					if a2 > 0.01:
+						_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(2.0, a2), 1.5])
 		else:
-			# Phase 3: Linger
 			_ship.visible = false
 			var t: float = (p - exit_end) / (1.0 - exit_end)
-			_draw_sendoff_shapes_fade(t)
-
-	# ── Sendoff: one-time particle burst at exit start ───────────────
-
-	func _fire_sendoff() -> void:
-		match _sendoff:
-			"flash":
-				for i in 6:
-					var angle: float = randf() * TAU
-					_emit_drag(SHIP_HOME,
-						Vector2(cos(angle), sin(angle)) * randf_range(25.0, 55.0),
-						0.4, _hdr(4.0, 0.8), 2.5, 2.0)
-			"flash_soft":
-				for i in 4:
-					var angle: float = randf() * TAU
-					_emit_drag(SHIP_HOME,
-						Vector2(cos(angle), sin(angle)) * randf_range(15.0, 35.0),
-						0.5, _hdr(2.5, 0.6), 2.0, 2.5)
-			"ring", "double_ring":
-				pass  # drawn as shapes only
-			"shockwave", "shockwave_embers":
-				for i in 10:
-					var angle: float = randf() * TAU
-					_emit_drag(SHIP_HOME,
-						Vector2(cos(angle), sin(angle)) * randf_range(40.0, 100.0),
-						0.6, _hdr(2.5, 0.6), 1.8, 1.5)
-				if _sendoff == "shockwave_embers":
-					for i in 6:
-						var angle: float = randf_range(0.5, 2.65)
-						_emit(SHIP_HOME + Vector2(randf_range(-10.0, 10.0), 0.0),
-							Vector2(cos(angle), sin(angle)) * randf_range(12.0, 30.0),
-							randf_range(0.9, 1.5), _hdr(2.0, 0.5), randf_range(2.0, 3.0))
-			"scatter":
-				for i in 12:
-					var angle: float = randf_range(0.8, 2.35)
-					_emit_drag(SHIP_HOME,
-						Vector2(cos(angle), sin(angle)) * randf_range(60.0, 160.0),
-						0.5, _hdr(3.0, 0.7), randf_range(1.5, 2.5), 1.8)
-			"embers":
-				for i in 8:
-					var angle: float = randf_range(0.5, 2.65)
-					_emit(SHIP_HOME + Vector2(randf_range(-12.0, 12.0), 0.0),
-						Vector2(cos(angle), sin(angle)) * randf_range(15.0, 40.0),
-						randf_range(0.8, 1.4), _hdr(2.5, 0.6), randf_range(1.8, 3.0))
-			"ring_scatter":
-				for i in 10:
-					var angle: float = randf_range(0.6, 2.55)
-					_emit_drag(SHIP_HOME,
-						Vector2(cos(angle), sin(angle)) * randf_range(50.0, 130.0),
-						0.5, _hdr(3.0, 0.7), 2.0, 1.5)
-			"flash_ring":
-				for i in 5:
-					var angle: float = randf() * TAU
-					_emit_drag(SHIP_HOME,
-						Vector2(cos(angle), sin(angle)) * randf_range(20.0, 45.0),
-						0.4, _hdr(3.5, 0.7), 2.0, 2.0)
-			"the_works":
-				# Flash particles
-				for i in 5:
-					var angle: float = randf() * TAU
-					_emit_drag(SHIP_HOME,
-						Vector2(cos(angle), sin(angle)) * randf_range(25.0, 50.0),
-						0.4, _hdr(4.0, 0.8), 2.5, 2.0)
-				# Scatter cone
-				for i in 8:
-					var angle: float = randf_range(0.7, 2.45)
-					_emit_drag(SHIP_HOME,
-						Vector2(cos(angle), sin(angle)) * randf_range(50.0, 120.0),
-						0.5, _hdr(2.5, 0.6), 1.8, 1.5)
-				# Embers
-				for i in 5:
-					var angle: float = randf_range(0.5, 2.65)
-					_emit(SHIP_HOME + Vector2(randf_range(-10.0, 10.0), 0.0),
-						Vector2(cos(angle), sin(angle)) * randf_range(12.0, 30.0),
-						randf_range(0.9, 1.5), _hdr(2.0, 0.5), randf_range(2.0, 3.0))
-
-	# ── Sendoff: shapes drawn during exit (concurrent with dash) ─────
-
-	func _draw_sendoff_shapes(t: float) -> void:
-		# t goes 0→1 from sendoff trigger to end of exit phase
-		match _sendoff:
-			"flash":
-				if t < 0.5:
-					var i: float = (0.5 - t) / 0.5
-					_fx.shapes.append([0, SHIP_HOME, 25.0 + t * 60.0, _hdr(4.0, i * 0.25)])
-					_fx.shapes.append([0, SHIP_HOME, 10.0 + t * 20.0, Color(1.0, 1.0, 1.0, i * 0.15)])
-			"flash_soft":
-				if t < 0.6:
-					var i: float = (0.6 - t) / 0.6
-					_fx.shapes.append([0, SHIP_HOME, 20.0 + t * 40.0, _hdr(2.5, i * 0.2)])
-			"ring":
-				var radius: float = t * 90.0
-				var alpha: float = (1.0 - t) * 0.7
-				if alpha > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 48, _hdr(3.0, alpha), 2.5])
-			"double_ring":
-				var r1: float = t * 90.0
-				var r2: float = maxf(t - 0.15, 0.0) / 0.85 * 70.0
-				var a1: float = (1.0 - t) * 0.7
-				var a2: float = (1.0 - minf(t + 0.15, 1.0)) * 0.5
-				if a1 > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(3.0, a1), 2.5])
-				if r2 > 1.0 and a2 > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(2.0, a2), 1.5])
-			"shockwave", "shockwave_embers":
-				var radius: float = t * 120.0
-				var alpha: float = (1.0 - t) * 0.6
-				_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 64, _hdr(3.0, alpha), 3.5])
-				_fx.shapes.append([1, SHIP_HOME, radius * 0.8, 0.0, TAU, 48, _hdr(2.0, alpha * 0.3), 1.5])
-				if t < 0.2:
-					_fx.shapes.append([0, SHIP_HOME, 25.0 + t * 40.0,
-						Color(1.0, 1.0, 1.0, (0.2 - t) / 0.2 * 0.15)])
-			"ring_scatter":
-				var radius: float = t * 80.0
-				var alpha: float = (1.0 - t) * 0.6
-				if alpha > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 48, _hdr(2.5, alpha), 2.0])
-			"flash_ring":
-				# Flash
-				if t < 0.5:
-					var i: float = (0.5 - t) / 0.5
-					_fx.shapes.append([0, SHIP_HOME, 20.0 + t * 50.0, _hdr(3.5, i * 0.2)])
-				# Ring
-				var radius: float = t * 85.0
-				var alpha: float = (1.0 - t) * 0.6
-				if alpha > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 48, _hdr(2.5, alpha), 2.0])
-			"the_works":
-				# Flash
-				if t < 0.4:
-					var i: float = (0.4 - t) / 0.4
-					_fx.shapes.append([0, SHIP_HOME, 25.0 + t * 55.0, _hdr(4.0, i * 0.2)])
-				# Double ring
-				var r1: float = t * 100.0
-				var r2: float = maxf(t - 0.12, 0.0) / 0.88 * 75.0
-				var a1: float = (1.0 - t) * 0.6
-				var a2: float = (1.0 - minf(t + 0.12, 1.0)) * 0.4
-				if a1 > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(3.0, a1), 2.5])
-				if r2 > 1.0 and a2 > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(2.0, a2), 1.5])
-			_:
-				pass
-
-	# ── Sendoff: lingering shapes after ship is gone ─────────────────
-
-	func _draw_sendoff_shapes_fade(t: float) -> void:
-		# t goes 0→1 during linger phase (ship already gone)
-		match _sendoff:
-			"ring":
-				var r: float = 90.0 + t * 30.0
-				var a: float = (1.0 - t) * 0.3
-				if a > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r, 0.0, TAU, 48, _hdr(2.0, a), 2.0])
-			"double_ring":
-				var r1: float = 90.0 + t * 25.0
-				var r2: float = 70.0 + t * 20.0
-				var a: float = (1.0 - t) * 0.25
-				if a > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(2.0, a), 2.0])
-					_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(1.5, a * 0.6), 1.5])
-			"shockwave", "shockwave_embers":
-				var r: float = 120.0 + t * 40.0
-				var a: float = (1.0 - t) * 0.2
-				if a > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r, 0.0, TAU, 64, _hdr(2.0, a), 2.5])
-			"ring_scatter":
-				var r: float = 80.0 + t * 25.0
-				var a: float = (1.0 - t) * 0.2
-				if a > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r, 0.0, TAU, 48, _hdr(1.5, a), 1.5])
-			"flash_ring":
-				var r: float = 85.0 + t * 25.0
-				var a: float = (1.0 - t) * 0.25
-				if a > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r, 0.0, TAU, 48, _hdr(2.0, a), 2.0])
-			"the_works":
-				var r1: float = 100.0 + t * 30.0
-				var r2: float = 75.0 + t * 20.0
-				var a: float = (1.0 - t) * 0.2
-				if a > 0.01:
-					_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(2.0, a), 2.0])
-					_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(1.5, a * 0.5), 1.5])
-			_:
-				pass
+			var r1: float = 100.0 + t * 30.0
+			var r2: float = 75.0 + t * 20.0
+			var a: float = (1.0 - t) * 0.2
+			if a > 0.01:
+				_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(2.0, a), 2.0])
+				_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(1.5, a * 0.5), 1.5])
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -716,6 +594,29 @@ class _WarpCell extends VBoxContainer:
 class _FXLayer extends Node2D:
 	var shapes: Array = []
 	var particles: Array = []
+
+	func emit(pos: Vector2, vel: Vector2, life: float, col: Color, sz: float) -> void:
+		if particles.size() < 80:
+			particles.append({"p": pos, "v": vel, "l": life, "ml": life, "c": col, "s": sz})
+
+	func emit_drag(pos: Vector2, vel: Vector2, life: float, col: Color, sz: float, drag: float) -> void:
+		if particles.size() < 80:
+			particles.append({"p": pos, "v": vel, "l": life, "ml": life, "c": col, "s": sz, "drag": drag})
+
+	func tick_particles(delta: float) -> void:
+		var i: int = particles.size() - 1
+		while i >= 0:
+			var pt: Dictionary = particles[i]
+			pt["l"] -= delta
+			if pt["l"] <= 0.0:
+				particles.remove_at(i)
+			else:
+				var pos: Vector2 = pt["p"]
+				var vel: Vector2 = pt["v"]
+				pt["p"] = pos + vel * delta
+				if pt.has("drag"):
+					pt["v"] = vel * (1.0 - float(pt["drag"]) * delta)
+			i -= 1
 
 	func _draw() -> void:
 		for s in shapes:
