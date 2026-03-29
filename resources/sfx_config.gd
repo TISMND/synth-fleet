@@ -67,6 +67,11 @@ const EVENT_IDS: Array[String] = [
 	"boss_weapons_online",
 	"boss_control_restored",
 	"boss_transition_end",
+	# Warp cues
+	"warp_in_start",
+	"warp_in_arrive",
+	"warp_out_start",
+	"warp_out_depart",
 	# Nebula alarm cues — selectable per-nebula warning sound
 	"nebula_alarm_1",
 	"nebula_alarm_2",
@@ -141,6 +146,11 @@ const EVENT_LABELS: Dictionary = {
 	"boss_weapons_online": "BOSS WEAPONS ONLINE",
 	"boss_control_restored": "BOSS CONTROL RESTORED",
 	"boss_transition_end": "BOSS TRANSITION END",
+	# Warp cues
+	"warp_in_start": "WARPING IN",
+	"warp_in_arrive": "WARP ARRIVAL",
+	"warp_out_start": "WARPING OUT",
+	"warp_out_depart": "WARP DEPARTURE",
 	# Nebula alarms
 	"nebula_alarm_1": "NEBULA ALARM 1",
 	"nebula_alarm_2": "NEBULA ALARM 2",
@@ -219,6 +229,11 @@ const EVENT_DESCRIPTIONS: Dictionary = {
 	"boss_weapons_online": "Weapon bus reconnected — hardpoints hot",
 	"boss_control_restored": "Player regains full control — drift ends",
 	"boss_transition_end": "Transition overlay fades — boss fight begins",
+	# Warp cues
+	"warp_in_start": "Fires when warp-in animation begins — ship streaking in from off-screen",
+	"warp_in_arrive": "Fires near the end of warp-in as the ship decelerates to its landing position",
+	"warp_out_start": "Fires when warp-out charge begins — ship stretching and glowing before departure",
+	"warp_out_depart": "Fires mid-exit as the sendoff burst triggers — ship accelerating off-screen",
 	# Nebula alarms
 	"nebula_alarm_1": "Nebula warning alarm slot 1 — selectable per-nebula in environments editor",
 	"nebula_alarm_2": "Nebula warning alarm slot 2 — selectable per-nebula in environments editor",

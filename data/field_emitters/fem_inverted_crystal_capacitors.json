@@ -24,9 +24,9 @@
 
 	},
 	"passive_effects": {
-		"electric": 13.35,
+		"electric": 10.85,
 		"hull": -0.549999999999997,
-		"thermal": 4.15
+		"thermal": 3.4
 	},
 	"pulse_fade_out": 0.87,
 	"pulse_fade_up": 0.11,

@@ -94,6 +94,8 @@ var _recovery_sfx_systems_fired: bool = false
 signal blackout_flicker(is_cut: bool)  # Emitted each frame during blackout — hook static SFX here
 signal final_power_death()  # Emitted once when power fully dies — for external systems
 
+var warp_active: bool = false  # True during warp in/out — skips rendering overrides so game.gd controls scale/modulate
+
 const RAM_DPS: float = 400.0  # Contact damage per second of overlap — quick pass ≈ 50 damage, sitting = instant death
 var _ram_overlapping: Array[Area2D] = []  # Enemies currently overlapping player
 var _ram_accumulator: float = 0.0  # Fractional damage accumulator
@@ -315,6 +317,9 @@ func _process(delta: float) -> void:
 	if _is_dead:
 		if _death_drifting:
 			_process_death_drift(delta)
+		return
+	# During warp, game.gd has full control — skip all movement, physics, and rendering
+	if warp_active:
 		return
 	# Apply device modifiers to speed/accel
 	_apply_device_modifiers()

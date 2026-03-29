@@ -206,6 +206,15 @@ func _build_ui() -> void:
 	spacer_3.custom_minimum_size = Vector2(0, 12)
 	vbox.add_child(spacer_3)
 
+	# Warp section
+	_add_section_header(vbox, "WARP", "Ship warp-in (level start) and warp-out (level end) sound cues")
+	for event_id in ["warp_in_start", "warp_in_arrive", "warp_out_start", "warp_out_depart"]:
+		_add_event_row(vbox, event_id)
+
+	var spacer_warp := Control.new()
+	spacer_warp.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_warp)
+
 	# Boss transition section
 	_add_section_header(vbox, "BOSS TRANSITION", "Cues during the boss approach sequence — disruption wave, music breakdown, remodulation")
 	for event_id in ["boss_wave_sweep", "boss_wave_hit", "boss_music_degrade", "boss_silence", "boss_music_bleed", "boss_warning", "boss_typing_thunk", "boss_remodulate", "boss_weapons_online", "boss_control_restored", "boss_transition_end"]:

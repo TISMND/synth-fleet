@@ -117,6 +117,7 @@ const INTRO_FADE_START: float = 0.5  # seconds before measure boundary to start 
 var _warp_in_active: bool = false
 var _warp_in_timer: float = 0.0
 var _warp_in_flash_fired: bool = false
+var _warp_in_arrive_fired: bool = false
 const WARP_IN_DUR: float = 1.3
 const WARP_COLOR: Color = Color(0.3, 0.7, 1.0)
 
@@ -128,7 +129,7 @@ const WARP_OUT_CHARGE: float = 0.35
 const WARP_OUT_DELAY: float = 5.0  # seconds after boss dies before warp-out begins
 var _warp_out_delay_timer: float = 0.0
 var _warp_out_pending: bool = false
-var _warp_out_origin: Vector2 = Vector2(960, 850)  # Snapshot of player pos when warp-out starts
+var _warp_out_origin: Vector2 = Vector2(960, 580)  # Snapshot of player pos when warp-out starts
 var _warp_fx_layer: Node2D = null  # Additive-blend draw layer for warp particles/shapes
 
 # Warning rotator state
@@ -232,7 +233,7 @@ func _ready() -> void:
 	_player.name = "PlayerShip"
 	_game_viewport.add_child(_player)
 	_player.setup(ship, loadout, _projectiles)
-	_player.position = Vector2(960, 850)
+	_player.position = Vector2(960, 580)
 	_player.died.connect(_on_player_died)
 	_player.died_during_power_loss.connect(_on_player_died_during_power_loss)
 	_player.hull_hit_during_power_loss.connect(func(): trigger_screen_shake(4.0, 0.2))
@@ -413,16 +414,18 @@ func _start_warp_in() -> void:
 	_warp_in_active = true
 	_warp_in_timer = 0.0
 	_warp_in_flash_fired = false
+	_warp_in_arrive_fired = false
 	_player.visible = false
-	# Block player input during warp
 	_player._drifting = true
+	_player.warp_active = true
+	SfxPlayer.play("warp_in_start")
 
 
 func _process_warp_in(delta: float) -> void:
 	_warp_in_timer += delta
 	_warp_fx_layer.shapes.clear()
 
-	var home: Vector2 = Vector2(960, 850)
+	var home: Vector2 = Vector2(960, 580)
 
 	# Pre-arrival streaks (before effect starts)
 	if _warp_in_timer < 0.4:
@@ -466,7 +469,9 @@ func _process_warp_in(delta: float) -> void:
 				Vector2(cos(angle), sin(angle)) * randf_range(40.0, 100.0),
 				0.5, Color(WARP_COLOR.r * 4.0, WARP_COLOR.g * 4.0, WARP_COLOR.b * 4.0, 0.8), 4.0, 2.0)
 
-	# Ship streak from bottom
+	# Ship streak from bottom — same approach as audition: animate ShipRenderer
+	# scale + modulate directly. The flash shader on ShipRenderer multiplies by COLOR
+	# which includes modulate, so HDR tinting and alpha both work.
 	var ship_start: float = 0.15
 	var ship_arrive: float = 0.55
 	if p >= ship_start:
@@ -506,16 +511,21 @@ func _process_warp_in(delta: float) -> void:
 			var glow_fade: float = maxf(1.0 - settle_t * 2.5, 0.0)
 			_player._ship_renderer.modulate = Color(
 				1.0 + glow_fade * 0.5, 1.0 + glow_fade * 0.5, 1.0 + glow_fade * 0.5)
+			# Arrival cue fires early in settle phase
+			if not _warp_in_arrive_fired and settle_t > 0.1:
+				_warp_in_arrive_fired = true
+				SfxPlayer.play("warp_in_arrive")
 
 	# End warp-in
 	if p >= 1.0:
 		_warp_in_active = false
+		_player.visible = true
 		_player.position = home
 		_player._ship_renderer.scale = Vector2.ONE
 		_player._ship_renderer.modulate = Color.WHITE
+		_player.warp_active = false
 		_player._drifting = false
 		_player._velocity = Vector2.ZERO
-		# Re-enable collision
 		if _player._player_area:
 			_player._player_area.monitoring = true
 			_player._player_area.monitorable = true
@@ -532,6 +542,8 @@ func _start_warp_out() -> void:
 		_warp_out_origin = _player.position
 		_player.set_meta("level_complete", true)
 		_player._velocity = Vector2.ZERO
+		_player.warp_active = true
+	SfxPlayer.play("warp_out_start")
 
 
 func _process_warp_out(delta: float) -> void:
@@ -542,7 +554,7 @@ func _process_warp_out(delta: float) -> void:
 	var warp_origin: Vector2 = _warp_out_origin
 
 	if p < WARP_OUT_CHARGE:
-		# Charge: stretch + glow
+		# Charge: stretch + glow on ShipRenderer directly (same as audition)
 		var t: float = p / WARP_OUT_CHARGE
 		var e: float = t * t
 		_player._ship_renderer.scale = Vector2(1.0 - e * 0.7, 1.0 + e * 2.5)
@@ -551,14 +563,14 @@ func _process_warp_out(delta: float) -> void:
 			lerpf(1.0, WARP_COLOR.r * g, e),
 			lerpf(1.0, WARP_COLOR.g * g, e),
 			lerpf(1.0, WARP_COLOR.b * g, e))
-		# Ambient streaks
+		# Ambient streaks from top
 		if randf() < t * 0.5:
 			_warp_fx_layer.emit(
 				Vector2(warp_origin.x + randf_range(-70.0, 70.0), 0.0),
 				Vector2(0.0, randf_range(300.0, 600.0)), 0.3,
 				Color(WARP_COLOR.r * 1.5, WARP_COLOR.g * 1.5, WARP_COLOR.b * 1.5, 0.4), 1.5)
 	else:
-		# Exit: ship shoots upward
+		# Exit: ship shoots upward — animate ShipRenderer scale/modulate directly
 		var exit_end: float = WARP_OUT_CHARGE + (1.0 - WARP_OUT_CHARGE) * 0.55
 		var sendoff_trigger: float = 0.4
 
@@ -578,6 +590,7 @@ func _process_warp_out(delta: float) -> void:
 			# Sendoff: The Works — fires once at 40% through exit
 			if t >= sendoff_trigger and not _warp_out_sendoff_fired:
 				_warp_out_sendoff_fired = true
+				SfxPlayer.play("warp_out_depart")
 				# Flash particles
 				for i in 6:
 					var a: float = randf() * TAU

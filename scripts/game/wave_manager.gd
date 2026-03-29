@@ -86,6 +86,8 @@ func setup_level(level: LevelData, enemies_container: Node2D, player: Node2D = n
 	)
 
 
+var _level_cleared: bool = false
+
 func advance_scroll(distance: float) -> void:
 	if not _level_mode:
 		return
@@ -93,6 +95,17 @@ func advance_scroll(distance: float) -> void:
 	_check_presence_pretriggers()
 	_check_encounter_triggers()
 	_check_event_triggers()
+	# Level complete check: all encounters triggered and no enemies alive.
+	# Min scroll of 200 prevents firing during warp-in before gameplay starts.
+	if not _level_cleared and _scroll_distance > 200.0 and _next_encounter_idx >= _sorted_encounters.size():
+		var alive: int = 0
+		if _enemies_container:
+			for child in _enemies_container.get_children():
+				if is_instance_valid(child) and not child.is_queued_for_deletion():
+					alive += 1
+		if alive == 0 and _stagger_queue.is_empty():
+			_level_cleared = true
+			all_waves_cleared.emit()
 
 
 func _check_presence_pretriggers() -> void:

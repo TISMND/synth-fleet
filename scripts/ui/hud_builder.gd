@@ -147,12 +147,6 @@ static func build_bottom_panel(icon_data: Array, fire_groups: Array, panel_width
 		"icon_shadow": icon_shadow, "icon_bevel": icon_bevel,
 	}
 
-	# ── Left warning screen (if edges mode) ──
-	if warn_position == "edges":
-		var wl: Dictionary = _build_warning_screen("", warn_w, warn_h, warn_bezel)
-		main_hbox.add_child(wl["panel"])
-		warning_labels.append(wl["label"])
-
 	# ── COMPONENTS section ──
 	var comp_section := VBoxContainer.new()
 	comp_section.add_theme_constant_override("separation", 2)
@@ -199,50 +193,8 @@ static func build_bottom_panel(icon_data: Array, fire_groups: Array, panel_width
 				sep.color = ThemeManager.get_color("disabled")
 				comp_icons_hbox.add_child(sep)
 
-	# ── Center warning screens (if center mode) ──
-	if warn_position == "center":
-		var wl: Dictionary = _build_warning_screen("", warn_w, warn_h, warn_bezel)
-		main_hbox.add_child(wl["panel"])
-		warning_labels.append(wl["label"])
-		var wr: Dictionary = _build_warning_screen("", warn_w, warn_h, warn_bezel)
-		main_hbox.add_child(wr["panel"])
-		warning_labels.append(wr["label"])
-
-	# ── Spacer between sections — expand to fill, or fixed width to pull closer ──
-	var center_gap: int = int(overrides.get("center_gap", 0))
-	var spacer := Control.new()
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if center_gap > 0:
-		spacer.custom_minimum_size.x = center_gap
-	else:
-		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main_hbox.add_child(spacer)
-
-	# ── FIRE GROUPS section ──
-	var fg_section := VBoxContainer.new()
-	fg_section.add_theme_constant_override("separation", 2)
-	fg_section.alignment = BoxContainer.ALIGNMENT_CENTER
-	fg_section.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	main_hbox.add_child(fg_section)
-
-	var fg_label: Label = null
-	if show_labels:
-		fg_label = _build_section_label("FIRE GROUPS")
-		section_labels.append(fg_label)
-
-	var fg_icons_hbox := HBoxContainer.new()
-	fg_icons_hbox.add_theme_constant_override("separation", 4)
-	fg_icons_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	fg_icons_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	if labels_below:
-		fg_section.add_child(fg_icons_hbox)
-		if fg_label:
-			fg_section.add_child(fg_label)
-	else:
-		if fg_label:
-			fg_section.add_child(fg_label)
-		fg_section.add_child(fg_icons_hbox)
+	# Fire group icons share the component icons hbox (no separate section)
+	var fg_icons_hbox := comp_icons_hbox
 
 	# Build fire group icons — key label on face, optional pattern label below
 	var fg_entries: Array = []
@@ -277,12 +229,6 @@ static func build_bottom_panel(icon_data: Array, fire_groups: Array, panel_width
 				wrapper.add_child(entry["container"])
 				wrapper.add_child(plbl)
 				fg_icons_hbox.add_child(wrapper)
-
-	# ── Right warning screen (if edges mode) ──
-	if warn_position == "edges":
-		var wr: Dictionary = _build_warning_screen("", warn_w, warn_h, warn_bezel)
-		main_hbox.add_child(wr["panel"])
-		warning_labels.append(wr["label"])
 
 	return {
 		"root": root,

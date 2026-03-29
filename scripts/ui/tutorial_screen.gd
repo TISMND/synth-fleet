@@ -19,12 +19,14 @@ var _left_panel_root: Control
 var _right_panel_root: Control
 var _left_bars: Dictionary = {}   # bar_name -> {bar, label, ...}
 var _right_bars: Dictionary = {}
+var _bottom_icon_entries: Array = []  # icon dicts from build_bottom_panel
 
 # Star field layers
 var _star_layers: Array = []  # Array of {control, phase_offset}
 
-# Pulse tweens for highlighted bars
+# Pulse tweens for highlighted bars and arrows
 var _pulse_tweens: Array = []
+var _arrow_labels: Array = []  # Arrow Label nodes to clean up per slide
 
 # Slide definitions
 var _slides: Array = []
@@ -58,36 +60,107 @@ func _build_slides_data() -> void:
 	var purge_key: String = KeyBindingManager.get_action_binding("thermal_purge").get("keyboard_label", "V")
 
 	_slides = [
-		{
-			"title": "WEAPONS EAT ENERGY",
-			"body": "Every weapon you fire drains your electric reserves.\nWatch the yellow bar on the right — that's your juice.",
-			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 0.4},
-			"highlight": ["ELECTRIC"],
-		},
-		{
-			"title": "POWER CORES REFILL ENERGY",
-			"body": "Toggle on your power cores to recharge.\nBut cores (and some big weapons) generate heat.",
-			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.6, "ELECTRIC": 0.8},
-			"highlight": ["THERMAL"],
-		},
-		{
-			"title": "COOLING DOWN",
-			"body": "Turn off anything hot and your ship cools naturally.\nOr slam [%s] for an emergency thermal purge —\nbut it briefly kills your shields and engines." % purge_key,
-			"ratios": {"SHIELD": 0.0, "HULL": 1.0, "THERMAL": 0.15, "ELECTRIC": 0.7},
-			"highlight": ["SHIELD"],
-		},
-		{
-			"title": "WHEN THINGS GO WRONG",
-			"body": "Overheat? Extra heat hits your hull directly.\nOut of energy? The ship pulls from shields and engines.\nIf those run dry... don't let those run dry.",
-			"ratios": {"SHIELD": 0.1, "HULL": 0.3, "THERMAL": 1.0, "ELECTRIC": 0.0},
-			"highlight": ["HULL", "THERMAL", "ELECTRIC"],
-		},
-		{
-			"title": "THAT'S IT",
-			"body": "Shoot stuff. Manage your bars. Don't explode.\nGood luck out there.",
+		# ── WELCOME ──
+		{"title": "WELCOME TO THE BEST DAY OF YOUR LIFE",
+			"body": "Here's how the game works.",
 			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
-			"highlight": [],
-		},
+			"highlight": []},
+
+		# ── SHIP COMPONENTS ──
+		{"title": "SHIP COMPONENTS",
+			"body": "Your ship has seven components.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": [], "highlight_bottom": true},
+		{"title": "SHIP COMPONENTS",
+			"body": "4 weapons. 2 power cores. 1 field emitter (aka special).",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": [], "highlight_bottom": true},
+		{"title": "SHIP COMPONENTS",
+			"body": "Turn these on and off using number keys.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": [], "highlight_bottom": true},
+
+		# ── FIRE GROUPS ──
+		{"title": "FIRE GROUPS",
+			"body": "Fire groups are much easier than managing individual components.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": []},
+		{"title": "FIRE GROUPS",
+			"body": "Make preset combinations of components for easy switching.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": []},
+		{"title": "FIRE GROUPS",
+			"body": "This is done in the ship loadout screen.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": []},
+
+		# ── ENERGY ──
+		{"title": "ENERGY",
+			"body": "You need energy fast.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 0.8},
+			"highlight": ["ELECTRIC"]},
+		{"title": "ENERGY",
+			"body": "Almost all weapons and field emitters consume energy.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 0.5},
+			"highlight": ["ELECTRIC"]},
+		{"title": "ENERGY",
+			"body": "When energy is gone, components pull power from shields and engines.",
+			"ratios": {"SHIELD": 0.4, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 0.0},
+			"highlight": ["ELECTRIC", "SHIELD"]},
+		{"title": "ENERGY",
+			"body": "Once those are depleted, a bad thing happens.",
+			"ratios": {"SHIELD": 0.0, "HULL": 0.4, "THERMAL": 0.0, "ELECTRIC": 0.0},
+			"highlight": ["SHIELD", "HULL"]},
+		{"title": "ENERGY",
+			"body": "Power Cores generate... power. Most also regenerate shields a little.",
+			"ratios": {"SHIELD": 0.7, "HULL": 0.4, "THERMAL": 0.0, "ELECTRIC": 0.8},
+			"highlight": ["ELECTRIC", "SHIELD"]},
+
+		# ── HEAT ──
+		{"title": "HEAT",
+			"body": "Power cores, field emitters, and a few weapons generate heat.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.5, "ELECTRIC": 0.8},
+			"highlight": ["THERMAL"]},
+		{"title": "HEAT",
+			"body": "When you overheat, your hull takes damage.",
+			"ratios": {"SHIELD": 1.0, "HULL": 0.6, "THERMAL": 1.0, "ELECTRIC": 0.8},
+			"highlight": ["THERMAL", "HULL"]},
+		{"title": "HEAT",
+			"body": "Your ship will not cool off until all heat-generating components are off.",
+			"ratios": {"SHIELD": 1.0, "HULL": 0.6, "THERMAL": 0.3, "ELECTRIC": 0.6},
+			"highlight": ["THERMAL"]},
+		{"title": "HEAT",
+			"body": "You can do an emergency heat flush by pressing [%s]." % purge_key,
+			"ratios": {"SHIELD": 1.0, "HULL": 0.6, "THERMAL": 0.0, "ELECTRIC": 0.6},
+			"highlight": ["THERMAL"]},
+		{"title": "HEAT",
+			"body": "Emergency heat flush is faster, but it briefly kills your shields and engines.",
+			"ratios": {"SHIELD": 0.0, "HULL": 0.6, "THERMAL": 0.0, "ELECTRIC": 0.6},
+			"highlight": ["SHIELD"]},
+		{"title": "HEAT",
+			"body": "You can change key bindings in the options menu.",
+			"ratios": {"SHIELD": 0.6, "HULL": 0.6, "THERMAL": 0.0, "ELECTRIC": 0.6},
+			"highlight": []},
+
+		# ── SHIELDS AND HULL ──
+		{"title": "SHIELDS AND HULL",
+			"body": "What computer-operating human on Earth in 2026 needs shields and hull explained to them?",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": ["SHIELD", "HULL"]},
+		{"title": "SHIELDS AND HULL",
+			"body": "You don't. You're a captain now.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": []},
+
+		# ── WHAT'S NEXT ──
+		{"title": "WHAT'S NEXT?",
+			"body": "Head to the ship loadout screen to equip components and simulate your build.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": []},
+		{"title": "WHAT'S NEXT?",
+			"body": "GOOD LUCK.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": []},
 	]
 
 
@@ -138,12 +211,12 @@ func _build_ui() -> void:
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	outer.add_child(_body_label)
 
-	# Bottom spacer pushes content toward center
-	var bottom_spacer := Control.new()
-	bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	outer.add_child(bottom_spacer)
+	# Small gap before buttons
+	var btn_gap := Control.new()
+	btn_gap.custom_minimum_size = Vector2(0, 24)
+	outer.add_child(btn_gap)
 
-	# Nav bar at bottom (not pushed by spacers — fixed at bottom)
+	# Nav bar right below text
 	_nav_container = HBoxContainer.new()
 	_nav_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	_nav_container.add_theme_constant_override("separation", 20)
@@ -171,6 +244,11 @@ func _build_ui() -> void:
 	_skip_btn.custom_minimum_size = Vector2(120, 40)
 	_skip_btn.pressed.connect(_on_done)
 	_nav_container.add_child(_skip_btn)
+
+	# Bottom spacer to keep the cluster centered
+	var bottom_spacer := Control.new()
+	bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(bottom_spacer)
 
 
 func _build_star_layers() -> void:
@@ -207,27 +285,45 @@ func _build_hud_panels() -> void:
 		screen_h = 1080.0
 		screen_w = 1920.0
 
-	# Use build_hud — same as the game, so all positioning matches exactly
-	var hud_data: Dictionary = HudBuilder.build_hud("preview", screen_h)
+	# Build side panels in "game" mode so bottom margin pushes bars up to match
+	var left_data: Dictionary = HudBuilder.build_side_panel("game", ["SHIELD", "HULL"], {}, screen_h)
+	var right_data: Dictionary = HudBuilder.build_side_panel("game", ["THERMAL", "ELECTRIC"], {}, screen_h)
 
-	# Bottom panel
-	var bottom_root: Control = hud_data["bottom_panel"]["root"]
+	# Build bottom panel with fake equipped components:
+	# 4 weapons, 2 cores, 1 field emitter — all inactive (tutorial, nothing firing)
+	var weapon_color: Color = Color.CYAN
+	var core_color: Color = Color(0.6, 0.4, 1.0)
+	var field_color: Color = Color(0.0, 0.8, 1.0)
+	var icon_data: Array = []
+	for i in 4:
+		icon_data.append({"number": i + 1, "active": false, "color": weapon_color, "type": "weapon"})
+	for i in 2:
+		icon_data.append({"number": 5 + i, "active": false, "color": core_color, "type": "core"})
+	icon_data.append({"number": 7, "active": false, "color": field_color, "type": "field"})
+
+	var bottom_data: Dictionary = HudBuilder.build_bottom_panel(
+		icon_data, [],
+		screen_w, float(HudBuilder.BOTTOM_BAR_HEIGHT),
+		{"warning_width": 180, "warning_height": 44, "center_gap": 100}
+	)
+	_bottom_icon_entries = bottom_data["icon_entries"]
+	var bottom_root: Control = bottom_data["root"]
 	bottom_root.position = Vector2(0, screen_h - HudBuilder.BOTTOM_BAR_HEIGHT)
 	bottom_root.size = Vector2(screen_w, HudBuilder.BOTTOM_BAR_HEIGHT)
 	add_child(bottom_root)
 
-	# Left panel (Shield + Hull) — full height, matching game HUD
-	_left_panel_root = hud_data["left_panel"]["root"]
+	# Left panel (Shield + Hull)
+	_left_panel_root = left_data["root"]
 	_left_panel_root.position = Vector2(0, 0)
 	_left_panel_root.size = Vector2(SIDE_PANEL_WIDTH, screen_h)
-	_left_bars = hud_data["left_panel"]["bars"]
+	_left_bars = left_data["bars"]
 	add_child(_left_panel_root)
 
 	# Right panel (Thermal + Electric)
-	_right_panel_root = hud_data["right_panel"]["root"]
+	_right_panel_root = right_data["root"]
 	_right_panel_root.position = Vector2(screen_w - SIDE_PANEL_WIDTH, 0)
 	_right_panel_root.size = Vector2(SIDE_PANEL_WIDTH, screen_h)
-	_right_bars = hud_data["right_panel"]["bars"]
+	_right_bars = right_data["bars"]
 	add_child(_right_panel_root)
 
 
@@ -257,17 +353,23 @@ func _show_slide(index: int) -> void:
 	_update_bar_ratio("THERMAL", ratios.get("THERMAL", 0.0))
 	_update_bar_ratio("ELECTRIC", ratios.get("ELECTRIC", 1.0))
 
-	# Pulse highlighted bars
+	# Pulse highlighted bars + arrows
 	_stop_pulses()
 	var highlights: Array = slide.get("highlight", [])
 	for bar_name in highlights:
 		_start_pulse(str(bar_name))
+		_spawn_arrow(str(bar_name))
 
-	# Update nav
-	_back_btn.visible = _current_slide > 0
+	# Flash bottom panel icons if flagged
+	if slide.get("highlight_bottom", false):
+		_start_bottom_highlight()
+
+	# Update nav — page counter counts unique headers, not individual slides
 	_next_btn.visible = _current_slide < _slides.size() - 1
 	_skip_btn.visible = _current_slide == _slides.size() - 1
-	_page_label.text = "%d / %d" % [_current_slide + 1, _slides.size()]
+	var section_idx: int = _get_section_index(_current_slide)
+	var section_count: int = _get_section_count()
+	_page_label.text = "%d / %d" % [section_idx, section_count]
 
 	_apply_nav_theme()
 
@@ -311,7 +413,7 @@ func _start_pulse(bar_name: String) -> void:
 		return
 
 	var base_alpha: float = glow_rect.color.a
-	var bright_alpha: float = clampf(base_alpha + 0.8, 0.0, 1.0)
+	var bright_alpha: float = clampf(base_alpha + 1.6, 0.0, 1.0)
 
 	var tween: Tween = create_tween()
 	tween.set_loops()
@@ -320,11 +422,146 @@ func _start_pulse(bar_name: String) -> void:
 	_pulse_tweens.append(tween)
 
 
+func _spawn_arrow(bar_name: String) -> void:
+	var bar_dict: Dictionary = {}
+	var is_left: bool = false
+	if _left_bars.has(bar_name):
+		bar_dict = _left_bars[bar_name]
+		is_left = true
+	elif _right_bars.has(bar_name):
+		bar_dict = _right_bars[bar_name]
+	else:
+		return
+
+	var bar: ProgressBar = bar_dict["bar"]
+	var bar_color: Color = Color.WHITE
+	var specs: Array = ThemeManager.get_status_bar_specs()
+	for spec in specs:
+		if str(spec["name"]) == bar_name:
+			bar_color = ThemeManager.resolve_bar_color(spec)
+			break
+
+	# Arrow label positioned next to the bar, pointing inward
+	var arrow := Label.new()
+	arrow.text = "<<<" if is_left else ">>>"
+	arrow.add_theme_color_override("font_color", bar_color)
+	arrow.add_theme_font_size_override("font_size", 20)
+	var body_font: Font = ThemeManager.get_font("body")
+	if body_font:
+		arrow.add_theme_font_override("font", body_font)
+	add_child(arrow)
+	_arrow_labels.append(arrow)
+
+	# Position: horizontally just outside the panel, vertically centered on the bar
+	# Need deferred positioning since bar may not have final layout yet
+	var arrow_ref: Label = arrow
+	var bar_ref: ProgressBar = bar
+	var left: bool = is_left
+	(func() -> void:
+		if not is_instance_valid(bar_ref) or not is_instance_valid(arrow_ref):
+			return
+		var bar_center_y: float = bar_ref.global_position.y + bar_ref.size.y * 0.5
+		arrow_ref.position.y = bar_center_y - 12.0
+		if left:
+			arrow_ref.position.x = float(SIDE_PANEL_WIDTH) + 4.0
+		else:
+			arrow_ref.position.x = get_viewport_rect().size.x - float(SIDE_PANEL_WIDTH) - 52.0
+	).call_deferred()
+
+	# Sliding animation — arrow bobs horizontally toward the bar
+	var slide_offset: float = 10.0
+	var tween: Tween = create_tween()
+	tween.set_loops()
+	if is_left:
+		tween.tween_property(arrow, "position:x", float(SIDE_PANEL_WIDTH) + 4.0 - slide_offset, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tween.tween_property(arrow, "position:x", float(SIDE_PANEL_WIDTH) + 4.0, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	else:
+		var base_x: float = get_viewport_rect().size.x - float(SIDE_PANEL_WIDTH) - 52.0
+		tween.tween_property(arrow, "position:x", base_x + slide_offset, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tween.tween_property(arrow, "position:x", base_x, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_pulse_tweens.append(tween)
+
+
+func _start_bottom_highlight() -> void:
+	var accent: Color = ThemeManager.get_color("accent")
+	for entry in _bottom_icon_entries:
+		var glow_rect: ColorRect = entry.get("glow_rect") as ColorRect
+		if not glow_rect or not is_instance_valid(glow_rect):
+			continue
+		var icon_color: Color = entry.get("color", Color.CYAN) as Color
+		# Flash the glow rect
+		glow_rect.color = Color(icon_color.r * 2.0, icon_color.g * 2.0, icon_color.b * 2.0, 0.0)
+		var tween: Tween = create_tween()
+		tween.set_loops()
+		tween.tween_property(glow_rect, "color:a", 0.6, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tween.tween_property(glow_rect, "color:a", 0.0, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_pulse_tweens.append(tween)
+
+	# Single "v" arrow above the center of the icon row, bobbing downward
+	if _bottom_icon_entries.is_empty():
+		return
+	var arrow := Label.new()
+	arrow.text = "v  v  v"
+	arrow.add_theme_color_override("font_color", accent)
+	arrow.add_theme_font_size_override("font_size", 20)
+	var body_font: Font = ThemeManager.get_font("body")
+	if body_font:
+		arrow.add_theme_font_override("font", body_font)
+	add_child(arrow)
+	_arrow_labels.append(arrow)
+
+	# Position above bottom panel, centered
+	var screen_h: float = get_viewport_rect().size.y
+	var screen_w: float = get_viewport_rect().size.x
+	var base_y: float = screen_h - float(HudBuilder.BOTTOM_BAR_HEIGHT) - 28.0
+	(func() -> void:
+		if not is_instance_valid(arrow):
+			return
+		arrow.position.y = base_y
+		arrow.position.x = screen_w * 0.5 - arrow.size.x * 0.5
+	).call_deferred()
+
+	var atween: Tween = create_tween()
+	atween.set_loops()
+	atween.tween_property(arrow, "position:y", base_y + 8.0, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	atween.tween_property(arrow, "position:y", base_y, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_pulse_tweens.append(atween)
+
+
 func _stop_pulses() -> void:
 	for tween in _pulse_tweens:
 		if tween and tween.is_valid():
 			tween.kill()
 	_pulse_tweens.clear()
+	for arrow in _arrow_labels:
+		if is_instance_valid(arrow):
+			arrow.queue_free()
+	_arrow_labels.clear()
+
+
+func _get_section_index(slide_idx: int) -> int:
+	## Returns 1-based section number for the given slide index.
+	var current_title: String = str(_slides[slide_idx]["title"])
+	var section: int = 0
+	var last_title: String = ""
+	for i in slide_idx + 1:
+		var t: String = str(_slides[i]["title"])
+		if t != last_title:
+			section += 1
+			last_title = t
+	return section
+
+
+func _get_section_count() -> int:
+	## Returns total number of unique header sections.
+	var count: int = 0
+	var last_title: String = ""
+	for slide in _slides:
+		var t: String = str(slide["title"])
+		if t != last_title:
+			count += 1
+			last_title = t
+	return count
 
 
 # ── Navigation ─────────────────────────────────────────────
@@ -332,6 +569,8 @@ func _stop_pulses() -> void:
 func _on_back() -> void:
 	if _current_slide > 0:
 		_show_slide(_current_slide - 1)
+	else:
+		_on_done()
 
 
 func _on_next() -> void:
