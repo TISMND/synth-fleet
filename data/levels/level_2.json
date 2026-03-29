@@ -2,7 +2,7 @@
 	"background_shader": "res://assets/shaders/bg_bioluminescent_reef.gdshader",
 	"bpm": 110.0,
 	"deep_background": "",
-	"display_name": "02 - Innit",
+	"display_name": "02 - Boss Test",
 	"doodads": [],
 	"encounters": [
 		{

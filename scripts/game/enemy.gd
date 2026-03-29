@@ -321,22 +321,82 @@ func _die() -> void:
 	if _enrage_weapon_controller:
 		_enrage_weapon_controller.cleanup()
 		_enrage_weapon_controller = null
-	SfxPlayer.play_random_explosion()
 	GameState.add_credits(10)
 	GameState.level_stats["enemies_destroyed"] = int(GameState.level_stats.get("enemies_destroyed", 0)) + 1
 	GameState.level_stats["score"] = int(GameState.level_stats.get("score", 0)) + 10
+
+	# Boss core: multi-explosion death sequence before final blast
+	if boss_segments.size() > 0 or _is_boss_core:
+		_start_boss_death_sequence()
+		return
+
+	SfxPlayer.play_random_explosion()
 	_spawn_explosion()
-	# If this is a boss core, kill all remaining segments
-	for seg in boss_segments:
-		if is_instance_valid(seg):
-			var segment: Enemy = seg as Enemy
-			segment.boss_core = null  # Prevent recursive death
-			segment._die()
-	boss_segments.clear()
 	# If this is a segment, unregister from core
 	if boss_core and is_instance_valid(boss_core):
 		boss_core.boss_segments.erase(self)
 		boss_core._update_immunity()
+	queue_free()
+
+
+var _is_boss_core: bool = false  # Set true when this enemy is a boss core
+
+
+func _start_boss_death_sequence() -> void:
+	# Disable collision so player can't keep hitting a dying boss
+	set_deferred("monitoring", false)
+	set_deferred("monitorable", false)
+
+	var container: Node = get_parent()
+	if not container:
+		_finish_boss_death()
+		return
+
+	# Spawn 6-10 small explosions at random offsets over ~1.5 seconds
+	var explosion_count: int = randi_range(6, 10)
+	var base_size: float = 0.4
+	if ship_data_ref:
+		base_size = ship_data_ref.explosion_size * 0.35
+	var spread: float = maxf(float(maxi(grid_size.x, grid_size.y)) * 0.4, 30.0)
+
+	for i in explosion_count:
+		var delay: float = float(i) * (1.5 / float(explosion_count))
+		var timer := get_tree().create_timer(delay)
+		timer.timeout.connect(_spawn_mini_explosion.bind(container, spread, base_size))
+
+	# Final big explosion + cleanup after the sequence
+	var final_timer := get_tree().create_timer(1.8)
+	final_timer.timeout.connect(_finish_boss_death)
+
+
+func _spawn_mini_explosion(container: Node, spread: float, base_size: float) -> void:
+	if not is_instance_valid(self):
+		return
+	var offset := Vector2(randf_range(-spread, spread), randf_range(-spread, spread))
+	var explosion: ExplosionEffect = ExplosionEffect.new()
+	if ship_data_ref:
+		explosion.explosion_color = ship_data_ref.explosion_color
+	else:
+		explosion.explosion_color = enemy_color
+	explosion.explosion_size = base_size * randf_range(0.6, 1.2)
+	explosion.enable_screen_shake = true
+	explosion.global_position = global_position + offset
+	container.add_child(explosion)
+	SfxPlayer.play_random_explosion()
+
+
+func _finish_boss_death() -> void:
+	if not is_instance_valid(self):
+		return
+	SfxPlayer.play_random_explosion()
+	_spawn_explosion()
+	# Kill all remaining segments
+	for seg in boss_segments:
+		if is_instance_valid(seg):
+			var segment: Enemy = seg as Enemy
+			segment.boss_core = null
+			segment._die()
+	boss_segments.clear()
 	queue_free()
 
 
@@ -368,16 +428,40 @@ func _trigger_enrage() -> void:
 		is_boss_v_sweep = true
 		boss_v_sweep_speed = boss_strafe_speed * boss.enrage_speed_mult
 
-	# Swap core weapon overrides if configured
-	if boss.enrage_core_weapon_overrides.size() > 0 and _weapon_controller:
-		_weapon_controller.cleanup()
+	# Swap to enrage weapons — single source of truth from the enrage tab
+	if boss.enrage_core_weapon_overrides.size() > 0 and ship_data_ref and projectiles_container:
+		if _weapon_controller:
+			_weapon_controller.cleanup()
+			_weapon_controller = null
+		if _enrage_weapon_controller:
+			_enrage_weapon_controller.cleanup()
+			_enrage_weapon_controller = null
 		_weapon_controller = EnemyWeaponController.new()
 		_weapon_controller.setup_with_overrides(ship_data_ref, boss.enrage_core_weapon_overrides, self, player_ref, projectiles_container)
 
-	# Activate enrage-only hardpoints
-	if boss.enrage_hardpoint_overrides.size() > 0 and ship_data_ref and projectiles_container:
-		_enrage_weapon_controller = EnemyWeaponController.new()
-		_enrage_weapon_controller.setup_with_overrides(ship_data_ref, boss.enrage_hardpoint_overrides, self, player_ref, projectiles_container)
+	# Apply enrage render mode to core
+	if boss.enrage_core_render_mode != "":
+		_apply_enrage_render_mode(boss.enrage_core_render_mode)
+
+
+func _apply_enrage_render_mode(new_mode: String) -> void:
+	var vid: String = visual_id if visual_id != "" else "sentinel"
+	var old_mode: String = render_mode_str
+	# Unref old shared texture
+	if _baked_sprite and shared_renderer:
+		shared_renderer.unref(vid, old_mode, enemy_color)
+	render_mode_str = new_mode
+	# Try to get new shared texture
+	if shared_renderer:
+		var new_tex: ViewportTexture = shared_renderer.get_texture(vid, new_mode, enemy_color)
+		if new_tex and _baked_sprite:
+			_baked_sprite.texture = new_tex
+			shared_renderer.ref(vid, new_mode, enemy_color)
+			return
+	# Fallback: update per-instance renderer
+	if _renderer:
+		_renderer.render_mode = ShipRenderer.RenderMode.CHROME if new_mode == "chrome" else ShipRenderer.RenderMode.NEON
+		_renderer.queue_redraw()
 
 
 func _setup_hit_field(node_name: String, style_id: String, radius: float, pulse_duration_override: float = 0.0) -> void:

@@ -45,7 +45,6 @@ const DIAGNOSTIC_LINES: Array[String] = [
 	"",
 	">Scanning for stable carrier...",
 	">Carrier locked — shifting down 2 semitones",
-	">Tempo sync: +10 BPM",
 	">Weapons: ONLINE",
 	"",
 	"REMODULATION COMPLETE",

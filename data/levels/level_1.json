@@ -105,10 +105,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 100.0,
 			"speed": 600.0,
-			"trigger_y": 1109.15370547202,
+			"trigger_y": 1082.87633320925,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 287.361419068736
+			"x_offset": 257.580397170926
 		},
 		{
 			"boss_id": "",
@@ -480,10 +480,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 100.0,
 			"speed": 600.0,
-			"trigger_y": 962.148024665383,
+			"trigger_y": 946.381601307719,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -195.831485587583
+			"x_offset": -204.590609675174
 		},
 		{
 			"boss_id": "",

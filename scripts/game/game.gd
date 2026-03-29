@@ -1197,7 +1197,7 @@ func _show_game_over() -> void:
 
 	# Holographic warning box — same style as in-game warnings, larger
 	var box := _GameOverBox.new()
-	var box_w: float = 460.0
+	var box_w: float = 580.0
 	var box_h: float = 100.0
 	box.box_size = Vector2(box_w, box_h)
 	box.position = Vector2((1920 - box_w) * 0.5, 420)
@@ -1777,7 +1777,7 @@ func _process_boss_transition(delta: float) -> void:
 		var wobble: float = sin(t * 8.0 + sin(t * 3.7) * 2.0) * degrade_t * 0.15
 		LoopMixer.set_all_pitch_scale(1.0 + wobble)
 
-	# MUSIC_DEGRADE_END — Full silence achieved
+	# MUSIC_DEGRADE_END — Full silence achieved, lock weapons until remodulation
 	if crossed.call(BossTransitionSequence.MUSIC_DEGRADE_END):
 		_bt_debug("MUSIC_DEGRADE_END (silence)", t)
 		SfxPlayer.play("boss_silence")
@@ -1785,6 +1785,8 @@ func _process_boss_transition(delta: float) -> void:
 		LoopMixer.mute_all(0)
 		LoopMixer.set_all_volume_offset(0.0)
 		LoopMixer.set_all_pitch_scale(1.0)
+		if _player:
+			_player.weapons_locked = true
 
 	# BOSS_MUSIC_BLEED — Boss music fades in ominously
 	if crossed.call(BossTransitionSequence.BOSS_MUSIC_BLEED):
@@ -1959,13 +1961,6 @@ func _show_boss_transition_warning() -> void:
 	add_child(_boss_transition_overlay)
 
 	# Warning box
-	var boss_id: String = str(_boss_transition_event.get("boss_id", ""))
-	var boss_name: String = "UNKNOWN"
-	if boss_id != "":
-		var boss: BossData = BossDataManager.load_by_id(boss_id)
-		if boss and boss.display_name != "":
-			boss_name = boss.display_name.to_upper()
-
 	var box := _GameOverBox.new()
 	var box_w: float = 500.0
 	var box_h: float = 80.0
@@ -1973,7 +1968,7 @@ func _show_boss_transition_warning() -> void:
 	box.position = Vector2((1920 - box_w) * 0.5, 200)
 	box.size = Vector2(box_w, box_h)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box._override_text = "WARNING: " + boss_name
+	box._override_text = "WARNING"
 	_boss_transition_overlay.add_child(box)
 	_boss_transition_warning_box = box
 
@@ -2084,6 +2079,8 @@ func _process_bt_typing(delta: float) -> void:
 			SfxPlayer.play("boss_weapons_online")
 		elif display_line == "REMODULATION COMPLETE":
 			SfxPlayer.play("boss_control_restored")
+			if _player:
+				_player.weapons_locked = false
 
 		_bt_typing_line_idx += 1
 		_bt_typing_char_idx = 0
@@ -2520,8 +2517,8 @@ class _SpeckField extends Control:
 
 class _GameOverBox extends Control:
 	## Holographic "GAME OVER" box — same style as warning badges, larger, always on.
-	var box_size: Vector2 = Vector2(460, 100)
-	var _override_text: String = ""  # If set, display this instead of "GAME OVER"
+	var box_size: Vector2 = Vector2(580, 100)
+	var _override_text: String = ""  # If set, display this instead of "YA DIED, SHELLY."
 	var _time: float = 0.0
 
 	const COL := Color(1.0, 0.15, 0.1)
@@ -2583,7 +2580,7 @@ class _GameOverBox extends Control:
 		if not font:
 			font = ThemeDB.fallback_font
 		var font_size: int = 52
-		var text: String = _override_text if _override_text != "" else "GAME OVER"
+		var text: String = _override_text if _override_text != "" else "YA DIED, SHELLY."
 		var text_size: Vector2 = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 		var text_x: float = (w - text_size.x) * 0.5
 		var text_y: float = (h + text_size.y * 0.6) * 0.5
@@ -2606,28 +2603,35 @@ func _start_end_of_level() -> void:
 	if total > 0:
 		pct = int(float(destroyed) / float(total) * 100.0)
 	var heat: int = int(GameState.level_stats.get("heat_generated", 0.0))
+	var energy: int = int(GameState.level_stats.get("energy_consumed", 0.0))
 	var score: int = int(GameState.level_stats.get("score", 0))
-	var grade: String = GameState.calculate_grade()
+	var time_s: float = float(GameState.level_stats.get("time_elapsed", 0.0))
+	var minutes: int = int(time_s) / 60
+	var seconds: int = int(time_s) % 60
 
 	_end_of_level_typing_lines = [
 		"> MISSION COMPLETE",
 		"",
-		"> ENEMIES DESTROYED: %d/%d (%d%%)" % [destroyed, total, pct],
-		"> HEAT GENERATED: %s" % str(heat),
-		"> SCORE: %s" % str(score),
+		"> ENEMIES DESTROYED .. %d/%d (%d%%)" % [destroyed, total, pct],
+		"> TIME ELAPSED ...... %d:%02d" % [minutes, seconds],
+		"> SCORE ............. %s" % str(score),
 		"",
-		"> RATING: %s" % grade,
+		"> HEAT GENERATED .... %s" % str(heat),
+		"> ENERGY CONSUMED ... %s" % str(energy),
 	]
 	_end_of_level_typing_idx = 0
 	_end_of_level_char_idx = 0
 	_end_of_level_char_timer = 0.0
-	_end_of_level_pause_timer = 0.3  # Initial pause before typing starts
+	_end_of_level_pause_timer = 0.5  # Initial pause before typing starts
 	_end_of_level_completed_lines.clear()
 	_end_of_level_prompt_visible = false
 
 	# Disable player weapons
 	if _player:
 		_player.set_meta("level_complete", true)
+
+	# Static burst SFX — same as boss warning / power failure
+	SfxPlayer.play_ui("monitor_static")
 
 	# Create overlay
 	_end_of_level_overlay = Control.new()
@@ -2637,7 +2641,7 @@ func _start_end_of_level() -> void:
 	_end_of_level_overlay.z_index = 55
 	add_child(_end_of_level_overlay)
 
-	# Semi-transparent background
+	# Semi-transparent background — fades in like boss transition
 	var bg := ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.color = Color(0, 0, 0, 0.0)
@@ -2646,7 +2650,7 @@ func _start_end_of_level() -> void:
 	var bg_tw: Tween = create_tween()
 	bg_tw.tween_property(bg, "color:a", 0.6, 1.5)
 
-	# Typing label — left-aligned, same CRT style as power loss
+	# Typing label — left-aligned, CRT terminal style
 	_end_of_level_label = RichTextLabel.new()
 	_end_of_level_label.bbcode_enabled = true
 	_end_of_level_label.scroll_active = false
@@ -2654,15 +2658,16 @@ func _start_end_of_level() -> void:
 	_end_of_level_label.position = Vector2(200, 300)
 	_end_of_level_label.size = Vector2(800, 400)
 	_end_of_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var font: Font = ThemeManager.get_font("font_mono")
+	var font: Font = ThemeManager.get_font("font_body")
 	if font:
 		_end_of_level_label.add_theme_font_override("normal_font", font)
 	_end_of_level_label.add_theme_font_size_override("normal_font_size", 22)
 	_end_of_level_label.add_theme_color_override("default_color", Color(0.3, 1.0, 0.4))
 	_end_of_level_overlay.add_child(_end_of_level_label)
 
-	# Save grade
+	# Save completion
 	if _level_data:
+		var grade: String = GameState.calculate_grade()
 		GameState.completed_levels[_level_data.id] = grade
 		GameState.save_game()
 
@@ -2679,6 +2684,7 @@ func _process_end_of_level(delta: float) -> void:
 		# Typing done — show prompt
 		if not _end_of_level_prompt_visible:
 			_end_of_level_prompt_visible = true
+			SfxPlayer.play_ui("reboot_complete")
 			_update_end_of_level_text()
 		return
 
@@ -2694,8 +2700,6 @@ func _process_end_of_level(delta: float) -> void:
 
 	# Type characters
 	var char_speed: float = 0.025
-	if line.begins_with("> RATING"):
-		char_speed = 0.06  # Dramatic pause for grade
 	_end_of_level_char_timer += delta
 	while _end_of_level_char_timer >= char_speed and _end_of_level_char_idx < line.length():
 		_end_of_level_char_timer -= char_speed

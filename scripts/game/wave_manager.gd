@@ -368,6 +368,9 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 		seg_enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
 		_enemies_container.add_child(seg_enemy)
 
+	# Mark as boss core for death sequence
+	core_enemy._is_boss_core = true
+
 	# Set immunity on core if configured
 	if boss.core_immune_until_segments_dead and core_enemy.boss_segments.size() > 0:
 		core_enemy.is_boss_immune = true

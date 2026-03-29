@@ -66,6 +66,16 @@ func _build_slides_data() -> void:
 			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
 			"highlight": []},
 
+		# ── MOVEMENT ──
+		{"title": "MOVEMENT",
+			"body": "Move your ship using the mouse, or WASD.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": []},
+		{"title": "MOVEMENT",
+			"body": "Change mouse sensitivity in the options menu.",
+			"ratios": {"SHIELD": 1.0, "HULL": 1.0, "THERMAL": 0.0, "ELECTRIC": 1.0},
+			"highlight": []},
+
 		# ── SHIP COMPONENTS ──
 		{"title": "SHIP COMPONENTS",
 			"body": "Your ship has seven components.",

@@ -15,8 +15,8 @@ const RECOVERY_VOLUME_START: float = 0.0
 
 const REBOOT_BLINK_DURATION: float = 0.5
 const REBOOT_BLINK_RATE: float = 0.5
-const REBOOT_CHAR_SLOW: float = 0.006
-const REBOOT_CHAR_FAST: float = 0.003
+const REBOOT_CHAR_SLOW: float = 0.04
+const REBOOT_CHAR_FAST: float = 0.02
 const REBOOT_LINE_PAUSE_SLOW: float = 0.3
 const REBOOT_LINE_PAUSE_FAST: float = 0.1
 const REBOOT_HEADER_PAUSE: float = 0.6

@@ -22,7 +22,7 @@
 		"shield_hp": 240.0,
 		"shield_regen": 1.0,
 		"shield_segments": 13.0,
-		"speed": 550.0,
+		"speed": 570.0,
 		"thermal_hp": 120.0,
 		"thermal_segments": 9.0,
 		"weapon_slots": 4.0

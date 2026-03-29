@@ -24,6 +24,7 @@ var _base_speed: float = 400.0
 var _base_accel: float = 1200.0
 var _velocity: Vector2 = Vector2.ZERO
 var _mouse_activated: bool = false
+var weapons_locked: bool = false  # Boss transition locks weapon toggling
 var _hardpoint_controllers: Array = []
 var _core_controllers: Array = []  # PowerCoreController instances
 var _core_data_per_slot: Array = []  # [{label, pc}]
@@ -356,10 +357,11 @@ func _process(delta: float) -> void:
 		speed *= curve
 		acceleration *= curve
 
-	# Acceleration-based movement — WASD overrides mouse when pressed
+	# Acceleration-based movement — movement keys disable mouse, mouse motion re-enables it
 	var kbd_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var input_dir: Vector2
 	if kbd_dir.length_squared() > 0.0:
+		_mouse_activated = false
 		input_dir = kbd_dir
 	elif _mouse_activated:
 		var mouse_pos: Vector2 = get_global_mouse_position()
@@ -444,6 +446,13 @@ func _process(delta: float) -> void:
 	# Reset overdraw flag — it's set per-frame by apply_bar_effects
 	_electric_overdraw = false
 
+	# Reboot text + recovery run outside _process_drift so they survive
+	# _drifting being set to false when recovery starts.
+	# Pitch ramp is handled inside _process_recovery — not duplicated here.
+	if _blackout_final_death:
+		_process_reboot_text(delta)
+	_process_recovery(delta)
+
 	# SFX debug cue fadeout
 	_update_sfx_debug(delta)
 
@@ -485,8 +494,8 @@ func _input(event: InputEvent) -> void:
 			print("[DEBUG] F10: Forced death during power loss")
 		return
 
-	# Lock all component controls during power death sequence or thermal purge
-	if _drifting or _purge_active:
+	# Lock all component controls during power death sequence, thermal purge, or boss transition
+	if _drifting or _purge_active or weapons_locked:
 		return
 
 	# Per-slot toggles using dynamic action names from KeyBindingManager
@@ -925,16 +934,8 @@ func _process_blackout(delta: float) -> void:
 		_start_reboot_sequence()
 		final_power_death.emit()
 
-	# Type out reboot text + recovery animation
-	if _blackout_final_death:
-		_process_reboot_text(delta)
-		# Speed ramp runs during text phase if cores activated early
-		if _recovery_cores_activated and _recovery_pitch_start_time >= 0.0:
-			_recovery_pitch_start_time += delta
-			var pitch_t: float = clampf(_recovery_pitch_start_time / PowerLossSequence.RECOVERY_PITCH_DURATION, 0.0, 1.0)
-			var pitch_eased: float = pitch_t * pitch_t
-			LoopMixer.set_all_pitch_scale(lerpf(PowerLossSequence.RECOVERY_PITCH_START, 1.0, pitch_eased))
-	_process_recovery(delta)
+	# Reboot text and recovery are now driven from _process() directly
+	# so they survive _drifting being set to false during recovery.
 
 
 func smoothstepf(edge0: float, edge1: float, x: float) -> float:
@@ -1137,7 +1138,7 @@ func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
 	# Current typing line
 	var current: String = typed_portion
 	if show_cursor:
-		current += "[color=#228833]\u2588[/color]"
+		current += "[color=#4dff66]\u2588[/color]"
 	if current.length() > 0:
 		content_lines.append(current)
 
@@ -1808,6 +1809,8 @@ func apply_bar_effects(effects: Dictionary) -> void:
 			"hull":
 				hull = clampf(hull + delta_val, 0.0, hull_max)
 			"thermal":
+				if delta_val > 0.0:
+					GameState.level_stats["heat_generated"] = float(GameState.level_stats.get("heat_generated", 0.0)) + delta_val
 				if delta_val > 0.0 and thermal + delta_val > thermal_max:
 					# Thermal overflow — excess heat damages hull directly (bypasses shields)
 					var overflow: float = (thermal + delta_val) - thermal_max
@@ -1821,6 +1824,8 @@ func apply_bar_effects(effects: Dictionary) -> void:
 				else:
 					thermal = clampf(thermal + delta_val, 0.0, thermal_max)
 			"electric":
+				if delta_val < 0.0:
+					GameState.level_stats["energy_consumed"] = float(GameState.level_stats.get("energy_consumed", 0.0)) - delta_val
 				if delta_val < 0.0 and electric + delta_val < 0.0:
 					# Electric overdraw — absorb what electric has, bleed the rest to shields
 					var overflow: float = -(electric + delta_val)  # positive amount of overdraw
