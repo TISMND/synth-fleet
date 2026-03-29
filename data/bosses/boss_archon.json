@@ -16,16 +16,15 @@
 			"weapon_id": "enemy_red_stick"
 		},
 		{
-			"hardpoint_index": 0,
+			"hardpoint_index": 1,
 			"weapon_id": "enemy_red_stick"
 		},
 		{
 			"audio_lead_sec": 0.0,
-			"hardpoint_index": 1,
+			"hardpoint_index": 0,
 			"weapon_id": "enemy_ultra_beam"
 		}
 	],
-	"enrage_hardpoint_overrides": [],
 	"enrage_movement": "v_sweep",
 	"enrage_segment_render_modes": {
 

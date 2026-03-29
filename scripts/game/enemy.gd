@@ -59,7 +59,6 @@ var is_boss_immune: bool = false      # if true, takes no damage (plays immune V
 # Boss enrage state
 var _boss_enraged: bool = false
 var _boss_data_ref: Variant = null    # BossData, set at spawn for enrage config
-var _enrage_weapon_controller: EnemyWeaponController = null
 
 var _renderer: ShipRenderer = null
 var _baked_sprite: Sprite2D = null
@@ -172,9 +171,6 @@ func force_cleanup_weapons() -> void:
 	if _weapon_controller:
 		_weapon_controller.cleanup()
 		_weapon_controller = null
-	if _enrage_weapon_controller:
-		_enrage_weapon_controller.cleanup()
-		_enrage_weapon_controller = null
 
 
 func _on_cleanup() -> void:
@@ -318,9 +314,6 @@ func _die() -> void:
 	if _weapon_controller:
 		_weapon_controller.cleanup()
 		_weapon_controller = null
-	if _enrage_weapon_controller:
-		_enrage_weapon_controller.cleanup()
-		_enrage_weapon_controller = null
 	GameState.add_credits(10)
 	GameState.level_stats["enemies_destroyed"] = int(GameState.level_stats.get("enemies_destroyed", 0)) + 1
 	GameState.level_stats["score"] = int(GameState.level_stats.get("score", 0)) + 10
@@ -433,9 +426,6 @@ func _trigger_enrage() -> void:
 		if _weapon_controller:
 			_weapon_controller.cleanup()
 			_weapon_controller = null
-		if _enrage_weapon_controller:
-			_enrage_weapon_controller.cleanup()
-			_enrage_weapon_controller = null
 		_weapon_controller = EnemyWeaponController.new()
 		_weapon_controller.setup_with_overrides(ship_data_ref, boss.enrage_core_weapon_overrides, self, player_ref, projectiles_container)
 
@@ -557,5 +547,3 @@ func _play_immune_hit(hit_pos: Vector2 = Vector2.ZERO) -> void:
 			if emitter:
 				emitter.position = local_hit
 				add_child(emitter)
-
-

@@ -72,19 +72,6 @@ var _blackout_flicker_state: bool = false  # True during hard cut frames — for
 var _blackout_cue_75: bool = false  # Fired at 75% power
 var _blackout_cue_50: bool = false  # Fired at 50% power
 var _blackout_cue_25: bool = false  # Fired at 25% power
-var _sfx_debug_label: Label = null  # Shows SFX event names on screen when they fire
-var _sfx_debug_lines: Array[String] = []
-var _sfx_debug_timers: Array[float] = []
-var _reboot_label: RichTextLabel = null  # DOS-style text during final death
-var _reboot_text_queue: Array[String] = []  # Lines to type out (prefix ">" = fast/scroll phase)
-var _reboot_text_index: int = -1  # -1 = cursor blink, 0+ = line index
-var _reboot_char_index: int = 0  # Current char in current line
-var _reboot_char_timer: float = 0.0  # Timer for typewriter effect
-var _reboot_blink_timer: float = 0.0  # Timer for initial cursor blink
-var _reboot_scrolling: bool = false  # True once we enter the ">" fast scroll phase
-var _reboot_completed_lines: Array[String] = []  # Finished lines for display
-var _reboot_typing_player: AudioStreamPlayer = null  # Looping typing sound, start/stop with typing
-var _reboot_finished: bool = false  # True once all text is typed — triggers recovery
 var _recovery_active: bool = false  # Bar restoration animation in progress
 var _recovery_elapsed: float = 0.0
 var _shutdown_audio_elapsed: float = 0.0
@@ -446,15 +433,8 @@ func _process(delta: float) -> void:
 	# Reset overdraw flag — it's set per-frame by apply_bar_effects
 	_electric_overdraw = false
 
-	# Reboot text + recovery run outside _process_drift so they survive
-	# _drifting being set to false when recovery starts.
-	# Pitch ramp is handled inside _process_recovery — not duplicated here.
-	if _blackout_final_death:
-		_process_reboot_text(delta)
+	# Recovery runs outside _process_drift so it survives _drifting being set to false.
 	_process_recovery(delta)
-
-	# SFX debug cue fadeout
-	_update_sfx_debug(delta)
 
 	# Banking animation from horizontal velocity
 	var target_bank: float = clampf(-_velocity.x / maxf(speed, 1.0), -1.0, 1.0)
@@ -931,11 +911,9 @@ func _process_blackout(delta: float) -> void:
 		# Kill remaining LED segments rapidly — fade to total darkness
 		if _hud and _hud.has_method("final_power_death_bars"):
 			_hud.final_power_death_bars()
-		_start_reboot_sequence()
 		final_power_death.emit()
-
-	# Reboot text and recovery are now driven from _process() directly
-	# so they survive _drifting being set to false during recovery.
+		# Pause in darkness, then start recovery directly
+		get_tree().create_timer(4.0).timeout.connect(_start_recovery)
 
 
 func smoothstepf(edge0: float, edge1: float, x: float) -> float:
@@ -958,237 +936,12 @@ func _shutdown_all_components() -> void:
 	LoopMixer.mute_all()
 
 
-func _start_reboot_sequence() -> void:
-	# Lines prefixed with ">" are in the fast/scrolling reboot phase
-	_reboot_text_queue = PowerLossSequence.REBOOT_TEXT_LINES.duplicate()
-	_reboot_text_index = -1  # -1 = cursor blink phase
-	_reboot_char_index = 0
-	_reboot_char_timer = 0.0
-	_reboot_blink_timer = 0.0
-	_reboot_scrolling = false
-
-	# Create text label — on root viewport so it sits above the CRT overlay
-	# Uses HDR color for bloom glow
-	_reboot_label = RichTextLabel.new()
-	_reboot_label.bbcode_enabled = true
-	_reboot_label.scroll_active = false
-	_reboot_label.z_index = 48  # Above CRT overlay (45), below HUD (50)
-	_reboot_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Text area — padding at top pushes content to bottom, CLI-style scroll up
-	_reboot_label.size = Vector2(600, 550)
-	_reboot_label.position = Vector2(240, 50)
-	_reboot_label.add_theme_font_size_override("normal_font_size", 18)
-	# Bright green with HDR boost for bloom
-	_reboot_label.add_theme_color_override("default_color", Color(0.3, 1.0, 0.4))
-	_reboot_label.modulate = Color(1.9, 1.9, 1.9, 1.0)
-	var mono_font: Font = ThemeManager.get_font("font_body")
-	if mono_font:
-		_reboot_label.add_theme_font_override("normal_font", mono_font)
-	# CRT scanlines on the text itself
-	var scanline_shader: Shader = load("res://assets/shaders/crt_scanline_text.gdshader") as Shader
-	if scanline_shader:
-		var scan_mat := ShaderMaterial.new()
-		scan_mat.shader = scanline_shader
-		_reboot_label.material = scan_mat
-	_reboot_label.text = ""
-	# Add to ROOT viewport so HDR modulate produces bloom (root has glow_enabled)
-	get_tree().root.add_child(_reboot_label)
-
-	# Typing sound — plays while typing, stops during pauses.
-	# Reload SFX cache so any changes made in the SFX editor take effect.
-	SfxPlayer.reload()
-	_reboot_typing_player = AudioStreamPlayer.new()
-	_reboot_typing_player.bus = "UI"
-	var cfg: SfxConfig = SfxConfigManager.load_config()
-	var thunk_ev: Dictionary = cfg.get_event("reboot_char_thunk")
-	var thunk_path: String = str(thunk_ev.get("file_path", ""))
-	print("[REBOOT-SFX] thunk_path='%s'" % thunk_path)
-	if thunk_path != "":
-		# Load fresh (not from SfxPlayer cache) to avoid any stale resource issues
-		var stream: AudioStream = load(thunk_path) as AudioStream
-		if stream:
-			# Enable looping so it plays continuously while typing
-			if stream is AudioStreamWAV:
-				(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
-				(stream as AudioStreamWAV).loop_begin = 0
-				(stream as AudioStreamWAV).loop_end = int((stream as AudioStreamWAV).get_length() * float((stream as AudioStreamWAV).mix_rate))
-			_reboot_typing_player.stream = stream
-			_reboot_typing_player.volume_db = float(thunk_ev.get("volume_db", 0.0))
-			print("[REBOOT-SFX] stream loaded OK, length=%.2f bus=%s" % [stream.get_length(), _reboot_typing_player.bus])
-		else:
-			print("[REBOOT-SFX] FAILED to load stream at path")
-	else:
-		print("[REBOOT-SFX] no file assigned to reboot_char_thunk")
-	add_child(_reboot_typing_player)
-
-
-
-func _process_reboot_text(delta: float) -> void:
-	if not _reboot_label:
-		return
-
-	# Phase -1: blinking cursor only
-	if _reboot_text_index < 0:
-		_reboot_blink_timer += delta
-		var blink_on: bool = fmod(_reboot_blink_timer, PowerLossSequence.REBOOT_BLINK_RATE * 2.0) < PowerLossSequence.REBOOT_BLINK_RATE
-		# Blink cursor at the same position text will start (bottom of label area)
-		_update_reboot_display("", blink_on)
-		if _reboot_blink_timer >= PowerLossSequence.REBOOT_BLINK_DURATION:
-			_reboot_text_index = 0
-			_reboot_char_index = 0
-			_reboot_char_timer = 0.0
-			_reboot_completed_lines.clear()
-		return
-
-	if _reboot_text_index >= _reboot_text_queue.size():
-		if not _reboot_finished:
-			_reboot_finished = true
-			_start_recovery()
-		return
-
-	_reboot_char_timer += delta
-	var raw_line: String = _reboot_text_queue[_reboot_text_index]
-
-	# Check if this line starts the fast scroll phase
-	if raw_line.begins_with(">") and not _reboot_scrolling:
-		_reboot_scrolling = true
-		_play_sfx_cue("powerup_electric_restored")
-
-	# Strip the ">" prefix for display
-	var current_line: String = raw_line.lstrip(">")
-
-	# Empty line = paragraph pause — no display update during wait (prevents jump)
-	if current_line == "":
-		if _reboot_typing_player and _reboot_typing_player.playing:
-			_reboot_typing_player.stop()
-		if _reboot_char_timer >= PowerLossSequence.REBOOT_PARAGRAPH_PAUSE:
-			_reboot_char_timer = 0.0
-			_reboot_completed_lines.append("")
-			_reboot_text_index += 1
-			_reboot_char_index = 0
-			# Display updates on next frame with the new line
-		return
-
-	var char_speed: float = PowerLossSequence.REBOOT_CHAR_FAST if _reboot_scrolling else PowerLossSequence.REBOOT_CHAR_SLOW
-
-	# Specific line triggers — fire once when line starts typing
-	if _reboot_char_index == 0 and _reboot_char_timer < char_speed:
-		if current_line == "Bypassing main reactor safety...":
-			# Start the speed spinup early — during text, not after
-			if not _recovery_cores_activated:
-				_recovery_cores_activated = true
-				_recovery_pitch_start_time = 0.0
-				LoopMixer.set_all_pitch_scale(PowerLossSequence.RECOVERY_PITCH_START)
-				LoopMixer.set_all_volume_offset(0.0)  # Instant full volume — no fade
-				for c in _core_controllers:
-					if c.has_method("activate"):
-						c.activate()
-				LoopMixer.start_all()
-				_update_hud_cores()
-		elif current_line == "Regenerating power core...":
-			_play_sfx_cue("powerup_core_regen")
-		elif current_line == "SUCCESS":
-			_play_sfx_cue("powerup_restored")
-
-	if _reboot_char_index < current_line.length():
-		# Still typing — advance multiple chars per frame if timer allows
-		while _reboot_char_timer >= char_speed and _reboot_char_index < current_line.length():
-			_reboot_char_timer -= char_speed
-			_reboot_char_index += 1
-		# Start typing sound if not already playing
-		if _reboot_typing_player and not _reboot_typing_player.playing:
-			if _reboot_typing_player.stream:
-				_reboot_typing_player.play()
-				print("[REBOOT-SFX] typing sound STARTED, bus=%s" % _reboot_typing_player.bus)
-			else:
-				print("[REBOOT-SFX] NO STREAM on typing player!")
-		var typed: String = current_line.substr(0, _reboot_char_index)
-		_update_reboot_display(typed, true)
-	else:
-		# Line fully typed — stop typing sound during pause
-		if _reboot_typing_player and _reboot_typing_player.playing:
-			_reboot_typing_player.stop()
-			print("[REBOOT-SFX] typing sound STOPPED (line complete)")
-		# Keep cursor visible during pause, then advance
-		# both completion AND new line start on same frame = no bump
-		var is_header: bool = current_line == current_line.to_upper() and current_line.length() > 2
-		var line_pause: float = PowerLossSequence.REBOOT_LINE_PAUSE_FAST if _reboot_scrolling else PowerLossSequence.REBOOT_LINE_PAUSE_SLOW
-		var pause: float = PowerLossSequence.REBOOT_HEADER_PAUSE if is_header else line_pause
-		if _reboot_char_timer >= pause:
-			_reboot_char_timer = 0.0
-			_play_sfx_cue("reboot_line_beep")
-			_reboot_completed_lines.append(current_line)
-			_reboot_text_index += 1
-			_reboot_char_index = 0
-			# Display with new state immediately — completed line moves up,
-			# new empty typing line starts, all in one frame
-			_update_reboot_display("", true)
-		else:
-			# Waiting — keep showing completed line WITH cursor (no bump)
-			_update_reboot_display(current_line, true)
-
-
-func _update_reboot_display(typed_portion: String, show_cursor: bool) -> void:
-	if not _reboot_label:
-		return
-	# Build content lines
-	var content_lines: Array[String] = []
-	for completed in _reboot_completed_lines:
-		content_lines.append(completed)
-	# Current typing line
-	var current: String = typed_portion
-	if show_cursor:
-		current += "[color=#4dff66]\u2588[/color]"
-	if current.length() > 0:
-		content_lines.append(current)
-
-	# Pad with empty lines at top so content anchors to bottom of label area.
-	# This makes new lines push the block upward like a CLI terminal.
-	var line_height: float = 20.0  # Approximate line height at font_size 16
-	var label_height: float = _reboot_label.size.y
-	var max_visible: int = int(label_height / line_height)
-	var pad_count: int = maxi(max_visible - content_lines.size(), 0)
-
-	var padded: String = ""
-	for i in pad_count:
-		padded += "\n"
-	padded += "\n".join(content_lines)
-	_reboot_label.text = padded
-
-
-# ── Power-loss death helpers ─────────────────────────────────────────────
-
-func corrupt_reboot_text(severity: float) -> void:
-	## Replace random characters in the reboot label with static glitch symbols.
-	if not _reboot_label:
-		return
-	var text: String = _reboot_label.text
-	var corrupted: String = ""
-	var glitch_chars: Array[String] = ["#", "@", "$", "%", "&", "!", "~", "^", "*", "?"]
-	for ch in text:
-		if ch == "\n" or ch == " " or ch == "[" or ch == "]" or ch == "/":
-			corrupted += ch
-		elif randf() < severity:
-			corrupted += glitch_chars[randi() % glitch_chars.size()]
-		else:
-			corrupted += ch
-	_reboot_label.text = corrupted
-
-
 func cleanup_power_loss() -> void:
 	## Clean up all power-loss state and nodes for scene exit.
-	if _reboot_label and is_instance_valid(_reboot_label):
-		_reboot_label.queue_free()
-		_reboot_label = null
-	if _reboot_typing_player and is_instance_valid(_reboot_typing_player):
-		_reboot_typing_player.stop()
-		_reboot_typing_player.queue_free()
-		_reboot_typing_player = null
 	_remove_blackout_audio()
 	_drifting = false
 	_blackout_active = false
 	_recovery_active = false
-	_reboot_finished = false
 
 
 # ── Recovery sequence — bars animate back up after reboot completes ──────────
@@ -1361,47 +1114,11 @@ func _clear_electric_arcs() -> void:
 
 
 
-## SFX visual cue — shows sci-fi status text on screen when triggered
 func _play_sfx_cue(event_id: String, use_ui_bus: bool = true) -> void:
 	if use_ui_bus:
 		SfxPlayer.play_ui(event_id)
 	else:
 		SfxPlayer.play(event_id)
-	# Show on-screen label with sci-fi display name
-	var display: String = str(PowerLossSequence.CUE_DISPLAY_LABELS.get(event_id, ""))
-	if display == "":
-		return
-	if not _sfx_debug_label:
-		_sfx_debug_label = Label.new()
-		_sfx_debug_label.position = Vector2(1400, 60)
-		_sfx_debug_label.size = Vector2(500, 400)
-		_sfx_debug_label.z_index = 100
-		_sfx_debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_sfx_debug_label.add_theme_font_size_override("font_size", 12)
-		_sfx_debug_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2, 0.9))
-		get_tree().root.add_child(_sfx_debug_label)
-	_sfx_debug_lines.append(">> " + display)
-	_sfx_debug_timers.append(3.0)
-	_rebuild_sfx_debug()
-
-
-func _update_sfx_debug(delta: float) -> void:
-	if _sfx_debug_timers.is_empty():
-		return
-	var changed: bool = false
-	for i in range(_sfx_debug_timers.size() - 1, -1, -1):
-		_sfx_debug_timers[i] -= delta
-		if _sfx_debug_timers[i] <= 0.0:
-			_sfx_debug_timers.remove_at(i)
-			_sfx_debug_lines.remove_at(i)
-			changed = true
-	if changed:
-		_rebuild_sfx_debug()
-
-
-func _rebuild_sfx_debug() -> void:
-	if _sfx_debug_label:
-		_sfx_debug_label.text = "\n".join(_sfx_debug_lines)
 
 
 ## Hash matching the shader's hash function — keeps GDScript flicker detection in sync
@@ -1441,20 +1158,9 @@ func _end_drift() -> void:
 		_blackout_cue_75 = false
 		_blackout_cue_50 = false
 		_blackout_cue_25 = false
-		_reboot_scrolling = false
-		_reboot_finished = false
 		_recovery_active = false
 		_recovery_elapsed = 0.0
 		_recovery_cores_activated = false
-		_reboot_completed_lines.clear()
-		# Remove reboot text + typing sound
-		if _reboot_typing_player and is_instance_valid(_reboot_typing_player):
-			_reboot_typing_player.stop()
-			_reboot_typing_player.queue_free()
-			_reboot_typing_player = null
-		if _reboot_label and is_instance_valid(_reboot_label):
-			_reboot_label.queue_free()
-			_reboot_label = null
 
 
 func _remove_blackout_audio() -> void:
@@ -1551,16 +1257,6 @@ func _exit_tree() -> void:
 	if _blackout_overlay and is_instance_valid(_blackout_overlay):
 		_blackout_overlay.queue_free()
 		_blackout_overlay = null
-	if _reboot_typing_player and is_instance_valid(_reboot_typing_player):
-		_reboot_typing_player.stop()
-		_reboot_typing_player.queue_free()
-		_reboot_typing_player = null
-	if _reboot_label and is_instance_valid(_reboot_label):
-		_reboot_label.queue_free()
-		_reboot_label = null
-	if _sfx_debug_label and is_instance_valid(_sfx_debug_label):
-		_sfx_debug_label.queue_free()
-		_sfx_debug_label = null
 
 
 func stop_all() -> void:

@@ -1625,10 +1625,8 @@ func _process_power_loss_death(delta: float) -> void:
 			_game_viewport.add_child(explosion)
 			SfxPlayer.play_random_explosion()
 			trigger_screen_shake(lerpf(3.0, 6.0, _power_death_timer), 0.15)
-		if _player:
-			_player.corrupt_reboot_text(lerpf(0.05, 0.3, _power_death_timer))
 
-	# Phase 2 (1-2s): Heavy sustained shake, full text scramble, rapid flicker
+	# Phase 2 (1-2s): Heavy sustained shake, rapid flicker
 	elif _power_death_timer < 2.0:
 		var phase2_t: float = (_power_death_timer - 1.0)
 		trigger_screen_shake(lerpf(8.0, 12.0, phase2_t), 0.3)
@@ -1644,7 +1642,6 @@ func _process_power_loss_death(delta: float) -> void:
 			_game_viewport.add_child(explosion)
 			SfxPlayer.play_random_explosion()
 		if _player:
-			_player.corrupt_reboot_text(lerpf(0.4, 1.0, phase2_t))
 			_player.modulate.a = 0.2 + randf() * 0.6
 
 	# Phase 3 (2-2.5s): Bright flash and exit

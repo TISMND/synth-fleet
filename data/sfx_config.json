@@ -382,7 +382,7 @@
 			"clip_end_time": 0.0,
 			"fade_in_duration": 0.0,
 			"fade_out_duration": 0.0,
-			"file_path": "res://assets/audio/sfx/Interface/Alien typing blips.wav",
+			"file_path": "",
 			"volume_db": 6.0
 		},
 		"purge_complete": {

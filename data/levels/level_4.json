@@ -89,13 +89,6 @@
 			"nebula_id": "nebula_6",
 			"radius": 575.0,
 			"seed_offset": 1.0,
-			"trigger_y": 702.481751824818,
-			"x_offset": 494.014598540146
-		},
-		{
-			"nebula_id": "nebula_6",
-			"radius": 575.0,
-			"seed_offset": 1.0,
 			"trigger_y": 1091.38686131387,
 			"x_offset": -714.744525547445
 		},
@@ -112,13 +105,6 @@
 			"seed_offset": 1.0,
 			"trigger_y": 432.700729927007,
 			"x_offset": -940.729927007299
-		},
-		{
-			"nebula_id": "nebula_6",
-			"radius": 575.0,
-			"seed_offset": 1.0,
-			"trigger_y": 1394.45255474453,
-			"x_offset": 720.0
 		},
 		{
 			"nebula_id": "nebula_5",
