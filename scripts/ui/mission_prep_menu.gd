@@ -40,9 +40,7 @@ func _on_audio_mix() -> void:
 
 
 func _on_tutorial() -> void:
-	GameState.current_level_id = "tutorial"
-	GameState.return_scene = "res://scenes/ui/mission_prep_menu.tscn"
-	SceneLoader.load_scene("res://scenes/game/game.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/tutorial_screen.tscn")
 
 
 func _on_launch() -> void:

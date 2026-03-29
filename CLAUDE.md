@@ -27,7 +27,7 @@ Game runs with loop-based audio system. Player ship moves, background scrolls, e
 - Level Select and Ship Select screens
 - Ships Screen with ship rendering preview, explosion editor
 - Hangar Screen for loadout configuration
-- Style Editor for VHS/CRT parameter tuning (other theme values baked via defaults)
+- Styles screen with VHS/CRT parameter tuning + Boss Bar audition (other theme values baked via defaults)
 - Options Screen with per-bus volume controls
 - SFX Editor and VFX Editor
 - Movement system: aim modes (fixed/sweep/track), mirror modes (none/mirror/alternate)
@@ -78,7 +78,7 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - **Dev Studio** (`dev_studio_menu.*`) — the main menu with buttons for all dev tools. Not a single screen.
 - **Component Editor** (`component_editor.*`) — tabbed screen for Weapons, Beams, Fields, Projectiles, Power Cores, etc. Accessed via COMPONENTS button.
 - **Environments Screen** (`environments_screen.*`) — Nebulas, Key Changes. Accessed via ENVIRONMENTS button.
-- **Style Editor** (`style_editor.*`) — VHS/CRT parameter editor only. Other theme values (colors, fonts, bars, buttons) are baked via ThemeManager defaults + `user://settings/aesthetic.json`.
+- **Styles Screen** (`style_editor.*`) — Tabbed: VHS/CRT parameters + Boss Bar audition + Headers (font/size/color/bloom). Other theme values (colors, bars, buttons) are baked via ThemeManager defaults + `user://settings/aesthetic.json`.
 - **Ships Screen** (`ships_screen.*`) — ship config/preview. Not "Ship Viewer."
 - **System Bars** — shield/hull/thermal/electric bars. Each bar has **segments**.
 - `generator_power` is dead — removed stat, do not reintroduce.

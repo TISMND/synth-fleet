@@ -1,0 +1,111 @@
+[gd_scene load_steps=3 format=3 uid="uid://feature_requests"]
+
+[ext_resource type="Script" path="res://scripts/ui/feature_requests_screen.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/Syntherion_bg_titled.png" id="2"]
+
+[node name="FeatureRequestsScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="ChecklistPage" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="ChecklistPage"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="HeaderLabel" type="Label" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "What would you like to see in this game?"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 8)
+
+[node name="CheckLofi" type="CheckBox" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "Lofi"
+
+[node name="CheckDubstep" type="CheckBox" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "Dubstep"
+
+[node name="CheckComponents" type="CheckBox" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "More components"
+
+[node name="CheckCrew" type="CheckBox" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "Crew members"
+
+[node name="CheckDifficulty" type="CheckBox" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "Higher difficulty"
+
+[node name="CheckUpgrades" type="CheckBox" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "Ship upgrades"
+
+[node name="CheckShips" type="CheckBox" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "More ships"
+
+[node name="CheckCosmetics" type="CheckBox" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "Ship cosmetics"
+
+[node name="Spacer2" type="Control" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 8)
+
+[node name="SubmitButton" type="Button" parent="ChecklistPage/VBoxContainer"]
+layout_mode = 2
+text = "SUBMIT"
+
+[node name="SubmitPage" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="SubmitPage"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="AwesomeLabel" type="Label" parent="SubmitPage/VBoxContainer"]
+layout_mode = 2
+text = "Awesome. Tell Tim."
+horizontal_alignment = 1
+
+[node name="NoInternetLabel" type="Label" parent="SubmitPage/VBoxContainer"]
+layout_mode = 2
+text = "This game got no internets."
+horizontal_alignment = 1
+
+[node name="BackButton" type="Button" parent="SubmitPage/VBoxContainer"]
+layout_mode = 2
+text = "BACK"

@@ -74,9 +74,46 @@ func calculate_grade() -> String:
 		return "F"
 
 
+## Menu music layer progression — runs in this autoload so it works across all menu screens
+var _menu_layer_start_bars: Dictionary = {}  # loop_id -> int
+var _menu_layer_unmuted: Dictionary = {}  # loop_id -> bool
+var _menu_bar_duration: float = 2.0
+var _menu_music_active: bool = false
+
+
+func start_menu_music_progression(layer_start_bars: Dictionary, bar_duration: float, already_unmuted: Dictionary) -> void:
+	_menu_layer_start_bars = layer_start_bars.duplicate()
+	_menu_bar_duration = bar_duration
+	_menu_layer_unmuted = already_unmuted.duplicate()
+	_menu_music_active = true
+
+
+func _process(delta: float) -> void:
+	if not _menu_music_active:
+		return
+	var start_ticks: int = int(get_meta("menu_music_start_ticks", 0))
+	var elapsed: float = float(Time.get_ticks_msec() - start_ticks) / 1000.0
+	var current_bar: int = int(elapsed / _menu_bar_duration)
+	var all_done: bool = true
+	for loop_id in _menu_layer_start_bars:
+		if bool(_menu_layer_unmuted.get(loop_id, false)):
+			continue
+		var start_bar: int = int(_menu_layer_start_bars[loop_id])
+		if current_bar >= start_bar:
+			var bar_pos: float = fmod(elapsed, _menu_bar_duration)
+			if bar_pos < delta * 2.0 or current_bar > start_bar:
+				LoopMixer.unmute(loop_id, 100)
+				_menu_layer_unmuted[loop_id] = true
+		else:
+			all_done = false
+	if all_done:
+		_menu_music_active = false
+
+
 func fade_out_menu_music() -> void:
 	## Fade out and release menu music loops from any screen.
 	## Safe to call even if no menu music is playing.
+	_menu_music_active = false
 	if not has_meta("menu_loop_ids"):
 		return
 	var ids: Array = get_meta("menu_loop_ids") as Array

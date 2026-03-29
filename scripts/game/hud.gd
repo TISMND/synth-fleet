@@ -71,11 +71,7 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	# Top-right credits
-	_credits_label = Label.new()
-	_credits_label.position = Vector2(1700, 20)
-	_credits_label.text = "CR: 0"
-	add_child(_credits_label)
+	# Credits label removed — not shown during gameplay
 
 	# Menu hint
 	_menu_hint = Label.new()
@@ -89,8 +85,8 @@ func _build_ui() -> void:
 	add_child(_warning_rotator)
 
 	# Build 3-panel HUD via HudBuilder
-	var side_top: float = 60.0
-	var side_bottom: float = 1080.0 - HudBuilder.BOTTOM_BAR_HEIGHT - 8.0
+	var side_top: float = 0.0
+	var side_bottom: float = 1080.0
 	var side_height: float = side_bottom - side_top
 	_hud_result = HudBuilder.build_hud("game", side_height)
 
@@ -167,12 +163,6 @@ func _apply_theme() -> void:
 	# HUD panel backgrounds + borders
 	HudBuilder.apply_hud_theme(_hud_result)
 
-	# Credits
-	_credits_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	_credits_label.add_theme_color_override("font_color", ThemeManager.get_color("positive"))
-	if body_font:
-		_credits_label.add_theme_font_override("font", body_font)
-	ThemeManager.apply_text_glow(_credits_label, "body")
 
 	# Menu hint
 	_menu_hint.add_theme_font_size_override("font_size", body_size)
@@ -395,8 +385,8 @@ func update_warnings_rotator(active_warnings: Array) -> void:
 		_warning_rotator.set_active_warnings(active_warnings)
 
 
-func update_credits(amount: int) -> void:
-	_credits_label.text = "CR: " + str(amount)
+func update_credits(_amount: int) -> void:
+	pass
 
 
 # ── Shield bar lightning arcs ────────────────────────────────────────────

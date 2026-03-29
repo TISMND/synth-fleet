@@ -6,12 +6,6 @@ extends Control
 var _vhs_overlay: ColorRect
 var _menu_loop_ids: Array[String] = []
 var _menu_fade_ms: int = 2000
-var _menu_bpm: float = 120.0
-var _bar_duration: float = 2.0  # seconds per bar (4 beats at BPM)
-var _elapsed: float = 0.0
-var _layer_start_bars: Dictionary = {}  # loop_id -> int (bar number to unmute)
-var _layer_unmuted: Dictionary = {}  # loop_id -> bool (already unmuted)
-var _music_active: bool = false
 
 
 func _ready() -> void:
@@ -20,6 +14,7 @@ func _ready() -> void:
 
 	$VBoxContainer/PlayButton.pressed.connect(_on_play)
 	$VBoxContainer/OptionsButton.pressed.connect(_on_options)
+	$VBoxContainer/FeatureRequestsButton.pressed.connect(_on_feature_requests)
 	$VBoxContainer/QuitButton.pressed.connect(_on_quit)
 	if OS.is_debug_build():
 		$VBoxContainer/DevStudioButton.pressed.connect(_on_dev_studio)
@@ -30,41 +25,22 @@ func _ready() -> void:
 	_start_menu_music()
 
 
-func _process(delta: float) -> void:
-	if not _music_active:
-		return
-	_elapsed += delta
-	var current_bar: int = int(_elapsed / _bar_duration)
-	for loop_id in _layer_start_bars:
-		if bool(_layer_unmuted.get(loop_id, false)):
-			continue
-		var start_bar: int = int(_layer_start_bars[loop_id])
-		if current_bar >= start_bar:
-			var bar_pos: float = fmod(_elapsed, _bar_duration)
-			if bar_pos < delta * 2.0 or current_bar > start_bar:
-				LoopMixer.unmute(loop_id, 100)
-				_layer_unmuted[loop_id] = true
-
-
 func _start_menu_music() -> void:
-	# If loops are already playing (e.g. returning from options), don't restart
+	# If loops are already playing (e.g. returning from options), nothing to do —
+	# GameState._process handles progression across all menu screens
 	if GameState.has_meta("menu_loop_ids"):
 		var existing: Array = GameState.get_meta("menu_loop_ids") as Array
 		if existing.size() > 0 and LoopMixer.has_loop(str(existing[0])):
-			_menu_loop_ids.clear()
-			for lid in existing:
-				_menu_loop_ids.append(str(lid))
 			return
 
 	var config: Dictionary = MenuMusicConfigManager.load_config()
 	_menu_fade_ms = int(config.get("fade_out_duration_ms", 2000))
-	_menu_bpm = float(config.get("bpm", 120.0))
-	_bar_duration = 60.0 / maxf(_menu_bpm, 1.0) * 4.0
+	var bpm: float = float(config.get("bpm", 120.0))
+	var bar_duration: float = 60.0 / maxf(bpm, 1.0) * 4.0
 	var layers: Array = config.get("layers", []) as Array
+	var layer_start_bars: Dictionary = {}
+	var layer_unmuted: Dictionary = {}
 	_menu_loop_ids.clear()
-	_layer_start_bars.clear()
-	_layer_unmuted.clear()
-	_elapsed = 0.0
 
 	for layer in layers:
 		var d: Dictionary = layer as Dictionary
@@ -79,11 +55,12 @@ func _start_menu_music() -> void:
 			continue
 		LoopMixer.add_loop(layer_id, file_path, "Master", vol, true)
 		_menu_loop_ids.append(layer_id)
-		_layer_start_bars[layer_id] = start_bar
-		_layer_unmuted[layer_id] = false
+		layer_start_bars[layer_id] = start_bar
+		layer_unmuted[layer_id] = false
 	if _menu_loop_ids.size() > 0:
 		LoopMixer.start_all()
-		_music_active = true
+		GameState.set_meta("menu_music_start_ticks", Time.get_ticks_msec())
+		GameState.start_menu_music_progression(layer_start_bars, bar_duration, layer_unmuted)
 	# Store on GameState so any screen can find and fade them
 	GameState.set_meta("menu_loop_ids", _menu_loop_ids.duplicate())
 	GameState.set_meta("menu_fade_ms", _menu_fade_ms)
@@ -96,6 +73,10 @@ func _on_play() -> void:
 
 func _on_options() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/options_screen.tscn")
+
+
+func _on_feature_requests() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/feature_requests_screen.tscn")
 
 
 func _on_quit() -> void:

@@ -47,6 +47,7 @@ var _floats: Dictionary = {
 	"header_bloom_size": 0.0,
 	"header_bloom_intensity": 0.0,
 	"header_smudge_blur": 0.0,
+	"header_hdr_bloom": 0.0,
 	"body_inner_intensity": 0.0,
 	"body_aura_size": 0.0,
 	"body_aura_intensity": 0.0,

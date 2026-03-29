@@ -67,7 +67,7 @@ func _ensure_audio_buses() -> void:
 func _build_ui() -> void:
 	# Background image
 	_bg_rect = TextureRect.new()
-	_bg_rect.texture = load("res://assets/backgrounds/options_bg.png")
+	_bg_rect.texture = load("res://assets/backgrounds/options_blur_dark.png")
 	_bg_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_bg_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_bg_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -247,16 +247,13 @@ func _on_persist_toggled(_pressed: bool) -> void:
 func _build_gameplay_tab() -> VBoxContainer:
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 20)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 
-	var spacer := Control.new()
-	spacer.custom_minimum_size.y = 8
-	vbox.add_child(spacer)
-
-	_mouse_nav_indicator_checkbox = CheckBox.new()
-	_mouse_nav_indicator_checkbox.text = "Show mouse navigation indicator"
-	_mouse_nav_indicator_checkbox.button_pressed = GameState.show_mouse_nav_indicator
-	_mouse_nav_indicator_checkbox.toggled.connect(_on_mouse_nav_indicator_toggled)
-	vbox.add_child(_mouse_nav_indicator_checkbox)
+	var lbl := Label.new()
+	lbl.text = "There is nothing to change.\nIt's perfect."
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	vbox.add_child(lbl)
 
 	return vbox
 
@@ -706,6 +703,7 @@ func _apply_theme() -> void:
 	for child in _get_all_children(self):
 		if child is Button and not child in _tab_buttons and not child.has_meta("binding_btn"):
 			ThemeManager.apply_button_style(child as Button)
+			_darken_button(child as Button)
 
 
 func _style_tab_buttons() -> void:
@@ -720,11 +718,11 @@ func _style_tab_buttons() -> void:
 
 		var sb := StyleBoxFlat.new()
 		if is_active:
-			sb.bg_color = Color(accent.r, accent.g, accent.b, 0.25)
+			sb.bg_color = Color(0.06, 0.06, 0.06, 1.0)
 			sb.border_color = accent
 			sb.border_width_bottom = 2
 		else:
-			sb.bg_color = Color(panel_color.r, panel_color.g, panel_color.b, 0.3)
+			sb.bg_color = Color(0.04, 0.04, 0.04, 1.0)
 			sb.border_color = Color(accent.r, accent.g, accent.b, 0.3)
 			sb.border_width_bottom = 1
 		sb.set_corner_radius_all(2)
@@ -741,6 +739,20 @@ func _style_tab_buttons() -> void:
 		if body_font:
 			btn.add_theme_font_override("font", body_font)
 		btn.add_theme_font_size_override("font_size", body_size)
+
+
+func _darken_button(btn: Button) -> void:
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var sb: StyleBox = btn.get_theme_stylebox(state)
+		if sb and sb is StyleBoxFlat:
+			var dark: StyleBoxFlat = (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
+			if state == "hover":
+				dark.bg_color = Color(0.12, 0.12, 0.12, 1.0)
+			elif state == "pressed":
+				dark.bg_color = Color(0.08, 0.08, 0.08, 1.0)
+			else:
+				dark.bg_color = Color(0.04, 0.04, 0.04, 1.0)
+			btn.add_theme_stylebox_override(state, dark)
 
 
 func _style_sliders(accent: Color) -> void:
