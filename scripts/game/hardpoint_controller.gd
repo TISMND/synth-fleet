@@ -138,8 +138,7 @@ func get_loop_id() -> String:
 func cleanup() -> void:
 	if not _external_loop:
 		if is_enemy:
-			if not AudioBusSetup.persist_enemy_audio:
-				LoopMixer.release_loop(_loop_id, 2500)
+			LoopMixer.release_loop(_loop_id, 20000)
 		else:
 			LoopMixer.remove_loop(_loop_id)
 

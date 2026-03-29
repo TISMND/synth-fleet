@@ -10,7 +10,7 @@
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
 	"damage": 37,
-	"description": "Perfect tuning allows each pulse to slightly recharge shields, and penetrate the enemy's.",
+	"description": "Perfect tuning allows each pulse to slightly recharge your shields while penetrating the enemy's. Plus a lil' splash.",
 	"direction_deg": 0.0,
 	"display_name": "Tuned Ion Pulse",
 	"effect_profile": {

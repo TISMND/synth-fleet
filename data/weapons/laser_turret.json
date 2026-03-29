@@ -1,7 +1,7 @@
 {
 	"aim_mode": "track",
 	"bar_effects": {
-		"electric": -0.299999999999997,
+		"electric": -0.400000000000006,
 		"thermal": 0.0999999999999943
 	},
 	"beam_dps": 17.0,
@@ -10,7 +10,7 @@
 	"beam_style_id": "beam_1",
 	"beam_transition_time": 0.26,
 	"damage": 10,
-	"description": "Auto-tracking laser turret. Heat generating, but significant damage increase over standard turrets.",
+	"description": "Auto-tracking laser turret. Generates heat in exchange for the gift of 360 beaming.",
 	"direction_deg": 0.0,
 	"display_name": "Laser Turret",
 	"effect_profile": {

@@ -155,6 +155,10 @@
 		"display_name": "dhnd_mus122_kyotonights1_G",
 		"volume_db": -7.7
 	},
+	"res://loop_zips/sorted/leads/BETA Begin - 120 BPM - 5 - Leads - AT_Vapor_116_Synth_Lead_Loop_Depth_c#m.wav": {
+		"display_name": "AT_Vapor_116_Synth_Lead_Loop_Depth_c#m",
+		"volume_db": 2.6
+	},
 	"res://loop_zips/sorted/leads/Fortunate Interval - 120 BPM - 8 - Leads - BOS_IEV_90_Synth_Lead_Loop_Flux_F#.wav": {
 		"display_name": "BOS_IEV_90_Synth_Lead_Loop_Flux_F#",
 		"volume_db": -9.8

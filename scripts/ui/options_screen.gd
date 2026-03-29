@@ -27,7 +27,6 @@ var _active_tab: int = 0
 # Sound tab
 var _sliders: Dictionary = {}  # bus_name -> HSlider
 var _value_labels: Dictionary = {}  # bus_name -> Label
-var _persist_checkbox: CheckBox = null
 
 # Gameplay tab
 var _mouse_nav_indicator_checkbox: CheckBox = null
@@ -176,17 +175,6 @@ func _build_sound_tab() -> VBoxContainer:
 		var bus_name: String = def[1]
 		_add_volume_row(vbox, display_name, bus_name)
 
-	# Persist enemy audio
-	var persist_spacer := Control.new()
-	persist_spacer.custom_minimum_size.y = 8
-	vbox.add_child(persist_spacer)
-
-	_persist_checkbox = CheckBox.new()
-	_persist_checkbox.text = "Keep enemy weapon loops after death"
-	_persist_checkbox.button_pressed = AudioBusSetup.persist_enemy_audio
-	_persist_checkbox.toggled.connect(_on_persist_toggled)
-	vbox.add_child(_persist_checkbox)
-
 	return vbox
 
 
@@ -250,9 +238,8 @@ func _on_slider_changed(value: float, bus_name: String) -> void:
 	_save_audio_settings()
 
 
-func _on_persist_toggled(pressed: bool) -> void:
-	AudioBusSetup.persist_enemy_audio = pressed
-	_save_audio_settings()
+func _on_persist_toggled(_pressed: bool) -> void:
+	pass
 
 
 # ── Gameplay tab ──────────────────────────────────────────────
@@ -693,7 +680,7 @@ func _apply_theme() -> void:
 			val_lbl.add_theme_color_override("font_color", accent_color)
 
 	# Checkboxes
-	for cb in [_persist_checkbox, _mouse_nav_indicator_checkbox]:
+	for cb in [_mouse_nav_indicator_checkbox]:
 		if cb:
 			if body_font:
 				cb.add_theme_font_override("font", body_font)
@@ -816,7 +803,6 @@ func _save_audio_settings() -> void:
 	for bus_name in _sliders:
 		var slider: HSlider = _sliders[bus_name]
 		data[bus_name] = slider.value
-	data["persist_enemy_audio"] = AudioBusSetup.persist_enemy_audio
 	var json_str: String = JSON.stringify(data, "\t")
 	var file: FileAccess = FileAccess.open(AUDIO_SETTINGS_PATH, FileAccess.WRITE)
 	if file:
@@ -843,9 +829,6 @@ func _load_audio_settings() -> void:
 		var val: float = float(data.get(bus_name, 100.0))
 		slider.value = val
 		_on_slider_changed(val, bus_name)
-	AudioBusSetup.persist_enemy_audio = bool(data.get("persist_enemy_audio", false))
-	if _persist_checkbox:
-		_persist_checkbox.button_pressed = AudioBusSetup.persist_enemy_audio
 
 
 func _save_gameplay_settings() -> void:

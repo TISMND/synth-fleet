@@ -1564,7 +1564,7 @@ func _fg_total_format_label(lbl: Label, val: float) -> void:
 		lbl.text = "\u2014"
 	else:
 		var sign_str: String = "+" if val > 0 else ""
-		lbl.text = sign_str + str(int(val)) + " seg/min"
+		lbl.text = sign_str + str(int(val)) + " bars/min"
 
 
 func _animate_fg_totals(delta: float) -> void:
@@ -2572,6 +2572,11 @@ func _on_play_toggle() -> void:
 		_prev_status_lines.clear()
 		_play_btn.text = "RUN"
 	else:
+		# Collapse component explorer so fire groups / ship effects are visible
+		if _expanded_slot != "":
+			_expanded_slot = ""
+			_unhighlight_all_slot_btns()
+			_restore_net_effect_panel()
 		LoopMixer.start_all()
 		# Only activate controllers for slots that are toggled ON
 		_is_playing = true

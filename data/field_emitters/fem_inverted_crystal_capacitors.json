@@ -8,11 +8,13 @@
 	"bar_effects": {
 
 	},
-	"description": "",
+	"description": "Converts engine thrust into an overwhelming energy source, causing microfractures in the hull.",
 	"device_type": "shield_aura",
 	"disable_power_cores": false,
 	"disable_weapons": false,
 	"display_name": "Inverted Crystal Capacitors",
+	"fade_in_ms": 1040,
+	"fade_out_ms": 1040,
 	"field_style_id": "sun_rays",
 	"hull_damage_reduction": 0.0,
 	"id": "fem_inverted_crystal_capacitors",
@@ -36,7 +38,6 @@
 	"shield_damage_reduction": 0.0,
 	"speed_modifier": -75.0,
 	"transition_mode": "fade",
-	"transition_ms": 1040,
 	"visual_pulse_triggers": [
 		0.0,
 		0.125,

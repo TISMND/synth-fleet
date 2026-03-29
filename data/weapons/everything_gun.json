@@ -9,7 +9,7 @@
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
 	"damage": 100,
-	"description": "Extremely slow rate of fire that consumes a great deal of energy, but inflects immense regular and splash damage.",
+	"description": "Splash damage that you might not even believe.",
 	"direction_deg": 0.0,
 	"display_name": "Everything Gun",
 	"effect_profile": {
@@ -38,7 +38,7 @@
 	"projectile_style_id": "balot",
 	"skips_shields": false,
 	"splash_enabled": true,
-	"splash_radius": 260.0,
+	"splash_radius": 290.0,
 	"sweep_arc_deg": 60.0,
 	"sweep_duration": 1.0,
 	"transition_mode": "fade"

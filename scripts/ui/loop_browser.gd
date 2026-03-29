@@ -287,7 +287,7 @@ func _update_display_empty() -> void:
 func _start_playback(path: String) -> void:
 	_stop_playback()
 	LoopMixer.add_loop(_audition_id, path, "Weapons", 0.0, false)
-	LoopMixer.start_all()
+	LoopMixer.start_loop(_audition_id)
 	_is_playing = true
 
 

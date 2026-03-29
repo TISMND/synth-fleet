@@ -1,15 +1,15 @@
 {
 	"aim_mode": "fixed",
 	"bar_effects": {
-		"electric": -0.799999999999997
+		"electric": -0.5
 	},
 	"beam_dps": 50.0,
 	"beam_duration": 0.3,
 	"beam_passthrough": true,
 	"beam_style_id": "",
 	"beam_transition_time": 0.1,
-	"damage": 25,
-	"description": "",
+	"damage": 30,
+	"description": "Lateral void energy pulses.",
 	"direction_deg": 90.0,
 	"display_name": "Broadside Pulse",
 	"effect_profile": {

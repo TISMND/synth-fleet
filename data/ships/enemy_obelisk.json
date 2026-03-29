@@ -1,5 +1,7 @@
 {
 	"collision_height": 30.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "circle",
 	"collision_width": 84.0,
 	"display_name": "Obelisk",

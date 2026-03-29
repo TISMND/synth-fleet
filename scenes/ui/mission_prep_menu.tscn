@@ -49,11 +49,11 @@ text = "LAUNCH"
 
 [node name="LoadoutButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-text = "COMPONENT LOADOUT"
+text = "SHIP LOADOUT"
 
 [node name="AudioMixButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-text = "SHIP AUDIO MIX"
+text = "SONIC BALANCING"
 
 [node name="ChangeShipButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2

@@ -19,6 +19,7 @@ var path_progress: float = 0.0  # distance traveled along curve
 var path_offset: Vector2 = Vector2.ZERO  # formation slot offset
 var path_origin: Vector2 = Vector2.ZERO  # x_offset from level encounter
 var rotate_with_path: bool = false
+var _has_entered_screen: bool = false
 
 # Melee chase mode
 var is_melee: bool = false
@@ -167,6 +168,15 @@ static func _make_collision_shape(ship: ShipData) -> Dictionary:
 			return {"shape": circle, "rotation": 0.0}
 
 
+func force_cleanup_weapons() -> void:
+	if _weapon_controller:
+		_weapon_controller.cleanup()
+		_weapon_controller = null
+	if _enrage_weapon_controller:
+		_enrage_weapon_controller.cleanup()
+		_enrage_weapon_controller = null
+
+
 func _on_cleanup() -> void:
 	if _weapon_controller:
 		_weapon_controller.cleanup()
@@ -252,9 +262,12 @@ func _process(delta: float) -> void:
 			var dir: Vector2 = path_curve.sample_baked(ahead) - path_curve.sample_baked(behind)
 			if dir.length_squared() > 0.01:
 				rotation = dir.angle() - PI / 2.0
-		# Despawn if off screen
-		if position.y > 1200 or position.y < -200 or position.x < -200 or position.x > 2120:
-			queue_free()
+		# Despawn if off screen (skip until enemy has entered the play area once)
+		if _has_entered_screen:
+			if position.y > 1200 or position.y < -200 or position.x < -200 or position.x > 2120:
+				queue_free()
+		elif position.y >= 0.0 and position.y <= 1080.0 and position.x >= 0.0 and position.x <= 1920.0:
+			_has_entered_screen = true
 	else:
 		# Drift mode (legacy)
 		position.y += drift_speed * delta

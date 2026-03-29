@@ -537,7 +537,7 @@ static func _build_warning_screen(text: String, w: int, h: int, bezel_width: flo
 	return {"panel": panel, "label": lbl}
 
 
-static func set_warning_active(lbl: Label, active: bool, color: Color, hdr_mult: float = 2.5) -> void:
+static func set_warning_active(lbl: Label, active: bool, color: Color, hdr_mult: float = 2.3) -> void:
 	## Toggle a warning label on/off with HDR color for bloom.
 	if active:
 		var hdr := Color(color.r * hdr_mult, color.g * hdr_mult, color.b * hdr_mult, 1.0)

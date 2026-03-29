@@ -28,105 +28,105 @@
 		{
 			"time": 0.03125,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.09375,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.15625,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.21875,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.28125,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.34375,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.40625,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.46875,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.53125,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.59375,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.65625,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.71875,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.78125,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.84375,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.890625,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.9140625,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.9375,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.9609375,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		},
 		{
 			"time": 0.984375,
 			"type": "thermal",
-			"value": 0.4
+			"value": 0.65
 		}
 	],
 	"bar_effects": {
 		"electric": 2.85,
 		"shield": 6.2,
-		"thermal": 0.4
+		"thermal": 0.65
 	},
-	"description": "Makes regular moderate contributions to ship's power, with planned overloads that get shunted to shield power on long intervals.",
+	"description": "Makes regular moderate contributions to ship's power, with planned overloads that get shunted to shields on long intervals.",
 	"display_name": "Radial Burst Core",
 	"global_pulse_settings": {
 		"brighten_duration": 0.05,

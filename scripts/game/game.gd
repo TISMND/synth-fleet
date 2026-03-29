@@ -885,13 +885,13 @@ func _show_game_over() -> void:
 # Warning colors — loaded from audition save file if available, otherwise defaults
 var _warning_colors: Dictionary = {}  # id -> {color, hdr}
 const WARNING_DEFAULTS: Dictionary = {
-	"heat": {"color": Color(1.0, 0.4, 0.1), "hdr": 2.8},
-	"fire": {"color": Color(1.0, 0.2, 0.0), "hdr": 3.0},
-	"low_power": {"color": Color(0.7, 0.3, 1.0), "hdr": 2.8},
-	"overdraw": {"color": Color(1.0, 0.15, 0.1), "hdr": 3.2},
-	"shields_low": {"color": Color(1.0, 0.4, 0.1), "hdr": 2.8},
-	"hull_damaged": {"color": Color(1.0, 0.4, 0.1), "hdr": 2.5},
-	"hull_critical": {"color": Color(1.0, 0.15, 0.1), "hdr": 3.2},
+	"heat": {"color": Color(1.0, 0.4, 0.1), "hdr": 2.6},
+	"fire": {"color": Color(1.0, 0.2, 0.0), "hdr": 2.8},
+	"low_power": {"color": Color(0.7, 0.3, 1.0), "hdr": 2.6},
+	"overdraw": {"color": Color(1.0, 0.15, 0.1), "hdr": 3.0},
+	"shields_low": {"color": Color(1.0, 0.4, 0.1), "hdr": 2.6},
+	"hull_damaged": {"color": Color(1.0, 0.4, 0.1), "hdr": 2.3},
+	"hull_critical": {"color": Color(1.0, 0.15, 0.1), "hdr": 3.0},
 }
 const WARNING_LABELS: Dictionary = {
 	"heat": "HEAT",
@@ -1811,11 +1811,15 @@ func _cleanup_boss_transition_overlay() -> void:
 func _return_to_menu() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	_stop_all_alarms()
-	LoopMixer.remove_all_loops()
 	if _wave_manager:
 		_wave_manager.stop()
 	if _player:
 		_player.stop_all()
+	# Kill all enemy weapon controllers before clearing loops so nothing re-registers
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if enemy.has_method("force_cleanup_weapons"):
+			enemy.force_cleanup_weapons()
+	LoopMixer.remove_all_loops()
 	var dest: String = GameState.return_scene
 	GameState.return_scene = ""
 	if dest != "":
@@ -2394,7 +2398,7 @@ class _IntroTitleBox extends Control:
 	var _time: float = 0.0
 
 	const COL := Color(0.3, 0.6, 1.0)  # Blue
-	const HDR: float = 2.7
+	const HDR: float = 2.5
 	const BORDER_W: float = 2.0
 	const GLOW_LAYERS: int = 4
 	const GLOW_SPREAD: float = 3.0

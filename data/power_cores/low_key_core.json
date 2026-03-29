@@ -3,22 +3,22 @@
 		{
 			"time": 0.0,
 			"type": "shield",
-			"value": 3.2
+			"value": 3.75
 		},
 		{
 			"time": 0.25,
 			"type": "shield",
-			"value": 3.2
+			"value": 3.75
 		},
 		{
 			"time": 0.5,
 			"type": "shield",
-			"value": 3.2
+			"value": 3.75
 		},
 		{
 			"time": 0.75,
 			"type": "shield",
-			"value": 3.2
+			"value": 3.75
 		},
 		{
 			"time": 0.046875,
@@ -168,10 +168,10 @@
 	],
 	"bar_effects": {
 		"electric": 0.699999999999999,
-		"shield": 3.2,
+		"shield": 3.75,
 		"thermal": 0.35
 	},
-	"description": "A design that prioritizes efficient energy production over total output. ",
+	"description": "A design that prioritizes efficiency over output. ",
 	"display_name": "Low Key Core",
 	"global_pulse_settings": {
 		"brighten_duration": 0.03,

@@ -273,10 +273,18 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 		enemy.position = Vector2(960.0 + melee_orig.x + melee_off.x, -30.0 + melee_off.y)
 	elif enemy.path_curve != null and enemy.path_curve.point_count >= 2:
 		var start_pos: Vector2 = enemy.path_curve.sample_baked(0.0)
+		var end_pos: Vector2 = enemy.path_curve.sample_baked(enemy.path_curve.get_baked_length())
 		var spawn_pos: Vector2 = start_pos + enemy.path_offset + enemy.path_origin
 		# Ensure path-following enemies start off-screen (safe margin for large sprites)
-		if spawn_pos.y > -200.0:
-			enemy.path_origin.y -= (spawn_pos.y + 200.0)
+		var moves_upward: bool = end_pos.y < start_pos.y
+		if moves_upward:
+			# Bottom-to-top paths: push off-screen at bottom
+			if spawn_pos.y < 1280.0:
+				enemy.path_origin.y += (1280.0 - spawn_pos.y)
+		else:
+			# Top-to-bottom paths: push off-screen at top
+			if spawn_pos.y > -200.0:
+				enemy.path_origin.y -= (spawn_pos.y + 200.0)
 		enemy.position = start_pos + enemy.path_offset + enemy.path_origin
 	else:
 		enemy.position = Vector2(randf_range(100.0, 1820.0), -30.0)

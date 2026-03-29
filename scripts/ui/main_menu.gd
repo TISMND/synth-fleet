@@ -21,7 +21,10 @@ func _ready() -> void:
 	$VBoxContainer/PlayButton.pressed.connect(_on_play)
 	$VBoxContainer/OptionsButton.pressed.connect(_on_options)
 	$VBoxContainer/QuitButton.pressed.connect(_on_quit)
-	$VBoxContainer/DevStudioButton.pressed.connect(_on_dev_studio)
+	if OS.is_debug_build():
+		$VBoxContainer/DevStudioButton.pressed.connect(_on_dev_studio)
+	else:
+		$VBoxContainer/DevStudioButton.hide()
 
 	_apply_styles()
 	_start_menu_music()

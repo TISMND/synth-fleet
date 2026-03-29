@@ -14,7 +14,7 @@
 	"loop_file_path": "res://loop_zips/sorted/drums/Sleeping Symphony - 120 BPM - 1 - Drums - NW_SYS_135_drum_loop_angels_full.wav",
 	"loop_length_bars": 8,
 	"passive_effects": {
-
+		"shield": 0.800000000000001
 	},
 	"pulse_settings": {
 

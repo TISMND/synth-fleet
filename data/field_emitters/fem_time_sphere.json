@@ -8,16 +8,16 @@
 	"bar_effects": {
 
 	},
-	"description": "speed, damage reduction, and the assumed.",
+	"description": "Reverses damage to hull, improves ship's speed, and reduces incoming hull damage.",
 	"device_type": "shield_aura",
 	"disable_power_cores": false,
 	"disable_weapons": false,
-	"display_name": "Regenosphere",
+	"display_name": "Time Sphere",
 	"fade_in_ms": 580,
 	"fade_out_ms": 640,
 	"field_style_id": "green_inward_spiral",
 	"hull_damage_reduction": 35.0,
-	"id": "fem_regenosphere",
+	"id": "fem_time_sphere",
 	"loop_file_path": "res://loop_zips/sorted/bass/Globular Barnyard - 120 BPM - 2 - Bass - RF2_90_melodic_loop_confession_Amin.wav",
 	"loop_length_bars": 8,
 	"mechanic_params": {

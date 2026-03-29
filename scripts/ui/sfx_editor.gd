@@ -1052,7 +1052,8 @@ func _start_menu_preview() -> void:
 		_menu_preview_start_bars[lid] = start_bar
 		_menu_preview_unmuted[lid] = false
 	if _menu_preview_loop_ids.size() > 0:
-		LoopMixer.start_all()
+		for lid in _menu_preview_loop_ids:
+			LoopMixer.start_loop(lid)
 		_menu_preview_active = true
 		_menu_preview_btn.text = "STOP PREVIEW"
 
