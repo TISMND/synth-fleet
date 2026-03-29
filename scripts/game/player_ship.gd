@@ -912,8 +912,11 @@ func _process_blackout(delta: float) -> void:
 		if _hud and _hud.has_method("final_power_death_bars"):
 			_hud.final_power_death_bars()
 		final_power_death.emit()
-		# Pause in darkness, then start recovery directly
-		get_tree().create_timer(4.0).timeout.connect(_start_recovery)
+		# Pause in darkness, then start recovery (skipped if player died)
+		get_tree().create_timer(4.0).timeout.connect(func():
+			if not _is_dead:
+				_start_recovery()
+		)
 
 
 func smoothstepf(edge0: float, edge1: float, x: float) -> float:

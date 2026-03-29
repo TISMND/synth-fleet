@@ -2360,7 +2360,7 @@ func _build_ui() -> void:
 	var sim_header := Label.new()
 	sim_header.text = "SIMULATOR"
 	sim_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sim_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 4)
+	sim_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_section") + 18)
 	sim_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	var sim_hdr_font: Font = ThemeManager.get_font("font_header")
 	if sim_hdr_font:

@@ -223,6 +223,8 @@ func _ready() -> void:
 	_shared_renderer = EnemySharedRenderer.new()
 	_shared_renderer.name = "EnemySharedRenderer"
 	add_child(_shared_renderer)
+	# Apply saved video settings
+	_apply_saved_video_settings()
 	if _level_data:
 		var appearances: Array = _collect_enemy_appearances(_level_data)
 		_shared_renderer.register_appearances(appearances, _shared_renderer)
@@ -410,6 +412,35 @@ func _end_intro() -> void:
 
 # ── Warp In effect ───────────────────────────────────────────────────
 
+func _apply_saved_video_settings() -> void:
+	var path: String = "user://settings/video.json"
+	if not FileAccess.file_exists(path):
+		return
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK:
+		return
+	var data: Dictionary = json.data
+	# Boss render interval
+	var boss_q: int = int(data.get("boss_quality", 0))
+	var interval: int = 3 if boss_q == 0 else 6
+	if _shared_renderer:
+		_shared_renderer.set_boss_render_interval(interval)
+	# Bloom (back-compat: old saves stored as bool, new saves as int 0=on 1=off)
+	var bloom_val: Variant = data.get("bloom", 0)
+	var bloom: bool = bool(bloom_val) if bloom_val is bool else (int(bloom_val) == 0)
+	var env: Environment = ThemeManager.get_environment()
+	if env:
+		env.glow_enabled = bloom
+		# Glow quality
+		var glow_q: int = int(data.get("glow_quality", 0))
+		var max_level: int = 2 - glow_q
+		for i in 7:
+			env.set_glow_level(i, i <= max_level)
+
+
 func _start_warp_in() -> void:
 	_warp_in_active = true
 	_warp_in_timer = 0.0
@@ -444,14 +475,18 @@ func _process_warp_in(delta: float) -> void:
 	# 0.55–1.0: Ship settles, glow fades
 	var orb_peak: float = 0.2
 
-	# Orb flash
-	if p < 0.5:
-		var orb_t: float = p / 0.5
+	# Orb flash — starts at orb_peak, blooms fast (200ms rise), then fades
+	var orb_start: float = orb_peak
+	var orb_end: float = 0.5
+	if p >= orb_start and p < orb_end:
+		var orb_span: float = orb_end - orb_start
+		var orb_t: float = (p - orb_start) / orb_span
+		var rise_frac: float = 0.1 / (WARP_IN_DUR * orb_span)  # 100ms as fraction of orb window
 		var intensity: float
-		if orb_t < 0.4:
-			intensity = orb_t / 0.4
+		if orb_t < rise_frac:
+			intensity = orb_t / rise_frac
 		else:
-			intensity = (1.0 - orb_t) / 0.6
+			intensity = (1.0 - orb_t) / (1.0 - rise_frac)
 		intensity = maxf(intensity, 0.0)
 		if intensity > 0.01:
 			var orb_r: float = 40.0 + intensity * 70.0
@@ -2737,7 +2772,7 @@ class _IntroTitleBox extends Control:
 	var level_name_text: String = "Welcome Void"
 	var measure_duration: float = 2.18
 	var fade_lead_time: float = 0.5
-	var intro_time: float = 0.0  # Set by game.gd each frame
+	var intro_time: float = -1.0  # Set by game.gd each frame; negative = hidden
 	var _time: float = 0.0
 
 	const COL := Color(0.3, 0.6, 1.0)  # Blue

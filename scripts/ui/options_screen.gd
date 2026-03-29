@@ -4,11 +4,12 @@ extends Control
 
 const AUDIO_SETTINGS_PATH := "user://settings/audio.json"
 const GAMEPLAY_SETTINGS_PATH := "user://settings/gameplay.json"
+const VIDEO_SETTINGS_PATH := "user://settings/video.json"
 
 # Bus definitions: display name -> AudioServer bus name
 const BUS_DEFS: Array[Array] = [
 	["MASTER", "Master"],
-	["WEAPONS", "Weapons"],
+	["PLAYER COMPONENTS", "Weapons"],
 	["ENEMIES", "Enemies"],
 	["ATMOSPHERE", "Atmosphere"],
 	["SFX", "SFX"],
@@ -31,6 +32,12 @@ var _value_labels: Dictionary = {}  # bus_name -> Label
 # Gameplay tab
 var _mouse_nav_indicator_checkbox: CheckBox = null
 
+# Video tab
+var _vsync_btn: OptionButton = null
+var _bloom_btn: OptionButton = null
+var _glow_quality_btn: OptionButton = null
+var _boss_quality_btn: OptionButton = null
+
 # Controls tab
 var _mouse_sens_slider: HSlider = null
 var _mouse_sens_label: Label = null
@@ -48,6 +55,7 @@ func _ready() -> void:
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 	_load_audio_settings()
 	_load_gameplay_settings()
+	_load_video_settings()
 	_apply_theme()
 
 
@@ -135,7 +143,7 @@ func _build_ui() -> void:
 	var sound_panel := _build_sound_tab()
 	var gameplay_panel := _build_gameplay_tab()
 	var controls_panel := _build_controls_tab()
-	var video_panel := _build_placeholder_tab("Video settings coming soon.")
+	var video_panel := _build_video_tab()
 
 	for panel in [sound_panel, gameplay_panel, controls_panel, video_panel]:
 		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -573,6 +581,189 @@ func _mouse_button_label(button_index: int) -> String:
 		_: return "Mouse" + str(button_index)
 
 
+# ── Video tab ─────────────────────────────────────────────────
+
+func _build_video_tab() -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 24)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 8
+	vbox.add_child(spacer)
+
+	# V-Sync
+	_add_video_setting(vbox, "V-SYNC",
+		"Syncs frame rate to your monitor. Prevents screen tearing but may add input lag.",
+		func() -> OptionButton:
+			_vsync_btn = OptionButton.new()
+			_vsync_btn.add_item("On", 0)
+			_vsync_btn.add_item("Off", 1)
+			_vsync_btn.custom_minimum_size.x = 200
+			_vsync_btn.item_selected.connect(_on_vsync_changed)
+			return _vsync_btn)
+
+	# Bloom
+	_add_video_setting(vbox, "BLOOM",
+		"Adds a glow effect around bright objects. Disable for better performance.",
+		func() -> OptionButton:
+			_bloom_btn = OptionButton.new()
+			_bloom_btn.add_item("On", 0)
+			_bloom_btn.add_item("Off", 1)
+			_bloom_btn.custom_minimum_size.x = 200
+			_bloom_btn.item_selected.connect(_on_bloom_changed)
+			return _bloom_btn)
+
+	# Glow Quality
+	_add_video_setting(vbox, "GLOW QUALITY",
+		"Controls how many blur passes are used for the glow effect. Lower = faster.",
+		func() -> OptionButton:
+			_glow_quality_btn = OptionButton.new()
+			_glow_quality_btn.add_item("High", 0)
+			_glow_quality_btn.add_item("Medium", 1)
+			_glow_quality_btn.add_item("Low", 2)
+			_glow_quality_btn.custom_minimum_size.x = 200
+			_glow_quality_btn.item_selected.connect(_on_glow_quality_changed)
+			return _glow_quality_btn)
+
+	# Boss Animation Quality
+	_add_video_setting(vbox, "BOSS ANIMATION",
+		"How often boss visuals update. Low reduces detail but improves frame rate.",
+		func() -> OptionButton:
+			_boss_quality_btn = OptionButton.new()
+			_boss_quality_btn.add_item("High", 0)
+			_boss_quality_btn.add_item("Low", 1)
+			_boss_quality_btn.custom_minimum_size.x = 200
+			_boss_quality_btn.item_selected.connect(_on_boss_quality_changed)
+			return _boss_quality_btn)
+
+	return scroll
+
+
+func _add_video_setting(parent: VBoxContainer, title: String, description: String, make_control: Callable) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+
+	# Left side: title + description stacked tight
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 0)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(left)
+
+	var label := Label.new()
+	label.text = title
+	left.add_child(label)
+
+	var desc := Label.new()
+	desc.text = description
+	desc.set_meta("video_desc", true)
+	desc.add_theme_font_size_override("font_size", 17)
+	desc.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
+	var disabled_font: Font = ThemeManager.get_font("font_body")
+	if disabled_font:
+		desc.add_theme_font_override("font", disabled_font)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	left.add_child(desc)
+
+	# Right side: dropdown
+	var control: OptionButton = make_control.call() as OptionButton
+	row.add_child(control)
+
+
+func _on_vsync_changed(index: int) -> void:
+	if index == 0:
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
+	else:
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	_save_video_settings()
+
+
+func _on_bloom_changed(index: int) -> void:
+	var env: Environment = ThemeManager.get_environment()
+	if env:
+		env.glow_enabled = (index == 0)
+	_save_video_settings()
+
+
+func _on_glow_quality_changed(index: int) -> void:
+	var env: Environment = ThemeManager.get_environment()
+	if not env:
+		return
+	# High: levels 0,1,2  Medium: levels 0,1  Low: level 0 only
+	var max_level: int = 2 - index  # 2, 1, or 0
+	for i in 7:
+		env.set_glow_level(i, i <= max_level)
+	_save_video_settings()
+
+
+func _on_boss_quality_changed(index: int) -> void:
+	# High = render every 3 frames, Low = render every 6 frames
+	var interval: int = 3 if index == 0 else 6
+	var shared_renderer: Node = get_tree().root.get_node_or_null("EnemySharedRenderer")
+	if shared_renderer and shared_renderer.has_method("set_boss_render_interval"):
+		shared_renderer.set_boss_render_interval(interval)
+	# Store for game scenes to read on load
+	GameState.set_meta("boss_render_interval", interval)
+	_save_video_settings()
+
+
+func _save_video_settings() -> void:
+	DirAccess.make_dir_recursive_absolute("user://settings")
+	var data: Dictionary = {
+		"vsync": _vsync_btn.selected,
+		"bloom": _bloom_btn.selected,
+		"glow_quality": _glow_quality_btn.selected,
+		"boss_quality": _boss_quality_btn.selected,
+	}
+	var json_str: String = JSON.stringify(data, "\t")
+	var file: FileAccess = FileAccess.open(VIDEO_SETTINGS_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(json_str)
+		file.close()
+
+
+func _load_video_settings() -> void:
+	# Defaults
+	var vs: int = 0
+	var bloom_idx: int = 0
+	var glow_q: int = 0
+	var boss_q: int = 0
+
+	if FileAccess.file_exists(VIDEO_SETTINGS_PATH):
+		var file: FileAccess = FileAccess.open(VIDEO_SETTINGS_PATH, FileAccess.READ)
+		if file:
+			var json_str: String = file.get_as_text()
+			file.close()
+			var json := JSON.new()
+			if json.parse(json_str) == OK:
+				var data: Dictionary = json.data
+				vs = int(data.get("vsync", 0))
+				# Back-compat: old saves stored bloom as bool
+				var bloom_val: Variant = data.get("bloom", 0)
+				if bloom_val is bool:
+					bloom_idx = 0 if bool(bloom_val) else 1
+				else:
+					bloom_idx = int(bloom_val)
+				glow_q = int(data.get("glow_quality", 0))
+				boss_q = int(data.get("boss_quality", 0))
+
+	# Apply without triggering save
+	_vsync_btn.selected = vs
+	_bloom_btn.selected = bloom_idx
+	_glow_quality_btn.selected = glow_q
+	_boss_quality_btn.selected = boss_q
+
+	# Apply settings
+	_on_vsync_changed(vs)
+	_on_bloom_changed(bloom_idx)
+	_on_glow_quality_changed(glow_q)
+	_on_boss_quality_changed(boss_q)
+
+
 # ── Placeholder tabs ──────────────────────────────────────────
 
 func _build_placeholder_tab(message: String) -> VBoxContainer:
@@ -690,7 +881,7 @@ func _apply_theme() -> void:
 		_styled_labels.append(_value_labels[bus_name])
 	for panel in _tab_panels:
 		for child in _get_all_children(panel):
-			if child is Label and not child in _styled_labels:
+			if child is Label and not child in _styled_labels and not child.has_meta("video_desc"):
 				if body_font:
 					child.add_theme_font_override("font", body_font)
 				child.add_theme_font_size_override("font_size", body_size)
@@ -825,7 +1016,10 @@ func _save_audio_settings() -> void:
 func _load_audio_settings() -> void:
 	if not FileAccess.file_exists(AUDIO_SETTINGS_PATH):
 		for bus_name in _sliders:
-			_on_slider_changed(100.0, bus_name)
+			var default_val: float = 80.0 if bus_name == "Master" else 100.0
+			var slider: HSlider = _sliders[bus_name]
+			slider.value = default_val
+			_on_slider_changed(default_val, bus_name)
 		return
 	var file: FileAccess = FileAccess.open(AUDIO_SETTINGS_PATH, FileAccess.READ)
 	if not file:

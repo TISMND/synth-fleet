@@ -24,7 +24,7 @@ func setup(pc: PowerCoreData, slot_index: int) -> void:
 
 	# Register loop with LoopMixer (muted by default)
 	if pc.loop_file_path != "" and not LoopMixer.has_loop(_loop_id):
-		LoopMixer.add_loop(_loop_id, pc.loop_file_path, "Master", 0.0, true)
+		LoopMixer.add_loop(_loop_id, pc.loop_file_path, "Weapons", 0.0, true)
 
 
 func _rebuild_triggers() -> void:

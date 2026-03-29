@@ -19,9 +19,14 @@ extends Node
 var _entries: Dictionary = {}
 
 # Boss viewports render once every N frames instead of every frame.
-const BOSS_RENDER_INTERVAL: int = 3
+var boss_render_interval: int = 3
 var _frame_count: int = 0
 var _active_boss_keys: Array[String] = []
+
+
+func set_boss_render_interval(interval: int) -> void:
+	boss_render_interval = maxi(interval, 1)
+
 
 # Flash shader applied per-instance on Sprite2D (not on shared viewport)
 const FLASH_SHADER_CODE := "shader_type canvas_item;
@@ -51,7 +56,7 @@ func _process(_delta: float) -> void:
 	if _active_boss_keys.size() == 0:
 		return
 	_frame_count += 1
-	if _frame_count % BOSS_RENDER_INTERVAL != 0:
+	if _frame_count % boss_render_interval != 0:
 		return
 	for key in _active_boss_keys:
 		if _entries.has(key):

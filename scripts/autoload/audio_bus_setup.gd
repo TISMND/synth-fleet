@@ -80,6 +80,10 @@ func _ensure_buses() -> void:
 
 func _load_volumes() -> void:
 	if not FileAccess.file_exists(SETTINGS_PATH):
+		# First launch — default Master to 80%
+		var master_idx: int = AudioServer.get_bus_index("Master")
+		if master_idx >= 0:
+			AudioServer.set_bus_volume_db(master_idx, linear_to_db(0.8))
 		return
 	var file: FileAccess = FileAccess.open(SETTINGS_PATH, FileAccess.READ)
 	if not file:

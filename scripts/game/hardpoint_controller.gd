@@ -48,7 +48,8 @@ func setup(weapon: WeaponData, dir_deg: float, proj_container: Node2D, hp_index:
 	# Register loop with LoopMixer (muted by default).
 	# Always call add_loop — it handles duplicates via ref-counting for shared loops.
 	if weapon.loop_file_path != "":
-		LoopMixer.add_loop(_loop_id, weapon.loop_file_path, "Weapons", 0.0, true)
+		var bus: String = "Enemies" if is_enemy else "Weapons"
+		LoopMixer.add_loop(_loop_id, weapon.loop_file_path, bus, 0.0, true)
 
 
 ## Setup from a raw Dictionary (e.g. from weapons_tab editor).
