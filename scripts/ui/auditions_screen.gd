@@ -112,76 +112,87 @@ func _build_warp_grid() -> void:
 	flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_warp_content.add_child(flow)
 
-	# Light Speed variations: [name, cfg dictionary]
-	# cfg keys: color, charge_time (0-1 of dur), streak_density, glow_max,
-	#           exit_speed, stretch_y, squeeze_x, trail_fade, aftereffect
+	# All cyan, all ~1.3s. Sendoff fires mid-exit (ship is moving but still visible).
+	var C: Color = Color(0.3, 0.7, 1.0)
 	var variants: Array = [
-		["CLASSIC CYAN", {
-			"color": Color(0.3, 0.7, 1.0), "dur": 2.2,
-			"charge": 0.45, "glow_max": 3.5, "stretch_y": 3.0, "squeeze_x": 0.35,
-			"exit_accel": 3.0, "streak_density": 0.4, "trail_size": 1.5,
-			"aftereffect": "none",
+		["CLEAN", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "none",
 		}],
-		["HOT WHITE", {
-			"color": Color(1.0, 1.0, 1.0), "dur": 1.6,
-			"charge": 0.3, "glow_max": 5.0, "stretch_y": 4.0, "squeeze_x": 0.2,
-			"exit_accel": 4.0, "streak_density": 0.6, "trail_size": 1.0,
-			"aftereffect": "flash",
+		["FLASH", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "flash",
 		}],
-		["NEON MAGENTA", {
-			"color": Color(1.0, 0.15, 0.7), "dur": 2.4,
-			"charge": 0.5, "glow_max": 4.0, "stretch_y": 2.5, "squeeze_x": 0.4,
-			"exit_accel": 2.5, "streak_density": 0.35, "trail_size": 2.0,
-			"aftereffect": "embers",
+		["SOFT FLASH", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 3.5,
+			"stretch_y": 3.0, "squeeze_x": 0.35, "exit_accel": 3.5,
+			"streak_density": 0.45, "trail_size": 1.5,
+			"sendoff": "flash_soft",
 		}],
-		["SLOW BURN GOLD", {
-			"color": Color(1.0, 0.75, 0.15), "dur": 3.2,
-			"charge": 0.6, "glow_max": 3.0, "stretch_y": 2.0, "squeeze_x": 0.5,
-			"exit_accel": 2.0, "streak_density": 0.25, "trail_size": 2.5,
-			"aftereffect": "embers",
+		["RING", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "ring",
 		}],
-		["INSTANT SNAP", {
-			"color": Color(0.6, 0.9, 1.0), "dur": 1.0,
-			"charge": 0.15, "glow_max": 6.0, "stretch_y": 5.0, "squeeze_x": 0.1,
-			"exit_accel": 6.0, "streak_density": 0.7, "trail_size": 0.8,
-			"aftereffect": "flash",
+		["DOUBLE RING", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "double_ring",
 		}],
-		["VOID PURPLE", {
-			"color": Color(0.5, 0.1, 1.0), "dur": 2.6,
-			"charge": 0.5, "glow_max": 3.5, "stretch_y": 3.5, "squeeze_x": 0.3,
-			"exit_accel": 3.0, "streak_density": 0.3, "trail_size": 2.0,
-			"aftereffect": "ripple",
+		["SHOCKWAVE", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "shockwave",
 		}],
-		["EMERALD SURGE", {
-			"color": Color(0.1, 1.0, 0.5), "dur": 2.0,
-			"charge": 0.4, "glow_max": 3.5, "stretch_y": 3.0, "squeeze_x": 0.35,
-			"exit_accel": 3.5, "streak_density": 0.45, "trail_size": 1.5,
-			"aftereffect": "scatter",
+		["SCATTER", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "scatter",
 		}],
-		["HEAVY WARP", {
-			"color": Color(0.4, 0.5, 1.0), "dur": 3.0,
-			"charge": 0.55, "glow_max": 2.5, "stretch_y": 2.0, "squeeze_x": 0.55,
-			"exit_accel": 1.8, "streak_density": 0.5, "trail_size": 3.0,
-			"aftereffect": "shockwave",
+		["EMBERS", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "embers",
 		}],
-		["SOLAR FLARE", {
-			"color": Color(1.0, 0.5, 0.05), "dur": 1.8,
-			"charge": 0.35, "glow_max": 5.0, "stretch_y": 4.0, "squeeze_x": 0.25,
-			"exit_accel": 4.5, "streak_density": 0.55, "trail_size": 1.2,
-			"aftereffect": "embers",
+		["RING + SCATTER", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "ring_scatter",
 		}],
-		["GHOST TRAIL", {
-			"color": Color(0.6, 0.8, 0.9), "dur": 2.8,
-			"charge": 0.5, "glow_max": 2.0, "stretch_y": 1.8, "squeeze_x": 0.6,
-			"exit_accel": 2.0, "streak_density": 0.15, "trail_size": 2.0,
-			"aftereffect": "ghosts",
+		["FLASH + RING", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "flash_ring",
+		}],
+		["SHOCKWAVE + EMBERS", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "shockwave_embers",
+		}],
+		["THE WORKS", {
+			"dur": 1.3, "charge": 0.35, "glow_max": 4.0,
+			"stretch_y": 3.5, "squeeze_x": 0.3, "exit_accel": 3.5,
+			"streak_density": 0.5, "trail_size": 1.2,
+			"sendoff": "the_works",
 		}],
 	]
 
 	for i in variants.size():
 		var def: Array = variants[i]
 		var cell := _WarpCell.new()
-		cell.setup(i, str(def[0]), def[1] as Dictionary)
+		cell.setup(i, str(def[0]), C, def[1] as Dictionary)
 		flow.add_child(cell)
 
 
@@ -298,13 +309,13 @@ func _input(event: InputEvent) -> void:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Light Speed warp cell — parameterized variation with aftereffects
+# Light Speed warp cell — sendoff fires AT exit start, not after
 # ═══════════════════════════════════════════════════════════════════════
 
 class _WarpCell extends VBoxContainer:
 	const SHIP_HOME: Vector2 = Vector2(175.0, 160.0)
-	const IDLE_DUR: float = 0.8
-	const BLANK_DUR: float = 0.8
+	const IDLE_DUR: float = 0.7
+	const BLANK_DUR: float = 0.9
 	const W: int = 350
 	const H: int = 270
 
@@ -312,37 +323,35 @@ class _WarpCell extends VBoxContainer:
 	var _label_name: String = ""
 	var _dur: float = 2.0
 	var _color: Color = Color.CYAN
-	var _charge: float = 0.45
+	var _charge: float = 0.4
 	var _glow_max: float = 3.5
 	var _stretch_y: float = 3.0
 	var _squeeze_x: float = 0.35
 	var _exit_accel: float = 3.0
 	var _streak_density: float = 0.4
 	var _trail_size: float = 1.5
-	var _aftereffect: String = "none"
+	var _sendoff: String = "none"
 
 	var _vp: SubViewport
 	var _ship: ShipRenderer
 	var _fx: _FXLayer
 	var _time: float = 0.0
-	var _phase: int = 0
-	# Ghost trail state
-	var _ghost_positions: Array = []
+	var _sendoff_fired: bool = false
 
-	func setup(idx: int, ename: String, cfg: Dictionary) -> void:
+	func setup(idx: int, ename: String, col: Color, cfg: Dictionary) -> void:
 		_idx = idx
 		_label_name = ename
+		_color = col
 		_dur = float(cfg.get("dur", 2.0))
-		_color = cfg.get("color", Color.CYAN) as Color
-		_charge = float(cfg.get("charge", 0.45))
+		_charge = float(cfg.get("charge", 0.4))
 		_glow_max = float(cfg.get("glow_max", 3.5))
 		_stretch_y = float(cfg.get("stretch_y", 3.0))
 		_squeeze_x = float(cfg.get("squeeze_x", 0.35))
 		_exit_accel = float(cfg.get("exit_accel", 3.0))
 		_streak_density = float(cfg.get("streak_density", 0.4))
 		_trail_size = float(cfg.get("trail_size", 1.5))
-		_aftereffect = str(cfg.get("aftereffect", "none"))
-		_time = float(idx) * 0.35
+		_sendoff = str(cfg.get("sendoff", "none"))
+		_time = float(idx) * 0.3
 
 	func _ready() -> void:
 		_build()
@@ -405,7 +414,7 @@ class _WarpCell extends VBoxContainer:
 
 		if _time >= IDLE_DUR and _time < IDLE_DUR + _dur:
 			var p: float = (_time - IDLE_DUR) / maxf(_dur, 0.01)
-			_run_light_speed(p, delta)
+			_run(p, delta)
 		elif _time >= IDLE_DUR + _dur:
 			_ship.visible = false
 
@@ -416,10 +425,9 @@ class _WarpCell extends VBoxContainer:
 		_ship.position = SHIP_HOME
 		_ship.scale = Vector2.ONE
 		_ship.modulate = Color.WHITE
-		_phase = 0
+		_sendoff_fired = false
 		_fx.particles.clear()
 		_fx.shapes.clear()
-		_ghost_positions.clear()
 
 	func _tick_particles(delta: float) -> void:
 		var i: int = _fx.particles.size() - 1
@@ -432,188 +440,277 @@ class _WarpCell extends VBoxContainer:
 				var pos: Vector2 = pt["p"]
 				var vel: Vector2 = pt["v"]
 				pt["p"] = pos + vel * delta
+				# Apply drag if present
+				if pt.has("drag"):
+					var d: float = float(pt["drag"])
+					pt["v"] = vel * (1.0 - d * delta)
 			i -= 1
 
 	func _emit(pos: Vector2, vel: Vector2, life: float, col: Color, sz: float) -> void:
 		if _fx.particles.size() < 80:
 			_fx.particles.append({"p": pos, "v": vel, "l": life, "ml": life, "c": col, "s": sz})
 
-	func _hdr(mult: float) -> Color:
-		return Color(_color.r * mult, _color.g * mult, _color.b * mult)
+	func _emit_drag(pos: Vector2, vel: Vector2, life: float, col: Color, sz: float, drag: float) -> void:
+		if _fx.particles.size() < 80:
+			_fx.particles.append({"p": pos, "v": vel, "l": life, "ml": life, "c": col, "s": sz, "drag": drag})
 
-	func _hdr_a(mult: float, a: float) -> Color:
+	func _hdr(mult: float, a: float) -> Color:
 		return Color(_color.r * mult, _color.g * mult, _color.b * mult, a)
 
-	# ── Light Speed core effect with parameterized aftereffects ──────
+	# ── Main effect: charge → exit (sendoff at ~40% through exit) → linger ──
 
-	func _run_light_speed(p: float, dt: float) -> void:
-		# Phase 1: Charge — stretch + squeeze + glow + ambient streaks
+	func _run(p: float, dt: float) -> void:
+		# Phase 1: Charge
 		if p < _charge:
 			var t: float = p / _charge
 			var ease_t: float = t * t
-			# Ship deformation
-			var sy: float = 1.0 + ease_t * (_stretch_y - 1.0)
-			var sx: float = 1.0 - ease_t * (1.0 - _squeeze_x)
-			_ship.scale = Vector2(sx, sy)
-			# Glow ramp
+			_ship.scale = Vector2(
+				1.0 - ease_t * (1.0 - _squeeze_x),
+				1.0 + ease_t * (_stretch_y - 1.0))
 			var glow: float = 1.0 + ease_t * (_glow_max - 1.0)
 			_ship.modulate = Color(
 				lerpf(1.0, _color.r * glow, ease_t),
 				lerpf(1.0, _color.g * glow, ease_t),
 				lerpf(1.0, _color.b * glow, ease_t))
-			# Ambient streak lines
+			# Ambient streaks
 			if randf() < t * _streak_density:
 				var x_off: float = randf_range(-35.0, 35.0)
 				_emit(Vector2(SHIP_HOME.x + x_off, float(H)),
 					Vector2(0.0, -randf_range(180.0, 350.0)),
-					0.3, _hdr_a(1.5, 0.4), _trail_size * 0.7)
-			# Record ghost position for ghost trail aftereffect
-			if _aftereffect == "ghosts" and fmod(_time, 0.08) < dt:
-				_ghost_positions.append({"pos": Vector2(_ship.position), "scale": Vector2(_ship.scale),
-					"alpha": 0.5})
+					0.3, _hdr(1.5, 0.4), _trail_size * 0.7)
+			return
 
-		# Phase 2: Exit — shoot upward
-		elif p < _charge + (1.0 - _charge) * 0.6:
-			var exit_start: float = _charge
-			var exit_end: float = _charge + (1.0 - _charge) * 0.6
-			var t: float = (p - exit_start) / (exit_end - exit_start)
+		# Phase 2: Exit — ship dashes upward
+		var exit_frac: float = 0.55
+		var exit_end: float = _charge + (1.0 - _charge) * exit_frac
+		var sendoff_trigger: float = 0.4  # fire sendoff at 40% through exit
+
+		if p < exit_end:
+			var t: float = (p - _charge) / (exit_end - _charge)
 			var ease_t: float = pow(t, _exit_accel)
-			# Fully deformed
-			_ship.scale = Vector2(_squeeze_x * (1.0 - t * 0.5), _stretch_y + t * (_stretch_y * 0.5))
+
+			_ship.scale = Vector2(
+				_squeeze_x * (1.0 - t * 0.5),
+				_stretch_y + t * (_stretch_y * 0.5))
 			_ship.position.y = SHIP_HOME.y - ease_t * 500.0
-			# Max glow, fading out
 			_ship.modulate = Color(
-				_color.r * _glow_max, _color.g * _glow_max, _color.b * _glow_max,
+				_color.r * _glow_max,
+				_color.g * _glow_max,
+				_color.b * _glow_max,
 				1.0 - t * 0.8)
-			# Heavy trail particles
+
+			# Trail particles
 			if randf() < _streak_density + 0.2:
 				_emit(Vector2(_ship.position.x + randf_range(-5.0, 5.0), _ship.position.y + 25.0),
 					Vector2(randf_range(-8.0, 8.0), randf_range(60.0, 150.0)),
-					0.3, _hdr_a(2.5, 0.6), _trail_size)
-			# Side streaks
+					0.3, _hdr(2.5, 0.6), _trail_size)
 			if randf() < 0.4:
-				var x: float = SHIP_HOME.x + randf_range(-3.0, 3.0)
-				_emit(Vector2(x, _ship.position.y + 40.0),
-					Vector2(0.0, 100.0), 0.2, _hdr_a(1.8, 0.3), _trail_size * 0.6)
-			# Record ghost
-			if _aftereffect == "ghosts" and fmod(_time, 0.04) < dt:
-				_ghost_positions.append({"pos": Vector2(_ship.position), "scale": Vector2(_ship.scale),
-					"alpha": 0.4})
+				_emit(Vector2(SHIP_HOME.x + randf_range(-3.0, 3.0), _ship.position.y + 40.0),
+					Vector2(0.0, 100.0), 0.2, _hdr(1.8, 0.3), _trail_size * 0.6)
 
-		# Phase 3: Aftereffect — ship gone, aftermath plays
+			# Sendoff fires once at 40% through exit (ship moving but still on screen)
+			if t >= sendoff_trigger and not _sendoff_fired:
+				_sendoff_fired = true
+				_fire_sendoff()
+
+			# Sendoff shapes (only draw after sendoff has fired)
+			if _sendoff_fired:
+				var sendoff_t: float = (t - sendoff_trigger) / (1.0 - sendoff_trigger)
+				_draw_sendoff_shapes(sendoff_t)
+
 		else:
+			# Phase 3: Linger
 			_ship.visible = false
-			var after_start: float = _charge + (1.0 - _charge) * 0.6
-			var after_t: float = (p - after_start) / (1.0 - after_start)
+			var t: float = (p - exit_end) / (1.0 - exit_end)
+			_draw_sendoff_shapes_fade(t)
 
-			match _aftereffect:
-				"flash":
-					_after_flash(after_t)
-				"embers":
-					_after_embers(after_t)
-				"ripple":
-					_after_ripple(after_t)
-				"scatter":
-					_after_scatter(after_t)
-				"shockwave":
-					_after_shockwave(after_t)
-				"ghosts":
-					_after_ghosts(after_t)
-				_:
-					pass  # "none" — just lingering particles
+	# ── Sendoff: one-time particle burst at exit start ───────────────
 
-	# ── Aftereffect: FLASH — bright whiteout that fades ──────────────
+	func _fire_sendoff() -> void:
+		match _sendoff:
+			"flash":
+				for i in 6:
+					var angle: float = randf() * TAU
+					_emit_drag(SHIP_HOME,
+						Vector2(cos(angle), sin(angle)) * randf_range(25.0, 55.0),
+						0.4, _hdr(4.0, 0.8), 2.5, 2.0)
+			"flash_soft":
+				for i in 4:
+					var angle: float = randf() * TAU
+					_emit_drag(SHIP_HOME,
+						Vector2(cos(angle), sin(angle)) * randf_range(15.0, 35.0),
+						0.5, _hdr(2.5, 0.6), 2.0, 2.5)
+			"ring", "double_ring":
+				pass  # drawn as shapes only
+			"shockwave", "shockwave_embers":
+				for i in 10:
+					var angle: float = randf() * TAU
+					_emit_drag(SHIP_HOME,
+						Vector2(cos(angle), sin(angle)) * randf_range(40.0, 100.0),
+						0.6, _hdr(2.5, 0.6), 1.8, 1.5)
+				if _sendoff == "shockwave_embers":
+					for i in 6:
+						var angle: float = randf_range(0.5, 2.65)
+						_emit(SHIP_HOME + Vector2(randf_range(-10.0, 10.0), 0.0),
+							Vector2(cos(angle), sin(angle)) * randf_range(12.0, 30.0),
+							randf_range(0.9, 1.5), _hdr(2.0, 0.5), randf_range(2.0, 3.0))
+			"scatter":
+				for i in 12:
+					var angle: float = randf_range(0.8, 2.35)
+					_emit_drag(SHIP_HOME,
+						Vector2(cos(angle), sin(angle)) * randf_range(60.0, 160.0),
+						0.5, _hdr(3.0, 0.7), randf_range(1.5, 2.5), 1.8)
+			"embers":
+				for i in 8:
+					var angle: float = randf_range(0.5, 2.65)
+					_emit(SHIP_HOME + Vector2(randf_range(-12.0, 12.0), 0.0),
+						Vector2(cos(angle), sin(angle)) * randf_range(15.0, 40.0),
+						randf_range(0.8, 1.4), _hdr(2.5, 0.6), randf_range(1.8, 3.0))
+			"ring_scatter":
+				for i in 10:
+					var angle: float = randf_range(0.6, 2.55)
+					_emit_drag(SHIP_HOME,
+						Vector2(cos(angle), sin(angle)) * randf_range(50.0, 130.0),
+						0.5, _hdr(3.0, 0.7), 2.0, 1.5)
+			"flash_ring":
+				for i in 5:
+					var angle: float = randf() * TAU
+					_emit_drag(SHIP_HOME,
+						Vector2(cos(angle), sin(angle)) * randf_range(20.0, 45.0),
+						0.4, _hdr(3.5, 0.7), 2.0, 2.0)
+			"the_works":
+				# Flash particles
+				for i in 5:
+					var angle: float = randf() * TAU
+					_emit_drag(SHIP_HOME,
+						Vector2(cos(angle), sin(angle)) * randf_range(25.0, 50.0),
+						0.4, _hdr(4.0, 0.8), 2.5, 2.0)
+				# Scatter cone
+				for i in 8:
+					var angle: float = randf_range(0.7, 2.45)
+					_emit_drag(SHIP_HOME,
+						Vector2(cos(angle), sin(angle)) * randf_range(50.0, 120.0),
+						0.5, _hdr(2.5, 0.6), 1.8, 1.5)
+				# Embers
+				for i in 5:
+					var angle: float = randf_range(0.5, 2.65)
+					_emit(SHIP_HOME + Vector2(randf_range(-10.0, 10.0), 0.0),
+						Vector2(cos(angle), sin(angle)) * randf_range(12.0, 30.0),
+						randf_range(0.9, 1.5), _hdr(2.0, 0.5), randf_range(2.0, 3.0))
 
-	func _after_flash(t: float) -> void:
-		if t < 0.4:
-			var intensity: float = (0.4 - t) / 0.4
-			_fx.shapes.append([0, SHIP_HOME, 60.0 + t * 100.0,
-				Color(_color.r * 4.0, _color.g * 4.0, _color.b * 4.0, intensity * 0.35)])
-			_fx.shapes.append([0, SHIP_HOME, 20.0 + t * 30.0,
-				Color(1.0, 1.0, 1.0, intensity * 0.2)])
+	# ── Sendoff: shapes drawn during exit (concurrent with dash) ─────
 
-	# ── Aftereffect: EMBERS — warm particles drift upward ────────────
+	func _draw_sendoff_shapes(t: float) -> void:
+		# t goes 0→1 from sendoff trigger to end of exit phase
+		match _sendoff:
+			"flash":
+				if t < 0.5:
+					var i: float = (0.5 - t) / 0.5
+					_fx.shapes.append([0, SHIP_HOME, 25.0 + t * 60.0, _hdr(4.0, i * 0.25)])
+					_fx.shapes.append([0, SHIP_HOME, 10.0 + t * 20.0, Color(1.0, 1.0, 1.0, i * 0.15)])
+			"flash_soft":
+				if t < 0.6:
+					var i: float = (0.6 - t) / 0.6
+					_fx.shapes.append([0, SHIP_HOME, 20.0 + t * 40.0, _hdr(2.5, i * 0.2)])
+			"ring":
+				var radius: float = t * 90.0
+				var alpha: float = (1.0 - t) * 0.7
+				if alpha > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 48, _hdr(3.0, alpha), 2.5])
+			"double_ring":
+				var r1: float = t * 90.0
+				var r2: float = maxf(t - 0.15, 0.0) / 0.85 * 70.0
+				var a1: float = (1.0 - t) * 0.7
+				var a2: float = (1.0 - minf(t + 0.15, 1.0)) * 0.5
+				if a1 > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(3.0, a1), 2.5])
+				if r2 > 1.0 and a2 > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(2.0, a2), 1.5])
+			"shockwave", "shockwave_embers":
+				var radius: float = t * 120.0
+				var alpha: float = (1.0 - t) * 0.6
+				_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 64, _hdr(3.0, alpha), 3.5])
+				_fx.shapes.append([1, SHIP_HOME, radius * 0.8, 0.0, TAU, 48, _hdr(2.0, alpha * 0.3), 1.5])
+				if t < 0.2:
+					_fx.shapes.append([0, SHIP_HOME, 25.0 + t * 40.0,
+						Color(1.0, 1.0, 1.0, (0.2 - t) / 0.2 * 0.15)])
+			"ring_scatter":
+				var radius: float = t * 80.0
+				var alpha: float = (1.0 - t) * 0.6
+				if alpha > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 48, _hdr(2.5, alpha), 2.0])
+			"flash_ring":
+				# Flash
+				if t < 0.5:
+					var i: float = (0.5 - t) / 0.5
+					_fx.shapes.append([0, SHIP_HOME, 20.0 + t * 50.0, _hdr(3.5, i * 0.2)])
+				# Ring
+				var radius: float = t * 85.0
+				var alpha: float = (1.0 - t) * 0.6
+				if alpha > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 48, _hdr(2.5, alpha), 2.0])
+			"the_works":
+				# Flash
+				if t < 0.4:
+					var i: float = (0.4 - t) / 0.4
+					_fx.shapes.append([0, SHIP_HOME, 25.0 + t * 55.0, _hdr(4.0, i * 0.2)])
+				# Double ring
+				var r1: float = t * 100.0
+				var r2: float = maxf(t - 0.12, 0.0) / 0.88 * 75.0
+				var a1: float = (1.0 - t) * 0.6
+				var a2: float = (1.0 - minf(t + 0.12, 1.0)) * 0.4
+				if a1 > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(3.0, a1), 2.5])
+				if r2 > 1.0 and a2 > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(2.0, a2), 1.5])
+			_:
+				pass
 
-	func _after_embers(t: float) -> void:
-		if t < 0.5 and randf() < 0.3:
-			var spawn: Vector2 = SHIP_HOME + Vector2(randf_range(-20.0, 20.0), randf_range(-10.0, 10.0))
-			var warmth: float = randf()
-			var col: Color
-			if warmth < 0.4:
-				col = Color(_color.r * 2.5, _color.g * 0.8, _color.b * 0.3, 0.7)
-			else:
-				col = Color(_color.r * 2.0, _color.g * 1.8, _color.b * 0.5, 0.6)
-			_emit(spawn, Vector2(randf_range(-12.0, 12.0), randf_range(-50.0, -20.0)),
-				randf_range(0.6, 1.2), col, randf_range(1.5, 3.0))
+	# ── Sendoff: lingering shapes after ship is gone ─────────────────
 
-	# ── Aftereffect: RIPPLE — expanding rings from departure point ───
-
-	func _after_ripple(t: float) -> void:
-		for i in 3:
-			var ring_t: float = t - float(i) * 0.12
-			if ring_t < 0.0 or ring_t > 0.7:
-				continue
-			var norm_t: float = ring_t / 0.7
-			var radius: float = norm_t * 100.0
-			var alpha: float = (1.0 - norm_t) * 0.5
-			_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 48,
-				_hdr_a(2.5, alpha), 2.0])
-
-	# ── Aftereffect: SCATTER — burst of particles in all directions ──
-
-	func _after_scatter(t: float) -> void:
-		if _phase == 0:
-			_phase = 1
-			for i in 16:
-				var angle: float = randf() * TAU
-				var speed: float = randf_range(60.0, 180.0)
-				_emit(SHIP_HOME, Vector2(cos(angle), sin(angle)) * speed,
-					0.6, _hdr_a(3.0, 0.8), randf_range(1.5, 3.0))
-
-	# ── Aftereffect: SHOCKWAVE — heavy expanding ring + screen shake particles
-
-	func _after_shockwave(t: float) -> void:
-		if t < 0.6:
-			var radius: float = t / 0.6 * 140.0
-			var alpha: float = (0.6 - t) / 0.6
-			_fx.shapes.append([1, SHIP_HOME, radius, 0.0, TAU, 64,
-				_hdr_a(3.0, alpha * 0.7), 3.5])
-			_fx.shapes.append([1, SHIP_HOME, radius * 0.85, 0.0, TAU, 48,
-				_hdr_a(2.0, alpha * 0.3), 1.5])
-			# Inner flash
-			if t < 0.2:
-				var flash_a: float = (0.2 - t) / 0.2
-				_fx.shapes.append([0, SHIP_HOME, 30.0 + t * 50.0,
-					Color(1.0, 1.0, 1.0, flash_a * 0.15)])
-		if _phase == 0:
-			_phase = 1
-			for i in 12:
-				var angle: float = randf() * TAU
-				_emit(SHIP_HOME, Vector2(cos(angle), sin(angle)) * randf_range(30.0, 80.0),
-					0.5, _hdr_a(2.0, 0.5), 1.5)
-
-	# ── Aftereffect: GHOSTS — fading afterimages along the exit path ─
-
-	func _after_ghosts(t: float) -> void:
-		# Draw fading ghost silhouettes from recorded positions
-		var fade_base: float = 1.0 - t
-		for gi in _ghost_positions.size():
-			var ghost: Dictionary = _ghost_positions[gi]
-			var pos: Vector2 = ghost["pos"]
-			var alpha: float = float(ghost["alpha"]) * fade_base * 0.6
-			if alpha < 0.02:
-				continue
-			# Simple ghost: bright elongated rectangle representing stretched ship
-			var gscale: Vector2 = ghost["scale"]
-			var ghost_h: float = 20.0 * gscale.y
-			var ghost_w: float = 8.0 * gscale.x
-			_fx.shapes.append([3,
-				Rect2(pos.x - ghost_w * 0.5, pos.y - ghost_h * 0.5, ghost_w, ghost_h),
-				_hdr_a(2.0, alpha)])
+	func _draw_sendoff_shapes_fade(t: float) -> void:
+		# t goes 0→1 during linger phase (ship already gone)
+		match _sendoff:
+			"ring":
+				var r: float = 90.0 + t * 30.0
+				var a: float = (1.0 - t) * 0.3
+				if a > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r, 0.0, TAU, 48, _hdr(2.0, a), 2.0])
+			"double_ring":
+				var r1: float = 90.0 + t * 25.0
+				var r2: float = 70.0 + t * 20.0
+				var a: float = (1.0 - t) * 0.25
+				if a > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(2.0, a), 2.0])
+					_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(1.5, a * 0.6), 1.5])
+			"shockwave", "shockwave_embers":
+				var r: float = 120.0 + t * 40.0
+				var a: float = (1.0 - t) * 0.2
+				if a > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r, 0.0, TAU, 64, _hdr(2.0, a), 2.5])
+			"ring_scatter":
+				var r: float = 80.0 + t * 25.0
+				var a: float = (1.0 - t) * 0.2
+				if a > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r, 0.0, TAU, 48, _hdr(1.5, a), 1.5])
+			"flash_ring":
+				var r: float = 85.0 + t * 25.0
+				var a: float = (1.0 - t) * 0.25
+				if a > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r, 0.0, TAU, 48, _hdr(2.0, a), 2.0])
+			"the_works":
+				var r1: float = 100.0 + t * 30.0
+				var r2: float = 75.0 + t * 20.0
+				var a: float = (1.0 - t) * 0.2
+				if a > 0.01:
+					_fx.shapes.append([1, SHIP_HOME, r1, 0.0, TAU, 48, _hdr(2.0, a), 2.0])
+					_fx.shapes.append([1, SHIP_HOME, r2, 0.0, TAU, 36, _hdr(1.5, a * 0.5), 1.5])
+			_:
+				pass
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# FX drawing layer — renders shapes and particles via _draw()
+# FX drawing layer
 # ═══════════════════════════════════════════════════════════════════════
 
 class _FXLayer extends Node2D:

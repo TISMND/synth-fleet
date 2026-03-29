@@ -517,24 +517,7 @@ func _refresh_header_preview() -> void:
 		_header_preview_label.add_theme_font_override("font", font)
 	_header_preview_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	_header_preview_label.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	ThemeManager.apply_text_glow(_header_preview_label, "header")
-
-	# HDR bloom: overlay a ColorRect behind the label with color > 1.0
-	var existing_glow: ColorRect = _header_preview_label.get_node_or_null("HdrGlow") as ColorRect
-	var hdr_val: float = ThemeManager.get_float("header_hdr_bloom")
-	if hdr_val <= 0.0:
-		if existing_glow:
-			existing_glow.queue_free()
-		return
-	if not existing_glow:
-		existing_glow = ColorRect.new()
-		existing_glow.name = "HdrGlow"
-		existing_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		existing_glow.set_anchors_preset(Control.PRESET_FULL_RECT)
-		existing_glow.show_behind_parent = true
-		_header_preview_label.add_child(existing_glow)
-	var base_color: Color = ThemeManager.get_color("header")
-	existing_glow.color = Color(base_color.r * hdr_val, base_color.g * hdr_val, base_color.b * hdr_val, 0.3)
+	ThemeManager.apply_header_style(_header_preview_label)
 
 
 # ── Slider builder ──────────────────────────────────────────

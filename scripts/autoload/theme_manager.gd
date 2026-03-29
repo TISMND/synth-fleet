@@ -530,6 +530,15 @@ func apply_supercharged_bar(bar: ProgressBar, fill_color: Color, value_ratio: fl
 var _text_glow_shader: Shader = null
 
 func apply_text_glow(label: Label, prefix: String) -> void:
+	# Header text routes through apply_header_style for HDR bloom support.
+	if prefix == "header":
+		apply_header_style(label)
+		return
+	_apply_text_glow_raw(label, prefix)
+
+
+func _apply_text_glow_raw(label: Label, prefix: String) -> void:
+	## Internal: applies rect-based text glow shader directly (no HDR redirect).
 	var ii: float = get_float(prefix + "_inner_intensity")
 	var as_val: float = get_float(prefix + "_aura_size")
 	var ai: float = get_float(prefix + "_aura_intensity")
@@ -567,14 +576,18 @@ func apply_text_glow(label: Label, prefix: String) -> void:
 var _text_chrome_shader: Shader = null
 
 func apply_header_chrome(label: Label) -> void:
+	# If HDR bloom is active, it takes priority over chrome.
+	if get_float("header_hdr_bloom") > 0.0:
+		apply_header_style(label)
+		return
 	if get_float("header_chrome_enabled") <= 0.0:
-		apply_text_glow(label, "header")
+		_apply_text_glow_raw(label, "header")
 		return
 
 	if not _text_chrome_shader:
 		_text_chrome_shader = load("res://assets/shaders/text_chrome.gdshader") as Shader
 	if not _text_chrome_shader:
-		apply_text_glow(label, "header")
+		_apply_text_glow_raw(label, "header")
 		return
 
 	var mat: ShaderMaterial
@@ -603,6 +616,32 @@ func apply_header_chrome(label: Label) -> void:
 	mat.set_shader_parameter("chrome_base_brightness", get_float("header_chrome_base_brightness"))
 	mat.set_shader_parameter("chrome_top_brightness", get_float("header_chrome_top_brightness"))
 	mat.set_shader_parameter("chrome_tint", get_color("chrome_tint"))
+
+
+# ── Header Style Helper (HDR bloom vs shader glow) ──────────
+
+var _text_hdr_shader: Shader = null
+
+func apply_header_style(label: Label) -> void:
+	## Applies the best available header effect. If header_hdr_bloom > 0,
+	## uses the HDR text shader for real WorldEnvironment bloom.
+	## Otherwise falls back to apply_header_chrome / apply_text_glow.
+	var hdr_val: float = get_float("header_hdr_bloom")
+	if hdr_val > 0.0:
+		if not _text_hdr_shader:
+			_text_hdr_shader = load("res://assets/shaders/text_hdr.gdshader") as Shader
+		if _text_hdr_shader:
+			var mat: ShaderMaterial
+			if label.material is ShaderMaterial:
+				mat = label.material as ShaderMaterial
+			else:
+				mat = ShaderMaterial.new()
+			mat.shader = _text_hdr_shader
+			mat.set_shader_parameter("hdr_multiplier", 1.0 + hdr_val)
+			label.material = mat
+			return
+	# Fallback: chrome or rect-based glow
+	apply_header_chrome(label)
 
 
 # ── Button Style Helper ──────────────────────────────────────
