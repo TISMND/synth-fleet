@@ -801,6 +801,7 @@ func _process(delta: float) -> void:
 		_hud.process_shield_arcs(delta)
 		_hud.process_fire_effect(delta)
 		_hud.update_credits(GameState.credits)
+		_hud.update_cargo_counter(delta)
 		if not _player._drifting and not _player._blackout_active:
 			_update_warning_rotator(delta)
 	# Mouse navigation indicator

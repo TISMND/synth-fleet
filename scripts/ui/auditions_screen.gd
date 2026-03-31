@@ -227,6 +227,11 @@ func _on_trigger_event_preview(event_id: String) -> void:
 	tw.tween_callback(flash.queue_free)
 
 
+var _synthwave_presets: Array[Dictionary] = []
+var _synthwave_preset_idx: int = 0
+var _synthwave_preset_label: Label
+
+
 func _build_synthwave_content() -> void:
 	_synthwave_rect = ColorRect.new()
 	_synthwave_rect.color = Color.WHITE
@@ -238,6 +243,236 @@ func _build_synthwave_content() -> void:
 		var mat := ShaderMaterial.new()
 		mat.shader = shader
 		_synthwave_rect.material = mat
+
+	_init_synthwave_presets()
+
+	# ── Left control panel ──
+	var panel_bg := ColorRect.new()
+	panel_bg.color = Color(0.0, 0.0, 0.0, 0.55)
+	panel_bg.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	panel_bg.offset_right = 310
+	panel_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_synthwave_content.add_child(panel_bg)
+
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	scroll.offset_left = 10
+	scroll.offset_top = 10
+	scroll.offset_right = 300
+	scroll.offset_bottom = -10
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_synthwave_content.add_child(scroll)
+
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 4)
+	scroll.add_child(vbox)
+
+	# Preset nav row
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 8)
+	vbox.add_child(bar)
+	var prev_btn := Button.new()
+	prev_btn.text = "<"
+	prev_btn.pressed.connect(_synthwave_prev)
+	bar.add_child(prev_btn)
+	ThemeManager.apply_button_style(prev_btn)
+	_synthwave_preset_label = Label.new()
+	_synthwave_preset_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_synthwave_preset_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ThemeManager.apply_text_glow(_synthwave_preset_label, "header")
+	bar.add_child(_synthwave_preset_label)
+	var next_btn := Button.new()
+	next_btn.text = ">"
+	next_btn.pressed.connect(_synthwave_next)
+	bar.add_child(next_btn)
+	ThemeManager.apply_button_style(next_btn)
+
+	vbox.add_child(HSeparator.new())
+
+	# ── SUN ──
+	_sw_section(vbox, "SUN")
+	_sw_slider(vbox, "sun_glow", "Glow HDR", 0.0, 2.0, 0.6)
+	_sw_slider(vbox, "sun_size", "Size", 0.04, 0.22, 0.13)
+	_sw_slider(vbox, "sun_x", "Position X", 0.35, 0.85, 0.63)
+	_sw_color(vbox, "sun_color_top", "Top Color", Color(1.0, 0.95, 0.4))
+	_sw_color(vbox, "sun_color_bot", "Bottom Color", Color(1.0, 0.2, 0.08))
+
+	vbox.add_child(HSeparator.new())
+
+	# ── GRID ──
+	_sw_section(vbox, "GRID")
+	_sw_slider(vbox, "grid_core_brightness", "Core HDR", 1.0, 12.0, 6.0)
+	_sw_slider(vbox, "grid_bloom_brightness", "Bloom HDR", 0.5, 8.0, 3.0)
+	_sw_slider(vbox, "grid_line_w", "Line Width", 0.001, 0.03, 0.008)
+	_sw_slider(vbox, "grid_bloom_w", "Bloom Width", 0.01, 0.15, 0.06)
+	_sw_color(vbox, "grid_color", "Grid Color", Color(1.0, 0.08, 0.52))
+	_sw_slider(vbox, "scroll_speed", "Scroll Speed", 0.0, 2.0, 0.5)
+	_sw_slider(vbox, "grid_freq", "Frequency", 0.5, 5.0, 2.0)
+
+	vbox.add_child(HSeparator.new())
+
+	# ── SKY ──
+	_sw_section(vbox, "SKY")
+	_sw_slider(vbox, "nebula_intensity", "Nebula", 0.0, 0.5, 0.12)
+	_sw_slider(vbox, "star_cutoff", "Star Density", 0.85, 0.99, 0.94)
+	_sw_slider(vbox, "shooting_star_rate", "Shooting Stars", 0.0, 1.0, 0.4)
+	_sw_slider(vbox, "light_brightness", "Motion Lights", 0.0, 3.0, 0.5)
+	_sw_slider(vbox, "light_speed", "Light Speed", 0.05, 2.0, 0.5)
+	_sw_slider(vbox, "horizon", "Horizon", 0.3, 0.65, 0.5)
+	_sw_color(vbox, "accent_color", "Nebula Color", Color(0.1, 0.8, 1.0))
+
+	_apply_synthwave_preset(0)
+
+
+func _sw_section(parent: VBoxContainer, title: String) -> void:
+	var label := Label.new()
+	label.text = title
+	label.add_theme_font_size_override("font_size", 14)
+	ThemeManager.apply_text_glow(label, "header")
+	var header_font: Font = ThemeManager.get_font("font_header")
+	if header_font:
+		label.add_theme_font_override("font", header_font)
+	parent.add_child(label)
+
+
+func _sw_slider(parent: VBoxContainer, param: String, display: String,
+		min_val: float, max_val: float, default_val: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	parent.add_child(row)
+
+	var label := Label.new()
+	label.text = display
+	label.custom_minimum_size.x = 110
+	label.add_theme_font_size_override("font_size", 12)
+	row.add_child(label)
+
+	var slider := HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.step = (max_val - min_val) / 200.0
+	slider.value = default_val
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 120
+	row.add_child(slider)
+
+	var val_label := Label.new()
+	val_label.custom_minimum_size.x = 40
+	val_label.add_theme_font_size_override("font_size", 11)
+	val_label.text = "%.3f" % default_val
+	row.add_child(val_label)
+
+	slider.value_changed.connect(func(v: float) -> void:
+		val_label.text = "%.3f" % v
+		_sw_set(param, v)
+	)
+	slider.set_meta("sw_param", param)
+
+
+func _sw_color(parent: VBoxContainer, param: String, display: String, default_col: Color) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	parent.add_child(row)
+
+	var label := Label.new()
+	label.text = display
+	label.custom_minimum_size.x = 110
+	label.add_theme_font_size_override("font_size", 12)
+	row.add_child(label)
+
+	var picker := ColorPickerButton.new()
+	picker.color = default_col
+	picker.custom_minimum_size = Vector2(60, 24)
+	picker.edit_alpha = false
+	row.add_child(picker)
+
+	picker.color_changed.connect(func(c: Color) -> void:
+		_sw_set(param, c)
+	)
+	picker.set_meta("sw_param", param)
+
+
+func _sw_set(param: String, value: Variant) -> void:
+	var mat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
+	if mat:
+		mat.set_shader_parameter(param, value)
+
+
+func _sw_sync_controls(node: Node, preset: Dictionary) -> void:
+	if node.has_meta("sw_param"):
+		var param: String = node.get_meta("sw_param")
+		if preset.has(param):
+			if node is HSlider:
+				node.set_value_no_signal(float(preset[param]))
+				# Update the value label (sibling after the slider)
+				var parent: Node = node.get_parent()
+				var idx: int = node.get_index()
+				if idx + 1 < parent.get_child_count():
+					var val_label: Node = parent.get_child(idx + 1)
+					if val_label is Label:
+						val_label.text = "%.3f" % float(preset[param])
+			elif node is ColorPickerButton:
+				node.color = preset[param] as Color
+	for child in node.get_children():
+		_sw_sync_controls(child, preset)
+
+
+func _init_synthwave_presets() -> void:
+	_synthwave_presets.clear()
+	_synthwave_presets.append({
+		"name": "CLASSIC OUTRUN",
+		"grid_color": Color(1.0, 0.08, 0.52),
+		"accent_color": Color(0.1, 0.8, 1.0),
+		"sun_color_top": Color(1.0, 0.95, 0.4),
+		"sun_color_bot": Color(1.0, 0.2, 0.08),
+		"sky_top": Color(0.01, 0.0, 0.06),
+		"sky_mid": Color(0.08, 0.0, 0.14),
+		"sky_low": Color(0.18, 0.02, 0.25),
+		"nebula_intensity": 0.12,
+		"sun_glow": 0.6,
+		"grid_line_w": 0.008,
+		"grid_bloom_w": 0.06,
+		"grid_core_brightness": 6.0,
+		"grid_bloom_brightness": 3.0,
+		"shooting_star_rate": 0.4,
+		"star_cutoff": 0.94,
+		"light_brightness": 0.5,
+	})
+
+
+func _apply_synthwave_preset(idx: int) -> void:
+	_synthwave_preset_idx = idx
+	var preset: Dictionary = _synthwave_presets[idx]
+	if _synthwave_preset_label:
+		var count: int = _synthwave_presets.size()
+		if count > 1:
+			_synthwave_preset_label.text = str(preset["name"]) + "  (" + str(idx + 1) + "/" + str(count) + ")"
+		else:
+			_synthwave_preset_label.text = str(preset["name"])
+	var mat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
+	if not mat:
+		return
+	for key in preset:
+		if key == "name":
+			continue
+		mat.set_shader_parameter(key, preset[key])
+	# Sync sliders and color pickers to preset values
+	_sw_sync_controls(_synthwave_content, preset)
+
+
+func _synthwave_prev() -> void:
+	var idx: int = _synthwave_preset_idx - 1
+	if idx < 0:
+		idx = _synthwave_presets.size() - 1
+	_apply_synthwave_preset(idx)
+
+
+func _synthwave_next() -> void:
+	var idx: int = _synthwave_preset_idx + 1
+	if idx >= _synthwave_presets.size():
+		idx = 0
+	_apply_synthwave_preset(idx)
 
 
 func _on_launch_events_sim() -> void:

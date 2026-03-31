@@ -133,7 +133,7 @@ func _ready() -> void:
 	tab_bar.add_theme_constant_override("separation", 0)
 	add_child(tab_bar)
 
-	var tab_names: Array[String] = ["PLAYER", "ENEMIES", "BOSSES"]
+	var tab_names: Array[String] = ["PLAYER", "ALLIES", "ENEMIES", "BOSSES"]
 	for tab_name in tab_names:
 		var btn := Button.new()
 		btn.text = tab_name
@@ -493,6 +493,21 @@ func _switch_category(cat: String) -> void:
 		_select_ship(_selected_ship)
 		if _hud_replica:
 			_hud_replica.visible = true
+	elif _category == "ALLIES":
+		_level_dropdown.visible = false
+		if _ship_draw:
+			_ship_draw.visible = true
+		if _hud_replica:
+			_hud_replica.visible = false
+		var ally_ships: Array[ShipData] = ShipDataManager.load_all_by_type("ally")
+		_filtered_enemy_ships = ally_ships
+		_ship_selector.enemy_ships = _filtered_enemy_ships
+		if ally_ships.size() > 0:
+			_select_enemy(0)
+		else:
+			_selected_enemy_index = -1
+			_working_enemy = null
+			_rebuild_right_panel()
 	elif _category == "ENEMIES":
 		_level_dropdown.visible = true
 		if _ship_draw:
@@ -535,7 +550,7 @@ func _switch_category(cat: String) -> void:
 
 
 func _update_category_tab_buttons() -> void:
-	var tab_names: Array[String] = ["PLAYER", "ENEMIES", "BOSSES"]
+	var tab_names: Array[String] = ["PLAYER", "ALLIES", "ENEMIES", "BOSSES"]
 	for i in range(_category_tab_buttons.size()):
 		if tab_names[i] == _category:
 			_category_tab_buttons[i].modulate = Color(1.3, 1.3, 1.6)
@@ -3028,8 +3043,10 @@ class _ShipSelector extends Node2D:
 	const SCROLL_SPEED := 30.0
 	const SHIP_NAMES: Array[String] = [
 		"Switchblade", "Phantom", "Mantis", "Corsair", "Stiletto",
-		"Trident", "Orrery", "Dreadnought", "Bastion",
+		"Trident", "Orrery", "Cargo Ship", "Bastion",
 	]
+	# Registry indices that are allies (not selectable as player ships)
+	const ALLY_INDICES: Array[int] = [7]
 
 	var viewer: Control
 	var render_mode: int = ShipRenderer.RenderMode.NEON
@@ -3048,6 +3065,12 @@ class _ShipSelector extends Node2D:
 		var idx: int = int(y_offset / SLOT_HEIGHT)
 		if idx < 0 or idx >= slot_count:
 			return -1
+		# For PLAYER category, map visual slot index to registry index
+		if category == "PLAYER":
+			var player_indices: Array[int] = _get_player_indices()
+			if idx < player_indices.size():
+				return player_indices[idx]
+			return -1
 		return idx
 
 	func scroll_by(amount: float) -> void:
@@ -3058,12 +3081,19 @@ class _ShipSelector extends Node2D:
 		scroll_offset = clampf(scroll_offset + amount, 0.0, max_scroll)
 		queue_redraw()
 
+	func _get_player_indices() -> Array[int]:
+		var indices: Array[int] = []
+		for i in range(SHIP_COUNT):
+			if i not in ALLY_INDICES:
+				indices.append(i)
+		return indices
+
 	func _get_slot_count() -> int:
-		if category == "ENEMIES":
+		if category == "ENEMIES" or category == "ALLIES":
 			return enemy_ships.size()
 		elif category == "BOSSES":
 			return boss_list.size()
-		return SHIP_COUNT
+		return _get_player_indices().size()
 
 	func _draw() -> void:
 		if not viewer:
@@ -3084,6 +3114,7 @@ class _ShipSelector extends Node2D:
 		# Header area is covered by the level filter dropdown (when visible)
 		match category:
 			"PLAYER": _draw_player_list()
+			"ALLIES": _draw_enemy_list()
 			"ENEMIES": _draw_enemy_list()
 			"BOSSES": _draw_boss_list()
 
@@ -3103,8 +3134,10 @@ class _ShipSelector extends Node2D:
 			draw_rect(Rect2(PANEL_WIDTH - 4, bar_y, 3, bar_h), Color(cyan.r, cyan.g, cyan.b, 0.3))
 
 	func _draw_player_list() -> void:
-		for i in range(SHIP_COUNT):
-			var slot_y: float = HEADER_HEIGHT + SLOT_HEIGHT * i
+		var player_indices: Array[int] = _get_player_indices()
+		for slot_idx in range(player_indices.size()):
+			var i: int = player_indices[slot_idx]
+			var slot_y: float = HEADER_HEIGHT + SLOT_HEIGHT * slot_idx
 			var cy: float = slot_y + SLOT_HEIGHT * 0.4
 			var selected: bool = (i == viewer._selected_ship)
 

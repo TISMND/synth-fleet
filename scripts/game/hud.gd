@@ -6,6 +6,14 @@ extends Control
 ## glow post-processing. CanvasLayer content renders after bloom and misses it.
 
 var _credits_label: Label = null
+var _cargo_label: Label = null
+var _cargo_value_label: Label = null
+var _cargo_display_value: float = 0.0  # Animated counter (lerps toward real value)
+var _cargo_target_value: int = 0
+var _bank_label: Label = null
+var _bank_value_label: Label = null
+var _bank_display_value: float = 0.0
+var _bank_target_value: int = 0
 var _menu_hint: Label = null
 var _hud_result: Dictionary = {}  # HudBuilder.build_hud() result
 var _bottom_panel: Dictionary = {}  # build_bottom_panel() result
@@ -71,13 +79,12 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	# Credits label removed — not shown during gameplay
+	# Cargo counter — top right, bare HDR style
+	_build_cargo_counter()
+	# Bank counter — top left, bare HDR style
+	_build_bank_counter()
 
-	# Menu hint
-	_menu_hint = Label.new()
-	_menu_hint.position = Vector2(20, 20)
-	_menu_hint.text = "ESC: Menu"
-	add_child(_menu_hint)
+	# Menu hint removed — BANK counter occupies top-left now
 
 	# Warning rotator — upper center, cycles active warnings
 	_warning_rotator = _WarningRotator.new()
@@ -163,12 +170,6 @@ func _apply_theme() -> void:
 	# HUD panel backgrounds + borders
 	HudBuilder.apply_hud_theme(_hud_result)
 
-
-	# Menu hint
-	_menu_hint.add_theme_font_size_override("font_size", body_size)
-	_menu_hint.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
-	if body_font:
-		_menu_hint.add_theme_font_override("font", body_font)
 
 	# Bar labels + LED bars from shared specs
 	var specs: Array = ThemeManager.get_status_bar_specs()
@@ -385,8 +386,89 @@ func update_warnings_rotator(active_warnings: Array) -> void:
 		_warning_rotator.set_active_warnings(active_warnings)
 
 
-func update_credits(_amount: int) -> void:
-	pass
+func update_credits(amount: int) -> void:
+	_cargo_target_value = amount
+
+
+func _build_cargo_counter() -> void:
+	var container := HBoxContainer.new()
+	# Position top-right, inset from the side panel (60px wide)
+	container.position = Vector2(1920 - HudBuilder.SIDE_PANEL_WIDTH - 260, 16)
+	container.add_theme_constant_override("separation", 6)
+	add_child(container)
+
+	_cargo_label = Label.new()
+	_cargo_label.text = "CARGO:"
+	var header_font: Font = ThemeManager.get_font("font_header")
+	if header_font:
+		_cargo_label.add_theme_font_override("font", header_font)
+	_cargo_label.add_theme_font_size_override("font_size", 16)
+	_cargo_label.add_theme_color_override("font_color", Color(0.4, 0.7, 0.5, 0.5))
+	container.add_child(_cargo_label)
+
+	_cargo_value_label = Label.new()
+	_cargo_value_label.text = "0"
+	if header_font:
+		_cargo_value_label.add_theme_font_override("font", header_font)
+	_cargo_value_label.add_theme_font_size_override("font_size", 28)
+	var hdr: float = 1.8
+	_cargo_value_label.add_theme_color_override("font_color", Color(0.15 * hdr, 0.9 * hdr, 0.4 * hdr))
+	container.add_child(_cargo_value_label)
+
+	_cargo_display_value = float(GameState.credits)
+	_cargo_target_value = GameState.credits
+
+
+func update_cargo_counter(delta: float) -> void:
+	if not _cargo_value_label:
+		return
+	var diff: float = float(_cargo_target_value) - _cargo_display_value
+	if absf(diff) < 1.0:
+		_cargo_display_value = float(_cargo_target_value)
+	else:
+		# Lerp speed scales with the gap — big jumps roll fast, small ones tick gently
+		var speed: float = maxf(absf(diff) * 5.0, 20.0)
+		_cargo_display_value += signf(diff) * minf(speed * delta, absf(diff))
+	_cargo_value_label.text = str(int(_cargo_display_value))
+	# Bank counter animation
+	if _bank_value_label:
+		_bank_target_value = int(GameState.get_meta("banked_credits", 0))
+		var bank_diff: float = float(_bank_target_value) - _bank_display_value
+		if absf(bank_diff) < 1.0:
+			_bank_display_value = float(_bank_target_value)
+		else:
+			var bank_speed: float = maxf(absf(bank_diff) * 5.0, 20.0)
+			_bank_display_value += signf(bank_diff) * minf(bank_speed * delta, absf(bank_diff))
+		_bank_value_label.text = str(int(_bank_display_value))
+
+
+func _build_bank_counter() -> void:
+	var container := HBoxContainer.new()
+	# Position top-left, inset from the side panel (60px wide)
+	container.position = Vector2(HudBuilder.SIDE_PANEL_WIDTH + 16, 16)
+	container.add_theme_constant_override("separation", 6)
+	add_child(container)
+
+	_bank_label = Label.new()
+	_bank_label.text = "BANK:"
+	var header_font: Font = ThemeManager.get_font("font_header")
+	if header_font:
+		_bank_label.add_theme_font_override("font", header_font)
+	_bank_label.add_theme_font_size_override("font_size", 16)
+	_bank_label.add_theme_color_override("font_color", Color(0.7, 0.5, 0.4, 0.5))
+	container.add_child(_bank_label)
+
+	_bank_value_label = Label.new()
+	_bank_value_label.text = "0"
+	if header_font:
+		_bank_value_label.add_theme_font_override("font", header_font)
+	_bank_value_label.add_theme_font_size_override("font_size", 28)
+	var hdr: float = 1.8
+	_bank_value_label.add_theme_color_override("font_color", Color(0.9 * hdr, 0.6 * hdr, 0.15 * hdr))
+	container.add_child(_bank_value_label)
+
+	_bank_display_value = float(GameState.get_meta("banked_credits", 0))
+	_bank_target_value = int(GameState.get_meta("banked_credits", 0))
 
 
 # ── Shield bar lightning arcs ────────────────────────────────────────────
