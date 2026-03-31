@@ -83,6 +83,9 @@ var _enc_melee_check: CheckButton
 var _enc_turn_speed_label: Label
 var _enc_turn_speed_spin: SpinBox
 var _enc_weapons_active_check: CheckButton
+var _enc_drop_chance_spin: SpinBox
+var _enc_drop_table_container: VBoxContainer
+var _money_items_cache: Array[ItemData] = []
 var _enc_center_btn: Button
 var _enc_delete_btn: Button
 
@@ -1116,6 +1119,8 @@ func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
 					"is_melee": _enc_melee_check.button_pressed,
 					"turn_speed": _enc_turn_speed_spin.value,
 					"weapons_active": _enc_weapons_active_check.button_pressed,
+				"drop_chance": _enc_drop_chance_spin.value,
+				"drop_table": [],
 				}
 				_selected_level.encounters.append(enc)
 				_selected_encounter_idx = _selected_level.encounters.size() - 1
@@ -1669,6 +1674,47 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	)
 	_enc_content.add_child(_enc_weapons_active_check)
 
+	# ── Drop settings ──
+	var sep_drops := HSeparator.new()
+	_enc_content.add_child(sep_drops)
+
+	var drop_header := Label.new()
+	drop_header.text = "DROPS"
+	_enc_content.add_child(drop_header)
+
+	var drop_chance_row := HBoxContainer.new()
+	drop_chance_row.add_theme_constant_override("separation", 8)
+	_enc_content.add_child(drop_chance_row)
+	var drop_chance_label := Label.new()
+	drop_chance_label.text = "Drop Chance:"
+	drop_chance_row.add_child(drop_chance_label)
+	_enc_drop_chance_spin = SpinBox.new()
+	_enc_drop_chance_spin.min_value = 0.0
+	_enc_drop_chance_spin.max_value = 1.0
+	_enc_drop_chance_spin.step = 0.05
+	_enc_drop_chance_spin.value = 0.0
+	_enc_drop_chance_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_enc_drop_chance_spin.value_changed.connect(func(v: float) -> void:
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["drop_chance"] = v
+			_save_current_level()
+	)
+	drop_chance_row.add_child(_enc_drop_chance_spin)
+
+	var drop_table_label := Label.new()
+	drop_table_label.text = "Drop Table:"
+	_enc_content.add_child(drop_table_label)
+
+	_enc_drop_table_container = VBoxContainer.new()
+	_enc_drop_table_container.add_theme_constant_override("separation", 4)
+	_enc_content.add_child(_enc_drop_table_container)
+
+	var add_drop_btn := Button.new()
+	add_drop_btn.text = "+ ADD DROP"
+	add_drop_btn.pressed.connect(_on_add_drop_entry)
+	ThemeManager.apply_button_style(add_drop_btn)
+	_enc_content.add_child(add_drop_btn)
+
 	# Action buttons
 	var sep3 := HSeparator.new()
 	_enc_content.add_child(sep3)
@@ -2113,6 +2159,10 @@ func _update_right_panel() -> void:
 		_enc_turn_speed_spin.value = float(enc.get("turn_speed", 90.0))
 		_enc_weapons_active_check.button_pressed = bool(enc.get("weapons_active", true))
 
+		# Drop settings
+		_enc_drop_chance_spin.value = float(enc.get("drop_chance", 0.0))
+		_rebuild_drop_table_ui(enc.get("drop_table", []) as Array)
+
 	# Update boss dropdown visibility based on level filter
 	var filter_val: String = ""
 	if _enc_level_filter.selected >= 0:
@@ -2122,6 +2172,94 @@ func _update_right_panel() -> void:
 	_enc_boss_dropdown.visible = show_boss
 
 	_update_melee_ui_state()
+
+
+func _get_money_items() -> Array[ItemData]:
+	if _money_items_cache.size() == 0:
+		var all_items: Array[ItemData] = ItemDataManager.load_all()
+		for item in all_items:
+			if item.category == "money":
+				_money_items_cache.append(item)
+	return _money_items_cache
+
+
+func _rebuild_drop_table_ui(table: Array) -> void:
+	for child in _enc_drop_table_container.get_children():
+		child.queue_free()
+	for i in range(table.size()):
+		_add_drop_table_row(i, table[i])
+
+
+func _add_drop_table_row(idx: int, entry: Dictionary) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	_enc_drop_table_container.add_child(row)
+
+	var items: Array[ItemData] = _get_money_items()
+	var item_option := OptionButton.new()
+	item_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var selected_idx: int = 0
+	for j in range(items.size()):
+		item_option.add_item(items[j].display_name)
+		item_option.set_item_metadata(j, items[j].id)
+		if items[j].id == str(entry.get("item_id", "")):
+			selected_idx = j
+	item_option.selected = selected_idx
+	item_option.item_selected.connect(func(sel: int) -> void:
+		_update_drop_table_entry(idx, "item_id", str(item_option.get_item_metadata(sel)))
+	)
+	row.add_child(item_option)
+
+	var weight_label := Label.new()
+	weight_label.text = "W:"
+	row.add_child(weight_label)
+
+	var weight_spin := SpinBox.new()
+	weight_spin.min_value = 1
+	weight_spin.max_value = 10
+	weight_spin.step = 1
+	weight_spin.value = int(entry.get("weight", 1))
+	weight_spin.custom_minimum_size.x = 60
+	weight_spin.value_changed.connect(func(v: float) -> void:
+		_update_drop_table_entry(idx, "weight", int(v))
+	)
+	row.add_child(weight_spin)
+
+	var del_btn := Button.new()
+	del_btn.text = "X"
+	del_btn.pressed.connect(func() -> void:
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
+			var tbl: Array = _selected_level.encounters[_selected_encounter_idx].get("drop_table", []) as Array
+			if idx < tbl.size():
+				tbl.remove_at(idx)
+			_selected_level.encounters[_selected_encounter_idx]["drop_table"] = tbl
+			_save_current_level()
+			_rebuild_drop_table_ui(tbl)
+	)
+	row.add_child(del_btn)
+
+
+func _update_drop_table_entry(idx: int, key: String, value: Variant) -> void:
+	if _selected_encounter_idx < 0 or not _selected_level or _selected_encounter_idx >= _selected_level.encounters.size():
+		return
+	var tbl: Array = _selected_level.encounters[_selected_encounter_idx].get("drop_table", []) as Array
+	if idx < tbl.size():
+		tbl[idx][key] = value
+		_selected_level.encounters[_selected_encounter_idx]["drop_table"] = tbl
+		_save_current_level()
+
+
+func _on_add_drop_entry() -> void:
+	if _selected_encounter_idx < 0 or not _selected_level or _selected_encounter_idx >= _selected_level.encounters.size():
+		return
+	var items: Array[ItemData] = _get_money_items()
+	if items.size() == 0:
+		return
+	var tbl: Array = _selected_level.encounters[_selected_encounter_idx].get("drop_table", []) as Array
+	tbl.append({"item_id": items[0].id, "weight": 1})
+	_selected_level.encounters[_selected_encounter_idx]["drop_table"] = tbl
+	_save_current_level()
+	_rebuild_drop_table_ui(tbl)
 
 
 func _update_melee_ui_state() -> void:

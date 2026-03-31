@@ -28,6 +28,7 @@ var _sorted_encounters: Array[Dictionary] = []
 var _next_encounter_idx: int = 0
 var _scroll_distance: float = 0.0
 var _stagger_queue: Array[Dictionary] = []  # Pending staggered spawns
+var pickups_container: Node2D = null
 var _projectiles_container: Node2D = null
 var _pre_triggered_encounters: Dictionary = {}  # encounter index -> bool
 var shared_renderer: EnemySharedRenderer = null
@@ -164,6 +165,9 @@ func _spawn_encounter(enc: Dictionary) -> void:
 	var enc_is_melee: bool = bool(enc.get("is_melee", false))
 	var enc_turn_speed: float = float(enc.get("turn_speed", 90.0))
 	var enc_weapons_active: bool = bool(enc.get("weapons_active", true))
+	var enc_drop_chance: float = float(enc.get("drop_chance", 0.0))
+	var enc_drop_table: Array = enc.get("drop_table", []) as Array
+	var enc_idx: int = _next_encounter_idx - 1
 
 	# Load path (skip for melee encounters)
 	var curve: Curve2D = null
@@ -195,6 +199,8 @@ func _spawn_encounter(enc: Dictionary) -> void:
 	for copy_idx in range(count):
 		var delay: float = float(copy_idx) * spacing / maxf(speed, 1.0)
 		for slot in slots:
+			var level_id_str: String = _level_data.id if _level_data else ""
+			var drop_seed: int = level_id_str.hash() + enc_idx * 1000 + copy_idx
 			var spawn_data: Dictionary = {
 				"curve": curve,
 				"speed": speed,
@@ -206,6 +212,9 @@ func _spawn_encounter(enc: Dictionary) -> void:
 				"is_melee": enc_is_melee,
 				"turn_speed": enc_turn_speed,
 				"weapons_active": enc_weapons_active,
+				"drop_chance": enc_drop_chance,
+				"drop_table": enc_drop_table,
+				"drop_seed": drop_seed,
 			}
 			if delay <= 0.0:
 				_do_spawn_enemy(spawn_data)
@@ -269,6 +278,12 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 
 	# Weapons active flag from encounter data
 	enemy.weapons_active = bool(spawn_data.get("weapons_active", true))
+
+	# Drop config
+	enemy.drop_chance = float(spawn_data.get("drop_chance", 0.0))
+	enemy.drop_table = spawn_data.get("drop_table", []) as Array
+	enemy.drop_seed = int(spawn_data.get("drop_seed", 0))
+	enemy.pickups_container = pickups_container
 
 	# Melee mode
 	var spawn_is_melee: bool = bool(spawn_data.get("is_melee", false))

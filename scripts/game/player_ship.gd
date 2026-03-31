@@ -176,7 +176,7 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	# Player collision area for contact damage
 	_player_area = Area2D.new()
 	_player_area.collision_layer = 1
-	_player_area.collision_mask = 4 | 8  # Enemies (4) + Enemy projectiles (8)
+	_player_area.collision_mask = 4 | 8 | 16  # Enemies (4) + Enemy projectiles (8) + Pickups (16)
 	var col_result: Dictionary = _make_collision_shape(ship_data)
 	var col_shape := CollisionShape2D.new()
 	col_shape.shape = col_result["shape"]
@@ -1547,6 +1547,10 @@ func apply_bar_effects(effects: Dictionary) -> void:
 
 
 func _on_contact(area: Area2D) -> void:
+	# Currency pickups
+	if area is Pickup:
+		(area as Pickup).collect()
+		return
 	# Enemy projectiles handle their own damage via their _on_area_entered
 	if area is EnemyProjectile:
 		return

@@ -53,6 +53,8 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"is_melee": bool(enc.get("is_melee", false)),
 			"turn_speed": float(enc.get("turn_speed", 90.0)),
 			"weapons_active": bool(enc.get("weapons_active", true)),
+			"drop_chance": float(enc.get("drop_chance", 0.0)),
+			"drop_table": enc.get("drop_table", []),
 		})
 	var raw_doodads: Array = data.get("doodads", [])
 	l.doodads = []

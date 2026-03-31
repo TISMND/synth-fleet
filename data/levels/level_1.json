@@ -8,6 +8,8 @@
 		{
 			"boss_id": "",
 			"count": 7,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -23,6 +25,8 @@
 		{
 			"boss_id": "",
 			"count": 15,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_1",
@@ -38,6 +42,8 @@
 		{
 			"boss_id": "",
 			"count": 7,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -53,6 +59,8 @@
 		{
 			"boss_id": "",
 			"count": 20,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_2",
@@ -68,6 +76,8 @@
 		{
 			"boss_id": "",
 			"count": 8,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -83,6 +93,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": true,
 			"path_id": "path_5",
@@ -98,6 +110,8 @@
 		{
 			"boss_id": "",
 			"count": 7,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -113,6 +127,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": true,
 			"path_id": "path_5",
@@ -128,6 +144,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -143,6 +161,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -158,6 +178,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -173,6 +195,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -188,6 +212,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -203,6 +229,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -218,6 +246,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": true,
 			"path_id": "path_5",
@@ -233,6 +263,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": true,
 			"path_id": "path_5",
@@ -248,6 +280,8 @@
 		{
 			"boss_id": "",
 			"count": 10,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_8",
@@ -263,6 +297,8 @@
 		{
 			"boss_id": "",
 			"count": 10,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_8",
@@ -278,6 +314,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_9",
@@ -293,6 +331,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_9",
@@ -308,6 +348,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_9",
@@ -323,6 +365,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": true,
 			"path_id": "path_9",
@@ -338,6 +382,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": true,
 			"path_id": "path_9",
@@ -353,6 +399,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": true,
 			"path_id": "path_9",
@@ -368,6 +416,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": true,
 			"path_id": "path_9",
@@ -383,6 +433,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": true,
 			"path_id": "path_9",
@@ -398,6 +450,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": true,
 			"path_id": "path_9",
@@ -413,6 +467,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": true,
 			"path_id": "path_5",
@@ -428,6 +484,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": true,
 			"path_id": "path_5",
@@ -443,6 +501,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": true,
 			"path_id": "path_5",
@@ -458,6 +518,8 @@
 		{
 			"boss_id": "",
 			"count": 10,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_8",
@@ -473,6 +535,8 @@
 		{
 			"boss_id": "",
 			"count": 7,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -488,6 +552,8 @@
 		{
 			"boss_id": "",
 			"count": 7,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -503,6 +569,8 @@
 		{
 			"boss_id": "",
 			"count": 15,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_1",
@@ -518,6 +586,8 @@
 		{
 			"boss_id": "",
 			"count": 7,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -533,6 +603,8 @@
 		{
 			"boss_id": "",
 			"count": 7,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -548,6 +620,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": true,
 			"path_id": "path_5",
@@ -563,6 +637,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -578,6 +654,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -593,6 +671,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -608,6 +688,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -623,6 +705,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -638,6 +722,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_9",
@@ -653,6 +739,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_9",
@@ -668,6 +756,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_9",
@@ -683,6 +773,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -698,6 +790,8 @@
 		{
 			"boss_id": "",
 			"count": 10,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_1",
 			"is_melee": false,
 			"path_id": "path_3",
@@ -713,6 +807,8 @@
 		{
 			"boss_id": "",
 			"count": 20,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_1",
 			"is_melee": false,
 			"path_id": "path_4",
@@ -728,6 +824,8 @@
 		{
 			"boss_id": "",
 			"count": 10,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": false,
 			"path_id": "path_4",
@@ -743,6 +841,8 @@
 		{
 			"boss_id": "",
 			"count": 20,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": false,
 			"path_id": "path_3",
@@ -758,6 +858,8 @@
 		{
 			"boss_id": "boss_archon",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": true,
 			"path_id": "path_1",
@@ -773,6 +875,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_7",
 			"is_melee": false,
 			"path_id": "path_10",
@@ -788,6 +892,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -803,6 +909,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -818,6 +926,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -833,6 +943,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -848,6 +960,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -863,6 +977,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_4",
 			"is_melee": false,
 			"path_id": "path_5",
@@ -878,6 +994,8 @@
 		{
 			"boss_id": "",
 			"count": 20,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_2",
@@ -893,6 +1011,8 @@
 		{
 			"boss_id": "",
 			"count": 20,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_2",
@@ -908,6 +1028,8 @@
 		{
 			"boss_id": "",
 			"count": 20,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_2",
@@ -923,6 +1045,8 @@
 		{
 			"boss_id": "",
 			"count": 20,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_11",
@@ -938,6 +1062,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -953,6 +1079,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -968,6 +1096,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -983,6 +1113,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -998,6 +1130,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -1013,6 +1147,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -1028,6 +1164,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -1043,6 +1181,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -1058,6 +1198,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -1073,6 +1215,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",
@@ -1088,6 +1232,8 @@
 		{
 			"boss_id": "",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "formation_3",
 			"is_melee": true,
 			"path_id": "path_2",

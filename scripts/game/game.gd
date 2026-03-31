@@ -12,6 +12,7 @@ var _wave_manager: WaveManager = null
 var _hud: Control = null
 var _projectiles: Node2D = null
 var _enemies: Node2D = null
+var _pickups: Node2D = null
 var _parallax_bg: ParallaxBackground = null
 var _nebula_container: Node2D = null
 var _doodad_container: Node2D = null
@@ -216,6 +217,10 @@ func _ready() -> void:
 	_enemies = Node2D.new()
 	_enemies.name = "Enemies"
 	_game_viewport.add_child(_enemies)
+
+	_pickups = Node2D.new()
+	_pickups.name = "Pickups"
+	_game_viewport.add_child(_pickups)
 
 	# Shared enemy renderers — one live ShipRenderer per unique enemy type,
 	# all instances share the viewport texture instead of running their own _draw()
@@ -851,6 +856,7 @@ func _start_waves() -> void:
 	if _level_data:
 		_scroll_distance = 0.0
 		_wave_manager.setup_level(_level_data, _enemies, _player, _projectiles)
+		_wave_manager.pickups_container = _pickups
 	else:
 		var waves: Array = []
 		for w in WAVE_CONFIG:

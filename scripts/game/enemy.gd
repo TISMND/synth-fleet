@@ -31,6 +31,12 @@ var _melee_target: Node2D = null
 # Whether this enemy's weapons are active (set by encounter data)
 var weapons_active: bool = true
 
+# Currency drop config (set by encounter data via WaveManager)
+var drop_chance: float = 0.0
+var drop_table: Array = []
+var drop_seed: int = 0
+var pickups_container: Node2D = null
+
 # Boss strafe mode — hovers near top, oscillates left/right
 var is_boss_strafe: bool = false
 var boss_strafe_y: float = 200.0      # Y position to hover at
@@ -314,7 +320,6 @@ func _die() -> void:
 	if _weapon_controller:
 		_weapon_controller.cleanup()
 		_weapon_controller = null
-	GameState.add_credits(10)
 	GameState.level_stats["enemies_destroyed"] = int(GameState.level_stats.get("enemies_destroyed", 0)) + 1
 	GameState.level_stats["score"] = int(GameState.level_stats.get("score", 0)) + 10
 
@@ -325,11 +330,46 @@ func _die() -> void:
 
 	SfxPlayer.play_random_explosion()
 	_spawn_explosion()
+	_try_spawn_pickup()
 	# If this is a segment, unregister from core
 	if boss_core and is_instance_valid(boss_core):
 		boss_core.boss_segments.erase(self)
 		boss_core._update_immunity()
 	queue_free()
+
+
+func _try_spawn_pickup() -> void:
+	if drop_table.size() == 0 or drop_chance <= 0.0:
+		return
+	if not is_instance_valid(pickups_container):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = drop_seed
+	if rng.randf() > drop_chance:
+		return
+	# Weighted selection from drop table
+	var total_weight: int = 0
+	for entry in drop_table:
+		total_weight += int(entry.get("weight", 1))
+	if total_weight <= 0:
+		return
+	var roll: int = rng.randi_range(0, total_weight - 1)
+	var cumulative: int = 0
+	var selected_id: String = ""
+	for entry in drop_table:
+		cumulative += int(entry.get("weight", 1))
+		if roll < cumulative:
+			selected_id = str(entry.get("item_id", ""))
+			break
+	if selected_id == "":
+		return
+	var item: ItemData = ItemDataManager.load_by_id(selected_id)
+	if not item:
+		return
+	var pickup := Pickup.new()
+	pickup.item_data = item
+	pickup.global_position = global_position
+	pickups_container.add_child(pickup)
 
 
 var _is_boss_core: bool = false  # Set true when this enemy is a boss core

@@ -78,6 +78,9 @@ const EVENT_IDS: Array[String] = [
 	"nebula_alarm_3",
 	"nebula_alarm_4",
 	"nebula_alarm_5",
+	# Pickup cues
+	"pickup_shard",
+	"pickup_coin",
 ]
 
 const EVENT_LABELS: Dictionary = {
@@ -157,6 +160,9 @@ const EVENT_LABELS: Dictionary = {
 	"nebula_alarm_3": "NEBULA ALARM 3",
 	"nebula_alarm_4": "NEBULA ALARM 4",
 	"nebula_alarm_5": "NEBULA ALARM 5",
+	# Pickup cues
+	"pickup_shard": "PICKUP: SHARD",
+	"pickup_coin": "PICKUP: COIN",
 }
 
 const EVENT_DESCRIPTIONS: Dictionary = {
@@ -240,6 +246,9 @@ const EVENT_DESCRIPTIONS: Dictionary = {
 	"nebula_alarm_3": "Nebula warning alarm slot 3 — selectable per-nebula in environments editor",
 	"nebula_alarm_4": "Nebula warning alarm slot 4 — selectable per-nebula in environments editor",
 	"nebula_alarm_5": "Nebula warning alarm slot 5 — selectable per-nebula in environments editor",
+	# Pickup cues
+	"pickup_shard": "Player collects a currency shard drop",
+	"pickup_coin": "Player collects a currency coin drop",
 }
 
 var events: Dictionary = {}
