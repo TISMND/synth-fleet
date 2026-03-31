@@ -5,12 +5,12 @@
 	"duration": 0.0,
 	"effect_type": "",
 	"glow_color": "#FFAA55",
-	"hdr_intensity": 2.2,
+	"hdr_intensity": 2.4,
 	"icon": "",
 	"id": "item_112",
 	"primary_color": "#FF8833",
 	"secondary_color": "#CC5500",
 	"size_class": "medium",
-	"value": 20.0,
+	"value": 500.0,
 	"visual_shape": "data_shard"
 }

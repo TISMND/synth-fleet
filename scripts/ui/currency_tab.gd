@@ -93,8 +93,8 @@ func _add_item_row(item: ItemData) -> void:
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_rows_container.add_child(row)
 
-	# Live preview
-	var cell_px: float = 56.0
+	# Live preview — cell sized to fit full-scale item + bloom headroom
+	var cell_px: float = 80.0
 	var vpc := SubViewportContainer.new()
 	vpc.stretch = true
 	vpc.custom_minimum_size = Vector2(cell_px, cell_px)
@@ -115,7 +115,7 @@ func _add_item_row(item: ItemData) -> void:
 	var renderer := ItemRenderer.new()
 	renderer.position = Vector2(cell_px / 2.0, cell_px / 2.0)
 	var render_scale: float = CurrencyConfigManager.get_scale_for_item(item)
-	renderer.setup(item, render_scale * 0.45)
+	renderer.setup(item, render_scale)
 	vp.add_child(renderer)
 
 	# Name

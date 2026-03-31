@@ -15,9 +15,14 @@ var _active_tab: int = 0
 var _tab_warp_btn: Button
 var _tab_events_btn: Button
 var _tab_items_btn: Button
+var _tab_hud_btn: Button
+var _tab_synthwave_btn: Button
 var _warp_content: Control
 var _events_content: ScrollContainer
 var _items_content: MarginContainer
+var _hud_content: MarginContainer
+var _synthwave_content: Control
+var _synthwave_rect: ColorRect
 var _event_trigger_buttons: Dictionary = {}
 
 
@@ -79,6 +84,18 @@ func _build_ui() -> void:
 	_tab_items_btn.pressed.connect(func(): _switch_to_tab(2))
 	header.add_child(_tab_items_btn)
 
+	_tab_hud_btn = Button.new()
+	_tab_hud_btn.text = "HUD"
+	_tab_hud_btn.toggle_mode = true
+	_tab_hud_btn.pressed.connect(func(): _switch_to_tab(3))
+	header.add_child(_tab_hud_btn)
+
+	_tab_synthwave_btn = Button.new()
+	_tab_synthwave_btn.text = "SYNTHWAVE"
+	_tab_synthwave_btn.toggle_mode = true
+	_tab_synthwave_btn.pressed.connect(func(): _switch_to_tab(4))
+	header.add_child(_tab_synthwave_btn)
+
 	# Warp content — two tall viewports side by side
 	_warp_content = HBoxContainer.new()
 	_warp_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -102,6 +119,20 @@ func _build_ui() -> void:
 	_items_content.visible = false
 	main_vbox.add_child(_items_content)
 
+	var HudTabScript: GDScript = load("res://scripts/ui/cargo_counter_auditions.gd")
+	_hud_content = HudTabScript.new()
+	_hud_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_hud_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hud_content.visible = false
+	main_vbox.add_child(_hud_content)
+
+	_synthwave_content = Control.new()
+	_synthwave_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_synthwave_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_synthwave_content.visible = false
+	main_vbox.add_child(_synthwave_content)
+	_build_synthwave_content()
+
 	_setup_vhs_overlay()
 
 
@@ -111,14 +142,20 @@ func _switch_to_tab(idx: int) -> void:
 			0: _tab_warp_btn.button_pressed = true
 			1: _tab_events_btn.button_pressed = true
 			2: _tab_items_btn.button_pressed = true
+			3: _tab_hud_btn.button_pressed = true
+			4: _tab_synthwave_btn.button_pressed = true
 		return
 	_active_tab = idx
 	_tab_warp_btn.button_pressed = (idx == 0)
 	_tab_events_btn.button_pressed = (idx == 1)
 	_tab_items_btn.button_pressed = (idx == 2)
+	_tab_hud_btn.button_pressed = (idx == 3)
+	_tab_synthwave_btn.button_pressed = (idx == 4)
 	_warp_content.visible = (idx == 0)
 	_events_content.visible = (idx == 1)
 	_items_content.visible = (idx == 2)
+	_hud_content.visible = (idx == 3)
+	_synthwave_content.visible = (idx == 4)
 
 
 func _build_warp_panels() -> void:
@@ -190,6 +227,19 @@ func _on_trigger_event_preview(event_id: String) -> void:
 	tw.tween_callback(flash.queue_free)
 
 
+func _build_synthwave_content() -> void:
+	_synthwave_rect = ColorRect.new()
+	_synthwave_rect.color = Color.WHITE
+	_synthwave_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_synthwave_content.add_child(_synthwave_rect)
+
+	var shader: Shader = load("res://assets/shaders/synthwave_bg.gdshader")
+	if shader:
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		_synthwave_rect.material = mat
+
+
 func _on_launch_events_sim() -> void:
 	GameState.return_scene = "res://scenes/ui/auditions_screen.tscn"
 	GameState.current_level_id = "level_1"
@@ -210,6 +260,10 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_tab_events_btn)
 	if _tab_items_btn:
 		ThemeManager.apply_button_style(_tab_items_btn)
+	if _tab_hud_btn:
+		ThemeManager.apply_button_style(_tab_hud_btn)
+	if _tab_synthwave_btn:
+		ThemeManager.apply_button_style(_tab_synthwave_btn)
 	if _title_label:
 		ThemeManager.apply_text_glow(_title_label, "header")
 		_title_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))

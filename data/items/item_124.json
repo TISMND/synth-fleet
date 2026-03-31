@@ -1,16 +1,16 @@
 {
-	"id": "item_124",
-	"display_name": "Glow Bronze Coin",
+	"animation_style": "spin",
 	"category": "money",
-	"value": 25.0,
+	"display_name": "Glow Bronze Coin",
 	"duration": 0.0,
 	"effect_type": "",
-	"visual_shape": "glow_coin",
+	"glow_color": "#DDA06D",
+	"hdr_intensity": 2.6,
+	"icon": "",
+	"id": "item_124",
 	"primary_color": "#CD7F32",
 	"secondary_color": "#8B4513",
-	"glow_color": "#DDA06D",
-	"icon": "",
-	"animation_style": "spin",
 	"size_class": "medium",
-	"hdr_intensity": 2.5
+	"value": 10.0,
+	"visual_shape": "glow_coin"
 }

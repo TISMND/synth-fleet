@@ -323,6 +323,13 @@ func get_selected_category() -> String:
 	return ""
 
 
+func _suppress_and_select(path: String) -> void:
+	## Select a path without triggering audition playback.
+	_suppress_autoplay = true
+	select_path(path)
+	_suppress_autoplay = false
+
+
 func select_path(path: String) -> void:
 	# Find and select a specific loop path
 	for i in _current_list.size():

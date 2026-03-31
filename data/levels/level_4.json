@@ -7,11 +7,11 @@
 	"encounters": [
 		{
 			"boss_id": "",
-			"count": 5,
+			"count": 10,
 			"drop_chance": 1.0,
 			"drop_table": [
 				{
-					"item_id": "item_111",
+					"item_id": "item_122",
 					"weight": 1.0
 				}
 			],
@@ -29,9 +29,14 @@
 		},
 		{
 			"boss_id": "",
-			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"count": 9,
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_112",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "",
 			"is_melee": false,
 			"path_id": "path_1",
@@ -39,27 +44,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 1110.65693430657,
+			"trigger_y": 702.481751824819,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 22.7737226277372
-		},
-		{
-			"boss_id": "",
-			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
-			"formation_id": "",
-			"is_melee": false,
-			"path_id": "path_1",
-			"rotate_with_path": false,
-			"ship_id": "enemy_1",
-			"spacing": 200.0,
-			"speed": 200.0,
-			"trigger_y": 3072.70072992701,
-			"turn_speed": 90.0,
-			"weapons_active": false,
-			"x_offset": 54.3065693430657
+			"x_offset": -211.970802919708
 		},
 		{
 			"boss_id": "",

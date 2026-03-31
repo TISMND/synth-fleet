@@ -220,6 +220,15 @@ func _build_ui() -> void:
 	for event_id in ["boss_wave_sweep", "boss_wave_hit", "boss_music_degrade", "boss_silence", "boss_music_bleed", "boss_warning", "boss_typing_thunk", "boss_remodulate", "boss_weapons_online", "boss_control_restored", "boss_transition_end"]:
 		_add_event_row(vbox, event_id)
 
+	var spacer_boss := Control.new()
+	spacer_boss.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_boss)
+
+	# Pickup section
+	_add_section_header(vbox, "PICKUPS", "Currency collection sounds — separate slots for shards and coins")
+	for event_id in ["pickup_shard", "pickup_coin"]:
+		_add_event_row(vbox, event_id)
+
 	# Power loss events (power failure, reboot, power-down, power-up) are managed
 	# exclusively in the EVENTS tab timeline — not shown here.
 
@@ -941,9 +950,9 @@ func _add_menu_layer(layer_data: Dictionary) -> void:
 	browser.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_child(browser)
 
-	# Select the saved path if we have one
+	# Select the saved path if we have one (suppress autoplay — don't start loops on load)
 	if file_path != "":
-		browser.call_deferred("select_path", file_path)
+		browser.call_deferred("_suppress_and_select", file_path)
 
 	# Wire loop_selected to auto-save
 	browser.loop_selected.connect(func(_path: String, _cat: String): _save_menu_config())
