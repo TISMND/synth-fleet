@@ -1,6 +1,6 @@
 {
 	"id": "item_28",
-	"display_name": "Thermal Dump",
+	"display_name": "Coolant Injection",
 	"category": "powerup",
 	"value": 80.0,
 	"duration": 0.0,

@@ -81,7 +81,7 @@ func _build_ui() -> void:
 
 	# Warning rotator — upper center, cycles active warnings
 	_warning_rotator = _WarningRotator.new()
-	_warning_rotator.position = Vector2(960 - 110, 60)  # Centered horizontally, near top
+	_warning_rotator.position = Vector2(960 - 110, 200)  # Centered horizontally, below top bars
 	add_child(_warning_rotator)
 
 	# Build 3-panel HUD via HudBuilder

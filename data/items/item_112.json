@@ -1,0 +1,15 @@
+{
+	"id": "item_112",
+	"display_name": "Data Splinter",
+	"category": "money",
+	"value": 20.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "data_shard",
+	"primary_color": "#FF8833",
+	"secondary_color": "#CC5500",
+	"glow_color": "#FFAA55",
+	"icon": "",
+	"animation_style": "bob",
+	"size_class": "small"
+}

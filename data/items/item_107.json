@@ -1,0 +1,15 @@
+{
+	"id": "item_107",
+	"display_name": "Data Core",
+	"category": "money",
+	"value": 400.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "data_shard",
+	"primary_color": "#9944FF",
+	"secondary_color": "#6622CC",
+	"glow_color": "#BB77FF",
+	"icon": "",
+	"animation_style": "pulse",
+	"size_class": "large"
+}

@@ -1,0 +1,15 @@
+{
+	"id": "item_104",
+	"display_name": "Hex Token",
+	"category": "money",
+	"value": 100.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "neon_hex",
+	"primary_color": "#DDAA00",
+	"secondary_color": "#AA7700",
+	"glow_color": "#FFDD44",
+	"icon": "",
+	"animation_style": "pulse",
+	"size_class": "medium"
+}

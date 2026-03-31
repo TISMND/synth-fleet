@@ -6,9 +6,9 @@
 	"duration": 0.0,
 	"effect_type": "hull_repair",
 	"visual_shape": "circle",
-	"primary_color": "#FF3333",
-	"secondary_color": "#CC1111",
-	"glow_color": "#FF8888",
+	"primary_color": "#33DD55",
+	"secondary_color": "#22AA44",
+	"glow_color": "#66FF88",
 	"icon": "cross",
 	"animation_style": "pulse"
 }

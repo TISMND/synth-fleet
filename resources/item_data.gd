@@ -16,6 +16,7 @@ extends Resource
 @export var glow_color: String = "#FFEC80"  # Glow/shimmer color (hex)
 @export var icon: String = ""  # Powerup icon: shield, cross, arrow_up, sword, snowflake, bolt, star, magnet
 @export var animation_style: String = "shimmer"  # spin, pulse, shimmer, bob, static
+@export var size_class: String = "medium"  # "small", "medium", "large"
 
 
 static func from_dict(data: Dictionary) -> ItemData:
@@ -32,6 +33,7 @@ static func from_dict(data: Dictionary) -> ItemData:
 	item.glow_color = str(data.get("glow_color", "#FFEC80"))
 	item.icon = str(data.get("icon", ""))
 	item.animation_style = str(data.get("animation_style", "shimmer"))
+	item.size_class = str(data.get("size_class", "medium"))
 	return item
 
 
@@ -49,4 +51,5 @@ func to_dict() -> Dictionary:
 		"glow_color": glow_color,
 		"icon": icon,
 		"animation_style": animation_style,
+		"size_class": size_class,
 	}

@@ -8,7 +8,9 @@ const EFFECT_TYPES: Array[String] = [
 ]
 const VISUAL_SHAPES: Array[String] = [
 	"coin", "diamond", "gem_round", "gem_oval", "crystal", "bar", "chip", "star", "circle",
+	"neon_coin", "neon_star", "neon_diamond", "neon_hex", "energy_orb", "data_shard",
 ]
+const SIZE_CLASSES: Array[String] = ["small", "medium", "large"]
 const ANIMATION_STYLES: Array[String] = [
 	"shimmer", "spin", "pulse", "bob", "static",
 ]
@@ -44,6 +46,7 @@ var _glow_color_btn: ColorPickerButton
 var _icon_option: OptionButton
 var _icon_row: HBoxContainer
 var _anim_option: OptionButton
+var _size_option: OptionButton
 
 # Preview
 var _preview_viewport: SubViewportContainer
@@ -246,6 +249,15 @@ func _build_ui() -> void:
 	_anim_option.item_selected.connect(_on_anim_changed)
 	anim_row.add_child(_anim_option)
 
+	# Size class
+	var size_row := _make_row("Size Class")
+	_size_option = OptionButton.new()
+	_size_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for sc in SIZE_CLASSES:
+		_size_option.add_item(sc.capitalize())
+	_size_option.item_selected.connect(_on_size_class_changed)
+	size_row.add_child(_size_option)
+
 	# Empty state
 	_empty_label = Label.new()
 	_empty_label.text = "No items yet. Click + NEW to get started."
@@ -384,6 +396,9 @@ func _select_item(id: String) -> void:
 
 	var anim_idx: int = ANIMATION_STYLES.find(data.animation_style)
 	_anim_option.selected = maxi(anim_idx, 0)
+
+	var size_idx: int = SIZE_CLASSES.find(data.size_class)
+	_size_option.selected = maxi(size_idx, 0)
 
 	_suppressing_signals = false
 	_rebuild_list()
@@ -555,6 +570,15 @@ func _on_anim_changed(idx: int) -> void:
 	var data: ItemData = _get_by_id(_selected_id)
 	if data:
 		data.animation_style = ANIMATION_STYLES[idx]
+		_auto_save()
+
+
+func _on_size_class_changed(idx: int) -> void:
+	if _suppressing_signals:
+		return
+	var data: ItemData = _get_by_id(_selected_id)
+	if data:
+		data.size_class = SIZE_CLASSES[idx]
 		_auto_save()
 
 

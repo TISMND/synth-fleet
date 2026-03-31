@@ -6,9 +6,9 @@
 	"duration": 8.0,
 	"effect_type": "speed_boost",
 	"visual_shape": "circle",
-	"primary_color": "#FFDD00",
-	"secondary_color": "#CCAA00",
-	"glow_color": "#FFFF66",
+	"primary_color": "#FF8833",
+	"secondary_color": "#CC5500",
+	"glow_color": "#FFAA55",
 	"icon": "arrow_up",
 	"animation_style": "bob"
 }

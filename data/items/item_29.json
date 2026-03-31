@@ -6,9 +6,9 @@
 	"duration": 0.0,
 	"effect_type": "electric_charge",
 	"visual_shape": "circle",
-	"primary_color": "#AA44FF",
-	"secondary_color": "#7722CC",
-	"glow_color": "#CC88FF",
+	"primary_color": "#FFDD00",
+	"secondary_color": "#CCAA00",
+	"glow_color": "#FFEE66",
 	"icon": "bolt",
 	"animation_style": "pulse"
 }

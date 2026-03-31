@@ -1,0 +1,15 @@
+{
+	"id": "item_114",
+	"display_name": "Memory Fragment",
+	"category": "money",
+	"value": 15.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "data_shard",
+	"primary_color": "#CCBBAA",
+	"secondary_color": "#998877",
+	"glow_color": "#EEDDCC",
+	"icon": "",
+	"animation_style": "bob",
+	"size_class": "small"
+}

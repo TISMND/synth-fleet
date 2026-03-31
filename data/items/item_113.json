@@ -1,0 +1,15 @@
+{
+	"id": "item_113",
+	"display_name": "Circuit Shard",
+	"category": "money",
+	"value": 180.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "data_shard",
+	"primary_color": "#88CCFF",
+	"secondary_color": "#5599CC",
+	"glow_color": "#AADDFF",
+	"icon": "",
+	"animation_style": "pulse",
+	"size_class": "medium"
+}
