@@ -77,8 +77,11 @@ func _rebuild_grid() -> void:
 
 	var money_items: Array[ItemData] = []
 	var powerup_items: Array[ItemData] = []
+	var shape_items: Array[ItemData] = []
 	for item in _items:
-		if item.category == "money":
+		if item.display_name.begins_with("Shape:"):
+			shape_items.append(item)
+		elif item.category == "money":
 			money_items.append(item)
 		else:
 			powerup_items.append(item)
@@ -87,6 +90,8 @@ func _rebuild_grid() -> void:
 		_add_section("CURRENCY", money_items)
 	if powerup_items.size() > 0:
 		_add_section("POWERUPS", powerup_items)
+	if shape_items.size() > 0:
+		_add_section("SHAPES", shape_items)
 
 
 func _add_section(title: String, items: Array[ItemData]) -> void:
@@ -131,9 +136,11 @@ func _add_item_cell(parent: HFlowContainer, item: ItemData) -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vp.add_child(bg)
 
+	var render_size: float = _current_size * 0.45
+
 	var renderer := ItemRenderer.new()
 	renderer.position = Vector2(cell_px / 2.0, cell_px / 2.0)
-	renderer.setup(item, _current_size * 0.45)
+	renderer.setup(item, render_size)
 	vp.add_child(renderer)
 
 	var name_label := Label.new()
@@ -143,6 +150,32 @@ func _add_item_cell(parent: HFlowContainer, item: ItemData) -> void:
 	name_label.add_theme_font_size_override("font_size", 10)
 	ThemeManager.apply_text_glow(name_label, "body")
 	card.add_child(name_label)
+
+	# Per-item HDR intensity slider
+	var slider_row := HBoxContainer.new()
+	slider_row.add_theme_constant_override("separation", 4)
+	slider_row.custom_minimum_size.x = cell_px
+	card.add_child(slider_row)
+
+	var hdr_label := Label.new()
+	hdr_label.text = "HDR"
+	hdr_label.add_theme_font_size_override("font_size", 9)
+	slider_row.add_child(hdr_label)
+
+	var slider := HSlider.new()
+	slider.min_value = 0.5
+	slider.max_value = 4.0
+	slider.step = 0.1
+	slider.value = item.hdr_intensity
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.value_changed.connect(_on_item_hdr_changed.bind(item, renderer))
+	slider_row.add_child(slider)
+
+
+func _on_item_hdr_changed(val: float, item: ItemData, renderer: ItemRenderer) -> void:
+	item.hdr_intensity = val
+	ItemDataManager.save(item)
+	renderer.queue_redraw()
 
 
 func _on_size_pressed(size_name: String) -> void:

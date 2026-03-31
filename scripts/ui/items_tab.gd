@@ -8,7 +8,11 @@ const EFFECT_TYPES: Array[String] = [
 ]
 const VISUAL_SHAPES: Array[String] = [
 	"coin", "diamond", "gem_round", "gem_oval", "crystal", "bar", "chip", "star", "circle",
-	"neon_coin", "neon_star", "neon_diamond", "neon_hex", "energy_orb", "data_shard",
+	"neon_coin", "glow_coin", "neon_star", "neon_diamond", "neon_hex", "energy_orb", "data_shard",
+	"shard_jagged", "shard_cleave", "shard_hook", "shard_splint", "shard_chunk",
+	"gem_shield", "gem_teardrop", "gem_rhombus", "gem_crown",
+	"wire_kite", "wire_arrow", "wire_prism", "wire_fang", "wire_sliver",
+	"wire_trap", "wire_marquise", "wire_emerald", "wire_penta", "wire_wedge",
 ]
 const SIZE_CLASSES: Array[String] = ["small", "medium", "large"]
 const ANIMATION_STYLES: Array[String] = [
@@ -47,6 +51,7 @@ var _icon_option: OptionButton
 var _icon_row: HBoxContainer
 var _anim_option: OptionButton
 var _size_option: OptionButton
+var _hdr_spin: SpinBox
 
 # Preview
 var _preview_viewport: SubViewportContainer
@@ -258,6 +263,17 @@ func _build_ui() -> void:
 	_size_option.item_selected.connect(_on_size_class_changed)
 	size_row.add_child(_size_option)
 
+	# HDR intensity
+	var hdr_row := _make_row("HDR Intensity")
+	_hdr_spin = SpinBox.new()
+	_hdr_spin.min_value = 0.5
+	_hdr_spin.max_value = 4.0
+	_hdr_spin.step = 0.1
+	_hdr_spin.value = 2.5
+	_hdr_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hdr_spin.value_changed.connect(_on_hdr_changed)
+	hdr_row.add_child(_hdr_spin)
+
 	# Empty state
 	_empty_label = Label.new()
 	_empty_label.text = "No items yet. Click + NEW to get started."
@@ -399,6 +415,8 @@ func _select_item(id: String) -> void:
 
 	var size_idx: int = SIZE_CLASSES.find(data.size_class)
 	_size_option.selected = maxi(size_idx, 0)
+
+	_hdr_spin.value = data.hdr_intensity
 
 	_suppressing_signals = false
 	_rebuild_list()
@@ -579,6 +597,15 @@ func _on_size_class_changed(idx: int) -> void:
 	var data: ItemData = _get_by_id(_selected_id)
 	if data:
 		data.size_class = SIZE_CLASSES[idx]
+		_auto_save()
+
+
+func _on_hdr_changed(val: float) -> void:
+	if _suppressing_signals:
+		return
+	var data: ItemData = _get_by_id(_selected_id)
+	if data:
+		data.hdr_intensity = val
 		_auto_save()
 
 

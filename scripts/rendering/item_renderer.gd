@@ -77,6 +77,8 @@ func _draw() -> void:
 			_draw_powerup_circle(center, s, primary, secondary, glow, shimmer_phase)
 		"neon_coin":
 			_draw_neon_coin(center, s, anim_squeeze_x, primary, secondary, glow, shimmer_phase)
+		"glow_coin":
+			_draw_glow_coin(center, s, anim_squeeze_x, primary, secondary, glow, shimmer_phase)
 		"neon_star":
 			_draw_neon_star(center, s, primary, secondary, glow, shimmer_phase)
 		"neon_diamond":
@@ -87,6 +89,44 @@ func _draw() -> void:
 			_draw_energy_orb(center, s, primary, secondary, glow, shimmer_phase)
 		"data_shard":
 			_draw_data_shard(center, s, primary, secondary, glow, shimmer_phase)
+		"shard_jagged":
+			_draw_shard_jagged(center, s, primary, secondary, glow, shimmer_phase)
+		"shard_cleave":
+			_draw_shard_cleave(center, s, primary, secondary, glow, shimmer_phase)
+		"shard_hook":
+			_draw_shard_hook(center, s, primary, secondary, glow, shimmer_phase)
+		"shard_splint":
+			_draw_shard_splint(center, s, primary, secondary, glow, shimmer_phase)
+		"shard_chunk":
+			_draw_shard_chunk(center, s, primary, secondary, glow, shimmer_phase)
+		"gem_shield":
+			_draw_gem_shield(center, s, primary, secondary, glow, shimmer_phase)
+		"gem_teardrop":
+			_draw_gem_teardrop(center, s, primary, secondary, glow, shimmer_phase)
+		"gem_rhombus":
+			_draw_gem_rhombus(center, s, primary, secondary, glow, shimmer_phase)
+		"gem_crown":
+			_draw_gem_crown(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_kite":
+			_draw_wire_kite(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_arrow":
+			_draw_wire_arrow(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_prism":
+			_draw_wire_prism(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_fang":
+			_draw_wire_fang(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_sliver":
+			_draw_wire_sliver(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_trap":
+			_draw_wire_trap(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_marquise":
+			_draw_wire_marquise(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_emerald":
+			_draw_wire_emerald(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_penta":
+			_draw_wire_penta(center, s, primary, secondary, glow, shimmer_phase)
+		"wire_wedge":
+			_draw_wire_wedge(center, s, primary, secondary, glow, shimmer_phase)
 		_:
 			_draw_coin(center, s, anim_squeeze_x, primary, secondary, glow, shimmer_phase)
 
@@ -340,13 +380,15 @@ func _draw_powerup_circle(center: Vector2, s: float, primary: Color, secondary: 
 	var arc_start: float = shimmer * TAU
 	draw_arc(center, r * 0.9, arc_start, arc_start + 0.8, 8, Color(glow.r, glow.g, glow.b, 0.25), 2.5)
 
-	_draw_sparkles(center, r, glow, shimmer)
+	# No sparkles on powerups — icon HDR pulse handles the shimmer
 
 
 # ── Icons (for powerups) ────────────────────────────────────────────────
 
 func _draw_icon(center: Vector2, icon_size: float, icon_name: String, color: Color) -> void:
-	var col := Color(color.r, color.g, color.b, 0.9)
+	# Pulsing HDR glow on powerup icons
+	var pulse: float = 1.5 + 0.8 * sin(_time * 3.0)
+	var col := Color(color.r * pulse, color.g * pulse, color.b * pulse, 0.9)
 	var s: float = icon_size
 
 	match icon_name:
@@ -502,7 +544,7 @@ func _draw_neon_coin(center: Vector2, s: float, squeeze_x: float, primary: Color
 	var r: float = s * 0.45
 	var rx: float = r * squeeze_x
 	var edge_w: float = s * 0.08
-	var hdr: float = 2.5
+	var hdr: float = _item.hdr_intensity if _item else 2.5
 
 	var line_col := Color(glow.r * hdr, glow.g * hdr, glow.b * hdr, 0.9)
 	var dim_col := Color(primary.r * hdr, primary.g * hdr, primary.b * hdr, 0.35)
@@ -523,7 +565,44 @@ func _draw_neon_coin(center: Vector2, s: float, squeeze_x: float, primary: Color
 	# Face details when wide enough to read
 	if squeeze_x > 0.3:
 		_draw_ellipse_arc(center, rx * 0.7, r * 0.7, 20, dim_col, 1.5)
-		draw_circle(center, s * 0.05, Color(glow.r * 3.0, glow.g * 3.0, glow.b * 3.0, 0.5))
+		var core: float = hdr * 1.2
+		draw_circle(center, s * 0.05, Color(glow.r * core, glow.g * core, glow.b * core, 0.5))
+
+	_draw_sparkles(center, r, glow, shimmer)
+
+
+func _draw_glow_coin(center: Vector2, s: float, squeeze_x: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var r: float = s * 0.45
+	var rx: float = r * squeeze_x
+	var edge_w: float = s * 0.08
+	var hdr: float = _item.hdr_intensity if _item else 2.5
+
+	# --- Filled rim when edge-on ---
+	if rx < edge_w:
+		_draw_ellipse(center, edge_w, r, 16, secondary.darkened(0.35))
+		var bevel_r: float = edge_w * 0.9
+		var rim_glow := Color(glow.r * hdr, glow.g * hdr, glow.b * hdr, 0.5)
+		draw_line(center + Vector2(bevel_r, -r * 0.9), center + Vector2(bevel_r, r * 0.9), rim_glow, 1.5)
+		draw_line(center + Vector2(-bevel_r, -r * 0.9), center + Vector2(-bevel_r, r * 0.9),
+			Color(secondary.r * hdr, secondary.g * hdr, secondary.b * hdr, 0.25), 1.0)
+
+	# --- Filled face ---
+	_draw_ellipse(center, rx, r, 24, primary)
+	# Lighter center for 3D depth
+	_draw_ellipse(center, rx * 0.6, r * 0.6, 16, primary.lightened(0.1))
+
+	# HDR glowing edge arc on top
+	var edge_col := Color(glow.r * hdr, glow.g * hdr, glow.b * hdr, 0.7)
+	_draw_ellipse_arc(center, rx, r, 24, edge_col, 1.5)
+
+	# Face details when wide enough
+	if squeeze_x > 0.3:
+		# Dim inner ring
+		var dim_col := Color(secondary.r * hdr, secondary.g * hdr, secondary.b * hdr, 0.35)
+		_draw_ellipse_arc(center, rx * 0.7, r * 0.7, 20, dim_col, 1.0)
+		# Center glow
+		var core: float = hdr * 1.2
+		draw_circle(center, s * 0.04, Color(glow.r * core, glow.g * core, glow.b * core, 0.4))
 
 	_draw_sparkles(center, r, glow, shimmer)
 
@@ -532,7 +611,7 @@ func _draw_neon_star(center: Vector2, s: float, primary: Color, secondary: Color
 	var r_outer: float = s * 0.45
 	var r_inner: float = r_outer * 0.4
 	var points: int = 5
-	var hdr: float = 1.5
+	var hdr: float = _item.hdr_intensity if _item else 1.5
 
 	# Build star vertices
 	var pts: PackedVector2Array = PackedVector2Array()
@@ -557,7 +636,8 @@ func _draw_neon_star(center: Vector2, s: float, primary: Color, secondary: Color
 		draw_line(inner_pts[i], inner_pts[(i + 1) % inner_pts.size()], dim_col, 1.0)
 
 	# Center glow dot
-	draw_circle(center, s * 0.07, Color(glow.r * 2.0, glow.g * 2.0, glow.b * 2.0, 0.4))
+	var core_s: float = hdr * 1.2
+	draw_circle(center, s * 0.07, Color(glow.r * core_s, glow.g * core_s, glow.b * core_s, 0.4))
 
 	_draw_sparkles(center, r_outer, glow, shimmer)
 
@@ -566,7 +646,7 @@ func _draw_neon_diamond(center: Vector2, s: float, primary: Color, secondary: Co
 	var w: float = s * 0.35
 	var h: float = s * 0.5
 	var girdle_y: float = -h * 0.15
-	var hdr: float = 2.5
+	var hdr: float = _item.hdr_intensity if _item else 2.5
 
 	var pts: PackedVector2Array = PackedVector2Array([
 		center + Vector2(0, -h),
@@ -591,14 +671,15 @@ func _draw_neon_diamond(center: Vector2, s: float, primary: Color, secondary: Co
 	draw_line(pts[3], pts[5], facet_col, 1.0)
 
 	# Bright core at girdle center
-	draw_circle(center + Vector2(0, girdle_y * 0.5), s * 0.06, Color(glow.r * 3.0, glow.g * 3.0, glow.b * 3.0, 0.55))
+	var core_d: float = hdr * 1.2
+	draw_circle(center + Vector2(0, girdle_y * 0.5), s * 0.06, Color(glow.r * core_d, glow.g * core_d, glow.b * core_d, 0.55))
 
 	_draw_sparkles(center, h * 0.8, glow, shimmer)
 
 
 func _draw_neon_hex(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
 	var r: float = s * 0.42
-	var hdr: float = 1.5
+	var hdr: float = _item.hdr_intensity if _item else 1.5
 
 	# Outer hex
 	var outer_pts: PackedVector2Array = _hex_points(center, r)
@@ -622,14 +703,15 @@ func _draw_neon_hex(center: Vector2, s: float, primary: Color, secondary: Color,
 		draw_circle(pt, 2.0, line_col)
 
 	# Center glow
-	draw_circle(center, s * 0.08, Color(glow.r * 2.0, glow.g * 2.0, glow.b * 2.0, 0.35))
+	var core_h: float = hdr * 1.2
+	draw_circle(center, s * 0.08, Color(glow.r * core_h, glow.g * core_h, glow.b * core_h, 0.35))
 
 	_draw_sparkles(center, r, glow, shimmer)
 
 
 func _draw_energy_orb(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
 	var r: float = s * 0.42
-	var hdr: float = 2.0
+	var hdr: float = _item.hdr_intensity if _item else 2.0
 
 	# Outer sphere — dark rim for 3D depth
 	draw_circle(center, r, primary.darkened(0.3))
@@ -645,8 +727,9 @@ func _draw_energy_orb(center: Vector2, s: float, primary: Color, secondary: Colo
 	draw_circle(center + Vector2(-r * 0.2, -r * 0.25), r * 0.15, highlight)
 
 	# Bright pulsing core
+	var core_e: float = hdr * 1.2
 	var core_pulse: float = 0.35 + 0.2 * sin(_time * 3.5)
-	var core_col := Color(glow.r * 3.0, glow.g * 3.0, glow.b * 3.0, core_pulse)
+	var core_col := Color(glow.r * core_e, glow.g * core_e, glow.b * core_e, core_pulse)
 	draw_circle(center, r * 0.12, core_col)
 
 	# Rim highlight arc (top edge)
@@ -658,7 +741,7 @@ func _draw_energy_orb(center: Vector2, s: float, primary: Color, secondary: Colo
 func _draw_data_shard(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
 	var w: float = s * 0.3
 	var h: float = s * 0.5
-	var hdr: float = 2.0
+	var hdr: float = _item.hdr_intensity if _item else 2.0
 
 	# Asymmetric angular shard — 5 vertices
 	var pts: PackedVector2Array = PackedVector2Array([
@@ -698,6 +781,363 @@ func _draw_data_shard(center: Vector2, s: float, primary: Color, secondary: Colo
 	)
 
 	_draw_sparkles(center, h * 0.8, glow, shimmer)
+
+
+# ── Asymmetric Shard Shapes ─────────────────────────────────────────────
+
+func _draw_shard_jagged(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.42
+	var h: float = s * 0.55
+	var pts := PackedVector2Array([
+		center + Vector2(-w * 0.15, -h),
+		center + Vector2(w * 0.7, -h * 0.55),
+		center + Vector2(w * 0.4, -h * 0.05),
+		center + Vector2(w * 0.85, h * 0.45),
+		center + Vector2(-w * 0.1, h * 0.8),
+		center + Vector2(-w * 0.7, h * 0.15),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[3]],
+		[pts[2], pts[5]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_shard_cleave(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.4
+	var h: float = s * 0.55
+	var pts := PackedVector2Array([
+		center + Vector2(-w * 0.5, -h),
+		center + Vector2(w * 0.3, -h * 0.7),
+		center + Vector2(w * 0.9, -h * 0.1),
+		center + Vector2(w * 0.5, h * 0.8),
+		center + Vector2(-w * 0.5, h),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[3]],
+		[pts[1], pts[4]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_shard_hook(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.4
+	var h: float = s * 0.55
+	var pts := PackedVector2Array([
+		center + Vector2(w * 0.2, -h),
+		center + Vector2(w * 0.8, -h * 0.4),
+		center + Vector2(w * 0.3, h * 0.2),
+		center + Vector2(w * 0.6, h * 0.85),
+		center + Vector2(-w * 0.5, h * 0.4),
+		center + Vector2(-w * 0.3, -h * 0.3),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[3]],
+		[pts[2], pts[5]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_shard_splint(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.22
+	var h: float = s * 0.58
+	var pts := PackedVector2Array([
+		center + Vector2(w * 0.3, -h),
+		center + Vector2(w, -h * 0.2),
+		center + Vector2(-w * 0.1, h),
+		center + Vector2(-w * 0.8, h * 0.3),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[2]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_shard_chunk(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.45
+	var h: float = s * 0.45
+	var pts := PackedVector2Array([
+		center + Vector2(-w * 0.3, -h),
+		center + Vector2(w * 0.6, -h * 0.7),
+		center + Vector2(w * 0.9, h * 0.1),
+		center + Vector2(w * 0.2, h * 0.9),
+		center + Vector2(-w * 0.7, h * 0.5),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[2]],
+		[pts[1], pts[4]],
+		[pts[3], center],
+	], glow, primary, secondary, shimmer)
+
+
+# ── Symmetrical Gem Shapes ──────────────────────────────────────────────
+
+func _draw_gem_shield(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.4
+	var h: float = s * 0.52
+	var pts := PackedVector2Array([
+		center + Vector2(-w * 0.75, -h * 0.45),
+		center + Vector2(w * 0.75, -h * 0.45),
+		center + Vector2(w * 0.75, h * 0.15),
+		center + Vector2(0, h),
+		center + Vector2(-w * 0.75, h * 0.15),
+	])
+	var mid_top: Vector2 = (pts[0] + pts[1]) * 0.5
+	_draw_wire_shape(center, s, pts, [
+		[mid_top, pts[3]],
+		[pts[4], pts[2]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_gem_teardrop(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.38
+	var h: float = s * 0.55
+	var pts := PackedVector2Array([
+		center + Vector2(0, -h * 0.6),
+		center + Vector2(w * 0.6, -h * 0.3),
+		center + Vector2(w * 0.72, h * 0.05),
+		center + Vector2(w * 0.38, h * 0.55),
+		center + Vector2(0, h),
+		center + Vector2(-w * 0.38, h * 0.55),
+		center + Vector2(-w * 0.72, h * 0.05),
+		center + Vector2(-w * 0.6, -h * 0.3),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[4]],
+		[pts[2], pts[6]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_gem_rhombus(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.48
+	var h: float = s * 0.35
+	var pts := PackedVector2Array([
+		center + Vector2(0, -h),
+		center + Vector2(w, 0),
+		center + Vector2(0, h),
+		center + Vector2(-w, 0),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[2]],
+		[pts[1], pts[3]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_gem_crown(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.45
+	var h: float = s * 0.5
+	var pts := PackedVector2Array([
+		center + Vector2(-w * 0.85, h * 0.35),
+		center + Vector2(-w * 0.55, -h * 0.55),
+		center + Vector2(-w * 0.2, -h * 0.05),
+		center + Vector2(0, -h),
+		center + Vector2(w * 0.2, -h * 0.05),
+		center + Vector2(w * 0.55, -h * 0.55),
+		center + Vector2(w * 0.85, h * 0.35),
+	])
+	var base_mid: Vector2 = (pts[0] + pts[6]) * 0.5
+	_draw_wire_shape(center, s, pts, [
+		[pts[3], base_mid],
+		[pts[2], pts[4]],
+	], glow, primary, secondary, shimmer)
+
+
+# ── Wire Gem Shapes ─────────────────────────────────────────────────────
+
+## Shared renderer for all gem shapes — filled facets with HDR glowing edges.
+## Each edge-to-center triangle is shaded based on direction for 3D depth:
+## upper-right faces are lit, lower-left faces are in shadow.
+func _draw_wire_shape(center: Vector2, s: float, outline: PackedVector2Array,
+		facets: Array, glow: Color, primary: Color, secondary: Color, shimmer: float) -> void:
+	var hdr: float = _item.hdr_intensity if _item else 2.5
+
+	# Filled facets — triangle from center to each edge, shaded for 3D depth
+	for i in range(outline.size()):
+		var next_i: int = (i + 1) % outline.size()
+		var tri := PackedVector2Array([center, outline[i], outline[next_i]])
+		var mid: Vector2 = (outline[i] + outline[next_i]) * 0.5
+		var to_mid: Vector2 = mid - center
+		# Upper-right = lit, lower-left = shadow
+		var shade: float = (to_mid.x * 0.5 - to_mid.y * 0.5) / s
+		shade = clampf(shade, -0.25, 0.25)
+		var col: Color = primary.lightened(shade) if shade > 0.0 else primary.darkened(-shade)
+		draw_colored_polygon(tri, col)
+
+	# HDR edge lines (bloom glow)
+	var edge_col := Color(glow.r * hdr, glow.g * hdr, glow.b * hdr, 0.7)
+	for i in range(outline.size()):
+		draw_line(outline[i], outline[(i + 1) % outline.size()], edge_col, 1.5)
+
+	# Internal facet lines (dim)
+	var facet_col := Color(secondary.r * hdr, secondary.g * hdr, secondary.b * hdr, 0.35)
+	for f in facets:
+		draw_line(f[0] as Vector2, f[1] as Vector2, facet_col, 1.0)
+
+	# Center glow dot
+	var core: float = hdr * 1.2
+	draw_circle(center, s * 0.06, Color(glow.r * core, glow.g * core, glow.b * core, 0.55))
+
+	# Sparkles
+	var max_r: float = 0.0
+	for pt in outline:
+		max_r = maxf(max_r, center.distance_to(pt))
+	_draw_sparkles(center, max_r, glow, shimmer)
+
+
+func _draw_wire_kite(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.35
+	var h: float = s * 0.5
+	var pts := PackedVector2Array([
+		center + Vector2(0, -h),
+		center + Vector2(w, -h * 0.1),
+		center + Vector2(0, h * 0.7),
+		center + Vector2(-w, -h * 0.1),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[2]],
+		[pts[1], pts[3]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_wire_arrow(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.38
+	var h: float = s * 0.5
+	var pts := PackedVector2Array([
+		center + Vector2(0, -h),
+		center + Vector2(w, -h * 0.05),
+		center + Vector2(w * 0.35, h * 0.5),
+		center + Vector2(-w * 0.35, h * 0.5),
+		center + Vector2(-w, -h * 0.05),
+	])
+	var mid_base: Vector2 = (pts[2] + pts[3]) * 0.5
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], mid_base],
+		[pts[1], pts[4]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_wire_prism(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.38
+	var h: float = s * 0.5
+	var pts := PackedVector2Array([
+		center + Vector2(0, -h * 0.85),
+		center + Vector2(w, h * 0.5),
+		center + Vector2(-w, h * 0.5),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[center, pts[0]],
+		[center, pts[1]],
+		[center, pts[2]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_wire_fang(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.35
+	var h: float = s * 0.5
+	var pts := PackedVector2Array([
+		center + Vector2(w * 0.1, -h),
+		center + Vector2(w * 0.7, -h * 0.15),
+		center + Vector2(0, h),
+		center + Vector2(-w * 0.5, 0),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[2]],
+		[pts[1], pts[3]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_wire_sliver(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.2
+	var h: float = s * 0.5
+	var pts := PackedVector2Array([
+		center + Vector2(0, -h),
+		center + Vector2(w * 0.9, h * 0.85),
+		center + Vector2(-w * 0.5, h * 0.55),
+	])
+	var mid: Vector2 = (pts[1] + pts[2]) * 0.5
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], mid],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_wire_trap(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.4
+	var h: float = s * 0.4
+	var pts := PackedVector2Array([
+		center + Vector2(-w * 0.9, -h),
+		center + Vector2(w * 0.9, -h),
+		center + Vector2(w * 0.4, h),
+		center + Vector2(-w * 0.4, h),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[2]],
+		[pts[1], pts[3]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_wire_marquise(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.38
+	var h: float = s * 0.5
+	var pts := PackedVector2Array([
+		center + Vector2(0, -h),
+		center + Vector2(w * 0.85, -h * 0.3),
+		center + Vector2(w * 0.85, h * 0.3),
+		center + Vector2(0, h),
+		center + Vector2(-w * 0.85, h * 0.3),
+		center + Vector2(-w * 0.85, -h * 0.3),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[3]],
+		[pts[1], pts[4]],
+		[pts[2], pts[5]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_wire_emerald(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.4
+	var h: float = s * 0.35
+	var clip: float = s * 0.12
+	var pts := PackedVector2Array([
+		center + Vector2(-w + clip, -h),
+		center + Vector2(w - clip, -h),
+		center + Vector2(w, -h + clip),
+		center + Vector2(w, h - clip),
+		center + Vector2(w - clip, h),
+		center + Vector2(-w + clip, h),
+		center + Vector2(-w, h - clip),
+		center + Vector2(-w, -h + clip),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[center + Vector2(0, -h), center + Vector2(0, h)],
+		[center + Vector2(-w, 0), center + Vector2(w, 0)],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_wire_penta(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var r: float = s * 0.42
+	var pts := PackedVector2Array()
+	for i in range(5):
+		var angle: float = -PI / 2.0 + float(i) * TAU / 5.0
+		pts.append(center + Vector2(cos(angle) * r, sin(angle) * r))
+	# Star pattern — connect every other vertex
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[2]],
+		[pts[2], pts[4]],
+		[pts[4], pts[1]],
+		[pts[1], pts[3]],
+		[pts[3], pts[0]],
+	], glow, primary, secondary, shimmer)
+
+
+func _draw_wire_wedge(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+	var w: float = s * 0.35
+	var h: float = s * 0.5
+	var pts := PackedVector2Array([
+		center + Vector2(-w * 0.2, -h),
+		center + Vector2(w, h * 0.2),
+		center + Vector2(w * 0.2, h),
+		center + Vector2(-w * 0.7, h * 0.3),
+	])
+	_draw_wire_shape(center, s, pts, [
+		[pts[0], pts[2]],
+		[pts[1], pts[3]],
+	], glow, primary, secondary, shimmer)
 
 
 func _hex_points(center: Vector2, r: float) -> PackedVector2Array:

@@ -1,0 +1,16 @@
+{
+	"animation_style": "spin",
+	"category": "money",
+	"display_name": "Glow Gold Coin",
+	"duration": 0.0,
+	"effect_type": "",
+	"glow_color": "#FFEC80",
+	"hdr_intensity": 1.5,
+	"icon": "",
+	"id": "item_122",
+	"primary_color": "#FFD700",
+	"secondary_color": "#DAA520",
+	"size_class": "medium",
+	"value": 100.0,
+	"visual_shape": "glow_coin"
+}

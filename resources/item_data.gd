@@ -17,6 +17,7 @@ extends Resource
 @export var icon: String = ""  # Powerup icon: shield, cross, arrow_up, sword, snowflake, bolt, star, magnet
 @export var animation_style: String = "shimmer"  # spin, pulse, shimmer, bob, static
 @export var size_class: String = "medium"  # "small", "medium", "large"
+@export var hdr_intensity: float = 2.5  # HDR multiplier for neon/wire shapes (0.5–4.0)
 
 
 static func from_dict(data: Dictionary) -> ItemData:
@@ -34,6 +35,7 @@ static func from_dict(data: Dictionary) -> ItemData:
 	item.icon = str(data.get("icon", ""))
 	item.animation_style = str(data.get("animation_style", "shimmer"))
 	item.size_class = str(data.get("size_class", "medium"))
+	item.hdr_intensity = float(data.get("hdr_intensity", 2.5))
 	return item
 
 
@@ -52,4 +54,5 @@ func to_dict() -> Dictionary:
 		"icon": icon,
 		"animation_style": animation_style,
 		"size_class": size_class,
+		"hdr_intensity": hdr_intensity,
 	}

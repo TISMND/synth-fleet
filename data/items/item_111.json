@@ -1,6 +1,6 @@
 {
 	"id": "item_111",
-	"display_name": "Data Block",
+	"display_name": "Jade Shard",
 	"category": "money",
 	"value": 120.0,
 	"duration": 0.0,
@@ -10,6 +10,6 @@
 	"secondary_color": "#008877",
 	"glow_color": "#44DDCC",
 	"icon": "",
-	"animation_style": "pulse",
+	"animation_style": "bob",
 	"size_class": "medium"
 }

@@ -1,0 +1,16 @@
+{
+	"id": "item_306",
+	"display_name": "Shape: Rhombus",
+	"category": "money",
+	"value": 100.0,
+	"duration": 0.0,
+	"effect_type": "",
+	"visual_shape": "gem_rhombus",
+	"primary_color": "#0A1144",
+	"secondary_color": "#000822",
+	"glow_color": "#4488FF",
+	"icon": "",
+	"animation_style": "bob",
+	"size_class": "large",
+	"hdr_intensity": 2.2
+}

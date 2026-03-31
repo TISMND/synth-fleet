@@ -1,15 +1,16 @@
 {
-	"id": "item_113",
-	"display_name": "Circuit Shard",
+	"animation_style": "bob",
 	"category": "money",
-	"value": 180.0,
+	"display_name": "Circuit Shard",
 	"duration": 0.0,
 	"effect_type": "",
-	"visual_shape": "data_shard",
+	"glow_color": "#AADDFF",
+	"hdr_intensity": 2.0,
+	"icon": "",
+	"id": "item_113",
 	"primary_color": "#88CCFF",
 	"secondary_color": "#5599CC",
-	"glow_color": "#AADDFF",
-	"icon": "",
-	"animation_style": "pulse",
-	"size_class": "medium"
+	"size_class": "medium",
+	"value": 180.0,
+	"visual_shape": "data_shard"
 }

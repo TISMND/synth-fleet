@@ -1,0 +1,16 @@
+{
+	"animation_style": "spin",
+	"category": "money",
+	"display_name": "Glow Silver Coin",
+	"duration": 0.0,
+	"effect_type": "",
+	"glow_color": "#E8E8F0",
+	"hdr_intensity": 2.2,
+	"icon": "",
+	"id": "item_123",
+	"primary_color": "#C0C0C0",
+	"secondary_color": "#808080",
+	"size_class": "medium",
+	"value": 50.0,
+	"visual_shape": "glow_coin"
+}

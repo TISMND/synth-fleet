@@ -1,15 +1,16 @@
 {
-	"id": "item_112",
-	"display_name": "Data Splinter",
+	"animation_style": "bob",
 	"category": "money",
-	"value": 20.0,
+	"display_name": "Ember Shard",
 	"duration": 0.0,
 	"effect_type": "",
-	"visual_shape": "data_shard",
+	"glow_color": "#FFAA55",
+	"hdr_intensity": 2.2,
+	"icon": "",
+	"id": "item_112",
 	"primary_color": "#FF8833",
 	"secondary_color": "#CC5500",
-	"glow_color": "#FFAA55",
-	"icon": "",
-	"animation_style": "bob",
-	"size_class": "small"
+	"size_class": "medium",
+	"value": 20.0,
+	"visual_shape": "data_shard"
 }
