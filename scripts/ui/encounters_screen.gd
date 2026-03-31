@@ -26,8 +26,9 @@ var _paths_container: VBoxContainer  # Toolbar + HSplit for paths tab
 var _main_vbox: VBoxContainer  # Main layout container
 
 # Tool modes
-enum Tool { DRAW, SELECT, CURVE, ARC }
+enum Tool { DRAW, SELECT, CURVE, ARC, SPEED }
 var _active_tool: int = Tool.DRAW
+var _selected_segment: int = -1  # For SPEED tool
 var _tool_buttons: Array[Button] = []
 
 # ARC tool state (editor-only, not persisted)
@@ -165,7 +166,35 @@ func _process(delta: float) -> void:
 func _get_preview_speed() -> float:
 	if not _selected_path:
 		return 200.0
-	return _selected_path.default_speed
+	if _selected_path.segment_speeds.size() == 0 or not _preview_curve:
+		return _selected_path.default_speed
+	# Determine which segment the preview is on and use that segment's speed
+	var wp_count: int = _selected_path.waypoints.size()
+	if wp_count < 2:
+		return _selected_path.default_speed
+	var curve: Curve2D = _preview_curve
+	var total_len: float = curve.get_baked_length()
+	if total_len <= 0.0:
+		return _selected_path.default_speed
+	# Build cumulative segment lengths
+	var cumulative: float = 0.0
+	for i in range(wp_count - 1):
+		var p0: Vector2 = _selected_path.get_waypoint_pos(i)
+		var p1: Vector2 = _selected_path.get_waypoint_pos(i + 1)
+		var p0_out: Vector2 = p0 + _selected_path.get_waypoint_ctrl_out(i)
+		var p1_in: Vector2 = p1 + _selected_path.get_waypoint_ctrl_in(i + 1)
+		# Approximate segment length
+		var seg_len: float = 0.0
+		var prev_pt: Vector2 = p0
+		for j in range(1, 21):
+			var t: float = float(j) / 20.0
+			var pt: Vector2 = p0.bezier_interpolate(p0_out, p1_in, p1, t)
+			seg_len += prev_pt.distance_to(pt)
+			prev_pt = pt
+		cumulative += seg_len
+		if _preview_progress <= cumulative:
+			return _selected_path.default_speed * _selected_path.get_segment_speed_multiplier(i)
+	return _selected_path.default_speed * _selected_path.get_segment_speed_multiplier(wp_count - 2)
 
 
 func _input(event: InputEvent) -> void:
@@ -193,6 +222,8 @@ func _input(event: InputEvent) -> void:
 					_set_tool(Tool.CURVE)
 				elif ke.keycode == KEY_4:
 					_set_tool(Tool.ARC)
+				elif ke.keycode == KEY_5:
+					_set_tool(Tool.SPEED)
 				# Arrow keys / WASD nudge selected waypoints
 				elif _selected_wps.size() > 0 and _selected_path:
 					var nudge := Vector2.ZERO
@@ -275,7 +306,7 @@ func _build_toolbar() -> void:
 	bar.add_theme_constant_override("separation", 6)
 	_paths_container.add_child(bar)
 
-	var tool_names: Array[String] = ["1: DRAW", "2: SELECT", "3: CURVE", "4: ARC"]
+	var tool_names: Array[String] = ["1: DRAW", "2: SELECT", "3: CURVE", "4: ARC", "5: SPEED"]
 	for i in range(tool_names.size()):
 		var btn := Button.new()
 		btn.text = tool_names[i]
@@ -295,8 +326,8 @@ func _set_tool(tool: int) -> void:
 	_active_tool = tool
 	_arc_hovering = false
 	_update_tool_buttons()
-	# Rebuild right panel when switching to/from ARC to show/hide arc params
-	if (tool == Tool.ARC) != (prev_tool == Tool.ARC):
+	# Rebuild right panel when switching to/from ARC or SPEED to show/hide params
+	if (tool == Tool.ARC) != (prev_tool == Tool.ARC) or (tool == Tool.SPEED) != (prev_tool == Tool.SPEED):
 		_rebuild_right_panel()
 
 
@@ -697,6 +728,83 @@ func _rebuild_right_panel() -> void:
 		_arc_start_spin.value_changed.connect(func(v: float) -> void: _arc_start_deg = v; _canvas.queue_redraw())
 		vbox.add_child(_arc_start_spin)
 
+	# SPEED tool parameters
+	if _active_tool == Tool.SPEED and _selected_path:
+		var sep_speed := HSeparator.new()
+		vbox.add_child(sep_speed)
+
+		var speed_header := Label.new()
+		speed_header.text = "SEGMENT SPEEDS"
+		speed_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ThemeManager.apply_text_glow(speed_header, "header")
+		vbox.add_child(speed_header)
+
+		# Default speed
+		var def_label := Label.new()
+		def_label.text = "DEFAULT SPEED"
+		ThemeManager.apply_text_glow(def_label, "body")
+		vbox.add_child(def_label)
+		var def_spin := SpinBox.new()
+		def_spin.min_value = 10
+		def_spin.max_value = 2000
+		def_spin.step = 10
+		def_spin.value = _selected_path.default_speed
+		def_spin.value_changed.connect(func(v: float) -> void:
+			_selected_path.default_speed = v
+			_save_current()
+		)
+		vbox.add_child(def_spin)
+
+		# Per-segment overrides
+		var seg_count: int = _selected_path.waypoints.size() - 1
+		if seg_count > 0:
+			var seg_sep := HSeparator.new()
+			vbox.add_child(seg_sep)
+			for seg_i in range(seg_count):
+				var row := HBoxContainer.new()
+				row.add_theme_constant_override("separation", 4)
+				vbox.add_child(row)
+
+				var seg_label := Label.new()
+				seg_label.text = "Seg " + str(seg_i)
+				seg_label.custom_minimum_size.x = 50
+				var is_override: bool = _selected_path.segment_speeds.has(str(seg_i))
+				if seg_i == _selected_segment:
+					seg_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+				elif is_override:
+					seg_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.2))
+				row.add_child(seg_label)
+
+				var seg_spin := SpinBox.new()
+				seg_spin.min_value = 0.0
+				seg_spin.max_value = 3.0
+				seg_spin.step = 0.05
+				seg_spin.value = _selected_path.get_segment_speed_multiplier(seg_i)
+				seg_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				seg_spin.tooltip_text = "Multiplier: 1.0 = normal, 0.0 = stop, 2.0 = double"
+				var captured_i: int = seg_i
+				seg_spin.value_changed.connect(func(v: float) -> void:
+					if absf(v - 1.0) < 0.01:
+						_selected_path.segment_speeds.erase(str(captured_i))
+					else:
+						_selected_path.segment_speeds[str(captured_i)] = v
+					_save_current()
+					_canvas.queue_redraw()
+				)
+				row.add_child(seg_spin)
+
+				if is_override:
+					var clear_btn := Button.new()
+					clear_btn.text = "X"
+					clear_btn.custom_minimum_size.x = 30
+					clear_btn.pressed.connect(func() -> void:
+						_selected_path.segment_speeds.erase(str(captured_i))
+						_save_current()
+						_rebuild_right_panel()
+						_canvas.queue_redraw()
+					)
+					row.add_child(clear_btn)
+
 
 # ── Data operations ────────────────────────────────────────────
 
@@ -822,6 +930,8 @@ func _handle_canvas_input(event: InputEvent) -> void:
 						_tool_curve_click(mb.position)
 					Tool.ARC:
 						_tool_arc_click(mb.position)
+					Tool.SPEED:
+						_tool_speed_click(mb.position)
 			elif mb.button_index == MOUSE_BUTTON_RIGHT:
 				# Right-click delete works in any mode
 				_on_canvas_right_click(mb.position)
@@ -984,6 +1094,30 @@ func _tool_arc_click(pos: Vector2) -> void:
 	_canvas.queue_redraw()
 	# Auto-switch to SELECT tool
 	_set_tool(Tool.SELECT)
+
+
+func _tool_speed_click(pos: Vector2) -> void:
+	if not _selected_path or _selected_path.waypoints.size() < 2:
+		return
+	# Find closest segment to click position
+	var best_seg: int = -1
+	var best_dist: float = 30.0  # Pixel threshold
+	var screen_pos: Vector2 = _canvas_to_screen(pos)
+	for i in range(_selected_path.waypoints.size() - 1):
+		var p0: Vector2 = _selected_path.get_waypoint_pos(i)
+		var p0_out: Vector2 = p0 + _selected_path.get_waypoint_ctrl_out(i)
+		var p1: Vector2 = _selected_path.get_waypoint_pos(i + 1)
+		var p1_in: Vector2 = p1 + _selected_path.get_waypoint_ctrl_in(i + 1)
+		for j in range(20):
+			var t: float = float(j) / 19.0
+			var pt: Vector2 = p0.bezier_interpolate(p0_out, p1_in, p1, t)
+			var d: float = screen_pos.distance_to(pt)
+			if d < best_dist:
+				best_dist = d
+				best_seg = i
+	_selected_segment = best_seg
+	_rebuild_right_panel()
+	_canvas.queue_redraw()
 
 
 func _compute_arc_preview_points() -> PackedVector2Array:
@@ -1655,7 +1789,13 @@ class _CanvasDraw extends Control:
 					var pt: Vector2 = seg_p0.bezier_interpolate(seg_p0_out, seg_p1_in, seg_p1, t)
 					points.append(s._screen_to_canvas(pt))
 
-				draw_polyline(points, Color(0.3, 0.8, 1.0, 0.8), 2.0, true)
+				# Color by speed: orange = override, yellow = selected segment, cyan = default
+				var seg_color := Color(0.3, 0.8, 1.0, 0.8)
+				if path.segment_speeds.has(str(i)):
+					seg_color = Color(1.0, 0.5, 0.2, 0.9)
+				if s._active_tool == Tool.SPEED and i == s._selected_segment:
+					seg_color = Color(1.0, 1.0, 0.3, 1.0)
+				draw_polyline(points, seg_color, 2.0, true)
 
 		# Draw direction arrows along segments
 		if wp_count >= 2:

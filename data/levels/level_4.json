@@ -7,28 +7,6 @@
 	"encounters": [
 		{
 			"boss_id": "",
-			"count": 10,
-			"drop_chance": 1.0,
-			"drop_table": [
-				{
-					"item_id": "item_122",
-					"weight": 1.0
-				}
-			],
-			"formation_id": "",
-			"is_melee": false,
-			"path_id": "path_1",
-			"rotate_with_path": false,
-			"ship_id": "enemy_1",
-			"spacing": 200.0,
-			"speed": 200.0,
-			"trigger_y": 553.576642335767,
-			"turn_speed": 90.0,
-			"weapons_active": false,
-			"x_offset": -145.401459854014
-		},
-		{
-			"boss_id": "",
 			"count": 9,
 			"drop_chance": 1.0,
 			"drop_table": [
@@ -39,15 +17,16 @@
 			],
 			"formation_id": "",
 			"is_melee": false,
-			"path_id": "path_1",
-			"rotate_with_path": false,
-			"ship_id": "enemy_1",
+			"mirror_h": false,
+			"path_id": "path_3",
+			"rotate_with_path": true,
+			"ship_id": "enemy_conduit",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 702.481751824819,
+			"trigger_y": 697.226277372264,
 			"turn_speed": 90.0,
-			"weapons_active": false,
-			"x_offset": -211.970802919708
+			"weapons_active": true,
+			"x_offset": -131.386861313869
 		},
 		{
 			"boss_id": "",
@@ -56,6 +35,7 @@
 			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
+			"mirror_h": false,
 			"path_id": "path_1",
 			"rotate_with_path": false,
 			"ship_id": "enemy_1",
@@ -73,6 +53,7 @@
 			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
+			"mirror_h": false,
 			"path_id": "path_1",
 			"rotate_with_path": false,
 			"ship_id": "enemy_1",
@@ -82,6 +63,24 @@
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 54.3065693430657
+		},
+		{
+			"boss_id": "",
+			"count": 9,
+			"drop_chance": 1.0,
+			"drop_table": [],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": true,
+			"path_id": "path_4",
+			"rotate_with_path": true,
+			"ship_id": "enemy_conduit",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 597.372262773723,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -124.379562043796
 		}
 	],
 	"events": [],

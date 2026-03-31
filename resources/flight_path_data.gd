@@ -104,8 +104,9 @@ func to_curve2d() -> Curve2D:
 	return curve
 
 
-func get_segment_speed(index: int) -> float:
+func get_segment_speed_multiplier(index: int) -> float:
+	## Returns the speed multiplier for a segment (1.0 = normal, 0.0 = stop, 2.0 = double).
 	var key: String = str(index)
 	if segment_speeds.has(key):
 		return float(segment_speeds[key])
-	return default_speed
+	return 1.0

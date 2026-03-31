@@ -1,6 +1,6 @@
 {
 	"default_speed": 200.0,
-	"display_name": "Strafe L-R",
+	"display_name": "Strafe",
 	"enemy_ship_id": "",
 	"id": "path_6",
 	"segment_speeds": {

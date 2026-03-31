@@ -171,12 +171,38 @@ func _spawn_encounter(enc: Dictionary) -> void:
 
 	# Load path (skip for melee encounters)
 	var curve: Curve2D = null
+	var seg_speeds: Array[float] = []
 	if not enc_is_melee and path_id != "":
 		var fp: FlightPathData = FlightPathDataManager.load_by_id(path_id)
 		if fp:
 			curve = fp.to_curve2d()
+			# Build per-segment speed multiplier array
+			for si in range(fp.waypoints.size() - 1):
+				seg_speeds.append(fp.get_segment_speed_multiplier(si))
 		else:
 			push_warning("WaveManager: flight path '%s' not found" % path_id)
+
+	# Mirror horizontal — flip path, formation, and x_offset at spawn time
+	var enc_mirror_h: bool = bool(enc.get("mirror_h", false))
+	if enc_mirror_h and curve:
+		for i in range(curve.point_count):
+			var p: Vector2 = curve.get_point_position(i)
+			curve.set_point_position(i, Vector2(1920.0 - p.x, p.y))
+			var pin: Vector2 = curve.get_point_in(i)
+			curve.set_point_in(i, Vector2(-pin.x, pin.y))
+			var pout: Vector2 = curve.get_point_out(i)
+			curve.set_point_out(i, Vector2(-pout.x, pout.y))
+		x_offset = -x_offset
+
+	var enc_mirror_v: bool = bool(enc.get("mirror_v", false))
+	if enc_mirror_v and curve:
+		for i in range(curve.point_count):
+			var p: Vector2 = curve.get_point_position(i)
+			curve.set_point_position(i, Vector2(p.x, 1080.0 - p.y))
+			var pin: Vector2 = curve.get_point_in(i)
+			curve.set_point_in(i, Vector2(pin.x, -pin.y))
+			var pout: Vector2 = curve.get_point_out(i)
+			curve.set_point_out(i, Vector2(pout.x, -pout.y))
 
 	# Build slot list: either from formation or single ship
 	var slots: Array[Dictionary] = []
@@ -187,8 +213,13 @@ func _spawn_encounter(enc: Dictionary) -> void:
 		if fm:
 			for slot in fm.slots:
 				var off: Array = slot.get("offset", [0, 0])
+				var offset_vec := Vector2(float(off[0]), float(off[1]))
+				if enc_mirror_h:
+					offset_vec.x = -offset_vec.x
+				if enc_mirror_v:
+					offset_vec.y = -offset_vec.y
 				slots.append({
-					"offset": Vector2(float(off[0]), float(off[1])),
+					"offset": offset_vec,
 					"ship_id": ship_id,
 				})
 	if slots.size() == 0:
@@ -215,6 +246,7 @@ func _spawn_encounter(enc: Dictionary) -> void:
 				"drop_chance": enc_drop_chance,
 				"drop_table": enc_drop_table,
 				"drop_seed": drop_seed,
+				"segment_speeds": seg_speeds,
 			}
 			if delay <= 0.0:
 				_do_spawn_enemy(spawn_data)
@@ -285,6 +317,12 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 	enemy.drop_seed = int(spawn_data.get("drop_seed", 0))
 	enemy.pickups_container = pickups_container
 
+	# Per-segment speed
+	var spawned_seg_speeds: Variant = spawn_data.get("segment_speeds", [])
+	if spawned_seg_speeds is Array and (spawned_seg_speeds as Array).size() > 0:
+		for spd in spawned_seg_speeds:
+			enemy.segment_speeds_array.append(float(spd))
+
 	# Melee mode
 	var spawn_is_melee: bool = bool(spawn_data.get("is_melee", false))
 	if spawn_is_melee:
@@ -317,6 +355,10 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 	else:
 		enemy.position = Vector2(randf_range(100.0, 1820.0), -30.0)
 		enemy.drift_speed = float(spawn_data.get("speed", 100.0))
+
+	# Precompute segment lengths for per-segment speed
+	if enemy.segment_speeds_array.size() > 0 and enemy.path_curve:
+		enemy.precompute_segment_lengths()
 
 	enemy.tree_exiting.connect(_on_enemy_exited, CONNECT_ONE_SHOT)
 	_enemies_container.add_child(enemy)

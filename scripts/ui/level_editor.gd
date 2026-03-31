@@ -83,6 +83,8 @@ var _enc_melee_check: CheckButton
 var _enc_turn_speed_label: Label
 var _enc_turn_speed_spin: SpinBox
 var _enc_weapons_active_check: CheckButton
+var _enc_mirror_h_check: CheckButton
+var _enc_mirror_v_check: CheckButton
 var _enc_drop_chance_spin: SpinBox
 var _enc_drop_table_container: VBoxContainer
 var _money_items_cache: Array[ItemData] = []
@@ -253,7 +255,11 @@ func _cache_dropdown_data() -> void:
 	_cached_ship_names.clear()
 	_ship_id_to_name.clear()
 	_cached_ships_by_level.clear()
-	var ships: Array[ShipData] = ShipDataManager.load_all_by_type("enemy")
+	var enemy_ships: Array[ShipData] = ShipDataManager.load_all_by_type("enemy")
+	var ally_ships: Array[ShipData] = ShipDataManager.load_all_by_type("ally")
+	var ships: Array[ShipData] = []
+	ships.append_array(enemy_ships)
+	ships.append_array(ally_ships)
 	for s in ships:
 		_cached_ship_ids.append(s.id)
 		var sname: String = s.display_name if s.display_name != "" else s.id
@@ -1108,8 +1114,8 @@ func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
 				var enc: Dictionary = {
 					"path_id": str(_enc_path_dropdown.get_item_metadata(_enc_path_dropdown.selected)) if _enc_path_dropdown.selected >= 0 else "",
 					"formation_id": str(_enc_fm_dropdown.get_item_metadata(_enc_fm_dropdown.selected)) if _enc_fm_dropdown.selected >= 0 else "",
-					"ship_id": str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected)) if _enc_ship_dropdown.selected >= 0 else "enemy_1",
-					"boss_id": str(_enc_boss_dropdown.get_item_metadata(_enc_boss_dropdown.selected)) if _enc_boss_dropdown.selected >= 0 else "",
+					"ship_id": _get_brush_ship_id(),
+					"boss_id": _get_brush_boss_id(),
 					"speed": _enc_speed_spin.value,
 					"count": int(_enc_count_spin.value),
 					"spacing": _enc_spacing_spin.value,
@@ -1119,6 +1125,8 @@ func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
 					"is_melee": _enc_melee_check.button_pressed,
 					"turn_speed": _enc_turn_speed_spin.value,
 					"weapons_active": _enc_weapons_active_check.button_pressed,
+				"mirror_h": _enc_mirror_h_check.button_pressed,
+				"mirror_v": _enc_mirror_v_check.button_pressed,
 				"drop_chance": _enc_drop_chance_spin.value,
 				"drop_table": [],
 				}
@@ -1444,12 +1452,17 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 	_right_panel_vbox.add_child(_enc_hint)
 
-	# Encounter content container — built once, never destroyed
+	# Encounter content container — wrapped in ScrollContainer for overflow
+	var enc_scroll := ScrollContainer.new()
+	enc_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	enc_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	enc_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_right_panel_vbox.add_child(enc_scroll)
+
 	_enc_content = VBoxContainer.new()
 	_enc_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_enc_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_enc_content.add_theme_constant_override("separation", 6)
-	_right_panel_vbox.add_child(_enc_content)
+	enc_scroll.add_child(_enc_content)
 
 	# Path dropdown
 	var path_label := Label.new()
@@ -1493,7 +1506,7 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	)
 	_enc_content.add_child(_enc_fm_dropdown)
 
-	# Level filter for ship dropdown
+	# Level filter for ship/boss dropdown
 	var level_filter_label := Label.new()
 	level_filter_label.text = "LEVEL FILTER"
 	ThemeManager.apply_text_glow(level_filter_label, "body")
@@ -1506,7 +1519,6 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	sorted_level_keys.sort()
 	for li in range(sorted_level_keys.size()):
 		var lkey: String = sorted_level_keys[li]
-		# Look up display name from loaded level data
 		var display_label: String = lkey.capitalize()
 		for lv in _all_levels:
 			if lv.id == lkey:
@@ -1519,48 +1531,26 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 	_enc_level_filter.item_selected.connect(func(idx: int) -> void:
 		var filter_val: String = str(_enc_level_filter.get_item_metadata(idx))
 		_repopulate_ship_dropdown(filter_val)
-		# Show boss dropdown only when filter includes boss ships
-		var show_boss: bool = filter_val == "ALL" or filter_val == "boss"
-		_enc_boss_label.visible = show_boss
-		_enc_boss_dropdown.visible = show_boss
 	)
 	_enc_content.add_child(_enc_level_filter)
 
-	# Ship dropdown
+	# Unified ship/boss dropdown — bosses appear with [BOSS] prefix
 	var ship_label := Label.new()
-	ship_label.text = "SHIP (single)"
+	ship_label.text = "SHIP / BOSS"
 	ThemeManager.apply_text_glow(ship_label, "body")
 	_enc_content.add_child(ship_label)
 
 	_enc_ship_dropdown = OptionButton.new()
-	for i in range(_cached_ship_ids.size()):
-		_enc_ship_dropdown.add_item(_cached_ship_names[i], i)
-		_enc_ship_dropdown.set_item_metadata(i, _cached_ship_ids[i])
-	_enc_ship_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
-			_selected_level.encounters[_selected_encounter_idx]["ship_id"] = str(_enc_ship_dropdown.get_item_metadata(idx))
-			_save_current_level()
-	)
+	_enc_ship_dropdown.item_selected.connect(_on_unified_ship_selected)
 	_enc_content.add_child(_enc_ship_dropdown)
+	_repopulate_ship_dropdown("ALL")
 
-	# Boss dropdown (shown when level filter includes boss ships)
+	# Keep boss dropdown/label vars alive but hidden (referenced in _update_right_panel)
 	_enc_boss_label = Label.new()
-	_enc_boss_label.text = "BOSS"
-	ThemeManager.apply_text_glow(_enc_boss_label, "body")
+	_enc_boss_label.visible = false
 	_enc_content.add_child(_enc_boss_label)
-
 	_enc_boss_dropdown = OptionButton.new()
-	_enc_boss_dropdown.add_item("(none)", 0)
-	_enc_boss_dropdown.set_item_metadata(0, "")
-	for i in range(_cached_boss_ids.size()):
-		_enc_boss_dropdown.add_item(_cached_boss_names[i], i + 1)
-		_enc_boss_dropdown.set_item_metadata(i + 1, _cached_boss_ids[i])
-	_enc_boss_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
-			_selected_level.encounters[_selected_encounter_idx]["boss_id"] = str(_enc_boss_dropdown.get_item_metadata(idx))
-			_save_current_level()
-			_map_canvas.queue_redraw()
-	)
+	_enc_boss_dropdown.visible = false
 	_enc_content.add_child(_enc_boss_dropdown)
 
 	# Speed
@@ -1673,6 +1663,27 @@ func _build_right_panel(parent: HSplitContainer) -> void:
 			_save_current_level()
 	)
 	_enc_content.add_child(_enc_weapons_active_check)
+
+	# Mirror
+	_enc_mirror_h_check = CheckButton.new()
+	_enc_mirror_h_check.text = "MIRROR HORIZONTAL"
+	_enc_mirror_h_check.button_pressed = false
+	_enc_mirror_h_check.toggled.connect(func(pressed: bool) -> void:
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["mirror_h"] = pressed
+			_save_current_level()
+	)
+	_enc_content.add_child(_enc_mirror_h_check)
+
+	_enc_mirror_v_check = CheckButton.new()
+	_enc_mirror_v_check.text = "MIRROR VERTICAL"
+	_enc_mirror_v_check.button_pressed = false
+	_enc_mirror_v_check.toggled.connect(func(pressed: bool) -> void:
+		if _selected_encounter_idx >= 0 and _selected_level and _selected_encounter_idx < _selected_level.encounters.size():
+			_selected_level.encounters[_selected_encounter_idx]["mirror_v"] = pressed
+			_save_current_level()
+	)
+	_enc_content.add_child(_enc_mirror_v_check)
 
 	# ── Drop settings ──
 	var sep_drops := HSeparator.new()
@@ -2130,25 +2141,21 @@ func _update_right_panel() -> void:
 				break
 		_enc_fm_dropdown.select(fm_select)
 
-		# Update ship dropdown selection — find in current filtered list
+		# Update unified ship/boss dropdown — find matching metadata
+		var current_boss_id: String = str(enc.get("boss_id", ""))
 		var current_ship_id: String = str(enc.get("ship_id", ""))
-		var ship_select: int = 0
+		var target_meta: String = ""
+		if current_boss_id != "":
+			target_meta = "boss:" + current_boss_id
+		else:
+			target_meta = "ship:" + current_ship_id
+		var unified_select: int = 0
 		for i in range(_enc_ship_dropdown.item_count):
-			if str(_enc_ship_dropdown.get_item_metadata(i)) == current_ship_id:
-				ship_select = i
+			if str(_enc_ship_dropdown.get_item_metadata(i)) == target_meta:
+				unified_select = i
 				break
 		if _enc_ship_dropdown.item_count > 0:
-			_enc_ship_dropdown.select(ship_select)
-
-		# Update boss dropdown
-		var current_boss_id: String = str(enc.get("boss_id", ""))
-		var boss_select: int = 0
-		for i in range(_enc_boss_dropdown.item_count):
-			if str(_enc_boss_dropdown.get_item_metadata(i)) == current_boss_id:
-				boss_select = i
-				break
-		if _enc_boss_dropdown.item_count > 0:
-			_enc_boss_dropdown.select(boss_select)
+			_enc_ship_dropdown.select(unified_select)
 
 		# Update spinbox values
 		_enc_speed_spin.value = float(enc.get("speed", 200.0))
@@ -2158,6 +2165,8 @@ func _update_right_panel() -> void:
 		_enc_melee_check.button_pressed = bool(enc.get("is_melee", false))
 		_enc_turn_speed_spin.value = float(enc.get("turn_speed", 90.0))
 		_enc_weapons_active_check.button_pressed = bool(enc.get("weapons_active", true))
+		_enc_mirror_h_check.button_pressed = bool(enc.get("mirror_h", false))
+		_enc_mirror_v_check.button_pressed = bool(enc.get("mirror_v", false))
 
 		# Drop settings
 		_enc_drop_chance_spin.value = float(enc.get("drop_chance", 0.0))
@@ -2167,10 +2176,6 @@ func _update_right_panel() -> void:
 	var filter_val: String = ""
 	if _enc_level_filter.selected >= 0:
 		filter_val = str(_enc_level_filter.get_item_metadata(_enc_level_filter.selected))
-	var show_boss: bool = filter_val == "ALL" or filter_val == "boss"
-	_enc_boss_label.visible = show_boss
-	_enc_boss_dropdown.visible = show_boss
-
 	_update_melee_ui_state()
 
 
@@ -2275,13 +2280,15 @@ func _update_melee_ui_state() -> void:
 
 
 func _repopulate_ship_dropdown(level_filter: String) -> void:
-	# Remember current selection metadata so we can restore it if still present
-	var prev_ship_id: String = ""
+	# Remember current selection so we can restore it
+	var prev_meta: String = ""
 	if _enc_ship_dropdown.selected >= 0:
-		prev_ship_id = str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected))
+		prev_meta = str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected))
 
 	_enc_ship_dropdown.clear()
+	var item_idx: int = 0
 
+	# Add regular ships
 	var ship_entries: Array = []
 	if level_filter == "ALL":
 		for i in range(_cached_ship_ids.size()):
@@ -2290,21 +2297,64 @@ func _repopulate_ship_dropdown(level_filter: String) -> void:
 		if _cached_ships_by_level.has(level_filter):
 			ship_entries = _cached_ships_by_level[level_filter]
 
-	for i in range(ship_entries.size()):
-		var entry: Dictionary = ship_entries[i]
-		_enc_ship_dropdown.add_item(str(entry["name"]), i)
-		_enc_ship_dropdown.set_item_metadata(i, str(entry["id"]))
+	for entry in ship_entries:
+		_enc_ship_dropdown.add_item(str(entry["name"]), item_idx)
+		_enc_ship_dropdown.set_item_metadata(item_idx, "ship:" + str(entry["id"]))
+		item_idx += 1
 
-	# Restore previous selection if it's still in the filtered list
+	# Add bosses (when filter is ALL or boss)
+	if level_filter == "ALL" or level_filter == "boss":
+		if _cached_boss_ids.size() > 0 and item_idx > 0:
+			_enc_ship_dropdown.add_separator("── BOSSES ──")
+			item_idx += 1
+		for i in range(_cached_boss_ids.size()):
+			_enc_ship_dropdown.add_item("[BOSS] " + _cached_boss_names[i], item_idx)
+			_enc_ship_dropdown.set_item_metadata(item_idx, "boss:" + _cached_boss_ids[i])
+			item_idx += 1
+
+	# Restore previous selection
 	var restored: bool = false
-	if prev_ship_id != "":
+	if prev_meta != "":
 		for i in range(_enc_ship_dropdown.item_count):
-			if str(_enc_ship_dropdown.get_item_metadata(i)) == prev_ship_id:
+			if str(_enc_ship_dropdown.get_item_metadata(i)) == prev_meta:
 				_enc_ship_dropdown.select(i)
 				restored = true
 				break
 	if not restored and _enc_ship_dropdown.item_count > 0:
 		_enc_ship_dropdown.select(0)
+
+
+func _get_brush_ship_id() -> String:
+	if _enc_ship_dropdown.selected < 0:
+		return "enemy_1"
+	var meta: String = str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected))
+	if meta.begins_with("ship:"):
+		return meta.substr(5)
+	return "enemy_1"
+
+
+func _get_brush_boss_id() -> String:
+	if _enc_ship_dropdown.selected < 0:
+		return ""
+	var meta: String = str(_enc_ship_dropdown.get_item_metadata(_enc_ship_dropdown.selected))
+	if meta.begins_with("boss:"):
+		return meta.substr(5)
+	return ""
+
+
+func _on_unified_ship_selected(idx: int) -> void:
+	if _selected_encounter_idx < 0 or not _selected_level or _selected_encounter_idx >= _selected_level.encounters.size():
+		return
+	var meta: String = str(_enc_ship_dropdown.get_item_metadata(idx))
+	var enc: Dictionary = _selected_level.encounters[_selected_encounter_idx]
+	if meta.begins_with("boss:"):
+		enc["boss_id"] = meta.substr(5)
+		# ship_id stays as fallback but boss_id takes priority at runtime
+	elif meta.begins_with("ship:"):
+		enc["ship_id"] = meta.substr(5)
+		enc["boss_id"] = ""
+	_save_current_level()
+	_map_canvas.queue_redraw()
 
 
 func _set_edit_mode(mode: String) -> void:
@@ -2821,11 +2871,14 @@ class _MapCanvasDraw extends Control:
 
 			var is_selected: bool = (i == s._selected_encounter_idx or i in s._selected_encounter_indices)
 			var enc_is_melee: bool = bool(enc.get("is_melee", false))
+			var is_mirrored: bool = bool(enc.get("mirror_h", false)) or bool(enc.get("mirror_v", false))
 			var color: Color
 			if is_selected:
 				color = Color(1.0, 0.5, 0.2)
 			elif enc_is_melee:
 				color = Color(1.0, 0.3, 0.3)
+			elif is_mirrored:
+				color = Color(0.8, 0.5, 1.0)  # Purple tint for mirrored
 			else:
 				color = Color(0.4, 0.8, 1.0)
 
@@ -2833,7 +2886,28 @@ class _MapCanvasDraw extends Control:
 			if is_selected and not enc_is_melee:
 				var path_id: String = str(enc.get("path_id", ""))
 				if s._path_id_to_curve.has(path_id):
-					_draw_path_preview(s._path_id_to_curve[path_id], cx, cy, color)
+					var preview_curve: Curve2D = s._path_id_to_curve[path_id]
+					# Mirror the preview curve to match runtime behavior
+					var m_h: bool = bool(enc.get("mirror_h", false))
+					var m_v: bool = bool(enc.get("mirror_v", false))
+					if m_h or m_v:
+						preview_curve = preview_curve.duplicate()
+						for pi in range(preview_curve.point_count):
+							var p: Vector2 = preview_curve.get_point_position(pi)
+							var pin: Vector2 = preview_curve.get_point_in(pi)
+							var pout: Vector2 = preview_curve.get_point_out(pi)
+							if m_h:
+								p.x = 1920.0 - p.x
+								pin.x = -pin.x
+								pout.x = -pout.x
+							if m_v:
+								p.y = 1080.0 - p.y
+								pin.y = -pin.y
+								pout.y = -pout.y
+							preview_curve.set_point_position(pi, p)
+							preview_curve.set_point_in(pi, pin)
+							preview_curve.set_point_out(pi, pout)
+					_draw_path_preview(preview_curve, cx, cy, color)
 
 			# Diamond marker
 			var ship_id: String = str(enc.get("ship_id", ""))
@@ -2884,8 +2958,19 @@ class _MapCanvasDraw extends Control:
 				var enc_path_id: String = str(enc.get("path_id", ""))
 				if enc_path_id != "":
 					var path_name: String = s._path_id_to_name.get(enc_path_id, enc_path_id) as String
-					var path_color := Color(0.5, 0.9, 1.0, 0.7) if is_selected else Color(0.4, 0.7, 0.9, 0.5)
-					draw_string(font3, Vector2(label_x, cy + label_y_offset), path_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, path_color)
+					# Append mirror indicators
+					var mirror_suffix: String = ""
+					if bool(enc.get("mirror_h", false)):
+						mirror_suffix += " [H]"
+					if bool(enc.get("mirror_v", false)):
+						mirror_suffix += " [V]"
+					var path_display: String = path_name + mirror_suffix
+					var path_color: Color
+					if mirror_suffix != "":
+						path_color = Color(0.7, 0.5, 1.0, 0.8) if is_selected else Color(0.6, 0.4, 0.9, 0.6)
+					else:
+						path_color = Color(0.5, 0.9, 1.0, 0.7) if is_selected else Color(0.4, 0.7, 0.9, 0.5)
+					draw_string(font3, Vector2(label_x, cy + label_y_offset), path_display, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, path_color)
 
 
 		# Draw event markers (yellow diamonds, visible in all modes)

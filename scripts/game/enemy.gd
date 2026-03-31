@@ -32,6 +32,10 @@ var _melee_target: Node2D = null
 var weapons_active: bool = true
 
 # Currency drop config (set by encounter data via WaveManager)
+# Per-segment speed (precomputed at spawn time)
+var segment_speeds_array: Array[float] = []
+var _segment_cumulative: Array[float] = []  # Cumulative lengths for segment lookup
+
 var drop_chance: float = 0.0
 var drop_table: Array = []
 var drop_seed: int = 0
@@ -250,8 +254,11 @@ func _process(delta: float) -> void:
 		if position.y > 2420 or position.y < -500 or position.x < -500 or position.x > 2420:
 			queue_free()
 	elif path_curve != null and path_curve.point_count >= 2:
-		# Path-following mode
-		path_progress += path_speed * delta
+		# Path-following mode — encounter speed * per-segment multiplier
+		var move_speed: float = path_speed
+		if segment_speeds_array.size() > 0 and _segment_cumulative.size() > 0:
+			move_speed = path_speed * _get_current_segment_multiplier()
+		path_progress += move_speed * delta
 		var total_len: float = path_curve.get_baked_length()
 		if path_progress >= total_len:
 			queue_free()
@@ -370,6 +377,43 @@ func _try_spawn_pickup() -> void:
 	pickup.item_data = item
 	pickup.global_position = global_position
 	pickups_container.add_child(pickup)
+
+
+func _get_current_segment_multiplier() -> float:
+	for i in range(_segment_cumulative.size()):
+		if path_progress <= _segment_cumulative[i]:
+			return segment_speeds_array[i] if i < segment_speeds_array.size() else 1.0
+	# Past the last segment boundary
+	if segment_speeds_array.size() > 0:
+		return segment_speeds_array[segment_speeds_array.size() - 1]
+	return 1.0
+
+
+func precompute_segment_lengths() -> void:
+	## Call after path_curve is set. Builds cumulative length array for per-segment speed lookup.
+	_segment_cumulative.clear()
+	if not path_curve or path_curve.point_count < 2:
+		return
+	var cumulative: float = 0.0
+	for i in range(path_curve.point_count - 1):
+		# Approximate segment length by sampling the baked curve
+		var p0_dist: float = 0.0
+		if i > 0:
+			p0_dist = _segment_cumulative[i - 1]
+		# Sample points along this segment
+		var p0: Vector2 = path_curve.get_point_position(i)
+		var p0_out: Vector2 = p0 + path_curve.get_point_out(i)
+		var p1: Vector2 = path_curve.get_point_position(i + 1)
+		var p1_in: Vector2 = p1 + path_curve.get_point_in(i + 1)
+		var seg_len: float = 0.0
+		var prev_pt: Vector2 = p0
+		for j in range(1, 21):
+			var t: float = float(j) / 20.0
+			var pt: Vector2 = p0.bezier_interpolate(p0_out, p1_in, p1, t)
+			seg_len += prev_pt.distance_to(pt)
+			prev_pt = pt
+		cumulative += seg_len
+		_segment_cumulative.append(cumulative)
 
 
 var _is_boss_core: bool = false  # Set true when this enemy is a boss core

@@ -17,12 +17,16 @@ var _tab_events_btn: Button
 var _tab_items_btn: Button
 var _tab_hud_btn: Button
 var _tab_synthwave_btn: Button
+var _tab_planet_btn: Button
+var _tab_headsup_btn: Button
 var _warp_content: Control
 var _events_content: ScrollContainer
 var _items_content: MarginContainer
 var _hud_content: MarginContainer
+var _headsup_content: MarginContainer
 var _synthwave_content: Control
 var _synthwave_rect: ColorRect
+var _planet_content: ScrollContainer
 var _event_trigger_buttons: Dictionary = {}
 
 
@@ -96,6 +100,18 @@ func _build_ui() -> void:
 	_tab_synthwave_btn.pressed.connect(func(): _switch_to_tab(4))
 	header.add_child(_tab_synthwave_btn)
 
+	_tab_planet_btn = Button.new()
+	_tab_planet_btn.text = "PLANET"
+	_tab_planet_btn.toggle_mode = true
+	_tab_planet_btn.pressed.connect(func(): _switch_to_tab(5))
+	header.add_child(_tab_planet_btn)
+
+	_tab_headsup_btn = Button.new()
+	_tab_headsup_btn.text = "HEADSUP"
+	_tab_headsup_btn.toggle_mode = true
+	_tab_headsup_btn.pressed.connect(func(): _switch_to_tab(6))
+	header.add_child(_tab_headsup_btn)
+
 	# Warp content — two tall viewports side by side
 	_warp_content = HBoxContainer.new()
 	_warp_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -133,6 +149,21 @@ func _build_ui() -> void:
 	main_vbox.add_child(_synthwave_content)
 	_build_synthwave_content()
 
+	_planet_content = ScrollContainer.new()
+	_planet_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_planet_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_planet_content.visible = false
+	_planet_content.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_vbox.add_child(_planet_content)
+	_build_planet_content()
+
+	var HeadsupTabScript: GDScript = load("res://scripts/ui/headsup_auditions.gd")
+	_headsup_content = HeadsupTabScript.new()
+	_headsup_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_headsup_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_headsup_content.visible = false
+	main_vbox.add_child(_headsup_content)
+
 	_setup_vhs_overlay()
 
 
@@ -144,6 +175,8 @@ func _switch_to_tab(idx: int) -> void:
 			2: _tab_items_btn.button_pressed = true
 			3: _tab_hud_btn.button_pressed = true
 			4: _tab_synthwave_btn.button_pressed = true
+			5: _tab_planet_btn.button_pressed = true
+			6: _tab_headsup_btn.button_pressed = true
 		return
 	_active_tab = idx
 	_tab_warp_btn.button_pressed = (idx == 0)
@@ -151,11 +184,15 @@ func _switch_to_tab(idx: int) -> void:
 	_tab_items_btn.button_pressed = (idx == 2)
 	_tab_hud_btn.button_pressed = (idx == 3)
 	_tab_synthwave_btn.button_pressed = (idx == 4)
+	_tab_planet_btn.button_pressed = (idx == 5)
+	_tab_headsup_btn.button_pressed = (idx == 6)
 	_warp_content.visible = (idx == 0)
 	_events_content.visible = (idx == 1)
 	_items_content.visible = (idx == 2)
 	_hud_content.visible = (idx == 3)
 	_synthwave_content.visible = (idx == 4)
+	_planet_content.visible = (idx == 5)
+	_headsup_content.visible = (idx == 6)
 
 
 func _build_warp_panels() -> void:
@@ -227,6 +264,298 @@ func _on_trigger_event_preview(event_id: String) -> void:
 	tw.tween_callback(flash.queue_free)
 
 
+# ── Planet audition tab ─────────────────────────────────────────────
+
+var _planet_selected_rect: ColorRect
+var _planet_shader: Shader
+
+
+func _build_planet_content() -> void:
+	_planet_shader = load("res://assets/shaders/ringed_planet.gdshader")
+	if not _planet_shader:
+		return
+
+	var main_hbox := HBoxContainer.new()
+	main_hbox.add_theme_constant_override("separation", 12)
+	main_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_planet_content.add_child(main_hbox)
+
+	# ── Left: slider panel ──
+	var slider_scroll := ScrollContainer.new()
+	slider_scroll.custom_minimum_size.x = 280
+	slider_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	slider_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_hbox.add_child(slider_scroll)
+
+	var svbox := VBoxContainer.new()
+	svbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	svbox.add_theme_constant_override("separation", 3)
+	slider_scroll.add_child(svbox)
+
+	_sw_section(svbox, "PLANET")
+	_planet_slider(svbox, "planet_hdr", "HDR", 0.5, 4.0, 2.0)
+	_planet_color(svbox, "planet_color_top", "Top Color", Color(1.0, 0.8, 0.3))
+	_planet_color(svbox, "planet_color_bot", "Bot Color", Color(0.9, 0.15, 0.08))
+	_planet_slider(svbox, "planet_radius", "Radius", 0.05, 0.35, 0.15)
+	_planet_slider(svbox, "atmo_glow", "Atmo Glow", 0.0, 2.0, 0.6)
+	_planet_color(svbox, "atmo_color", "Atmo Color", Color(0.3, 0.7, 1.0))
+
+	svbox.add_child(HSeparator.new())
+	_sw_section(svbox, "PLANET SLICES")
+	_planet_slider(svbox, "slice_start", "Start", 0.1, 0.6, 0.32)
+	_planet_slider(svbox, "slice_band_h", "Band Height", 0.02, 0.12, 0.058)
+	_planet_slider(svbox, "slice_gap_base", "Gap Base", 0.002, 0.03, 0.005)
+	_planet_slider(svbox, "slice_gap_grow", "Gap Growth", 0.005, 0.04, 0.015)
+
+	svbox.add_child(HSeparator.new())
+	_sw_section(svbox, "RING")
+	_planet_slider(svbox, "ring_hdr", "HDR", 0.5, 6.0, 2.5)
+	_planet_color(svbox, "ring_color", "Ring Color", Color(1.0, 0.4, 0.2))
+	_planet_slider(svbox, "ring_inner", "Inner Radius", 0.08, 0.45, 0.20)
+	_planet_slider(svbox, "ring_outer", "Outer Radius", 0.15, 0.55, 0.35)
+	_planet_slider(svbox, "ring_tilt", "Tilt Squish", 0.1, 0.8, 0.3)
+	_planet_slider(svbox, "ring_angle", "Rotation", -0.8, 0.8, 0.35)
+	_planet_slider(svbox, "ring_gap_pos", "Gap Position", 0.1, 0.9, 0.4)
+	_planet_slider(svbox, "ring_gap_width", "Gap Width", 0.0, 0.15, 0.03)
+	_planet_slider(svbox, "ring_bands", "Band Count", 2.0, 40.0, 12.0)
+	_planet_slider(svbox, "ring_glow_size", "Glow Size", 0.0, 0.03, 0.008)
+
+	svbox.add_child(HSeparator.new())
+	_sw_section(svbox, "RING SLATS")
+	_planet_slider(svbox, "ring_slat_spacing", "Spacing", 0.005, 0.06, 0.02)
+	_planet_slider(svbox, "ring_slat_thickness", "Thickness", 0.001, 0.02, 0.004)
+
+	# ── Right: audition grid ──
+	var right_scroll := ScrollContainer.new()
+	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_hbox.add_child(right_scroll)
+
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 8)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_scroll.add_child(grid)
+
+	# Base color schemes
+	var saturn_base: Dictionary = {
+		"planet_color_top": Color(1.0, 0.85, 0.3),
+		"planet_color_bot": Color(0.9, 0.2, 0.08),
+		"ring_color": Color(1.0, 0.45, 0.2),
+		"atmo_color": Color(1.0, 0.6, 0.3),
+		"ring_inner": 0.20, "ring_outer": 0.35,
+		"ring_tilt": 0.3, "ring_hdr": 2.5,
+		"ring_gap_pos": 0.4, "ring_gap_width": 0.04,
+		"ring_bands": 12.0, "ring_angle": 0.35,
+		"slice_enabled": 1.0, "slice_start": 0.32,
+		"planet_hdr": 1.5, "atmo_glow": 0.6,
+		"ring_slats_enabled": 1.0,
+	}
+	var dual_base: Dictionary = {
+		"planet_color_top": Color(1.0, 0.8, 0.2),
+		"planet_color_bot": Color(1.0, 0.25, 0.05),
+		"ring_color": Color(0.1, 0.8, 1.0),
+		"atmo_color": Color(0.2, 0.6, 1.0),
+		"ring_inner": 0.20, "ring_outer": 0.34,
+		"ring_tilt": 0.3, "ring_hdr": 2.5,
+		"ring_gap_pos": 0.45, "ring_gap_width": 0.04,
+		"ring_bands": 10.0, "ring_angle": 0.35,
+		"slice_enabled": 1.0, "slice_start": 0.35,
+		"planet_hdr": 1.5, "atmo_glow": 0.7,
+		"ring_slats_enabled": 1.0,
+	}
+	var wide_base: Dictionary = {
+		"planet_color_top": Color(1.0, 0.7, 0.2),
+		"planet_color_bot": Color(0.8, 0.15, 0.05),
+		"ring_color": Color(1.0, 0.6, 0.15),
+		"atmo_color": Color(1.0, 0.5, 0.2),
+		"ring_inner": 0.17, "ring_outer": 0.42,
+		"ring_tilt": 0.15, "ring_hdr": 2.8,
+		"ring_gap_pos": 0.3, "ring_gap_width": 0.03,
+		"ring_bands": 15.0, "ring_angle": 0.35,
+		"slice_enabled": 1.0, "slice_start": 0.28,
+		"planet_hdr": 1.8, "atmo_glow": 0.5,
+		"ring_slats_enabled": 1.0,
+	}
+
+	var presets: Array[Dictionary] = []
+
+	# Tilt variants
+	for base_info in [["SATURN", saturn_base], ["DUAL", dual_base], ["WIDE", wide_base]]:
+		var bname: String = base_info[0]
+		var base: Dictionary = base_info[1]
+		var ro: Dictionary = base.duplicate()
+		ro["label"] = bname + " RINGS TILT"
+		ro["planet_tilted"] = 0.0
+		presets.append(ro)
+		var ft: Dictionary = base.duplicate()
+		ft["label"] = bname + " FULL TILT"
+		ft["planet_tilted"] = 1.0
+		presets.append(ft)
+
+	# Gap height variants (Saturn scheme, full tilt)
+	var tight: Dictionary = saturn_base.duplicate()
+	tight["label"] = "TIGHT GAPS"
+	tight["planet_tilted"] = 1.0
+	tight["slice_gap_base"] = 0.003
+	tight["slice_gap_grow"] = 0.008
+	tight["ring_slat_spacing"] = 0.012
+	tight["ring_slat_thickness"] = 0.002
+	presets.append(tight)
+
+	var medium: Dictionary = saturn_base.duplicate()
+	medium["label"] = "MEDIUM GAPS"
+	medium["planet_tilted"] = 1.0
+	medium["slice_gap_base"] = 0.006
+	medium["slice_gap_grow"] = 0.018
+	medium["ring_slat_spacing"] = 0.022
+	medium["ring_slat_thickness"] = 0.005
+	presets.append(medium)
+
+	var wide_gaps: Dictionary = saturn_base.duplicate()
+	wide_gaps["label"] = "WIDE GAPS"
+	wide_gaps["planet_tilted"] = 1.0
+	wide_gaps["slice_gap_base"] = 0.010
+	wide_gaps["slice_gap_grow"] = 0.028
+	wide_gaps["slice_band_h"] = 0.04
+	wide_gaps["ring_slat_spacing"] = 0.035
+	wide_gaps["ring_slat_thickness"] = 0.008
+	presets.append(wide_gaps)
+
+	# Thick slats on rings
+	var thick_slats: Dictionary = dual_base.duplicate()
+	thick_slats["label"] = "DUAL THICK SLATS"
+	thick_slats["planet_tilted"] = 1.0
+	thick_slats["ring_slat_spacing"] = 0.015
+	thick_slats["ring_slat_thickness"] = 0.006
+	presets.append(thick_slats)
+
+	var thin_slats: Dictionary = dual_base.duplicate()
+	thin_slats["label"] = "DUAL THIN SLATS"
+	thin_slats["planet_tilted"] = 1.0
+	thin_slats["ring_slat_spacing"] = 0.025
+	thin_slats["ring_slat_thickness"] = 0.002
+	presets.append(thin_slats)
+
+	# No ring slats comparison
+	var no_slats: Dictionary = saturn_base.duplicate()
+	no_slats["label"] = "NO RING SLATS"
+	no_slats["planet_tilted"] = 1.0
+	no_slats["ring_slats_enabled"] = 0.0
+	presets.append(no_slats)
+
+	_planet_selected_rect = null
+	for preset in presets:
+		var cell := VBoxContainer.new()
+		cell.add_theme_constant_override("separation", 4)
+		grid.add_child(cell)
+
+		var lbl := Label.new()
+		lbl.text = str(preset["label"])
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.add_theme_font_size_override("font_size", 12)
+		ThemeManager.apply_text_glow(lbl, "header")
+		cell.add_child(lbl)
+
+		var rect := ColorRect.new()
+		rect.color = Color.WHITE
+		rect.custom_minimum_size = Vector2(310, 310)
+		cell.add_child(rect)
+
+		var mat := ShaderMaterial.new()
+		mat.shader = _planet_shader
+		mat.set_shader_parameter("forced_aspect", 1.0)
+		for key in preset:
+			if key == "label":
+				continue
+			mat.set_shader_parameter(key, preset[key])
+		rect.material = mat
+
+		# Click to select for slider editing
+		var btn := Button.new()
+		btn.text = "SELECT"
+		btn.pressed.connect(_on_planet_select.bind(rect))
+		ThemeManager.apply_button_style(btn)
+		cell.add_child(btn)
+
+	# Select the first one by default
+	if grid.get_child_count() > 0:
+		var first_cell: VBoxContainer = grid.get_child(0) as VBoxContainer
+		for child in first_cell.get_children():
+			if child is ColorRect:
+				_on_planet_select(child)
+				break
+
+
+func _on_planet_select(rect: ColorRect) -> void:
+	_planet_selected_rect = rect
+	# Highlight with outline
+	for child in rect.get_parent().get_parent().get_children():
+		if child is VBoxContainer:
+			for sub in child.get_children():
+				if sub is ColorRect:
+					sub.self_modulate = Color.WHITE
+
+
+func _planet_slider(parent: VBoxContainer, param: String, display: String,
+		min_val: float, max_val: float, default_val: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	parent.add_child(row)
+	var lbl := Label.new()
+	lbl.text = display
+	lbl.custom_minimum_size.x = 90
+	lbl.add_theme_font_size_override("font_size", 11)
+	row.add_child(lbl)
+	var slider := HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.step = (max_val - min_val) / 200.0
+	slider.value = default_val
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.x = 100
+	row.add_child(slider)
+	var val_lbl := Label.new()
+	val_lbl.custom_minimum_size.x = 40
+	val_lbl.add_theme_font_size_override("font_size", 10)
+	val_lbl.text = "%.3f" % default_val
+	row.add_child(val_lbl)
+	slider.value_changed.connect(func(v: float) -> void:
+		val_lbl.text = "%.3f" % v
+		if _planet_selected_rect:
+			var mat: ShaderMaterial = _planet_selected_rect.material as ShaderMaterial
+			if mat:
+				mat.set_shader_parameter(param, v)
+	)
+
+
+func _planet_color(parent: VBoxContainer, param: String, display: String, default_col: Color) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	parent.add_child(row)
+	var lbl := Label.new()
+	lbl.text = display
+	lbl.custom_minimum_size.x = 90
+	lbl.add_theme_font_size_override("font_size", 11)
+	row.add_child(lbl)
+	var picker := ColorPickerButton.new()
+	picker.color = default_col
+	picker.custom_minimum_size = Vector2(50, 22)
+	picker.edit_alpha = false
+	row.add_child(picker)
+	picker.color_changed.connect(func(c: Color) -> void:
+		if _planet_selected_rect:
+			var mat: ShaderMaterial = _planet_selected_rect.material as ShaderMaterial
+			if mat:
+				mat.set_shader_parameter(param, c)
+	)
+
+
+# ── Synthwave audition tab ──────────────────────────────────────────
+
 var _synthwave_presets: Array[Dictionary] = []
 var _synthwave_preset_idx: int = 0
 var _synthwave_preset_label: Label
@@ -293,7 +622,7 @@ func _build_synthwave_content() -> void:
 	# ── SUN ──
 	_sw_section(vbox, "SUN")
 	_sw_slider(vbox, "sun_glow", "Glow HDR", 0.0, 2.0, 0.6)
-	_sw_slider(vbox, "sun_size", "Size", 0.04, 0.22, 0.13)
+	_sw_slider(vbox, "sun_size", "Size", 0.04, 0.22, 0.11)
 	_sw_slider(vbox, "sun_x", "Position X", 0.35, 0.85, 0.63)
 	_sw_color(vbox, "sun_color_top", "Top Color", Color(1.0, 0.95, 0.4))
 	_sw_color(vbox, "sun_color_bot", "Bottom Color", Color(1.0, 0.2, 0.08))
@@ -302,7 +631,8 @@ func _build_synthwave_content() -> void:
 
 	# ── GRID ──
 	_sw_section(vbox, "GRID")
-	_sw_slider(vbox, "grid_core_brightness", "Core HDR", 1.0, 12.0, 6.0)
+	_sw_slider(vbox, "grid_core_brightness", "Core HDR", 0.5, 12.0, 6.0)
+	_sw_slider(vbox, "grid_core_tint", "Core Pink", 0.0, 1.0, 0.0)
 	_sw_slider(vbox, "grid_bloom_brightness", "Bloom HDR", 0.5, 8.0, 3.0)
 	_sw_slider(vbox, "grid_line_w", "Line Width", 0.001, 0.03, 0.008)
 	_sw_slider(vbox, "grid_bloom_w", "Bloom Width", 0.01, 0.15, 0.06)
@@ -312,15 +642,37 @@ func _build_synthwave_content() -> void:
 
 	vbox.add_child(HSeparator.new())
 
+	# ── CORRIDOR ──
+	_sw_section(vbox, "CORRIDOR")
+	_sw_slider(vbox, "horizon", "Horizon", 0.3, 0.65, 0.5)
+	_sw_slider(vbox, "corridor_gap", "Gap Size", 0.02, 0.25, 0.10)
+	_sw_slider(vbox, "grid_fade_width", "Fade Width", 0.02, 0.4, 0.18)
+
+	vbox.add_child(HSeparator.new())
+
 	# ── SKY ──
 	_sw_section(vbox, "SKY")
 	_sw_slider(vbox, "nebula_intensity", "Nebula", 0.0, 0.5, 0.12)
 	_sw_slider(vbox, "star_cutoff", "Star Density", 0.85, 0.99, 0.94)
-	_sw_slider(vbox, "shooting_star_rate", "Shooting Stars", 0.0, 1.0, 0.4)
-	_sw_slider(vbox, "light_brightness", "Motion Lights", 0.0, 3.0, 0.5)
-	_sw_slider(vbox, "light_speed", "Light Speed", 0.05, 2.0, 0.5)
-	_sw_slider(vbox, "horizon", "Horizon", 0.3, 0.65, 0.5)
-	_sw_color(vbox, "accent_color", "Nebula Color", Color(0.1, 0.8, 1.0))
+	_sw_color(vbox, "accent_color", "Accent Color", Color(0.1, 0.8, 1.0))
+
+	vbox.add_child(HSeparator.new())
+
+	# ── WARP STREAKS ──
+	_sw_section(vbox, "WARP STREAKS")
+	_sw_slider(vbox, "warp_streak_intensity", "Intensity", 0.0, 1.5, 0.5)
+	_sw_slider(vbox, "warp_streak_speed", "Speed", 0.2, 3.0, 1.0)
+	_sw_slider(vbox, "warp_inner_radius", "Inner Radius", 0.05, 0.5, 0.2)
+	_sw_slider(vbox, "warp_fade_width", "Fade In Width", 0.02, 0.3, 0.1)
+	_sw_slider(vbox, "warp_max_length", "Max Length", 0.02, 0.25, 0.12)
+	_sw_slider(vbox, "warp_streak_width", "Line Width", 0.0005, 0.004, 0.0015)
+
+	vbox.add_child(HSeparator.new())
+
+	# ── MOTION LIGHTS ──
+	_sw_section(vbox, "MOTION LIGHTS")
+	_sw_slider(vbox, "light_brightness", "Brightness", 0.0, 3.0, 0.5)
+	_sw_slider(vbox, "light_speed", "Speed", 0.05, 2.0, 0.5)
 
 	_apply_synthwave_preset(0)
 
@@ -431,11 +783,19 @@ func _init_synthwave_presets() -> void:
 		"sky_low": Color(0.18, 0.02, 0.25),
 		"nebula_intensity": 0.12,
 		"sun_glow": 0.6,
+		"sun_size": 0.11,
 		"grid_line_w": 0.008,
 		"grid_bloom_w": 0.06,
 		"grid_core_brightness": 6.0,
 		"grid_bloom_brightness": 3.0,
-		"shooting_star_rate": 0.4,
+		"corridor_gap": 0.10,
+		"grid_fade_width": 0.18,
+		"warp_streak_intensity": 0.5,
+		"warp_streak_speed": 1.0,
+		"warp_inner_radius": 0.2,
+		"warp_fade_width": 0.1,
+		"warp_max_length": 0.12,
+		"warp_streak_width": 0.0015,
 		"star_cutoff": 0.94,
 		"light_brightness": 0.5,
 	})
@@ -499,6 +859,10 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_tab_hud_btn)
 	if _tab_synthwave_btn:
 		ThemeManager.apply_button_style(_tab_synthwave_btn)
+	if _tab_planet_btn:
+		ThemeManager.apply_button_style(_tab_planet_btn)
+	if _tab_headsup_btn:
+		ThemeManager.apply_button_style(_tab_headsup_btn)
 	if _title_label:
 		ThemeManager.apply_text_glow(_title_label, "header")
 		_title_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
