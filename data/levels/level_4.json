@@ -57,10 +57,10 @@
 			"ship_id": "cargo_ship",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 336.350364963504,
+			"trigger_y": 560.58394160584,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": -3.50364963503624
+			"x_offset": -8.75912408759099
 		}
 	],
 	"events": [],

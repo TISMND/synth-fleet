@@ -1767,8 +1767,26 @@ class _CanvasDraw extends Control:
 		# Screen boundary (brighter interior)
 		var rect: Rect2 = s._canvas_rect
 		draw_rect(rect, Color(0.08, 0.08, 0.14, 0.3), true)
-		# Bold dashed screen boundary lines so the edge is unmistakable
+		# Bold screen boundary lines so the edge is unmistakable
 		draw_rect(rect, Color(0.6, 0.4, 0.1, 0.7), false, 2.0)
+
+		# HUD-safe play area (inside the HUD panels)
+		# Left panel: 60px, Right panel: 60px, Bottom bar: 96px
+		var scale: float = rect.size.x / SCREEN_W
+		var hud_left: float = 60.0 * scale
+		var hud_right: float = 60.0 * scale
+		var hud_bottom: float = 96.0 * scale
+		var safe_rect := Rect2(
+			rect.position.x + hud_left,
+			rect.position.y,
+			rect.size.x - hud_left - hud_right,
+			rect.size.y - hud_bottom
+		)
+		draw_rect(safe_rect, Color(0.3, 0.7, 0.4, 0.25), false, 1.0)
+		# Label
+		var safe_font: Font = ThemeDB.fallback_font
+		draw_string(safe_font, Vector2(safe_rect.position.x + 4, safe_rect.position.y + safe_rect.size.y - 4),
+			"play area", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.3, 0.7, 0.4, 0.4))
 
 		if not s._selected_path:
 			return

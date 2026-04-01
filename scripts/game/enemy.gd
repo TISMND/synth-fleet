@@ -31,6 +31,8 @@ var _melee_target: Node2D = null
 # Whether this enemy's weapons are active (set by encounter data)
 var weapons_active: bool = true
 var is_friendly: bool = false  # Ally ships: no friendly fire, no player collision
+var _bank: float = 0.0  # Banking for friendly ships (-1 to 1)
+var _current_speed_mult: float = 1.0  # Eased speed multiplier
 
 # Currency drop config (set by encounter data via WaveManager)
 # Per-segment speed (precomputed at spawn time)
@@ -111,9 +113,10 @@ func _ready() -> void:
 	add_child(col_shape)
 
 	# Try shared bake viewport first — falls back to per-instance ShipRenderer
+	# Friendly ships always use per-instance renderer (need dynamic banking)
 	var vid: String = visual_id if visual_id != "" else "sentinel"
 	var bake_tex: ViewportTexture = null
-	if shared_renderer:
+	if shared_renderer and not is_friendly:
 		bake_tex = shared_renderer.get_texture(vid, render_mode_str, enemy_color)
 
 	if bake_tex:
@@ -261,9 +264,12 @@ func _process(delta: float) -> void:
 			queue_free()
 	elif path_curve != null and path_curve.point_count >= 2:
 		# Path-following mode — encounter speed * per-segment multiplier
-		var move_speed: float = path_speed
+		var target_mult: float = 1.0
 		if segment_speeds_array.size() > 0 and _segment_cumulative.size() > 0:
-			move_speed = path_speed * _get_current_segment_multiplier()
+			target_mult = _get_current_segment_multiplier()
+		# Ease into target speed (smooth acceleration/deceleration)
+		_current_speed_mult = lerpf(_current_speed_mult, target_mult, minf(delta * 3.0, 1.0))
+		var move_speed: float = path_speed * _current_speed_mult
 		path_progress += move_speed * delta
 		var total_len: float = path_curve.get_baked_length()
 		if path_progress >= total_len:
@@ -271,12 +277,18 @@ func _process(delta: float) -> void:
 			return
 		var curve_pos: Vector2 = path_curve.sample_baked(path_progress)
 		position = curve_pos + path_offset + path_origin
-		if rotate_with_path:
-			var behind: float = maxf(path_progress - 10.0, 0.0)
-			var ahead: float = minf(path_progress + 10.0, total_len)
-			var dir: Vector2 = path_curve.sample_baked(ahead) - path_curve.sample_baked(behind)
-			if dir.length_squared() > 0.01:
-				rotation = dir.angle() - PI / 2.0
+		# Direction sampling (used for rotation and banking)
+		var behind: float = maxf(path_progress - 10.0, 0.0)
+		var ahead: float = minf(path_progress + 10.0, total_len)
+		var dir: Vector2 = path_curve.sample_baked(ahead) - path_curve.sample_baked(behind)
+		if rotate_with_path and dir.length_squared() > 0.01:
+			rotation = dir.angle() - PI / 2.0
+		# Banking for friendly ships (tilt based on horizontal movement)
+		if is_friendly and _renderer and dir.length_squared() > 0.01:
+			var normalized_dir: Vector2 = dir.normalized()
+			var target_bank: float = clampf(-normalized_dir.x * 1.5, -1.0, 1.0)
+			_bank = lerpf(_bank, target_bank, minf(delta * 6.0, 1.0))
+			_renderer.bank = _bank
 		# Despawn if off screen (skip until enemy has entered the play area once)
 		if _has_entered_screen:
 			if position.y > 1200 or position.y < -200 or position.x < -200 or position.x > 2120:
