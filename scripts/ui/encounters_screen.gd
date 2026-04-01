@@ -57,6 +57,9 @@ var _full_rect: Rect2    # Expanded rect including off-screen margin for interac
 var _selected_wps: Array[int] = []  # Multi-select: list of selected waypoint indices
 var _dragging: bool = false
 var _drag_type: String = ""  # "group", "ctrl_in", "ctrl_out"
+var _box_selecting: bool = false
+var _box_start: Vector2 = Vector2.ZERO
+var _box_current: Vector2 = Vector2.ZERO
 var _drag_index: int = -1  # For handle drags, which wp index
 var _drag_start_canvas: Vector2 = Vector2.ZERO  # Mouse pos at drag start (canvas coords)
 var _drag_wp_origins: Array[Vector2] = []  # Screen-space positions of all selected wps at drag start
@@ -940,11 +943,16 @@ func _handle_canvas_input(event: InputEvent) -> void:
 				_dragging = false
 				_save_current()
 				_rebuild_right_panel()
+			elif mb.button_index == MOUSE_BUTTON_LEFT and _box_selecting:
+				_finish_box_select()
 
 	elif event is InputEventMouseMotion:
 		var mm: InputEventMouseMotion = event as InputEventMouseMotion
 		if _dragging:
 			_on_canvas_drag(mm.position)
+		elif _box_selecting:
+			_box_current = mm.position
+			_canvas.queue_redraw()
 		elif _active_tool == Tool.ARC:
 			_arc_preview_pos = mm.position
 			_arc_hovering = _full_rect.has_point(mm.position)
@@ -1007,9 +1015,12 @@ func _tool_select_click(pos: Vector2, shift_held: bool = false) -> void:
 			_canvas.queue_redraw()
 			return
 
-	# Click empty space → deselect all (unless shift held)
+	# Click empty space → start box selection
 	if not shift_held:
 		_selected_wps.clear()
+	_box_selecting = true
+	_box_start = pos
+	_box_current = pos
 	_canvas.queue_redraw()
 
 
@@ -1202,6 +1213,25 @@ func _on_canvas_drag(pos: Vector2) -> void:
 			var screen_pos: Vector2 = _canvas_to_screen(pos)
 			var wp_pos: Vector2 = _selected_path.get_waypoint_pos(_drag_index)
 			_selected_path.set_waypoint_ctrl_out(_drag_index, screen_pos - wp_pos)
+	_canvas.queue_redraw()
+
+
+func _finish_box_select() -> void:
+	_box_selecting = false
+	if not _selected_path:
+		_canvas.queue_redraw()
+		return
+	# Build selection rect from start/current (handle any drag direction)
+	var r := Rect2(
+		Vector2(minf(_box_start.x, _box_current.x), minf(_box_start.y, _box_current.y)),
+		Vector2(absf(_box_current.x - _box_start.x), absf(_box_current.y - _box_start.y))
+	)
+	# Only box-select if dragged a meaningful distance (avoid tiny accidental boxes)
+	if r.size.x > 5.0 or r.size.y > 5.0:
+		for i in range(_selected_path.waypoints.size()):
+			var wp_canvas: Vector2 = _screen_to_canvas(_selected_path.get_waypoint_pos(i))
+			if r.has_point(wp_canvas) and i not in _selected_wps:
+				_selected_wps.append(i)
 	_canvas.queue_redraw()
 
 
@@ -1929,11 +1959,20 @@ class _CanvasDraw extends Control:
 				draw_circle(pos_canvas, _PREVIEW_DOT_RADIUS, Color(1.0, 0.5, 0.0, 1.0))
 				draw_arc(pos_canvas, _PREVIEW_DOT_RADIUS + 3, 0, TAU, 24, Color(1.0, 0.5, 0.0, 0.4), 2.0)
 
+		# Box selection rectangle
+		if s._box_selecting:
+			var box_rect := Rect2(
+				Vector2(minf(s._box_start.x, s._box_current.x), minf(s._box_start.y, s._box_current.y)),
+				Vector2(absf(s._box_current.x - s._box_start.x), absf(s._box_current.y - s._box_start.y))
+			)
+			draw_rect(box_rect, Color(0.4, 0.85, 1.0, 0.1), true)
+			draw_rect(box_rect, Color(0.4, 0.85, 1.0, 0.5), false, 1.0)
+
 
 	func _gui_input(event: InputEvent) -> void:
 		if screen:
 			screen._handle_canvas_input(event)
 			if event is InputEventMouseButton:
 				accept_event()
-			elif event is InputEventMouseMotion and screen._dragging:
+			elif event is InputEventMouseMotion and (screen._dragging or screen._box_selecting):
 				accept_event()

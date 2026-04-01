@@ -94,8 +94,9 @@ func _ready() -> void:
 	add_to_group("enemies")
 
 	if is_friendly:
-		collision_layer = 0  # Friendly: no collision with player or projectiles
+		collision_layer = 32  # Friendly layer: detected by player for docking, not by projectiles
 		collision_mask = 0
+		z_index = 5  # Render above player ship (player flies "under" to dock)
 	else:
 		collision_layer = 4  # Enemy layer
 		collision_mask = 0

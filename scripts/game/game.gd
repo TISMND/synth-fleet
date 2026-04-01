@@ -802,7 +802,7 @@ func _process(delta: float) -> void:
 		_hud.process_fire_effect(delta)
 		_hud.update_credits(GameState.credits)
 		_hud.update_cargo_counter(delta)
-		_update_cargo_indicator()
+		_update_cargo_indicator(delta)
 		if not _player._drifting and not _player._blackout_active:
 			_update_warning_rotator(delta)
 	# Mouse navigation indicator
@@ -1309,21 +1309,48 @@ func _load_warning_colors() -> void:
 			}
 
 
-func _update_cargo_indicator() -> void:
+const CARGO_TRANSFER_RATE_MAX: float = 500.0  # Credits per second at full overlap
+
+func _update_cargo_indicator(delta: float) -> void:
 	if not _hud or not _enemies:
 		return
 	# Find any ally ship (cargo ship) currently alive in the enemies container
 	var found: bool = false
 	for child in _enemies.get_children():
 		if child is Enemy and child.ship_id == "cargo_ship":
-			# Check if on screen
 			var pos: Vector2 = child.position
 			if pos.x > -100.0 and pos.x < 2020.0 and pos.y > -100.0 and pos.y < 1180.0:
 				_hud.update_cargo_indicator(pos, true)
 				found = true
+				# Docking — uses collision overlap from player_ship.docked_friendly
+				if _player and is_instance_valid(_player) and _player.docked_friendly == child:
+					var dist: float = _player.position.distance_to(pos)
+					# Overlap ratio: 1.0 when centered, fading to 0.0 at edge of collision
+					var combined_radius: float = 90.0  # Approximate combined bounding
+					var overlap: float = clampf(1.0 - dist / combined_radius, 0.0, 1.0)
+					_transfer_cargo(delta, overlap)
+					_hud.set_transfer_rate(CARGO_TRANSFER_RATE_MAX * overlap)
+				else:
+					_hud.set_transfer_rate(0.0)
 				break
 	if not found:
 		_hud.update_cargo_indicator(Vector2.ZERO, false)
+		_hud.set_transfer_rate(0.0)
+
+
+func _transfer_cargo(delta: float, overlap_ratio: float) -> void:
+	var rate: float = CARGO_TRANSFER_RATE_MAX * overlap_ratio
+	var transfer_amount: int = int(rate * delta)
+	if transfer_amount < 1 and overlap_ratio > 0.0:
+		transfer_amount = 1
+	# Transfer from cargo (credits) to bank
+	var available: int = GameState.credits
+	if available <= 0:
+		return
+	var actual: int = mini(transfer_amount, available)
+	GameState.credits -= actual
+	var banked: int = int(GameState.get_meta("banked_credits", 0))
+	GameState.set_meta("banked_credits", banked + actual)
 
 
 func _update_warning_rotator(delta: float) -> void:

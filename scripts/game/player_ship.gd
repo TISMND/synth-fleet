@@ -176,7 +176,7 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	# Player collision area for contact damage
 	_player_area = Area2D.new()
 	_player_area.collision_layer = 1
-	_player_area.collision_mask = 4 | 8 | 16  # Enemies (4) + Enemy projectiles (8) + Pickups (16)
+	_player_area.collision_mask = 4 | 8 | 16 | 32  # Enemies (4) + Enemy projectiles (8) + Pickups (16) + Friendly (32)
 	var col_result: Dictionary = _make_collision_shape(ship_data)
 	var col_shape := CollisionShape2D.new()
 	col_shape.shape = col_result["shape"]
@@ -1546,10 +1546,16 @@ func apply_bar_effects(effects: Dictionary) -> void:
 				_hud.trigger_drain_wave(hud_bar_name)
 
 
+var docked_friendly: Enemy = null  # Currently overlapping friendly ship
+
 func _on_contact(area: Area2D) -> void:
 	# Currency pickups
 	if area is Pickup:
 		(area as Pickup).collect()
+		return
+	# Friendly ships — track for docking, no damage
+	if area is Enemy and (area as Enemy).is_friendly:
+		docked_friendly = area as Enemy
 		return
 	# Enemy projectiles handle their own damage via their _on_area_entered
 	if area is EnemyProjectile:
@@ -1560,6 +1566,10 @@ func _on_contact(area: Area2D) -> void:
 
 
 func _on_contact_exit(area: Area2D) -> void:
+	if area is Enemy and (area as Enemy).is_friendly:
+		if docked_friendly == area:
+			docked_friendly = null
+		return
 	var idx: int = _ram_overlapping.find(area)
 	if idx >= 0:
 		_ram_overlapping.remove_at(idx)

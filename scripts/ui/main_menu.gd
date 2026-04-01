@@ -7,8 +7,11 @@ var _vhs_overlay: ColorRect
 var _menu_loop_ids: Array[String] = []
 var _menu_fade_ms: int = 2000
 
+const SW_SETTINGS_PATH: String = "user://settings/synthwave_bg.json"
+
 
 func _ready() -> void:
+	_setup_synthwave_bg()
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
@@ -89,10 +92,48 @@ func _on_dev_studio() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
 
 
+func _setup_synthwave_bg() -> void:
+	var bg: ColorRect = $Background
+	var shader: Shader = load("res://assets/shaders/synthwave_bg.gdshader")
+	if not shader:
+		return
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	bg.material = mat
+
+	# Load saved settings from audition tab
+	if FileAccess.file_exists(SW_SETTINGS_PATH):
+		var f: FileAccess = FileAccess.open(SW_SETTINGS_PATH, FileAccess.READ)
+		if f:
+			var json := JSON.new()
+			if json.parse(f.get_as_text()) == OK and json.data is Dictionary:
+				var data: Dictionary = json.data as Dictionary
+				for key in data:
+					var val: Variant = data[key]
+					if val is Dictionary:
+						var d: Dictionary = val as Dictionary
+						if d.has("r"):
+							val = Color(float(d["r"]), float(d["g"]), float(d["b"]))
+					mat.set_shader_parameter(key, val)
+			f.close()
+
+
 func _apply_styles() -> void:
 	for btn_node in $VBoxContainer.get_children():
 		if btn_node is Button:
-			ThemeManager.apply_button_style(btn_node as Button)
+			var btn: Button = btn_node as Button
+			ThemeManager.apply_button_style(btn)
+			for state in ["normal", "hover", "pressed", "focus"]:
+				var sb: StyleBox = btn.get_theme_stylebox(state)
+				if sb and sb is StyleBoxFlat:
+					var dark: StyleBoxFlat = (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
+					if state == "hover":
+						dark.bg_color = Color(0.18, 0.18, 0.18, 0.95)
+					elif state == "pressed":
+						dark.bg_color = Color(0.12, 0.12, 0.12, 0.95)
+					else:
+						dark.bg_color = Color(0.06, 0.06, 0.06, 0.95)
+					btn.add_theme_stylebox_override(state, dark)
 
 
 func _setup_vhs_overlay() -> void:

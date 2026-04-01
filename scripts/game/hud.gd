@@ -14,6 +14,8 @@ var _bank_label: Label = null
 var _bank_value_label: Label = null
 var _bank_display_value: float = 0.0
 var _bank_target_value: int = 0
+var _transfer_rate: float = 0.0  # Current credits/sec being transferred
+var _transfer_drawer: Node2D = null
 
 # Cargo transfer indicator
 var _cargo_indicator: Node2D = null
@@ -89,6 +91,8 @@ func _build_ui() -> void:
 	_build_cargo_counter()
 	# Bank counter — top left, bare HDR style
 	_build_bank_counter()
+	# Transfer rate chevrons between BANK and CARGO
+	_build_transfer_drawer()
 	# Cargo transfer indicator (arrow tracking ally ships)
 	_build_cargo_indicator()
 
@@ -477,6 +481,87 @@ func _build_bank_counter() -> void:
 
 	_bank_display_value = float(GameState.get_meta("banked_credits", 0))
 	_bank_target_value = int(GameState.get_meta("banked_credits", 0))
+
+
+func set_transfer_rate(rate: float) -> void:
+	_transfer_rate = rate
+	if _transfer_drawer:
+		_transfer_drawer.visible = rate > 0.0
+		_transfer_drawer.queue_redraw()
+
+
+func _build_transfer_drawer() -> void:
+	_transfer_drawer = _TransferChevronDraw.new()
+	(_transfer_drawer as _TransferChevronDraw).hud = self
+	_transfer_drawer.z_index = 51
+	_transfer_drawer.visible = false
+	add_child(_transfer_drawer)
+
+
+class _TransferChevronDraw extends Node2D:
+	var hud: Control = null
+	const HDR: float = 1.9
+	const CHEVRON_COLOR := Color(0.15 * HDR, 0.9 * HDR, 0.4 * HDR)
+
+	func _draw() -> void:
+		if not hud or hud._transfer_rate <= 0.0:
+			return
+		var t: float = float(Time.get_ticks_msec()) / 1000.0
+		var rate: int = int(hud._transfer_rate)
+
+		# Position: between CARGO (top-right) and BANK (top-left)
+		# CARGO is at ~1600,16 and BANK is at ~76,16
+		# Chevrons flow left (CARGO → BANK) in the top bar area
+		var cargo_x: float = 1920.0 - 60.0 - 260.0  # cargo container x
+		var bank_x: float = 60.0 + 16.0 + 140.0  # end of bank label area
+		var y_center: float = 30.0  # vertical center of the counters
+
+		# Rate text centered
+		var mid_x: float = (bank_x + cargo_x) * 0.5
+		var font: Font = ThemeManager.get_font("font_body")
+		if font:
+			var rate_text: String = str(rate) + "/s"
+			var text_w: float = font.get_string_size(rate_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+			var blink: float = 0.7 + 0.3 * sin(t * 5.0)
+			draw_string(font, Vector2(mid_x - text_w * 0.5, y_center + 5), rate_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(CHEVRON_COLOR, blink))
+
+		# Animated chevrons flowing left from CARGO toward BANK
+		# 3 chevrons spaced evenly, pulsing in sequence
+		var chevron_zone_start: float = cargo_x - 30.0
+		var chevron_zone_end: float = mid_x + 40.0
+		var zone_width: float = chevron_zone_start - chevron_zone_end
+		var chevron_count: int = 3
+		var cycle: float = fmod(t * 2.0, 1.0)  # 0→1 repeating
+
+		for i in range(chevron_count):
+			var phase: float = fmod(cycle + float(i) / float(chevron_count), 1.0)
+			var cx: float = chevron_zone_start - phase * zone_width
+			var alpha: float = 1.0 - absf(phase - 0.5) * 2.0  # Fade at edges
+			alpha = clampf(alpha * 1.5, 0.0, 0.9)
+			if alpha < 0.05:
+				continue
+			# Draw left-pointing chevron «
+			var sz: float = 6.0
+			var col := Color(CHEVRON_COLOR, alpha)
+			draw_line(Vector2(cx, y_center - sz), Vector2(cx - sz, y_center), col, 2.0)
+			draw_line(Vector2(cx - sz, y_center), Vector2(cx, y_center + sz), col, 2.0)
+
+		# Second set flowing left from rate text toward BANK
+		var chevron2_start: float = mid_x - 40.0
+		var chevron2_end: float = bank_x + 10.0
+		var zone2_width: float = chevron2_start - chevron2_end
+
+		for i in range(chevron_count):
+			var phase: float = fmod(cycle + float(i) / float(chevron_count), 1.0)
+			var cx: float = chevron2_start - phase * zone2_width
+			var alpha: float = 1.0 - absf(phase - 0.5) * 2.0
+			alpha = clampf(alpha * 1.5, 0.0, 0.9)
+			if alpha < 0.05:
+				continue
+			var sz: float = 6.0
+			var col := Color(CHEVRON_COLOR, alpha)
+			draw_line(Vector2(cx, y_center - sz), Vector2(cx - sz, y_center), col, 2.0)
+			draw_line(Vector2(cx - sz, y_center), Vector2(cx, y_center + sz), col, 2.0)
 
 
 func _build_cargo_indicator() -> void:

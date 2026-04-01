@@ -346,16 +346,8 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 		var start_pos: Vector2 = enemy.path_curve.sample_baked(0.0)
 		var end_pos: Vector2 = enemy.path_curve.sample_baked(enemy.path_curve.get_baked_length())
 		var spawn_pos: Vector2 = start_pos + enemy.path_offset + enemy.path_origin
-		# Ensure path-following enemies start off-screen (safe margin for large sprites)
-		var moves_upward: bool = end_pos.y < start_pos.y
-		if moves_upward:
-			# Bottom-to-top paths: push off-screen at bottom
-			if spawn_pos.y < 1280.0:
-				enemy.path_origin.y += (1280.0 - spawn_pos.y)
-		else:
-			# Top-to-bottom paths: push off-screen at top
-			if spawn_pos.y > -200.0:
-				enemy.path_origin.y -= (spawn_pos.y + 200.0)
+		# Path positions are authored in the path editor with screen boundaries visible.
+		# No forced off-screen shifting — paths play exactly where they were drawn.
 		enemy.position = start_pos + enemy.path_offset + enemy.path_origin
 	else:
 		enemy.position = Vector2(randf_range(100.0, 1820.0), -30.0)
