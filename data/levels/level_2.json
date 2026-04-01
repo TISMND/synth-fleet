@@ -2,7 +2,7 @@
 	"background_shader": "res://assets/shaders/bg_bioluminescent_reef.gdshader",
 	"bpm": 110.0,
 	"deep_background": "",
-	"display_name": "02 - Boss Test",
+	"display_name": "02 - Beneath",
 	"doodads": [],
 	"encounters": [
 		{
@@ -14,39 +14,20 @@
 			"is_melee": false,
 			"mirror_h": false,
 			"mirror_v": false,
-			"path_id": "path_2",
+			"path_id": "path_5",
 			"rotate_with_path": false,
-			"ship_id": "enemy_colossus",
+			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
-			"speed": 100.0,
-			"trigger_y": 779.56204379562,
+			"speed": 70.0,
+			"trigger_y": 576.666666666667,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": -127.883211678832
-		},
-		{
-			"boss_id": "",
-			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
-			"formation_id": "",
-			"is_melee": false,
-			"mirror_h": false,
-			"mirror_v": false,
-			"path_id": "path_1",
-			"rotate_with_path": false,
-			"ship_id": "enemy_helix",
-			"spacing": 200.0,
-			"speed": 200.0,
-			"trigger_y": 744.525547445255,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": 89.3430656934307
+			"x_offset": -5.00000000000003
 		}
 	],
 	"events": [],
 	"id": "level_2",
 	"level_length": 10000.0,
 	"nebula_placements": [],
-	"scroll_speed": 80.0
+	"scroll_speed": 70.0
 }

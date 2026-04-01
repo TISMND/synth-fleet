@@ -424,6 +424,16 @@ func _draw_enemy_ship() -> void:
 		"archon_wing_r": _draw_archon_wing(1.0)
 		"archon_turret": _draw_archon_turret()
 		"dreadnought": _draw_dreadnought()
+		"spore": _draw_spore()
+		"mite": _draw_mite()
+		"polyp": _draw_polyp()
+		"lamprey": _draw_lamprey()
+		"anemone": _draw_anemone()
+		"mantaray": _draw_mantaray()
+		"nautilus": _draw_nautilus()
+		"hydra": _draw_hydra()
+		"behemoth": _draw_behemoth()
+		"mycelia": _draw_mycelia()
 		_: _draw_sentinel()  # Default fallback
 
 func _draw_sentinel() -> void:
@@ -1532,6 +1542,393 @@ func _draw_conduit() -> void:
 	# Aft exhaust
 	var eng_f: float = 0.4 + sin(time * 5.0) * 0.3
 	draw_circle(Vector2(0, -hh - 1.0 * s), 3.0 * s, Color(engine_color.r, engine_color.g, engine_color.b, eng_f))
+
+
+# ── Lifeform ships ──
+
+func _draw_spore() -> void:
+	# Tiny drifting spore — pulsing sphere with 3 flagella
+	var s := 1.6
+	var pulse: float = 1.0 + sin(time * 3.0) * 0.15
+	# Body — small pulsing circle
+	_circle(Vector2.ZERO, 5.0 * s * pulse, hull_color, 1.5 * s)
+	_circle(Vector2.ZERO, 3.0 * s * pulse, Color(accent_color, 0.4), 1.0 * s)
+	# Nucleus dot
+	draw_circle(Vector2.ZERO, 1.5 * s, accent_color)
+	# 3 trailing flagella
+	for i in range(3):
+		var base_angle: float = -PI * 0.5 + float(i - 1) * 0.4
+		var prev := Vector2(cos(base_angle) * 5.0 * s, sin(base_angle) * 5.0 * s)
+		for seg in range(1, 7):
+			var frac: float = float(seg) / 6.0
+			var wave: float = sin(time * 5.0 + frac * 4.0 + float(i) * 1.5) * (1.0 + frac * 3.0) * s
+			var ny: float = prev.y - 4.0 * s
+			var curr := Vector2(prev.x + wave, ny)
+			_line(prev, curr, Color(hull_color, 0.7 - frac * 0.3), (1.0 - frac * 0.5) * s)
+			prev = curr
+
+
+func _draw_mite() -> void:
+	# Small tick/mite — round body with 4 pairs of scrabbling legs
+	var s := 2.0
+	var scuttle: float = sin(time * 6.0) * 0.5
+	# Body — squat oval
+	var body := PackedVector2Array()
+	for i in range(12):
+		var angle: float = TAU * float(i) / 12.0
+		body.append(Vector2(cos(angle) * 6.0 * s, sin(angle) * 4.5 * s))
+	_poly(body, hull_color, 1.5 * s)
+	# Head bump
+	_circle(Vector2(0, 5.0 * s), 3.0 * s, hull_color, 1.2 * s)
+	# Eyes
+	draw_circle(Vector2(-1.5 * s, 5.5 * s), 0.8 * s, accent_color)
+	draw_circle(Vector2(1.5 * s, 5.5 * s), 0.8 * s, accent_color)
+	# 4 pairs of legs — jointed, scrabbling
+	for i in range(4):
+		var ly: float = (3.0 - float(i) * 2.5) * s
+		var phase: float = time * 8.0 + float(i) * 1.2
+		for side in [-1.0, 1.0]:
+			var knee_x: float = side * (8.0 + sin(phase + side) * 2.0) * s
+			var knee_y: float = ly + cos(phase + side) * 1.5 * s
+			var foot_x: float = side * (11.0 + sin(phase + side + 1.0) * 1.5) * s
+			var foot_y: float = ly + 2.0 * s + cos(phase + side + 1.0) * s
+			_line(Vector2(side * 5.5 * s, ly), Vector2(knee_x, knee_y), hull_color, 0.8 * s)
+			_line(Vector2(knee_x, knee_y), Vector2(foot_x, foot_y), hull_color, 0.6 * s)
+
+
+func _draw_polyp() -> void:
+	# Small coral polyp — cup body with waving tentacle crown
+	var s := 2.2
+	var breath: float = sin(time * 1.5) * 0.08
+	# Stalk/cup body — tapers from wide top to narrow base
+	var cup := PackedVector2Array([
+		Vector2(-5.0 * s, -6.0 * s), Vector2(-3.0 * s, 6.0 * s),
+		Vector2(3.0 * s, 6.0 * s), Vector2(5.0 * s, -6.0 * s),
+	])
+	_poly(cup, hull_color, 1.5 * s)
+	# Inner detail lines
+	_line(Vector2(-3.5 * s, -4.0 * s), Vector2(-2.0 * s, 4.0 * s), Color(detail_color, 0.2), 0.5 * s)
+	_line(Vector2(3.5 * s, -4.0 * s), Vector2(2.0 * s, 4.0 * s), Color(detail_color, 0.2), 0.5 * s)
+	# Crown of 7 tentacles waving
+	for i in range(7):
+		var spread: float = (float(i) - 3.0) / 3.0
+		var base_x: float = spread * 5.0 * s
+		var prev := Vector2(base_x, -6.0 * s)
+		for seg in range(1, 6):
+			var frac: float = float(seg) / 5.0
+			var wave: float = sin(time * 3.0 + frac * 3.5 + float(i) * 0.9) * (1.5 + frac * 3.0) * s
+			var ny: float = -6.0 * s - frac * 10.0 * s * (1.0 + breath)
+			var curr := Vector2(base_x + wave, ny)
+			_line(prev, curr, Color(accent_color, 0.8 - frac * 0.3), (1.2 - frac * 0.5) * s)
+			prev = curr
+		# Tip glow
+		draw_circle(prev, 0.6 * s, Color(accent_color, 0.5 + sin(time * 2.0 + float(i)) * 0.3))
+
+
+func _draw_lamprey() -> void:
+	# Medium eel/lamprey — sinuous elongated body with circular mouth
+	var s := 2.8
+	var seg_count: int = 16
+	var body_len: float = 24.0 * s
+	# Build spine with traveling wave
+	var spine: Array[Vector2] = []
+	for i in range(seg_count + 1):
+		var frac: float = float(i) / float(seg_count)
+		var y: float = lerpf(body_len * 0.5, -body_len * 0.5, frac)
+		var wave: float = sin(time * 3.0 - frac * 5.0) * (2.0 + frac * 4.0) * s
+		spine.append(Vector2(wave, y))
+	# Body segments — width tapers from head to tail
+	for i in range(seg_count):
+		var frac: float = float(i) / float(seg_count)
+		var width: float = (4.0 + sin(frac * PI) * 3.0) * s  # Widest at middle
+		if frac < 0.15:
+			width = lerpf(5.0 * s, width, frac / 0.15)  # Head wider
+		var left := spine[i] + Vector2(-width, 0)
+		var right := spine[i] + Vector2(width, 0)
+		var left2 := spine[i + 1] + Vector2(-width * 0.95, 0)
+		var right2 := spine[i + 1] + Vector2(width * 0.95, 0)
+		var seg_pts := PackedVector2Array([left, right, right2, left2])
+		var seg_alpha: float = 0.8 - frac * 0.2
+		_poly(seg_pts, Color(hull_color, seg_alpha), 0.8 * s)
+	# Circular mouth at head
+	var mouth_pos: Vector2 = spine[0]
+	_arc(mouth_pos, 4.0 * s, 0, TAU, 12, accent_color, 1.5 * s)
+	_arc(mouth_pos, 2.0 * s, 0, TAU, 8, Color(0, 0, 0, 0.8), 1.0 * s)
+	# Teeth dots around mouth
+	for i in range(6):
+		var angle: float = TAU * float(i) / 6.0
+		var tooth := mouth_pos + Vector2(cos(angle) * 3.0 * s, sin(angle) * 3.0 * s)
+		draw_circle(tooth, 0.5 * s, accent_color)
+
+
+func _draw_anemone() -> void:
+	# Medium sea anemone — domed body with dense tentacle forest on top
+	var s := 2.6
+	var breath: float = sin(time * 1.2)
+	# Dome body
+	var dome := PackedVector2Array()
+	for i in range(16):
+		var angle: float = PI + TAU * 0.5 * float(i) / 15.0  # Bottom half circle
+		var r: float = 10.0 * s * (1.0 + breath * 0.03)
+		dome.append(Vector2(cos(angle) * r, sin(angle) * r * 0.7))
+	# Flat bottom
+	dome.append(Vector2(10.0 * s, 0))
+	dome.append(Vector2(-10.0 * s, 0))
+	_poly(dome, hull_color, 1.8 * s)
+	# Horizontal stripes on dome
+	for i in range(4):
+		var sy: float = -float(i + 1) * 2.0 * s
+		var sw: float = (9.0 - float(i) * 1.5) * s
+		_line(Vector2(-sw, sy), Vector2(sw, sy), Color(detail_color, 0.15), 0.5 * s)
+	# Dense tentacle forest — 12 tentacles
+	for i in range(12):
+		var spread: float = (float(i) - 5.5) / 5.5
+		var base_x: float = spread * 9.0 * s
+		var base_y: float = -7.0 * s + absf(spread) * 2.0 * s
+		var length: float = (8.0 + sin(float(i) * 1.7) * 4.0) * s
+		var prev := Vector2(base_x, base_y)
+		for seg in range(1, 8):
+			var frac: float = float(seg) / 7.0
+			var wave: float = sin(time * 2.5 + frac * 3.0 + float(i) * 0.8) * (1.0 + frac * 2.5) * s
+			var ny: float = base_y - frac * length * (1.0 + breath * 0.05)
+			var curr := Vector2(base_x + wave, ny)
+			var t_col: Color = accent_color if i % 3 == 0 else hull_color
+			_line(prev, curr, Color(t_col, 0.7 - frac * 0.3), (1.0 - frac * 0.4) * s)
+			prev = curr
+
+
+func _draw_mantaray() -> void:
+	# Medium-large manta ray — wide flat body with sweeping wing-fins
+	var s := 3.0
+	var flap: float = sin(time * 2.0)
+	# Main body — wide diamond/kite shape
+	var body := PackedVector2Array()
+	var body_pts: int = 16
+	for i in range(body_pts):
+		var angle: float = TAU * float(i) / float(body_pts)
+		var rx: float = 16.0 * s
+		var ry: float = 8.0 * s
+		# Make more pointed front and back
+		var x: float = cos(angle)
+		var y: float = sin(angle)
+		if absf(x) > 0.5:
+			ry *= (1.0 - absf(x) * 0.3)
+		body.append(Vector2(x * rx, y * ry))
+	_poly(body, hull_color, 2.0 * s)
+	# Wing tips — curve upward with flap animation
+	for side in [-1.0, 1.0]:
+		var wing_pts: int = 8
+		var prev := Vector2(side * 14.0 * s, 0)
+		for i in range(1, wing_pts + 1):
+			var frac: float = float(i) / float(wing_pts)
+			var wx: float = side * (14.0 + frac * 8.0) * s
+			var wy: float = frac * flap * 4.0 * s - frac * frac * 3.0 * s
+			var curr := Vector2(wx, wy)
+			_line(prev, curr, Color(hull_color, 0.8 - frac * 0.3), (2.0 - frac * 1.0) * s)
+			prev = curr
+	# Eyes
+	draw_circle(Vector2(-4.0 * s, 2.0 * s), 1.2 * s, accent_color)
+	draw_circle(Vector2(4.0 * s, 2.0 * s), 1.2 * s, accent_color)
+	# Gill slits
+	for i in range(3):
+		var gy: float = (-1.0 + float(i) * 1.5) * s
+		for side in [-1.0, 1.0]:
+			_line(Vector2(side * 6.0 * s, gy), Vector2(side * 9.0 * s, gy + 0.5 * s), Color(detail_color, 0.25), 0.5 * s)
+	# Tail
+	var tail_prev := Vector2(0, -8.0 * s)
+	for i in range(1, 8):
+		var frac: float = float(i) / 7.0
+		var tw: float = sin(time * 3.0 + frac * 4.0) * (1.0 + frac * 2.0) * s
+		var ty: float = -8.0 * s - frac * 14.0 * s
+		var tail_curr := Vector2(tw, ty)
+		_line(tail_prev, tail_curr, Color(hull_color, 0.7 - frac * 0.3), (1.5 - frac * 0.8) * s)
+		tail_prev = tail_curr
+
+
+func _draw_nautilus() -> void:
+	# Medium — spiral-shelled creature with trailing tentacles
+	var s := 2.8
+	# Shell spiral — logarithmic spiral drawn as connected arcs
+	var spiral_pts: int = 40
+	var prev_pt := Vector2.ZERO
+	for i in range(spiral_pts):
+		var frac: float = float(i) / float(spiral_pts)
+		var angle: float = frac * TAU * 2.5 + time * 0.3  # 2.5 full turns
+		var r: float = (2.0 + frac * 8.0) * s
+		var pt := Vector2(cos(angle) * r, sin(angle) * r * 0.9)
+		if i > 0:
+			var alpha: float = 0.3 + frac * 0.5
+			_line(prev_pt, pt, Color(hull_color, alpha), (0.5 + frac * 1.5) * s)
+		prev_pt = pt
+	# Outer shell body
+	_circle(Vector2.ZERO, 9.0 * s, hull_color, 2.0 * s)
+	_circle(Vector2.ZERO, 6.0 * s, Color(detail_color, 0.2), 1.0 * s)
+	# Chamber lines
+	for i in range(6):
+		var angle: float = float(i) * TAU / 6.0 + time * 0.2
+		var inner := Vector2(cos(angle) * 3.0 * s, sin(angle) * 3.0 * s)
+		var outer := Vector2(cos(angle) * 8.5 * s, sin(angle) * 8.5 * s)
+		_line(inner, outer, Color(detail_color, 0.15), 0.4 * s)
+	# Eye
+	draw_circle(Vector2(3.0 * s, 6.0 * s), 1.5 * s, accent_color)
+	draw_circle(Vector2(3.0 * s, 6.0 * s), 0.6 * s, Color(0, 0, 0, 0.9))
+	# Tentacles from opening
+	for i in range(5):
+		var base_x: float = (float(i) - 2.0) * 2.5 * s
+		var base_y: float = 9.0 * s
+		var prev := Vector2(base_x, base_y)
+		for seg in range(1, 8):
+			var frac: float = float(seg) / 7.0
+			var wave: float = sin(time * 3.5 + frac * 3.0 + float(i) * 1.3) * (1.5 + frac * 3.0) * s
+			var ny: float = base_y + frac * 12.0 * s
+			var curr := Vector2(base_x + wave, ny)
+			_line(prev, curr, Color(accent_color, 0.7 - frac * 0.3), (1.2 - frac * 0.6) * s)
+			prev = curr
+
+
+func _draw_hydra() -> void:
+	# Large — multi-headed serpent body with 3 heads on sinuous necks
+	var s := 3.2
+	# Central body mass
+	var body := PackedVector2Array()
+	for i in range(14):
+		var angle: float = TAU * float(i) / 14.0
+		var r: float = (10.0 + sin(angle * 2.0 + time * 0.5) * 2.0) * s
+		body.append(Vector2(cos(angle) * r, sin(angle) * r * 1.3))
+	_poly(body, hull_color, 2.0 * s)
+	# 3 necks with heads
+	var neck_angles: Array[float] = [0.0, -0.6, 0.6]
+	for ni in range(3):
+		var base_angle: float = PI * 0.5 + neck_angles[ni]
+		var neck_len: float = (16.0 + sin(time * 0.7 + float(ni) * 2.0) * 3.0) * s
+		var seg_count: int = 10
+		var prev := Vector2(cos(base_angle) * 10.0 * s, sin(base_angle) * 10.0 * s)
+		var phase: float = time * 2.0 + float(ni) * 2.1
+		for seg in range(1, seg_count + 1):
+			var frac: float = float(seg) / float(seg_count)
+			var wave: float = sin(phase + frac * 3.5) * (1.5 + frac * 3.0) * s
+			var tangent := Vector2(-sin(base_angle), cos(base_angle))
+			var forward := Vector2(cos(base_angle), sin(base_angle))
+			var curr: Vector2 = prev + forward * (neck_len / float(seg_count)) + tangent * wave * 0.3
+			var width: float = (2.5 - frac * 1.0) * s
+			_line(prev, curr, hull_color, width)
+			prev = curr
+		# Head — diamond shape
+		var head_dir := Vector2(cos(base_angle), sin(base_angle))
+		var head_perp := Vector2(-head_dir.y, head_dir.x)
+		var head_pts := PackedVector2Array([
+			prev + head_dir * 4.0 * s,
+			prev + head_perp * 2.5 * s,
+			prev - head_dir * 2.0 * s,
+			prev - head_perp * 2.5 * s,
+		])
+		_poly(head_pts, hull_color, 1.5 * s)
+		# Eye on each head
+		draw_circle(prev + head_dir * 1.0 * s, 1.0 * s, accent_color)
+		# Jaw lines
+		_line(prev + head_dir * 4.0 * s, prev + head_perp * 2.0 * s, Color(accent_color, 0.5), 0.6 * s)
+		_line(prev + head_dir * 4.0 * s, prev - head_perp * 2.0 * s, Color(accent_color, 0.5), 0.6 * s)
+
+
+func _draw_behemoth() -> void:
+	# Large — massive armored creature, shell plates with exposed organic gaps
+	var s := 3.8
+	var breath: float = sin(time * 0.6)
+	# Main shell — large blobby armored shape
+	var shell := PackedVector2Array()
+	var shell_pts: int = 20
+	for i in range(shell_pts):
+		var angle: float = TAU * float(i) / float(shell_pts)
+		var base_r: float = 18.0 * s
+		# Segmented shell — angular bumps
+		var bump: float = (sin(angle * 5.0) * 3.0 + sin(angle * 3.0) * 2.0) * s
+		var r: float = base_r + bump
+		shell.append(Vector2(cos(angle) * r, sin(angle) * r * 1.1))
+	_poly(shell, hull_color, 2.5 * s)
+	# Shell plate lines — armored segments
+	for i in range(7):
+		var angle: float = TAU * float(i) / 7.0 + 0.2
+		var inner := Vector2(cos(angle) * 8.0 * s, sin(angle) * 8.0 * s * 1.1)
+		var outer := Vector2(cos(angle) * 17.0 * s, sin(angle) * 17.0 * s * 1.1)
+		_line(inner, outer, Color(detail_color, 0.2), 1.0 * s)
+	# Exposed organic gaps between plates — pulsing accent color
+	for i in range(7):
+		var angle: float = TAU * float(i) / 7.0 + 0.2 + TAU / 14.0
+		var gap_r: float = 13.0 * s
+		var gap_pos := Vector2(cos(angle) * gap_r, sin(angle) * gap_r * 1.1)
+		var gap_pulse: float = 0.2 + sin(time * 2.0 + float(i) * 1.3) * 0.15
+		draw_circle(gap_pos, 2.0 * s, Color(accent_color, gap_pulse))
+	# Central eye cluster
+	var eye_offsets: Array[Vector2] = [
+		Vector2(0, 2.0 * s), Vector2(-3.0 * s, -1.0 * s), Vector2(3.0 * s, -1.0 * s),
+		Vector2(-1.5 * s, 4.0 * s), Vector2(1.5 * s, 4.0 * s),
+	]
+	for eo in eye_offsets:
+		var eye_r: float = (1.5 + sin(time * 1.5 + eo.x) * 0.3) * s
+		draw_circle(eo, eye_r, accent_color)
+		draw_circle(eo, eye_r * 0.4, Color(0, 0, 0, 0.9))
+	# Stubby legs/appendages
+	for i in range(4):
+		var ly: float = (2.0 - float(i) * 3.0) * s
+		var phase: float = time * 3.0 + float(i) * 1.5
+		for side in [-1.0, 1.0]:
+			var base_x: float = side * 16.0 * s
+			var foot_x: float = side * (21.0 + sin(phase + side) * 2.0) * s
+			var foot_y: float = ly + sin(phase + side + 1.0) * 2.0 * s
+			_line(Vector2(base_x, ly), Vector2(foot_x, foot_y), hull_color, 1.5 * s)
+
+
+func _draw_mycelia() -> void:
+	# Large — fungal network, branching fractal hyphae from a central spore body
+	var s := 3.4
+	var pulse: float = sin(time * 1.0)
+	# Central spore body — lumpy sphere
+	var cap := PackedVector2Array()
+	for i in range(16):
+		var angle: float = TAU * float(i) / 16.0
+		var r: float = (8.0 + sin(angle * 4.0 + time * 0.4) * 2.0) * s
+		cap.append(Vector2(cos(angle) * r, sin(angle) * r))
+	_poly(cap, hull_color, 2.0 * s)
+	# Spore spots
+	for i in range(8):
+		var angle: float = TAU * float(i) / 8.0 + 0.3
+		var spot_r: float = 5.5 * s
+		var spot_pos := Vector2(cos(angle) * spot_r, sin(angle) * spot_r)
+		var spot_pulse: float = 0.15 + sin(time * 1.8 + float(i) * 1.1) * 0.1
+		draw_circle(spot_pos, 1.5 * s, Color(accent_color, spot_pulse))
+	# Branching hyphae — 6 main branches, each with 2 sub-branches
+	for i in range(6):
+		var base_angle: float = TAU * float(i) / 6.0
+		var branch_len: float = (14.0 + sin(time * 0.5 + float(i)) * 3.0) * s
+		var seg_count: int = 8
+		var phase: float = float(i) * 1.7 + time * 1.2
+		var prev := Vector2(cos(base_angle) * 7.0 * s, sin(base_angle) * 7.0 * s)
+		var branch_end := prev
+		for seg in range(1, seg_count + 1):
+			var frac: float = float(seg) / float(seg_count)
+			var forward := Vector2(cos(base_angle), sin(base_angle))
+			var tangent := Vector2(-forward.y, forward.x)
+			var wave: float = sin(phase + frac * 3.0) * 2.0 * s
+			var curr: Vector2 = prev + forward * (branch_len / float(seg_count)) + tangent * wave * 0.2
+			_line(prev, curr, Color(hull_color, 0.7 - frac * 0.2), (1.5 - frac * 0.7) * s)
+			prev = curr
+			branch_end = curr
+			# Sub-branch at midpoint and 75%
+			if seg == 4 or seg == 6:
+				var sub_angle: float = base_angle + (0.5 if seg == 4 else -0.4)
+				var sub_prev := curr
+				for sub_seg in range(1, 5):
+					var sf: float = float(sub_seg) / 4.0
+					var sub_fwd := Vector2(cos(sub_angle), sin(sub_angle))
+					var sub_tan := Vector2(-sub_fwd.y, sub_fwd.x)
+					var sw: float = sin(phase + sf * 2.0 + 1.0) * 1.5 * s
+					var sub_curr: Vector2 = sub_prev + sub_fwd * 4.0 * s + sub_tan * sw * 0.2
+					_line(sub_prev, sub_curr, Color(hull_color, 0.5 - sf * 0.2), (1.0 - sf * 0.4) * s)
+					sub_prev = sub_curr
+				# Tip node
+				draw_circle(sub_prev, 1.0 * s, Color(accent_color, 0.3 + pulse * 0.1))
+		# Branch tip node
+		draw_circle(branch_end, 1.2 * s, Color(accent_color, 0.4 + pulse * 0.15))
 
 
 # ── Chrome drawing helpers ──

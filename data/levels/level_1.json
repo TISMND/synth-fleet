@@ -360,8 +360,13 @@
 		{
 			"boss_id": "",
 			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_111",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "",
 			"is_melee": false,
 			"mirror_h": false,
@@ -371,48 +376,10 @@
 			"ship_id": "enemy_tesseract",
 			"spacing": 150.0,
 			"speed": 100.0,
-			"trigger_y": 4925.06320099697,
+			"trigger_y": 4883.87694822536,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 749.268292682927
-		},
-		{
-			"boss_id": "",
-			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
-			"formation_id": "",
-			"is_melee": false,
-			"mirror_h": false,
-			"mirror_v": true,
-			"path_id": "path_5",
-			"rotate_with_path": false,
-			"ship_id": "enemy_tesseract",
-			"spacing": 150.0,
-			"speed": 100.0,
-			"trigger_y": 4888.87694822536,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": -27.6718403547672
-		},
-		{
-			"boss_id": "",
-			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
-			"formation_id": "",
-			"is_melee": false,
-			"mirror_h": false,
-			"mirror_v": true,
-			"path_id": "path_5",
-			"rotate_with_path": false,
-			"ship_id": "enemy_tesseract",
-			"spacing": 150.0,
-			"speed": 100.0,
-			"trigger_y": 4886.74834512115,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": -747.139689578714
+			"x_offset": 10.6614929785661
 		},
 		{
 			"boss_id": "",
@@ -680,10 +647,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 100.0,
 			"speed": 600.0,
-			"trigger_y": 7418.07305743926,
+			"trigger_y": 7521.40639077259,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 591.35546312331
+			"x_offset": 579.688796456643
 		},
 		{
 			"boss_id": "",
@@ -699,10 +666,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 100.0,
 			"speed": 600.0,
-			"trigger_y": 7751.24605499539,
+			"trigger_y": 7854.57938832872,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": -515.498729506207
+			"x_offset": -527.165396172874
 		},
 		{
 			"boss_id": "",
@@ -726,8 +693,13 @@
 		{
 			"boss_id": "",
 			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_112",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "",
 			"is_melee": false,
 			"mirror_h": false,
@@ -745,8 +717,13 @@
 		{
 			"boss_id": "",
 			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_112",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "",
 			"is_melee": false,
 			"mirror_h": false,
@@ -764,8 +741,13 @@
 		{
 			"boss_id": "",
 			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_112",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "",
 			"is_melee": false,
 			"mirror_h": false,
@@ -783,8 +765,13 @@
 		{
 			"boss_id": "",
 			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_112",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "",
 			"is_melee": false,
 			"mirror_h": false,
@@ -802,8 +789,13 @@
 		{
 			"boss_id": "",
 			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_112",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "",
 			"is_melee": false,
 			"mirror_h": false,
@@ -817,63 +809,6 @@
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 279.600563225274
-		},
-		{
-			"boss_id": "",
-			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
-			"formation_id": "",
-			"is_melee": false,
-			"mirror_h": false,
-			"mirror_v": true,
-			"path_id": "path_5",
-			"rotate_with_path": false,
-			"ship_id": "enemy_tesseract",
-			"spacing": 150.0,
-			"speed": 100.0,
-			"trigger_y": 5076.19402139609,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": 408.691796008869
-		},
-		{
-			"boss_id": "",
-			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
-			"formation_id": "",
-			"is_melee": false,
-			"mirror_h": false,
-			"mirror_v": true,
-			"path_id": "path_5",
-			"rotate_with_path": false,
-			"ship_id": "enemy_tesseract",
-			"spacing": 150.0,
-			"speed": 100.0,
-			"trigger_y": 5084.70843381294,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": -393.791574279379
-		},
-		{
-			"boss_id": "",
-			"count": 1,
-			"drop_chance": 0.0,
-			"drop_table": [],
-			"formation_id": "",
-			"is_melee": false,
-			"mirror_h": false,
-			"mirror_v": true,
-			"path_id": "path_5",
-			"rotate_with_path": false,
-			"ship_id": "enemy_tesseract",
-			"spacing": 150.0,
-			"speed": 100.0,
-			"trigger_y": 5246.48226973312,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": 25.5432372505543
 		},
 		{
 			"boss_id": "",
@@ -897,8 +832,13 @@
 		{
 			"boss_id": "",
 			"count": 10,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 0.35,
+			"drop_table": [
+				{
+					"item_id": "item_123",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "formation_1",
 			"is_melee": false,
 			"mirror_h": false,
@@ -916,8 +856,13 @@
 		{
 			"boss_id": "",
 			"count": 20,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 0.35,
+			"drop_table": [
+				{
+					"item_id": "item_123",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "formation_1",
 			"is_melee": false,
 			"mirror_h": true,
@@ -935,8 +880,13 @@
 		{
 			"boss_id": "",
 			"count": 10,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 0.35,
+			"drop_table": [
+				{
+					"item_id": "item_123",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "formation_4",
 			"is_melee": false,
 			"mirror_h": true,
@@ -954,8 +904,13 @@
 		{
 			"boss_id": "",
 			"count": 20,
-			"drop_chance": 0.0,
-			"drop_table": [],
+			"drop_chance": 0.35,
+			"drop_table": [
+				{
+					"item_id": "item_123",
+					"weight": 1.0
+				}
+			],
 			"formation_id": "formation_4",
 			"is_melee": false,
 			"mirror_h": false,
@@ -1160,10 +1115,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 300.0,
 			"speed": 450.0,
-			"trigger_y": 7567.88321167883,
+			"trigger_y": 7671.21654501216,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 82.3357664233577
+			"x_offset": 70.669099756691
 		},
 		{
 			"boss_id": "",
@@ -1421,6 +1376,145 @@
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 227.737226277372
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_111",
+					"weight": 1.0
+				}
+			],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": true,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_tesseract",
+			"spacing": 150.0,
+			"speed": 100.0,
+			"trigger_y": 4893.33333333333,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 740.0
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_111",
+					"weight": 1.0
+				}
+			],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": true,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_tesseract",
+			"spacing": 150.0,
+			"speed": 100.0,
+			"trigger_y": 5081.66666666667,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 396.666666666667
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_111",
+					"weight": 1.0
+				}
+			],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": true,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_tesseract",
+			"spacing": 150.0,
+			"speed": 100.0,
+			"trigger_y": 5251.66666666667,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 16.6666666666667
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_111",
+					"weight": 1.0
+				}
+			],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": true,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_tesseract",
+			"spacing": 150.0,
+			"speed": 100.0,
+			"trigger_y": 5096.66666666667,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -393.333333333333
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 1.0,
+			"drop_table": [
+				{
+					"item_id": "item_111",
+					"weight": 1.0
+				}
+			],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": true,
+			"path_id": "path_5",
+			"rotate_with_path": false,
+			"ship_id": "enemy_tesseract",
+			"spacing": 150.0,
+			"speed": 100.0,
+			"trigger_y": 4871.66666666667,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -770.0
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": false,
+			"path_id": "path_4",
+			"rotate_with_path": false,
+			"ship_id": "enemy_1",
+			"spacing": 300.0,
+			"speed": 300.0,
+			"trigger_y": 6566.66666666667,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 103.333333333333
 		}
 	],
 	"events": [
