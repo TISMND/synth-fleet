@@ -14,6 +14,12 @@ var _bank_label: Label = null
 var _bank_value_label: Label = null
 var _bank_display_value: float = 0.0
 var _bank_target_value: int = 0
+
+# Cargo transfer indicator
+var _cargo_indicator: Node2D = null
+var _cargo_indicator_target: Vector2 = Vector2.ZERO
+var _cargo_indicator_visible: bool = false
+var cargo_indicator_enabled: bool = true  # Flag to disable indicator
 var _menu_hint: Label = null
 var _hud_result: Dictionary = {}  # HudBuilder.build_hud() result
 var _bottom_panel: Dictionary = {}  # build_bottom_panel() result
@@ -83,6 +89,8 @@ func _build_ui() -> void:
 	_build_cargo_counter()
 	# Bank counter — top left, bare HDR style
 	_build_bank_counter()
+	# Cargo transfer indicator (arrow tracking ally ships)
+	_build_cargo_indicator()
 
 	# Menu hint removed — BANK counter occupies top-left now
 
@@ -469,6 +477,79 @@ func _build_bank_counter() -> void:
 
 	_bank_display_value = float(GameState.get_meta("banked_credits", 0))
 	_bank_target_value = int(GameState.get_meta("banked_credits", 0))
+
+
+func _build_cargo_indicator() -> void:
+	_cargo_indicator = _CargoIndicatorDraw.new()
+	(_cargo_indicator as _CargoIndicatorDraw).hud = self
+	_cargo_indicator.z_index = 55
+	_cargo_indicator.visible = false
+	add_child(_cargo_indicator)
+
+
+func update_cargo_indicator(target_pos: Vector2, is_visible: bool) -> void:
+	_cargo_indicator_target = target_pos
+	_cargo_indicator_visible = is_visible and cargo_indicator_enabled
+	if _cargo_indicator:
+		_cargo_indicator.visible = _cargo_indicator_visible
+		if _cargo_indicator_visible:
+			_cargo_indicator.queue_redraw()
+
+
+class _CargoIndicatorDraw extends Node2D:
+	var hud: Control = null
+	const HDR: float = 1.9
+	const COL_R: float = 0.15 * HDR
+	const COL_G: float = 0.9 * HDR
+	const COL_B: float = 0.4 * HDR
+
+	func _draw() -> void:
+		if not hud:
+			return
+		var target: Vector2 = hud._cargo_indicator_target
+		var t: float = float(Time.get_ticks_msec()) / 1000.0
+
+		# Text centered horizontally on screen, upper-mid area
+		var text: String = "CARGO TRANSFER"
+		var font: Font = ThemeManager.get_font("font_header")
+		if not font:
+			return
+
+		var font_size: int = 28
+		var text_width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var text_pos := Vector2((1920.0 - text_width) * 0.5, 180.0)
+
+		# Blinking text
+		var blink: float = 0.6 + 0.4 * sin(t * 4.0)
+		var text_col := Color(COL_R, COL_G, COL_B, blink)
+		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_col)
+
+		# Underline — full text width
+		var underline_y: float = text_pos.y + 6.0
+		var underline_start := Vector2(text_pos.x, underline_y)
+		var underline_end := Vector2(text_pos.x + text_width, underline_y)
+		draw_line(underline_start, underline_end, Color(COL_R, COL_G, COL_B, 0.7), 2.0)
+
+		# Tracking line — from closest end of underline to target
+		var line_origin: Vector2
+		if target.x < (underline_start.x + underline_end.x) * 0.5:
+			line_origin = underline_start
+		else:
+			line_origin = underline_end
+
+		var dir: Vector2 = (target - line_origin).normalized()
+		var arrow_stop: Vector2 = target - dir * 18.0
+		draw_line(line_origin, arrow_stop, Color(COL_R, COL_G, COL_B, 0.5), 1.5)
+
+		# Arrowhead
+		var perp := Vector2(-dir.y, dir.x)
+		var tip: Vector2 = target - dir * 10.0
+		var head_pts := PackedVector2Array([
+			tip,
+			tip - dir * 10.0 + perp * 5.0,
+			tip - dir * 10.0 - perp * 5.0,
+		])
+		draw_colored_polygon(head_pts, Color(COL_R, COL_G, COL_B, 0.7))
 
 
 # ── Shield bar lightning arcs ────────────────────────────────────────────

@@ -423,6 +423,7 @@ func _draw_enemy_ship() -> void:
 		"archon_wing_l": _draw_archon_wing(-1.0)
 		"archon_wing_r": _draw_archon_wing(1.0)
 		"archon_turret": _draw_archon_turret()
+		"dreadnought": _draw_dreadnought()
 		_: _draw_sentinel()  # Default fallback
 
 func _draw_sentinel() -> void:

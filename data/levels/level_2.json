@@ -8,8 +8,12 @@
 		{
 			"boss_id": "boss_archon",
 			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": false,
 			"path_id": "path_1",
 			"rotate_with_path": false,
 			"ship_id": "enemy_conduit",

@@ -293,6 +293,10 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 			enemy.render_mode_str = ship.render_mode if ship.render_mode != "" else "neon"
 			enemy.grid_size = ship.grid_size
 			enemy.ship_id = sid
+			# Mark ally ships as friendly (no collision, no damage)
+			if ship.type == "ally":
+				enemy.is_friendly = true
+				enemy.weapons_active = false
 			# Pass weapon data for EnemyWeaponController
 			if ship.type == "enemy" and ship.weapon_id != "":
 				enemy.ship_data_ref = ship
@@ -316,6 +320,7 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 	enemy.drop_table = spawn_data.get("drop_table", []) as Array
 	enemy.drop_seed = int(spawn_data.get("drop_seed", 0))
 	enemy.pickups_container = pickups_container
+	enemy.level_scroll_speed = _level_data.scroll_speed if _level_data else 80.0
 
 	# Per-segment speed
 	var spawned_seg_speeds: Variant = spawn_data.get("segment_speeds", [])

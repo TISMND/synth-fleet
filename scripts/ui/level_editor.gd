@@ -265,8 +265,14 @@ func _cache_dropdown_data() -> void:
 		var sname: String = s.display_name if s.display_name != "" else s.id
 		_cached_ship_names.append(sname)
 		_ship_id_to_name[s.id] = sname
-		# Group by level for filter dropdown
-		var level_id: String = s.level if s.level != "" else "misc"
+		# Group by level for filter dropdown — allies get their own category
+		var level_id: String
+		if s.type == "ally":
+			level_id = "ally"
+		elif s.level != "":
+			level_id = s.level
+		else:
+			level_id = "misc"
 		if not _cached_ships_by_level.has(level_id):
 			_cached_ships_by_level[level_id] = []
 		_cached_ships_by_level[level_id].append({"id": s.id, "name": sname})

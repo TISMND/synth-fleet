@@ -312,19 +312,17 @@ func _build_planet_content() -> void:
 	_sw_section(svbox, "RING")
 	_planet_slider(svbox, "ring_hdr", "HDR", 0.5, 6.0, 2.5)
 	_planet_color(svbox, "ring_color", "Ring Color", Color(1.0, 0.4, 0.2))
-	_planet_slider(svbox, "ring_inner", "Inner Radius", 0.08, 0.45, 0.20)
-	_planet_slider(svbox, "ring_outer", "Outer Radius", 0.15, 0.55, 0.35)
-	_planet_slider(svbox, "ring_tilt", "Tilt Squish", 0.1, 0.8, 0.3)
+	_planet_slider(svbox, "ring_inner", "Inner Radius", 0.05, 0.5, 0.20)
+	_planet_slider(svbox, "ring_outer", "Outer Radius", 0.1, 1.5, 0.35)
+	_planet_slider(svbox, "ring_tilt", "Tilt Squish", 0.05, 0.8, 0.3)
 	_planet_slider(svbox, "ring_angle", "Rotation", -0.8, 0.8, 0.35)
-	_planet_slider(svbox, "ring_gap_pos", "Gap Position", 0.1, 0.9, 0.4)
-	_planet_slider(svbox, "ring_gap_width", "Gap Width", 0.0, 0.15, 0.03)
-	_planet_slider(svbox, "ring_bands", "Band Count", 2.0, 40.0, 12.0)
 	_planet_slider(svbox, "ring_glow_size", "Glow Size", 0.0, 0.03, 0.008)
 
 	svbox.add_child(HSeparator.new())
-	_sw_section(svbox, "RING SLATS")
-	_planet_slider(svbox, "ring_slat_spacing", "Spacing", 0.005, 0.06, 0.02)
-	_planet_slider(svbox, "ring_slat_thickness", "Thickness", 0.001, 0.02, 0.004)
+	_sw_section(svbox, "RING SLICES")
+	_planet_slider(svbox, "ring_band_width", "Band Width", 0.005, 0.08, 0.025)
+	_planet_slider(svbox, "ring_gap_base", "Gap Base", 0.002, 0.05, 0.006)
+	_planet_slider(svbox, "ring_gap_grow", "Gap Growth", 0.0, 0.03, 0.008)
 
 	# ── Right: audition grid ──
 	var right_scroll := ScrollContainer.new()
@@ -334,118 +332,129 @@ func _build_planet_content() -> void:
 	main_hbox.add_child(right_scroll)
 
 	var grid := GridContainer.new()
-	grid.columns = 3
+	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 8)
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_scroll.add_child(grid)
 
-	# Base color schemes
-	var saturn_base: Dictionary = {
+	var preview_w: float = 520.0
+	var preview_h: float = 290.0
+	var preview_ar: float = preview_w / preview_h
+
+	# Shared base
+	var base: Dictionary = {
 		"planet_color_top": Color(1.0, 0.85, 0.3),
 		"planet_color_bot": Color(0.9, 0.2, 0.08),
 		"ring_color": Color(1.0, 0.45, 0.2),
 		"atmo_color": Color(1.0, 0.6, 0.3),
-		"ring_inner": 0.20, "ring_outer": 0.35,
-		"ring_tilt": 0.3, "ring_hdr": 2.5,
-		"ring_gap_pos": 0.4, "ring_gap_width": 0.04,
-		"ring_bands": 12.0, "ring_angle": 0.35,
+		"ring_inner": 0.20, "ring_tilt": 0.15,
+		"ring_hdr": 2.5, "ring_angle": 0.35,
 		"slice_enabled": 1.0, "slice_start": 0.32,
 		"planet_hdr": 1.5, "atmo_glow": 0.6,
-		"ring_slats_enabled": 1.0,
-	}
-	var dual_base: Dictionary = {
-		"planet_color_top": Color(1.0, 0.8, 0.2),
-		"planet_color_bot": Color(1.0, 0.25, 0.05),
-		"ring_color": Color(0.1, 0.8, 1.0),
-		"atmo_color": Color(0.2, 0.6, 1.0),
-		"ring_inner": 0.20, "ring_outer": 0.34,
-		"ring_tilt": 0.3, "ring_hdr": 2.5,
-		"ring_gap_pos": 0.45, "ring_gap_width": 0.04,
-		"ring_bands": 10.0, "ring_angle": 0.35,
-		"slice_enabled": 1.0, "slice_start": 0.35,
-		"planet_hdr": 1.5, "atmo_glow": 0.7,
-		"ring_slats_enabled": 1.0,
-	}
-	var wide_base: Dictionary = {
-		"planet_color_top": Color(1.0, 0.7, 0.2),
-		"planet_color_bot": Color(0.8, 0.15, 0.05),
-		"ring_color": Color(1.0, 0.6, 0.15),
-		"atmo_color": Color(1.0, 0.5, 0.2),
-		"ring_inner": 0.17, "ring_outer": 0.42,
-		"ring_tilt": 0.15, "ring_hdr": 2.8,
-		"ring_gap_pos": 0.3, "ring_gap_width": 0.03,
-		"ring_bands": 15.0, "ring_angle": 0.35,
-		"slice_enabled": 1.0, "slice_start": 0.28,
-		"planet_hdr": 1.8, "atmo_glow": 0.5,
-		"ring_slats_enabled": 1.0,
+		"planet_tilted": 1.0,
 	}
 
 	var presets: Array[Dictionary] = []
 
-	# Tilt variants
-	for base_info in [["SATURN", saturn_base], ["DUAL", dual_base], ["WIDE", wide_base]]:
-		var bname: String = base_info[0]
-		var base: Dictionary = base_info[1]
-		var ro: Dictionary = base.duplicate()
-		ro["label"] = bname + " RINGS TILT"
-		ro["planet_tilted"] = 0.0
-		presets.append(ro)
-		var ft: Dictionary = base.duplicate()
-		ft["label"] = bname + " FULL TILT"
-		ft["planet_tilted"] = 1.0
-		presets.append(ft)
+	# Standard proportions
+	var std: Dictionary = base.duplicate()
+	std["label"] = "STANDARD"
+	std["ring_outer"] = 0.40
+	std["ring_band_width"] = 0.025
+	std["ring_gap_base"] = 0.006
+	std["ring_gap_grow"] = 0.008
+	presets.append(std)
 
-	# Gap height variants (Saturn scheme, full tilt)
-	var tight: Dictionary = saturn_base.duplicate()
-	tight["label"] = "TIGHT GAPS"
-	tight["planet_tilted"] = 1.0
-	tight["slice_gap_base"] = 0.003
-	tight["slice_gap_grow"] = 0.008
-	tight["ring_slat_spacing"] = 0.012
-	tight["ring_slat_thickness"] = 0.002
+	# Extended rings — moderate
+	var ext: Dictionary = base.duplicate()
+	ext["label"] = "EXTENDED"
+	ext["ring_outer"] = 0.70
+	ext["ring_band_width"] = 0.025
+	ext["ring_gap_base"] = 0.008
+	ext["ring_gap_grow"] = 0.010
+	presets.append(ext)
+
+	# Extended — wide bands, big gaps
+	var ext_wide: Dictionary = base.duplicate()
+	ext_wide["label"] = "EXT WIDE GAPS"
+	ext_wide["ring_outer"] = 0.80
+	ext_wide["ring_band_width"] = 0.035
+	ext_wide["ring_gap_base"] = 0.012
+	ext_wide["ring_gap_grow"] = 0.014
+	presets.append(ext_wide)
+
+	# Extended — thin bands, sparse outer
+	var ext_thin: Dictionary = base.duplicate()
+	ext_thin["label"] = "EXT THIN BANDS"
+	ext_thin["ring_outer"] = 0.90
+	ext_thin["ring_band_width"] = 0.015
+	ext_thin["ring_gap_base"] = 0.008
+	ext_thin["ring_gap_grow"] = 0.012
+	presets.append(ext_thin)
+
+	# Maximum reach — rings fade to wisps
+	var ext_max: Dictionary = base.duplicate()
+	ext_max["label"] = "MAX REACH"
+	ext_max["ring_outer"] = 1.2
+	ext_max["ring_band_width"] = 0.020
+	ext_max["ring_gap_base"] = 0.010
+	ext_max["ring_gap_grow"] = 0.015
+	presets.append(ext_max)
+
+	# Tight concentric — many thin bands
+	var tight: Dictionary = base.duplicate()
+	tight["label"] = "TIGHT CONCENTRIC"
+	tight["ring_outer"] = 0.65
+	tight["ring_band_width"] = 0.010
+	tight["ring_gap_base"] = 0.004
+	tight["ring_gap_grow"] = 0.005
 	presets.append(tight)
 
-	var medium: Dictionary = saturn_base.duplicate()
-	medium["label"] = "MEDIUM GAPS"
-	medium["planet_tilted"] = 1.0
-	medium["slice_gap_base"] = 0.006
-	medium["slice_gap_grow"] = 0.018
-	medium["ring_slat_spacing"] = 0.022
-	medium["ring_slat_thickness"] = 0.005
-	presets.append(medium)
+	# Dual tone extended
+	var dual_ext: Dictionary = base.duplicate()
+	dual_ext["label"] = "DUAL EXTENDED"
+	dual_ext["ring_color"] = Color(0.1, 0.8, 1.0)
+	dual_ext["atmo_color"] = Color(0.2, 0.6, 1.0)
+	dual_ext["ring_outer"] = 0.75
+	dual_ext["ring_band_width"] = 0.022
+	dual_ext["ring_gap_base"] = 0.008
+	dual_ext["ring_gap_grow"] = 0.011
+	presets.append(dual_ext)
 
-	var wide_gaps: Dictionary = saturn_base.duplicate()
-	wide_gaps["label"] = "WIDE GAPS"
-	wide_gaps["planet_tilted"] = 1.0
-	wide_gaps["slice_gap_base"] = 0.010
-	wide_gaps["slice_gap_grow"] = 0.028
-	wide_gaps["slice_band_h"] = 0.04
-	wide_gaps["ring_slat_spacing"] = 0.035
-	wide_gaps["ring_slat_thickness"] = 0.008
-	presets.append(wide_gaps)
+	# Dual max
+	var dual_max: Dictionary = base.duplicate()
+	dual_max["label"] = "DUAL MAX"
+	dual_max["ring_color"] = Color(0.1, 0.8, 1.0)
+	dual_max["atmo_color"] = Color(0.2, 0.6, 1.0)
+	dual_max["ring_outer"] = 1.1
+	dual_max["ring_band_width"] = 0.018
+	dual_max["ring_gap_base"] = 0.010
+	dual_max["ring_gap_grow"] = 0.014
+	presets.append(dual_max)
 
-	# Thick slats on rings
-	var thick_slats: Dictionary = dual_base.duplicate()
-	thick_slats["label"] = "DUAL THICK SLATS"
-	thick_slats["planet_tilted"] = 1.0
-	thick_slats["ring_slat_spacing"] = 0.015
-	thick_slats["ring_slat_thickness"] = 0.006
-	presets.append(thick_slats)
+	# Planet slice gap variants
+	var tight_planet: Dictionary = base.duplicate()
+	tight_planet["label"] = "TIGHT PLANET GAPS"
+	tight_planet["ring_outer"] = 0.70
+	tight_planet["ring_band_width"] = 0.020
+	tight_planet["ring_gap_base"] = 0.006
+	tight_planet["ring_gap_grow"] = 0.008
+	tight_planet["slice_gap_base"] = 0.003
+	tight_planet["slice_gap_grow"] = 0.008
+	tight_planet["slice_band_h"] = 0.07
+	presets.append(tight_planet)
 
-	var thin_slats: Dictionary = dual_base.duplicate()
-	thin_slats["label"] = "DUAL THIN SLATS"
-	thin_slats["planet_tilted"] = 1.0
-	thin_slats["ring_slat_spacing"] = 0.025
-	thin_slats["ring_slat_thickness"] = 0.002
-	presets.append(thin_slats)
-
-	# No ring slats comparison
-	var no_slats: Dictionary = saturn_base.duplicate()
-	no_slats["label"] = "NO RING SLATS"
-	no_slats["planet_tilted"] = 1.0
-	no_slats["ring_slats_enabled"] = 0.0
-	presets.append(no_slats)
+	var wide_planet: Dictionary = base.duplicate()
+	wide_planet["label"] = "WIDE PLANET GAPS"
+	wide_planet["ring_outer"] = 0.70
+	wide_planet["ring_band_width"] = 0.020
+	wide_planet["ring_gap_base"] = 0.006
+	wide_planet["ring_gap_grow"] = 0.008
+	wide_planet["slice_gap_base"] = 0.010
+	wide_planet["slice_gap_grow"] = 0.025
+	wide_planet["slice_band_h"] = 0.04
+	presets.append(wide_planet)
 
 	_planet_selected_rect = null
 	for preset in presets:
@@ -462,26 +471,25 @@ func _build_planet_content() -> void:
 
 		var rect := ColorRect.new()
 		rect.color = Color.WHITE
-		rect.custom_minimum_size = Vector2(310, 310)
+		rect.custom_minimum_size = Vector2(preview_w, preview_h)
 		cell.add_child(rect)
 
 		var mat := ShaderMaterial.new()
 		mat.shader = _planet_shader
-		mat.set_shader_parameter("forced_aspect", 1.0)
+		mat.set_shader_parameter("forced_aspect", preview_ar)
 		for key in preset:
 			if key == "label":
 				continue
 			mat.set_shader_parameter(key, preset[key])
 		rect.material = mat
 
-		# Click to select for slider editing
 		var btn := Button.new()
 		btn.text = "SELECT"
 		btn.pressed.connect(_on_planet_select.bind(rect))
 		ThemeManager.apply_button_style(btn)
 		cell.add_child(btn)
 
-	# Select the first one by default
+	# Select first by default
 	if grid.get_child_count() > 0:
 		var first_cell: VBoxContainer = grid.get_child(0) as VBoxContainer
 		for child in first_cell.get_children():
@@ -529,6 +537,7 @@ func _planet_slider(parent: VBoxContainer, param: String, display: String,
 			var mat: ShaderMaterial = _planet_selected_rect.material as ShaderMaterial
 			if mat:
 				mat.set_shader_parameter(param, v)
+		_save_planet_settings()
 	)
 
 
@@ -551,6 +560,7 @@ func _planet_color(parent: VBoxContainer, param: String, display: String, defaul
 			var mat: ShaderMaterial = _planet_selected_rect.material as ShaderMaterial
 			if mat:
 				mat.set_shader_parameter(param, c)
+		_save_planet_settings()
 	)
 
 
@@ -619,13 +629,34 @@ func _build_synthwave_content() -> void:
 
 	vbox.add_child(HSeparator.new())
 
-	# ── SUN ──
-	_sw_section(vbox, "SUN")
-	_sw_slider(vbox, "sun_glow", "Glow HDR", 0.0, 2.0, 0.6)
-	_sw_slider(vbox, "sun_size", "Size", 0.04, 0.22, 0.11)
-	_sw_slider(vbox, "sun_x", "Position X", 0.35, 0.85, 0.63)
-	_sw_color(vbox, "sun_color_top", "Top Color", Color(1.0, 0.95, 0.4))
-	_sw_color(vbox, "sun_color_bot", "Bottom Color", Color(1.0, 0.2, 0.08))
+	# ── PLANET ──
+	_sw_section(vbox, "PLANET")
+	_sw_slider(vbox, "planet_hdr", "HDR", 0.5, 4.0, 1.5)
+	_sw_slider(vbox, "planet_radius", "Radius", 0.03, 0.2, 0.08)
+	_sw_slider(vbox, "planet_x", "Position X", 0.35, 0.85, 0.63)
+	_sw_color(vbox, "planet_color_top", "Top Color", Color(1.0, 0.85, 0.3))
+	_sw_color(vbox, "planet_color_bot", "Bot Color", Color(0.9, 0.2, 0.08))
+	_sw_slider(vbox, "atmo_glow", "Atmo Glow", 0.0, 2.0, 0.6)
+	_sw_color(vbox, "atmo_color", "Atmo Color", Color(0.2, 0.6, 1.0))
+	_sw_slider(vbox, "slice_start", "Slice Start", 0.1, 0.6, 0.32)
+	_sw_slider(vbox, "slice_band_h", "Slice Band H", 0.02, 0.12, 0.058)
+	_sw_slider(vbox, "slice_gap_base", "Slice Gap Base", 0.002, 0.03, 0.005)
+	_sw_slider(vbox, "slice_gap_grow", "Slice Gap Grow", 0.005, 0.04, 0.015)
+
+	vbox.add_child(HSeparator.new())
+
+	# ── RING ──
+	_sw_section(vbox, "RING")
+	_sw_slider(vbox, "ring_hdr", "HDR", 0.5, 6.0, 2.5)
+	_sw_color(vbox, "ring_color", "Color", Color(0.1, 0.8, 1.0))
+	_sw_slider(vbox, "ring_inner", "Inner Radius", 0.05, 0.5, 0.10)
+	_sw_slider(vbox, "ring_outer", "Outer Radius", 0.1, 1.5, 1.1)
+	_sw_slider(vbox, "ring_tilt", "Tilt Squish", 0.05, 0.8, 0.15)
+	_sw_slider(vbox, "ring_angle", "Rotation", -0.8, 0.8, 0.35)
+	_sw_slider(vbox, "ring_band_width", "Band Width", 0.005, 0.08, 0.018)
+	_sw_slider(vbox, "ring_gap_base", "Gap Base", 0.002, 0.05, 0.010)
+	_sw_slider(vbox, "ring_gap_grow", "Gap Growth", 0.0, 0.03, 0.014)
+	_sw_slider(vbox, "ring_glow_size", "Glow Size", 0.0, 0.03, 0.008)
 
 	vbox.add_child(HSeparator.new())
 
@@ -650,22 +681,33 @@ func _build_synthwave_content() -> void:
 
 	vbox.add_child(HSeparator.new())
 
+	# ── STARS ──
+	_sw_section(vbox, "STARS")
+	_sw_slider(vbox, "star_density", "Density", 0.85, 0.99, 0.94)
+	_sw_slider(vbox, "star_size", "Size", 0.001, 0.008, 0.003)
+	_sw_slider(vbox, "star_glow_size", "Glow Size", 0.0, 0.015, 0.005)
+	_sw_slider(vbox, "star_brightness", "Brightness", 0.5, 5.0, 2.5)
+	_sw_slider(vbox, "star_twinkle", "Twinkle", 0.0, 1.0, 0.6)
+	_sw_color(vbox, "star_color", "Color", Color(0.7, 0.85, 1.0))
+
+	vbox.add_child(HSeparator.new())
+
 	# ── SKY ──
 	_sw_section(vbox, "SKY")
 	_sw_slider(vbox, "nebula_intensity", "Nebula", 0.0, 0.5, 0.12)
-	_sw_slider(vbox, "star_cutoff", "Star Density", 0.85, 0.99, 0.94)
 	_sw_color(vbox, "accent_color", "Accent Color", Color(0.1, 0.8, 1.0))
 
 	vbox.add_child(HSeparator.new())
 
 	# ── WARP STREAKS ──
 	_sw_section(vbox, "WARP STREAKS")
-	_sw_slider(vbox, "warp_streak_intensity", "Intensity", 0.0, 1.5, 0.5)
-	_sw_slider(vbox, "warp_streak_speed", "Speed", 0.2, 3.0, 1.0)
+	_sw_slider(vbox, "warp_streak_intensity", "Intensity", 0.0, 2.0, 0.5)
+	_sw_slider(vbox, "warp_streak_speed", "Speed", 0.1, 5.0, 1.0)
+	_sw_slider(vbox, "warp_streak_count", "Count", 4.0, 40.0, 20.0)
 	_sw_slider(vbox, "warp_inner_radius", "Inner Radius", 0.05, 0.5, 0.2)
 	_sw_slider(vbox, "warp_fade_width", "Fade In Width", 0.02, 0.3, 0.1)
-	_sw_slider(vbox, "warp_max_length", "Max Length", 0.02, 0.25, 0.12)
-	_sw_slider(vbox, "warp_streak_width", "Line Width", 0.0005, 0.004, 0.0015)
+	_sw_slider(vbox, "warp_max_length", "Max Length", 0.02, 0.4, 0.12)
+	_sw_slider(vbox, "warp_streak_width", "Line Width", 0.0005, 0.006, 0.0015)
 
 	vbox.add_child(HSeparator.new())
 
@@ -675,6 +717,8 @@ func _build_synthwave_content() -> void:
 	_sw_slider(vbox, "light_speed", "Speed", 0.05, 2.0, 0.5)
 
 	_apply_synthwave_preset(0)
+	# Restore saved settings on top of preset defaults
+	_load_synthwave_settings()
 
 
 func _sw_section(parent: VBoxContainer, title: String) -> void:
@@ -749,23 +793,148 @@ func _sw_set(param: String, value: Variant) -> void:
 	var mat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
 	if mat:
 		mat.set_shader_parameter(param, value)
+	_save_synthwave_settings()
+
+
+const SW_SETTINGS_PATH: String = "user://settings/synthwave_bg.json"
+const PLANET_SETTINGS_PATH: String = "user://settings/ringed_planet.json"
+
+
+func _save_synthwave_settings() -> void:
+	var mat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
+	if not mat:
+		return
+	var data: Dictionary = {}
+	_collect_shader_params(mat, _synthwave_content, data)
+	_write_json(SW_SETTINGS_PATH, data)
+
+
+func _load_synthwave_settings() -> void:
+	var raw: Dictionary = _read_json(SW_SETTINGS_PATH)
+	if raw.is_empty():
+		return
+	var mat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
+	if not mat:
+		return
+	# Convert JSON values to proper types and apply
+	var converted: Dictionary = {}
+	for key in raw:
+		var val: Variant = _json_to_param(raw[key])
+		mat.set_shader_parameter(key, val)
+		converted[key] = val
+	_sw_sync_controls(_synthwave_content, converted)
+
+
+func _save_planet_settings() -> void:
+	if not _planet_selected_rect:
+		return
+	var mat: ShaderMaterial = _planet_selected_rect.material as ShaderMaterial
+	if not mat:
+		return
+	var data: Dictionary = {}
+	# Read values directly from the shader material
+	var params: Array[String] = [
+		"planet_hdr", "planet_radius", "atmo_glow", "slice_start",
+		"slice_band_h", "slice_gap_base", "slice_gap_grow", "slice_enabled",
+		"ring_hdr", "ring_inner", "ring_outer", "ring_tilt", "ring_angle",
+		"ring_band_width", "ring_gap_base", "ring_gap_grow", "ring_glow_size",
+		"planet_tilted",
+	]
+	var color_params: Array[String] = [
+		"planet_color_top", "planet_color_bot", "atmo_color", "ring_color",
+	]
+	for p in params:
+		var v: Variant = mat.get_shader_parameter(p)
+		if v != null:
+			data[p] = v
+	for p in color_params:
+		var v: Variant = mat.get_shader_parameter(p)
+		if v != null:
+			var c: Color = v as Color
+			data[p] = {"r": c.r, "g": c.g, "b": c.b}
+	_write_json(PLANET_SETTINGS_PATH, data)
+
+
+func _load_planet_settings_into(mat: ShaderMaterial) -> bool:
+	var data: Dictionary = _read_json(PLANET_SETTINGS_PATH)
+	if data.is_empty():
+		return false
+	for key in data:
+		var val: Variant = _json_to_param(data[key])
+		mat.set_shader_parameter(key, val)
+	return true
+
+
+func _collect_shader_params(mat: ShaderMaterial, root: Node, out: Dictionary) -> void:
+	_collect_from_node(root, mat, out)
+
+
+func _collect_from_node(node: Node, mat: ShaderMaterial, out: Dictionary) -> void:
+	if node.has_meta("sw_param"):
+		var param: String = node.get_meta("sw_param")
+		if node is HSlider:
+			out[param] = node.value
+		elif node is ColorPickerButton:
+			var c: Color = node.color
+			out[param] = {"r": c.r, "g": c.g, "b": c.b}
+	for child in node.get_children():
+		_collect_from_node(child, mat, out)
+
+
+func _json_to_param(val: Variant) -> Variant:
+	if val is Dictionary:
+		var d: Dictionary = val
+		if d.has("r"):
+			return Color(float(d["r"]), float(d["g"]), float(d["b"]))
+	return val
+
+
+func _write_json(path: String, data: Dictionary) -> void:
+	var dir_path: String = path.get_base_dir()
+	if not DirAccess.dir_exists_absolute(dir_path):
+		DirAccess.make_dir_recursive_absolute(dir_path)
+	var f: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(data, "\t"))
+		f.close()
+
+
+func _read_json(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var f: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if not f:
+		return {}
+	var text: String = f.get_as_text()
+	f.close()
+	var json := JSON.new()
+	if json.parse(text) != OK:
+		return {}
+	var result: Variant = json.data
+	if result is Dictionary:
+		return result as Dictionary
+	return {}
 
 
 func _sw_sync_controls(node: Node, preset: Dictionary) -> void:
 	if node.has_meta("sw_param"):
 		var param: String = node.get_meta("sw_param")
 		if preset.has(param):
+			var val: Variant = preset[param]
 			if node is HSlider:
-				node.set_value_no_signal(float(preset[param]))
-				# Update the value label (sibling after the slider)
-				var parent: Node = node.get_parent()
+				node.set_value_no_signal(float(val))
+				var p: Node = node.get_parent()
 				var idx: int = node.get_index()
-				if idx + 1 < parent.get_child_count():
-					var val_label: Node = parent.get_child(idx + 1)
+				if idx + 1 < p.get_child_count():
+					var val_label: Node = p.get_child(idx + 1)
 					if val_label is Label:
-						val_label.text = "%.3f" % float(preset[param])
+						val_label.text = "%.3f" % float(val)
 			elif node is ColorPickerButton:
-				node.color = preset[param] as Color
+				if val is Color:
+					node.color = val as Color
+				elif val is Dictionary:
+					var d: Dictionary = val as Dictionary
+					node.color = Color(float(d["r"]), float(d["g"]), float(d["b"]))
 	for child in node.get_children():
 		_sw_sync_controls(child, preset)
 
@@ -776,27 +945,47 @@ func _init_synthwave_presets() -> void:
 		"name": "CLASSIC OUTRUN",
 		"grid_color": Color(1.0, 0.08, 0.52),
 		"accent_color": Color(0.1, 0.8, 1.0),
-		"sun_color_top": Color(1.0, 0.95, 0.4),
-		"sun_color_bot": Color(1.0, 0.2, 0.08),
 		"sky_top": Color(0.01, 0.0, 0.06),
 		"sky_mid": Color(0.08, 0.0, 0.14),
 		"sky_low": Color(0.18, 0.02, 0.25),
 		"nebula_intensity": 0.12,
-		"sun_glow": 0.6,
-		"sun_size": 0.11,
+		# Planet (DUAL MAX base)
+		"planet_color_top": Color(1.0, 0.85, 0.3),
+		"planet_color_bot": Color(0.9, 0.2, 0.08),
+		"planet_radius": 0.08,
+		"planet_hdr": 1.5,
+		"atmo_glow": 0.6,
+		"atmo_color": Color(0.2, 0.6, 1.0),
+		"slice_enabled": 1.0,
+		"slice_start": 0.32,
+		"planet_tilted": 1.0,
+		# Ring (DUAL MAX base)
+		"ring_color": Color(0.1, 0.8, 1.0),
+		"ring_inner": 0.10,
+		"ring_outer": 1.1,
+		"ring_tilt": 0.15,
+		"ring_angle": 0.35,
+		"ring_hdr": 2.5,
+		"ring_band_width": 0.018,
+		"ring_gap_base": 0.010,
+		"ring_gap_grow": 0.014,
+		# Grid
 		"grid_line_w": 0.008,
 		"grid_bloom_w": 0.06,
 		"grid_core_brightness": 6.0,
 		"grid_bloom_brightness": 3.0,
 		"corridor_gap": 0.10,
 		"grid_fade_width": 0.18,
+		# Effects
 		"warp_streak_intensity": 0.5,
 		"warp_streak_speed": 1.0,
 		"warp_inner_radius": 0.2,
 		"warp_fade_width": 0.1,
 		"warp_max_length": 0.12,
 		"warp_streak_width": 0.0015,
-		"star_cutoff": 0.94,
+		"star_density": 0.94,
+		"star_color": Color(0.7, 0.85, 1.0),
+		"warp_streak_count": 20.0,
 		"light_brightness": 0.5,
 	})
 

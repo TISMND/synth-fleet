@@ -30,6 +30,7 @@ var _melee_target: Node2D = null
 
 # Whether this enemy's weapons are active (set by encounter data)
 var weapons_active: bool = true
+var is_friendly: bool = false  # Ally ships: no friendly fire, no player collision
 
 # Currency drop config (set by encounter data via WaveManager)
 # Per-segment speed (precomputed at spawn time)
@@ -40,6 +41,7 @@ var drop_chance: float = 0.0
 var drop_table: Array = []
 var drop_seed: int = 0
 var pickups_container: Node2D = null
+var level_scroll_speed: float = 80.0
 
 # Boss strafe mode — hovers near top, oscillates left/right
 var is_boss_strafe: bool = false
@@ -89,8 +91,12 @@ var weapon_overrides: Array = []
 func _ready() -> void:
 	add_to_group("enemies")
 
-	collision_layer = 4
-	collision_mask = 0
+	if is_friendly:
+		collision_layer = 0  # Friendly: no collision with player or projectiles
+		collision_mask = 0
+	else:
+		collision_layer = 4  # Enemy layer
+		collision_mask = 0
 	var col_shape := CollisionShape2D.new()
 	if ship_data_ref:
 		var col_result: Dictionary = _make_collision_shape(ship_data_ref)
@@ -301,6 +307,9 @@ func _spawn_explosion() -> void:
 
 
 func take_damage(amount: int, skips_shields: bool = false, hit_position: Vector2 = Vector2.ZERO) -> void:
+	# Friendly ships cannot be damaged
+	if is_friendly:
+		return
 	# Immune boss core — deflect damage, play immune feedback
 	if is_boss_immune:
 		_play_immune_hit(hit_position)
@@ -375,6 +384,7 @@ func _try_spawn_pickup() -> void:
 		return
 	var pickup := Pickup.new()
 	pickup.item_data = item
+	pickup.scroll_speed = level_scroll_speed
 	pickup.global_position = global_position
 	pickups_container.add_child(pickup)
 

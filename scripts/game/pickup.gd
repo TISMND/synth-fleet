@@ -3,7 +3,7 @@ extends Area2D
 ## Runtime currency pickup — spawned on enemy death, collected on player overlap.
 
 var item_data: ItemData = null
-var scroll_speed: float = 40.0
+var scroll_speed: float = 80.0  # Set from level scroll_speed at spawn time
 
 var _renderer: ItemRenderer = null
 var _lifetime: float = 0.0

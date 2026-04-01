@@ -6,12 +6,38 @@ uniform vec3 sky_mid : source_color = vec3(0.08, 0.0, 0.14);
 uniform vec3 sky_low : source_color = vec3(0.18, 0.02, 0.25);
 uniform float horizon : hint_range(0.3, 0.65) = 0.50;
 
-// ── Sun ──
-uniform float sun_x : hint_range(0.35, 0.85) = 0.63;
-uniform float sun_size : hint_range(0.04, 0.22) = 0.11;
-uniform vec3 sun_color_top : source_color = vec3(1.0, 0.95, 0.4);
-uniform vec3 sun_color_bot : source_color = vec3(1.0, 0.2, 0.08);
-uniform float sun_glow : hint_range(0.0, 2.0) = 0.6;
+// ── Planet body ──
+uniform float planet_x : hint_range(0.35, 0.85) = 0.63;
+uniform float planet_radius : hint_range(0.03, 0.2) = 0.08;
+uniform vec3 planet_color_top : source_color = vec3(1.0, 0.85, 0.3);
+uniform vec3 planet_color_bot : source_color = vec3(0.9, 0.2, 0.08);
+uniform float planet_hdr : hint_range(0.5, 4.0) = 1.5;
+
+// ── Planet slices ──
+uniform float slice_enabled : hint_range(0.0, 1.0) = 1.0;
+uniform float slice_start : hint_range(0.1, 0.6) = 0.32;
+uniform float slice_band_h : hint_range(0.02, 0.12) = 0.058;
+uniform float slice_gap_base : hint_range(0.002, 0.03) = 0.005;
+uniform float slice_gap_grow : hint_range(0.005, 0.04) = 0.015;
+
+// ── Ring ──
+uniform float ring_inner : hint_range(0.05, 0.5) = 0.10;
+uniform float ring_outer : hint_range(0.1, 1.5) = 1.1;
+uniform float ring_tilt : hint_range(0.05, 0.8) = 0.15;
+uniform float ring_angle : hint_range(-0.8, 0.8) = 0.35;
+uniform vec3 ring_color : source_color = vec3(0.1, 0.8, 1.0);
+uniform float ring_hdr : hint_range(0.5, 6.0) = 2.5;
+uniform float ring_band_width : hint_range(0.005, 0.08) = 0.018;
+uniform float ring_gap_base : hint_range(0.002, 0.05) = 0.010;
+uniform float ring_gap_grow : hint_range(0.0, 0.03) = 0.014;
+
+// ── Planet tilt ──
+uniform float planet_tilted : hint_range(0.0, 1.0) = 1.0;
+
+// ── Atmosphere ──
+uniform float atmo_glow : hint_range(0.0, 2.0) = 0.6;
+uniform vec3 atmo_color : source_color = vec3(0.2, 0.6, 1.0);
+uniform float ring_glow_size : hint_range(0.0, 0.03) = 0.008;
 
 // ── Grid ──
 uniform vec3 grid_color : source_color = vec3(1.0, 0.08, 0.52);
@@ -35,15 +61,21 @@ uniform float nebula_scale : hint_range(1.0, 8.0) = 3.5;
 uniform float nebula_drift : hint_range(0.0, 0.1) = 0.015;
 
 // ── Stars ──
-uniform float star_cutoff : hint_range(0.85, 0.99) = 0.94;
+uniform float star_density : hint_range(0.85, 0.99) = 0.94;
+uniform float star_size : hint_range(0.001, 0.008) = 0.003;
+uniform float star_glow_size : hint_range(0.0, 0.015) = 0.005;
+uniform float star_brightness : hint_range(0.5, 5.0) = 2.5;
+uniform float star_twinkle : hint_range(0.0, 1.0) = 0.6;
+uniform vec3 star_color : source_color = vec3(0.7, 0.85, 1.0);
 
 // ── Warp streaks ──
-uniform float warp_streak_intensity : hint_range(0.0, 1.5) = 0.5;
-uniform float warp_streak_speed : hint_range(0.2, 3.0) = 1.0;
+uniform float warp_streak_intensity : hint_range(0.0, 2.0) = 0.5;
+uniform float warp_streak_speed : hint_range(0.1, 5.0) = 1.0;
+uniform float warp_streak_count : hint_range(4.0, 40.0) = 20.0;
 uniform float warp_inner_radius : hint_range(0.05, 0.5) = 0.2;
 uniform float warp_fade_width : hint_range(0.02, 0.3) = 0.1;
-uniform float warp_max_length : hint_range(0.02, 0.25) = 0.12;
-uniform float warp_streak_width : hint_range(0.0005, 0.004) = 0.0015;
+uniform float warp_max_length : hint_range(0.02, 0.4) = 0.12;
+uniform float warp_streak_width : hint_range(0.0005, 0.006) = 0.0015;
 
 // ── Motion lights ──
 uniform float light_speed : hint_range(0.05, 2.0) = 0.5;
@@ -77,8 +109,6 @@ float fbm(vec2 p) {
 	return v;
 }
 
-// Grid line intensities for a given distance from horizon
-// Returns vec2(core, bloom)
 vec2 calc_grid(vec2 uv_in, float v_dist, float ar_in) {
 	float persp = camera_height / max(v_dist, 0.001);
 	float wx = (uv_in.x - 0.5) * persp;
@@ -99,7 +129,6 @@ vec2 calc_grid(vec2 uv_in, float v_dist, float ar_in) {
 	float bloom_z = 1.0 - smoothstep(grid_line_w, grid_bloom_w + fwz, gz);
 	float bloom = max(bloom_x, bloom_z);
 
-	// Single unified fade: zero inside corridor_gap, ramps up over grid_fade_width
 	float fade = smoothstep(corridor_gap, corridor_gap + grid_fade_width, v_dist);
 
 	return vec2(core * fade, bloom * fade);
@@ -108,7 +137,7 @@ vec2 calc_grid(vec2 uv_in, float v_dist, float ar_in) {
 void fragment() {
 	vec2 uv = UV;
 	float ar = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x;
-	float sun_cy = horizon;
+	float planet_cy = horizon;
 
 	// ════════════════════════════════════════════════════════
 	// LAYER 1: Full-screen space background
@@ -139,71 +168,165 @@ void fragment() {
 		col += vec3(0.6, 0.1, 0.8) * neb2 * 1.5;
 	}
 
-	// ── Sun ────────────────────────────────────────────────
-	vec2 sd = vec2((uv.x - sun_x) * ar, uv.y - sun_cy);
-	float sun_dist = length(sd);
+	// ════════════════════════════════════════════════════════
+	// RINGED PLANET (replaces sun)
+	// ════════════════════════════════════════════════════════
 
-	float haze = exp(-sun_dist * 5.5 / sun_size) * sun_glow;
-	col += vec3(1.0, 0.45, 0.18) * haze * 3.0;
+	vec2 pd = vec2((uv.x - planet_x) * ar, uv.y - planet_cy);
+	float pdist = length(pd);
+	bool on_planet = pdist < planet_radius;
 
-	if (sun_dist < sun_size) {
-		float ny = (uv.y - (sun_cy - sun_size)) / (2.0 * sun_size);
-		vec3 sc = mix(sun_color_top, sun_color_bot, clamp(ny, 0.0, 1.0));
-		float edge = smoothstep(sun_size, sun_size - 0.005, sun_dist);
+	// Rotate into ring plane
+	float ca = cos(ring_angle);
+	float sa = sin(ring_angle);
+	vec2 pd_rot = vec2(pd.x * ca - pd.y * sa, pd.x * sa + pd.y * ca);
 
-		float slice_mask = 1.0;
-		float cut_start = 0.32;
-		if (ny > cut_start) {
-			float region = (ny - cut_start) / (1.0 - cut_start);
+	float rdist = length(vec2(pd_rot.x, pd_rot.y / ring_tilt));
+	bool in_ring = rdist > ring_inner && rdist < ring_outer;
+	bool ring_front = pd_rot.y > 0.0;
+
+	// Ring concentric slices
+	float ring_alpha = 0.0;
+	if (in_ring) {
+		float r_from_inner = rdist - ring_inner;
+		ring_alpha = 1.0;
+		float r_acc = 0.0;
+		for (int i = 0; i < 25; i++) {
+			r_acc += ring_band_width;
+			float gap = ring_gap_base + float(i) * ring_gap_grow;
+			if (r_from_inner >= r_acc && r_from_inner < r_acc + gap) {
+				ring_alpha = 0.0;
+				break;
+			}
+			r_acc += gap;
+			if (r_acc > ring_outer - ring_inner) break;
+		}
+		ring_alpha *= smoothstep(ring_inner, ring_inner + 0.003, rdist);
+		ring_alpha *= smoothstep(ring_outer, ring_outer - 0.003, rdist);
+	}
+
+	// Ring glow
+	float ring_glow_val = 0.0;
+	if (ring_glow_size > 0.001) {
+		float di = abs(rdist - ring_inner);
+		float do2 = abs(rdist - ring_outer);
+		float closest = in_ring ? 0.0 : min(di, do2);
+		ring_glow_val = exp(-closest / ring_glow_size) * 0.4;
+		if (on_planet) { ring_glow_val *= 0.2; }
+	}
+
+	// Planet gradient
+	float grad_y = (planet_tilted > 0.5) ? pd_rot.y : pd.y;
+	float ny = (grad_y + planet_radius) / (2.0 * planet_radius);
+
+	// Atmosphere halo (behind everything)
+	float atmo = exp(-pdist * 5.5 / planet_radius) * atmo_glow;
+	col += atmo_color * atmo;
+
+	// Ring behind planet
+	if (in_ring && !ring_front && !on_planet) {
+		col = mix(col, ring_color * ring_hdr * 0.5, ring_alpha);
+	}
+	if (!ring_front && !on_planet) {
+		col += ring_color * ring_glow_val * ring_hdr * 0.3;
+	}
+
+	// Planet body
+	if (on_planet) {
+		vec3 pcol = mix(planet_color_top, planet_color_bot, clamp(ny, 0.0, 1.0));
+
+		float shadow = smoothstep(-0.35, 0.45, -pd.x / planet_radius);
+		shadow *= smoothstep(0.9, 0.3, ny);
+		pcol *= 0.15 + 0.85 * shadow;
+
+		if (slice_enabled > 0.5 && ny > slice_start) {
+			float region = (ny - slice_start) / (1.0 - slice_start);
 			float y_acc = 0.0;
 			for (int i = 0; i < 9; i++) {
-				float band  = 0.058;
-				float gap_h = 0.006 + float(i) * 0.016;
-				y_acc += band;
+				float gap_h = slice_gap_base + float(i) * slice_gap_grow;
+				y_acc += slice_band_h;
 				if (region >= y_acc && region < y_acc + gap_h) {
-					slice_mask = 0.0;
+					pcol = col; // show background through gap
 					break;
 				}
 				y_acc += gap_h;
 				if (y_acc > 1.0) break;
 			}
 		}
-		col = mix(col, sc * 3.0, edge * slice_mask);
+
+		float rim = smoothstep(0.5, 1.0, pdist / planet_radius);
+		pcol += atmo_color * rim * atmo_glow;
+
+		float edge = smoothstep(planet_radius, planet_radius - 0.003, pdist);
+		col = mix(col, pcol * planet_hdr, edge);
+	}
+
+	// Ring in front
+	if (in_ring && ring_front) {
+		float front_alpha = ring_alpha;
+		if (on_planet) { front_alpha *= 0.85; }
+		col = mix(col, ring_color * ring_hdr, front_alpha);
+	}
+	if (ring_front || !on_planet) {
+		col += ring_color * ring_glow_val * ring_hdr * 0.5;
 	}
 
 	// ── Stars (full screen) ────────────────────────────────
 	{
-		vec2 cell = floor(uv * vec2(140.0, 70.0));
-		float h = hash(cell);
-		if (h > star_cutoff) {
-			vec2 soff = vec2(hash(cell + 111.0), hash(cell + 222.0));
-			vec2 sp   = (cell + soff) / vec2(140.0, 70.0);
-			float sd2  = length((uv - sp) * vec2(ar, 1.0));
-			float twinkle = sin(TIME * (1.5 + h * 4.0) + h * 6.283) * 0.5 + 0.5;
-			float b = smoothstep(0.003, 0.0, sd2) * (0.2 + 0.8 * twinkle);
-			b *= 0.6 + uv.x * 0.8;
-			float sun_prox = length(vec2((uv.x - sun_x) * ar, uv.y - sun_cy));
-			b *= smoothstep(sun_size * 1.5, sun_size * 3.0, sun_prox);
-			b *= smoothstep(0.0, 0.08, dist_from_horizon);
-			col += vec3(0.85, 0.85, 1.05) * b * 2.5;
+		// Two density layers for variety
+		for (int layer = 0; layer < 2; layer++) {
+			float grid_scale = (layer == 0) ? 100.0 : 160.0;
+			float layer_offset = float(layer) * 333.0;
+			vec2 cell = floor(uv * vec2(grid_scale, grid_scale * 0.5));
+			float h = hash(cell + layer_offset);
+			float threshold = (layer == 0) ? star_density : star_density + (1.0 - star_density) * 0.4;
+			if (h > threshold) {
+				vec2 soff = vec2(hash(cell + layer_offset + 111.0), hash(cell + layer_offset + 222.0));
+				vec2 sp = (cell + soff) / vec2(grid_scale, grid_scale * 0.5);
+				vec2 delta = (uv - sp) * vec2(ar, 1.0);
+				float d_star = length(delta);
+
+				// Per-star variation
+				float size_var = 0.5 + hash(cell + layer_offset + 333.0) * 0.8;
+				float this_size = star_size * size_var;
+				float this_glow = star_glow_size * (0.6 + size_var * 0.6);
+
+				// Twinkle (gentle, not a hard pulse)
+				float tw_speed = 1.0 + h * 3.0;
+				float tw_phase = h * 6.283;
+				float tw = sin(TIME * tw_speed + tw_phase);
+				float tw_amount = 0.5 + (1.0 - star_twinkle) * 0.5 + star_twinkle * tw * 0.5;
+
+				// Core dot (round, smooth edge)
+				float core = smoothstep(this_size, this_size * 0.3, d_star);
+				// Soft glow halo
+				float glow = exp(-d_star * d_star / max(this_glow * this_glow, 0.000001)) * 0.4;
+
+				float b = (core + glow) * tw_amount;
+				b *= 0.6 + uv.x * 0.8;
+				// Dim near planet
+				float planet_prox = length(vec2((uv.x - planet_x) * ar, uv.y - planet_cy));
+				b *= smoothstep(planet_radius * 1.5, planet_radius * 4.0, planet_prox);
+				b *= smoothstep(0.0, 0.08, dist_from_horizon);
+				col += star_color * b * star_brightness;
+			}
 		}
 	}
 
 	// ── Warp streaks (radial vignette from screen center) ──
 	if (warp_streak_intensity > 0.01) {
 		vec2 center = vec2(0.5, 0.5);
-		// Pixel distance from center (aspect-corrected so circle not ellipse)
 		vec2 to_center = vec2((uv.x - center.x) * ar, uv.y - center.y);
 		float pixel_dist = length(to_center);
 		float pixel_angle = atan(to_center.y, to_center.x);
 
-		for (int i = 0; i < 20; i++) {
+		int streak_count = int(warp_streak_count);
+		for (int i = 0; i < 40; i++) {
+			if (i >= streak_count) break;
 			float fi = float(i);
 			float a = hash(vec2(fi, 44.4)) * 6.2832;
 
-			// How close is this pixel's angle to the streak's angle?
 			float angle_diff = abs(mod(pixel_angle - a + 3.14159, 6.2832) - 3.14159);
-			// Early-out: skip if angle is way off
 			if (angle_diff > 0.06) { continue; }
 
 			float period = 1.2 + hash(vec2(fi, 55.5)) * 2.0;
@@ -211,38 +334,31 @@ void fragment() {
 			float spd = warp_streak_speed * (0.4 + hash(vec2(fi, 77.7)) * 0.8);
 			float cycle = fract(TIME * spd / period + phase);
 
-			// Streak travels from inner radius to well past screen edge
-			// Screen diagonal (aspect-corrected) is ~sqrt((0.5*ar)^2+0.5^2) ≈ 1.0
 			float max_reach = 1.2;
 			float head_d = warp_inner_radius + cycle * max_reach;
-			// Trail grows longer the further from center (parallax)
 			float dist_ratio = (head_d - warp_inner_radius) / max_reach;
 			float trail_len = warp_max_length * (0.15 + dist_ratio * 0.85);
 			float tail_d = max(head_d - trail_len, warp_inner_radius);
 
-			// Is the pixel on this streak's radial line, between tail and head?
 			if (pixel_dist < tail_d || pixel_dist > head_d) { continue; }
 
-			// Perpendicular distance from the radial line
 			vec2 streak_dir = vec2(cos(a), sin(a));
 			float perp = abs(to_center.x * streak_dir.y - to_center.y * streak_dir.x);
 
-			float w = warp_streak_width + pixel_dist * 0.002; // slightly wider at edges
+			float w = warp_streak_width + pixel_dist * 0.002;
 			if (perp > w) { continue; }
 
-			// Brightness: ramps toward head, fades at tail
 			float along_t = (pixel_dist - tail_d) / max(head_d - tail_d, 0.001);
-			float b = along_t; // brighter at the head
-			b *= smoothstep(w, w * 0.15, perp); // soft edges
-			// Vignette fade-in: invisible inside inner radius, fading in over fade_width
-			b *= smoothstep(warp_inner_radius, warp_inner_radius + warp_fade_width, pixel_dist);
-			b *= warp_streak_intensity;
-			col += accent_color * b * 5.0; // HDR
+			float b2 = along_t;
+			b2 *= smoothstep(w, w * 0.15, perp);
+			b2 *= smoothstep(warp_inner_radius, warp_inner_radius + warp_fade_width, pixel_dist);
+			b2 *= warp_streak_intensity;
+			col += accent_color * b2 * 5.0;
 		}
 	}
 
 	// ════════════════════════════════════════════════════════
-	// LAYER 2: Grid overlays (transparent cells, lines only)
+	// LAYER 2: Grid overlays
 	// ════════════════════════════════════════════════════════
 
 	vec3 core_col = mix(vec3(1.0, 0.9, 0.95), grid_color * 1.5, grid_core_tint);
@@ -261,21 +377,21 @@ void fragment() {
 		col += core_col * g.x * grid_core_brightness;
 	}
 
-	// ── Horizon glow (at corridor edges) ───────────────────
+	// Horizon glow
 	float edge_bot = max(v_bot - corridor_gap, 0.0);
 	float edge_top = max(v_top - corridor_gap, 0.0);
 	float h_glow_bot = exp(-edge_bot * 25.0) * smoothstep(0.0, 0.02, edge_bot) * 0.4;
 	float h_glow_top = exp(-edge_top * 25.0) * smoothstep(0.0, 0.02, edge_top) * 0.4;
 	col += vec3(0.9, 0.15, 0.45) * (h_glow_bot + h_glow_top) * 3.0;
 
-	// ── Sun reflection on bottom grid ──────────────────────
+	// Planet reflection on bottom grid
 	if (v_bot > corridor_gap) {
-		float refl_x = abs(uv.x - sun_x);
+		float refl_x = abs(uv.x - planet_x);
 		float refl = exp(-refl_x * 6.0 * ar) * exp(-edge_bot * 8.0) * 0.35;
-		col += vec3(1.0, 0.5, 0.2) * refl * 2.0;
+		col += atmo_color * refl * 2.0;
 	}
 
-	// ── Motion point lights (both grids, toward viewer) ────
+	// Motion point lights
 	for (int i = 0; i < 8; i++) {
 		float fi = float(i);
 		float lane = (hash(vec2(fi * 7.13, 42.7)) - 0.2) * 5.0;
@@ -290,9 +406,9 @@ void fragment() {
 		float py_bot = horizon + corridor_gap + pv;
 		if (py_bot < 1.0 && px > -0.05 && px < 1.05) {
 			vec2 ld = vec2((uv.x - px) * ar, uv.y - py_bot);
-			float d = length(ld);
+			float d2 = length(ld);
 			float sz = 0.005 + 0.018 / lz;
-			float g_val = exp(-d / sz) * light_brightness / (1.0 + lz * 0.15);
+			float g_val = exp(-d2 / sz) * light_brightness / (1.0 + lz * 0.15);
 			float fade = smoothstep(0.0, 0.05, py_bot - horizon - corridor_gap);
 			col += grid_color * g_val * fade * 2.5;
 		}
@@ -300,9 +416,9 @@ void fragment() {
 		float py_top = horizon - corridor_gap - pv;
 		if (py_top > 0.0 && px > -0.05 && px < 1.05) {
 			vec2 ld = vec2((uv.x - px) * ar, uv.y - py_top);
-			float d = length(ld);
+			float d2 = length(ld);
 			float sz = 0.005 + 0.018 / lz;
-			float g_val = exp(-d / sz) * light_brightness / (1.0 + lz * 0.15);
+			float g_val = exp(-d2 / sz) * light_brightness / (1.0 + lz * 0.15);
 			float fade = smoothstep(0.0, 0.05, horizon - corridor_gap - py_top);
 			col += grid_color * g_val * fade * 2.5;
 		}

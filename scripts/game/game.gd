@@ -802,6 +802,7 @@ func _process(delta: float) -> void:
 		_hud.process_fire_effect(delta)
 		_hud.update_credits(GameState.credits)
 		_hud.update_cargo_counter(delta)
+		_update_cargo_indicator()
 		if not _player._drifting and not _player._blackout_active:
 			_update_warning_rotator(delta)
 	# Mouse navigation indicator
@@ -1306,6 +1307,23 @@ func _load_warning_colors() -> void:
 				"color": Color(float(saved.get("r", 1.0)), float(saved.get("g", 0.3)), float(saved.get("b", 0.1))),
 				"hdr": float(saved.get("hdr", WARNING_DEFAULTS[warning_id]["hdr"])),
 			}
+
+
+func _update_cargo_indicator() -> void:
+	if not _hud or not _enemies:
+		return
+	# Find any ally ship (cargo ship) currently alive in the enemies container
+	var found: bool = false
+	for child in _enemies.get_children():
+		if child is Enemy and child.ship_id == "cargo_ship":
+			# Check if on screen
+			var pos: Vector2 = child.position
+			if pos.x > -100.0 and pos.x < 2020.0 and pos.y > -100.0 and pos.y < 1180.0:
+				_hud.update_cargo_indicator(pos, true)
+				found = true
+				break
+	if not found:
+		_hud.update_cargo_indicator(Vector2.ZERO, false)
 
 
 func _update_warning_rotator(delta: float) -> void:

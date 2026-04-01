@@ -7,8 +7,10 @@
 	"hull_blink_speed": 6.0,
 	"hull_flash_duration": 0.12,
 	"hull_flash_opacity": 0.5,
-	"id": "dreadnought",
+	"id": "cargo_ship",
+	"visual_id": "dreadnought",
 	"render_mode": "chrome",
+	"grid_size": [64, 64],
 	"shield_style_id": "",
 	"stats": {
 		"acceleration": 900.0,

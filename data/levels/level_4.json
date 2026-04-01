@@ -7,35 +7,13 @@
 	"encounters": [
 		{
 			"boss_id": "",
-			"count": 9,
-			"drop_chance": 1.0,
-			"drop_table": [
-				{
-					"item_id": "item_112",
-					"weight": 1.0
-				}
-			],
-			"formation_id": "",
-			"is_melee": false,
-			"mirror_h": false,
-			"path_id": "path_3",
-			"rotate_with_path": true,
-			"ship_id": "enemy_conduit",
-			"spacing": 200.0,
-			"speed": 200.0,
-			"trigger_y": 697.226277372264,
-			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": -131.386861313869
-		},
-		{
-			"boss_id": "",
 			"count": 1,
 			"drop_chance": 0.0,
 			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
 			"mirror_h": false,
+			"mirror_v": false,
 			"path_id": "path_1",
 			"rotate_with_path": false,
 			"ship_id": "enemy_1",
@@ -54,6 +32,7 @@
 			"formation_id": "",
 			"is_melee": false,
 			"mirror_h": false,
+			"mirror_v": false,
 			"path_id": "path_1",
 			"rotate_with_path": false,
 			"ship_id": "enemy_1",
@@ -66,21 +45,22 @@
 		},
 		{
 			"boss_id": "",
-			"count": 9,
-			"drop_chance": 1.0,
+			"count": 1,
+			"drop_chance": 0.0,
 			"drop_table": [],
 			"formation_id": "",
 			"is_melee": false,
-			"mirror_h": true,
+			"mirror_h": false,
+			"mirror_v": false,
 			"path_id": "path_4",
-			"rotate_with_path": true,
-			"ship_id": "enemy_conduit",
+			"rotate_with_path": false,
+			"ship_id": "cargo_ship",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 597.372262773723,
+			"trigger_y": 336.350364963504,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": -124.379562043796
+			"x_offset": -3.50364963503624
 		}
 	],
 	"events": [],
