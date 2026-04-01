@@ -229,6 +229,67 @@ func _build_ui() -> void:
 	for event_id in ["pickup_shard", "pickup_coin"]:
 		_add_event_row(vbox, event_id)
 
+	var spacer_pickup := Control.new()
+	spacer_pickup.custom_minimum_size = Vector2(0, 12)
+	vbox.add_child(spacer_pickup)
+
+	# Cargo transfer section
+	_add_section_header(vbox, "CARGO TRANSFER", "Sounds during cargo ship docking — loop volume scales with proximity")
+	_add_event_row(vbox, "cargo_sound")
+
+	# Cargo loop — uses a LoopBrowser instead of the SFX dropdown
+	var loop_row := VBoxContainer.new()
+	loop_row.add_theme_constant_override("separation", 4)
+	vbox.add_child(loop_row)
+
+	var loop_header_row := HBoxContainer.new()
+	loop_header_row.add_theme_constant_override("separation", 8)
+	loop_row.add_child(loop_header_row)
+
+	var cargo_loop_label := Label.new()
+	cargo_loop_label.text = "CARGO: LOOP"
+	cargo_loop_label.custom_minimum_size = Vector2(180, 0)
+	cargo_loop_label.tooltip_text = "Music loop that plays during cargo transfer — volume scales with docking proximity"
+	cargo_loop_label.mouse_filter = Control.MOUSE_FILTER_STOP
+	loop_header_row.add_child(cargo_loop_label)
+	_event_labels["cargo_loop"] = cargo_loop_label
+
+	var cargo_loop_vol_label := Label.new()
+	cargo_loop_vol_label.text = "Vol:"
+	loop_header_row.add_child(cargo_loop_vol_label)
+
+	var cargo_loop_vol_slider := HSlider.new()
+	cargo_loop_vol_slider.min_value = -20.0
+	cargo_loop_vol_slider.max_value = 6.0
+	cargo_loop_vol_slider.step = 0.5
+	cargo_loop_vol_slider.value = _config.cargo_loop_volume_db
+	cargo_loop_vol_slider.custom_minimum_size = Vector2(100, 0)
+	loop_header_row.add_child(cargo_loop_vol_slider)
+
+	var cargo_loop_vol_val := Label.new()
+	cargo_loop_vol_val.text = str(snapped(cargo_loop_vol_slider.value, 0.5)) + "dB"
+	cargo_loop_vol_val.custom_minimum_size = Vector2(60, 0)
+	loop_header_row.add_child(cargo_loop_vol_val)
+
+	cargo_loop_vol_slider.value_changed.connect(func(v: float) -> void:
+		cargo_loop_vol_val.text = str(snapped(v, 0.5)) + "dB"
+		_config.cargo_loop_volume_db = v
+		_auto_save()
+	)
+
+	var cargo_loop_browser := LoopBrowser.new()
+	cargo_loop_browser._audition_id = "cargo_loop_audition"
+	cargo_loop_browser.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	loop_row.add_child(cargo_loop_browser)
+
+	if _config.cargo_loop_path != "":
+		cargo_loop_browser.call_deferred("_suppress_and_select", _config.cargo_loop_path)
+
+	cargo_loop_browser.loop_selected.connect(func(path: String, _cat: String) -> void:
+		_config.cargo_loop_path = path
+		_auto_save()
+	)
+
 	# Power loss events (power failure, reboot, power-down, power-up) are managed
 	# exclusively in the EVENTS tab timeline — not shown here.
 

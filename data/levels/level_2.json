@@ -6,7 +6,26 @@
 	"doodads": [],
 	"encounters": [
 		{
-			"boss_id": "boss_archon",
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": false,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_colossus",
+			"spacing": 200.0,
+			"speed": 100.0,
+			"trigger_y": 779.56204379562,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": -127.883211678832
+		},
+		{
+			"boss_id": "",
 			"count": 1,
 			"drop_chance": 0.0,
 			"drop_table": [],
@@ -16,25 +35,16 @@
 			"mirror_v": false,
 			"path_id": "path_1",
 			"rotate_with_path": false,
-			"ship_id": "enemy_conduit",
+			"ship_id": "enemy_helix",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 2105.69343065693,
+			"trigger_y": 744.525547445255,
 			"turn_speed": 90.0,
 			"weapons_active": true,
-			"x_offset": 49.051094890511
+			"x_offset": 89.3430656934307
 		}
 	],
-	"events": [
-		{
-			"boss_id": "boss_archon",
-			"bpm_shift": 0.0,
-			"event_type": "boss_transition",
-			"key_shift_semitones": 0,
-			"trigger_y": 656.934306569343,
-			"x_offset": 49.0510948905109
-		}
-	],
+	"events": [],
 	"id": "level_2",
 	"level_length": 10000.0,
 	"nebula_placements": [],

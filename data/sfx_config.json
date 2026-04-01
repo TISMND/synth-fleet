@@ -1,4 +1,6 @@
 {
+	"cargo_loop_path": "res://loop_zips/sorted/leads/NEW Overblown Choice - 120 BPM - 8 - Leads - DS_NS_100_synth_lead_down_middle_Gmin.wav",
+	"cargo_loop_volume_db": -6.5,
 	"events": {
 		"alarm_fire": {
 			"clip_end_time": 0.0,
@@ -125,6 +127,13 @@
 			"fade_out_duration": 0.0,
 			"file_path": "res://assets/audio/sfx/Radio/static_subtle.wav",
 			"volume_db": 0.0
+		},
+		"cargo_sound": {
+			"clip_end_time": 0.0,
+			"fade_in_duration": 0.0,
+			"fade_out_duration": 0.0,
+			"file_path": "res://assets/audio/sfx/objects/coins_falling.wav",
+			"volume_db": -15.0
 		},
 		"electric_alarm": {
 			"clip_end_time": 0.0,

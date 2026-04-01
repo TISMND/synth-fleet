@@ -1310,32 +1310,51 @@ func _load_warning_colors() -> void:
 
 
 const CARGO_TRANSFER_RATE_MAX: float = 500.0  # Credits per second at full overlap
+const CARGO_LOOP_RADIUS: float = 600.0  # Distance for music volume gradient (much wider than docking)
+var _cargo_loop_id: String = "cargo_transfer_loop"
+var _cargo_loop_active: bool = false
+var _cargo_sound_active: bool = false
 
 func _update_cargo_indicator(delta: float) -> void:
 	if not _hud or not _enemies:
 		return
-	# Find any ally ship (cargo ship) currently alive in the enemies container
 	var found: bool = false
+	var cargo_pos := Vector2.ZERO
 	for child in _enemies.get_children():
 		if child is Enemy and child.ship_id == "cargo_ship":
 			var pos: Vector2 = child.position
 			if pos.x > -100.0 and pos.x < 2020.0 and pos.y > -100.0 and pos.y < 1180.0:
 				_hud.update_cargo_indicator(pos, true)
 				found = true
-				# Docking — uses collision overlap from player_ship.docked_friendly
-				if _player and is_instance_valid(_player) and _player.docked_friendly == child:
-					var dist: float = _player.position.distance_to(pos)
-					# Overlap ratio: 1.0 when centered, fading to 0.0 at edge of collision
-					var combined_radius: float = 90.0  # Approximate combined bounding
-					var overlap: float = clampf(1.0 - dist / combined_radius, 0.0, 1.0)
-					_transfer_cargo(delta, overlap)
-					_hud.set_transfer_rate(CARGO_TRANSFER_RATE_MAX * overlap)
-				else:
-					_hud.set_transfer_rate(0.0)
+				cargo_pos = pos
 				break
 	if not found:
 		_hud.update_cargo_indicator(Vector2.ZERO, false)
 		_hud.set_transfer_rate(0.0)
+		_stop_cargo_loop()
+		_stop_cargo_sound()
+		return
+
+	var is_docked: bool = _player and is_instance_valid(_player) and _player.docked_friendly != null
+	# Cargo transfer (collision-based docking)
+	if is_docked:
+		# Pillbox-shaped overlap — vertical is much more forgiving than horizontal
+		var dx: float = absf(_player.position.x - cargo_pos.x)
+		var dy: float = absf(_player.position.y - cargo_pos.y)
+		var weighted_dist: float = dx + dy * 0.3  # Vertical counts 30% as much
+		var combined_radius: float = 140.0
+		var overlap: float = clampf(1.0 - weighted_dist / combined_radius, 0.0, 1.0)
+		_transfer_cargo(delta, overlap)
+		_hud.set_transfer_rate(CARGO_TRANSFER_RATE_MAX * overlap)
+		_start_cargo_sound()
+	else:
+		_hud.set_transfer_rate(0.0)
+		_stop_cargo_sound()
+
+	# Music loop — volume is purely distance-based (wide gradient, no start/stop transitions)
+	if _player and is_instance_valid(_player):
+		var dist: float = _player.position.distance_to(cargo_pos)
+		_update_cargo_loop_volume(dist)
 
 
 func _transfer_cargo(delta: float, overlap_ratio: float) -> void:
@@ -1343,7 +1362,6 @@ func _transfer_cargo(delta: float, overlap_ratio: float) -> void:
 	var transfer_amount: int = int(rate * delta)
 	if transfer_amount < 1 and overlap_ratio > 0.0:
 		transfer_amount = 1
-	# Transfer from cargo (credits) to bank
 	var available: int = GameState.credits
 	if available <= 0:
 		return
@@ -1351,6 +1369,43 @@ func _transfer_cargo(delta: float, overlap_ratio: float) -> void:
 	GameState.credits -= actual
 	var banked: int = int(GameState.get_meta("banked_credits", 0))
 	GameState.set_meta("banked_credits", banked + actual)
+
+
+func _update_cargo_loop_volume(dist: float) -> void:
+	var sfx_config: SfxConfig = SfxConfigManager.load_config()
+	var loop_path: String = sfx_config.cargo_loop_path
+	if loop_path == "":
+		return
+	# Start the loop once when cargo ship is on screen — never stop/restart, just adjust volume
+	if not _cargo_loop_active:
+		var base_vol: float = sfx_config.cargo_loop_volume_db
+		LoopMixer.add_loop(_cargo_loop_id, loop_path, "GameAudio", -80.0, false)
+		LoopMixer.start_loop(_cargo_loop_id)
+		_cargo_loop_active = true
+	# Volume gradient: full volume at dist=0, silence at CARGO_LOOP_RADIUS
+	var base_vol: float = sfx_config.cargo_loop_volume_db
+	var proximity: float = clampf(1.0 - dist / CARGO_LOOP_RADIUS, 0.0, 1.0)
+	# Quadratic curve for smoother rolloff
+	proximity = proximity * proximity
+	var vol: float = base_vol + (1.0 - proximity) * -40.0
+	LoopMixer.set_volume(_cargo_loop_id, vol)
+
+
+func _stop_cargo_loop() -> void:
+	if _cargo_loop_active:
+		LoopMixer.release_loop(_cargo_loop_id, 500)
+		_cargo_loop_active = false
+
+
+func _start_cargo_sound() -> void:
+	if not _cargo_sound_active:
+		_cargo_sound_active = true
+		SfxPlayer.play("cargo_sound")
+
+
+func _stop_cargo_sound() -> void:
+	if _cargo_sound_active:
+		_cargo_sound_active = false
 
 
 func _update_warning_rotator(delta: float) -> void:

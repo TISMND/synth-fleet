@@ -526,21 +526,20 @@ class _TransferChevronDraw extends Node2D:
 			draw_string(font, Vector2(mid_x - text_w * 0.5, y_center + 5), rate_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(CHEVRON_COLOR, blink))
 
 		# Animated chevrons flowing left from CARGO toward BANK
-		# 3 chevrons spaced evenly, pulsing in sequence
+		# 9 chevrons per zone, pulsing in sequence
 		var chevron_zone_start: float = cargo_x - 30.0
 		var chevron_zone_end: float = mid_x + 40.0
 		var zone_width: float = chevron_zone_start - chevron_zone_end
-		var chevron_count: int = 3
-		var cycle: float = fmod(t * 2.0, 1.0)  # 0→1 repeating
+		var chevron_count: int = 9
+		var cycle: float = fmod(t * 2.0, 1.0)
 
 		for i in range(chevron_count):
 			var phase: float = fmod(cycle + float(i) / float(chevron_count), 1.0)
 			var cx: float = chevron_zone_start - phase * zone_width
-			var alpha: float = 1.0 - absf(phase - 0.5) * 2.0  # Fade at edges
+			var alpha: float = 1.0 - absf(phase - 0.5) * 2.0
 			alpha = clampf(alpha * 1.5, 0.0, 0.9)
 			if alpha < 0.05:
 				continue
-			# Draw left-pointing chevron «
 			var sz: float = 6.0
 			var col := Color(CHEVRON_COLOR, alpha)
 			draw_line(Vector2(cx, y_center - sz), Vector2(cx - sz, y_center), col, 2.0)

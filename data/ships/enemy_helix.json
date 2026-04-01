@@ -1,6 +1,8 @@
 {
-	"collision_height": 90.0,
-	"collision_shape": "circle",
+	"collision_height": 160.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
+	"collision_shape": "capsule",
 	"collision_width": 90.0,
 	"display_name": "Helix",
 	"enable_screen_shake": false,

@@ -81,6 +81,8 @@ const EVENT_IDS: Array[String] = [
 	# Pickup cues
 	"pickup_shard",
 	"pickup_coin",
+	# Cargo transfer cues
+	"cargo_sound",
 ]
 
 const EVENT_LABELS: Dictionary = {
@@ -163,6 +165,8 @@ const EVENT_LABELS: Dictionary = {
 	# Pickup cues
 	"pickup_shard": "PICKUP: SHARD",
 	"pickup_coin": "PICKUP: COIN",
+	# Cargo transfer cues
+	"cargo_sound": "CARGO: SOUND",
 }
 
 const EVENT_DESCRIPTIONS: Dictionary = {
@@ -249,9 +253,13 @@ const EVENT_DESCRIPTIONS: Dictionary = {
 	# Pickup cues
 	"pickup_shard": "Player collects a currency shard drop",
 	"pickup_coin": "Player collects a currency coin drop",
+	# Cargo transfer cues
+	"cargo_sound": "One-shot sound when cargo transfer starts",
 }
 
 var events: Dictionary = {}
+var cargo_loop_path: String = ""
+var cargo_loop_volume_db: float = 0.0
 
 
 static func _default_event() -> Dictionary:
@@ -274,6 +282,8 @@ func get_event(id: String) -> Dictionary:
 
 static func from_dict(data: Dictionary) -> SfxConfig:
 	var config := SfxConfig.new()
+	config.cargo_loop_path = str(data.get("cargo_loop_path", ""))
+	config.cargo_loop_volume_db = float(data.get("cargo_loop_volume_db", 0.0))
 	var ev: Dictionary = data.get("events", {})
 	for event_id in EVENT_IDS:
 		if ev.has(event_id):
@@ -301,4 +311,8 @@ func to_dict() -> Dictionary:
 			"fade_in_duration": e["fade_in_duration"],
 			"fade_out_duration": e["fade_out_duration"],
 		}
-	return { "events": ev }
+	return {
+		"events": ev,
+		"cargo_loop_path": cargo_loop_path,
+		"cargo_loop_volume_db": cargo_loop_volume_db,
+	}
