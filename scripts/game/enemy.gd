@@ -32,6 +32,7 @@ var _melee_target: Node2D = null
 var weapons_active: bool = true
 var is_friendly: bool = false  # Ally ships: no friendly fire, no player collision
 var _bank: float = 0.0  # Banking for friendly ships (-1 to 1)
+var _engine_exhaust: EngineExhaust = null
 var _current_speed_mult: float = 1.0  # Eased speed multiplier
 
 # Currency drop config (set by encounter data via WaveManager)
@@ -139,6 +140,20 @@ func _ready() -> void:
 		_renderer.hull_color = enemy_color
 		_renderer.accent_color = Color(1.0, 0.2, 0.6)
 		add_child(_renderer)
+
+	# Engine exhaust for friendly ships
+	if is_friendly:
+		_engine_exhaust = EngineExhaust.new()
+		# Use dreadnought engine offsets minus the two outermost jets
+		var all_offsets: Array[Vector2] = ShipRenderer.get_engine_offsets(7)
+		var engine_offsets: Array[Vector2] = []
+		for eo in all_offsets:
+			if absf(eo.x) < 13.0:
+				engine_offsets.append(eo)
+		var exhaust_scale: float = ShipRenderer.get_ship_scale(7)
+		_engine_exhaust.setup(engine_offsets, exhaust_scale)
+		_engine_exhaust.scroll_speed = level_scroll_speed
+		add_child(_engine_exhaust)
 
 	# Universal enemy hit effects from VFX config
 	var vfx: VfxConfig = VfxConfigManager.load_config()
@@ -290,6 +305,12 @@ func _process(delta: float) -> void:
 			var target_bank: float = clampf(-normalized_dir.x * 1.5, -1.0, 1.0)
 			_bank = lerpf(_bank, target_bank, minf(delta * 6.0, 1.0))
 			_renderer.bank = _bank
+		if is_friendly and _engine_exhaust:
+			# For path-following allies, derive velocity from path direction
+			var path_vel_y: float = 0.0
+			if dir.length_squared() > 0.01:
+				path_vel_y = dir.normalized().y * move_speed
+			_engine_exhaust.update_thrust(path_vel_y, _bank, delta)
 		# Despawn if off screen (skip until enemy has entered the play area once)
 		if _has_entered_screen:
 			if position.y > 1200 or position.y < -200 or position.x < -200 or position.x > 2120:

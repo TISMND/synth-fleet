@@ -104,6 +104,12 @@ func _load_enemy_ship_data(index: int) -> ShipData:
 
 # ── UI Construction ──
 
+var _hits_content: ScrollContainer
+var _engines_content: MarginContainer
+var _tab_hits_btn: Button
+var _tab_engines_btn: Button
+var _active_vfx_tab: int = 0
+
 func _build_ui() -> void:
 	var bg := ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -112,25 +118,37 @@ func _build_ui() -> void:
 
 	_build_top_bar()
 
-	var scroll := ScrollContainer.new()
-	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
-	scroll.offset_top = 60
-	scroll.offset_bottom = -60
-	scroll.offset_left = 20
-	scroll.offset_right = -20
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
+	# Hits tab content
+	_hits_content = ScrollContainer.new()
+	_hits_content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hits_content.offset_top = 60
+	_hits_content.offset_bottom = -60
+	_hits_content.offset_left = 20
+	_hits_content.offset_right = -20
+	_hits_content.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(_hits_content)
 
 	var content := VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 20)
-	scroll.add_child(content)
+	_hits_content.add_child(content)
 
 	_build_shield_section(content, "PLAYER SHIELD HIT", "player_shield", false)
 	_build_hull_section(content, "PLAYER HULL HIT", "player_hull", false)
 	_build_shield_section(content, "ENEMY SHIELD HIT", "enemy_shield", true)
 	_build_hull_section(content, "ENEMY HULL HIT", "enemy_hull", true)
 	_build_immune_section(content)
+
+	# Engines tab content
+	var EnginesScript: GDScript = load("res://scripts/ui/engine_auditions.gd")
+	_engines_content = EnginesScript.new()
+	_engines_content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_engines_content.offset_top = 60
+	_engines_content.offset_bottom = -60
+	_engines_content.offset_left = 20
+	_engines_content.offset_right = -20
+	_engines_content.visible = false
+	add_child(_engines_content)
 
 	_build_bottom_bar()
 
@@ -161,6 +179,34 @@ func _build_top_bar() -> void:
 	var spacer2 := Control.new()
 	spacer2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top_bar.add_child(spacer2)
+
+	_tab_hits_btn = Button.new()
+	_tab_hits_btn.text = "HITS"
+	_tab_hits_btn.toggle_mode = true
+	_tab_hits_btn.button_pressed = true
+	_tab_hits_btn.pressed.connect(func(): _switch_vfx_tab(0))
+	ThemeManager.apply_button_style(_tab_hits_btn)
+	top_bar.add_child(_tab_hits_btn)
+
+	_tab_engines_btn = Button.new()
+	_tab_engines_btn.text = "ENGINES"
+	_tab_engines_btn.toggle_mode = true
+	_tab_engines_btn.pressed.connect(func(): _switch_vfx_tab(1))
+	ThemeManager.apply_button_style(_tab_engines_btn)
+	top_bar.add_child(_tab_engines_btn)
+
+
+func _switch_vfx_tab(idx: int) -> void:
+	if _active_vfx_tab == idx:
+		match idx:
+			0: _tab_hits_btn.button_pressed = true
+			1: _tab_engines_btn.button_pressed = true
+		return
+	_active_vfx_tab = idx
+	_tab_hits_btn.button_pressed = (idx == 0)
+	_tab_engines_btn.button_pressed = (idx == 1)
+	_hits_content.visible = (idx == 0)
+	_engines_content.visible = (idx == 1)
 
 
 # ── Shield Hit Section (FieldStyle + radius) ──

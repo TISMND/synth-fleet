@@ -45,6 +45,7 @@ var _cores_toggle_state: int = 0  # 0=all off, 1=all on
 # Banking + rendering
 var _bank: float = 0.0
 var _ship_renderer: ShipRenderer = null
+var _engine_exhaust: EngineExhaust = null
 var _electric_arcs: Array = []  # Active Line2D lightning bolts
 var _electric_arc_container: Node2D = null  # Parent for arc lines
 var _electric_arc_timer: float = 0.0  # Countdown to next arc spawn
@@ -127,9 +128,17 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_base_accel = acceleration
 	shield_regen = float(stats.get("shield_regen", 1.0))
 
+	# Engine exhaust (rendered behind ship)
+	_engine_exhaust = EngineExhaust.new()
+	var resolved_id: int = _resolve_ship_id(ship_data)
+	var engine_offsets: Array[Vector2] = ShipRenderer.get_engine_offsets(resolved_id)
+	var ship_scale: float = ShipRenderer.get_ship_scale(resolved_id)
+	_engine_exhaust.setup(engine_offsets, ship_scale)
+	add_child(_engine_exhaust)
+
 	# Ship renderer
 	_ship_renderer = ShipRenderer.new()
-	_ship_renderer.ship_id = _resolve_ship_id(ship_data)
+	_ship_renderer.ship_id = resolved_id
 	_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
 	add_child(_ship_renderer)
 
@@ -441,6 +450,8 @@ func _process(delta: float) -> void:
 	_bank = lerpf(_bank, target_bank, minf(delta * 8.0, 1.0))
 	if _ship_renderer:
 		_ship_renderer.bank = _bank
+	if _engine_exhaust:
+		_engine_exhaust.update_thrust(_velocity.y, _bank, delta)
 
 	# Composite ship tint from all active field devices
 	if _ship_renderer and not _device_controllers.is_empty():

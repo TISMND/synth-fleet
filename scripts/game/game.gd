@@ -241,6 +241,8 @@ func _ready() -> void:
 	_game_viewport.add_child(_player)
 	_player.setup(ship, loadout, _projectiles)
 	_player.position = Vector2(960, 580)
+	if _player._engine_exhaust:
+		_player._engine_exhaust.scroll_speed = _scroll_speed
 	_player.died.connect(_on_player_died)
 	_player.died_during_power_loss.connect(_on_player_died_during_power_loss)
 	_player.hull_hit_during_power_loss.connect(func(): trigger_screen_shake(4.0, 0.2))

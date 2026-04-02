@@ -61,8 +61,7 @@ text = "CHANGE SHIP"
 
 [node name="CrewButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-disabled = true
-text = "CREW"
+text = "UPGRADES"
 
 [node name="BackButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2

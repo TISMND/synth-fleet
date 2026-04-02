@@ -30,7 +30,7 @@ func _on_loadout() -> void:
 
 
 func _on_crew() -> void:
-	pass  # Greyed out for demo
+	get_tree().change_scene_to_file("res://scenes/ui/upgrade_screen.tscn")
 
 
 func _on_audio_mix() -> void:
