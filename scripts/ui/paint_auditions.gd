@@ -1,15 +1,15 @@
 extends MarginContainer
-## Paint pattern auditions — grid of hull paint patterns on a static Stiletto (STEALTH skin).
+## Details auditions — Paint patterns and Lighting patterns on a static Stiletto (STEALTH skin).
+## Paint = flat color on hull panels. Lighting = hull patterns that pulse from off to glowing HDR.
 
 const CELL_W: int = 180
 const CELL_H: int = 200
 const COLS: int = 6
 const SHIP_POS := Vector2(90.0, 105.0)
-const PAINT_COL := Color(0.85, 0.08, 0.08, 0.92)
 
 var _hull: PackedVector2Array
 var _exclusions: Array[PackedVector2Array] = []
-var _viewports: Array[SubViewport] = []
+var _static_viewports: Array[SubViewport] = []
 
 
 func _ready() -> void:
@@ -26,25 +26,29 @@ func _ready() -> void:
 		Vector2(-5 * s, -6 * s), Vector2(-7 * s, -14 * s),
 	]))
 
-	# Detail lines (TERTIARY) — facet edges, generous hw for clean cutout
+	# Trim lines (TERTIARY) — facet edges
 	var dhw := 2.0
-	_exclusions.append(_thick_line(Vector2(0, -32 * s), Vector2(14 * s, -12 * s), dhw))
-	_exclusions.append(_thick_line(Vector2(0, -32 * s), Vector2(-14 * s, -12 * s), dhw))
-	_exclusions.append(_thick_line(Vector2(14 * s, -12 * s), Vector2(10 * s, 24 * s), dhw))
-	_exclusions.append(_thick_line(Vector2(-14 * s, -12 * s), Vector2(-10 * s, 24 * s), dhw))
-	_exclusions.append(_thick_line(Vector2(-14 * s, -12 * s), Vector2(-7 * s, -12 * s), dhw))
-	_exclusions.append(_thick_line(Vector2(7 * s, -12 * s), Vector2(14 * s, -12 * s), dhw))
+	for td in [
+		[Vector2(0, -32 * s), Vector2(14 * s, -12 * s)],
+		[Vector2(0, -32 * s), Vector2(-14 * s, -12 * s)],
+		[Vector2(14 * s, -12 * s), Vector2(10 * s, 24 * s)],
+		[Vector2(-14 * s, -12 * s), Vector2(-10 * s, 24 * s)],
+		[Vector2(-14 * s, -12 * s), Vector2(-7 * s, -12 * s)],
+		[Vector2(7 * s, -12 * s), Vector2(14 * s, -12 * s)],
+	] as Array[Array]:
+		_exclusions.append(_thick_line(td[0] as Vector2, td[1] as Vector2, dhw))
 
-	# Accent line (SECONDARY) — spine
+	# Structure (SECONDARY) — spine
 	_exclusions.append(_thick_line(Vector2(0, -6 * s), Vector2(0, 20 * s), 2.5))
 
 	# Engine exhausts
 	_exclusions.append(_thick_line(Vector2(-4 * s, 22 * s), Vector2(-4 * s, 30 * s), 3.0))
 	_exclusions.append(_thick_line(Vector2(4 * s, 22 * s), Vector2(4 * s, 30 * s), 3.0))
+
 	_build_ui()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	for vp in _viewports:
+	for vp in _static_viewports:
 		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 
 
@@ -56,7 +60,7 @@ func _build_ui() -> void:
 	add_child(main)
 
 	var header := Label.new()
-	header.text = "PAINT PATTERNS — Stiletto (STEALTH skin)    Red = painted area"
+	header.text = "DETAILS — Stiletto (STEALTH skin)"
 	ThemeManager.apply_text_glow(header, "header")
 	main.add_child(header)
 
@@ -65,18 +69,47 @@ func _build_ui() -> void:
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main.add_child(scroll)
 
-	var grid := GridContainer.new()
-	grid.columns = COLS
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(grid)
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 12)
+	scroll.add_child(content)
 
-	for p in _get_patterns():
-		grid.add_child(_make_cell(p))
+	# ── PAINT section ──
+	var paint_header := Label.new()
+	paint_header.text = "PAINT — flat color on hull panels    (excludes canopy, structure, trim)"
+	ThemeManager.apply_text_glow(paint_header, "header")
+	content.add_child(paint_header)
+
+	var paint_grid := GridContainer.new()
+	paint_grid.columns = COLS
+	paint_grid.add_theme_constant_override("h_separation", 8)
+	paint_grid.add_theme_constant_override("v_separation", 8)
+	paint_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_child(paint_grid)
+
+	for p in _get_paint_patterns():
+		paint_grid.add_child(_make_paint_cell(p))
+
+	# ── LIGHTING section ──
+	var light_header := Label.new()
+	light_header.text = "LIGHTING — hull patterns pulsing from off to glowing yellow"
+	ThemeManager.apply_text_glow(light_header, "header")
+	content.add_child(light_header)
+
+	var light_grid := GridContainer.new()
+	light_grid.columns = COLS
+	light_grid.add_theme_constant_override("h_separation", 8)
+	light_grid.add_theme_constant_override("v_separation", 8)
+	light_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_child(light_grid)
+
+	for l in _get_light_patterns():
+		light_grid.add_child(_make_light_cell(l))
 
 
-func _make_cell(pattern: Dictionary) -> VBoxContainer:
+# ── Cell builders ──────────────────────────────────────────────────────
+
+func _make_paint_cell(pattern: Dictionary) -> VBoxContainer:
 	var cell := VBoxContainer.new()
 	cell.add_theme_constant_override("separation", 2)
 
@@ -90,7 +123,7 @@ func _make_cell(pattern: Dictionary) -> VBoxContainer:
 	vp.transparent_bg = false
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	vpc.add_child(vp)
-	_viewports.append(vp)
+	_static_viewports.append(vp)
 
 	var bg := ColorRect.new()
 	bg.color = Color(0.02, 0.02, 0.04, 1.0)
@@ -108,6 +141,53 @@ func _make_cell(pattern: Dictionary) -> VBoxContainer:
 	overlay.hull_poly = _hull
 	overlay.exclusion_polys = _exclusions
 	overlay.paint_shapes = _gen_shapes(pattern)
+	overlay.z_index = 2
+	vp.add_child(overlay)
+
+	var lbl := Label.new()
+	lbl.text = String(pattern.name)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.custom_minimum_size.x = CELL_W
+	lbl.add_theme_font_size_override("font_size", 11)
+	ThemeManager.apply_text_glow(lbl, "body")
+	cell.add_child(lbl)
+
+	return cell
+
+
+func _make_light_cell(pattern: Dictionary) -> VBoxContainer:
+	var cell := VBoxContainer.new()
+	cell.add_theme_constant_override("separation", 2)
+
+	var vpc := SubViewportContainer.new()
+	vpc.stretch = true
+	vpc.custom_minimum_size = Vector2(CELL_W, CELL_H)
+	cell.add_child(vpc)
+
+	var vp := SubViewport.new()
+	vp.size = Vector2i(CELL_W, CELL_H)
+	vp.transparent_bg = false
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vpc.add_child(vp)
+	VFXFactory.add_bloom_to_viewport(vp)
+	# Lighting viewports stay UPDATE_ALWAYS for the pulse animation
+
+	var bg := ColorRect.new()
+	bg.color = Color(0.02, 0.02, 0.04, 1.0)
+	bg.size = Vector2(CELL_W, CELL_H)
+	vp.add_child(bg)
+
+	var ship := ShipRenderer.new()
+	ship.ship_id = 4
+	ship.render_mode = ShipRenderer.RenderMode.STEALTH
+	ship.position = SHIP_POS
+	vp.add_child(ship)
+
+	var overlay := _LightOverlay.new()
+	overlay.position = SHIP_POS
+	overlay.hull_poly = _hull
+	overlay.exclusion_polys = _exclusions
+	overlay.light_shapes = _gen_shapes(pattern)
 	overlay.z_index = 2
 	vp.add_child(overlay)
 
@@ -145,7 +225,7 @@ func _thick_line(a: Vector2, b: Vector2, hw: float) -> PackedVector2Array:
 	return PackedVector2Array([a + n * hw, b + n * hw, b - n * hw, a - n * hw])
 
 
-# ── Pattern shape generators ──────────────────────────────────────────
+# ── Shape generators (shared by paint and lighting) ───────────────────
 
 func _gen_shapes(pattern: Dictionary) -> Array[PackedVector2Array]:
 	var shapes: Array[PackedVector2Array] = []
@@ -198,7 +278,6 @@ func _gen_shapes(pattern: Dictionary) -> Array[PackedVector2Array]:
 				shapes.append(_thick_line(Vector2(0, yf), Vector2(spread, yf + dy), hw))
 
 		"wing_check":
-			# Fine checker only on the outer wing areas
 			var sz: float = p.get("size", 6.0)
 			var wing_left := _rect(-60, -60, -10, 60)
 			var wing_right := _rect(10, -60, 60, 60)
@@ -206,11 +285,9 @@ func _gen_shapes(pattern: Dictionary) -> Array[PackedVector2Array]:
 				for iy in range(-9, 7):
 					if (ix + iy) % 2 == 0:
 						var tile := _rect(ix * sz, iy * sz, (ix + 1) * sz, (iy + 1) * sz)
-						# Clip tile to left wing region
 						var left_clip := Geometry2D.intersect_polygons(tile, wing_left)
 						for lp in left_clip:
 							shapes.append(lp)
-						# Clip tile to right wing region
 						var right_clip := Geometry2D.intersect_polygons(tile, wing_right)
 						for rp in right_clip:
 							shapes.append(rp)
@@ -234,12 +311,10 @@ func _gen_shapes(pattern: Dictionary) -> Array[PackedVector2Array]:
 
 # ── Pattern definitions ────────────────────────────────────────────────
 
-func _get_patterns() -> Array[Dictionary]:
+func _get_paint_patterns() -> Array[Dictionary]:
 	var pats: Array[Dictionary] = []
-
 	pats.append({name = "CENTER STRIPE", type = "vstripe", params = {x = 0.0, w = 6.0}})
 	pats.append({name = "WIDE BAND", type = "vstripe", params = {x = 0.0, w = 18.0}})
-	pats.append({name = "TWIN RACING", type = "vstripes", params = {positions = [-8, 8], w = 4.0}})
 	pats.append({name = "TRIPLE LINE", type = "vstripes", params = {positions = [-14, 0, 14], w = 3.0}})
 	pats.append({name = "NOSE CAP", type = "hband", params = {y1 = -50.0, y2 = -20.0}})
 	pats.append({name = "TAIL BAND", type = "hband", params = {y1 = 15.0, y2 = 35.0}})
@@ -247,18 +322,23 @@ func _get_patterns() -> Array[Dictionary]:
 	pats.append({name = "DIAG LEFT", type = "diagonal", params = {angle = -0.6, w = 10.0}})
 	pats.append({name = "DIAG RIGHT", type = "diagonal", params = {angle = 0.6, w = 10.0}})
 	pats.append({name = "CHEVRON", type = "chevron", params = {y = -5.0, w = 5.0, spread = 32.0}})
-	pats.append({name = "DOUBLE CHEVRON", type = "chevrons", params = {ys = [-15, 8], w = 4.0, spread = 26.0}})
-	pats.append({name = "STACKED V", type = "chevrons", params = {ys = [-28, -14, 0, 14], w = 3.0, spread = 20.0}})
-	pats.append({name = "TIGHT CHEVRONS", type = "chevrons", params = {ys = [-20, -10, 0, 10, 20], w = 2.0, spread = 16.0}})
 	pats.append({name = "WING CHECK", type = "wing_check", params = {size = 6.0}})
 	pats.append({name = "WING TIPS", type = "wing_tips"})
 	pats.append({name = "WEDGE", type = "wedge"})
 	pats.append({name = "STARBURST", type = "starburst"})
-
 	return pats
 
 
-# ── Paint overlay node ─────────────────────────────────────────────────
+func _get_light_patterns() -> Array[Dictionary]:
+	var pats: Array[Dictionary] = []
+	pats.append({name = "TWIN RACING", type = "vstripes", params = {positions = [-8, 8], w = 4.0}})
+	pats.append({name = "DOUBLE CHEVRON", type = "chevrons", params = {ys = [-15, 8], w = 4.0, spread = 26.0}})
+	pats.append({name = "STACKED V", type = "chevrons", params = {ys = [-28, -14, 0, 14], w = 3.0, spread = 20.0}})
+	pats.append({name = "TIGHT CHEVRONS", type = "chevrons", params = {ys = [-20, -10, 0, 10, 20], w = 2.0, spread = 16.0}})
+	return pats
+
+
+# ── Paint overlay node (static) ───────────────────────────────────────
 
 class _PaintOverlay extends Node2D:
 	var hull_poly: PackedVector2Array
@@ -268,12 +348,10 @@ class _PaintOverlay extends Node2D:
 	func _draw() -> void:
 		var col := Color(0.85, 0.08, 0.08, 0.92)
 		for shape in paint_shapes:
-			# Clip to hull first
 			var current: Array[PackedVector2Array] = []
 			var hull_clipped := Geometry2D.intersect_polygons(shape, hull_poly)
 			for hp in hull_clipped:
 				current.append(hp)
-			# Cut out each exclusion zone (canopy, detail lines, accent, engines)
 			for excl in exclusion_polys:
 				var next: Array[PackedVector2Array] = []
 				for poly in current:
@@ -283,3 +361,52 @@ class _PaintOverlay extends Node2D:
 				current = next
 			for fpoly in current:
 				draw_colored_polygon(fpoly, col)
+
+
+# ── Lighting overlay node (animated pulse) ─────────────────────────────
+
+class _LightOverlay extends Node2D:
+	var hull_poly: PackedVector2Array
+	var exclusion_polys: Array[PackedVector2Array] = []
+	var light_shapes: Array[PackedVector2Array] = []
+	var _time: float = 0.0
+	var _clipped_polys: Array[PackedVector2Array] = []
+
+	const PULSE_PERIOD: float = 1.8
+	const YELLOW := Color(1.0, 0.85, 0.12)
+	const HDR_MULT: float = 2.5
+
+	func _ready() -> void:
+		# Pre-clip shapes once — they don't change
+		for shape in light_shapes:
+			var current: Array[PackedVector2Array] = []
+			var hull_clipped := Geometry2D.intersect_polygons(shape, hull_poly)
+			for hp in hull_clipped:
+				current.append(hp)
+			for excl in exclusion_polys:
+				var next_arr: Array[PackedVector2Array] = []
+				for poly in current:
+					var clipped := Geometry2D.clip_polygons(poly, excl)
+					for cp in clipped:
+						next_arr.append(cp)
+				current = next_arr
+			for fpoly in current:
+				_clipped_polys.append(fpoly)
+
+	func _process(delta: float) -> void:
+		_time += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		# Smooth pulse: 0 = off (dark), 1 = full HDR glow
+		var phase: float = fmod(_time, PULSE_PERIOD) / PULSE_PERIOD
+		var intensity: float = (sin(phase * TAU - PI * 0.5) + 1.0) * 0.5
+		if intensity < 0.01:
+			return
+
+		# HDR yellow — values > 1.0 bloom through the viewport environment
+		var hdr: float = intensity * HDR_MULT
+		var col := Color(YELLOW.r * hdr, YELLOW.g * hdr, YELLOW.b * hdr, intensity * 0.92)
+
+		for poly in _clipped_polys:
+			draw_colored_polygon(poly, col)

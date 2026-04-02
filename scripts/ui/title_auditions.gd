@@ -63,6 +63,12 @@ func _define_presets() -> void:
 	_p("Alumni Sans Pinstripe", "res://assets/fonts/AlumniSansPinstripe-Regular.ttf", 84)
 	_p("Saira Stencil One", "res://assets/fonts/SairaStencilOne-Regular.ttf", 72)
 
+	# ── DAFONT PICKS ────────────────────────────────────────────────
+	_p("Street Cred", "res://assets/fonts/StreetCred-Regular.otf", 72)
+	_p("Empire State", "res://assets/fonts/EmpireState-Regular.ttf", 72)
+	_p("Ethnocentric", "res://assets/fonts/Ethnocentric-Regular.otf", 64)
+	_p("Komodore", "res://assets/fonts/Komodore-Regular.ttf", 72)
+
 	# ── CURRENT MENU FONT (for comparison) ───────────────────────────
 	_p("Archivo Black (current)", "res://assets/fonts/ArchivoBlack-Regular.ttf", 72)
 

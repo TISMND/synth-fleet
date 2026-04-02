@@ -176,8 +176,8 @@ static func get_engine_offsets(id: int) -> Array[Vector2]:
 
 # ── Material classification ──
 ## Returns which material class a color represents based on which palette color it matches.
-## Ships draw polygons with hull_color (primary/A), accent_color (secondary/B),
-## detail_color (tertiary/C), or engine_color. Skins use this to decide treatment.
+## Ships draw polygons with hull_color (primary/hull), accent_color (secondary/structure),
+## detail_color (tertiary/trim), or engine_color. Skins use this to decide treatment.
 enum MatClass { PRIMARY, SECONDARY, TERTIARY, CANOPY, ENGINE, UNKNOWN }
 
 func _classify_material(color: Color) -> int:
@@ -3210,13 +3210,13 @@ func _get_bounds(points: PackedVector2Array) -> Array[float]:
 	return [min_x, max_x, min_y, max_y]
 
 
-# ── Debug materials (red=A/primary, blue=B/secondary, green=C/tertiary) ──
+# ── Debug materials (red=hull, blue=structure, green=trim) ──
 
 func _debug_mat_color(mat: int) -> Color:
 	match mat:
 		MatClass.PRIMARY: return Color(0.9, 0.15, 0.1)      # Red
-		MatClass.SECONDARY: return Color(0.1, 0.3, 0.9)     # Blue
-		MatClass.TERTIARY: return Color(0.1, 0.8, 0.2)      # Green
+		MatClass.SECONDARY: return Color(0.1, 0.3, 0.9)     # Blue — Structure
+		MatClass.TERTIARY: return Color(0.1, 0.8, 0.2)      # Green — Trim
 		MatClass.CANOPY: return Color(0.9, 0.7, 0.0)        # Yellow
 		MatClass.ENGINE: return Color(1.0, 0.5, 0.0)        # Orange
 		MatClass.UNKNOWN: return Color(0.9, 0.0, 0.9)       # Magenta

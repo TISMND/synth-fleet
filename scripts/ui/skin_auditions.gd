@@ -25,7 +25,7 @@ const SKIN_MODES: Array[int] = [
 	ShipRenderer.RenderMode.CAUTION,
 ]
 const SKIN_NAMES: Array[String] = [
-	"DEBUG: Red=Hull  Blue=Accent  Green=Detail  Yellow=Canopy  Orange=Engine  Magenta=Unknown",
+	"DEBUG: Red=Hull  Blue=Structure  Green=Trim  Yellow=Canopy  Orange=Engine  Magenta=Unknown",
 	"CHROME",
 	"STEALTH",
 	"MILITIA",

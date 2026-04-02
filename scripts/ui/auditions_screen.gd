@@ -114,7 +114,7 @@ func _build_ui() -> void:
 	header.add_child(_tab_skins_btn)
 
 	_tab_paint_btn = Button.new()
-	_tab_paint_btn.text = "PAINT"
+	_tab_paint_btn.text = "DETAILS"
 	_tab_paint_btn.toggle_mode = true
 	_tab_paint_btn.pressed.connect(func(): _switch_to_tab(7))
 	header.add_child(_tab_paint_btn)
