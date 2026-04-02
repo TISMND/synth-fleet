@@ -3,7 +3,7 @@ extends Node2D
 ## Full-size ship renderer with banking, chrome+neon modes, all ships.
 ## Extracted from ships_screen.gd _ShipDraw for reuse across the codebase.
 
-enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT, GUNMETAL, MILITIA, STEALTH }
+enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT, GUNMETAL, MILITIA, STEALTH, CAUTION }
 
 const CHROME_DARK := Color(0.12, 0.13, 0.18)
 const CHROME_MID := Color(0.35, 0.38, 0.45)
@@ -51,10 +51,10 @@ const GUNMETAL_DETAIL := Color(0.45, 0.47, 0.5)
 
 # Militia palette (dark army green)
 const MILITIA_HULL := Color(0.12, 0.18, 0.08)
-const MILITIA_ACCENT := Color(0.22, 0.28, 0.14)
+const MILITIA_ACCENT := Color(0.75, 0.78, 0.7)  # Off-white stencil marking
 const MILITIA_ENGINE := Color(0.7, 0.5, 0.15)
 const MILITIA_CANOPY := Color(0.08, 0.1, 0.05)
-const MILITIA_DETAIL := Color(0.3, 0.35, 0.2)
+const MILITIA_DETAIL := Color(0.35, 0.38, 0.25)
 
 # Stealth palette (matte black + blood red)
 const STEALTH_HULL := Color(0.1, 0.1, 0.12)
@@ -62,6 +62,12 @@ const STEALTH_ACCENT := Color(0.7, 0.05, 0.05)
 const STEALTH_ENGINE := Color(0.5, 0.08, 0.03)
 const STEALTH_CANOPY := Color(0.06, 0.06, 0.08)
 const STEALTH_DETAIL := Color(0.3, 0.08, 0.08)
+# Caution — construction yellow with black hazard stripes
+const CAUTION_HULL := Color(0.75, 0.6, 0.05)
+const CAUTION_ACCENT := Color(0.08, 0.08, 0.06)
+const CAUTION_ENGINE := Color(0.9, 0.7, 0.1)
+const CAUTION_CANOPY := Color(0.15, 0.12, 0.02)
+const CAUTION_DETAIL := Color(0.5, 0.4, 0.05)
 
 # Spore palette
 const SPORE_CORE := Color(0.0, 0.8, 0.5, 0.12)
@@ -79,8 +85,8 @@ var _chrome_mid := CHROME_MID
 var _chrome_light := CHROME_LIGHT
 var _chrome_bright := CHROME_BRIGHT
 var bank := 0.0
-var chrome_gleam_hdr: float = 1.0  # HDR multiplier for specular gleam (1.0 = no bloom)
-var chrome_edge_hdr: float = 1.0   # HDR multiplier for chrome rim edges
+var chrome_gleam_hdr: float = 1.35  # HDR multiplier for specular gleam
+var chrome_edge_hdr: float = 1.0    # HDR multiplier for chrome rim edges
 var ship_id := 0
 var render_mode: int = RenderMode.NEON
 var time := 0.0
@@ -181,6 +187,7 @@ func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
 		RenderMode.GUNMETAL: _draw_gunmetal_polygon(points, color, width)
 		RenderMode.MILITIA: _draw_militia_polygon(points, width)
 		RenderMode.STEALTH: _draw_stealth_polygon(points, width)
+		RenderMode.CAUTION: _draw_caution_polygon(points, width)
 		_: _draw_neon_polygon(points, color, width)
 
 func _circle(center: Vector2, radius: float, color: Color, width: float) -> void:
@@ -201,6 +208,9 @@ func _circle(center: Vector2, radius: float, color: Color, width: float) -> void
 		RenderMode.STEALTH:
 			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
 			_draw_stealth_polygon(pts, width)
+		RenderMode.CAUTION:
+			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
+			_draw_caution_polygon(pts, width)
 		_: _draw_neon_circle(center, radius, color, width)
 
 func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
@@ -214,6 +224,7 @@ func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
 		RenderMode.GUNMETAL: _draw_gunmetal_line(a, b, color, width)
 		RenderMode.MILITIA: _draw_militia_line(a, b, width)
 		RenderMode.STEALTH: _draw_stealth_line(a, b, width)
+		RenderMode.CAUTION: _draw_caution_line(a, b, width)
 		_: _draw_neon_line(a, b, color, width)
 
 ## Generate evenly-spaced points around a circle (for use with _poly).
@@ -331,6 +342,16 @@ func _apply_palette() -> void:
 			_chrome_mid = Color(0.09, 0.09, 0.11)
 			_chrome_light = Color(0.14, 0.14, 0.17)
 			_chrome_bright = Color(0.20, 0.20, 0.24)
+		RenderMode.CAUTION:
+			hull_color = CAUTION_HULL
+			accent_color = CAUTION_ACCENT
+			engine_color = CAUTION_ENGINE
+			canopy_color = CAUTION_CANOPY
+			detail_color = CAUTION_DETAIL
+			_chrome_dark = Color(0.3, 0.24, 0.02)
+			_chrome_mid = Color(0.55, 0.44, 0.04)
+			_chrome_light = Color(0.7, 0.56, 0.05)
+			_chrome_bright = Color(0.85, 0.68, 0.08)
 		_:
 			hull_color = Color(0.0, 0.9, 1.0)
 			accent_color = Color(1.0, 0.2, 0.6)
@@ -3086,6 +3107,79 @@ func _draw_stealth_polygon(points: PackedVector2Array, width: float) -> void:
 func _draw_stealth_line(a: Vector2, b: Vector2, width: float) -> void:
 	draw_line(a, b, Color(0.02, 0.02, 0.03), width * 1.2, true)
 	draw_line(a, b, STEALTH_DETAIL, width * 0.5, true)
+
+
+# ── Caution drawing helpers (construction yellow + black hazard stripes) ──
+
+func _draw_caution_polygon(points: PackedVector2Array, width: float) -> void:
+	if points.size() < 3:
+		return
+	# Base fill — bright safety yellow
+	draw_colored_polygon(points, CAUTION_HULL)
+
+	# Black diagonal hazard stripes (like caution tape)
+	var bounds := _get_bounds(points)
+	var min_x: float = bounds[0]
+	var max_x: float = bounds[1]
+	var min_y: float = bounds[2]
+	var max_y: float = bounds[3]
+	var stripe_spacing: float = 12.0
+	var stripe_w: float = 5.0
+	var y_pos: float = min_y - (max_x - min_x)  # Start early for diagonal coverage
+	while y_pos < max_y + stripe_w:
+		var stripe := PackedVector2Array([
+			Vector2(min_x - 5.0, y_pos),
+			Vector2(max_x + 5.0, y_pos + (max_x - min_x) * 0.6),
+			Vector2(max_x + 5.0, y_pos + (max_x - min_x) * 0.6 + stripe_w),
+			Vector2(min_x - 5.0, y_pos + stripe_w),
+		])
+		var clips: Array = Geometry2D.intersect_polygons(points, stripe)
+		for ci in range(clips.size()):
+			var clip: PackedVector2Array = clips[ci]
+			if clip.size() >= 3:
+				draw_colored_polygon(clip, Color(CAUTION_ACCENT, 0.7))
+		y_pos += stripe_spacing
+
+	# Panel edges — dark outline
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		draw_line(points[i], points[ni], Color(0.05, 0.05, 0.03), width * 1.5, true)
+
+	# Subtle top gradient highlight
+	var highlight_h: float = (max_y - min_y) * 0.35
+	var grad := PackedVector2Array([
+		Vector2(min_x - 5.0, min_y - 5.0),
+		Vector2(max_x + 5.0, min_y - 5.0),
+		Vector2(max_x + 5.0, min_y + highlight_h),
+		Vector2(min_x - 5.0, min_y + highlight_h),
+	])
+	var grad_clips: Array = Geometry2D.intersect_polygons(points, grad)
+	for gi in range(grad_clips.size()):
+		var gclip: PackedVector2Array = grad_clips[gi]
+		if gclip.size() >= 3:
+			draw_colored_polygon(gclip, Color(1.0, 1.0, 1.0, 0.06))
+
+
+func _draw_caution_line(a: Vector2, b: Vector2, width: float) -> void:
+	# Dark border
+	draw_line(a, b, Color(0.05, 0.05, 0.03), width * 1.5, true)
+	# Yellow core
+	draw_line(a, b, CAUTION_HULL, width, true)
+	# Black accent stripe through center
+	draw_line(a, b, Color(CAUTION_ACCENT, 0.4), width * 0.3, true)
+
+
+func _get_bounds(points: PackedVector2Array) -> Array[float]:
+	var min_x: float = points[0].x
+	var max_x: float = points[0].x
+	var min_y: float = points[0].y
+	var max_y: float = points[0].y
+	for pt in points:
+		min_x = minf(min_x, pt.x)
+		max_x = maxf(max_x, pt.x)
+		min_y = minf(min_y, pt.y)
+		max_y = maxf(max_y, pt.y)
+	return [min_x, max_x, min_y, max_y]
 
 
 # ── Neon drawing helpers ──
