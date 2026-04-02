@@ -49,39 +49,22 @@ func _p(label: String, font_path: String, size: int) -> void:
 
 
 func _define_presets() -> void:
-	# ── PREVIOUS WINNERS ─────────────────────────────────────────────
-	_p("Black Ops One", "res://assets/fonts/BlackOpsOne-Regular.ttf", 72)
-	_p("Quantico Bold", "res://assets/fonts/Quantico-Bold.ttf", 72)
-	_p("Stalinist One", "res://assets/fonts/StalinistOne-Regular.ttf", 58)
+	# ── HORIZONTAL SLATS — multi-line parallel stripes ───────────────
+	_p("Monoton", "res://assets/fonts/Monoton-Regular.ttf", 72)
+	_p("Team", "res://assets/fonts/Team-Regular.otf", 72)
 
-	# ── ROUND 2 FONTS ────────────────────────────────────────────────
-	_p("Tourney", "res://assets/fonts/Tourney.ttf", 72)
-	_p("Oxanium", "res://assets/fonts/Oxanium.ttf", 72)
-	_p("Michroma", "res://assets/fonts/Michroma-Regular.ttf", 56)
-	_p("Electrolize", "res://assets/fonts/Electrolize-Regular.ttf", 72)
-	_p("Wallpoet", "res://assets/fonts/Wallpoet-Regular.ttf", 68)
-	_p("Squada One", "res://assets/fonts/SquadaOne-Regular.ttf", 84)
-	_p("Chakra Petch Bold", "res://assets/fonts/ChakraPetch-Bold.ttf", 72)
-	_p("Kenia", "res://assets/fonts/Kenia-Regular.ttf", 72)
+	# ── INLINE — single horizontal cut through letters ───────────────
+	_p("Bungee Inline", "res://assets/fonts/BungeeInline-Regular.ttf", 76)
+	_p("Big Shoulders Inline", "res://assets/fonts/BigShouldersInline-Regular.ttf", 76)
+	_p("Fascinate Inline", "res://assets/fonts/FascinateInline-Regular.ttf", 72)
 
-	# ── NEW ROUND 3 FONTS — 80s / retro / action ────────────────────
-	_p("Anton", "res://assets/fonts/Anton-Regular.ttf", 80)
-	_p("Kanit Black", "res://assets/fonts/Kanit-Black.ttf", 72)
-	_p("Racing Sans One", "res://assets/fonts/RacingSansOne-Regular.ttf", 72)
-	_p("Fugaz One", "res://assets/fonts/FugazOne-Regular.ttf", 72)
-	_p("Secular One", "res://assets/fonts/SecularOne-Regular.ttf", 72)
-	_p("Archivo Black", "res://assets/fonts/ArchivoBlack-Regular.ttf", 72)
-	_p("Black Han Sans", "res://assets/fonts/BlackHanSans-Regular.ttf", 80)
-	_p("Saira Extra Condensed Black", "res://assets/fonts/SairaExtraCondensed-Black.ttf", 88)
-	_p("Bruno Ace", "res://assets/fonts/BrunoAce-Regular.ttf", 60)
-	_p("Passion One Black", "res://assets/fonts/PassionOne-Black.ttf", 76)
-	_p("Rajdhani Bold", "res://assets/fonts/Rajdhani-Bold.ttf", 80)
-	_p("Khand Bold", "res://assets/fonts/Khand-Bold.ttf", 80)
+	# ── STRIPED / STENCIL — horizontal gaps and speed lines ──────────
+	_p("Faster One", "res://assets/fonts/FasterOne-Regular.ttf", 68)
+	_p("Alumni Sans Pinstripe", "res://assets/fonts/AlumniSansPinstripe-Regular.ttf", 84)
+	_p("Saira Stencil One", "res://assets/fonts/SairaStencilOne-Regular.ttf", 72)
 
-	# ── ORIGINAL FONTS (for comparison) ──────────────────────────────
-	_p("Bungee", "res://assets/fonts/Bungee-Regular.ttf", 76)
-	_p("Orbitron", "res://assets/fonts/Orbitron.ttf", 72)
-	_p("RussoOne", "res://assets/fonts/RussoOne-Regular.ttf", 76)
+	# ── CURRENT MENU FONT (for comparison) ───────────────────────────
+	_p("Archivo Black (current)", "res://assets/fonts/ArchivoBlack-Regular.ttf", 72)
 
 
 func _build_ui() -> void:
@@ -92,7 +75,7 @@ func _build_ui() -> void:
 	add_child(main)
 
 	var header := Label.new()
-	header.text = "TITLE STYLES — MIDNIGHT ICE"
+	header.text = "TITLE STYLES — HORIZONTAL SLATS"
 	ThemeManager.apply_text_glow(header, "header")
 	main.add_child(header)
 

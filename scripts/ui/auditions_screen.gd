@@ -26,6 +26,8 @@ var _headsup_content: MarginContainer
 var _title_content: MarginContainer
 var _tab_skins_btn: Button
 var _skins_content: MarginContainer
+var _tab_paint_btn: Button
+var _paint_content: MarginContainer
 var _event_trigger_buttons: Dictionary = {}
 
 
@@ -111,6 +113,12 @@ func _build_ui() -> void:
 	_tab_skins_btn.pressed.connect(func(): _switch_to_tab(6))
 	header.add_child(_tab_skins_btn)
 
+	_tab_paint_btn = Button.new()
+	_tab_paint_btn.text = "PAINT"
+	_tab_paint_btn.toggle_mode = true
+	_tab_paint_btn.pressed.connect(func(): _switch_to_tab(7))
+	header.add_child(_tab_paint_btn)
+
 	# Warp content — two tall viewports side by side
 	_warp_content = HBoxContainer.new()
 	_warp_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -162,6 +170,13 @@ func _build_ui() -> void:
 	_skins_content.visible = false
 	main_vbox.add_child(_skins_content)
 
+	var PaintScript: GDScript = load("res://scripts/ui/paint_auditions.gd")
+	_paint_content = PaintScript.new()
+	_paint_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_paint_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_paint_content.visible = false
+	main_vbox.add_child(_paint_content)
+
 	_setup_vhs_overlay()
 
 
@@ -175,6 +190,7 @@ func _switch_to_tab(idx: int) -> void:
 			4: _tab_headsup_btn.button_pressed = true
 			5: _tab_title_btn.button_pressed = true
 			6: _tab_skins_btn.button_pressed = true
+			7: _tab_paint_btn.button_pressed = true
 		return
 	_active_tab = idx
 	_tab_warp_btn.button_pressed = (idx == 0)
@@ -184,6 +200,7 @@ func _switch_to_tab(idx: int) -> void:
 	_tab_headsup_btn.button_pressed = (idx == 4)
 	_tab_title_btn.button_pressed = (idx == 5)
 	_tab_skins_btn.button_pressed = (idx == 6)
+	_tab_paint_btn.button_pressed = (idx == 7)
 	_warp_content.visible = (idx == 0)
 	_events_content.visible = (idx == 1)
 	_items_content.visible = (idx == 2)
@@ -191,6 +208,7 @@ func _switch_to_tab(idx: int) -> void:
 	_headsup_content.visible = (idx == 4)
 	_title_content.visible = (idx == 5)
 	_skins_content.visible = (idx == 6)
+	_paint_content.visible = (idx == 7)
 
 
 func _build_warp_panels() -> void:
@@ -290,6 +308,8 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_tab_title_btn)
 	if _tab_skins_btn:
 		ThemeManager.apply_button_style(_tab_skins_btn)
+	if _tab_paint_btn:
+		ThemeManager.apply_button_style(_tab_paint_btn)
 	if _title_label:
 		ThemeManager.apply_text_glow(_title_label, "header")
 		_title_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
