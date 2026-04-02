@@ -24,6 +24,7 @@ static func load_config() -> Dictionary:
 		_cache = {
 			"shard_scale": float(d.get("shard_scale", 32.0)),
 			"coin_scale": float(d.get("coin_scale", 32.0)),
+			"pickup_radius": float(d.get("pickup_radius", 16.0)),
 		}
 	else:
 		_cache = _defaults()
@@ -48,5 +49,10 @@ static func get_scale_for_item(item: ItemData) -> float:
 	return float(cfg.get("shard_scale", 32.0))
 
 
+static func get_pickup_radius() -> float:
+	var cfg: Dictionary = load_config()
+	return float(cfg.get("pickup_radius", 16.0))
+
+
 static func _defaults() -> Dictionary:
-	return {"shard_scale": 32.0, "coin_scale": 32.0}
+	return {"shard_scale": 32.0, "coin_scale": 32.0, "pickup_radius": 16.0}

@@ -1,9 +1,9 @@
 shader_type canvas_item;
-// Aggressive 80s chrome title shader.
-// Multi-band metallic gradient, horizontal line texture, edge bevel,
-// drop shadow, and animated gleam sweep.
+// Enhanced 80s chrome title shader with 3D depth effects.
+// Builds on title_chrome with: inner grooves, depth extrusion,
+// specular highlights, surface texture, and improved gleam.
 
-// Chrome gradient bands — classic 80s pattern is dark-bright-dark-bright-dark
+// Chrome gradient bands
 uniform vec4 chrome_color_top : source_color = vec4(0.08, 0.12, 0.18, 1.0);
 uniform vec4 chrome_color_highlight1 : source_color = vec4(0.85, 0.9, 1.0, 1.0);
 uniform vec4 chrome_color_mid : source_color = vec4(0.15, 0.2, 0.3, 1.0);
@@ -40,6 +40,29 @@ uniform float gleam_width : hint_range(0.02, 0.3) = 0.08;
 uniform float gleam_intensity : hint_range(0.0, 3.0) = 1.5;
 uniform float gleam_angle : hint_range(-1.0, 1.0) = 0.3;
 
+// ── NEW: 3D depth features ──────────────────────────────────────────
+
+// Inner groove — darkened inset edge for engraved/chiseled look
+uniform float groove_strength : hint_range(0.0, 2.0) = 0.0;
+uniform float groove_size : hint_range(0.5, 6.0) = 2.0;
+uniform vec4 groove_color : source_color = vec4(0.0, 0.0, 0.08, 1.0);
+
+// Depth extrusion — stacked shadow copies for 3D thickness
+uniform float extrusion_depth : hint_range(0.0, 8.0) = 0.0;
+uniform float extrusion_angle : hint_range(-3.14, 3.14) = 0.785; // ~45 degrees
+uniform vec4 extrusion_color : source_color = vec4(0.02, 0.04, 0.12, 1.0);
+
+// Specular band — bright horizontal stripe for direct light reflection
+uniform float specular_enabled : hint_range(0.0, 1.0) = 0.0;
+uniform float specular_pos : hint_range(0.0, 1.0) = 0.35;
+uniform float specular_width : hint_range(0.005, 0.15) = 0.03;
+uniform float specular_intensity : hint_range(0.0, 4.0) = 2.0;
+uniform vec4 specular_color : source_color = vec4(0.8, 0.9, 1.0, 1.0);
+
+// Surface texture — brushed metal noise
+uniform float surface_noise : hint_range(0.0, 1.0) = 0.0;
+uniform float surface_scale : hint_range(10.0, 500.0) = 120.0;
+
 // Overall
 uniform float hdr_boost : hint_range(1.0, 4.0) = 1.2;
 
@@ -49,10 +72,42 @@ void vertex() {
 	vert_color = COLOR;
 }
 
+// Simple hash for brushed metal noise
+float hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float brushed_noise(vec2 uv, float scale) {
+	// Stretch horizontally for brushed-metal look
+	vec2 p = vec2(uv.x * scale * 0.3, uv.y * scale);
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	float a = hash(i);
+	float b = hash(i + vec2(1.0, 0.0));
+	float c = hash(i + vec2(0.0, 1.0));
+	float d = hash(i + vec2(1.0, 1.0));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
 void fragment() {
 	vec2 ps = SCREEN_PIXEL_SIZE;
 	vec4 tex = texture(TEXTURE, UV);
 	float base_alpha = tex.a * vert_color.a;
+
+	// ── Depth extrusion (rendered behind everything) ────────────────
+	float extrusion_alpha = 0.0;
+	if (extrusion_depth > 0.1) {
+		vec2 extrude_dir = vec2(cos(extrusion_angle), sin(extrusion_angle)) * ps;
+		int steps = int(ceil(extrusion_depth));
+		for (int i = 1; i <= steps; i++) {
+			float fi = float(i);
+			if (fi > extrusion_depth) break;
+			vec2 off = extrude_dir * fi;
+			float s = texture(TEXTURE, UV - off).a;
+			extrusion_alpha = max(extrusion_alpha, s);
+		}
+	}
 
 	// ── Drop shadow ─────────────────────────────────────────────────
 	float shadow_alpha = 0.0;
@@ -81,19 +136,32 @@ void fragment() {
 	float edge_light = 0.0;
 	float edge_dark = 0.0;
 	if (bevel_strength > 0.01) {
-		// Sample neighbors to detect edges
 		float a_left  = texture(TEXTURE, UV + vec2(-bevel_size * ps.x, 0.0)).a;
 		float a_right = texture(TEXTURE, UV + vec2( bevel_size * ps.x, 0.0)).a;
 		float a_up    = texture(TEXTURE, UV + vec2(0.0, -bevel_size * ps.y)).a;
 		float a_down  = texture(TEXTURE, UV + vec2(0.0,  bevel_size * ps.y)).a;
 
-		// Light comes from top-left
 		edge_light = clamp((base_alpha - a_right) + (base_alpha - a_down), 0.0, 1.0);
 		edge_dark  = clamp((base_alpha - a_left) + (base_alpha - a_up), 0.0, 1.0);
-		// Only on edges (where alpha gradient exists)
 		float edge_mask = clamp(abs(a_left - a_right) + abs(a_up - a_down), 0.0, 1.0);
 		edge_light *= edge_mask;
 		edge_dark *= edge_mask;
+	}
+
+	// ── Inner groove detection ──────────────────────────────────────
+	float groove_factor = 0.0;
+	if (groove_strength > 0.01 && base_alpha > 0.5) {
+		// Sample at inset positions — where alpha drops off we're near inner edge
+		float g_samples = 0.0;
+		for (int i = 0; i < 8; i++) {
+			float angle = float(i) * 0.785398; // PI/4 increments
+			vec2 off = vec2(cos(angle), sin(angle)) * groove_size * ps;
+			float s = texture(TEXTURE, UV + off).a;
+			g_samples += (1.0 - s);
+		}
+		groove_factor = clamp(g_samples / 8.0, 0.0, 1.0);
+		// Sharpen the groove to a ring rather than a gradient
+		groove_factor = smoothstep(0.05, 0.4, groove_factor);
 	}
 
 	// ── Multi-band chrome gradient ──────────────────────────────────
@@ -122,8 +190,13 @@ void fragment() {
 	// ── Horizontal line texture ─────────────────────────────────────
 	if (line_density > 0.01 && line_strength > 0.001) {
 		float lines = sin(y * line_density * 3.14159 * 2.0) * 0.5 + 0.5;
-		// Hard contrast: darken troughs, brighten peaks
 		chrome *= mix(1.0 - line_strength, 1.0 + line_strength * 0.6, lines);
+	}
+
+	// ── Surface noise (brushed metal) ───────────────────────────────
+	if (surface_noise > 0.001) {
+		float noise = brushed_noise(UV, surface_scale);
+		chrome *= mix(1.0, 0.7 + 0.6 * noise, surface_noise);
 	}
 
 	// ── Apply bevel ─────────────────────────────────────────────────
@@ -131,22 +204,32 @@ void fragment() {
 	chrome -= bevel_shadow_color.rgb * edge_dark * bevel_strength * 0.5;
 	chrome = max(chrome, vec3(0.0));
 
+	// ── Apply inner groove ──────────────────────────────────────────
+	if (groove_strength > 0.01) {
+		chrome = mix(chrome, groove_color.rgb, groove_factor * groove_strength);
+	}
+
+	// ── Specular band ───────────────────────────────────────────────
+	if (specular_enabled > 0.5 && base_alpha > 0.5) {
+		float spec_dist = abs(y - specular_pos);
+		float spec = exp(-spec_dist * spec_dist / max(specular_width * specular_width, 0.0001));
+		chrome += specular_color.rgb * spec * specular_intensity;
+	}
+
 	// ── Animated gleam sweep ────────────────────────────────────────
 	// Sweeps left-to-right starting at the first letter, with fade-in
-	// so it doesn't pop on. Hard left-edge mask kills the Gaussian tail.
+	// so it doesn't pop on. Hard edge masks kill the Gaussian tails.
 	if (gleam_enabled > 0.5) {
 		float cycle = fract(TIME * gleam_speed);
 		// Sweep occupies first 1/3 of cycle, pause for remaining 2/3
 		float sweep_t = clamp(cycle * 3.0, 0.0, 1.0);
 		sweep_t = sweep_t * sweep_t * (3.0 - 2.0 * sweep_t);
-		// Sweep from left edge to right edge of UV space
 		float sweep_pos = mix(0.0, 1.0, sweep_t);
 		float gleam_x = UV.x + UV.y * gleam_angle;
 		float gleam = exp(-pow((gleam_x - sweep_pos) / max(gleam_width, 0.001), 2.0));
 		// Hard mask: only show gleam where sweep has already passed
-		// This kills the leading Gaussian tail so it reveals like a wipe
 		gleam *= smoothstep(sweep_pos - gleam_width * 2.0, sweep_pos, gleam_x);
-		// Also mask the trailing tail so it doesn't linger behind
+		// Mask trailing tail so it doesn't linger behind
 		gleam *= 1.0 - smoothstep(sweep_pos, sweep_pos + gleam_width * 3.0, gleam_x);
 		// Fade in at cycle start so it doesn't pop on
 		float fade_in = smoothstep(0.0, 0.06, cycle);
@@ -158,11 +241,17 @@ void fragment() {
 	// ── HDR boost ───────────────────────────────────────────────────
 	chrome *= hdr_boost;
 
-	// ── Composite: shadow behind, chrome text on top ────────────────
-	vec3 final_col = shadow_color.rgb * shadow_alpha * shadow_color.a;
-	float final_alpha = shadow_alpha * shadow_color.a;
+	// ── Composite: extrusion behind shadow behind chrome text ───────
+	// Start with extrusion
+	vec3 final_col = extrusion_color.rgb * extrusion_alpha;
+	float final_alpha = extrusion_alpha;
 
-	// Blend chrome text on top
+	// Shadow on top of extrusion
+	float sa = shadow_alpha * shadow_color.a;
+	final_col = mix(final_col, shadow_color.rgb, sa * (1.0 - final_alpha) + sa * final_alpha);
+	final_alpha = clamp(final_alpha + sa, 0.0, 1.0);
+
+	// Chrome text on top
 	final_col = mix(final_col, chrome, base_alpha);
 	final_alpha = clamp(final_alpha + base_alpha, 0.0, 1.0);
 

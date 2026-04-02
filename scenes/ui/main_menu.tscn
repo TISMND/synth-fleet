@@ -1,8 +1,8 @@
 [gd_scene load_steps=4 format=3 uid="uid://main_menu"]
 
 [ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1"]
-[ext_resource type="FontFile" path="res://assets/fonts/ArchivoBlack-Regular.ttf" id="2"]
-[ext_resource type="Shader" path="res://assets/shaders/title_chrome.gdshader" id="3"]
+[ext_resource type="FontFile" path="res://assets/fonts/Ethnocentric-Regular.otf" id="2"]
+[ext_resource type="Shader" path="res://assets/shaders/title_chrome_3d.gdshader" id="3"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -29,7 +29,7 @@ offset_top = 120.0
 offset_right = 1920.0
 offset_bottom = 280.0
 theme_override_fonts/font = ExtResource("2")
-theme_override_font_sizes/font_size = 110
+theme_override_font_sizes/font_size = 90
 text = "SYNTHERION"
 horizontal_alignment = 1
 

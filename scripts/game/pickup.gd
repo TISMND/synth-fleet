@@ -17,7 +17,7 @@ func _ready() -> void:
 
 	var col := CollisionShape2D.new()
 	var shape := CircleShape2D.new()
-	shape.radius = 16.0
+	shape.radius = CurrencyConfigManager.get_pickup_radius()
 	col.shape = shape
 	add_child(col)
 

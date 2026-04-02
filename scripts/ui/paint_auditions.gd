@@ -159,37 +159,56 @@ func _make_light_cell(pattern: Dictionary) -> VBoxContainer:
 	var cell := VBoxContainer.new()
 	cell.add_theme_constant_override("separation", 2)
 
-	var vpc := SubViewportContainer.new()
-	vpc.stretch = true
-	vpc.custom_minimum_size = Vector2(CELL_W, CELL_H)
-	cell.add_child(vpc)
+	# Frame stacks two viewports: ship (with its own gleam bloom) + light (independent bloom)
+	var frame := Control.new()
+	frame.custom_minimum_size = Vector2(CELL_W, CELL_H)
+	cell.add_child(frame)
 
-	var vp := SubViewport.new()
-	vp.size = Vector2i(CELL_W, CELL_H)
-	vp.transparent_bg = false
-	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	vpc.add_child(vp)
-	VFXFactory.add_bloom_to_viewport(vp)
-	# Lighting viewports stay UPDATE_ALWAYS for the pulse animation
+	# Layer 1 — ship viewport (has gleam/bloom from the skin)
+	var vpc_ship := SubViewportContainer.new()
+	vpc_ship.stretch = true
+	vpc_ship.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.add_child(vpc_ship)
+
+	var vp_ship := SubViewport.new()
+	vp_ship.size = Vector2i(CELL_W, CELL_H)
+	vp_ship.transparent_bg = false
+	vp_ship.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vpc_ship.add_child(vp_ship)
+	VFXFactory.add_bloom_to_viewport(vp_ship)
+	_static_viewports.append(vp_ship)
 
 	var bg := ColorRect.new()
 	bg.color = Color(0.02, 0.02, 0.04, 1.0)
 	bg.size = Vector2(CELL_W, CELL_H)
-	vp.add_child(bg)
+	vp_ship.add_child(bg)
 
 	var ship := ShipRenderer.new()
 	ship.ship_id = 4
 	ship.render_mode = ShipRenderer.RenderMode.STEALTH
 	ship.position = SHIP_POS
-	vp.add_child(ship)
+	vp_ship.add_child(ship)
+
+	# Layer 2 — light-only viewport (transparent bg, own bloom, independent of gleam)
+	var vpc_light := SubViewportContainer.new()
+	vpc_light.stretch = true
+	vpc_light.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.add_child(vpc_light)
+
+	var vp_light := SubViewport.new()
+	vp_light.size = Vector2i(CELL_W, CELL_H)
+	vp_light.transparent_bg = true
+	vp_light.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vpc_light.add_child(vp_light)
+	VFXFactory.add_bloom_to_viewport(vp_light)
+	# Light viewports stay UPDATE_ALWAYS for pulse animation
 
 	var overlay := _LightOverlay.new()
 	overlay.position = SHIP_POS
 	overlay.hull_poly = _hull
 	overlay.exclusion_polys = _exclusions
 	overlay.light_shapes = _gen_shapes(pattern)
-	overlay.z_index = 2
-	vp.add_child(overlay)
+	vp_light.add_child(overlay)
 
 	var lbl := Label.new()
 	lbl.text = String(pattern.name)
@@ -364,6 +383,8 @@ class _PaintOverlay extends Node2D:
 
 
 # ── Lighting overlay node (animated pulse) ─────────────────────────────
+# Renders in its own transparent-bg viewport so bloom is independent of ship gleam.
+# Always draws dark vent shapes; pulses HDR yellow glow on top.
 
 class _LightOverlay extends Node2D:
 	var hull_poly: PackedVector2Array
@@ -375,6 +396,7 @@ class _LightOverlay extends Node2D:
 	const PULSE_PERIOD: float = 1.8
 	const YELLOW := Color(1.0, 0.85, 0.12)
 	const HDR_MULT: float = 2.5
+	const VENT_COLOR := Color(0.02, 0.02, 0.03, 1.0)
 
 	func _ready() -> void:
 		# Pre-clip shapes once — they don't change
@@ -398,15 +420,19 @@ class _LightOverlay extends Node2D:
 		queue_redraw()
 
 	func _draw() -> void:
-		# Smooth pulse: 0 = off (dark), 1 = full HDR glow
+		# Always draw dark vent base — these are openings in the hull
+		for poly in _clipped_polys:
+			draw_colored_polygon(poly, VENT_COLOR)
+
+		# Smooth pulse: 0 = off (dark vents only), 1 = full HDR glow
 		var phase: float = fmod(_time, PULSE_PERIOD) / PULSE_PERIOD
 		var intensity: float = (sin(phase * TAU - PI * 0.5) + 1.0) * 0.5
 		if intensity < 0.01:
 			return
 
-		# HDR yellow — values > 1.0 bloom through the viewport environment
+		# Uniform HDR yellow — blooms independently in this viewport
 		var hdr: float = intensity * HDR_MULT
-		var col := Color(YELLOW.r * hdr, YELLOW.g * hdr, YELLOW.b * hdr, intensity * 0.92)
+		var col := Color(YELLOW.r * hdr, YELLOW.g * hdr, YELLOW.b * hdr, intensity * 0.95)
 
 		for poly in _clipped_polys:
 			draw_colored_polygon(poly, col)

@@ -1,10 +1,13 @@
 extends MarginContainer
-## Currency tab — vertical list of all currency items with value, HDR, and scale controls.
+## Currency tab — vertical list of all currency items with value, HDR, scale, and hitbox controls.
 
 var _items: Array[ItemData] = []
 var _rows_container: VBoxContainer
 var _shard_scale_spin: SpinBox
 var _coin_scale_spin: SpinBox
+var _hitbox_check: CheckBox
+var _radius_spin: SpinBox
+var _hitbox_overlays: Array[Node2D] = []
 
 
 func _ready() -> void:
@@ -61,6 +64,28 @@ func _build_ui() -> void:
 	_coin_scale_spin.value_changed.connect(_on_scale_changed)
 	scale_row.add_child(_coin_scale_spin)
 
+	# Hitbox controls
+	var hitbox_row := HBoxContainer.new()
+	hitbox_row.add_theme_constant_override("separation", 16)
+	main.add_child(hitbox_row)
+
+	_hitbox_check = CheckBox.new()
+	_hitbox_check.text = "Show Hitbox"
+	_hitbox_check.toggled.connect(_on_hitbox_toggled)
+	hitbox_row.add_child(_hitbox_check)
+
+	var radius_label := Label.new()
+	radius_label.text = "Pickup Radius:"
+	hitbox_row.add_child(radius_label)
+
+	_radius_spin = SpinBox.new()
+	_radius_spin.min_value = 4.0
+	_radius_spin.max_value = 80.0
+	_radius_spin.step = 1.0
+	_radius_spin.value = float(cfg.get("pickup_radius", 16.0))
+	_radius_spin.value_changed.connect(_on_radius_changed)
+	hitbox_row.add_child(_radius_spin)
+
 	# Scrollable item rows
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -76,6 +101,7 @@ func _build_ui() -> void:
 func _rebuild_rows() -> void:
 	for child in _rows_container.get_children():
 		child.queue_free()
+	_hitbox_overlays.clear()
 
 	var all_items: Array[ItemData] = ItemDataManager.load_all()
 	_items.clear()
@@ -117,6 +143,14 @@ func _add_item_row(item: ItemData) -> void:
 	var render_scale: float = CurrencyConfigManager.get_scale_for_item(item)
 	renderer.setup(item, render_scale)
 	vp.add_child(renderer)
+
+	# Hitbox overlay
+	var hitbox := _HitboxCircle.new()
+	hitbox.position = Vector2(cell_px / 2.0, cell_px / 2.0)
+	hitbox.radius = _radius_spin.value
+	hitbox.visible = _hitbox_check.button_pressed
+	vp.add_child(hitbox)
+	_hitbox_overlays.append(hitbox)
 
 	# Name
 	var name_label := Label.new()
@@ -167,12 +201,31 @@ func _add_item_row(item: ItemData) -> void:
 
 
 func _on_scale_changed(_val: float) -> void:
+	_save_config()
+	_rebuild_rows()
+
+
+func _on_hitbox_toggled(on: bool) -> void:
+	for overlay in _hitbox_overlays:
+		if is_instance_valid(overlay):
+			overlay.visible = on
+
+
+func _on_radius_changed(val: float) -> void:
+	_save_config()
+	for overlay in _hitbox_overlays:
+		if is_instance_valid(overlay):
+			(overlay as _HitboxCircle).radius = val
+			overlay.queue_redraw()
+
+
+func _save_config() -> void:
 	var cfg := {
 		"shard_scale": _shard_scale_spin.value,
 		"coin_scale": _coin_scale_spin.value,
+		"pickup_radius": _radius_spin.value,
 	}
 	CurrencyConfigManager.save_config(cfg)
-	_rebuild_rows()
 
 
 func _apply_theme() -> void:
@@ -181,3 +234,19 @@ func _apply_theme() -> void:
 			for sub in child.get_children():
 				if sub is Label:
 					ThemeManager.apply_text_glow(sub, "body")
+
+
+class _HitboxCircle extends Node2D:
+	var radius: float = 16.0
+
+	func _draw() -> void:
+		# Filled circle with low alpha
+		draw_circle(Vector2.ZERO, radius, Color(0.0, 1.0, 0.3, 0.12))
+		# Outline ring
+		var segments: int = 48
+		var prev := Vector2(radius, 0.0)
+		for i in range(1, segments + 1):
+			var angle: float = float(i) / float(segments) * TAU
+			var next := Vector2(cos(angle) * radius, sin(angle) * radius)
+			draw_line(prev, next, Color(0.0, 1.0, 0.3, 0.6), 1.0, true)
+			prev = next
