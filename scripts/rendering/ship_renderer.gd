@@ -3,7 +3,7 @@ extends Node2D
 ## Full-size ship renderer with banking, chrome+neon modes, all ships.
 ## Extracted from ships_screen.gd _ShipDraw for reuse across the codebase.
 
-enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT, GUNMETAL, MILITIA, STEALTH, CAUTION }
+enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT, GUNMETAL, MILITIA, STEALTH, CAUTION, DEBUG_MATERIALS }
 
 const CHROME_DARK := Color(0.12, 0.13, 0.18)
 const CHROME_MID := Color(0.35, 0.38, 0.45)
@@ -64,10 +64,10 @@ const STEALTH_CANOPY := Color(0.06, 0.06, 0.08)
 const STEALTH_DETAIL := Color(0.3, 0.08, 0.08)
 # Caution — construction yellow with black hazard stripes
 const CAUTION_HULL := Color(0.75, 0.6, 0.05)
-const CAUTION_ACCENT := Color(0.08, 0.08, 0.06)
+const CAUTION_ACCENT := Color(0.06, 0.06, 0.04)  # Black
 const CAUTION_ENGINE := Color(0.9, 0.7, 0.1)
-const CAUTION_CANOPY := Color(0.15, 0.12, 0.02)
-const CAUTION_DETAIL := Color(0.5, 0.4, 0.05)
+const CAUTION_CANOPY := Color(0.12, 0.1, 0.02)
+const CAUTION_DETAIL := Color(0.06, 0.06, 0.04)  # Black (same as accent)
 
 # Spore palette
 const SPORE_CORE := Color(0.0, 0.8, 0.5, 0.12)
@@ -178,19 +178,20 @@ static func get_engine_offsets(id: int) -> Array[Vector2]:
 ## Returns which material class a color represents based on which palette color it matches.
 ## Ships draw polygons with hull_color (primary/A), accent_color (secondary/B),
 ## detail_color (tertiary/C), or engine_color. Skins use this to decide treatment.
-enum Material { PRIMARY, SECONDARY, TERTIARY }
+enum MatClass { PRIMARY, SECONDARY, TERTIARY, CANOPY, ENGINE, UNKNOWN }
 
 func _classify_material(color: Color) -> int:
-	# Compare by proximity — colors might have slight alpha differences
 	if _color_close(color, hull_color):
-		return Material.PRIMARY
+		return MatClass.PRIMARY
 	if _color_close(color, accent_color):
-		return Material.SECONDARY
-	if _color_close(color, engine_color):
-		return Material.SECONDARY
+		return MatClass.SECONDARY
 	if _color_close(color, detail_color):
-		return Material.TERTIARY
-	return Material.PRIMARY  # Default to primary for unknown colors
+		return MatClass.TERTIARY
+	if _color_close(color, canopy_color):
+		return MatClass.CANOPY
+	if _color_close(color, engine_color):
+		return MatClass.ENGINE
+	return MatClass.UNKNOWN
 
 func _color_close(a: Color, b: Color) -> bool:
 	return absf(a.r - b.r) < 0.05 and absf(a.g - b.g) < 0.05 and absf(a.b - b.b) < 0.05
@@ -209,6 +210,7 @@ func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
 		RenderMode.MILITIA: _draw_militia_polygon(points, color, width)
 		RenderMode.STEALTH: _draw_stealth_polygon(points, color, width)
 		RenderMode.CAUTION: _draw_caution_polygon(points, color, width)
+		RenderMode.DEBUG_MATERIALS: _draw_debug_materials_polygon(points, color, width)
 		_: _draw_neon_polygon(points, color, width)
 
 func _circle(center: Vector2, radius: float, color: Color, width: float) -> void:
@@ -232,6 +234,9 @@ func _circle(center: Vector2, radius: float, color: Color, width: float) -> void
 		RenderMode.CAUTION:
 			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
 			_draw_caution_polygon(pts, color, width)
+		RenderMode.DEBUG_MATERIALS:
+			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
+			_draw_debug_materials_polygon(pts, color, width)
 		_: _draw_neon_circle(center, radius, color, width)
 
 func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
@@ -246,6 +251,7 @@ func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
 		RenderMode.MILITIA: _draw_militia_line(a, b, color, width)
 		RenderMode.STEALTH: _draw_stealth_line(a, b, color, width)
 		RenderMode.CAUTION: _draw_caution_line(a, b, color, width)
+		RenderMode.DEBUG_MATERIALS: _draw_debug_materials_line(a, b, color, width)
 		_: _draw_neon_line(a, b, color, width)
 
 ## Generate evenly-spaced points around a circle (for use with _poly).
@@ -267,8 +273,11 @@ func _arc(center: Vector2, radius: float, start_angle: float, end_angle: float, 
 
 func _canopy(points: PackedVector2Array) -> void:
 	match render_mode:
-		RenderMode.CHROME, RenderMode.GUNMETAL, RenderMode.MILITIA, RenderMode.STEALTH:
+		RenderMode.CHROME, RenderMode.GUNMETAL, RenderMode.MILITIA, RenderMode.STEALTH, RenderMode.CAUTION:
 			_draw_chrome_canopy(points, bank)
+			return
+		RenderMode.DEBUG_MATERIALS:
+			draw_colored_polygon(points, Color(0.9, 0.7, 0.0))  # Yellow = canopy
 			return
 		RenderMode.VOID:
 			draw_colored_polygon(points, Color(0.0, 0.0, 0.0, 0.95))
@@ -292,19 +301,8 @@ func _canopy(points: PackedVector2Array) -> void:
 			_draw_neon_lines(points, canopy_color, 1.2 * 1.4)
 
 func _exhaust_line(a: Vector2, b: Vector2, width: float) -> void:
-	match render_mode:
-		RenderMode.CHROME, RenderMode.GUNMETAL, RenderMode.MILITIA, RenderMode.STEALTH:
-			_draw_chrome_line(a, b, engine_color, width)
-			return
-		RenderMode.VOID:
-			_draw_neon_line(a, b, Color(0.5, 0.0, 1.0, 0.6), width)
-		RenderMode.HIVEMIND:
-			_draw_neon_line(a, b, Color(0.2, 1.0, 0.4, 0.7), width)
-		RenderMode.SPORE:
-			_draw_neon_line(a, b, Color(0.3, 1.0, 0.6, 0.6), width)
-		_:
-			var exhaust := Color(1.0, 0.8, 0.3, 0.8)
-			_draw_neon_line(a, b, exhaust, width)
+	# Route through _line with engine_color so material system picks it up
+	_line(a, b, engine_color, width)
 
 func _apply_palette() -> void:
 	match render_mode:
@@ -373,6 +371,16 @@ func _apply_palette() -> void:
 			_chrome_mid = Color(0.55, 0.44, 0.04)
 			_chrome_light = Color(0.7, 0.56, 0.05)
 			_chrome_bright = Color(0.85, 0.68, 0.08)
+		RenderMode.CHROME:
+			hull_color = Color(0.0, 0.9, 1.0)
+			accent_color = Color(1.0, 0.2, 0.6)
+			engine_color = Color(1.0, 0.5, 0.1)
+			canopy_color = Color(0.08, 0.1, 0.18)  # Dark blue-grey tinted glass
+			detail_color = Color(0.0, 1.0, 0.7)
+			_chrome_dark = CHROME_DARK
+			_chrome_mid = CHROME_MID
+			_chrome_light = CHROME_LIGHT
+			_chrome_bright = CHROME_BRIGHT
 		_:
 			hull_color = Color(0.0, 0.9, 1.0)
 			accent_color = Color(1.0, 0.2, 0.6)
@@ -386,7 +394,10 @@ func _apply_palette() -> void:
 
 
 func _is_chrome_based() -> bool:
-	return render_mode == RenderMode.CHROME
+	return render_mode in [
+		RenderMode.CHROME, RenderMode.GUNMETAL, RenderMode.MILITIA,
+		RenderMode.STEALTH, RenderMode.CAUTION,
+	]
 
 
 func _draw() -> void:
@@ -2441,8 +2452,9 @@ func _draw_stiletto() -> void:
 	_line(_bp(0, -32, s, 0.1), _bp(-14, -12, s, 0.15), detail_color, 0.8 * s)
 	_line(_bp(14, -12, s, 0.15), _bp(10, 24, s, 0.1), detail_color, 0.8 * s)
 	_line(_bp(-14, -12, s, 0.15), _bp(-10, 24, s, 0.1), detail_color, 0.8 * s)
-	# Cross facet
-	_line(_bp(-14, -12, s, 0.15), _bp(14, -12, s, 0.15), detail_color, 0.6 * s)
+	# Cross facet — split around canopy
+	_line(_bp(-14, -12, s, 0.15), _bp(-7, -12, s, 0.05), detail_color, 0.6 * s)
+	_line(_bp(7, -12, s, 0.05), _bp(14, -12, s, 0.15), detail_color, 0.6 * s)
 
 	# Angular canopy slit
 	var cx: float = -bank * 1.2 * s
@@ -2993,17 +3005,21 @@ func _draw_gunmetal_polygon(points: PackedVector2Array, color: Color, width: flo
 	var mat: int = _classify_material(color)
 	var fill: Color
 	match mat:
-		Material.PRIMARY:
-			fill = GUNMETAL_HULL  # Steel grey
-		Material.SECONDARY:
-			fill = Color(0.12, 0.13, 0.15)  # Darker panel
-		Material.TERTIARY:
-			fill = GUNMETAL_ENGINE  # Bronze accent
+		MatClass.PRIMARY:
+			fill = GUNMETAL_HULL
+		MatClass.SECONDARY:
+			fill = Color(0.12, 0.13, 0.15)
+		MatClass.TERTIARY:
+			fill = GUNMETAL_DETAIL
+		MatClass.ENGINE:
+			fill = GUNMETAL_ENGINE
+		_:
+			fill = GUNMETAL_HULL
 
 	draw_colored_polygon(points, fill)
 
 	# Top gradient highlight on primary surfaces
-	if mat == Material.PRIMARY:
+	if mat == MatClass.PRIMARY:
 		var bounds := _get_bounds(points)
 		var highlight_h: float = (bounds[3] - bounds[2]) * 0.35
 		var grad := PackedVector2Array([
@@ -3047,12 +3063,16 @@ func _draw_militia_polygon(points: PackedVector2Array, color: Color, width: floa
 	var mat: int = _classify_material(color)
 	var fill: Color
 	match mat:
-		Material.PRIMARY:
-			fill = MILITIA_HULL  # Dark olive green
-		Material.SECONDARY:
-			fill = MILITIA_ACCENT  # Off-white markings
-		Material.TERTIARY:
-			fill = MILITIA_DETAIL  # Olive-tan detail
+		MatClass.PRIMARY:
+			fill = MILITIA_HULL
+		MatClass.SECONDARY:
+			fill = MILITIA_ACCENT
+		MatClass.TERTIARY:
+			fill = MILITIA_DETAIL
+		MatClass.ENGINE:
+			fill = MILITIA_ENGINE
+		_:
+			fill = MILITIA_HULL
 
 	draw_colored_polygon(points, fill)
 
@@ -3079,12 +3099,16 @@ func _draw_stealth_polygon(points: PackedVector2Array, color: Color, width: floa
 	var mat: int = _classify_material(color)
 	var fill: Color
 	match mat:
-		Material.PRIMARY:
+		MatClass.PRIMARY:
 			fill = STEALTH_HULL
-		Material.SECONDARY:
-			fill = Color(0.15, 0.02, 0.02)  # Very dark red panels
-		Material.TERTIARY:
+		MatClass.SECONDARY:
+			fill = Color(0.15, 0.02, 0.02)
+		MatClass.TERTIARY:
 			fill = STEALTH_DETAIL
+		MatClass.ENGINE:
+			fill = STEALTH_ENGINE
+		_:
+			fill = STEALTH_HULL
 	draw_colored_polygon(points, fill)
 
 	var min_y := points[0].y
@@ -3133,12 +3157,16 @@ func _draw_caution_polygon(points: PackedVector2Array, color: Color, width: floa
 	var mat: int = _classify_material(color)
 	var fill: Color
 	match mat:
-		Material.PRIMARY:
-			fill = CAUTION_HULL  # Safety yellow
-		Material.SECONDARY:
-			fill = CAUTION_ACCENT  # Black
-		Material.TERTIARY:
-			fill = Color(0.2, 0.18, 0.1)  # Dark grey-brown
+		MatClass.PRIMARY:
+			fill = CAUTION_HULL
+		MatClass.SECONDARY:
+			fill = CAUTION_ACCENT
+		MatClass.TERTIARY:
+			fill = Color(0.2, 0.18, 0.1)
+		MatClass.ENGINE:
+			fill = CAUTION_ENGINE
+		_:
+			fill = CAUTION_HULL
 
 	draw_colored_polygon(points, fill)
 
@@ -3148,7 +3176,7 @@ func _draw_caution_polygon(points: PackedVector2Array, color: Color, width: floa
 		draw_line(points[i], points[ni], Color(0.05, 0.05, 0.03), width * 1.5, true)
 
 	# Subtle top highlight on primary surfaces
-	if mat == Material.PRIMARY:
+	if mat == MatClass.PRIMARY:
 		var bounds := _get_bounds(points)
 		var highlight_h: float = (bounds[3] - bounds[2]) * 0.3
 		var grad := PackedVector2Array([
@@ -3180,6 +3208,27 @@ func _get_bounds(points: PackedVector2Array) -> Array[float]:
 		min_y = minf(min_y, pt.y)
 		max_y = maxf(max_y, pt.y)
 	return [min_x, max_x, min_y, max_y]
+
+
+# ── Debug materials (red=A/primary, blue=B/secondary, green=C/tertiary) ──
+
+func _debug_mat_color(mat: int) -> Color:
+	match mat:
+		MatClass.PRIMARY: return Color(0.9, 0.15, 0.1)      # Red
+		MatClass.SECONDARY: return Color(0.1, 0.3, 0.9)     # Blue
+		MatClass.TERTIARY: return Color(0.1, 0.8, 0.2)      # Green
+		MatClass.CANOPY: return Color(0.9, 0.7, 0.0)        # Yellow
+		MatClass.ENGINE: return Color(1.0, 0.5, 0.0)        # Orange
+		MatClass.UNKNOWN: return Color(0.9, 0.0, 0.9)       # Magenta
+	return Color(0.9, 0.0, 0.9)
+
+func _draw_debug_materials_polygon(points: PackedVector2Array, color: Color, _width: float) -> void:
+	if points.size() < 3:
+		return
+	draw_colored_polygon(points, _debug_mat_color(_classify_material(color)))
+
+func _draw_debug_materials_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
+	draw_line(a, b, _debug_mat_color(_classify_material(color)), width, true)
 
 
 # ── Neon drawing helpers ──

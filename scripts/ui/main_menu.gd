@@ -13,6 +13,7 @@ const SW_SETTINGS_PATH: String = "user://settings/synthwave_bg.json"
 func _ready() -> void:
 	_setup_synthwave_bg()
 	_setup_vhs_overlay()
+	_setup_title_shader()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
 	$VBoxContainer/PlayButton.pressed.connect(_on_play)
@@ -90,6 +91,42 @@ func _on_dev_studio() -> void:
 	# Fade menu music when entering dev studio, but navigate immediately
 	GameState.fade_out_menu_music()
 	get_tree().change_scene_to_file("res://scenes/ui/dev_studio_menu.tscn")
+
+
+func _setup_title_shader() -> void:
+	var title_label: Label = $TitleLabel
+	var shader: Shader = load("res://assets/shaders/title_chrome.gdshader")
+	if not shader:
+		return
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	# MIDNIGHT ICE — heavy texture, subtle gleam
+	mat.set_shader_parameter("chrome_color_top", Color(0.005, 0.02, 0.08))
+	mat.set_shader_parameter("chrome_color_highlight1", Color(0.6, 0.85, 1.0))
+	mat.set_shader_parameter("chrome_color_mid", Color(0.015, 0.04, 0.1))
+	mat.set_shader_parameter("chrome_color_highlight2", Color(0.45, 0.65, 0.95))
+	mat.set_shader_parameter("chrome_color_bottom", Color(0.005, 0.015, 0.05))
+	mat.set_shader_parameter("band1_pos", 0.18)
+	mat.set_shader_parameter("band2_pos", 0.4)
+	mat.set_shader_parameter("band3_pos", 0.6)
+	mat.set_shader_parameter("band4_pos", 0.82)
+	mat.set_shader_parameter("band_sharpness", 32.0)
+	mat.set_shader_parameter("line_density", 180.0)
+	mat.set_shader_parameter("line_strength", 0.35)
+	mat.set_shader_parameter("bevel_strength", 1.4)
+	mat.set_shader_parameter("bevel_size", 2.5)
+	mat.set_shader_parameter("bevel_light_color", Color(0.55, 0.75, 1.0))
+	mat.set_shader_parameter("shadow_offset_x", 3.0)
+	mat.set_shader_parameter("shadow_offset_y", 4.0)
+	mat.set_shader_parameter("shadow_softness", 3.5)
+	mat.set_shader_parameter("shadow_color", Color(0.0, 0.0, 0.15, 0.9))
+	mat.set_shader_parameter("gleam_enabled", 1.0)
+	mat.set_shader_parameter("gleam_speed", 0.12)
+	mat.set_shader_parameter("gleam_width", 0.06)
+	mat.set_shader_parameter("gleam_intensity", 1.2)
+	mat.set_shader_parameter("hdr_boost", 1.8)
+	title_label.material = mat
+	title_label.add_theme_color_override("font_color", Color(0.4, 0.65, 1.0))
 
 
 func _setup_synthwave_bg() -> void:

@@ -122,8 +122,8 @@ void fragment() {
 	// ── Horizontal line texture ─────────────────────────────────────
 	if (line_density > 0.01 && line_strength > 0.001) {
 		float lines = sin(y * line_density * 3.14159 * 2.0) * 0.5 + 0.5;
-		lines = lines * line_strength;
-		chrome = chrome * (1.0 - lines) + chrome * 1.3 * lines;
+		// Hard contrast: darken troughs, brighten peaks
+		chrome *= mix(1.0 - line_strength, 1.0 + line_strength * 0.6, lines);
 	}
 
 	// ── Apply bevel ─────────────────────────────────────────────────
@@ -132,11 +132,20 @@ void fragment() {
 	chrome = max(chrome, vec3(0.0));
 
 	// ── Animated gleam sweep ────────────────────────────────────────
+	// Smooth roll from left to right, then long pause before next sweep.
+	// gleam_speed controls sweep duration; pause is 2x the sweep time.
 	if (gleam_enabled > 0.5) {
-		float sweep_pos = fract(TIME * gleam_speed) * 1.6 - 0.3;
+		float cycle = fract(TIME * gleam_speed);
+		// Sweep occupies first 1/3 of cycle, pause for remaining 2/3
+		float sweep_t = clamp(cycle * 3.0, 0.0, 1.0);
+		// Smooth ease in/out
+		sweep_t = sweep_t * sweep_t * (3.0 - 2.0 * sweep_t);
+		float sweep_pos = mix(-0.2, 1.2, sweep_t);
 		float gleam_x = UV.x + UV.y * gleam_angle;
 		float gleam = exp(-pow((gleam_x - sweep_pos) / max(gleam_width, 0.001), 2.0));
-		chrome += vec3(gleam * gleam_intensity);
+		// Fade out gleam during pause (cycle > 0.333)
+		float active = 1.0 - smoothstep(0.3, 0.4, cycle);
+		chrome += vec3(gleam * gleam_intensity * active);
 	}
 
 	// ── HDR boost ───────────────────────────────────────────────────

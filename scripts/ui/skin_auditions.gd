@@ -17,6 +17,7 @@ const SHIP_DECEL: float = 800.0
 
 # Skins to audition — order matters for cycling
 const SKIN_MODES: Array[int] = [
+	ShipRenderer.RenderMode.DEBUG_MATERIALS,
 	ShipRenderer.RenderMode.CHROME,
 	ShipRenderer.RenderMode.STEALTH,
 	ShipRenderer.RenderMode.MILITIA,
@@ -24,11 +25,12 @@ const SKIN_MODES: Array[int] = [
 	ShipRenderer.RenderMode.CAUTION,
 ]
 const SKIN_NAMES: Array[String] = [
+	"DEBUG: Red=Hull  Blue=Accent  Green=Detail  Yellow=Canopy  Orange=Engine  Magenta=Unknown",
 	"CHROME",
 	"STEALTH",
-	"MILITIA (revised)",
+	"MILITIA",
 	"GUNMETAL",
-	"CAUTION (new)",
+	"CAUTION",
 ]
 
 
