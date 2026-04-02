@@ -79,6 +79,8 @@ var _chrome_mid := CHROME_MID
 var _chrome_light := CHROME_LIGHT
 var _chrome_bright := CHROME_BRIGHT
 var bank := 0.0
+var chrome_gleam_hdr: float = 1.0  # HDR multiplier for specular gleam (1.0 = no bloom)
+var chrome_edge_hdr: float = 1.0   # HDR multiplier for chrome rim edges
 var ship_id := 0
 var render_mode: int = RenderMode.NEON
 var time := 0.0
@@ -2022,19 +2024,21 @@ func _draw_chrome_polygon(points: PackedVector2Array, tint_color: Color, bk: flo
 			if clip_poly.size() >= 3:
 				draw_colored_polygon(clip_poly, Color(0.0, 0.0, 0.0, -right_alpha))
 
-	# Specular highlight — soft gradient gleam that slides with bank
+	# Specular highlight — smooth gradient gleam that slides with bank
 	var spec_x: float = center_x + bk * width * 0.4 + sin(time * 0.8) * width * 0.05
 	var spec_brightness: float = 0.9 + sin(time * 1.2) * 0.1
-	# Draw multiple overlapping strips from wide/faint to narrow/bright
-	var gleam_layers: Array[Array] = [
-		[width * 0.22, 0.06],   # widest, faintest
-		[width * 0.14, 0.12],
-		[width * 0.08, 0.20],
-		[width * 0.03, 0.35],   # narrowest, brightest
-	]
-	for layer in gleam_layers:
-		var half_w: float = layer[0]
-		var alpha: float = layer[1] * spec_brightness
+	var g: float = chrome_gleam_hdr
+	# Smooth gradient: 12 thin strips, width and alpha interpolated continuously
+	var gleam_steps: int = 12
+	var max_half_w: float = width * 0.24
+	var peak_alpha: float = 0.4 * spec_brightness
+	for gi in range(gleam_steps):
+		# frac goes from 0 (outermost, widest) to 1 (center, brightest)
+		var frac: float = float(gi) / float(gleam_steps - 1)
+		var half_w: float = max_half_w * (1.0 - frac * 0.85)  # Narrows toward center
+		var alpha: float = peak_alpha * frac * frac  # Quadratic ramp for soft falloff
+		if alpha < 0.005:
+			continue
 		var strip := PackedVector2Array([
 			Vector2(spec_x - half_w, min_y - 5.0),
 			Vector2(spec_x + half_w, min_y - 5.0),
@@ -2045,7 +2049,7 @@ func _draw_chrome_polygon(points: PackedVector2Array, tint_color: Color, bk: flo
 		for clip_idx in range(strip_clips.size()):
 			var clip_poly: PackedVector2Array = strip_clips[clip_idx]
 			if clip_poly.size() >= 3:
-				draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, alpha))
+				draw_colored_polygon(clip_poly, Color(g, g, g, alpha))
 
 	# Subtle color tint overlay from original weapon color
 	var tint := tint_color
@@ -2069,6 +2073,8 @@ func _draw_chrome_edges(points: PackedVector2Array, bk: float) -> void:
 		var brightness: float = clampf(facing * 0.5 + 0.5, 0.15, 1.0)
 		var edge_col := _chrome_dark.lerp(CHROME_SPEC, brightness)
 		edge_col.a = 0.6 + brightness * 0.4
+		var eh: float = chrome_edge_hdr
+		edge_col = Color(edge_col.r * eh, edge_col.g * eh, edge_col.b * eh, edge_col.a)
 		draw_line(a, b, edge_col, 1.5, true)
 
 func _draw_chrome_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
@@ -2094,8 +2100,11 @@ func _draw_chrome_canopy(points: PackedVector2Array, bk: float) -> void:
 	# Glass fill — tinted by canopy_color for military skins
 	var glass := Color(canopy_color.r, canopy_color.g, canopy_color.b, 0.85)
 	draw_colored_polygon(points, glass)
-	# Bright rim on canopy edges
+	# Canopy edges — no HDR bloom (glass doesn't gleam like metal)
+	var saved_edge_hdr: float = chrome_edge_hdr
+	chrome_edge_hdr = 1.0
 	_draw_chrome_edges(points, bk)
+	chrome_edge_hdr = saved_edge_hdr
 
 # ── Ship 0: Switchblade — V-scissors opening forward ──
 func _draw_switchblade() -> void:

@@ -31,13 +31,15 @@ const ANCHORS := {
 	"POWER CORE": Vector2(10, 8),
 }
 
-# Panel centers relative to SHIP_CENTER (660, 390)
-# Panels at (1360, 200+i*140), center = (1360+140, 200+i*140+55)
+# Panel centers relative to SHIP_CENTER (340, 390)
+# Subsystem panels are inside the right-side tab container at (700, 90+TAB)
+# They're at y offsets 200+i*130 within that container, so screen y = 90+50+200+i*130
+# Panel width=500, so center x = 700 + 250 = 950. Relative to ship_center.x=340: 610
 const PANEL_CENTERS := {
-	"WEAPONS": Vector2(1500 - 660, 255 - 390),
-	"ARMOR": Vector2(1500 - 660, 395 - 390),
-	"ENGINES": Vector2(1500 - 660, 535 - 390),
-	"POWER CORE": Vector2(1500 - 660, 675 - 390),
+	"WEAPONS": Vector2(610, 540 - 390 + 0 * 130),
+	"ARMOR": Vector2(610, 540 - 390 + 1 * 130),
+	"ENGINES": Vector2(610, 540 - 390 + 2 * 130),
+	"POWER CORE": Vector2(610, 540 - 390 + 3 * 130),
 }
 
 const SCALE := 9.0
@@ -78,6 +80,7 @@ func _frame_bottom() -> float:
 func _draw() -> void:
 	_draw_frame_fill()
 	_draw_grid_underlay()
+	_draw_frame_outline()
 	_draw_ship_wireframe()
 	_draw_subsystem_highlights()
 	_draw_scan_line()
@@ -93,6 +96,39 @@ func _draw_frame_fill() -> void:
 		frame_rect.size
 	)
 	draw_rect(rect, Color(0.01, 0.02, 0.01, 1.0))
+
+
+func _draw_frame_outline() -> void:
+	# Green box outline around the ship viewport
+	var h: float = hdr_ship
+	var fl: float = _frame_left()
+	var fr: float = _frame_right()
+	var ft: float = _frame_top()
+	var fb: float = _frame_bottom()
+
+	var box_color := Color(0.0, 0.6 * h, 0.25 * h, 0.4)
+	var tl := Vector2(fl, ft)
+	var tr := Vector2(fr, ft)
+	var br := Vector2(fr, fb)
+	var bl := Vector2(fl, fb)
+
+	# Full rectangle
+	draw_line(tl, tr, box_color, 1.5)
+	draw_line(tr, br, box_color, 1.5)
+	draw_line(br, bl, box_color, 1.5)
+	draw_line(bl, tl, box_color, 1.5)
+
+	# Corner accents — brighter, thicker
+	var corner_color := Color(0.0, 0.8 * h, 0.35 * h, 0.7)
+	var cl := 24.0
+	draw_line(tl, tl + Vector2(cl, 0), corner_color, 2.5)
+	draw_line(tl, tl + Vector2(0, cl), corner_color, 2.5)
+	draw_line(tr, tr + Vector2(-cl, 0), corner_color, 2.5)
+	draw_line(tr, tr + Vector2(0, cl), corner_color, 2.5)
+	draw_line(br, br + Vector2(-cl, 0), corner_color, 2.5)
+	draw_line(br, br + Vector2(0, -cl), corner_color, 2.5)
+	draw_line(bl, bl + Vector2(cl, 0), corner_color, 2.5)
+	draw_line(bl, bl + Vector2(0, -cl), corner_color, 2.5)
 
 
 func _draw_grid_underlay() -> void:

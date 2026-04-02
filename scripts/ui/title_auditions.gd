@@ -20,24 +20,25 @@ func _ready() -> void:
 
 
 func _define_presets() -> void:
-	# ── COLD STEEL ───────────────────────────────────────────────────
-	# Classic 80s chrome: dark-bright-dark-bright-dark, cool blue tint,
-	# sharp bands, line texture, strong bevel, animated gleam
+	# ── NEW FONTS: Sharp / Heavy Metal / Angular ─────────────────────
+	# All fonts are OFL-licensed from Google Fonts
+
+	# Teko Bold — tall, narrow, condensed, industrial
 	_presets.append({
-		"name": "COLD STEEL — Orbitron",
-		"font": "res://assets/fonts/Orbitron.ttf",
-		"size": 72,
+		"name": "COLD STEEL — Teko",
+		"font": "res://assets/fonts/Teko.ttf",
+		"size": 88,
 		"color": Color(0.7, 0.8, 1.0),
 		"params": {
 			"chrome_color_top": Color(0.05, 0.08, 0.15),
-			"chrome_color_highlight1": Color(0.8, 0.88, 1.0),
+			"chrome_color_highlight1": Color(0.85, 0.9, 1.0),
 			"chrome_color_mid": Color(0.1, 0.14, 0.22),
 			"chrome_color_highlight2": Color(0.55, 0.65, 0.9),
 			"chrome_color_bottom": Color(0.03, 0.05, 0.1),
-			"band1_pos": 0.2, "band2_pos": 0.42, "band3_pos": 0.58, "band4_pos": 0.82,
-			"band_sharpness": 15.0,
+			"band1_pos": 0.18, "band2_pos": 0.4, "band3_pos": 0.6, "band4_pos": 0.85,
+			"band_sharpness": 16.0,
 			"line_density": 90.0, "line_strength": 0.12,
-			"bevel_strength": 0.9, "bevel_size": 1.8,
+			"bevel_strength": 1.0, "bevel_size": 2.0,
 			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 3.0,
 			"shadow_color": Color(0.0, 0.02, 0.08, 0.85),
 			"gleam_enabled": 1.0, "gleam_speed": 0.6, "gleam_width": 0.07, "gleam_intensity": 1.8,
@@ -45,57 +46,10 @@ func _define_presets() -> void:
 		}
 	})
 
-	# ── COLD STEEL — Bungee variant ──────────────────────────────────
+	# Black Ops One — stencil military, angular cuts
 	_presets.append({
-		"name": "COLD STEEL — Bungee",
-		"font": "res://assets/fonts/Bungee-Regular.ttf",
-		"size": 76,
-		"color": Color(0.7, 0.8, 1.0),
-		"params": {
-			"chrome_color_top": Color(0.05, 0.08, 0.15),
-			"chrome_color_highlight1": Color(0.8, 0.88, 1.0),
-			"chrome_color_mid": Color(0.1, 0.14, 0.22),
-			"chrome_color_highlight2": Color(0.55, 0.65, 0.9),
-			"chrome_color_bottom": Color(0.03, 0.05, 0.1),
-			"band1_pos": 0.22, "band2_pos": 0.44, "band3_pos": 0.56, "band4_pos": 0.8,
-			"band_sharpness": 18.0,
-			"line_density": 100.0, "line_strength": 0.1,
-			"bevel_strength": 1.0, "bevel_size": 2.0,
-			"shadow_offset_x": 3.0, "shadow_offset_y": 4.0, "shadow_softness": 3.5,
-			"shadow_color": Color(0.0, 0.02, 0.08, 0.9),
-			"gleam_enabled": 1.0, "gleam_speed": 0.5, "gleam_width": 0.06, "gleam_intensity": 2.0,
-			"hdr_boost": 1.3,
-		}
-	})
-
-	# ── COLD STEEL — RussoOne variant ────────────────────────────────
-	_presets.append({
-		"name": "COLD STEEL — RussoOne",
-		"font": "res://assets/fonts/RussoOne-Regular.ttf",
-		"size": 72,
-		"color": Color(0.7, 0.8, 1.0),
-		"params": {
-			"chrome_color_top": Color(0.05, 0.08, 0.15),
-			"chrome_color_highlight1": Color(0.85, 0.9, 1.0),
-			"chrome_color_mid": Color(0.1, 0.14, 0.22),
-			"chrome_color_highlight2": Color(0.5, 0.6, 0.85),
-			"chrome_color_bottom": Color(0.03, 0.05, 0.1),
-			"band1_pos": 0.18, "band2_pos": 0.4, "band3_pos": 0.6, "band4_pos": 0.85,
-			"band_sharpness": 14.0,
-			"line_density": 80.0, "line_strength": 0.15,
-			"bevel_strength": 0.8, "bevel_size": 1.5,
-			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 2.5,
-			"shadow_color": Color(0.0, 0.02, 0.08, 0.85),
-			"gleam_enabled": 1.0, "gleam_speed": 0.7, "gleam_width": 0.08, "gleam_intensity": 1.6,
-			"hdr_boost": 1.25,
-		}
-	})
-
-	# ── RAZOR EDGE ───────────────────────────────────────────────────
-	# Ultra-sharp bands, narrow highlights, max contrast, fast gleam
-	_presets.append({
-		"name": "RAZOR EDGE — Orbitron",
-		"font": "res://assets/fonts/Orbitron.ttf",
+		"name": "RAZOR EDGE — Black Ops One",
+		"font": "res://assets/fonts/BlackOpsOne-Regular.ttf",
 		"size": 72,
 		"color": Color(0.6, 0.7, 1.0),
 		"params": {
@@ -116,7 +70,174 @@ func _define_presets() -> void:
 		}
 	})
 
-	# ── RAZOR EDGE — Bungee variant ──────────────────────────────────
+	# Sarpanch Black — wide, squared, imposing, high contrast
+	_presets.append({
+		"name": "FURNACE — Sarpanch",
+		"font": "res://assets/fonts/Sarpanch-Black.ttf",
+		"size": 72,
+		"color": Color(0.8, 0.85, 1.0),
+		"params": {
+			"chrome_color_top": Color(0.03, 0.04, 0.1),
+			"chrome_color_highlight1": Color(1.0, 0.98, 0.95),
+			"chrome_color_mid": Color(0.06, 0.08, 0.18),
+			"chrome_color_highlight2": Color(0.9, 0.92, 1.0),
+			"chrome_color_bottom": Color(0.02, 0.03, 0.08),
+			"band1_pos": 0.2, "band2_pos": 0.36, "band3_pos": 0.64, "band4_pos": 0.8,
+			"band_sharpness": 22.0,
+			"line_density": 90.0, "line_strength": 0.08,
+			"bevel_strength": 1.0, "bevel_size": 1.8,
+			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 2.5,
+			"shadow_color": Color(0.0, 0.0, 0.1, 0.9),
+			"gleam_enabled": 1.0, "gleam_speed": 0.8, "gleam_width": 0.05, "gleam_intensity": 2.2,
+			"hdr_boost": 1.5,
+		}
+	})
+
+	# Stalinist One — brutalist, monumental, extreme angular geometry
+	_presets.append({
+		"name": "STAMPED PLATE — Stalinist One",
+		"font": "res://assets/fonts/StalinistOne-Regular.ttf",
+		"size": 64,
+		"color": Color(0.65, 0.7, 0.78),
+		"params": {
+			"chrome_color_top": Color(0.1, 0.11, 0.14),
+			"chrome_color_highlight1": Color(0.65, 0.68, 0.75),
+			"chrome_color_mid": Color(0.18, 0.2, 0.24),
+			"chrome_color_highlight2": Color(0.5, 0.52, 0.58),
+			"chrome_color_bottom": Color(0.06, 0.07, 0.1),
+			"band1_pos": 0.15, "band2_pos": 0.4, "band3_pos": 0.6, "band4_pos": 0.85,
+			"band_sharpness": 8.0,
+			"line_density": 50.0, "line_strength": 0.2,
+			"bevel_strength": 1.8, "bevel_size": 2.5,
+			"bevel_light_color": Color(0.9, 0.92, 0.95),
+			"shadow_offset_x": 3.5, "shadow_offset_y": 4.5, "shadow_softness": 4.0,
+			"shadow_color": Color(0.0, 0.0, 0.05, 0.9),
+			"gleam_enabled": 0.0,
+			"hdr_boost": 1.1,
+		}
+	})
+
+	# Bebas Neue — tall condensed all-caps, clean geometry
+	_presets.append({
+		"name": "MIRROR FINISH — Bebas Neue",
+		"font": "res://assets/fonts/BebasNeue-Regular.ttf",
+		"size": 88,
+		"color": Color(0.75, 0.82, 1.0),
+		"params": {
+			"chrome_color_top": Color(0.02, 0.03, 0.06),
+			"chrome_color_highlight1": Color(1.0, 1.0, 1.0),
+			"chrome_color_mid": Color(0.03, 0.04, 0.08),
+			"chrome_color_highlight2": Color(0.4, 0.5, 0.7),
+			"chrome_color_bottom": Color(0.01, 0.02, 0.04),
+			"band1_pos": 0.3, "band2_pos": 0.38, "band3_pos": 0.7, "band4_pos": 0.78,
+			"band_sharpness": 35.0,
+			"line_density": 0.0, "line_strength": 0.0,
+			"bevel_strength": 0.6, "bevel_size": 1.5,
+			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 2.0,
+			"shadow_color": Color(0.0, 0.0, 0.08, 0.85),
+			"gleam_enabled": 1.0, "gleam_speed": 0.5, "gleam_width": 0.04, "gleam_intensity": 2.8,
+			"hdr_boost": 1.5,
+		}
+	})
+
+	# Big Shoulders Display — condensed american gothic, dense and aggressive
+	_presets.append({
+		"name": "GUNMETAL — Big Shoulders",
+		"font": "res://assets/fonts/BigShouldersDisplay.ttf",
+		"size": 84,
+		"color": Color(0.55, 0.58, 0.65),
+		"params": {
+			"chrome_color_top": Color(0.06, 0.07, 0.09),
+			"chrome_color_highlight1": Color(0.48, 0.5, 0.58),
+			"chrome_color_mid": Color(0.12, 0.13, 0.16),
+			"chrome_color_highlight2": Color(0.38, 0.4, 0.48),
+			"chrome_color_bottom": Color(0.04, 0.05, 0.07),
+			"band1_pos": 0.18, "band2_pos": 0.42, "band3_pos": 0.58, "band4_pos": 0.82,
+			"band_sharpness": 10.0,
+			"line_density": 140.0, "line_strength": 0.2,
+			"bevel_strength": 1.5, "bevel_size": 2.0,
+			"bevel_light_color": Color(0.6, 0.62, 0.68),
+			"shadow_offset_x": 3.0, "shadow_offset_y": 4.0, "shadow_softness": 3.5,
+			"shadow_color": Color(0.0, 0.0, 0.03, 0.9),
+			"gleam_enabled": 1.0, "gleam_speed": 0.3, "gleam_width": 0.12, "gleam_intensity": 1.2,
+			"hdr_boost": 1.1,
+		}
+	})
+
+	# Saira Stencil One — geometric stencil, industrial tension
+	_presets.append({
+		"name": "MIDNIGHT ICE — Saira Stencil",
+		"font": "res://assets/fonts/SairaStencilOne-Regular.ttf",
+		"size": 68,
+		"color": Color(0.4, 0.65, 1.0),
+		"params": {
+			"chrome_color_top": Color(0.01, 0.03, 0.1),
+			"chrome_color_highlight1": Color(0.5, 0.75, 1.0),
+			"chrome_color_mid": Color(0.03, 0.06, 0.15),
+			"chrome_color_highlight2": Color(0.35, 0.55, 0.85),
+			"chrome_color_bottom": Color(0.01, 0.02, 0.06),
+			"band1_pos": 0.2, "band2_pos": 0.45, "band3_pos": 0.55, "band4_pos": 0.8,
+			"band_sharpness": 20.0,
+			"line_density": 70.0, "line_strength": 0.18,
+			"bevel_strength": 0.8, "bevel_size": 1.5,
+			"bevel_light_color": Color(0.5, 0.7, 1.0),
+			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 3.0,
+			"shadow_color": Color(0.0, 0.0, 0.15, 0.85),
+			"gleam_enabled": 1.0, "gleam_speed": 0.4, "gleam_width": 0.1, "gleam_intensity": 2.0,
+			"hdr_boost": 1.5,
+		}
+	})
+
+	# Faster One — speed lines cut through letters, racing metal
+	_presets.append({
+		"name": "NEON CHROME — Faster One",
+		"font": "res://assets/fonts/FasterOne-Regular.ttf",
+		"size": 68,
+		"color": Color(0.3, 0.6, 1.0),
+		"params": {
+			"chrome_color_top": Color(0.02, 0.04, 0.12),
+			"chrome_color_highlight1": Color(0.3, 0.7, 1.0),
+			"chrome_color_mid": Color(0.08, 0.1, 0.2),
+			"chrome_color_highlight2": Color(0.2, 0.5, 0.9),
+			"chrome_color_bottom": Color(0.01, 0.02, 0.08),
+			"band1_pos": 0.22, "band2_pos": 0.4, "band3_pos": 0.6, "band4_pos": 0.78,
+			"band_sharpness": 18.0,
+			"line_density": 60.0, "line_strength": 0.1,
+			"bevel_strength": 0.6, "bevel_size": 1.5,
+			"bevel_light_color": Color(0.3, 0.6, 1.0),
+			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 3.0,
+			"shadow_color": Color(0.0, 0.05, 0.2, 0.8),
+			"gleam_enabled": 1.0, "gleam_speed": 0.7, "gleam_width": 0.06, "gleam_intensity": 2.0,
+			"hdr_boost": 1.8,
+		}
+	})
+
+	# Quantico Bold — angular military/tactical with futuristic edge
+	_presets.append({
+		"name": "COLD STEEL — Quantico",
+		"font": "res://assets/fonts/Quantico-Bold.ttf",
+		"size": 72,
+		"color": Color(0.7, 0.8, 1.0),
+		"params": {
+			"chrome_color_top": Color(0.05, 0.08, 0.15),
+			"chrome_color_highlight1": Color(0.8, 0.88, 1.0),
+			"chrome_color_mid": Color(0.1, 0.14, 0.22),
+			"chrome_color_highlight2": Color(0.55, 0.65, 0.9),
+			"chrome_color_bottom": Color(0.03, 0.05, 0.1),
+			"band1_pos": 0.2, "band2_pos": 0.42, "band3_pos": 0.58, "band4_pos": 0.82,
+			"band_sharpness": 15.0,
+			"line_density": 90.0, "line_strength": 0.12,
+			"bevel_strength": 0.9, "bevel_size": 1.8,
+			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 3.0,
+			"shadow_color": Color(0.0, 0.02, 0.08, 0.85),
+			"gleam_enabled": 1.0, "gleam_speed": 0.6, "gleam_width": 0.07, "gleam_intensity": 1.8,
+			"hdr_boost": 1.3,
+		}
+	})
+
+	# ── ORIGINAL FONTS with best chrome treatments ───────────────────
+
+	# Bungee — blocky, heavy, stencil-like (original font, strong contender)
 	_presets.append({
 		"name": "RAZOR EDGE — Bungee",
 		"font": "res://assets/fonts/Bungee-Regular.ttf",
@@ -140,8 +261,30 @@ func _define_presets() -> void:
 		}
 	})
 
-	# ── STAMPED PLATE ────────────────────────────────────────────────
-	# Heavy bevel, muted chrome, industrial feel, no gleam — raw stamped metal
+	# Orbitron — geometric futuristic (original font)
+	_presets.append({
+		"name": "FURNACE — Orbitron",
+		"font": "res://assets/fonts/Orbitron.ttf",
+		"size": 72,
+		"color": Color(0.8, 0.85, 1.0),
+		"params": {
+			"chrome_color_top": Color(0.03, 0.04, 0.1),
+			"chrome_color_highlight1": Color(1.0, 0.98, 0.95),
+			"chrome_color_mid": Color(0.06, 0.08, 0.18),
+			"chrome_color_highlight2": Color(0.9, 0.92, 1.0),
+			"chrome_color_bottom": Color(0.02, 0.03, 0.08),
+			"band1_pos": 0.2, "band2_pos": 0.36, "band3_pos": 0.64, "band4_pos": 0.8,
+			"band_sharpness": 22.0,
+			"line_density": 90.0, "line_strength": 0.08,
+			"bevel_strength": 0.9, "bevel_size": 1.5,
+			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 2.0,
+			"shadow_color": Color(0.0, 0.0, 0.1, 0.9),
+			"gleam_enabled": 1.0, "gleam_speed": 0.9, "gleam_width": 0.05, "gleam_intensity": 2.2,
+			"hdr_boost": 1.5,
+		}
+	})
+
+	# RussoOne — heavy geometric (original font)
 	_presets.append({
 		"name": "STAMPED PLATE — RussoOne",
 		"font": "res://assets/fonts/RussoOne-Regular.ttf",
@@ -166,36 +309,13 @@ func _define_presets() -> void:
 		}
 	})
 
-	# ── STAMPED PLATE — Bungee variant ───────────────────────────────
-	_presets.append({
-		"name": "STAMPED PLATE — Bungee",
-		"font": "res://assets/fonts/Bungee-Regular.ttf",
-		"size": 76,
-		"color": Color(0.65, 0.7, 0.78),
-		"params": {
-			"chrome_color_top": Color(0.12, 0.13, 0.16),
-			"chrome_color_highlight1": Color(0.6, 0.63, 0.7),
-			"chrome_color_mid": Color(0.2, 0.22, 0.26),
-			"chrome_color_highlight2": Color(0.5, 0.52, 0.58),
-			"chrome_color_bottom": Color(0.08, 0.09, 0.12),
-			"band1_pos": 0.15, "band2_pos": 0.4, "band3_pos": 0.6, "band4_pos": 0.85,
-			"band_sharpness": 8.0,
-			"line_density": 50.0, "line_strength": 0.22,
-			"bevel_strength": 2.0, "bevel_size": 2.5,
-			"bevel_light_color": Color(0.9, 0.92, 0.95),
-			"bevel_shadow_color": Color(0.0, 0.0, 0.02),
-			"shadow_offset_x": 3.5, "shadow_offset_y": 4.5, "shadow_softness": 4.0,
-			"shadow_color": Color(0.0, 0.0, 0.05, 0.9),
-			"gleam_enabled": 0.0,
-			"hdr_boost": 1.1,
-		}
-	})
+	# ── CROSS-FONT STYLE VARIANTS ────────────────────────────────────
+	# Best new fonts in alternate chrome treatments
 
-	# ── MIDNIGHT ICE ─────────────────────────────────────────────────
-	# Deep dark blue chrome, very dark base, icy highlights, slow dramatic gleam
+	# Black Ops One in deep ice
 	_presets.append({
-		"name": "MIDNIGHT ICE — Orbitron",
-		"font": "res://assets/fonts/Orbitron.ttf",
+		"name": "MIDNIGHT ICE — Black Ops One",
+		"font": "res://assets/fonts/BlackOpsOne-Regular.ttf",
 		"size": 72,
 		"color": Color(0.4, 0.65, 1.0),
 		"params": {
@@ -207,45 +327,20 @@ func _define_presets() -> void:
 			"band1_pos": 0.2, "band2_pos": 0.45, "band3_pos": 0.55, "band4_pos": 0.8,
 			"band_sharpness": 20.0,
 			"line_density": 70.0, "line_strength": 0.18,
-			"bevel_strength": 0.7, "bevel_size": 1.5,
+			"bevel_strength": 0.8, "bevel_size": 1.8,
 			"bevel_light_color": Color(0.5, 0.7, 1.0),
-			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 3.0,
+			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 3.0,
 			"shadow_color": Color(0.0, 0.0, 0.15, 0.85),
 			"gleam_enabled": 1.0, "gleam_speed": 0.4, "gleam_width": 0.1, "gleam_intensity": 2.0,
 			"hdr_boost": 1.5,
 		}
 	})
 
-	# ── MIDNIGHT ICE — Audiowide variant ─────────────────────────────
+	# Teko in furnace treatment
 	_presets.append({
-		"name": "MIDNIGHT ICE — Audiowide",
-		"font": "res://assets/fonts/Audiowide-Regular.ttf",
-		"size": 72,
-		"color": Color(0.4, 0.65, 1.0),
-		"params": {
-			"chrome_color_top": Color(0.01, 0.03, 0.1),
-			"chrome_color_highlight1": Color(0.5, 0.75, 1.0),
-			"chrome_color_mid": Color(0.03, 0.06, 0.15),
-			"chrome_color_highlight2": Color(0.35, 0.55, 0.85),
-			"chrome_color_bottom": Color(0.01, 0.02, 0.06),
-			"band1_pos": 0.22, "band2_pos": 0.45, "band3_pos": 0.55, "band4_pos": 0.78,
-			"band_sharpness": 20.0,
-			"line_density": 75.0, "line_strength": 0.16,
-			"bevel_strength": 0.6, "bevel_size": 1.5,
-			"bevel_light_color": Color(0.5, 0.7, 1.0),
-			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 2.5,
-			"shadow_color": Color(0.0, 0.0, 0.15, 0.85),
-			"gleam_enabled": 1.0, "gleam_speed": 0.4, "gleam_width": 0.1, "gleam_intensity": 1.8,
-			"hdr_boost": 1.5,
-		}
-	})
-
-	# ── FURNACE ──────────────────────────────────────────────────────
-	# Hot white highlights, cold blue shadows — extreme thermal contrast
-	_presets.append({
-		"name": "FURNACE — Bungee",
-		"font": "res://assets/fonts/Bungee-Regular.ttf",
-		"size": 76,
+		"name": "FURNACE — Teko",
+		"font": "res://assets/fonts/Teko.ttf",
+		"size": 88,
 		"color": Color(0.8, 0.85, 1.0),
 		"params": {
 			"chrome_color_top": Color(0.03, 0.04, 0.1),
@@ -253,10 +348,10 @@ func _define_presets() -> void:
 			"chrome_color_mid": Color(0.06, 0.08, 0.18),
 			"chrome_color_highlight2": Color(0.9, 0.92, 1.0),
 			"chrome_color_bottom": Color(0.02, 0.03, 0.08),
-			"band1_pos": 0.22, "band2_pos": 0.38, "band3_pos": 0.62, "band4_pos": 0.78,
-			"band_sharpness": 25.0,
+			"band1_pos": 0.18, "band2_pos": 0.34, "band3_pos": 0.66, "band4_pos": 0.82,
+			"band_sharpness": 24.0,
 			"line_density": 100.0, "line_strength": 0.06,
-			"bevel_strength": 1.0, "bevel_size": 1.8,
+			"bevel_strength": 1.1, "bevel_size": 2.0,
 			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 2.0,
 			"shadow_color": Color(0.0, 0.0, 0.1, 0.9),
 			"gleam_enabled": 1.0, "gleam_speed": 0.8, "gleam_width": 0.04, "gleam_intensity": 2.5,
@@ -264,60 +359,82 @@ func _define_presets() -> void:
 		}
 	})
 
-	# ── FURNACE — Orbitron variant ───────────────────────────────────
+	# Bebas Neue in razor edge
 	_presets.append({
-		"name": "FURNACE — Orbitron",
-		"font": "res://assets/fonts/Orbitron.ttf",
-		"size": 72,
-		"color": Color(0.8, 0.85, 1.0),
+		"name": "RAZOR EDGE — Bebas Neue",
+		"font": "res://assets/fonts/BebasNeue-Regular.ttf",
+		"size": 88,
+		"color": Color(0.6, 0.7, 1.0),
 		"params": {
-			"chrome_color_top": Color(0.03, 0.04, 0.1),
-			"chrome_color_highlight1": Color(1.0, 0.98, 0.95),
-			"chrome_color_mid": Color(0.06, 0.08, 0.18),
-			"chrome_color_highlight2": Color(0.9, 0.92, 1.0),
-			"chrome_color_bottom": Color(0.02, 0.03, 0.08),
-			"band1_pos": 0.2, "band2_pos": 0.36, "band3_pos": 0.64, "band4_pos": 0.8,
-			"band_sharpness": 22.0,
-			"line_density": 90.0, "line_strength": 0.08,
-			"bevel_strength": 0.9, "bevel_size": 1.5,
-			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 2.0,
+			"chrome_color_top": Color(0.02, 0.03, 0.08),
+			"chrome_color_highlight1": Color(1.0, 1.0, 1.0),
+			"chrome_color_mid": Color(0.04, 0.06, 0.12),
+			"chrome_color_highlight2": Color(0.7, 0.78, 1.0),
+			"chrome_color_bottom": Color(0.01, 0.02, 0.05),
+			"band1_pos": 0.25, "band2_pos": 0.35, "band3_pos": 0.65, "band4_pos": 0.75,
+			"band_sharpness": 28.0,
+			"line_density": 100.0, "line_strength": 0.1,
+			"bevel_strength": 1.0, "bevel_size": 1.5,
+			"bevel_light_color": Color(0.8, 0.9, 1.0),
+			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 2.5,
 			"shadow_color": Color(0.0, 0.0, 0.1, 0.9),
-			"gleam_enabled": 1.0, "gleam_speed": 0.9, "gleam_width": 0.05, "gleam_intensity": 2.2,
-			"hdr_boost": 1.5,
+			"gleam_enabled": 1.0, "gleam_speed": 1.0, "gleam_width": 0.05, "gleam_intensity": 2.4,
+			"hdr_boost": 1.4,
 		}
 	})
 
-	# ── GUNMETAL ─────────────────────────────────────────────────────
-	# Dark, desaturated, heavy — like brushed gun barrel
+	# Sarpanch in gunmetal
 	_presets.append({
-		"name": "GUNMETAL — RussoOne",
-		"font": "res://assets/fonts/RussoOne-Regular.ttf",
-		"size": 76,
+		"name": "GUNMETAL — Sarpanch",
+		"font": "res://assets/fonts/Sarpanch-Black.ttf",
+		"size": 72,
 		"color": Color(0.55, 0.58, 0.65),
 		"params": {
 			"chrome_color_top": Color(0.06, 0.07, 0.09),
-			"chrome_color_highlight1": Color(0.45, 0.48, 0.55),
+			"chrome_color_highlight1": Color(0.48, 0.5, 0.58),
 			"chrome_color_mid": Color(0.12, 0.13, 0.16),
-			"chrome_color_highlight2": Color(0.35, 0.38, 0.44),
+			"chrome_color_highlight2": Color(0.38, 0.4, 0.48),
 			"chrome_color_bottom": Color(0.04, 0.05, 0.07),
 			"band1_pos": 0.18, "band2_pos": 0.42, "band3_pos": 0.58, "band4_pos": 0.82,
 			"band_sharpness": 10.0,
-			"line_density": 140.0, "line_strength": 0.2,
-			"bevel_strength": 1.5, "bevel_size": 2.0,
+			"line_density": 130.0, "line_strength": 0.18,
+			"bevel_strength": 1.4, "bevel_size": 2.0,
 			"bevel_light_color": Color(0.6, 0.62, 0.68),
 			"shadow_offset_x": 3.0, "shadow_offset_y": 4.0, "shadow_softness": 3.5,
 			"shadow_color": Color(0.0, 0.0, 0.03, 0.9),
-			"gleam_enabled": 1.0, "gleam_speed": 0.3, "gleam_width": 0.12, "gleam_intensity": 1.2,
+			"gleam_enabled": 1.0, "gleam_speed": 0.3, "gleam_width": 0.1, "gleam_intensity": 1.3,
 			"hdr_boost": 1.1,
 		}
 	})
 
-	# ── NEON CHROME ──────────────────────────────────────────────────
-	# Chrome base with neon-blue highlights bleeding through — cyberpunk edge
+	# Big Shoulders in cold steel
 	_presets.append({
-		"name": "NEON CHROME — Orbitron",
-		"font": "res://assets/fonts/Orbitron.ttf",
-		"size": 72,
+		"name": "COLD STEEL — Big Shoulders",
+		"font": "res://assets/fonts/BigShouldersDisplay.ttf",
+		"size": 84,
+		"color": Color(0.7, 0.8, 1.0),
+		"params": {
+			"chrome_color_top": Color(0.05, 0.08, 0.15),
+			"chrome_color_highlight1": Color(0.85, 0.9, 1.0),
+			"chrome_color_mid": Color(0.1, 0.14, 0.22),
+			"chrome_color_highlight2": Color(0.55, 0.65, 0.9),
+			"chrome_color_bottom": Color(0.03, 0.05, 0.1),
+			"band1_pos": 0.2, "band2_pos": 0.42, "band3_pos": 0.58, "band4_pos": 0.82,
+			"band_sharpness": 15.0,
+			"line_density": 85.0, "line_strength": 0.14,
+			"bevel_strength": 1.0, "bevel_size": 1.8,
+			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 3.0,
+			"shadow_color": Color(0.0, 0.02, 0.08, 0.85),
+			"gleam_enabled": 1.0, "gleam_speed": 0.6, "gleam_width": 0.07, "gleam_intensity": 1.8,
+			"hdr_boost": 1.3,
+		}
+	})
+
+	# Stalinist One in neon chrome — brutalist meets cyberpunk
+	_presets.append({
+		"name": "NEON CHROME — Stalinist One",
+		"font": "res://assets/fonts/StalinistOne-Regular.ttf",
+		"size": 58,
 		"color": Color(0.3, 0.6, 1.0),
 		"params": {
 			"chrome_color_top": Color(0.02, 0.04, 0.12),
@@ -327,107 +444,13 @@ func _define_presets() -> void:
 			"chrome_color_bottom": Color(0.01, 0.02, 0.08),
 			"band1_pos": 0.22, "band2_pos": 0.4, "band3_pos": 0.6, "band4_pos": 0.78,
 			"band_sharpness": 18.0,
-			"line_density": 60.0, "line_strength": 0.1,
-			"bevel_strength": 0.6, "bevel_size": 1.5,
+			"line_density": 55.0, "line_strength": 0.12,
+			"bevel_strength": 0.7, "bevel_size": 1.5,
 			"bevel_light_color": Color(0.3, 0.6, 1.0),
-			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 3.0,
+			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 3.0,
 			"shadow_color": Color(0.0, 0.05, 0.2, 0.8),
 			"gleam_enabled": 1.0, "gleam_speed": 0.7, "gleam_width": 0.06, "gleam_intensity": 2.0,
 			"hdr_boost": 1.8,
-		}
-	})
-
-	# ── MIRROR FINISH ────────────────────────────────────────────────
-	# Very tight highlight, almost all dark except one blinding band, no lines
-	_presets.append({
-		"name": "MIRROR FINISH — Audiowide",
-		"font": "res://assets/fonts/Audiowide-Regular.ttf",
-		"size": 72,
-		"color": Color(0.75, 0.82, 1.0),
-		"params": {
-			"chrome_color_top": Color(0.02, 0.03, 0.06),
-			"chrome_color_highlight1": Color(1.0, 1.0, 1.0),
-			"chrome_color_mid": Color(0.03, 0.04, 0.08),
-			"chrome_color_highlight2": Color(0.4, 0.5, 0.7),
-			"chrome_color_bottom": Color(0.01, 0.02, 0.04),
-			"band1_pos": 0.3, "band2_pos": 0.38, "band3_pos": 0.7, "band4_pos": 0.78,
-			"band_sharpness": 35.0,
-			"line_density": 0.0, "line_strength": 0.0,
-			"bevel_strength": 0.5, "bevel_size": 1.2,
-			"shadow_offset_x": 2.0, "shadow_offset_y": 3.0, "shadow_softness": 2.0,
-			"shadow_color": Color(0.0, 0.0, 0.08, 0.85),
-			"gleam_enabled": 1.0, "gleam_speed": 0.5, "gleam_width": 0.03, "gleam_intensity": 3.0,
-			"hdr_boost": 1.5,
-		}
-	})
-
-	# ── MIRROR FINISH — Bungee variant ───────────────────────────────
-	_presets.append({
-		"name": "MIRROR FINISH — Bungee",
-		"font": "res://assets/fonts/Bungee-Regular.ttf",
-		"size": 76,
-		"color": Color(0.75, 0.82, 1.0),
-		"params": {
-			"chrome_color_top": Color(0.02, 0.03, 0.06),
-			"chrome_color_highlight1": Color(1.0, 1.0, 1.0),
-			"chrome_color_mid": Color(0.03, 0.04, 0.08),
-			"chrome_color_highlight2": Color(0.4, 0.5, 0.7),
-			"chrome_color_bottom": Color(0.01, 0.02, 0.04),
-			"band1_pos": 0.3, "band2_pos": 0.38, "band3_pos": 0.7, "band4_pos": 0.78,
-			"band_sharpness": 35.0,
-			"line_density": 0.0, "line_strength": 0.0,
-			"bevel_strength": 0.7, "bevel_size": 1.5,
-			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 2.5,
-			"shadow_color": Color(0.0, 0.0, 0.08, 0.85),
-			"gleam_enabled": 1.0, "gleam_speed": 0.5, "gleam_width": 0.04, "gleam_intensity": 2.8,
-			"hdr_boost": 1.5,
-		}
-	})
-
-	# ── NO GLEAM variants ────────────────────────────────────────────
-	# Same chrome quality but static — for users who don't want animation
-
-	_presets.append({
-		"name": "STATIC CHROME — Orbitron (no gleam)",
-		"font": "res://assets/fonts/Orbitron.ttf",
-		"size": 72,
-		"color": Color(0.7, 0.8, 1.0),
-		"params": {
-			"chrome_color_top": Color(0.05, 0.08, 0.15),
-			"chrome_color_highlight1": Color(0.85, 0.9, 1.0),
-			"chrome_color_mid": Color(0.1, 0.14, 0.22),
-			"chrome_color_highlight2": Color(0.6, 0.68, 0.92),
-			"chrome_color_bottom": Color(0.03, 0.05, 0.1),
-			"band1_pos": 0.2, "band2_pos": 0.42, "band3_pos": 0.58, "band4_pos": 0.82,
-			"band_sharpness": 16.0,
-			"line_density": 85.0, "line_strength": 0.14,
-			"bevel_strength": 1.0, "bevel_size": 1.8,
-			"shadow_offset_x": 2.5, "shadow_offset_y": 3.5, "shadow_softness": 3.0,
-			"shadow_color": Color(0.0, 0.02, 0.08, 0.85),
-			"gleam_enabled": 0.0,
-			"hdr_boost": 1.3,
-		}
-	})
-
-	_presets.append({
-		"name": "STATIC CHROME — Bungee (no gleam)",
-		"font": "res://assets/fonts/Bungee-Regular.ttf",
-		"size": 76,
-		"color": Color(0.7, 0.8, 1.0),
-		"params": {
-			"chrome_color_top": Color(0.05, 0.08, 0.15),
-			"chrome_color_highlight1": Color(0.85, 0.9, 1.0),
-			"chrome_color_mid": Color(0.1, 0.14, 0.22),
-			"chrome_color_highlight2": Color(0.6, 0.68, 0.92),
-			"chrome_color_bottom": Color(0.03, 0.05, 0.1),
-			"band1_pos": 0.22, "band2_pos": 0.44, "band3_pos": 0.56, "band4_pos": 0.8,
-			"band_sharpness": 18.0,
-			"line_density": 95.0, "line_strength": 0.12,
-			"bevel_strength": 1.1, "bevel_size": 2.0,
-			"shadow_offset_x": 3.0, "shadow_offset_y": 4.0, "shadow_softness": 3.5,
-			"shadow_color": Color(0.0, 0.02, 0.08, 0.88),
-			"gleam_enabled": 0.0,
-			"hdr_boost": 1.3,
 		}
 	})
 
