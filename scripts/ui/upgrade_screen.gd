@@ -1,34 +1,42 @@
 extends Control
 ## Ship Upgrade Screen — green wireframe diagram (left) with tabbed upgrade interface (right).
-## Tabs: Subsystems (level upgrades), Augments (component slots), Vanity (cosmetics).
+## Tabs: Subsystems (level upgrades), Augments (component slot augments), Vanity (cosmetics).
+## On Vanity tab, left panel switches to a real ShipRenderer preview matching in-game look.
 
-# ── Subsystems tab constants ──
+# ── Subsystems constants ──
 const SUBSYSTEMS := ["WEAPONS", "ARMOR", "ENGINES", "POWER CORE"]
 const MAX_LEVEL := 10
 const BASE_COST := 500
 const COST_SCALE := 1.4
 
 # ── Layout ──
-# Left side: ship wireframe in a green-framed box
 const FRAME_RECT := Rect2(20, 40, 640, 700)
 const SHIP_CENTER := Vector2(340, 390)
-
-# Right side: tabbed content area
 const RIGHT_X := 700
 const RIGHT_Y := 40
 const RIGHT_W := 1200
 const RIGHT_H := 700
 const TAB_HEIGHT := 40
+const CONTENT_Y := 90  # RIGHT_Y + TAB_HEIGHT + 10
 
-# ── Augments tab slot definitions ──
-const AUGMENT_SECTIONS := [
-	{"label": "WEAPON MODS", "slots": ["wmod_0", "wmod_1", "wmod_2"], "color": Color(0.14, 0.89, 0.89)},
-	{"label": "CORE CAPACITORS", "slots": ["cap_0", "cap_1"], "color": Color(0.9, 0.82, 0.23)},
-	{"label": "SHIELD MATRIX", "slots": ["shield_0", "shield_1"], "color": Color(0.2, 0.8, 1.0)},
-	{"label": "HULL REINFORCEMENT", "slots": ["hull_0"], "color": Color(0.5, 0.5, 0.5)},
+# ── Augments: mirrors ship loadout slots, each with augment sub-slots ──
+const AUGMENT_LAYOUT := [
+	{"section": "WEAPONS", "color": Color(0.14, 0.89, 0.89), "slots": [
+		{"key": "weapon_0", "label": "Weapon Slot 1", "augments": 2},
+		{"key": "weapon_1", "label": "Weapon Slot 2", "augments": 1},
+		{"key": "weapon_2", "label": "Weapon Slot 3", "augments": 1},
+		{"key": "weapon_3", "label": "Weapon Slot 4", "augments": 1},
+	]},
+	{"section": "POWER CORES", "color": Color(0.9, 0.82, 0.23), "slots": [
+		{"key": "core_0", "label": "Power Core 1", "augments": 2},
+		{"key": "core_1", "label": "Power Core 2", "augments": 2},
+	]},
+	{"section": "FIELD EMITTERS", "color": Color(0.2, 0.8, 1.0), "slots": [
+		{"key": "field_0", "label": "Field Emitter", "augments": 1},
+	]},
 ]
 
-# ── Vanity tab cosmetic categories ──
+# ── Vanity categories ──
 const VANITY_CATEGORIES := [
 	{"label": "SHIP SKIN", "id": "skin", "options": ["Default", "Chrome", "Void", "Hivemind", "Ember", "Frost", "Stealth", "Gunmetal"]},
 	{"label": "ENGINE EXHAUST", "id": "exhaust", "options": ["Standard Blue", "Hot Pink", "Plasma Green", "Solar Gold", "Ghostly White"]},
@@ -36,12 +44,18 @@ const VANITY_CATEGORIES := [
 	{"label": "CANOPY TINT", "id": "canopy", "options": ["Default Cyan", "Amber", "Crimson", "Ultraviolet", "Frosted"]},
 ]
 
-# HDR channels
+# Skin name → ShipRenderer.RenderMode mapping
+const SKIN_RENDER_MODES := {
+	"Default": 0, "Chrome": 1, "Void": 2, "Hivemind": 3,
+	"Ember": 6, "Frost": 7, "Stealth": 11, "Gunmetal": 9,
+}
+
+# ── HDR ──
 var _hdr_ship: float = 1.8
 var _hdr_ui: float = 1.6
 var _hdr_arrows: float = 1.4
 
-# Core nodes
+# ── Core nodes ──
 var _vhs_overlay: ColorRect
 var _bg_rect: ColorRect
 var _wireframe: Node2D
@@ -54,7 +68,7 @@ var _tab_containers: Array[Control] = []
 var _active_tab: int = 0
 const TAB_NAMES := ["SUBSYSTEMS", "AUGMENTS", "VANITY"]
 
-# Subsystems tab state
+# Subsystems
 var _subsystem_levels: Dictionary = {}
 var _panel_nodes: Dictionary = {}
 var _finance_panel: PanelContainer
@@ -68,8 +82,11 @@ var _original_levels: Dictionary = {}
 var _hdr_sliders: Dictionary = {}
 var _hdr_readouts: Dictionary = {}
 
-# Vanity tab state
-var _vanity_selections: Dictionary = {}  # {"skin": 0, "exhaust": 0, ...}
+# Vanity
+var _vanity_selections: Dictionary = {}
+var _vanity_preview_container: SubViewportContainer
+var _vanity_viewport: SubViewport
+var _vanity_ship_renderer: ShipRenderer
 
 
 func _ready() -> void:
@@ -92,13 +109,12 @@ func _init_state() -> void:
 
 
 func _build_ui() -> void:
-	# Black background
 	_bg_rect = ColorRect.new()
 	_bg_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_bg_rect.color = Color.BLACK
 	add_child(_bg_rect)
 
-	# Ship wireframe — left side
+	# Green wireframe (visible on Subsystems + Augments tabs)
 	_wireframe = Node2D.new()
 	_wireframe.position = SHIP_CENTER
 	_wireframe.set_script(preload("res://scripts/ui/upgrade_wireframe.gd"))
@@ -108,15 +124,16 @@ func _build_ui() -> void:
 	_wireframe.frame_rect = FRAME_RECT
 	_wireframe.ship_center = SHIP_CENTER
 
-	# Tab bar
-	_build_tab_bar()
+	# Vanity ship preview (visible only on Vanity tab)
+	_build_vanity_preview()
 
-	# Tab content containers (only one visible at a time)
+	# Tabs
+	_build_tab_bar()
 	_build_subsystems_tab()
 	_build_augments_tab()
 	_build_vanity_tab()
 
-	# HDR sliders — bottom left under the ship
+	# HDR sliders
 	_build_hdr_sliders()
 
 	# Back button
@@ -130,7 +147,7 @@ func _build_ui() -> void:
 	_back_button.pressed.connect(_on_back)
 	add_child(_back_button)
 
-	# Cursor coordinates
+	# Coordinates
 	_coord_label = Label.new()
 	_coord_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_coord_label.offset_top = -26
@@ -138,6 +155,48 @@ func _build_ui() -> void:
 	_coord_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_coord_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_coord_label)
+
+
+# ── Vanity Ship Preview ─────────────────────────────────────
+
+func _build_vanity_preview() -> void:
+	# SubViewportContainer matching the frame area — same position and size
+	_vanity_preview_container = SubViewportContainer.new()
+	_vanity_preview_container.position = FRAME_RECT.position
+	_vanity_preview_container.size = FRAME_RECT.size
+	_vanity_preview_container.stretch = true
+	_vanity_preview_container.visible = false
+	add_child(_vanity_preview_container)
+
+	_vanity_viewport = SubViewport.new()
+	_vanity_viewport.size = Vector2i(int(FRAME_RECT.size.x), int(FRAME_RECT.size.y))
+	_vanity_viewport.transparent_bg = false
+	_vanity_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_vanity_preview_container.add_child(_vanity_viewport)
+
+	VFXFactory.add_bloom_to_viewport(_vanity_viewport)
+
+	# Black background
+	var vp_bg := ColorRect.new()
+	vp_bg.color = Color.BLACK
+	vp_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_vanity_viewport.add_child(vp_bg)
+
+	# Ship renderer — same as in-game
+	_vanity_ship_renderer = ShipRenderer.new()
+	_vanity_ship_renderer.ship_id = GameState.current_ship_index
+	_vanity_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	_vanity_ship_renderer.animate = true
+	_vanity_ship_renderer.z_index = 1
+	_vanity_viewport.add_child(_vanity_ship_renderer)
+
+	# Position ship at center of viewport
+	call_deferred("_position_vanity_ship")
+
+
+func _position_vanity_ship() -> void:
+	var vp_size := Vector2(_vanity_viewport.size)
+	_vanity_ship_renderer.position = Vector2(vp_size.x * 0.5, vp_size.y * 0.55)
 
 
 # ── Tab System ──────────────────────────────────────────────
@@ -166,49 +225,73 @@ func _switch_tab(index: int) -> void:
 	_active_tab = index
 	for i in range(_tab_containers.size()):
 		_tab_containers[i].visible = (i == index)
-	# Style active tab differently
+
+	# Toggle wireframe vs vanity preview
+	var is_vanity: bool = (index == 2)
+	_wireframe.visible = not is_vanity
+	_vanity_preview_container.visible = is_vanity
+
+	# Arrows only on Subsystems tab
+	if _wireframe:
+		_wireframe.show_arrows = (index == 0)
+
+	# Style active tab
 	var accent: Color = ThemeManager.get_color("accent")
 	for i in range(_tab_buttons.size()):
-		var btn: Button = _tab_buttons[i]
 		if i == index:
-			btn.add_theme_color_override("font_color", accent)
+			_tab_buttons[i].add_theme_color_override("font_color", accent)
 		else:
-			btn.remove_theme_color_override("font_color")
+			_tab_buttons[i].remove_theme_color_override("font_color")
 
 
 # ── Subsystems Tab ──────────────────────────────────────────
 
 func _build_subsystems_tab() -> void:
 	var container := Control.new()
-	container.position = Vector2(RIGHT_X, RIGHT_Y + TAB_HEIGHT + 10)
-	container.size = Vector2(RIGHT_W, RIGHT_H - TAB_HEIGHT - 10)
+	container.position = Vector2(RIGHT_X, CONTENT_Y)
+	container.size = Vector2(RIGHT_W, RIGHT_H)
 	add_child(container)
 	_tab_containers.append(container)
 
-	# Finance pane at top
 	_build_finance_pane(container)
 
-	# Subsystem panels below finance
-	var panel_y := 200
+	var panel_y := 180
+	var panel_spacing := 125
 	for i in range(SUBSYSTEMS.size()):
 		var sub: String = SUBSYSTEMS[i]
-		_build_subsystem_panel(container, sub, Vector2(0, panel_y + i * 130))
+		_build_subsystem_panel(container, sub, Vector2(0, panel_y + i * panel_spacing))
 
-	# Confirm button
 	_confirm_button = Button.new()
 	_confirm_button.text = "CONFIRM UPGRADES"
 	_confirm_button.custom_minimum_size = Vector2(260, 36)
-	_confirm_button.position = Vector2(0, panel_y + SUBSYSTEMS.size() * 130 + 10)
+	_confirm_button.position = Vector2(0, panel_y + SUBSYSTEMS.size() * panel_spacing + 10)
 	_confirm_button.size = Vector2(260, 36)
 	_confirm_button.pressed.connect(_on_confirm)
 	container.add_child(_confirm_button)
+
+	# Set panel targets for wireframe arrows (screen coords of panel left edges)
+	call_deferred("_update_panel_targets")
+
+
+func _update_panel_targets() -> void:
+	var targets: Dictionary = {}
+	for sub in SUBSYSTEMS:
+		if _panel_nodes.has(sub):
+			var panel: PanelContainer = _panel_nodes[sub]["panel"]
+			# Panel position is relative to the subsystems container
+			# Container is at (RIGHT_X, CONTENT_Y)
+			var screen_pos := Vector2(RIGHT_X, CONTENT_Y) + panel.position
+			# Target = left edge, vertically centered
+			targets[sub] = Vector2(screen_pos.x, screen_pos.y + panel.size.y * 0.5)
+	if _wireframe:
+		_wireframe.panel_targets = targets
 
 
 func _build_finance_pane(parent: Control) -> void:
 	_finance_panel = PanelContainer.new()
 	_finance_panel.position = Vector2(0, 0)
-	_finance_panel.custom_minimum_size = Vector2(500, 160)
-	_finance_panel.size = Vector2(500, 160)
+	_finance_panel.custom_minimum_size = Vector2(500, 140)
+	_finance_panel.size = Vector2(500, 140)
 
 	var accent: Color = ThemeManager.get_color("accent")
 	var sb := StyleBoxFlat.new()
@@ -223,13 +306,11 @@ func _build_finance_pane(parent: Control) -> void:
 	hbox.add_theme_constant_override("separation", 60)
 	_finance_panel.add_child(hbox)
 
-	# Bank column
 	var bank_col := _build_currency_column("FINANCES", "BANK", str(GameState.credits))
 	hbox.add_child(bank_col)
 	_bank_value_label = bank_col.get_meta("value_label")
 	_finance_panel.set_meta("title_label", bank_col.get_meta("title_label"))
 
-	# Cost column
 	var cost_col := VBoxContainer.new()
 	cost_col.add_theme_constant_override("separation", 4)
 	hbox.add_child(cost_col)
@@ -257,7 +338,6 @@ func _build_currency_column(title: String, key_text: String, value_text: String)
 	col.set_meta("title_label", title_lbl)
 
 	var sep := HSeparator.new()
-	sep.add_theme_constant_override("separation", 2)
 	col.add_child(sep)
 
 	var key_lbl := Label.new()
@@ -278,8 +358,8 @@ func _build_currency_column(title: String, key_text: String, value_text: String)
 func _build_subsystem_panel(parent: Control, sub_name: String, pos: Vector2) -> void:
 	var panel := PanelContainer.new()
 	panel.position = pos
-	panel.custom_minimum_size = Vector2(500, 110)
-	panel.size = Vector2(500, 110)
+	panel.custom_minimum_size = Vector2(500, 105)
+	panel.size = Vector2(500, 105)
 
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.0, 0.0, 0.0, 0.65)
@@ -350,8 +430,8 @@ func _build_subsystem_panel(parent: Control, sub_name: String, pos: Vector2) -> 
 
 func _build_augments_tab() -> void:
 	var container := Control.new()
-	container.position = Vector2(RIGHT_X, RIGHT_Y + TAB_HEIGHT + 10)
-	container.size = Vector2(RIGHT_W, RIGHT_H - TAB_HEIGHT - 10)
+	container.position = Vector2(RIGHT_X, CONTENT_Y)
+	container.size = Vector2(RIGHT_W, RIGHT_H)
 	container.visible = false
 	add_child(container)
 	_tab_containers.append(container)
@@ -367,11 +447,11 @@ func _build_augments_tab() -> void:
 	vbox.add_theme_constant_override("separation", 4)
 	scroll.add_child(vbox)
 
-	for section in AUGMENT_SECTIONS:
+	for section in AUGMENT_LAYOUT:
 		var sec_color: Color = section["color"]
 		var slots: Array = section["slots"]
 
-		# Section header — colored bar, matching hangar style
+		# Section header
 		var header_panel := PanelContainer.new()
 		header_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var hsb := StyleBoxFlat.new()
@@ -385,41 +465,63 @@ func _build_augments_tab() -> void:
 		vbox.add_child(header_panel)
 
 		var header_label := Label.new()
-		header_label.text = section["label"]
+		header_label.text = section["section"]
 		header_label.add_theme_font_size_override("font_size", 16)
 		header_label.add_theme_color_override("font_color", sec_color)
 		header_panel.add_child(header_label)
 
 		# Slot rows
-		for slot_key in slots:
+		for slot_info in slots:
+			var slot_label: String = slot_info["label"]
+			var augment_count: int = slot_info["augments"]
+
 			var slot_panel := PanelContainer.new()
 			slot_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			var ssb := StyleBoxFlat.new()
 			ssb.bg_color = Color(0.0, 0.0, 0.0, 0.65)
 			ssb.set_corner_radius_all(4)
-			ssb.content_margin_left = 8
-			ssb.content_margin_right = 8
-			ssb.content_margin_top = 4
-			ssb.content_margin_bottom = 4
+			ssb.content_margin_left = 10
+			ssb.content_margin_right = 10
+			ssb.content_margin_top = 6
+			ssb.content_margin_bottom = 6
 			slot_panel.add_theme_stylebox_override("panel", ssb)
 			vbox.add_child(slot_panel)
 
-			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 8)
-			slot_panel.add_child(row)
+			var slot_vbox := VBoxContainer.new()
+			slot_vbox.add_theme_constant_override("separation", 6)
+			slot_panel.add_child(slot_vbox)
 
-			var slot_btn := Button.new()
-			slot_btn.text = "empty"
-			slot_btn.custom_minimum_size.y = 46
-			slot_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			slot_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			slot_btn.add_theme_color_override("font_color", Color(sec_color.r, sec_color.g, sec_color.b, 0.5))
-			slot_btn.add_theme_color_override("font_hover_color", sec_color)
-			row.add_child(slot_btn)
+			# Component slot name
+			var comp_label := Label.new()
+			comp_label.text = slot_label
+			comp_label.add_theme_font_size_override("font_size", 13)
+			comp_label.add_theme_color_override("font_color", Color(sec_color.r, sec_color.g, sec_color.b, 0.7))
+			slot_vbox.add_child(comp_label)
 
-		# Spacer between sections
+			# Augment sub-slots
+			for aug_i in range(augment_count):
+				var aug_row := HBoxContainer.new()
+				aug_row.add_theme_constant_override("separation", 8)
+				slot_vbox.add_child(aug_row)
+
+				# Slot indicator pip
+				var pip := ColorRect.new()
+				pip.custom_minimum_size = Vector2(6, 36)
+				pip.color = Color(sec_color.r, sec_color.g, sec_color.b, 0.3)
+				aug_row.add_child(pip)
+
+				var aug_btn := Button.new()
+				aug_btn.text = "empty"
+				aug_btn.custom_minimum_size.y = 36
+				aug_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				aug_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+				aug_btn.add_theme_color_override("font_color", Color(sec_color.r, sec_color.g, sec_color.b, 0.4))
+				aug_btn.add_theme_color_override("font_hover_color", sec_color)
+				aug_row.add_child(aug_btn)
+
+		# Section spacer
 		var spacer := Control.new()
-		spacer.custom_minimum_size.y = 4
+		spacer.custom_minimum_size.y = 6
 		vbox.add_child(spacer)
 
 
@@ -427,8 +529,8 @@ func _build_augments_tab() -> void:
 
 func _build_vanity_tab() -> void:
 	var container := Control.new()
-	container.position = Vector2(RIGHT_X, RIGHT_Y + TAB_HEIGHT + 10)
-	container.size = Vector2(RIGHT_W, RIGHT_H - TAB_HEIGHT - 10)
+	container.position = Vector2(RIGHT_X, CONTENT_Y)
+	container.size = Vector2(RIGHT_W, RIGHT_H)
 	container.visible = false
 	add_child(container)
 	_tab_containers.append(container)
@@ -448,13 +550,11 @@ func _build_vanity_tab() -> void:
 		var cat_id: String = cat["id"]
 		var options: Array = cat["options"]
 
-		# Category header
 		var header := Label.new()
 		header.text = cat["label"]
 		header.add_theme_font_size_override("font_size", 16)
 		vbox.add_child(header)
 
-		# Current selection display + prev/next arrows
 		var sel_row := HBoxContainer.new()
 		sel_row.add_theme_constant_override("separation", 12)
 		sel_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -478,7 +578,7 @@ func _build_vanity_tab() -> void:
 		next_btn.pressed.connect(_on_vanity_change.bind(cat_id, 1))
 		sel_row.add_child(next_btn)
 
-		# Preview strip — small colored indicators showing all options
+		# Option indicator dots
 		var preview_row := HBoxContainer.new()
 		preview_row.alignment = BoxContainer.ALIGNMENT_CENTER
 		preview_row.add_theme_constant_override("separation", 4)
@@ -487,20 +587,15 @@ func _build_vanity_tab() -> void:
 		for opt_i in range(options.size()):
 			var dot := ColorRect.new()
 			dot.custom_minimum_size = Vector2(24, 6)
-			if opt_i == 0:
-				dot.color = ThemeManager.get_color("accent")
-			else:
-				dot.color = Color(0.2, 0.2, 0.25, 0.5)
+			dot.color = ThemeManager.get_color("accent") if opt_i == 0 else Color(0.2, 0.2, 0.25, 0.5)
 			preview_row.add_child(dot)
 
-		# Store references for updates
 		sel_label.set_meta("cat_id", cat_id)
 		sel_label.set_meta("options", options)
 		sel_row.set_meta("sel_label", sel_label)
 		sel_row.set_meta("preview_row", preview_row)
 		sel_row.set_meta("cat_id", cat_id)
 
-		# Separator
 		var sep := HSeparator.new()
 		vbox.add_child(sep)
 
@@ -519,7 +614,13 @@ func _on_vanity_change(cat_id: String, delta: int) -> void:
 	var new_idx: int = (current + delta + options.size()) % options.size()
 	_vanity_selections[cat_id] = new_idx
 
-	# Update the display — find the sel_row by walking tab container
+	# Update ship preview render mode when skin changes
+	if cat_id == "skin":
+		var skin_name: String = str(options[new_idx])
+		var mode: int = SKIN_RENDER_MODES.get(skin_name, 0)
+		_vanity_ship_renderer.render_mode = mode
+		_vanity_ship_renderer.queue_redraw()
+
 	_update_vanity_display()
 
 
@@ -541,10 +642,7 @@ func _update_vanity_display() -> void:
 
 			for dot_i in range(preview_row.get_child_count()):
 				var dot: ColorRect = preview_row.get_child(dot_i)
-				if dot_i == idx:
-					dot.color = accent
-				else:
-					dot.color = Color(0.2, 0.2, 0.25, 0.5)
+				dot.color = accent if dot_i == idx else Color(0.2, 0.2, 0.25, 0.5)
 
 
 # ── HDR Sliders ─────────────────────────────────────────────
@@ -740,26 +838,21 @@ func _apply_theme() -> void:
 	if not hud_font:
 		hud_font = ThemeManager.get_font("header")
 	var body_font: Font = ThemeManager.get_font("body")
-	var header_color: Color = ThemeManager.get_color("header")
 
-	# Finance fonts
 	_bank_value_label.add_theme_font_override("font", hud_font)
 	_bank_value_label.add_theme_font_size_override("font_size", 28)
 	_cost_value_label.add_theme_font_override("font", hud_font)
 	_cost_value_label.add_theme_font_size_override("font_size", 28)
 
-	# Coord
 	_coord_label.add_theme_font_override("font", body_font)
 	_coord_label.add_theme_font_size_override("font_size", 12)
 	_coord_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 
-	# Buttons
 	ThemeManager.apply_button_style(_back_button)
 	ThemeManager.apply_button_style(_confirm_button)
 	for btn in _tab_buttons:
 		ThemeManager.apply_button_style(btn)
 
-	# Subsystem panels
 	for sub in SUBSYSTEMS:
 		if not _panel_nodes.has(sub):
 			continue
@@ -774,14 +867,13 @@ func _apply_theme() -> void:
 		var cost_lbl: Label = nodes["cost_label"]
 		cost_lbl.add_theme_font_override("font", body_font)
 
-	# Finance title
 	var title_lbl: Label = _finance_panel.get_meta("title_label")
 	if title_lbl:
 		title_lbl.add_theme_font_override("font", body_font)
-		title_lbl.add_theme_color_override("font_color", Color(header_color.r, header_color.g, header_color.b, 0.8))
+		var hc: Color = ThemeManager.get_color("header")
+		title_lbl.add_theme_color_override("font_color", Color(hc.r, hc.g, hc.b, 0.8))
 		ThemeManager.apply_text_glow(title_lbl, "header")
 
-	# Re-style active tab
 	_switch_tab(_active_tab)
 
 

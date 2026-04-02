@@ -174,6 +174,27 @@ static func get_engine_offsets(id: int) -> Array[Vector2]:
 		8: return [Vector2(-12.0, 34.0), Vector2(-4.0, 34.0), Vector2(4.0, 34.0), Vector2(12.0, 34.0)]
 	return [Vector2(0.0, 30.0)]
 
+# ── Material classification ──
+## Returns which material class a color represents based on which palette color it matches.
+## Ships draw polygons with hull_color (primary/A), accent_color (secondary/B),
+## detail_color (tertiary/C), or engine_color. Skins use this to decide treatment.
+enum Material { PRIMARY, SECONDARY, TERTIARY }
+
+func _classify_material(color: Color) -> int:
+	# Compare by proximity — colors might have slight alpha differences
+	if _color_close(color, hull_color):
+		return Material.PRIMARY
+	if _color_close(color, accent_color):
+		return Material.SECONDARY
+	if _color_close(color, engine_color):
+		return Material.SECONDARY
+	if _color_close(color, detail_color):
+		return Material.TERTIARY
+	return Material.PRIMARY  # Default to primary for unknown colors
+
+func _color_close(a: Color, b: Color) -> bool:
+	return absf(a.r - b.r) < 0.05 and absf(a.g - b.g) < 0.05 and absf(a.b - b.b) < 0.05
+
 # ── Dispatch helpers ──
 
 func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
@@ -185,9 +206,9 @@ func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
 		RenderMode.HIVEMIND: _draw_hivemind_polygon(points, width)
 		RenderMode.SPORE: _draw_spore_polygon(points, width)
 		RenderMode.GUNMETAL: _draw_gunmetal_polygon(points, color, width)
-		RenderMode.MILITIA: _draw_militia_polygon(points, width)
-		RenderMode.STEALTH: _draw_stealth_polygon(points, width)
-		RenderMode.CAUTION: _draw_caution_polygon(points, width)
+		RenderMode.MILITIA: _draw_militia_polygon(points, color, width)
+		RenderMode.STEALTH: _draw_stealth_polygon(points, color, width)
+		RenderMode.CAUTION: _draw_caution_polygon(points, color, width)
 		_: _draw_neon_polygon(points, color, width)
 
 func _circle(center: Vector2, radius: float, color: Color, width: float) -> void:
@@ -204,13 +225,13 @@ func _circle(center: Vector2, radius: float, color: Color, width: float) -> void
 			_draw_gunmetal_polygon(pts, color, width)
 		RenderMode.MILITIA:
 			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
-			_draw_militia_polygon(pts, width)
+			_draw_militia_polygon(pts, color, width)
 		RenderMode.STEALTH:
 			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
-			_draw_stealth_polygon(pts, width)
+			_draw_stealth_polygon(pts, color, width)
 		RenderMode.CAUTION:
 			var pts: PackedVector2Array = _make_circle_points(center, radius, 48)
-			_draw_caution_polygon(pts, width)
+			_draw_caution_polygon(pts, color, width)
 		_: _draw_neon_circle(center, radius, color, width)
 
 func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
@@ -222,9 +243,9 @@ func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
 		RenderMode.HIVEMIND: _draw_hivemind_line(a, b, width)
 		RenderMode.SPORE: _draw_spore_line(a, b, width)
 		RenderMode.GUNMETAL: _draw_gunmetal_line(a, b, color, width)
-		RenderMode.MILITIA: _draw_militia_line(a, b, width)
-		RenderMode.STEALTH: _draw_stealth_line(a, b, width)
-		RenderMode.CAUTION: _draw_caution_line(a, b, width)
+		RenderMode.MILITIA: _draw_militia_line(a, b, color, width)
+		RenderMode.STEALTH: _draw_stealth_line(a, b, color, width)
+		RenderMode.CAUTION: _draw_caution_line(a, b, color, width)
 		_: _draw_neon_line(a, b, color, width)
 
 ## Generate evenly-spaced points around a circle (for use with _poly).
@@ -2965,111 +2986,106 @@ func _draw_spore_line(a: Vector2, b: Vector2, width: float) -> void:
 
 # ── Gunmetal draw helpers (matte steel + racing stripes + rivet dots) ──
 
-func _draw_gunmetal_polygon(points: PackedVector2Array, _color: Color, width: float) -> void:
+func _draw_gunmetal_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
 	if points.size() < 3:
 		return
-	# Flat matte steel fill
-	draw_colored_polygon(points, GUNMETAL_HULL)
+	# Material-aware fill: A=steel grey, B=darker panels, C=bronze accent
+	var mat: int = _classify_material(color)
+	var fill: Color
+	match mat:
+		Material.PRIMARY:
+			fill = GUNMETAL_HULL  # Steel grey
+		Material.SECONDARY:
+			fill = Color(0.12, 0.13, 0.15)  # Darker panel
+		Material.TERTIARY:
+			fill = GUNMETAL_ENGINE  # Bronze accent
 
-	# Bounding box
-	var min_y := points[0].y
-	var max_y := points[0].y
-	var min_x := points[0].x
-	var max_x := points[0].x
-	for pt in points:
-		min_y = minf(min_y, pt.y)
-		max_y = maxf(max_y, pt.y)
-		min_x = minf(min_x, pt.x)
-		max_x = maxf(max_x, pt.x)
-	var height: float = max_y - min_y
-	var bwidth: float = max_x - min_x
-	if height < 1.0 or bwidth < 1.0:
-		return
+	draw_colored_polygon(points, fill)
 
-	# Diagonal racing stripes — bold accent color
-	var stripe_spacing: float = 18.0
-	var stripe_w: float = 5.0
-	var _center_x: float = (min_x + max_x) * 0.5
-	var y_start: float = min_y - bwidth  # start above to cover diagonal
-	var y_pos: float = y_start
-	while y_pos < max_y + bwidth:
-		var stripe := PackedVector2Array([
-			Vector2(min_x - 5.0, y_pos),
-			Vector2(max_x + 5.0, y_pos + bwidth * 0.6),
-			Vector2(max_x + 5.0, y_pos + bwidth * 0.6 + stripe_w),
-			Vector2(min_x - 5.0, y_pos + stripe_w),
+	# Top gradient highlight on primary surfaces
+	if mat == Material.PRIMARY:
+		var bounds := _get_bounds(points)
+		var highlight_h: float = (bounds[3] - bounds[2]) * 0.35
+		var grad := PackedVector2Array([
+			Vector2(bounds[0] - 5.0, bounds[2] - 5.0),
+			Vector2(bounds[1] + 5.0, bounds[2] - 5.0),
+			Vector2(bounds[1] + 5.0, bounds[2] + highlight_h),
+			Vector2(bounds[0] - 5.0, bounds[2] + highlight_h),
 		])
-		var clipped: Array = Geometry2D.intersect_polygons(points, stripe)
-		for clip_idx in range(clipped.size()):
-			var clip_poly: PackedVector2Array = clipped[clip_idx]
-			if clip_poly.size() >= 3:
-				draw_colored_polygon(clip_poly, Color(GUNMETAL_ACCENT.r, GUNMETAL_ACCENT.g, GUNMETAL_ACCENT.b, 0.5))
-		y_pos += stripe_spacing
+		var clips: Array = Geometry2D.intersect_polygons(points, grad)
+		for ci in range(clips.size()):
+			var clip: PackedVector2Array = clips[ci]
+			if clip.size() >= 3:
+				draw_colored_polygon(clip, Color(1.0, 1.0, 1.0, 0.06))
 
-	# Subtle top-to-bottom gradient overlay for depth
-	var grad_rect := PackedVector2Array([
-		Vector2(min_x - 5.0, min_y),
-		Vector2(max_x + 5.0, min_y),
-		Vector2(max_x + 5.0, min_y + height * 0.4),
-		Vector2(min_x - 5.0, min_y + height * 0.4),
-	])
-	var grad_clips: Array = Geometry2D.intersect_polygons(points, grad_rect)
-	for clip_idx in range(grad_clips.size()):
-		var clip_poly: PackedVector2Array = grad_clips[clip_idx]
-		if clip_poly.size() >= 3:
-			draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, 0.06))
-
-	# Hard panel edges — thick dark outlines
+	# Panel edges — dark outlines
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
-		draw_line(points[i], points[ni], Color(0.08, 0.08, 0.1), width * 1.8, true)
+		draw_line(points[i], points[ni], Color(0.06, 0.06, 0.08), width * 1.6, true)
+	# Detail edge
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
-		draw_line(points[i], points[ni], GUNMETAL_DETAIL, width * 0.6, true)
+		draw_line(points[i], points[ni], GUNMETAL_DETAIL, width * 0.5, true)
+
 	# Rivet dots at vertices
 	for pt in points:
-		draw_circle(pt, width * 0.7, Color(0.5, 0.52, 0.55))
-		draw_circle(pt, width * 0.35, Color(0.25, 0.26, 0.28))
+		draw_circle(pt, width * 0.6, Color(0.45, 0.47, 0.5))
+		draw_circle(pt, width * 0.3, Color(0.2, 0.21, 0.23))
 
 func _draw_gunmetal_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
-	# Dark border + bright core + rivet endpoints
-	draw_line(a, b, Color(0.08, 0.08, 0.1), width * 1.6, true)
+	draw_line(a, b, Color(0.06, 0.06, 0.08), width * 1.5, true)
 	draw_line(a, b, color, width, true)
-	draw_line(a, b, GUNMETAL_DETAIL, width * 0.4, true)
-	for pt in [a, b]:
-		draw_circle(pt, width * 0.8, Color(0.5, 0.52, 0.55))
-		draw_circle(pt, width * 0.4, Color(0.25, 0.26, 0.28))
+	draw_line(a, b, GUNMETAL_DETAIL, width * 0.35, true)
 
 
 # ── Militia draw helpers (camo patches + stencil edges) ──
 
-func _draw_militia_polygon(points: PackedVector2Array, width: float) -> void:
+func _draw_militia_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
 	if points.size() < 3:
 		return
-	# Dark army green fill
-	draw_colored_polygon(points, MILITIA_HULL)
+	# Material-aware: A=olive green, B=off-white stencil, C=tan detail
+	var mat: int = _classify_material(color)
+	var fill: Color
+	match mat:
+		Material.PRIMARY:
+			fill = MILITIA_HULL  # Dark olive green
+		Material.SECONDARY:
+			fill = MILITIA_ACCENT  # Off-white markings
+		Material.TERTIARY:
+			fill = MILITIA_DETAIL  # Olive-tan detail
 
-	# Hard stencil-style edges — flat, no glow, military crisp
+	draw_colored_polygon(points, fill)
+
+	# Hard stencil-style edges — military crisp
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
-		draw_line(points[i], points[ni], Color(0.1, 0.1, 0.05), width * 1.5, true)
+		draw_line(points[i], points[ni], Color(0.06, 0.08, 0.03), width * 1.5, true)
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
-		draw_line(points[i], points[ni], MILITIA_DETAIL, width * 0.5, true)
+		draw_line(points[i], points[ni], MILITIA_DETAIL, width * 0.4, true)
 
-func _draw_militia_line(a: Vector2, b: Vector2, width: float) -> void:
-	draw_line(a, b, Color(0.1, 0.1, 0.05), width * 1.4, true)
+func _draw_militia_line(a: Vector2, b: Vector2, _color: Color, width: float) -> void:
+	draw_line(a, b, Color(0.06, 0.08, 0.03), width * 1.4, true)
 	draw_line(a, b, MILITIA_ACCENT, width, true)
 	draw_line(a, b, MILITIA_DETAIL, width * 0.3, true)
 
 
 # ── Stealth draw helpers (near-black + angular facets + red heat glow) ──
 
-func _draw_stealth_polygon(points: PackedVector2Array, width: float) -> void:
+func _draw_stealth_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
 	if points.size() < 3:
 		return
-	# Near-black matte fill
-	draw_colored_polygon(points, STEALTH_HULL)
+	# Material-aware: A=near-black, B=blood red accent, C=dark red detail
+	var mat: int = _classify_material(color)
+	var fill: Color
+	match mat:
+		Material.PRIMARY:
+			fill = STEALTH_HULL
+		Material.SECONDARY:
+			fill = Color(0.15, 0.02, 0.02)  # Very dark red panels
+		Material.TERTIARY:
+			fill = STEALTH_DETAIL
+	draw_colored_polygon(points, fill)
 
 	var min_y := points[0].y
 	var max_y := points[0].y
@@ -3104,69 +3120,53 @@ func _draw_stealth_polygon(points: PackedVector2Array, width: float) -> void:
 		if catch_val > 0.15:
 			draw_line(points[i], points[ni], Color(0.25, 0.25, 0.3, catch_val * 0.5), width * 0.4, true)
 
-func _draw_stealth_line(a: Vector2, b: Vector2, width: float) -> void:
+func _draw_stealth_line(a: Vector2, b: Vector2, _color: Color, width: float) -> void:
 	draw_line(a, b, Color(0.02, 0.02, 0.03), width * 1.2, true)
 	draw_line(a, b, STEALTH_DETAIL, width * 0.5, true)
 
 
-# ── Caution drawing helpers (construction yellow + black hazard stripes) ──
+# ── Caution drawing helpers (material-aware: A=yellow, B=black, C=dark grey) ──
 
-func _draw_caution_polygon(points: PackedVector2Array, width: float) -> void:
+func _draw_caution_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
 	if points.size() < 3:
 		return
-	# Base fill — bright safety yellow
-	draw_colored_polygon(points, CAUTION_HULL)
+	var mat: int = _classify_material(color)
+	var fill: Color
+	match mat:
+		Material.PRIMARY:
+			fill = CAUTION_HULL  # Safety yellow
+		Material.SECONDARY:
+			fill = CAUTION_ACCENT  # Black
+		Material.TERTIARY:
+			fill = Color(0.2, 0.18, 0.1)  # Dark grey-brown
 
-	# Black diagonal hazard stripes (like caution tape)
-	var bounds := _get_bounds(points)
-	var min_x: float = bounds[0]
-	var max_x: float = bounds[1]
-	var min_y: float = bounds[2]
-	var max_y: float = bounds[3]
-	var stripe_spacing: float = 12.0
-	var stripe_w: float = 5.0
-	var y_pos: float = min_y - (max_x - min_x)  # Start early for diagonal coverage
-	while y_pos < max_y + stripe_w:
-		var stripe := PackedVector2Array([
-			Vector2(min_x - 5.0, y_pos),
-			Vector2(max_x + 5.0, y_pos + (max_x - min_x) * 0.6),
-			Vector2(max_x + 5.0, y_pos + (max_x - min_x) * 0.6 + stripe_w),
-			Vector2(min_x - 5.0, y_pos + stripe_w),
-		])
-		var clips: Array = Geometry2D.intersect_polygons(points, stripe)
-		for ci in range(clips.size()):
-			var clip: PackedVector2Array = clips[ci]
-			if clip.size() >= 3:
-				draw_colored_polygon(clip, Color(CAUTION_ACCENT, 0.7))
-		y_pos += stripe_spacing
+	draw_colored_polygon(points, fill)
 
-	# Panel edges — dark outline
+	# Panel edges
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
 		draw_line(points[i], points[ni], Color(0.05, 0.05, 0.03), width * 1.5, true)
 
-	# Subtle top gradient highlight
-	var highlight_h: float = (max_y - min_y) * 0.35
-	var grad := PackedVector2Array([
-		Vector2(min_x - 5.0, min_y - 5.0),
-		Vector2(max_x + 5.0, min_y - 5.0),
-		Vector2(max_x + 5.0, min_y + highlight_h),
-		Vector2(min_x - 5.0, min_y + highlight_h),
-	])
-	var grad_clips: Array = Geometry2D.intersect_polygons(points, grad)
-	for gi in range(grad_clips.size()):
-		var gclip: PackedVector2Array = grad_clips[gi]
-		if gclip.size() >= 3:
-			draw_colored_polygon(gclip, Color(1.0, 1.0, 1.0, 0.06))
+	# Subtle top highlight on primary surfaces
+	if mat == Material.PRIMARY:
+		var bounds := _get_bounds(points)
+		var highlight_h: float = (bounds[3] - bounds[2]) * 0.3
+		var grad := PackedVector2Array([
+			Vector2(bounds[0] - 5.0, bounds[2] - 5.0),
+			Vector2(bounds[1] + 5.0, bounds[2] - 5.0),
+			Vector2(bounds[1] + 5.0, bounds[2] + highlight_h),
+			Vector2(bounds[0] - 5.0, bounds[2] + highlight_h),
+		])
+		var grad_clips: Array = Geometry2D.intersect_polygons(points, grad)
+		for gi in range(grad_clips.size()):
+			var gclip: PackedVector2Array = grad_clips[gi]
+			if gclip.size() >= 3:
+				draw_colored_polygon(gclip, Color(1.0, 1.0, 1.0, 0.08))
 
 
-func _draw_caution_line(a: Vector2, b: Vector2, width: float) -> void:
-	# Dark border
+func _draw_caution_line(a: Vector2, b: Vector2, _color: Color, width: float) -> void:
 	draw_line(a, b, Color(0.05, 0.05, 0.03), width * 1.5, true)
-	# Yellow core
 	draw_line(a, b, CAUTION_HULL, width, true)
-	# Black accent stripe through center
-	draw_line(a, b, Color(CAUTION_ACCENT, 0.4), width * 0.3, true)
 
 
 func _get_bounds(points: PackedVector2Array) -> Array[float]:

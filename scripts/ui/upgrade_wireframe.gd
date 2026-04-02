@@ -1,8 +1,6 @@
 extends Node2D
 ## Green wireframe technical diagram of the player's ship with subsystem callouts.
-## Lives inside a metal-framed viewport on the upgrade screen.
-## The green grid, ship, scan line, and containment box are drawn here.
-## Arrows extend outside the frame to reach the upgrade panels.
+## Lives inside the upgrade screen's left panel, framed by a green box outline.
 
 var _time: float = 0.0
 var _levels: Dictionary = {}
@@ -11,11 +9,14 @@ var _levels: Dictionary = {}
 var hdr_ship: float = 1.8
 var hdr_arrows: float = 1.4
 
-# Frame bounds — set by upgrade_screen, used to clip grid and scan line
-var frame_rect: Rect2 = Rect2(310, 60, 700, 660)
-var ship_center: Vector2 = Vector2(660, 390)
+# Frame bounds — set by upgrade_screen
+var frame_rect: Rect2 = Rect2(20, 40, 640, 700)
+var ship_center: Vector2 = Vector2(340, 390)
 
-# Arrow/highlight colors — from ThemeManager accent in upgrade_screen
+# Toggle arrows on/off (only shown on Subsystems tab)
+var show_arrows: bool = true
+
+# Arrow/highlight colors
 var arrow_colors: Dictionary = {
 	"WEAPONS": Color(1.0, 0.4, 0.2, 0.6),
 	"ARMOR": Color(0.4, 0.9, 0.4, 0.6),
@@ -31,20 +32,10 @@ const ANCHORS := {
 	"POWER CORE": Vector2(10, 8),
 }
 
-# Panel centers relative to SHIP_CENTER (340, 390)
-# Subsystem panels are inside the right-side tab container at (700, 90+TAB)
-# They're at y offsets 200+i*130 within that container, so screen y = 90+50+200+i*130
-# Panel width=500, so center x = 700 + 250 = 950. Relative to ship_center.x=340: 610
-const PANEL_CENTERS := {
-	"WEAPONS": Vector2(610, 540 - 390 + 0 * 130),
-	"ARMOR": Vector2(610, 540 - 390 + 1 * 130),
-	"ENGINES": Vector2(610, 540 - 390 + 2 * 130),
-	"POWER CORE": Vector2(610, 540 - 390 + 3 * 130),
-}
+# Panel targets — set dynamically by upgrade_screen when subsystems tab builds
+var panel_targets: Dictionary = {}  # {"WEAPONS": Vector2 screen pos, ...}
 
 const SCALE := 9.0
-
-# Pulse dot speed in pixels/second
 const PULSE_SPEED := 250.0
 
 
@@ -56,13 +47,6 @@ func _process(delta: float) -> void:
 func set_levels(levels: Dictionary) -> void:
 	_levels = levels
 
-
-# Frame half-extents relative to this node's position
-func _frame_half_w() -> float:
-	return frame_rect.size.x * 0.5
-
-func _frame_half_h() -> float:
-	return frame_rect.size.y * 0.5
 
 func _frame_left() -> float:
 	return frame_rect.position.x - ship_center.x
@@ -82,15 +66,15 @@ func _draw() -> void:
 	_draw_grid_underlay()
 	_draw_frame_outline()
 	_draw_ship_wireframe()
-	_draw_subsystem_highlights()
+	if show_arrows:
+		_draw_subsystem_highlights()
 	_draw_scan_line()
 	_draw_dimension_marks()
-	# Arrows drawn on top — they extend outside the frame
-	_draw_connection_arrows()
+	if show_arrows:
+		_draw_connection_arrows()
 
 
 func _draw_frame_fill() -> void:
-	# Black fill inside the frame so the green content has a dark backdrop
 	var rect := Rect2(
 		Vector2(_frame_left(), _frame_top()),
 		frame_rect.size
@@ -99,7 +83,6 @@ func _draw_frame_fill() -> void:
 
 
 func _draw_frame_outline() -> void:
-	# Green box outline around the ship viewport
 	var h: float = hdr_ship
 	var fl: float = _frame_left()
 	var fr: float = _frame_right()
@@ -112,13 +95,11 @@ func _draw_frame_outline() -> void:
 	var br := Vector2(fr, fb)
 	var bl := Vector2(fl, fb)
 
-	# Full rectangle
 	draw_line(tl, tr, box_color, 1.5)
 	draw_line(tr, br, box_color, 1.5)
 	draw_line(br, bl, box_color, 1.5)
 	draw_line(bl, tl, box_color, 1.5)
 
-	# Corner accents — brighter, thicker
 	var corner_color := Color(0.0, 0.8 * h, 0.35 * h, 0.7)
 	var cl := 24.0
 	draw_line(tl, tl + Vector2(cl, 0), corner_color, 2.5)
@@ -132,7 +113,6 @@ func _draw_frame_outline() -> void:
 
 
 func _draw_grid_underlay() -> void:
-	# Green grid clipped to frame bounds
 	var grid_size := 40.0
 	var fl: float = _frame_left()
 	var fr: float = _frame_right()
@@ -152,7 +132,6 @@ func _draw_grid_underlay() -> void:
 		var y: float = y_i * grid_size
 		draw_line(Vector2(fl, y), Vector2(fr, y), grid_color, 1.0)
 
-	# Center crosshair
 	var cross_color := Color(0.0, 0.5, 0.25, 0.3)
 	draw_line(Vector2(-20, 0), Vector2(20, 0), cross_color, 1.0)
 	draw_line(Vector2(0, -20), Vector2(0, 20), cross_color, 1.0)
@@ -240,26 +219,37 @@ func _draw_highlight_zone(center: Vector2, half_size: Vector2, color: Color) -> 
 
 
 func _draw_connection_arrows() -> void:
+	if panel_targets.is_empty():
+		return
 	var s: float = SCALE
 	var h: float = hdr_arrows
+
 	for sub_name in ANCHORS:
+		if not panel_targets.has(sub_name):
+			continue
 		var ship_pt: Vector2 = ANCHORS[sub_name] * s
-		var panel_center: Vector2 = PANEL_CENTERS[sub_name]
+		# Panel target is in screen coords — convert to local (relative to this node)
+		var target_screen: Vector2 = panel_targets[sub_name]
+		var panel_left: Vector2 = target_screen - ship_center  # Convert to local coords
+
+		# Route: ship anchor → exit frame right edge → elbow at midpoint → panel left edge
+		var frame_exit_x: float = _frame_right() + 5
+		var mid_x: float = (frame_exit_x + panel_left.x) * 0.5
+
+		var pt_exit := Vector2(frame_exit_x, ship_pt.y)
+		var elbow := Vector2(mid_x, panel_left.y)
+
 		var base_color: Color = arrow_colors.get(sub_name, Color.WHITE)
+		_draw_dashed_line(ship_pt, pt_exit, base_color, 1.5, 8.0, 5.0)
+		_draw_dashed_line(pt_exit, elbow, base_color, 1.5, 8.0, 5.0)
+		_draw_dashed_line(elbow, panel_left, base_color, 1.5, 8.0, 5.0)
 
-		var elbow := Vector2(panel_center.x * 0.35, ship_pt.y)
-		var panel_edge := Vector2(panel_center.x * 0.82, panel_center.y)
-
-		_draw_dashed_line(ship_pt, elbow, base_color, 1.5, 8.0, 5.0)
-		_draw_dashed_line(elbow, panel_edge, base_color, 1.5, 8.0, 5.0)
-
-		# Anchor dot — HDR
+		# Anchor dot
 		draw_circle(ship_pt, 5.0, Color(base_color.r * h, base_color.g * h, base_color.b * h, 0.8))
 
-		# Constant-velocity pulse dot
-		var seg1_len: float = ship_pt.distance_to(elbow)
-		var seg2_len: float = elbow.distance_to(panel_edge)
-		var total_len: float = seg1_len + seg2_len
+		# Constant-velocity pulse dot along 3-segment path
+		var seg_lens := [ship_pt.distance_to(pt_exit), pt_exit.distance_to(elbow), elbow.distance_to(panel_left)]
+		var total_len: float = seg_lens[0] + seg_lens[1] + seg_lens[2]
 		if total_len < 1.0:
 			continue
 
@@ -268,13 +258,19 @@ func _draw_connection_arrows() -> void:
 		var dist: float = fmod((_time + phase * cycle_time), cycle_time) / cycle_time * total_len
 		dist = total_len - dist  # Reverse: panel → ship
 
-		var pulse_pos: Vector2
-		if dist <= seg1_len:
-			pulse_pos = ship_pt.lerp(elbow, dist / seg1_len)
-		else:
-			pulse_pos = elbow.lerp(panel_edge, (dist - seg1_len) / seg2_len)
-
+		var waypoints := [ship_pt, pt_exit, elbow, panel_left]
+		var pulse_pos := _pos_along_path(waypoints, seg_lens, dist)
 		draw_circle(pulse_pos, 4.0, Color(base_color.r * h, base_color.g * h, base_color.b * h, 1.0))
+
+
+func _pos_along_path(waypoints: Array, seg_lens: Array, dist: float) -> Vector2:
+	var accumulated: float = 0.0
+	for i in range(seg_lens.size()):
+		if dist <= accumulated + seg_lens[i]:
+			var t: float = (dist - accumulated) / maxf(seg_lens[i], 0.001)
+			return (waypoints[i] as Vector2).lerp(waypoints[i + 1] as Vector2, t)
+		accumulated += seg_lens[i]
+	return waypoints[waypoints.size() - 1]
 
 
 func _draw_dashed_line(from: Vector2, to: Vector2, color: Color, width: float, dash: float, gap: float) -> void:
@@ -299,13 +295,11 @@ func _draw_scan_line() -> void:
 
 	var scan_y: float = ft + fmod(_time * 50.0, scan_range)
 
-	# Pulsing HDR
 	var pulse: float = 0.6 + 0.4 * sin(_time * 3.5)
 	var scan_alpha: float = 0.3 * pulse
 
 	draw_line(Vector2(fl, scan_y), Vector2(fr, scan_y),
 		Color(0.0, 1.0 * h, 0.4 * h, scan_alpha), 2.0)
-	# Wide glow pass
 	draw_line(Vector2(fl, scan_y), Vector2(fr, scan_y),
 		Color(0.0, 0.8 * h, 0.35 * h, scan_alpha * 0.3), 8.0)
 
@@ -325,13 +319,11 @@ func _draw_dimension_marks() -> void:
 	var fb: float = _frame_bottom() - 10
 	var dim_color := Color(0.0, 0.6, 0.3, 0.2)
 
-	# Width mark near bottom
 	var w_y: float = fb - 15
 	draw_line(Vector2(fl, w_y), Vector2(fr, w_y), dim_color, 1.0)
 	draw_line(Vector2(fl, w_y - 6), Vector2(fl, w_y + 6), dim_color, 1.0)
 	draw_line(Vector2(fr, w_y - 6), Vector2(fr, w_y + 6), dim_color, 1.0)
 
-	# Height mark near right edge
 	var h_x: float = fr - 15
 	draw_line(Vector2(h_x, ft), Vector2(h_x, fb), dim_color, 1.0)
 	draw_line(Vector2(h_x - 6, ft), Vector2(h_x + 6, ft), dim_color, 1.0)
