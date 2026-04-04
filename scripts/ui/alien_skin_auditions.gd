@@ -20,11 +20,11 @@ const SHIP_LIST: Array[Array] = [
 	["SPORE", "spore"],
 	["MITE", "mite"],
 	["POLYP", "polyp"],
+	["JELLYFISH", "jellyfish"],
 	["LAMPREY", "lamprey"],
 	["ANEMONE", "anemone"],
 	["MANTARAY", "mantaray"],
 	["NAUTILUS", "nautilus"],
-	["HYDRA", "hydra"],
 	["MYCELIA", "mycelia"],
 ]
 

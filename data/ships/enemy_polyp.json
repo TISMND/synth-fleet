@@ -1,15 +1,46 @@
 {
-	"id": "enemy_polyp",
+	"collision_height": 30.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
+	"collision_shape": "circle",
+	"collision_width": 30.0,
 	"display_name": "Polyp",
-	"type": "enemy",
+	"enable_screen_shake": false,
+	"explosion_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"explosion_size": 1.0,
+	"grid_size": [
+		28,
+		36
+	],
+	"hardpoints": [],
+	"id": "enemy_polyp",
 	"level": "lifeform",
-	"visual_id": "polyp",
+	"lines": [],
+	"neon_hdr": 3.37,
+	"neon_white": 0.21,
+	"neon_width": 0.205,
 	"render_mode": "neon",
-	"grid_size": [28, 36],
-	"weapon_id": "",
 	"stats": {
-		"hull_hp": 30,
-		"shield_hp": 0,
-		"speed": 200
-	}
+		"acceleration": 1200.0,
+		"core_slots": 1.0,
+		"electric_segments": 8.0,
+		"field_slots": 1.0,
+		"hull_hp": 30.0,
+		"hull_segments": 8.0,
+		"particle_slots": 1.0,
+		"shield_hp": 0.0,
+		"shield_regen": 1.0,
+		"shield_segments": 10.0,
+		"speed": 200.0,
+		"thermal_segments": 6.0,
+		"weapon_slots": 3.0
+	},
+	"type": "enemy",
+	"visual_id": "polyp",
+	"weapon_id": ""
 }

@@ -1,15 +1,46 @@
 {
-	"id": "enemy_mantaray",
+	"collision_height": 30.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
+	"collision_shape": "circle",
+	"collision_width": 30.0,
 	"display_name": "Manta Ray",
-	"type": "enemy",
+	"enable_screen_shake": false,
+	"explosion_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"explosion_size": 1.0,
+	"grid_size": [
+		80,
+		48
+	],
+	"hardpoints": [],
+	"id": "enemy_mantaray",
 	"level": "lifeform",
-	"visual_id": "mantaray",
+	"lines": [],
+	"neon_hdr": 2.21,
+	"neon_white": 0.0,
+	"neon_width": 0.395,
 	"render_mode": "neon",
-	"grid_size": [80, 48],
-	"weapon_id": "",
 	"stats": {
-		"hull_hp": 30,
-		"shield_hp": 0,
-		"speed": 200
-	}
+		"acceleration": 1200,
+		"core_slots": 1,
+		"electric_segments": 8,
+		"field_slots": 1,
+		"hull_hp": 30.0,
+		"hull_segments": 8,
+		"particle_slots": 1,
+		"shield_hp": 0.0,
+		"shield_regen": 1.0,
+		"shield_segments": 10,
+		"speed": 200.0,
+		"thermal_segments": 6,
+		"weapon_slots": 3
+	},
+	"type": "enemy",
+	"visual_id": "mantaray",
+	"weapon_id": ""
 }

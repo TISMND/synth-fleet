@@ -23,7 +23,7 @@
 	"lines": [],
 	"neon_hdr": 2.45,
 	"neon_white": 0.29,
-	"neon_width": 0.14,
+	"neon_width": 0.135,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 1200.0,

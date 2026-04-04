@@ -1,5 +1,7 @@
 {
 	"collision_height": 120.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "circle",
 	"collision_width": 120.0,
 	"display_name": "Leviathan",
@@ -16,11 +18,12 @@
 		96
 	],
 	"hardpoints": [],
-	"hull_blink_speed": 6.0,
-	"hull_flash_duration": 0.12,
-	"hull_flash_opacity": 0.5,
 	"id": "enemy_leviathan",
+	"level": "lifeform",
 	"lines": [],
+	"neon_hdr": 2.61,
+	"neon_white": 0.0,
+	"neon_width": 0.21,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 200.0,
@@ -42,6 +45,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "leviathan",
-	"weapon_id": "enemy_speck_burst",
-	"level": "lifeform"
+	"weapon_id": "enemy_speck_burst"
 }

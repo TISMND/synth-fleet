@@ -12,8 +12,8 @@ uniform float rift_height : hint_range(0.05, 0.3) = 0.16;
 uniform float line_brightness : hint_range(0.2, 4.0) = 1.5;
 uniform float pulse_speed : hint_range(0.5, 5.0) = 2.5;
 uniform float pulse_count : hint_range(1.0, 8.0) = 5.0;
-uniform float pulse_hdr : hint_range(1.0, 25.0) = 14.0;
-uniform float pulse_width : hint_range(0.01, 0.15) = 0.06;
+uniform float pulse_hdr : hint_range(1.0, 30.0) = 21.0;
+uniform float pulse_width : hint_range(0.005, 0.15) = 0.03;
 uniform float line_density : hint_range(8.0, 40.0) = 18.0;
 uniform float bolt_count : hint_range(2.0, 10.0) = 6.0;
 uniform float bolt_brightness : hint_range(0.5, 8.0) = 4.0;
@@ -143,11 +143,11 @@ void fragment() {
 			float seg_len;
 			if (seg % 2 == 0) {
 				direction = out_dir;
-				seg_len = 0.02 + seg_seed * 0.05;
+				seg_len = 0.03 + seg_seed * 0.07;
 			} else {
 				float jog_sign = (seg_seed > 0.5) ? 1.0 : -1.0;
 				direction = perp_dir * jog_sign;
-				seg_len = 0.01 + seg_seed * 0.03;
+				seg_len = 0.015 + seg_seed * 0.04;
 			}
 
 			vec2 next_pos = pos + direction * seg_len;
@@ -155,7 +155,7 @@ void fragment() {
 			float core = smoothstep(0.004, 0.001, sd);
 			float glow = exp(-sd * sd / 0.00008);
 			float dist_from_start = length(pos);
-			float range_fade = smoothstep(0.4, 0.02, dist_from_start);
+			float range_fade = smoothstep(0.55, 0.02, dist_from_start);
 
 			lightning_val += (core * 1.0 + glow * 0.3) * range_fade * shaft_flash;
 
@@ -204,42 +204,60 @@ void fragment() {
 			pos = next_pos;
 		}
 	}
-	lightning_val = min(lightning_val, 4.0);
-	col += bolt_color * lightning_val * bolt_brightness * hdr_intensity * 0.3;
+	lightning_val = min(lightning_val, 5.0);
+	col += bolt_color * lightning_val * bolt_brightness * hdr_intensity * 0.55;
 
 	// ══════════════════════════════════════════════
-	// HDR RING PULSES — irregular timing, 80% off duty cycle, intense
+	// HDR PULSES — geometric (manhattan distance = diamond/square wavefront),
+	// irregular timing, 80% off, angular masking.
 	// ══════════════════════════════════════════════
 	float ring_boost = 0.0;
+	float pixel_angle = atan(d.y, d.x);
+	// Manhattan distance from center — makes the wavefront diamond-shaped
+	float manhattan_dist = abs(d.x) + abs(d.y);
+	// Chebyshev (max of abs) — makes it square-shaped
+	float chebyshev_dist = max(abs(d.x), abs(d.y));
 	int pc = int(pulse_count);
 	for (int i = 0; i < 8; i++) {
 		if (i >= pc) break;
 		float fi = float(i);
 
-		// Each pulse has its own irregular period
-		float period = 1.2 + hash(vec2(fi, 11.0)) * 2.0; // 1.2s - 3.2s per pulse cycle
+		float period = 1.2 + hash(vec2(fi, 11.0)) * 2.0;
 		float phase = hash(vec2(fi, 22.0)) * period;
 		float cycle_t = mod(TIME + phase, period);
 
-		// 80% off: pulse is only active for the first 20% of its cycle
 		float active_window = period * 0.2;
 		float pulse_alive = smoothstep(active_window, active_window - 0.05, cycle_t)
 		                   * smoothstep(0.0, 0.03, cycle_t);
 		if (pulse_alive < 0.01) continue;
 
-		// Ring expands during the active window
-		float ring_t = cycle_t / active_window; // 0→1 during active window
-		float wave_radius = ring_t * 0.85; // full screen coverage
+		// Angular mask — each pulse covers a random arc
+		float strike_id = floor((TIME + phase) / period);
+		float arc_center = hash(vec2(fi * 3.0, strike_id * 7.0)) * 6.2832 - 3.14159;
+		float arc_half = 0.52 + hash(vec2(fi * 5.0, strike_id * 11.0)) * 1.05;
+		float angle_diff = abs(mod(pixel_angle - arc_center + 3.14159, 6.2832) - 3.14159);
+		float arc_mask = smoothstep(arc_half, arc_half - 0.25, angle_diff);
+		if (arc_mask < 0.01) continue;
 
-		float wave_match = abs(dist - wave_radius);
+		float ring_t = cycle_t / active_window;
+		float wave_radius = ring_t * 0.85;
+
+		// Alternate between diamond and square wavefronts per pulse
+		float shape_pick = hash(vec2(fi * 7.0, strike_id * 13.0));
+		float geo_dist = (shape_pick > 0.5) ? chebyshev_dist : manhattan_dist;
+		// Scale to match: manhattan/chebyshev range differs from euclidean
+		float scale = (shape_pick > 0.5) ? 1.0 : 0.7;
+		float wave_match = abs(geo_dist * scale - wave_radius);
 		float ring = exp(-wave_match * wave_match / (pulse_width * pulse_width));
 
-		// Intensity: bright at birth, fading as it expands
-		float intensity = (1.0 - ring_t * 0.5) * pulse_alive;
-
-		ring_boost += ring * intensity;
+		// Chaotic flicker — multiple overlapping sine waves, full 0-100% range
+		float flk = sin(TIME * 37.0 + fi * 5.0) * sin(TIME * 23.0 + fi * 11.0);
+		flk = flk * 0.5 + 0.5; // 0..1
+		flk *= step(0.3, sin(TIME * 61.0 + fi * 17.0)); // hard cuts to zero
+		float intensity = (1.0 - ring_t * 0.4) * pulse_alive * flk;
+		ring_boost += ring * intensity * arc_mask;
 	}
-	ring_boost = min(ring_boost, 5.0);
+	ring_boost = min(ring_boost, 6.0);
 
 	// ── Geometric grid lines ──
 	vec2 grid_offset = vec2(sin(TIME * drift_speed * 0.7) * 0.01, cos(TIME * drift_speed) * 0.01);
@@ -260,7 +278,7 @@ void fragment() {
 	h_active = max(h_active, near_rift);
 	v_active = max(v_active, near_rift);
 
-	float line_w = 0.055;
+	float line_w = 0.041;
 	float h_line = smoothstep(line_w, line_w * 0.12, abs(cell_f.y - 0.5)) * h_active;
 	float v_line = smoothstep(line_w, line_w * 0.12, abs(cell_f.x - 0.5)) * v_active;
 	float line_core = max(h_line, v_line);

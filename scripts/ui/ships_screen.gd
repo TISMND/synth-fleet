@@ -1186,8 +1186,8 @@ func _build_enemy_stats_tab(vbox: VBoxContainer) -> void:
 	health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(health_label)
 
-	_add_slider_row(vbox, "shield_hp", "SHD", 0, 200, 5)
-	_add_slider_row(vbox, "hull_hp", "HULL", 10, 500, 5)
+	_add_slider_row(vbox, "shield_hp", "SHD", 0, 400, 5)
+	_add_slider_row(vbox, "hull_hp", "HULL", 10, 1000, 5)
 
 	_add_section_spacer(vbox)
 

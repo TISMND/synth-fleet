@@ -40,7 +40,7 @@ void fragment() {
 var _flash_shader: Shader = null
 
 # Large enemies get bigger viewports for visual fidelity
-const LARGE_ENEMY_VISUALS: Array[String] = ["leviathan", "marauder", "ironclad", "wraith", "colossus", "monolith", "nexus", "pylon", "aegis", "helix", "conduit", "dreadnought", "mantaray", "nautilus", "hydra", "behemoth", "mycelia"]
+const LARGE_ENEMY_VISUALS: Array[String] = ["leviathan", "jellyfish", "marauder", "ironclad", "wraith", "colossus", "monolith", "nexus", "pylon", "aegis", "helix", "conduit", "dreadnought", "mantaray", "nautilus", "behemoth", "mycelia"]
 const BOSS_ENEMY_VISUALS: Array[String] = ["archon_core", "archon_wing_l", "archon_wing_r", "archon_turret"]
 const BAKE_SIZE_SMALL: int = 128
 const BAKE_SIZE_LARGE: int = 256
