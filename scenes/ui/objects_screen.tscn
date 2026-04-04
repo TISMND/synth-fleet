@@ -1,9 +1,6 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/objects_screen.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/ui/buildings_tab.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/ui/items_tab.gd" id="3"]
-[ext_resource type="Script" path="res://scripts/ui/doodads_tab.gd" id="4"]
 [ext_resource type="Script" path="res://scripts/ui/currency_tab.gd" id="6"]
 
 [node name="ObjectsScreen" type="Control"]
@@ -46,18 +43,6 @@ text = "OBJECTS"
 [node name="TabContainer" type="TabContainer" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
-
-[node name="Buildings" type="MarginContainer" parent="VBoxContainer/TabContainer"]
-layout_mode = 2
-script = ExtResource("2")
-
-[node name="Items" type="MarginContainer" parent="VBoxContainer/TabContainer"]
-layout_mode = 2
-script = ExtResource("3")
-
-[node name="Doodads" type="MarginContainer" parent="VBoxContainer/TabContainer"]
-layout_mode = 2
-script = ExtResource("4")
 
 [node name="Currency" type="MarginContainer" parent="VBoxContainer/TabContainer"]
 layout_mode = 2

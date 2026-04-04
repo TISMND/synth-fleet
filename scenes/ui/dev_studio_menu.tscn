@@ -45,9 +45,13 @@ theme_override_constants/separation = 12
 layout_mode = 2
 text = "SHIPS"
 
+[node name="ShipCosmeticsButton" type="Button" parent="ButtonLayout/Columns/LeftCol"]
+layout_mode = 2
+text = "SHIP COSMETICS"
+
 [node name="StyleButton" type="Button" parent="ButtonLayout/Columns/LeftCol"]
 layout_mode = 2
-text = "STYLES"
+text = "UI"
 
 [node name="ComponentsButton" type="Button" parent="ButtonLayout/Columns/LeftCol"]
 layout_mode = 2
@@ -89,10 +93,6 @@ text = "BACKGROUNDS"
 [node name="AuditionsButton" type="Button" parent="ButtonLayout/Columns/RightCol"]
 layout_mode = 2
 text = "AUDITIONS"
-
-[node name="SandboxButton" type="Button" parent="ButtonLayout/Columns/RightCol"]
-layout_mode = 2
-text = "LAYOUT SANDBOX"
 
 [node name="BackButton" type="Button" parent="ButtonLayout"]
 layout_mode = 2

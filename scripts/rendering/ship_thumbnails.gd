@@ -59,6 +59,20 @@ static func draw_enemy_on(ci: CanvasItem, visual_id: String, at_origin: Vector2,
 		"archon_wing_l": ctx.draw_archon_wing(o, -1.0)
 		"archon_wing_r": ctx.draw_archon_wing(o, 1.0)
 		"archon_turret": ctx.draw_archon_turret(o)
+		"shard": ctx.draw_shard(o)
+		"monolith": ctx.draw_monolith(o)
+		"nexus": ctx.draw_nexus(o)
+		"pylon": ctx.draw_pylon(o)
+		"aegis": ctx.draw_aegis(o)
+		"helix": ctx.draw_helix(o)
+		"conduit": ctx.draw_conduit(o)
+		"spore": ctx.draw_spore(o)
+		"polyp": ctx.draw_polyp(o)
+		"lamprey": ctx.draw_lamprey(o)
+		"anemone": ctx.draw_anemone(o)
+		"nautilus": ctx.draw_nautilus(o)
+		"behemoth": ctx.draw_behemoth(o)
+		"mycelia": ctx.draw_mycelia(o)
 		_: ctx.draw_sentinel(o)
 
 ## Draw a sentinel enemy thumbnail on any CanvasItem.
@@ -1018,3 +1032,406 @@ class _DrawCtx:
 		mc(o, 3.0 * s, Color(magenta.r, magenta.g, magenta.b, 0.5))
 		ml(o, o + Vector2(0, 12.0 * s), teal, 0.5)
 		mc(o + Vector2(0, 12.0 * s), 1.0 * s, teal)
+
+	# ── Geometric enemies (missing thumbnails) ──
+
+	func draw_shard(o: Vector2) -> void:
+		var s := 0.5
+		# Sleek diamond hull
+		var diamond := PackedVector2Array([
+			o + Vector2(0, 16) * s, o + Vector2(7, 0) * s,
+			o + Vector2(0, -14) * s, o + Vector2(-7, 0) * s,
+		])
+		mp(diamond, cyan, 0.8)
+		# Inner accent diamond
+		var inner := PackedVector2Array([
+			o + Vector2(0, 10) * s, o + Vector2(4, 0) * s,
+			o + Vector2(0, -9) * s, o + Vector2(-4, 0) * s,
+		])
+		mp(inner, magenta, 0.6)
+		# Core square
+		var core_r: float = 3.5 * s
+		var sq := PackedVector2Array()
+		for i in range(4):
+			var angle: float = TAU * float(i) / 4.0
+			sq.append(o + Vector2(cos(angle) * core_r, sin(angle) * core_r))
+		mp(sq, teal, 0.5)
+		mc(o, 1.5, cyan)
+
+	func draw_monolith(o: Vector2) -> void:
+		var s := 0.22
+		var hw: float = 12.0 * s
+		var hh: float = 28.0 * s
+		# Tall chamfered slab
+		var body := PackedVector2Array([
+			o + Vector2(-hw + 3.0 * s, -hh), o + Vector2(hw - 3.0 * s, -hh),
+			o + Vector2(hw, -hh + 3.0 * s), o + Vector2(hw, hh - 3.0 * s),
+			o + Vector2(hw - 3.0 * s, hh), o + Vector2(-hw + 3.0 * s, hh),
+			o + Vector2(-hw, hh - 3.0 * s), o + Vector2(-hw, -hh + 3.0 * s),
+		])
+		mp(body, cyan, 0.8)
+		# Gear outlines at 3 positions
+		for gi in range(3):
+			var gy: float = (-16.0 + float(gi) * 16.0) * s
+			var gr: float = (6.0 + float(gi % 2) * 2.0) * s
+			var teeth: int = 8 + gi * 2
+			var gear := PackedVector2Array()
+			for t in range(teeth * 2):
+				var angle: float = TAU * float(t) / float(teeth * 2)
+				var tooth_r: float = gr if t % 2 == 0 else gr * 0.7
+				gear.append(o + Vector2(cos(angle) * tooth_r, gy + sin(angle) * tooth_r))
+			mp(gear, magenta, 0.5)
+		# Center diamond
+		var dr: float = 5.0 * s
+		var diamond := PackedVector2Array([
+			o + Vector2(0, dr * 1.3), o + Vector2(dr, 0),
+			o + Vector2(0, -dr * 1.3), o + Vector2(-dr, 0),
+		])
+		mp(diamond, magenta, 0.7)
+		mc(o, 1.5, cyan)
+
+	func draw_nexus(o: Vector2) -> void:
+		var s := 0.25
+		var r_fwd: float = 18.0 * s
+		var r_aft: float = 12.0 * s
+		var r_side: float = 10.0 * s
+		# Diamond hull
+		var hull := PackedVector2Array([
+			o + Vector2(0, r_fwd), o + Vector2(r_side, 0),
+			o + Vector2(0, -r_aft), o + Vector2(-r_side, 0),
+		])
+		mp(hull, cyan, 0.8)
+		# Internal hexagons
+		var hex_positions: Array[Vector2] = [
+			Vector2(0, 4.0), Vector2(0, -3.0),
+			Vector2(5.0, 1.0), Vector2(-5.0, 1.0),
+		]
+		for hi in range(hex_positions.size()):
+			var hpos: Vector2 = hex_positions[hi] * s
+			var hr: float = 2.5 * s
+			var hex := PackedVector2Array()
+			for vi in range(6):
+				var angle: float = TAU * float(vi) / 6.0
+				hex.append(o + hpos + Vector2(cos(angle) * hr, sin(angle) * hr))
+			mp(hex, Color(magenta.r, magenta.g, magenta.b, 0.4), 0.5)
+		# Forward tip diamond
+		var tip_r: float = 2.5 * s
+		var tip := PackedVector2Array([
+			o + Vector2(0, r_fwd - 1.0 * s), o + Vector2(tip_r, r_fwd - 5.0 * s),
+			o + Vector2(0, r_fwd - 9.0 * s), o + Vector2(-tip_r, r_fwd - 5.0 * s),
+		])
+		mp(tip, magenta, 0.6)
+		mc(o, 1.5, cyan)
+
+	func draw_pylon(o: Vector2) -> void:
+		var s := 0.2
+		var hw: float = 6.0 * s
+		var hh: float = 30.0 * s
+		# Central spine
+		ml(o + Vector2(0, -hh + 8.0 * s), o + Vector2(0, hh - 8.0 * s), magenta, 0.5)
+		# Side rails
+		ml(o + Vector2(-hw, -hh + 4.0 * s), o + Vector2(-hw, hh - 4.0 * s), cyan, 0.5)
+		ml(o + Vector2(hw, -hh + 4.0 * s), o + Vector2(hw, hh - 4.0 * s), cyan, 0.5)
+		# Top/bottom caps
+		ml(o + Vector2(-hw, -hh + 4.0 * s), o + Vector2(0, -hh), cyan, 0.6)
+		ml(o + Vector2(hw, -hh + 4.0 * s), o + Vector2(0, -hh), cyan, 0.6)
+		ml(o + Vector2(-hw, hh - 4.0 * s), o + Vector2(0, hh), cyan, 0.6)
+		ml(o + Vector2(hw, hh - 4.0 * s), o + Vector2(0, hh), cyan, 0.6)
+		# Diamond nodes along spine
+		for ni in range(5):
+			var ny: float = lerpf(-hh + 8.0 * s, hh - 8.0 * s, float(ni) / 4.0)
+			var nr: float = 3.0 * s
+			var diamond := PackedVector2Array([
+				o + Vector2(0, ny + nr * 1.4), o + Vector2(nr, ny),
+				o + Vector2(0, ny - nr * 1.4), o + Vector2(-nr, ny),
+			])
+			mp(diamond, magenta, 0.6)
+			# Struts to rails
+			ml(o + Vector2(-hw, ny), o + Vector2(-nr, ny), Color(teal.r, teal.g, teal.b, 0.3), 0.3)
+			ml(o + Vector2(hw, ny), o + Vector2(nr, ny), Color(teal.r, teal.g, teal.b, 0.3), 0.3)
+
+	func draw_aegis(o: Vector2) -> void:
+		var s := 0.3
+		# Angular wedge hull
+		var hull := PackedVector2Array([
+			o + Vector2(0, 28.0) * s, o + Vector2(8.0, 18.0) * s,
+			o + Vector2(12.0, 4.0) * s, o + Vector2(14.0, -8.0) * s,
+			o + Vector2(12.0, -20.0) * s, o + Vector2(6.0, -24.0) * s,
+			o + Vector2(-6.0, -24.0) * s, o + Vector2(-12.0, -20.0) * s,
+			o + Vector2(-14.0, -8.0) * s, o + Vector2(-12.0, 4.0) * s,
+			o + Vector2(-8.0, 18.0) * s,
+		])
+		mp(hull, cyan, 0.8)
+		# Armor seams
+		ml(o + Vector2(-10.0, 0) * s, o + Vector2(10.0, 0) * s, teal, 0.3)
+		ml(o + Vector2(-12.0, -10.0) * s, o + Vector2(12.0, -10.0) * s, teal, 0.3)
+		# Bridge canopy diamond
+		var bridge := PackedVector2Array([
+			o + Vector2(0, 16.0) * s, o + Vector2(3.5, 11.0) * s,
+			o + Vector2(0, 6.0) * s, o + Vector2(-3.5, 11.0) * s,
+		])
+		mp(bridge, purple, 0.6)
+		# Wing weapon pods
+		for side_x in [-1.0, 1.0]:
+			var pod_x: float = side_x * 14.0 * s
+			mc(o + Vector2(pod_x, -8.0 * s), 2.0 * s, magenta)
+		# Engine nozzles
+		for ei in range(3):
+			var ex: float = (-4.0 + float(ei) * 4.0) * s
+			mc(o + Vector2(ex, -24.0 * s), 1.5 * s, orange)
+
+	func draw_helix(o: Vector2) -> void:
+		var s := 0.25
+		var core_r: float = 5.0 * s
+		# Central diamond core
+		var diamond := PackedVector2Array([
+			o + Vector2(0, core_r * 1.5), o + Vector2(core_r, 0),
+			o + Vector2(0, -core_r * 1.5), o + Vector2(-core_r, 0),
+		])
+		mp(diamond, magenta, 0.6)
+		# Two spiral arms (static snapshot)
+		var arm_length: float = 20.0 * s
+		var seg_count: int = 16
+		for arm in range(2):
+			var arm_phase: float = float(arm) * PI
+			var prev: Vector2 = o
+			for seg_idx in range(1, seg_count + 1):
+				var t: float = float(seg_idx) / float(seg_count)
+				var y_pos: float = lerpf(-arm_length, arm_length, t)
+				var envelope: float = sin(t * PI)
+				var spiral_r: float = (8.0 + envelope * 6.0) * s
+				var angle: float = arm_phase + t * 2.5 * TAU
+				var x_pos: float = cos(angle) * spiral_r
+				var curr: Vector2 = o + Vector2(x_pos, y_pos)
+				ml(prev, curr, Color(cyan.r, cyan.g, cyan.b, 0.3 + envelope * 0.4), 0.4)
+				prev = curr
+		mc(o, 1.5, cyan)
+
+	func draw_conduit(o: Vector2) -> void:
+		var s := 0.2
+		var hw: float = 9.0 * s
+		var hh: float = 28.0 * s
+		# Tube walls
+		ml(o + Vector2(-hw, -hh), o + Vector2(-hw, hh), cyan, 0.7)
+		ml(o + Vector2(hw, -hh), o + Vector2(hw, hh), cyan, 0.7)
+		# End caps (simple lines)
+		ml(o + Vector2(-hw, -hh), o + Vector2(hw, -hh), cyan, 0.5)
+		ml(o + Vector2(-hw, hh), o + Vector2(hw, hh), cyan, 0.5)
+		# Cross-ribs
+		for ri in range(7):
+			var ry: float = lerpf(-hh + 4.0 * s, hh - 4.0 * s, float(ri) / 6.0)
+			ml(o + Vector2(-hw, ry), o + Vector2(hw, ry), Color(teal.r, teal.g, teal.b, 0.2), 0.3)
+		# Central spine
+		ml(o + Vector2(0, -hh + 2.0 * s), o + Vector2(0, hh - 2.0 * s), Color(magenta.r, magenta.g, magenta.b, 0.4), 0.4)
+		# Forward diamond emitter
+		var dr: float = 4.0 * s
+		var diamond := PackedVector2Array([
+			o + Vector2(0, hh + dr * 0.5), o + Vector2(dr, hh - dr * 0.8),
+			o + Vector2(0, hh - dr * 2.0), o + Vector2(-dr, hh - dr * 0.8),
+		])
+		mp(diamond, magenta, 0.6)
+
+	# ── Lifeform enemies ──
+
+	func draw_spore(o: Vector2) -> void:
+		var s := 0.5
+		# Small pulsing body
+		mc(o, 5.0 * s, cyan)
+		mc(o, 3.0 * s, Color(magenta.r, magenta.g, magenta.b, 0.4))
+		mc(o, 1.5 * s, magenta)
+		# 3 trailing flagella (static wave)
+		for i in range(3):
+			var base_angle: float = -PI * 0.5 + float(i - 1) * 0.4
+			var prev: Vector2 = o + Vector2(cos(base_angle) * 5.0 * s, sin(base_angle) * 5.0 * s)
+			for seg_idx in range(1, 6):
+				var frac: float = float(seg_idx) / 5.0
+				var wave: float = sin(frac * 4.0 + float(i) * 1.5) * (1.0 + frac * 2.0) * s
+				var ny: float = prev.y - 3.0 * s
+				var curr := Vector2(prev.x + wave, ny)
+				ml(prev, curr, Color(cyan.r, cyan.g, cyan.b, 0.6 - frac * 0.3), 0.4)
+				prev = curr
+
+	func draw_polyp(o: Vector2) -> void:
+		var s := 0.55
+		# Cup body
+		var cup := PackedVector2Array([
+			o + Vector2(-5.0, -6.0) * s, o + Vector2(-3.0, 6.0) * s,
+			o + Vector2(3.0, 6.0) * s, o + Vector2(5.0, -6.0) * s,
+		])
+		mp(cup, cyan, 0.7)
+		# Crown of 5 tentacles
+		for i in range(5):
+			var spread: float = (float(i) - 2.0) / 2.0
+			var base_x: float = spread * 4.0 * s
+			var prev: Vector2 = o + Vector2(base_x, -6.0 * s)
+			for seg_idx in range(1, 5):
+				var frac: float = float(seg_idx) / 4.0
+				var wave: float = sin(frac * 3.0 + float(i) * 0.9) * (1.0 + frac * 2.0) * s
+				var ny: float = -6.0 * s - frac * 8.0 * s
+				var curr: Vector2 = o + Vector2(base_x + wave, ny)
+				ml(prev, curr, Color(magenta.r, magenta.g, magenta.b, 0.7 - frac * 0.3), 0.4)
+				prev = curr
+			mc(prev, 0.5 * s, magenta)
+
+	func draw_lamprey(o: Vector2) -> void:
+		var s := 0.35
+		var seg_count: int = 12
+		var body_len: float = 20.0 * s
+		# Sinuous body segments (static S-curve)
+		var spine: Array[Vector2] = []
+		for i in range(seg_count + 1):
+			var frac: float = float(i) / float(seg_count)
+			var y: float = lerpf(body_len * 0.5, -body_len * 0.5, frac)
+			var wave: float = sin(frac * 5.0) * (1.0 + frac * 2.0) * s
+			spine.append(o + Vector2(wave, y))
+		for i in range(seg_count):
+			var frac: float = float(i) / float(seg_count)
+			var width: float = (3.0 + sin(frac * PI) * 2.0) * s
+			if frac < 0.15:
+				width = lerpf(4.0 * s, width, frac / 0.15)
+			var seg_pts := PackedVector2Array([
+				spine[i] + Vector2(-width, 0), spine[i] + Vector2(width, 0),
+				spine[i + 1] + Vector2(width * 0.95, 0), spine[i + 1] + Vector2(-width * 0.95, 0),
+			])
+			mp(seg_pts, Color(cyan.r, cyan.g, cyan.b, 0.8 - frac * 0.2), 0.5)
+		# Mouth arc at head
+		mc(spine[0], 3.0 * s, magenta)
+		mc(spine[0], 1.5 * s, Color(0.0, 0.0, 0.0, 0.7))
+
+	func draw_anemone(o: Vector2) -> void:
+		var s := 0.4
+		var dome_r: float = 10.0 * s
+		# Dome body
+		var dome := PackedVector2Array()
+		for i in range(12):
+			var frac: float = float(i) / 11.0
+			var angle: float = PI * frac
+			dome.append(o + Vector2(cos(angle) * dome_r, -sin(angle) * dome_r * 0.7))
+		dome.append(o + Vector2(-dome_r, 0))
+		mp(dome, cyan, 0.7)
+		# Dense tentacle forest hanging down
+		for i in range(9):
+			var spread: float = (float(i) - 4.0) / 4.0
+			var base_x: float = spread * 8.0 * s
+			var prev: Vector2 = o + Vector2(base_x, 1.0 * s)
+			var length: float = (6.0 + sin(float(i) * 1.7) * 3.0) * s
+			for seg_idx in range(1, 6):
+				var frac: float = float(seg_idx) / 5.0
+				var wave: float = sin(frac * 3.0 + float(i) * 0.8) * (0.8 + frac * 1.5) * s
+				var ny: float = 1.0 * s + frac * length
+				var curr: Vector2 = o + Vector2(base_x + wave, ny)
+				var t_col: Color = magenta if i % 3 == 0 else cyan
+				ml(prev, curr, Color(t_col.r, t_col.g, t_col.b, 0.6 - frac * 0.3), 0.4)
+				prev = curr
+
+	func draw_nautilus(o: Vector2) -> void:
+		var s := 0.4
+		# Shell circle
+		mc(o, 9.0 * s, cyan)
+		mc(o, 6.0 * s, Color(teal.r, teal.g, teal.b, 0.2))
+		# Spiral hint — arc segments
+		var prev_pt: Vector2 = o
+		for i in range(20):
+			var frac: float = float(i) / 20.0
+			var angle: float = frac * TAU * 2.0
+			var r: float = (1.5 + frac * 6.0) * s
+			var pt: Vector2 = o + Vector2(cos(angle) * r, sin(angle) * r * 0.9)
+			if i > 0:
+				ml(prev_pt, pt, Color(cyan.r, cyan.g, cyan.b, 0.3 + frac * 0.4), 0.3 + frac * 0.3)
+			prev_pt = pt
+		# Chamber lines
+		for i in range(6):
+			var angle: float = float(i) * TAU / 6.0
+			var inner: Vector2 = o + Vector2(cos(angle) * 3.0 * s, sin(angle) * 3.0 * s)
+			var outer: Vector2 = o + Vector2(cos(angle) * 8.0 * s, sin(angle) * 8.0 * s)
+			ml(inner, outer, Color(teal.r, teal.g, teal.b, 0.2), 0.3)
+		# Eye
+		mc(o + Vector2(3.0 * s, -3.0 * s), 1.2 * s, magenta)
+		# Tentacles trailing down
+		for i in range(4):
+			var base_x: float = (float(i) - 1.5) * 2.0 * s
+			var prev: Vector2 = o + Vector2(base_x, 9.0 * s)
+			for seg_idx in range(1, 5):
+				var frac: float = float(seg_idx) / 4.0
+				var wave: float = sin(frac * 3.0 + float(i) * 1.3) * (1.0 + frac * 2.0) * s
+				var ny: float = 9.0 * s + frac * 8.0 * s
+				var curr: Vector2 = o + Vector2(base_x + wave, ny)
+				ml(prev, curr, Color(magenta.r, magenta.g, magenta.b, 0.6 - frac * 0.2), 0.3)
+				prev = curr
+
+	func draw_behemoth(o: Vector2) -> void:
+		var s := 0.25
+		# Large bumpy shell
+		var shell := PackedVector2Array()
+		for i in range(16):
+			var angle: float = TAU * float(i) / 16.0
+			var bump: float = (sin(angle * 5.0) * 3.0 + sin(angle * 3.0) * 2.0) * s
+			var r: float = 16.0 * s + bump
+			shell.append(o + Vector2(cos(angle) * r, sin(angle) * r * 1.1))
+		mp(shell, cyan, 0.8)
+		# Shell plate lines
+		for i in range(7):
+			var angle: float = TAU * float(i) / 7.0 + 0.2
+			var inner: Vector2 = o + Vector2(cos(angle) * 6.0 * s, sin(angle) * 6.0 * s * 1.1)
+			var outer: Vector2 = o + Vector2(cos(angle) * 14.0 * s, sin(angle) * 14.0 * s * 1.1)
+			ml(inner, outer, Color(teal.r, teal.g, teal.b, 0.3), 0.4)
+		# Organic gaps between plates
+		for i in range(7):
+			var angle: float = TAU * float(i) / 7.0 + 0.2 + TAU / 14.0
+			var gap_r: float = 10.0 * s
+			mc(o + Vector2(cos(angle) * gap_r, sin(angle) * gap_r * 1.1), 1.5 * s, Color(magenta.r, magenta.g, magenta.b, 0.4))
+		# Central eye cluster
+		mc(o, 1.8 * s, magenta)
+		mc(o + Vector2(-2.0 * s, -1.0 * s), 1.0 * s, magenta)
+		mc(o + Vector2(2.0 * s, -1.0 * s), 1.0 * s, magenta)
+		# 6 short legs
+		for i in range(6):
+			var angle: float = TAU * float(i) / 6.0
+			var bump: float = (sin(angle * 5.0) * 3.0 + sin(angle * 3.0) * 2.0) * s
+			var edge_r: float = 16.0 * s + bump
+			var base: Vector2 = o + Vector2(cos(angle) * edge_r, sin(angle) * edge_r * 1.1)
+			var outward := Vector2(cos(angle), sin(angle) * 1.1).normalized()
+			var foot: Vector2 = base + outward * 5.0 * s
+			ml(base, foot, cyan, 0.4)
+
+	func draw_mycelia(o: Vector2) -> void:
+		var s := 0.25
+		# Central lumpy spore cap
+		var cap := PackedVector2Array()
+		for i in range(12):
+			var angle: float = TAU * float(i) / 12.0
+			var r: float = (7.0 + sin(angle * 4.0) * 1.5) * s
+			cap.append(o + Vector2(cos(angle) * r, sin(angle) * r))
+		mp(cap, cyan, 0.6)
+		# Spore spots
+		for i in range(6):
+			var angle: float = TAU * float(i) / 6.0 + 0.3
+			var spot_pos: Vector2 = o + Vector2(cos(angle) * 5.0 * s, sin(angle) * 5.0 * s)
+			mc(spot_pos, 1.0 * s, Color(magenta.r, magenta.g, magenta.b, 0.2))
+		# 6 branching hyphae
+		for i in range(6):
+			var base_angle: float = TAU * float(i) / 6.0
+			var branch_len: float = 12.0 * s
+			var seg_count: int = 6
+			var prev: Vector2 = o + Vector2(cos(base_angle) * 6.0 * s, sin(base_angle) * 6.0 * s)
+			for seg_idx in range(1, seg_count + 1):
+				var frac: float = float(seg_idx) / float(seg_count)
+				var forward := Vector2(cos(base_angle), sin(base_angle))
+				var tangent := Vector2(-forward.y, forward.x)
+				var wave: float = sin(frac * 3.0 + float(i) * 1.7) * 1.5 * s
+				var curr: Vector2 = prev + forward * (branch_len / float(seg_count)) + tangent * wave * 0.2
+				ml(prev, curr, Color(cyan.r, cyan.g, cyan.b, 0.6 - frac * 0.15), 0.4)
+				prev = curr
+				# Sub-branch at midpoint
+				if seg_idx == 3:
+					var sub_angle: float = base_angle + 0.5
+					var sub_prev: Vector2 = curr
+					for sub_seg in range(1, 4):
+						var sf: float = float(sub_seg) / 3.0
+						var sub_fwd := Vector2(cos(sub_angle), sin(sub_angle))
+						var sub_curr: Vector2 = sub_prev + sub_fwd * 3.0 * s
+						ml(sub_prev, sub_curr, Color(cyan.r, cyan.g, cyan.b, 0.4 - sf * 0.1), 0.3)
+						sub_prev = sub_curr
+					mc(sub_prev, 0.8 * s, Color(magenta.r, magenta.g, magenta.b, 0.3))
+			# Branch tip
+			mc(prev, 1.0 * s, Color(magenta.r, magenta.g, magenta.b, 0.4))

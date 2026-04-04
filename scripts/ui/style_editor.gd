@@ -1,5 +1,5 @@
 extends Control
-## Styles screen — tabbed: VHS/CRT parameters + Boss Bar audition + Headers.
+## UI screen — tabbed: VHS/CRT parameters, Boss Bar audition, Headers, Menu BG, Icons.
 
 var _vhs_overlay: ColorRect
 var _background: ColorRect
@@ -10,15 +10,17 @@ var _float_sliders: Dictionary = {}
 var _updating_from_theme := false
 
 # Tab state
-var _active_tab: int = 0  # 0 = VHS/CRT, 1 = Boss Bar, 2 = Headers, 3 = Synthwave
+var _active_tab: int = 0  # 0 = VHS/CRT, 1 = Boss Bar, 2 = Headers, 3 = Menu BG, 4 = Icons
 var _tab_vhs_btn: Button
 var _tab_boss_bar_btn: Button
 var _tab_headers_btn: Button
 var _tab_synthwave_btn: Button
+var _tab_icons_btn: Button
 var _vhs_content: ScrollContainer
 var _boss_bar_content: Control
 var _headers_content: Control
 var _synthwave_content: Control
+var _icons_content: MarginContainer
 var _synthwave_rect: ColorRect          # grid overlay (root viewport bloom)
 var _synthwave_planet_rect: ColorRect   # planet layer (SubViewport bloom)
 var _synthwave_planet_vp: SubViewport
@@ -121,6 +123,14 @@ func _build_ui() -> void:
 	root_vbox.add_child(_synthwave_content)
 	_build_synthwave_tab()
 
+	# ── Icons content ──
+	var icons_script: GDScript = load("res://scripts/ui/component_icon_auditions.gd") as GDScript
+	_icons_content = icons_script.new() as MarginContainer
+	_icons_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_icons_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_icons_content.visible = false
+	root_vbox.add_child(_icons_content)
+
 
 func _build_top_bar(parent: VBoxContainer) -> void:
 	var bar := HBoxContainer.new()
@@ -134,7 +144,7 @@ func _build_top_bar(parent: VBoxContainer) -> void:
 	bar.add_child(back_btn)
 
 	var title := Label.new()
-	title.text = "STYLES"
+	title.text = "UI"
 	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	var header_font: Font = ThemeManager.get_font("font_header")
@@ -170,11 +180,18 @@ func _build_top_bar(parent: VBoxContainer) -> void:
 	bar.add_child(_tab_headers_btn)
 
 	_tab_synthwave_btn = Button.new()
-	_tab_synthwave_btn.text = "SYNTHWAVE BG"
+	_tab_synthwave_btn.text = "MENU BG"
 	_tab_synthwave_btn.toggle_mode = true
 	_tab_synthwave_btn.pressed.connect(func(): _switch_to_tab(3))
 	ThemeManager.apply_button_style(_tab_synthwave_btn)
 	bar.add_child(_tab_synthwave_btn)
+
+	_tab_icons_btn = Button.new()
+	_tab_icons_btn.text = "ICONS"
+	_tab_icons_btn.toggle_mode = true
+	_tab_icons_btn.pressed.connect(func(): _switch_to_tab(4))
+	ThemeManager.apply_button_style(_tab_icons_btn)
+	bar.add_child(_tab_icons_btn)
 
 
 func _switch_to_tab(idx: int) -> void:
@@ -184,16 +201,19 @@ func _switch_to_tab(idx: int) -> void:
 			1: _tab_boss_bar_btn.button_pressed = true
 			2: _tab_headers_btn.button_pressed = true
 			3: _tab_synthwave_btn.button_pressed = true
+			4: _tab_icons_btn.button_pressed = true
 		return
 	_active_tab = idx
 	_tab_vhs_btn.button_pressed = (idx == 0)
 	_tab_boss_bar_btn.button_pressed = (idx == 1)
 	_tab_headers_btn.button_pressed = (idx == 2)
 	_tab_synthwave_btn.button_pressed = (idx == 3)
+	_tab_icons_btn.button_pressed = (idx == 4)
 	_vhs_content.visible = (idx == 0)
 	_boss_bar_content.visible = (idx == 1)
 	_headers_content.visible = (idx == 2)
 	_synthwave_content.visible = (idx == 3)
+	_icons_content.visible = (idx == 4)
 
 
 func _show_vhs_tab() -> void:

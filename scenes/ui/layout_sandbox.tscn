@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://cnnegen27xbvn"]
+[gd_scene format=3 uid="uid://cmqi4slbnl8nf"]
 
-[ext_resource type="Script" uid="uid://dss70efxavtcb" path="res://scripts/ui/layout_sandbox.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/layout_sandbox.gd" id="1"]
 
 [node name="LayoutSandbox" type="Control" unique_id=282652959]
 layout_mode = 3

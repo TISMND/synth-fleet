@@ -2662,19 +2662,7 @@ func _on_reset_bars() -> void:
 
 
 func _darken_button(btn: Button) -> void:
-	## Apply theme style then darken the background for better visibility on this screen.
 	ThemeManager.apply_button_style(btn)
-	for state in ["normal", "hover", "pressed", "focus"]:
-		var sb: StyleBox = btn.get_theme_stylebox(state)
-		if sb and sb is StyleBoxFlat:
-			var dark: StyleBoxFlat = (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
-			if state == "hover":
-				dark.bg_color = Color(0.18, 0.18, 0.18, 0.95)
-			elif state == "pressed":
-				dark.bg_color = Color(0.12, 0.12, 0.12, 0.95)
-			else:
-				dark.bg_color = Color(0.08, 0.08, 0.08, 0.95)
-			btn.add_theme_stylebox_override(state, dark)
 
 
 func _on_back() -> void:

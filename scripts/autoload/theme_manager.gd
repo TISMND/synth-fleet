@@ -653,9 +653,14 @@ func _btn_font_color(base: Color, opacity: float, whiten: float) -> Color:
 
 
 func _btn_make_stylebox(col: Color, border_a: float, bg_a: float,
-		border_w: int, corner_r: int, bottom_only: bool) -> StyleBoxFlat:
+		border_w: int, corner_r: int, bottom_only: bool,
+		dark_fill: float = 0.06, dark_alpha: float = 0.95) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(col.r, col.g, col.b, bg_a)
+	# Dark fill base blended with accent tint
+	var r: float = dark_fill + col.r * bg_a
+	var g: float = dark_fill + col.g * bg_a
+	var b: float = dark_fill + col.b * bg_a
+	sb.bg_color = Color(r, g, b, dark_alpha)
 	sb.border_color = Color(col.r, col.g, col.b, border_a)
 	sb.set_border_width_all(border_w)
 	if bottom_only:
@@ -707,15 +712,15 @@ func apply_button_style(btn: Button) -> void:
 	var d_font_op: float = get_float("btn_disabled_font_opacity")
 	var d_font_wh: float = get_float("btn_disabled_font_whiten")
 
-	# StyleBoxes
+	# StyleBoxes — dark fill base: normal=0.06, hover=0.18, pressed=0.12
 	var normal_sb: StyleBoxFlat = _btn_make_stylebox(base_col, n_border_a, n_bg_a,
-		border_w, corner_r, bottom_only)
+		border_w, corner_r, bottom_only, 0.06)
 	var hover_sb: StyleBoxFlat = _btn_make_stylebox(base_col, h_border_a, h_bg_a,
-		border_w, corner_r, bottom_only)
+		border_w, corner_r, bottom_only, 0.18)
 	var pressed_sb: StyleBoxFlat = _btn_make_stylebox(base_col, p_border_a, p_bg_a,
-		border_w, corner_r, bottom_only)
+		border_w, corner_r, bottom_only, 0.12)
 	var disabled_sb: StyleBoxFlat = _btn_make_stylebox(dim_col, d_border_a, d_bg_a,
-		border_w, corner_r, bottom_only)
+		border_w, corner_r, bottom_only, 0.04)
 
 	btn.add_theme_stylebox_override("normal", normal_sb)
 	btn.add_theme_stylebox_override("hover", hover_sb)

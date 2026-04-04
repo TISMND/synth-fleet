@@ -52,13 +52,8 @@ func _build_ui() -> void:
 
 	# Tab definitions: [label, script_path]
 	var tabs: Array[Array] = [
-		["ITEMS", "res://scripts/ui/auditions_tab.gd"],
-		["HUMAN SKINS", "res://scripts/ui/skin_auditions.gd"],
-		["ALIEN SKINS", "res://scripts/ui/alien_skin_auditions.gd"],
-		["DETAILS", "res://scripts/ui/paint_auditions.gd"],
-		["ICONS", "res://scripts/ui/component_icon_auditions.gd"],
-		["LV1 BG", "res://scripts/ui/lv1_bg_auditions.gd"],
-		["LV2 BG", "res://scripts/ui/lv2_bg_auditions.gd"],
+		["POWERUPS", "res://scripts/ui/auditions_tab.gd"],
+		["SHADER BGS", "res://scripts/ui/shader_bg_auditions.gd"],
 		["DESTINATIONS", "res://scripts/ui/destinations_auditions.gd"],
 	]
 

@@ -141,17 +141,6 @@ func _apply_styles() -> void:
 		if btn_node is Button:
 			var btn: Button = btn_node as Button
 			ThemeManager.apply_button_style(btn)
-			for state in ["normal", "hover", "pressed", "focus"]:
-				var sb: StyleBox = btn.get_theme_stylebox(state)
-				if sb and sb is StyleBoxFlat:
-					var dark: StyleBoxFlat = (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
-					if state == "hover":
-						dark.bg_color = Color(0.18, 0.18, 0.18, 0.95)
-					elif state == "pressed":
-						dark.bg_color = Color(0.12, 0.12, 0.12, 0.95)
-					else:
-						dark.bg_color = Color(0.06, 0.06, 0.06, 0.95)
-					btn.add_theme_stylebox_override(state, dark)
 
 
 func _setup_vhs_overlay() -> void:

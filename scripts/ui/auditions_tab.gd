@@ -1,5 +1,5 @@
 extends MarginContainer
-## Auditions tab — side-by-side grid of all items at adjustable sizes for visual comparison.
+## Powerups tab — side-by-side grid of powerup items at adjustable sizes for visual comparison.
 
 var _items: Array[ItemData] = []
 var _grid_content: VBoxContainer
@@ -75,19 +75,14 @@ func _rebuild_grid() -> void:
 
 	_items = ItemDataManager.load_all()
 
-	var money_items: Array[ItemData] = []
 	var powerup_items: Array[ItemData] = []
 	var shape_items: Array[ItemData] = []
 	for item in _items:
 		if item.display_name.begins_with("Shape:"):
 			shape_items.append(item)
-		elif item.category == "money":
-			money_items.append(item)
-		else:
+		elif item.category != "money":
 			powerup_items.append(item)
 
-	if money_items.size() > 0:
-		_add_section("CURRENCY", money_items)
 	if powerup_items.size() > 0:
 		_add_section("POWERUPS", powerup_items)
 	if shape_items.size() > 0:

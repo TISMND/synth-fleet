@@ -10,6 +10,7 @@ func _ready() -> void:
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 
 	$ButtonLayout/Columns/LeftCol/ShipsButton.pressed.connect(_on_ships)
+	$ButtonLayout/Columns/LeftCol/ShipCosmeticsButton.pressed.connect(_on_ship_cosmetics)
 	$ButtonLayout/Columns/LeftCol/StyleButton.pressed.connect(_on_style)
 	$ButtonLayout/Columns/LeftCol/ComponentsButton.pressed.connect(_on_components)
 	$ButtonLayout/Columns/LeftCol/EncountersButton.pressed.connect(_on_encounters)
@@ -20,7 +21,6 @@ func _ready() -> void:
 	$ButtonLayout/Columns/RightCol/EnvironmentsButton.pressed.connect(_on_environments)
 	$ButtonLayout/Columns/RightCol/BackgroundsButton.pressed.connect(_on_backgrounds)
 	$ButtonLayout/Columns/RightCol/AuditionsButton.pressed.connect(_on_auditions)
-	$ButtonLayout/Columns/RightCol/SandboxButton.pressed.connect(_on_sandbox)
 	$ButtonLayout/BackButton.pressed.connect(_on_back)
 
 	_apply_styles()
@@ -28,6 +28,10 @@ func _ready() -> void:
 
 func _on_ships() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/ships_screen.tscn")
+
+
+func _on_ship_cosmetics() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/ship_cosmetics_screen.tscn")
 
 
 func _on_style() -> void:
@@ -68,10 +72,6 @@ func _on_backgrounds() -> void:
 
 func _on_auditions() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/auditions_screen.tscn")
-
-
-func _on_sandbox() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/layout_sandbox.tscn")
 
 
 func _on_back() -> void:

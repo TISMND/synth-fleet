@@ -935,18 +935,8 @@ func _style_tab_buttons() -> void:
 		btn.add_theme_font_size_override("font_size", body_size)
 
 
-func _darken_button(btn: Button) -> void:
-	for state in ["normal", "hover", "pressed", "focus"]:
-		var sb: StyleBox = btn.get_theme_stylebox(state)
-		if sb and sb is StyleBoxFlat:
-			var dark: StyleBoxFlat = (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
-			if state == "hover":
-				dark.bg_color = Color(0.12, 0.12, 0.12, 1.0)
-			elif state == "pressed":
-				dark.bg_color = Color(0.08, 0.08, 0.08, 1.0)
-			else:
-				dark.bg_color = Color(0.04, 0.04, 0.04, 1.0)
-			btn.add_theme_stylebox_override(state, dark)
+func _darken_button(_btn: Button) -> void:
+	pass  # Dark fill now baked into ThemeManager.apply_button_style()
 
 
 func _style_sliders(accent: Color) -> void:

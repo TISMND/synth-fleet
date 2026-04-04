@@ -1,5 +1,5 @@
 extends Control
-## Backgrounds screen — adjustable level backgrounds (LV1 BG, LV2 BG).
+## Ship Cosmetics screen — tabbed dev tool for ship skins and details.
 
 var _vhs_overlay: ColorRect
 var _bg: ColorRect
@@ -43,7 +43,7 @@ func _build_ui() -> void:
 	header.add_child(_back_button)
 
 	_title_label = Label.new()
-	_title_label.text = "BACKGROUNDS"
+	_title_label.text = "SHIP COSMETICS"
 	header.add_child(_title_label)
 
 	var spacer := Control.new()
@@ -51,8 +51,9 @@ func _build_ui() -> void:
 	header.add_child(spacer)
 
 	var tabs: Array[Array] = [
-		["LV1 BG", "res://scripts/ui/lv1_bg_auditions.gd"],
-		["LV2 BG", "res://scripts/ui/lv2_bg_auditions.gd"],
+		["HUMAN SKINS", "res://scripts/ui/skin_auditions.gd"],
+		["ALIEN SKINS", "res://scripts/ui/alien_skin_auditions.gd"],
+		["DETAILS", "res://scripts/ui/paint_auditions.gd"],
 	]
 
 	for i in tabs.size():
