@@ -8,12 +8,12 @@ var _sliders: Dictionary = {}
 const SHADER_PATH: String = "res://assets/shaders/bg_synthwave_pulse.gdshader"
 
 const SLIDER_DEFS: Array[Dictionary] = [
-	{"key": "grid_spacing", "label": "GRID SPACING", "min": 20.0, "max": 200.0, "default": 104.0, "step": 1.0},
-	{"key": "line_width", "label": "LINE WIDTH", "min": 0.5, "max": 4.0, "default": 1.9, "step": 0.1},
-	{"key": "glow_size", "label": "GLOW SIZE", "min": 0.0, "max": 30.0, "default": 12.0, "step": 0.5},
-	{"key": "core_intensity", "label": "CORE INTENSITY", "min": 0.0, "max": 4.0, "default": 1.0, "step": 0.1},
-	{"key": "grid_hdr", "label": "GRID HDR", "min": 1.0, "max": 10.0, "default": 1.0, "step": 0.1},
-	{"key": "grid_white", "label": "GRID WHITE", "min": 0.0, "max": 1.0, "default": 0.18, "step": 0.02},
+	{"key": "grid_spacing", "label": "GRID SPACING", "min": 20.0, "max": 200.0, "default": 112.0, "step": 1.0},
+	{"key": "line_width", "label": "LINE WIDTH", "min": 0.5, "max": 4.0, "default": 1.7, "step": 0.1},
+	{"key": "glow_size", "label": "GLOW SIZE", "min": 0.0, "max": 30.0, "default": 5.5, "step": 0.5},
+	{"key": "core_intensity", "label": "CORE INTENSITY", "min": 0.0, "max": 4.0, "default": 1.5, "step": 0.1},
+	{"key": "grid_hdr", "label": "GRID HDR", "min": 1.0, "max": 10.0, "default": 4.9, "step": 0.1},
+	{"key": "grid_white", "label": "GRID WHITE", "min": 0.0, "max": 1.0, "default": 0.0, "step": 0.02},
 	{"key": "_sep_etchers", "label": "", "separator": true, "header": "ETCHERS"},
 	{"key": "etch_speed", "label": "ETCH SPEED", "min": 10.0, "max": 400.0, "default": 235.0, "step": 5.0},
 	{"key": "min_etch_speed", "label": "MIN ETCH SPEED", "min": 10.0, "max": 400.0, "default": 190.0, "step": 5.0},

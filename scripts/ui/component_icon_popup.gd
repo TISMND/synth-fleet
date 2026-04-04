@@ -6,12 +6,13 @@ extends PopupPanel
 signal item_selected(id: String)
 
 const CELL_SIZE: int = 64
-const CELL_PAD: int = 8
-const NAME_HEIGHT: int = 20
-const ITEM_TOTAL: int = CELL_SIZE + NAME_HEIGHT + CELL_PAD
+const CELL_WIDTH: int = 100  # wider than icon to give names room
+const CELL_PAD: int = 12
+const NAME_HEIGHT: int = 28  # room for 2 lines
+const ITEM_TOTAL_H: int = CELL_SIZE + NAME_HEIGHT + CELL_PAD
 const GRID_COLUMNS: int = 5
-const POPUP_WIDTH: int = ITEM_TOTAL * GRID_COLUMNS + 40
-const MAX_POPUP_HEIGHT: int = 500
+const POPUP_WIDTH: int = (CELL_WIDTH + CELL_PAD) * GRID_COLUMNS + 40
+const MAX_POPUP_HEIGHT: int = 550
 
 const NAME_COLOR := Color(0.7, 0.85, 1.0)
 const LABEL_COLOR := Color(0.5, 0.5, 0.6)
@@ -114,7 +115,7 @@ func setup_field_emitters(emitters: Array[DeviceData]) -> void:
 func show_centered() -> void:
 	# Calculate height from grid content
 	var row_count: int = ceili(float(_grid.get_child_count()) / float(GRID_COLUMNS))
-	var grid_h: int = row_count * ITEM_TOTAL + (row_count - 1) * CELL_PAD
+	var grid_h: int = row_count * ITEM_TOTAL_H + (row_count - 1) * CELL_PAD
 	var total_h: int = mini(grid_h + 60, MAX_POPUP_HEIGHT)  # 60 for margins/tab
 	if _tab_bar.visible:
 		total_h = mini(total_h + 30, MAX_POPUP_HEIGHT)
@@ -146,11 +147,12 @@ func _clear_grid() -> void:
 
 func _add_grid_item(id: String, display_name: String, icon_builder: Callable) -> void:
 	var item := VBoxContainer.new()
+	item.custom_minimum_size.x = CELL_WIDTH
 	item.add_theme_constant_override("separation", 2)
 
-	# Clickable button wrapping the icon
+	# Clickable button wrapping the icon — centered within wider cell
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(CELL_SIZE, CELL_SIZE)
+	btn.custom_minimum_size = Vector2(CELL_WIDTH, CELL_SIZE)
 	btn.flat = true
 	btn.clip_contents = true
 
@@ -180,8 +182,9 @@ func _add_grid_item(id: String, display_name: String, icon_builder: Callable) ->
 	btn.pressed.connect(_on_item_pressed.bind(id))
 	item.add_child(btn)
 
-	# Build icon cell inside the button
+	# Build icon cell inside the button — centered horizontally
 	var cell: Control = ComponentIconBuilder.make_icon_cell(CELL_SIZE)
+	cell.position.x = float(CELL_WIDTH - CELL_SIZE) / 2.0
 	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_set_mouse_filter_recursive(cell, Control.MOUSE_FILTER_IGNORE)
 	btn.add_child(cell)
@@ -189,12 +192,13 @@ func _add_grid_item(id: String, display_name: String, icon_builder: Callable) ->
 	# Deferred icon building — viewport needs to be in tree first
 	icon_builder.call_deferred(cell)
 
-	# Name label
+	# Name label — 2 lines, centered, wrapping
 	var lbl := Label.new()
 	lbl.text = display_name
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.custom_minimum_size = Vector2(CELL_SIZE, NAME_HEIGHT)
-	lbl.clip_text = true
+	lbl.custom_minimum_size = Vector2(CELL_WIDTH, NAME_HEIGHT)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.max_lines_visible = 2
 	lbl.add_theme_color_override("font_color", NAME_COLOR)
 	lbl.add_theme_font_size_override("font_size", 10)
 	item.add_child(lbl)

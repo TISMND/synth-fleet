@@ -51,8 +51,8 @@ func _build_ui() -> void:
 	header.add_child(spacer)
 
 	var tabs: Array[Array] = [
-		["LV1 BG", "res://scripts/ui/lv1_bg_auditions.gd"],
-		["LV2 BG", "res://scripts/ui/lv2_bg_auditions.gd"],
+		["VERSE 1 BG", "res://scripts/ui/lv1_bg_auditions.gd"],
+		["VERSE 2 BG", "res://scripts/ui/lv2_bg_auditions.gd"],
 	]
 
 	for i in tabs.size():

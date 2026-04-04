@@ -45,11 +45,10 @@
 						1.0
 					],
 					"params": {
-						"length": 11.0,
-						"width_end": 4.5,
-						"width_start": 11.0
+						"amount": 22.0,
+						"lifetime": 0.54
 					},
-					"type": "ribbon"
+					"type": "particle"
 				}
 			]
 		},

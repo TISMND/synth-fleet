@@ -1,7 +1,89 @@
 {
-	"bar_effect_triggers": [],
+	"bar_effect_triggers": [
+		{
+			"time": 0.0,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.0625,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.125,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.1875,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.25,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.3125,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.375,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.4375,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.5,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.5625,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.625,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.6875,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.75,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.8125,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.875,
+			"type": "shield",
+			"value": 3.35
+		},
+		{
+			"time": 0.9375,
+			"type": "shield",
+			"value": 3.35
+		}
+	],
 	"bar_effects": {
-
+		"electric": 0.699999999999999,
+		"shield": 3.35
 	},
 	"description": "A rare core that prioritizes shields over power generation.",
 	"display_name": "Orbix-80T",
@@ -14,8 +96,6 @@
 	"loop_file_path": "res://loop_zips/sorted/drums/Oscillating Spoons - 120 BPM - 1 - Drums - or_drum_loop_space_full_130.wav",
 	"loop_length_bars": 8,
 	"passive_effects": {
-		"electric": 0.449999999999999,
-		"shield": 3.3,
 		"thermal": 1.3
 	},
 	"pulse_settings": {
@@ -23,7 +103,26 @@
 	},
 	"pulse_triggers": {
 		"electric": [
-			0.0
+			0.03125,
+			0.09375,
+			0.15625,
+			0.203125,
+			0.21875,
+			0.28125,
+			0.34375,
+			0.40625,
+			0.453125,
+			0.46875,
+			0.53125,
+			0.59375,
+			0.65625,
+			0.703125,
+			0.71875,
+			0.78125,
+			0.84375,
+			0.90625,
+			0.953125,
+			0.96875
 		]
 	}
 }
