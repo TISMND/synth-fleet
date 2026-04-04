@@ -1,0 +1,8 @@
+{
+	"id": "frost",
+	"name": "Frost",
+	"hull": "#99d9ff",
+	"structure": "#e6f2ff",
+	"trim": "#66f2ff",
+	"canopy": "#b3ccff"
+}

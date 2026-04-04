@@ -5,7 +5,6 @@ extends Control
 ## Extends Control (not CanvasLayer) so bars participate in WorldEnvironment
 ## glow post-processing. CanvasLayer content renders after bloom and misses it.
 
-var _credits_label: Label = null
 var _cargo_label: Label = null
 var _cargo_value_label: Label = null
 var _cargo_display_value: float = 0.0  # Animated counter (lerps toward real value)
@@ -22,7 +21,6 @@ var _cargo_indicator: Node2D = null
 var _cargo_indicator_target: Vector2 = Vector2.ZERO
 var _cargo_indicator_visible: bool = false
 var cargo_indicator_enabled: bool = true  # Flag to disable indicator
-var _menu_hint: Label = null
 var _hud_result: Dictionary = {}  # HudBuilder.build_hud() result
 var _bottom_panel: Dictionary = {}  # build_bottom_panel() result
 var _comp_icons_hbox: HBoxContainer = null  # Component icons container in bottom panel
@@ -571,9 +569,9 @@ func _build_cargo_indicator() -> void:
 	add_child(_cargo_indicator)
 
 
-func update_cargo_indicator(target_pos: Vector2, is_visible: bool) -> void:
+func update_cargo_indicator(target_pos: Vector2, show_indicator: bool) -> void:
 	_cargo_indicator_target = target_pos
-	_cargo_indicator_visible = is_visible and cargo_indicator_enabled
+	_cargo_indicator_visible = show_indicator and cargo_indicator_enabled
 	if _cargo_indicator:
 		_cargo_indicator.visible = _cargo_indicator_visible
 		if _cargo_indicator_visible:

@@ -89,6 +89,7 @@ var chrome_gleam_hdr: float = 1.35  # HDR multiplier for specular gleam
 var chrome_edge_hdr: float = 1.0    # HDR multiplier for chrome rim edges
 var ship_id := 0
 var render_mode: int = RenderMode.NEON
+var use_custom_palette: bool = false
 var time := 0.0
 var enemy_visual_id: String = ""
 var animate: bool = true
@@ -305,6 +306,8 @@ func _exhaust_line(a: Vector2, b: Vector2, width: float) -> void:
 	_line(a, b, engine_color, width)
 
 func _apply_palette() -> void:
+	if use_custom_palette:
+		return
 	match render_mode:
 		RenderMode.EMBER:
 			hull_color = EMBER_HULL
@@ -1254,8 +1257,8 @@ func _draw_monolith() -> void:
 		var gear := PackedVector2Array()
 		for t in range(teeth * 2):
 			var angle: float = TAU * float(t) / float(teeth * 2) + spin
-			var tr: float = gr if t % 2 == 0 else gr * 0.7
-			gear.append(Vector2(cos(angle) * tr, gy + sin(angle) * tr))
+			var tooth_r: float = gr if t % 2 == 0 else gr * 0.7
+			gear.append(Vector2(cos(angle) * tooth_r, gy + sin(angle) * tooth_r))
 		_poly(gear, accent_color, 1.0 * s)
 		# Axle
 		draw_circle(Vector2(0, gy), 2.0 * s, Color(detail_color.r, detail_color.g, detail_color.b, 0.6))
@@ -1626,7 +1629,7 @@ func _draw_spore() -> void:
 func _draw_mite() -> void:
 	# Small tick/mite — round body with 4 pairs of scrabbling legs
 	var s := 2.0
-	var scuttle: float = sin(time * 6.0) * 0.5
+	var _scuttle: float = sin(time * 6.0) * 0.5
 	# Body — squat oval
 	var body := PackedVector2Array()
 	for i in range(12):
@@ -1888,7 +1891,7 @@ func _draw_hydra() -> void:
 func _draw_behemoth() -> void:
 	# Large — massive armored creature, shell plates with exposed organic gaps
 	var s := 3.8
-	var breath: float = sin(time * 0.6)
+	var _breath: float = sin(time * 0.6)
 	# Main shell — large blobby armored shape
 	var shell := PackedVector2Array()
 	var shell_pts: int = 20
@@ -3724,10 +3727,10 @@ func _draw_archon_turret() -> void:
 	var aim_end := Vector2(0, aim_len)
 	_line(aim_start, aim_end, Color(engine_color.r, engine_color.g, engine_color.b, aim_pulse), 1.5 * s)
 	# Targeting reticle — diamond instead of circle
-	var tr: float = 3.5 * s
+	var ret_r: float = 3.5 * s
 	var reticle := PackedVector2Array([
-		aim_end + Vector2(0, -tr), aim_end + Vector2(tr, 0),
-		aim_end + Vector2(0, tr), aim_end + Vector2(-tr, 0),
+		aim_end + Vector2(0, -ret_r), aim_end + Vector2(ret_r, 0),
+		aim_end + Vector2(0, ret_r), aim_end + Vector2(-ret_r, 0),
 	])
 	_poly(reticle, Color(engine_color.r, engine_color.g, engine_color.b, aim_pulse * 1.5), 0.8 * s)
 	# Crosshair arms

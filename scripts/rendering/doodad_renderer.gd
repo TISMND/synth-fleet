@@ -28,7 +28,7 @@ func _draw() -> void:
 		var dd_x: float = float(dd.get("x", 0.0))
 		var dd_y: float = float(dd.get("y", 0.0))
 		var dd_scale: float = float(dd.get("scale", 1.0))
-		var dd_rot: float = float(dd.get("rotation_deg", 0.0))
+		var _dd_rot: float = float(dd.get("rotation_deg", 0.0))
 
 		# Cull off-screen doodads
 		if dd_y < _cull_y_min or dd_y > _cull_y_max:

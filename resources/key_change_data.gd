@@ -63,6 +63,7 @@ static func make_reversed_stream(stream: AudioStreamWAV) -> AudioStreamWAV:
 	var frame_size: int = bytes_per_sample * channels
 	if frame_size == 0:
 		return null
+	@warning_ignore("integer_division")
 	var frame_count: int = src_data.size() / frame_size
 	var reversed_data := PackedByteArray()
 	reversed_data.resize(src_data.size())

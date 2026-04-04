@@ -93,8 +93,8 @@ static func build_bottom_panel(icon_data: Array, fire_groups: Array, panel_width
 
 	# Read overrides with defaults
 	var warn_w: int = int(overrides.get("warning_width", WARNING_WIDTH))
-	var warn_h: int = int(overrides.get("warning_height", WARNING_HEIGHT))
-	var warn_bezel: float = float(overrides.get("warning_bezel", 0.12))
+	var _warn_h: int = int(overrides.get("warning_height", WARNING_HEIGHT))
+	var _warn_bezel: float = float(overrides.get("warning_bezel", 0.12))
 	var icon_bezel: float = float(overrides.get("icon_bezel", 0.16))
 	var icon_depth: float = float(overrides.get("icon_depth", 1.4))
 	var icon_shadow: float = float(overrides.get("icon_shadow", 1.3))
@@ -102,7 +102,7 @@ static func build_bottom_panel(icon_data: Array, fire_groups: Array, panel_width
 	var labels_below: bool = overrides.get("labels_below", false) as bool
 	var show_labels: bool = overrides.get("show_labels", true) as bool
 	var show_pattern: bool = overrides.get("show_pattern", false) as bool
-	var warn_position: String = str(overrides.get("warn_position", "edges"))  # "edges" or "center"
+	var _warn_position: String = str(overrides.get("warn_position", "edges"))  # "edges" or "center"
 
 	# Root: ColorRect with chrome_panel shader
 	var root := ColorRect.new()

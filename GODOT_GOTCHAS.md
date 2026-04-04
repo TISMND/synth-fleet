@@ -28,3 +28,11 @@ Setting `visible = false` on a node removes it from layout calculations entirely
 
 ## Recovery animations trigger exit checks
 If code checks `if electric > 0.0: _end_drift()` and a recovery animation sets `electric = lerpf(0, max, t)`, the recovery kills itself on frame 2 because electric rises above 0. **Fix:** guard exit checks with `and not _recovery_active` (or equivalent flag) so the recovery sequence completes before normal gameplay checks resume. This applies to any multi-frame animation that restores a stat value that other code monitors for state transitions.
+
+## GDScript warnings to avoid
+Godot's script analyzer produces yellow warnings for common patterns. These are easy to prevent:
+- **SHADOWED_VARIABLE_BASE_CLASS:** Never name a local variable `scale`, `position`, `size`, `visible`, `modulate`, `show`, `is_visible`, `tr`, etc. — these shadow properties/methods on `Node2D`, `Control`, `CanvasItem`, or `Object`. Use descriptive names: `map_scale`, `show_nav`, `tooth_r`.
+- **UNUSED_VARIABLE:** Prefix genuinely unused vars with `_`. But first check if the var *should* be used — it may indicate forgotten code.
+- **UNUSED_PARAMETER:** Prefix unused function params with `_` (e.g. `_shimmer`). Common with interface-style signatures where not all implementations use every param.
+- **INTEGER_DIVISION:** `int(x) / 60` silently truncates. Use `int(x / 60.0)` to make intent explicit.
+- **CONFUSABLE_LOCAL_DECLARATION:** Don't declare `var foo` in both an inner block and later in the same function, even if the inner block returns. Rename one of them.

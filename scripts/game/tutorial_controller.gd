@@ -69,7 +69,6 @@ var _phase_timer: float = 0.0
 var _instruction_label: RichTextLabel = null
 var _start_position: Vector2 = Vector2.ZERO
 var _move_distance: float = 0.0
-var _thermal_was_higher: bool = false
 var _prev_thermal: float = 0.0
 var _typing_idx: int = 0
 var _typing_timer: float = 0.0

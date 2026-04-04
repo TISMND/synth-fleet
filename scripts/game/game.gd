@@ -24,6 +24,7 @@ var _mouse_nav_indicator: Node2D = null
 var _level_data: LevelData = null
 var _scroll_distance: float = 0.0
 var _scroll_speed: float = 80.0
+var _glow_mote_layers: Array[Dictionary] = []  # [{node, motion_scale}]
 
 # Debug parallax grids (F3 toggle)
 var _deep_debug_grid: Node2D = null
@@ -373,7 +374,7 @@ func _start_intro() -> void:
 
 
 func _process_intro(delta: float) -> void:
-	var prev_time: float = _intro_timer
+	var _prev_time: float = _intro_timer
 	_intro_timer += delta
 
 
@@ -777,6 +778,10 @@ func _process(delta: float) -> void:
 		_bg_shader_mat.set_shader_parameter("scroll_offset", _scroll_distance)
 	if _nebula_container:
 		_nebula_container.position.y = _scroll_distance
+	for gml in _glow_mote_layers:
+		var node: Control = gml["node"] as Control
+		var ms: float = float(gml["motion_scale"])
+		node.position.y = fmod(_scroll_distance * ms, 1200.0)
 	if _bg_debug_grid and _bg_debug_grid.visible:
 		_bg_debug_grid.position.y = fmod(_scroll_distance, _bg_debug_grid.line_spacing)
 	if _wave_manager and not _death_sequence_active:
@@ -810,9 +815,9 @@ func _process(delta: float) -> void:
 	# Mouse navigation indicator
 	if _mouse_nav_indicator:
 		var kbd_active: bool = Input.get_vector("move_left", "move_right", "move_up", "move_down").length_squared() > 0.0
-		var show: bool = GameState.show_mouse_nav_indicator and not kbd_active
-		_mouse_nav_indicator.visible = show
-		if show:
+		var show_nav: bool = GameState.show_mouse_nav_indicator and not kbd_active
+		_mouse_nav_indicator.visible = show_nav
+		if show_nav:
 			_mouse_nav_indicator.position = _game_viewport.get_mouse_position()
 
 
@@ -1380,7 +1385,6 @@ func _update_cargo_loop_volume(dist: float) -> void:
 		return
 	# Start the loop once when cargo ship is on screen — never stop/restart, just adjust volume
 	if not _cargo_loop_active:
-		var base_vol: float = sfx_config.cargo_loop_volume_db
 		LoopMixer.add_loop(_cargo_loop_id, loop_path, "GameAudio", -80.0, false)
 		LoopMixer.start_loop(_cargo_loop_id)
 		_cargo_loop_active = true
@@ -1753,7 +1757,7 @@ func _on_player_died_during_power_loss() -> void:
 
 func _process_power_loss_death(delta: float) -> void:
 	_power_death_timer += delta
-	var progress: float = clampf(_power_death_timer / POWER_DEATH_DURATION, 0.0, 1.0)
+	var _progress: float = clampf(_power_death_timer / POWER_DEATH_DURATION, 0.0, 1.0)
 
 	# Phase 1 (0-1s): Escalating impacts, text corruption starts
 	if _power_death_timer < 1.0:
@@ -2025,12 +2029,7 @@ func _try_create_boss_health_bar() -> void:
 		_boss_health_bar_pending = false
 		return
 	var boss_id: String = str(_boss_transition_event.get("boss_id", ""))
-	var boss_name_str: String = "UNKNOWN"
 	var total_health: float = 0.0
-	if boss_id != "":
-		var boss: BossData = BossDataManager.load_by_id(boss_id)
-		if boss:
-			boss_name_str = boss.display_name if boss.display_name != "" else boss_id
 	# Sum health from all boss-tagged enemies currently alive
 	_boss_enemies.clear()
 	for child in _enemies.get_children():
@@ -2300,6 +2299,7 @@ func _return_to_menu() -> void:
 		if enemy.has_method("force_cleanup_weapons"):
 			enemy.force_cleanup_weapons()
 	LoopMixer.remove_all_loops()
+	AudioManager.stop_all()
 	var dest: String = GameState.return_scene
 	GameState.return_scene = ""
 	if dest != "":
@@ -2349,6 +2349,12 @@ func _setup_parallax() -> void:
 	_add_speck_layer(0.25, 100, Color(0.1, 0.35, 0.45, 0.35), 0.6, 1.4, 10, -9)  # Far — synth cyan
 	_add_speck_layer(0.50,  60, Color(0.15, 0.6, 0.75, 0.5), 0.8, 1.6, 20, -9)  # Mid — synth cyan
 	_add_speck_layer(0.75,  30, Color(0.3, 0.85, 1.0, 0.65), 0.8, 1.8, 30, -8)  # Near — synth cyan, shrunk
+	# Per-level parallaxed particle layers (glow motes, etc.)
+	if _level_data:
+		var seed_counter: int = 100
+		for bp in _level_data.bg_particles:
+			_add_glow_mote_layer(bp, seed_counter)
+			seed_counter += 17
 	# Background layer (speed = scroll_speed) — doodad decorations
 	_setup_doodads()
 	# Nebula layer — same scroll_speed as encounters/doodads (handled separately)
@@ -2394,6 +2400,22 @@ func _add_speck_layer(motion_scale: float, speck_count: int, color: Color,
 	specks.speck_seed = seed_val
 	specks.size = Vector2(1920, 1200)
 	layer.add_child(specks)
+
+
+func _add_glow_mote_layer(bp: Dictionary, seed_val: int) -> void:
+	var motion_scale: float = float(bp.get("motion_scale", 0.35))
+	var motes := _GlowMoteField.new()
+	motes.mote_count = int(bp.get("count", 30))
+	motes.color_a = Color.from_string(str(bp.get("color_a", "#1ae699")), Color(0.1, 0.9, 0.6))
+	motes.color_b = Color.from_string(str(bp.get("color_b", "#cc33e6")), Color(0.8, 0.2, 0.9))
+	motes.mote_size_min = float(bp.get("size_min", 2.0))
+	motes.mote_size_max = float(bp.get("size_max", 6.0))
+	motes.pulse_speed = float(bp.get("pulse_speed", 1.2))
+	motes.mote_seed = seed_val
+	motes.size = Vector2(1920, 1200)
+	motes.z_index = int(bp.get("z_index", -9))
+	_game_viewport.add_child(motes)
+	_glow_mote_layers.append({"node": motes, "motion_scale": motion_scale})
 
 
 class _DebugGrid extends Node2D:
@@ -2656,6 +2678,54 @@ class _SpeckField extends Control:
 			draw_circle(_positions[i], r, col)
 
 
+class _GlowMoteField extends Control:
+	## Pulsing bioluminescent motes — two-tone color shift with soft glow halos.
+	var mote_count: int = 30
+	var color_a: Color = Color(0.1, 0.9, 0.6)
+	var color_b: Color = Color(0.8, 0.2, 0.9)
+	var mote_size_min: float = 2.0
+	var mote_size_max: float = 6.0
+	var pulse_speed: float = 1.2
+	var mote_seed: int = 42
+	var _positions: PackedVector2Array = PackedVector2Array()
+	var _sizes: PackedFloat32Array = PackedFloat32Array()
+	var _phases: PackedFloat32Array = PackedFloat32Array()
+	var _color_mix: PackedFloat32Array = PackedFloat32Array()
+	var _time: float = 0.0
+
+	func _ready() -> void:
+		# Additive blending so motes glow on top of the dark background
+		var mat := CanvasItemMaterial.new()
+		mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		material = mat
+		var rng := RandomNumberGenerator.new()
+		rng.seed = mote_seed
+		for i in mote_count:
+			_positions.append(Vector2(rng.randf() * 1920.0, rng.randf() * 1200.0))
+			_sizes.append(rng.randf_range(mote_size_min, mote_size_max))
+			_phases.append(rng.randf() * TAU)
+			_color_mix.append(rng.randf())
+
+	func _process(delta: float) -> void:
+		_time += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		for i in _positions.size():
+			var pulse: float = 0.3 + 0.7 * (0.5 + 0.5 * sin(_time * pulse_speed + _phases[i]))
+			var col: Color = color_a.lerp(color_b, _color_mix[i])
+			var r: float = _sizes[i] * (0.8 + 0.2 * pulse)
+			# Smooth gaussian-ish falloff: 4 layers blending outward
+			var a4 := Color(col.r * 0.4, col.g * 0.4, col.b * 0.4, pulse * 0.04)
+			draw_circle(_positions[i], r * 3.0, a4)
+			var a3 := Color(col.r * 0.7, col.g * 0.7, col.b * 0.7, pulse * 0.08)
+			draw_circle(_positions[i], r * 2.2, a3)
+			var a2 := Color(col.r * 1.2, col.g * 1.2, col.b * 1.2, pulse * 0.18)
+			draw_circle(_positions[i], r * 1.4, a2)
+			var a1 := Color(col.r * 1.8, col.g * 1.8, col.b * 1.8, pulse * 0.4)
+			draw_circle(_positions[i], r, a1)
+
+
 class _GameOverBox extends Control:
 	## Holographic "GAME OVER" box — same style as warning badges, larger, always on.
 	var box_size: Vector2 = Vector2(580, 100)
@@ -2747,7 +2817,7 @@ func _start_end_of_level() -> void:
 	var energy: int = int(GameState.level_stats.get("energy_consumed", 0.0))
 	var score: int = int(GameState.level_stats.get("score", 0))
 	var time_s: float = float(GameState.level_stats.get("time_elapsed", 0.0))
-	var minutes: int = int(time_s) / 60
+	var minutes: int = int(time_s / 60.0)
 	var seconds: int = int(time_s) % 60
 
 	_end_of_level_typing_lines = [
@@ -2845,7 +2915,6 @@ func _process_end_of_level(delta: float) -> void:
 	while _end_of_level_char_timer >= char_speed and _end_of_level_char_idx < line.length():
 		_end_of_level_char_timer -= char_speed
 		_end_of_level_char_idx += 1
-		SfxPlayer.play_ui("reboot_char_thunk")
 
 	_update_end_of_level_text()
 

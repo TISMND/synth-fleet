@@ -108,6 +108,13 @@ func _play_faded(sample: AudioStream, bus: String, pitch: float, volume_db: floa
 	player.play()
 
 
+func stop_all() -> void:
+	## Stop every pool player and kill active tweens.
+	for i in POOL_SIZE:
+		_kill_tween(i)
+		_player_pool[i].stop()
+
+
 func _kill_tween(slot: int) -> void:
 	var existing: Tween = _player_tweens[slot]
 	if existing and existing.is_valid():

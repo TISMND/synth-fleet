@@ -63,7 +63,6 @@ const _V_SWEEP_POINTS: Array[Vector2] = [
 	Vector2(960.0, 150.0),   # top-center
 ]
 var _v_sweep_index: int = 0
-var _v_sweep_progress: float = 0.0
 
 # Boss segment linking
 var boss_core: Enemy = null           # if set, this segment follows the core
@@ -136,7 +135,7 @@ func _ready() -> void:
 		_renderer = ShipRenderer.new()
 		_renderer.ship_id = -1
 		_renderer.enemy_visual_id = vid
-		_renderer.render_mode = ShipRenderer.RenderMode.CHROME if render_mode_str == "chrome" else ShipRenderer.RenderMode.NEON
+		_renderer.render_mode = _render_mode_from_string(render_mode_str)
 		_renderer.hull_color = enemy_color
 		_renderer.accent_color = Color(1.0, 0.2, 0.6)
 		add_child(_renderer)
@@ -441,10 +440,6 @@ func precompute_segment_lengths() -> void:
 	var cumulative: float = 0.0
 	for i in range(path_curve.point_count - 1):
 		# Approximate segment length by sampling the baked curve
-		var p0_dist: float = 0.0
-		if i > 0:
-			p0_dist = _segment_cumulative[i - 1]
-		# Sample points along this segment
 		var p0: Vector2 = path_curve.get_point_position(i)
 		var p0_out: Vector2 = p0 + path_curve.get_point_out(i)
 		var p1: Vector2 = path_curve.get_point_position(i + 1)
@@ -578,8 +573,25 @@ func _apply_enrage_render_mode(new_mode: String) -> void:
 			return
 	# Fallback: update per-instance renderer
 	if _renderer:
-		_renderer.render_mode = ShipRenderer.RenderMode.CHROME if new_mode == "chrome" else ShipRenderer.RenderMode.NEON
+		_renderer.render_mode = _render_mode_from_string(new_mode)
 		_renderer.queue_redraw()
+
+
+static func _render_mode_from_string(mode_str: String) -> int:
+	match mode_str:
+		"chrome": return ShipRenderer.RenderMode.CHROME
+		"void": return ShipRenderer.RenderMode.VOID
+		"hivemind": return ShipRenderer.RenderMode.HIVEMIND
+		"spore": return ShipRenderer.RenderMode.SPORE
+		"ember": return ShipRenderer.RenderMode.EMBER
+		"frost": return ShipRenderer.RenderMode.FROST
+		"solar": return ShipRenderer.RenderMode.SOLAR
+		"sport": return ShipRenderer.RenderMode.SPORT
+		"gunmetal": return ShipRenderer.RenderMode.GUNMETAL
+		"militia": return ShipRenderer.RenderMode.MILITIA
+		"stealth": return ShipRenderer.RenderMode.STEALTH
+		"caution": return ShipRenderer.RenderMode.CAUTION
+	return ShipRenderer.RenderMode.NEON
 
 
 func _setup_hit_field(node_name: String, style_id: String, radius: float, pulse_duration_override: float = 0.0) -> void:

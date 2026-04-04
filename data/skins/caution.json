@@ -1,0 +1,8 @@
+{
+	"id": "caution",
+	"name": "Caution",
+	"hull": "#bf990d",
+	"structure": "#0f0f0a",
+	"trim": "#0f0f0a",
+	"canopy": "#1f1a05"
+}

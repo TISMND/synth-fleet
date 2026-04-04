@@ -1,0 +1,8 @@
+{
+	"id": "solar",
+	"name": "Solar",
+	"hull": "#ffd933",
+	"structure": "#ff9900",
+	"trim": "#ffff99",
+	"canopy": "#e6b31a"
+}

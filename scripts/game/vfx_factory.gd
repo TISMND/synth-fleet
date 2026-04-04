@@ -435,7 +435,7 @@ static func create_deflect_impact(color: Color, width: float = 40.0, duration: f
 		var dur: float = float(root.get_meta("_anim_duration"))
 		var hdr_col: Color = root.get_meta("_anim_hdr") as Color
 
-		var start_scale := Vector2(w / 4.0, w * 0.6 / 4.0)
+		var _start_scale := Vector2(w / 4.0, w * 0.6 / 4.0)
 		var line_scale := Vector2(w * 1.2 / 4.0, 0.3 / 4.0)  # Wide thin line
 		var end_scale := Vector2(2.0 / 4.0, 0.15 / 4.0)  # Tiny dot
 

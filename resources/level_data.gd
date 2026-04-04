@@ -12,6 +12,7 @@ extends Resource
 @export var deep_background: String = ""  # Path to deep bg image (empty = star field only)
 @export var doodads: Array = []  # Array of doodad placement dicts
 @export var nebula_placements: Array = []  # Array of placement dicts
+@export var bg_particles: Array = []  # Array of parallaxed particle layer dicts
 @export var events: Array = []  # Array of event dicts (boss transitions, etc.)
 
 
@@ -79,6 +80,19 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"key_shift_semitones": int(ev.get("key_shift_semitones", 0)),
 			"bpm_shift": float(ev.get("bpm_shift", 0.0)),
 		})
+	var raw_particles: Array = data.get("bg_particles", [])
+	l.bg_particles = []
+	for bp in raw_particles:
+		l.bg_particles.append({
+			"count": int(bp.get("count", 30)),
+			"color_a": str(bp.get("color_a", "#1ae699")),
+			"color_b": str(bp.get("color_b", "#cc33e6")),
+			"size_min": float(bp.get("size_min", 2.0)),
+			"size_max": float(bp.get("size_max", 6.0)),
+			"pulse_speed": float(bp.get("pulse_speed", 1.2)),
+			"motion_scale": float(bp.get("motion_scale", 0.35)),
+			"z_index": int(bp.get("z_index", -9)),
+		})
 	var raw_neb: Array = data.get("nebula_placements", [])
 	l.nebula_placements = []
 	for neb in raw_neb:
@@ -104,6 +118,7 @@ func to_dict() -> Dictionary:
 		"encounters": encounters,
 		"events": events,
 		"doodads": doodads,
+		"bg_particles": bg_particles,
 		"nebula_placements": nebula_placements,
 	}
 

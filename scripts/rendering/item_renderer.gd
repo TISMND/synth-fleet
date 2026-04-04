@@ -510,7 +510,7 @@ func _draw_ellipse_highlight(center: Vector2, rx: float, ry: float, color: Color
 	_draw_ellipse(center, rx, ry, 12, col)
 
 
-func _draw_sparkles(center: Vector2, radius: float, color: Color, shimmer: float) -> void:
+func _draw_sparkles(center: Vector2, radius: float, color: Color, _shimmer: float) -> void:
 	# Slow occasional twinkles — each sparkle has its own frequency and phase offset
 	# so they fire independently rather than pulsing in sync.
 	var hdr: float = 2.0
@@ -540,7 +540,7 @@ func _draw_sparkles(center: Vector2, radius: float, color: Color, shimmer: float
 
 # ── Neon / New Shapes ───────────────────────────────────────────────────
 
-func _draw_neon_coin(center: Vector2, s: float, squeeze_x: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+func _draw_neon_coin(center: Vector2, s: float, squeeze_x: float, primary: Color, _secondary: Color, glow: Color, shimmer: float) -> void:
 	var r: float = s * 0.45
 	var rx: float = r * squeeze_x
 	var edge_w: float = s * 0.08
@@ -607,7 +607,7 @@ func _draw_glow_coin(center: Vector2, s: float, squeeze_x: float, primary: Color
 	_draw_sparkles(center, r, glow, shimmer)
 
 
-func _draw_neon_star(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+func _draw_neon_star(center: Vector2, s: float, primary: Color, _secondary: Color, glow: Color, shimmer: float) -> void:
 	var r_outer: float = s * 0.45
 	var r_inner: float = r_outer * 0.4
 	var points: int = 5
@@ -642,7 +642,7 @@ func _draw_neon_star(center: Vector2, s: float, primary: Color, secondary: Color
 	_draw_sparkles(center, r_outer, glow, shimmer)
 
 
-func _draw_neon_diamond(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+func _draw_neon_diamond(center: Vector2, s: float, primary: Color, _secondary: Color, glow: Color, shimmer: float) -> void:
 	var w: float = s * 0.35
 	var h: float = s * 0.5
 	var girdle_y: float = -h * 0.15
@@ -709,7 +709,7 @@ func _draw_neon_hex(center: Vector2, s: float, primary: Color, secondary: Color,
 	_draw_sparkles(center, r, glow, shimmer)
 
 
-func _draw_energy_orb(center: Vector2, s: float, primary: Color, secondary: Color, glow: Color, shimmer: float) -> void:
+func _draw_energy_orb(center: Vector2, s: float, primary: Color, _secondary: Color, glow: Color, shimmer: float) -> void:
 	var r: float = s * 0.42
 	var hdr: float = _item.hdr_intensity if _item else 2.0
 

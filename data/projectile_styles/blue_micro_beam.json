@@ -1,0 +1,99 @@
+{
+	"archetype": "bullet",
+	"archetype_params": {
+
+	},
+	"base_scale": [
+		30.0,
+		50.0
+	],
+	"collision_scale": [
+		13.0,
+		59.0
+	],
+	"color": [
+		0.078125,
+		0.0,
+		1.0,
+		1.0
+	],
+	"display_name": "blue_micro_beam",
+	"effect_profile": {
+		"defaults": {
+			"impact": [
+				{
+					"color": [
+						0.0784313753247261,
+						0.0,
+						1.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.05,
+						"particle_count": 8.0,
+						"radius": 19.0,
+						"speed_scale": 1.1
+					},
+					"type": "burst"
+				}
+			],
+			"muzzle": [
+				{
+					"color": [
+						0.0784313753247261,
+						0.0,
+						1.0,
+						1.0
+					],
+					"params": {
+						"lifetime": 0.2,
+						"particle_count": 6.0,
+						"spread_angle": 40.0
+					},
+					"type": "directional_flash"
+				}
+			],
+			"trail": [
+				{
+					"color": [
+						0.0784313753247261,
+						0.0,
+						1.0,
+						1.0
+					],
+					"params": {
+						"amount": 6.0,
+						"lifetime": 0.02
+					},
+					"type": "sparkle"
+				}
+			]
+		},
+		"trigger_overrides": {
+
+		},
+		"version": 2
+	},
+	"fill_shader": "beam",
+	"flip_shader": false,
+	"glow_intensity": 1.5,
+	"id": "blue_micro_beam",
+	"mask_path": "",
+	"procedural_mask_feather": 0.3,
+	"procedural_mask_shape": "",
+	"secondary_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"shader_params": {
+		"animation_speed": 1.1,
+		"beam_speed": 3.5,
+		"beam_width": 0.1,
+		"brightness": 1.4,
+		"color_mix": 0.07,
+		"edge_softness": 1.0,
+		"flicker_rate": 4.0
+	}
+}

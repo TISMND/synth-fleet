@@ -161,7 +161,7 @@ func _create_bake_viewport(key: String, visual_id: String, render_mode_str: Stri
 	var renderer := ShipRenderer.new()
 	renderer.ship_id = -1
 	renderer.enemy_visual_id = visual_id
-	renderer.render_mode = ShipRenderer.RenderMode.CHROME if render_mode_str == "chrome" else ShipRenderer.RenderMode.NEON
+	renderer.render_mode = Enemy._render_mode_from_string(render_mode_str)
 	renderer.hull_color = color
 	renderer.accent_color = Color(1.0, 0.2, 0.6)
 	renderer.position = Vector2(bake_size / 2.0, bake_size / 2.0)

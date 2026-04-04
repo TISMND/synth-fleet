@@ -121,13 +121,20 @@ vec2 calc_grid(vec2 uv_in, float v_dist, float ar_in) {
 	float fwx = fwidth(gx_w);
 	float fwz = fwidth(gz_w);
 
+	// Energy-conserving density fade: when multiple grid periods compress into
+	// one pixel (fwidth > 0.5), scale brightness down proportionally.
+	// Without this, sub-pixel lines merge into a solid HDR wash that blows out
+	// anything underneath (rings, atmosphere).
+	float density_x = 1.0 / max(fwx * 2.0, 1.0);
+	float density_z = 1.0 / max(fwz * 2.0, 1.0);
+
 	float core_x = 1.0 - smoothstep(grid_line_w - fwx * 0.5, grid_line_w + fwx * 0.5, gx);
 	float core_z = 1.0 - smoothstep(grid_line_w - fwz * 0.5, grid_line_w + fwz * 0.5, gz);
-	float core = max(core_x, core_z);
+	float core = max(core_x * density_x, core_z * density_z);
 
 	float bloom_x = 1.0 - smoothstep(grid_line_w, grid_bloom_w + fwx, gx);
 	float bloom_z = 1.0 - smoothstep(grid_line_w, grid_bloom_w + fwz, gz);
-	float bloom = max(bloom_x, bloom_z);
+	float bloom = max(bloom_x * density_x, bloom_z * density_z);
 
 	float fade = smoothstep(corridor_gap, corridor_gap + grid_fade_width, v_dist);
 

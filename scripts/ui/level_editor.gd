@@ -42,8 +42,6 @@ var _selected_encounter_idx: int = -1
 var _selected_encounter_indices: Array[int] = []  # Multi-select
 var _encounter_dragging: bool = false
 var _encounter_drag_start: Vector2 = Vector2.ZERO
-var _encounter_drag_origin_y: float = 0.0
-var _encounter_drag_origin_x: float = 0.0
 var _encounter_drag_origins: Array[Dictionary] = []  # Multi-drag: [{y, x}]
 
 # Selection box
@@ -978,31 +976,31 @@ func _level_y_to_canvas_y(level_y: float) -> float:
 	if not _selected_level:
 		return 0.0
 	var canvas_h: float = _map_canvas.size.y
-	var scale: float = _get_map_scale()
-	return canvas_h - (level_y - _scroll_offset) * scale
+	var map_scale: float = _get_map_scale()
+	return canvas_h - (level_y - _scroll_offset) * map_scale
 
 
 func _canvas_y_to_level_y(canvas_y: float) -> float:
 	if not _selected_level:
 		return 0.0
 	var canvas_h: float = _map_canvas.size.y
-	var scale: float = _get_map_scale()
-	return (canvas_h - canvas_y) / scale + _scroll_offset
+	var map_scale: float = _get_map_scale()
+	return (canvas_h - canvas_y) / map_scale + _scroll_offset
 
 
 func _level_x_to_canvas_x(x_offset: float) -> float:
 	var map_rect: Rect2 = _get_map_rect()
 	# x_offset is relative to screen center (960). Map center = map_rect center.
 	var map_center_x: float = map_rect.position.x + map_rect.size.x * 0.5
-	var scale: float = map_rect.size.x / SCREEN_W
-	return map_center_x + x_offset * scale
+	var map_scale: float = map_rect.size.x / SCREEN_W
+	return map_center_x + x_offset * map_scale
 
 
 func _canvas_x_to_level_x(canvas_x: float) -> float:
 	var map_rect: Rect2 = _get_map_rect()
 	var map_center_x: float = map_rect.position.x + map_rect.size.x * 0.5
-	var scale: float = map_rect.size.x / SCREEN_W
-	return (canvas_x - map_center_x) / scale
+	var map_scale: float = map_rect.size.x / SCREEN_W
+	return (canvas_x - map_center_x) / map_scale
 
 
 func _handle_map_input(event: InputEvent) -> void:
@@ -1104,16 +1102,16 @@ func _handle_map_input(event: InputEvent) -> void:
 		elif _map_dragging:
 			var delta: float = mm.position.y - _map_drag_start_y
 			var level_len: float = _selected_level.level_length
-			var scale: float = _get_map_scale()
-			_scroll_offset = clampf(_map_drag_scroll_start + delta / scale, 0.0, maxf(level_len - 500.0, 0.0))
+			var map_scale: float = _get_map_scale()
+			_scroll_offset = clampf(_map_drag_scroll_start + delta / map_scale, 0.0, maxf(level_len - 500.0, 0.0))
 			_map_canvas.queue_redraw()
 
 
 func _map_left_click(pos: Vector2, ctrl_held: bool = false) -> void:
 	# Ctrl+click on map → place new encounter
 	if ctrl_held:
-		var map_rect: Rect2 = _get_map_rect()
-		if map_rect.has_point(pos):
+		var ctrl_map_rect: Rect2 = _get_map_rect()
+		if ctrl_map_rect.has_point(pos):
 			var trigger_y: float = _canvas_y_to_level_y(pos.y)
 			var x_offset: float = _canvas_x_to_level_x(pos.x)
 			if trigger_y >= 0.0 and trigger_y <= _selected_level.level_length:
@@ -1354,8 +1352,8 @@ func _paste_at_scroll() -> void:
 		_selected_encounter_indices.clear()
 		var base_idx: int = _selected_level.encounters.size()
 		for d in _clipboard_multi:
-			var pasted: Dictionary = d.duplicate(true)
-			_selected_level.encounters.append(pasted)
+			var pasted_enc: Dictionary = d.duplicate(true)
+			_selected_level.encounters.append(pasted_enc)
 		for pi in range(_clipboard_multi.size()):
 			_selected_encounter_indices.append(base_idx + pi)
 		if _selected_encounter_indices.size() > 0:
@@ -2178,10 +2176,6 @@ func _update_right_panel() -> void:
 		_enc_drop_chance_spin.value = float(enc.get("drop_chance", 0.0))
 		_rebuild_drop_table_ui(enc.get("drop_table", []) as Array)
 
-	# Update boss dropdown visibility based on level filter
-	var filter_val: String = ""
-	if _enc_level_filter.selected >= 0:
-		filter_val = str(_enc_level_filter.get_item_metadata(_enc_level_filter.selected))
 	_update_melee_ui_state()
 
 
@@ -3030,7 +3024,7 @@ class _MapCanvasDraw extends Control:
 			draw_rect(box, Color(1.0, 0.7, 0.2, 0.5), false, 1.0)
 
 
-	func _draw_debug_grids(s: Control, level: LevelData, map_rect: Rect2, scale: float) -> void:
+	func _draw_debug_grids(s: Control, level: LevelData, map_rect: Rect2, _scale: float) -> void:
 		var left: float = map_rect.position.x
 		var right: float = map_rect.position.x + map_rect.size.x
 		var font: Font = ThemeDB.fallback_font

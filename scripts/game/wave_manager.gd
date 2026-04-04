@@ -344,8 +344,7 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 		enemy.position = Vector2(960.0 + melee_orig.x + melee_off.x, -30.0 + melee_off.y)
 	elif enemy.path_curve != null and enemy.path_curve.point_count >= 2:
 		var start_pos: Vector2 = enemy.path_curve.sample_baked(0.0)
-		var end_pos: Vector2 = enemy.path_curve.sample_baked(enemy.path_curve.get_baked_length())
-		var spawn_pos: Vector2 = start_pos + enemy.path_offset + enemy.path_origin
+		var _end_pos: Vector2 = enemy.path_curve.sample_baked(enemy.path_curve.get_baked_length())
 		# Path positions are authored in the path editor with screen boundaries visible.
 		# No forced off-screen shifting — paths play exactly where they were drawn.
 		enemy.position = start_pos + enemy.path_offset + enemy.path_origin
