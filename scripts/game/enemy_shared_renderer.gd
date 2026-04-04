@@ -95,7 +95,7 @@ func get_texture(visual_id: String, render_mode_str: String, color: Color) -> Vi
 
 
 ## Get the bake viewport size for proper Sprite2D centering.
-func get_bake_size(visual_id: String) -> int:
+static func get_bake_size(visual_id: String) -> int:
 	if visual_id in BOSS_ENEMY_VISUALS:
 		return BAKE_SIZE_BOSS
 	return BAKE_SIZE_LARGE if visual_id in LARGE_ENEMY_VISUALS else BAKE_SIZE_SMALL

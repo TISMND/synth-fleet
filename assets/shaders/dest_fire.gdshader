@@ -1,20 +1,18 @@
 shader_type canvas_item;
-// Fire Destination — Amorphous blob of solar plasma with lava veins.
-// NOT a clean sphere — FBM-distorted boundary, billowing and organic.
+// Fire Destination — Radiant fire with NO central sphere/circle.
+// Just rays, prominences, drifting plasma wisps, and eruption hotspots.
 
 uniform float hdr_intensity : hint_range(0.5, 8.0) = 3.5;
 uniform vec3 bg_color : source_color = vec3(0.02, 0.0, 0.0);
-uniform vec3 lava_hot : source_color = vec3(1.0, 0.85, 0.3);
-uniform vec3 lava_mid : source_color = vec3(1.0, 0.35, 0.05);
-uniform vec3 lava_cool : source_color = vec3(0.5, 0.05, 0.0);
-uniform vec3 crust_color : source_color = vec3(0.1, 0.03, 0.01);
-uniform float base_radius : hint_range(0.05, 0.3) = 0.16;
-uniform float blob_distort : hint_range(0.0, 0.15) = 0.06;
-uniform float crack_width : hint_range(0.01, 0.2) = 0.09;
-uniform float corona_size : hint_range(0.03, 0.25) = 0.12;
-uniform float flare_intensity : hint_range(0.0, 2.0) = 1.0;
-uniform float surface_turb : hint_range(0.0, 1.0) = 0.5;
-uniform float pulse_speed : hint_range(0.0, 2.0) = 0.7;
+uniform vec3 fire_hot : source_color = vec3(1.0, 0.85, 0.3);
+uniform vec3 fire_mid : source_color = vec3(1.0, 0.35, 0.05);
+uniform vec3 fire_cool : source_color = vec3(0.5, 0.05, 0.0);
+uniform float corona_size : hint_range(0.05, 0.4) = 0.18;
+uniform float flare_intensity : hint_range(0.0, 3.0) = 1.5;
+uniform float wisp_scale : hint_range(1.0, 6.0) = 3.0;
+uniform float wisp_speed : hint_range(0.0, 1.0) = 0.3;
+uniform float ember_density : hint_range(0.0, 1.0) = 0.6;
+uniform float ray_count : hint_range(3.0, 10.0) = 6.0;
 
 float hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -36,22 +34,6 @@ float fbm(vec2 p) {
 	return v;
 }
 
-vec2 voronoi(vec2 p) {
-	vec2 i = floor(p), f = fract(p);
-	float d1 = 8.0, d2 = 8.0;
-	for (int y = -1; y <= 1; y++) {
-		for (int x = -1; x <= 1; x++) {
-			vec2 n = vec2(float(x), float(y));
-			vec2 pt = vec2(hash(i + n), hash(i + n + 57.0));
-			pt = 0.5 + 0.4 * sin(6.28 * pt + TIME * 0.15);
-			float dd = length(n + pt - f);
-			if (dd < d1) { d2 = d1; d1 = dd; }
-			else if (dd < d2) { d2 = dd; }
-		}
-	}
-	return vec2(d1, d2);
-}
-
 void fragment() {
 	vec2 uv = UV;
 	float ar = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x;
@@ -61,116 +43,111 @@ void fragment() {
 	float angle = atan(d.y, d.x);
 	vec3 col = bg_color;
 
-	// ── Distorted blob boundary (NOT a clean circle) ──
-	// Use FBM at the current angle to warp the radius
-	float angle_for_warp = angle + TIME * 0.08;
-	float warp1 = fbm(vec2(angle_for_warp * 2.0, TIME * 0.15)) - 0.5;
-	float warp2 = fbm(vec2(angle_for_warp * 3.5 + 10.0, TIME * 0.12 + 5.0)) - 0.5;
-	float warp = (warp1 * 0.7 + warp2 * 0.3) * blob_distort;
-	float effective_radius = base_radius + warp;
+	// ── Central radiance (soft, no hard edge) ──
+	float core_glow = exp(-dist * dist / (corona_size * corona_size * 0.3));
+	col += fire_mid * core_glow * hdr_intensity * 0.4;
+	float inner_glow = exp(-dist * dist / (corona_size * corona_size * 0.08));
+	col += fire_hot * inner_glow * hdr_intensity * 0.3;
 
-	// How deep inside the blob are we? 0 = edge, 1 = deep inside
-	float blob_t = 1.0 - (dist / max(effective_radius, 0.01));
-	float in_blob = smoothstep(-0.02, 0.04, blob_t);
+	// ── Radial flare rays ──
+	int rc = int(ray_count);
+	for (int i = 0; i < 10; i++) {
+		if (i >= rc) break;
+		float fi = float(i);
+		float ray_base_a = fi * 6.2832 / ray_count;
+		// Slow wander
+		float ray_a = ray_base_a + sin(TIME * 0.2 + fi * 1.7) * 0.3;
+		float da = abs(mod(angle - ray_a + PI, 6.2832) - PI);
 
-	// Soft edge — not a hard cutoff
-	float edge_softness = smoothstep(-0.03, 0.06, blob_t);
+		// Width varies with FBM
+		float rw = 0.08 + fbm(vec2(fi * 3.0 + 1.0, TIME * 0.08)) * 0.1;
 
-	// ══════════════════════════════════════════════
-	// CORONA + PROMINENCES (behind and around blob)
-	// ══════════════════════════════════════════════
-	float corona_dist = max(dist - effective_radius, 0.0);
-	float corona = exp(-corona_dist / corona_size);
+		// Length varies
+		float ray_length = corona_size * (1.5 + fbm(vec2(fi * 5.0, TIME * 0.12)) * 1.5);
+		float ray_falloff = exp(-dist / ray_length);
 
-	// Irregular corona using FBM — not uniform
-	float corona_warp = fbm(vec2(angle * 3.0 + TIME * 0.2, dist * 8.0)) * 0.6 + 0.4;
-	corona *= corona_warp;
+		float ray = exp(-da * da / (rw * rw)) * ray_falloff;
 
-	// Radial flare rays (also warped)
-	float rays = 0.0;
+		// Color shifts along ray: hot near center, cool at tips
+		float temp = smoothstep(ray_length, 0.0, dist);
+		vec3 ray_col = mix(fire_cool, mix(fire_mid, fire_hot, temp), temp);
+
+		col += ray_col * ray * flare_intensity * hdr_intensity * 0.35;
+	}
+
+	// ── Prominence arcs ──
 	for (int i = 0; i < 5; i++) {
 		float fi = float(i);
-		float ray_a = fi * 1.257 + sin(TIME * 0.25 + fi * 2.0) * 0.4;
-		float da = abs(mod(angle - ray_a + PI, 6.2832) - PI);
-		float rw = 0.1 + fbm(vec2(fi * 3.0, TIME * 0.1)) * 0.08;
-		rays += exp(-da * da / (rw * rw)) * exp(-corona_dist * 3.0);
-	}
-	rays *= flare_intensity;
-
-	col += lava_cool * corona * hdr_intensity * 0.35;
-	col += lava_mid * rays * hdr_intensity * 0.45;
-
-	// Prominence arcs (organic, not perfectly symmetric)
-	for (int i = 0; i < 4; i++) {
-		float fi = float(i);
-		float arc_a = fi * 1.571 + TIME * 0.06 + sin(TIME * 0.3 + fi) * 0.4;
+		float arc_a = fi * 1.257 + TIME * 0.05 + sin(TIME * 0.25 + fi) * 0.5;
 		vec2 arc_dir = vec2(cos(arc_a), sin(arc_a));
 		float along = dot(d, arc_dir);
 		float perp = length(d - arc_dir * along);
-		float arc_h = 0.05 + sin(TIME * 0.4 + fi * 2.3) * 0.03;
-		float arc_peak = effective_radius + arc_h;
-		if (along > effective_radius * 0.5 && along < arc_peak * 1.4) {
-			float t = (along - effective_radius * 0.5) / (arc_peak * 1.4 - effective_radius * 0.5);
-			float expected = sin(t * PI) * (0.02 + fi * 0.008);
+
+		float arc_start = 0.02 + hash(vec2(fi, 10.0)) * 0.03;
+		float arc_h = 0.06 + sin(TIME * 0.35 + fi * 2.3) * 0.03;
+		float arc_end = arc_start + arc_h;
+
+		if (along > arc_start && along < arc_end * 1.3) {
+			float t = (along - arc_start) / max(arc_end * 1.3 - arc_start, 0.001);
+			float expected = sin(t * PI) * (0.015 + fi * 0.006);
 			float ad = abs(perp - expected);
-			float arc = exp(-ad * ad / 0.00004);
-			arc *= smoothstep(0.0, 0.15, t) * smoothstep(1.0, 0.75, t);
-			col += lava_mid * arc * flare_intensity * hdr_intensity * 0.35;
+			float arc = exp(-ad * ad / 0.00003);
+			arc *= smoothstep(0.0, 0.15, t) * smoothstep(1.0, 0.7, t);
+			vec3 arc_col = mix(fire_mid, fire_hot, smoothstep(0.5, 0.0, t));
+			col += arc_col * arc * flare_intensity * hdr_intensity * 0.4;
 		}
 	}
 
-	// ══════════════════════════════════════════════
-	// BLOB SURFACE — lava + solar turbulence
-	// ══════════════════════════════════════════════
-	if (in_blob > 0.01) {
-		// UV coordinates that follow the blob's organic shape
-		vec2 surf_uv = d / max(effective_radius, 0.01); // -1..1 ish
+	// ── Drifting plasma wisps (FBM clouds, no hard boundary) ──
+	vec2 wisp_uv = d * wisp_scale;
+	// Multiple layers drifting in different directions
+	vec2 drift1 = wisp_uv + TIME * wisp_speed * vec2(0.3, -0.5);
+	float w1 = fbm(drift1 * 2.0);
+	float w2 = fbm(drift1 * 2.5 + 4.0);
+	float wisp1 = w1 * w2;
+	wisp1 = smoothstep(0.08, 0.4, wisp1);
+	// Fade with distance from center (organic falloff)
+	float wisp_fade = exp(-dist * dist / (corona_size * corona_size * 1.5));
+	col += fire_cool * wisp1 * wisp_fade * hdr_intensity * 0.5;
 
-		// Voronoi lava cracks
-		vec2 lava_uv = surf_uv * 4.5 + TIME * vec2(0.03, -0.02);
-		vec2 vor = voronoi(lava_uv);
-		float edge_v = vor.y - vor.x;
-		float pulse = sin(TIME * pulse_speed + vor.x * 4.0) * 0.25 + 0.75;
-		float crack = smoothstep(crack_width, crack_width * 0.08, edge_v) * pulse;
-		float crack_glow = exp(-edge_v / (crack_width * 1.8)) * pulse;
+	vec2 drift2 = wisp_uv * 0.8 + TIME * wisp_speed * vec2(-0.2, -0.4) + 10.0;
+	float w3 = fbm(drift2 * 1.8);
+	float w4 = fbm(drift2 * 2.2 + 7.0);
+	float wisp2 = w3 * w4;
+	wisp2 = smoothstep(0.1, 0.35, wisp2);
+	float wisp_fade2 = exp(-dist * dist / (corona_size * corona_size * 2.0));
+	col += fire_mid * 0.5 * wisp2 * wisp_fade2 * hdr_intensity * 0.35;
 
-		// Solar granulation
-		vec2 gran_uv = surf_uv * 10.0 + TIME * 0.2;
-		float gran = vnoise(gran_uv) * vnoise(gran_uv * 1.7 + 3.0);
-		gran = smoothstep(0.1, 0.4, gran) * surface_turb;
+	// Third layer — hotter, closer to center
+	vec2 drift3 = wisp_uv * 1.5 + TIME * wisp_speed * vec2(0.15, 0.3) + 20.0;
+	float wisp3 = fbm(drift3 * 3.0) * fbm(drift3 * 2.0 + 3.0);
+	wisp3 = smoothstep(0.12, 0.4, wisp3);
+	float wisp_fade3 = exp(-dist * dist / (corona_size * corona_size * 0.5));
+	col += fire_hot * 0.4 * wisp3 * wisp_fade3 * hdr_intensity * 0.4;
 
-		// Large-scale turbulence
-		float turb_large = fbm(surf_uv * 3.0 + TIME * vec2(0.06, 0.03));
+	// ── Floating ember particles ──
+	if (ember_density > 0.01) {
+		for (int i = 0; i < 30; i++) {
+			float fi = float(i);
+			if (hash(vec2(fi * 7.13, 42.0)) > ember_density) continue;
 
-		// Color
-		vec3 crack_col = mix(lava_mid, lava_hot, crack);
-		vec3 plate_col = crust_color + lava_cool * turb_large * 0.35 + lava_mid * gran * 0.4;
-		vec3 surface = mix(plate_col, crack_col, max(crack, crack_glow * 0.5));
+			float phase = hash(vec2(fi * 3.31, 99.0));
+			float lifetime = fract(phase + TIME * (0.1 + hash(vec2(fi, 55.0)) * 0.15));
+			// Embers drift outward from center in random directions
+			float ember_a = hash(vec2(fi * 2.0, 77.0)) * 6.28;
+			float ember_r = lifetime * corona_size * 2.5;
+			// Gentle wander
+			float wx = sin(lifetime * 5.0 + fi * 2.0) * 0.02;
+			float wy = cos(lifetime * 4.0 + fi * 3.0) * 0.02;
+			vec2 ep = center + vec2((cos(ember_a) * ember_r + wx) / ar, sin(ember_a) * ember_r + wy);
 
-		// Brighter toward center, darker at edges (organic limb darkening)
-		float limb = smoothstep(-0.01, 0.3, blob_t);
-		surface *= 0.3 + 0.7 * limb;
-
-		surface *= hdr_intensity;
-		col = mix(col, surface, edge_softness);
+			float ed = length((uv - ep) * vec2(ar, 1.0));
+			float ember = exp(-ed * ed / 0.00002);
+			float alpha = smoothstep(0.0, 0.1, lifetime) * smoothstep(1.0, 0.5, lifetime);
+			vec3 ecol = mix(fire_hot, fire_cool, lifetime);
+			col += ecol * ember * alpha * hdr_intensity * 0.7;
+		}
 	}
-
-	// ── Eruption hotspots (positioned by FBM, not on a circle) ──
-	for (int i = 0; i < 5; i++) {
-		float fi = float(i);
-		float ea = fbm(vec2(fi * 3.0, TIME * 0.05)) * 6.28;
-		float er = fbm(vec2(fi * 5.0 + 10.0, TIME * 0.04)) * base_radius * 0.7;
-		vec2 ep = center + vec2(cos(ea) * er / ar, sin(ea) * er);
-		float ed = length((uv - ep) * vec2(ar, 1.0));
-		float flare_t = sin(TIME * (1.0 + fi * 0.4) + fi * 3.0) * 0.5 + 0.5;
-		float flare = exp(-ed * ed / 0.0005) * flare_t;
-		float inside = smoothstep(0.0, 0.02, blob_t);
-		col += lava_hot * flare * hdr_intensity * 0.35 * inside;
-	}
-
-	// ── Background heat haze ──
-	float bg_heat = exp(-dist * 2.5) * 0.08;
-	col += lava_cool * bg_heat * hdr_intensity * 0.15;
 
 	COLOR = vec4(col, 1.0);
 }

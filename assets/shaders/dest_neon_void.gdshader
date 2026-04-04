@@ -1,19 +1,24 @@
 shader_type canvas_item;
-// Neon Void Rift — Vertical oval rip with geometric right-angle lines extending outward.
-// Center pulses send HDR light rings outward that illuminate the grid as they pass.
+// Neon Void Rift — Vertical oval rip with tendrils, lightning-strike bolts
+// (main shaft ~500ms with chaotic 150ms branches), and irregular HDR ring pulses.
 
 uniform float hdr_intensity : hint_range(0.5, 8.0) = 3.0;
 uniform vec3 bg_color : source_color = vec3(0.01, 0.0, 0.03);
 uniform vec3 rift_color : source_color = vec3(1.0, 0.1, 0.55);
 uniform vec3 line_color : source_color = vec3(0.9, 0.06, 0.45);
-uniform vec3 neuron_color : source_color = vec3(1.0, 0.4, 0.75);
+uniform vec3 bolt_color : source_color = vec3(1.0, 0.3, 0.7);
 uniform float rift_width : hint_range(0.02, 0.15) = 0.055;
 uniform float rift_height : hint_range(0.05, 0.3) = 0.16;
 uniform float line_brightness : hint_range(0.2, 4.0) = 1.5;
-uniform float pulse_speed : hint_range(0.1, 2.0) = 0.5;
-uniform float pulse_count : hint_range(1.0, 8.0) = 4.0;
-uniform float pulse_hdr : hint_range(1.0, 6.0) = 3.0;
+uniform float pulse_speed : hint_range(0.5, 5.0) = 2.5;
+uniform float pulse_count : hint_range(1.0, 8.0) = 5.0;
+uniform float pulse_hdr : hint_range(1.0, 25.0) = 14.0;
+uniform float pulse_width : hint_range(0.01, 0.15) = 0.06;
 uniform float line_density : hint_range(8.0, 40.0) = 18.0;
+uniform float bolt_count : hint_range(2.0, 10.0) = 6.0;
+uniform float bolt_brightness : hint_range(0.5, 8.0) = 4.0;
+uniform float tendril_count : hint_range(2.0, 10.0) = 6.0;
+uniform float tendril_length : hint_range(0.05, 0.5) = 0.25;
 uniform float cloud_intensity : hint_range(0.0, 0.6) = 0.2;
 uniform float drift_speed : hint_range(0.0, 0.3) = 0.08;
 
@@ -36,6 +41,14 @@ float fbm(vec2 p) {
 	return v;
 }
 
+float seg_dist(vec2 p, vec2 a, vec2 b) {
+	vec2 ab = b - a;
+	float len2 = dot(ab, ab);
+	if (len2 < 0.000001) return length(p - a);
+	float t = clamp(dot(p - a, ab) / len2, 0.0, 1.0);
+	return length(p - (a + ab * t));
+}
+
 void fragment() {
 	vec2 uv = UV;
 	float ar = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x;
@@ -44,12 +57,11 @@ void fragment() {
 	float dist = length(d);
 	vec3 col = bg_color;
 
-	// ── Rift ellipse (vertically ovular) ──
+	// ── Rift ellipse ──
 	float ex = d.x / rift_width;
 	float ey = d.y / rift_height;
 	float rift_dist = length(vec2(ex, ey));
 
-	// Rift interior — dark void with subtle swirl
 	if (rift_dist < 1.0) {
 		float inner = smoothstep(1.0, 0.2, rift_dist);
 		col = mix(bg_color * 0.3, vec3(0.005, 0.0, 0.01), inner);
@@ -58,61 +70,192 @@ void fragment() {
 		col += rift_color * swirl * inner * 0.12 * hdr_intensity;
 	}
 
-	// Neon rim glow
 	float rim = smoothstep(0.6, 1.0, rift_dist) * smoothstep(1.5, 1.0, rift_dist);
 	col += rift_color * rim * hdr_intensity * 1.2;
-	float halo = exp(-max(rift_dist - 1.0, 0.0) * 3.0) * 0.5;
-	col += rift_color * halo * hdr_intensity * 0.3;
+	float halo_val = exp(-max(rift_dist - 1.0, 0.0) * 3.0) * 0.5;
+	col += rift_color * halo_val * hdr_intensity * 0.3;
 
-	// ── World-space distance from rift edge ──
-	float rift_outside = max(rift_dist - 1.0, 0.0);
-	float radial_dist = rift_outside * max(rift_width, rift_height);
+	// ── Tendrils from rift ──
+	int tc = int(tendril_count);
+	for (int i = 0; i < 10; i++) {
+		if (i >= tc) break;
+		float fi = float(i);
+		float t_angle = fi * 6.2832 / tendril_count + 0.3;
+		vec2 anchor = vec2(cos(t_angle) * rift_width, sin(t_angle) * rift_height);
+		vec2 outward = normalize(vec2(cos(t_angle), sin(t_angle)));
+		vec2 pixel_from_anchor = d - anchor;
+		float along = dot(pixel_from_anchor, outward);
+		float perp = length(pixel_from_anchor - outward * along);
+		if (along > -0.02 && along < tendril_length) {
+			float t_param = along / tendril_length;
+			float wave = sin(t_param * 8.0 + TIME * 1.0 + fi * 2.3) * 0.025;
+			wave += sin(t_param * 14.0 - TIME * 0.7 + fi * 4.1) * 0.015;
+			wave += sin(t_param * 4.0 + TIME * 0.4 + fi * 1.0) * 0.035;
+			wave += (fbm(vec2(t_param * 2.5 + fi * 5.0, TIME * 0.08)) - 0.5) * 0.04;
+			float adjusted_perp = abs(perp - wave);
+			float width = mix(0.03, 0.005, t_param * t_param);
+			float tendril_val = exp(-adjusted_perp * adjusted_perp / (width * width));
+			float tip_fade = smoothstep(1.0, 0.5, t_param);
+			float base_fade = smoothstep(-0.02, 0.05, along);
+			float brightness = 0.5 + 0.5 * sin(t_param * 8.0 - TIME * 2.0 + fi * 2.0);
+			col += rift_color * tendril_val * tip_fade * base_fade * brightness * hdr_intensity * 0.8;
+		}
+	}
 
-	// ── HDR ring pulses expanding from center ──
-	// These are the key effect — rings of HDR light that illuminate everything they cross
+	// ══════════════════════════════════════════════
+	// LIGHTNING STRIKES — main shaft (~500ms) with chaotic branches (~150ms)
+	// Each bolt has its own strike cycle. Most of the time: dark.
+	// ══════════════════════════════════════════════
+	float lightning_val = 0.0;
+	int bc = int(bolt_count);
+	for (int bolt = 0; bolt < 10; bolt++) {
+		if (bolt >= bc) break;
+		float fb = float(bolt);
+
+		// Each bolt has its own cycle period (1.5 - 4 seconds between strikes)
+		float cycle_period = 1.5 + hash(vec2(fb, 77.0)) * 2.5;
+		float cycle_phase = hash(vec2(fb, 66.0)) * cycle_period;
+		float cycle_t = mod(TIME + cycle_phase, cycle_period);
+
+		// Main shaft: visible for ~0.5s at start of cycle, then dark
+		float shaft_duration = 0.5;
+		float shaft_alive = smoothstep(shaft_duration, shaft_duration - 0.05, cycle_t)
+		                   * smoothstep(0.0, 0.02, cycle_t);
+		if (shaft_alive < 0.01) continue;
+
+		// Flash envelope — bright on strike, fading over duration
+		float shaft_flash = shaft_alive * smoothstep(shaft_duration, 0.0, cycle_t);
+
+		// Bolt geometry changes each strike (seed from cycle index)
+		float strike_id = floor((TIME + cycle_phase) / cycle_period);
+		float bolt_angle = fb * 6.2832 / bolt_count
+		                 + hash(vec2(fb, strike_id * 3.0)) * 0.8 - 0.4;
+		vec2 pos = vec2(cos(bolt_angle) * rift_width, sin(bolt_angle) * rift_height);
+		vec2 out_dir = normalize(vec2(cos(bolt_angle), sin(bolt_angle)));
+		vec2 perp_dir = vec2(-out_dir.y, out_dir.x);
+
+		// Main shaft segments
+		for (int seg = 0; seg < 10; seg++) {
+			float fs = float(seg);
+			float seg_seed = hash(vec2(fb * 13.0 + fs, strike_id * 7.0 + fs));
+
+			vec2 direction;
+			float seg_len;
+			if (seg % 2 == 0) {
+				direction = out_dir;
+				seg_len = 0.02 + seg_seed * 0.05;
+			} else {
+				float jog_sign = (seg_seed > 0.5) ? 1.0 : -1.0;
+				direction = perp_dir * jog_sign;
+				seg_len = 0.01 + seg_seed * 0.03;
+			}
+
+			vec2 next_pos = pos + direction * seg_len;
+			float sd = seg_dist(d, pos, next_pos);
+			float core = smoothstep(0.004, 0.001, sd);
+			float glow = exp(-sd * sd / 0.00008);
+			float dist_from_start = length(pos);
+			float range_fade = smoothstep(0.4, 0.02, dist_from_start);
+
+			lightning_val += (core * 1.0 + glow * 0.3) * range_fade * shaft_flash;
+
+			// ── Branches — shorter lived, chaotic ──
+			// Spawn a branch from some shaft segments
+			float branch_chance = hash(vec2(fb * 5.0 + fs, strike_id + 100.0));
+			if (branch_chance > 0.55 && seg % 2 == 0) {
+				// Branch alive for ~150ms, delayed randomly within shaft window
+				float branch_delay = hash(vec2(fb * 9.0 + fs, strike_id + 200.0)) * 0.3;
+				float branch_t = cycle_t - branch_delay;
+				float branch_duration = 0.15;
+				float branch_alive = smoothstep(branch_duration, branch_duration - 0.03, branch_t)
+				                   * smoothstep(0.0, 0.01, branch_t);
+				float branch_flash = branch_alive * smoothstep(branch_duration, 0.0, branch_t);
+
+				if (branch_flash > 0.01) {
+					// Branch goes perpendicular from this point on the shaft
+					float branch_sign = (hash(vec2(fb + fs * 3.0, strike_id + 300.0)) > 0.5) ? 1.0 : -1.0;
+					vec2 branch_dir = perp_dir * branch_sign;
+					vec2 bpos = (pos + next_pos) * 0.5; // midpoint of shaft segment
+
+					for (int bseg = 0; bseg < 5; bseg++) {
+						float bfs = float(bseg);
+						float bseed = hash(vec2(fb * 17.0 + fs * 3.0 + bfs, strike_id + bfs));
+						vec2 bdir;
+						float blen;
+						if (bseg % 2 == 0) {
+							bdir = branch_dir;
+							blen = 0.01 + bseed * 0.025;
+						} else {
+							bdir = out_dir * ((bseed > 0.5) ? 1.0 : -1.0);
+							blen = 0.008 + bseed * 0.015;
+						}
+						vec2 bnext = bpos + bdir * blen;
+						float bsd = seg_dist(d, bpos, bnext);
+						float bcore = smoothstep(0.003, 0.0008, bsd);
+						float bglow = exp(-bsd * bsd / 0.00005);
+						float bfade = smoothstep(0.25, 0.01, length(bpos));
+
+						lightning_val += (bcore * 0.8 + bglow * 0.2) * bfade * branch_flash;
+						bpos = bnext;
+					}
+				}
+			}
+
+			pos = next_pos;
+		}
+	}
+	lightning_val = min(lightning_val, 4.0);
+	col += bolt_color * lightning_val * bolt_brightness * hdr_intensity * 0.3;
+
+	// ══════════════════════════════════════════════
+	// HDR RING PULSES — irregular timing, 80% off duty cycle, intense
+	// ══════════════════════════════════════════════
 	float ring_boost = 0.0;
 	int pc = int(pulse_count);
 	for (int i = 0; i < 8; i++) {
 		if (i >= pc) break;
 		float fi = float(i);
-		float phase = fi / pulse_count;
-		float wave_pos = fract(phase + TIME * pulse_speed * 0.12);
-		float wave_radius = wave_pos * 0.6; // travels far out
 
-		float wave_match = abs(radial_dist - wave_radius);
-		// Wider ring band so bloom can catch it
-		float ring = exp(-wave_match * wave_match / 0.0008);
-		// Fade as it expands
-		float wave_fade = smoothstep(0.6, 0.02, wave_pos);
-		ring_boost += ring * wave_fade;
+		// Each pulse has its own irregular period
+		float period = 1.2 + hash(vec2(fi, 11.0)) * 2.0; // 1.2s - 3.2s per pulse cycle
+		float phase = hash(vec2(fi, 22.0)) * period;
+		float cycle_t = mod(TIME + phase, period);
+
+		// 80% off: pulse is only active for the first 20% of its cycle
+		float active_window = period * 0.2;
+		float pulse_alive = smoothstep(active_window, active_window - 0.05, cycle_t)
+		                   * smoothstep(0.0, 0.03, cycle_t);
+		if (pulse_alive < 0.01) continue;
+
+		// Ring expands during the active window
+		float ring_t = cycle_t / active_window; // 0→1 during active window
+		float wave_radius = ring_t * 0.85; // full screen coverage
+
+		float wave_match = abs(dist - wave_radius);
+		float ring = exp(-wave_match * wave_match / (pulse_width * pulse_width));
+
+		// Intensity: bright at birth, fading as it expands
+		float intensity = (1.0 - ring_t * 0.5) * pulse_alive;
+
+		ring_boost += ring * intensity;
 	}
-	ring_boost = min(ring_boost, 2.5);
+	ring_boost = min(ring_boost, 5.0);
 
 	// ── Geometric grid lines ──
-	// Slight drift for motion
 	vec2 grid_offset = vec2(sin(TIME * drift_speed * 0.7) * 0.01, cos(TIME * drift_speed) * 0.01);
 	vec2 grid_uv = (uv + grid_offset) * line_density;
 	vec2 cell_id = floor(grid_uv);
 	vec2 cell_f = fract(grid_uv);
 
 	float cell_dist = length((cell_id + 0.5) / line_density - center);
-
-	// Activity: full near rift, gets SPARSER (not gone) further out
 	float base_activity = smoothstep(0.55, 0.03, cell_dist);
-	// Sparse far out — probabilistic thinning
 	float thin_chance = smoothstep(0.08, 0.45, cell_dist);
-	float cell_hash_thin = hash(cell_id + 200.0);
-	float sparse_mask = step(thin_chance * 0.7, cell_hash_thin);
+	float sparse_mask = step(thin_chance * 0.7, hash(cell_id + 200.0));
 	float activity = base_activity * sparse_mask;
-	// Don't show inside rift
 	activity *= smoothstep(0.0, 0.05, cell_dist - 0.03);
 
-	float h_cell = hash(cell_id);
-	float v_cell = hash(cell_id + 77.0);
-	float h_active = step(0.3, h_cell) * activity;
-	float v_active = step(0.3, v_cell) * activity;
-
-	// Force connectivity near rift
+	float h_active = step(0.3, hash(cell_id)) * activity;
+	float v_active = step(0.3, hash(cell_id + 77.0)) * activity;
 	float near_rift = smoothstep(0.12, 0.03, cell_dist);
 	h_active = max(h_active, near_rift);
 	v_active = max(v_active, near_rift);
@@ -122,27 +265,21 @@ void fragment() {
 	float v_line = smoothstep(line_w, line_w * 0.12, abs(cell_f.x - 0.5)) * v_active;
 	float line_core = max(h_line, v_line);
 
-	// Base line brightness (dim)
-	float base_bright = 0.12;
-	// Lines illuminated by passing HDR rings — this is the key effect
-	float illuminated = base_bright + ring_boost * pulse_hdr;
+	// Grid: very dim base, ring pulse CRANKS HDR
+	float base_dim = 0.03;
+	float ring_lit = ring_boost * pulse_hdr;
+	col += line_color * line_core * (base_dim + ring_lit) * line_brightness * hdr_intensity * 0.15;
 
-	col += line_color * line_core * illuminated * line_brightness * hdr_intensity * 0.15;
-
-	// Also add the ring pulse as a general ambient HDR wash (visible through bloom)
-	float ambient_ring = ring_boost * 0.15;
-	float ambient_mask = smoothstep(0.0, 0.03, radial_dist) * smoothstep(0.6, 0.1, radial_dist);
-	col += rift_color * ambient_ring * hdr_intensity * pulse_hdr * 0.08 * ambient_mask;
-
-	// ── Intersection nodes ──
-	float node_h = abs(cell_f.x - 0.5);
-	float node_v = abs(cell_f.y - 0.5);
-	float at_int = smoothstep(0.1, 0.02, max(node_h, node_v));
+	// Nodes
+	float at_int = smoothstep(0.1, 0.02, max(abs(cell_f.x - 0.5), abs(cell_f.y - 0.5)));
 	float node_active = min(h_active, v_active);
-	float node = at_int * node_active * (base_bright + ring_boost * pulse_hdr * 0.5);
-	col += rift_color * node * hdr_intensity * 0.2;
+	col += rift_color * at_int * node_active * (base_dim + ring_lit * 0.5) * hdr_intensity * 0.2;
 
-	// ── Subtle cloud haze ──
+	// Ring ambient wash
+	float ambient_mask = smoothstep(0.0, 0.04, dist) * smoothstep(0.8, 0.05, dist);
+	col += rift_color * ring_boost * hdr_intensity * 0.05 * ambient_mask;
+
+	// ── Cloud haze ──
 	if (cloud_intensity > 0.001) {
 		vec2 neb_uv = uv * 3.5 + vec2(TIME * 0.015, TIME * 0.01);
 		float neb = fbm(neb_uv) * fbm(neb_uv * 1.2 + 5.0);

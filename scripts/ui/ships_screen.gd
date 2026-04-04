@@ -73,6 +73,8 @@ var _weapon_preview_container: Node2D = null
 var _weapon_preview_fire_point: Node2D = null
 var _ship_viewport: SubViewport = null
 var _ship_grid_bg: ColorRect = null
+var _bake_viewport: SubViewport = null  # Small bake viewport matching in-game resolution
+var _bake_sprite: Sprite2D = null       # Displays bake texture in main viewport
 var _weapon_preview_controller: HardpointController = null
 
 
@@ -95,8 +97,8 @@ func _ready() -> void:
 	_ship_viewport.size = Vector2i(1920, 1080)
 	_ship_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_ship_viewport.transparent_bg = false
-	_ship_viewport.use_hdr_2d = true  # HDR without ACES — matches enemy bake viewport so bloom is identical to in-game
 	svc.add_child(_ship_viewport)
+	VFXFactory.add_bloom_to_viewport(_ship_viewport)  # use_hdr_2d + ACES — matches game viewport pipeline
 
 	# Dark background inside SubViewport
 	_ship_grid_bg = ColorRect.new()
@@ -111,6 +113,19 @@ func _ready() -> void:
 
 	_ship_draw = ShipRenderer.new()
 	_ship_viewport.add_child(_ship_draw)
+
+	# Bake viewport for enemy preview — matches EnemySharedRenderer resolution
+	_bake_viewport = SubViewport.new()
+	_bake_viewport.name = "BakeViewport"
+	_bake_viewport.transparent_bg = true
+	_bake_viewport.use_hdr_2d = true
+	_bake_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# No WorldEnvironment — raw HDR, same as enemy_shared_renderer bake viewports
+	_ship_viewport.add_child(_bake_viewport)
+
+	_bake_sprite = Sprite2D.new()
+	_bake_sprite.visible = false
+	_ship_viewport.add_child(_bake_sprite)
 
 	_weapon_preview_container = Node2D.new()
 	_ship_viewport.add_child(_weapon_preview_container)
@@ -236,15 +251,20 @@ func _process_enemy(delta: float) -> void:
 	var vp_size: Vector2 = get_viewport_rect().size
 	var cx: float = LEFT_PANEL_W + (vp_size.x - LEFT_PANEL_W - RIGHT_PANEL_W) * 0.5
 	var cy: float = (vp_size.y - HUD_HEIGHT) * 0.5
-	_ship_draw.position = Vector2(cx, cy + sin(_enemy_idle_time * 1.5) * 3.0)
+	var enemy_pos := Vector2(cx, cy + sin(_enemy_idle_time * 1.5) * 3.0)
 	_ship_draw.bank = 0.0
 	_ship_draw.ship_id = -1  # Signal enemy drawing mode
+	# Position bake sprite or direct draw
+	if _bake_sprite.visible:
+		_bake_sprite.position = enemy_pos
+	else:
+		_ship_draw.position = enemy_pos
 	_exhaust_particles.clear()
 	_exhaust_draw.queue_redraw()
 
 	# Keep weapon preview fire point synced to ship position
 	if _weapon_preview_fire_point and is_instance_valid(_weapon_preview_fire_point):
-		_weapon_preview_fire_point.position = _ship_draw.position + Vector2(0, 20)
+		_weapon_preview_fire_point.position = enemy_pos + Vector2(0, 20)
 	_hitbox_overlay.queue_redraw()
 
 
@@ -406,17 +426,48 @@ func _apply_render_mode() -> void:
 		"stealth": mode = ShipRenderer.RenderMode.STEALTH
 	_ship_draw.render_mode = mode
 	_ship_selector.render_mode = mode
-	# Apply per-ship neon parameters
+	# Apply per-ship neon parameters and bake mode for enemies
 	if _category == "ENEMIES" and _working_enemy:
 		_ship_draw.neon_hdr = _working_enemy.neon_hdr
 		_ship_draw.neon_white = _working_enemy.neon_white
 		_ship_draw.neon_width = _working_enemy.neon_width
+		_enable_bake_mode(_working_enemy.visual_id)
 	else:
 		_ship_draw.neon_hdr = 1.0
 		_ship_draw.neon_white = 0.0
 		_ship_draw.neon_width = 1.0
+		_disable_bake_mode()
 	_ship_draw.queue_redraw()
 	_ship_selector.queue_redraw()
+
+
+func _enable_bake_mode(visual_id: String) -> void:
+	## Move ShipRenderer into bake viewport at in-game resolution, display via Sprite2D.
+	var bake_size: int = EnemySharedRenderer.get_bake_size(visual_id)
+	_bake_viewport.size = Vector2i(bake_size, bake_size)
+	# Reparent ship_draw into bake viewport if not already there
+	if _ship_draw.get_parent() != _bake_viewport:
+		_ship_draw.get_parent().remove_child(_ship_draw)
+		_bake_viewport.add_child(_ship_draw)
+	_ship_draw.position = Vector2(bake_size / 2.0, bake_size / 2.0)
+	# Show bake sprite, hide direct draw
+	_bake_sprite.texture = _bake_viewport.get_texture()
+	_bake_sprite.visible = true
+
+
+func _disable_bake_mode() -> void:
+	## Move ShipRenderer back to main viewport for direct rendering.
+	if _ship_draw.get_parent() != _ship_viewport:
+		_ship_draw.get_parent().remove_child(_ship_draw)
+		_ship_viewport.add_child(_ship_draw)
+	_bake_sprite.visible = false
+
+
+func _get_ship_display_pos() -> Vector2:
+	## Get the ship's display position in the main viewport, regardless of bake mode.
+	if _bake_sprite.visible:
+		return _bake_sprite.position
+	return _ship_draw.position
 
 
 # ── Enemy ship management ─────────────────────────────────────
@@ -2609,7 +2660,7 @@ func _start_weapon_preview() -> void:
 
 	# Create fire point that follows ship position (inside ship SubViewport for bloom)
 	_weapon_preview_fire_point = Node2D.new()
-	_weapon_preview_fire_point.position = _ship_draw.position + Vector2(0, 20)
+	_weapon_preview_fire_point.position = _get_ship_display_pos() + Vector2(0, 20)
 	_ship_viewport.add_child(_weapon_preview_fire_point)
 
 	# Create HardpointController — same system as player/enemy gameplay
@@ -2674,7 +2725,7 @@ func _preview_explosion() -> void:
 	explosion.explosion_color = _working_enemy.explosion_color
 	explosion.explosion_size = _working_enemy.explosion_size
 	explosion.enable_screen_shake = false  # Don't shake in preview
-	explosion.position = _ship_draw.position
+	explosion.position = _get_ship_display_pos()
 	_ship_viewport.add_child(explosion)
 	_explosion_preview = explosion
 
@@ -2911,7 +2962,7 @@ class _HitboxOverlay extends Node2D:
 	func _draw() -> void:
 		if not viewer:
 			return
-		var ship_pos: Vector2 = viewer._ship_draw.position
+		var ship_pos: Vector2 = viewer._get_ship_display_pos()
 		var col_shape: String = "circle"
 		var col_w: float = 30.0
 		var col_h: float = 30.0
