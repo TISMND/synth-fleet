@@ -1,5 +1,7 @@
 {
 	"collision_height": 238.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "rectangle",
 	"collision_width": 62.0,
 	"display_name": "Conduit",
@@ -19,6 +21,9 @@
 	"id": "enemy_conduit",
 	"level": "geometric",
 	"lines": [],
+	"neon_hdr": 3.03,
+	"neon_white": 0.26,
+	"neon_width": 0.18,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 280.0,

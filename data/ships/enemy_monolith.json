@@ -27,6 +27,9 @@
 	"id": "enemy_monolith",
 	"level": "geometric",
 	"lines": [],
+	"neon_hdr": 2.72,
+	"neon_white": 0.0,
+	"neon_width": 0.2,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 300.0,

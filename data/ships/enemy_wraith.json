@@ -1,5 +1,7 @@
 {
 	"collision_height": 30.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "circle",
 	"collision_width": 142.0,
 	"display_name": "Largest Square",
@@ -19,6 +21,9 @@
 	"id": "enemy_wraith",
 	"level": "geometric",
 	"lines": [],
+	"neon_hdr": 3.7,
+	"neon_white": 0.23,
+	"neon_width": 0.145,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 350.0,

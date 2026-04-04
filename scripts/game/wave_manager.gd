@@ -291,6 +291,9 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 			enemy.enemy_color = ENEMY_COLORS[sid.hash() % ENEMY_COLORS.size()]
 			enemy.visual_id = ship.visual_id if ship.visual_id != "" else "sentinel"
 			enemy.render_mode_str = ship.render_mode if ship.render_mode != "" else "neon"
+			enemy.neon_hdr = ship.neon_hdr
+			enemy.neon_white = ship.neon_white
+			enemy.neon_width = ship.neon_width
 			enemy.grid_size = ship.grid_size
 			enemy.ship_id = sid
 			# Mark ally ships as friendly (no collision, no damage)
@@ -443,6 +446,9 @@ func _make_boss_part(ship_id: String, pos: Vector2, weapons_active: bool) -> Ene
 	enemy.enemy_color = ENEMY_COLORS[ship_id.hash() % ENEMY_COLORS.size()]
 	enemy.visual_id = ship.visual_id if ship.visual_id != "" else "sentinel"
 	enemy.render_mode_str = ship.render_mode if ship.render_mode != "" else "neon"
+	enemy.neon_hdr = ship.neon_hdr
+	enemy.neon_white = ship.neon_white
+	enemy.neon_width = ship.neon_width
 	enemy.grid_size = ship.grid_size
 	enemy.ship_id = ship_id
 	enemy.weapons_active = weapons_active

@@ -857,7 +857,10 @@ func _register_ship_appearance(sid: String, seen: Dictionary, result: Array) -> 
 	if seen.has(key):
 		return
 	seen[key] = true
-	result.append({"visual_id": vid, "render_mode": rmode, "color": color})
+	result.append({
+		"visual_id": vid, "render_mode": rmode, "color": color,
+		"neon_hdr": ship.neon_hdr, "neon_white": ship.neon_white, "neon_width": ship.neon_width,
+	})
 
 
 func _start_waves() -> void:

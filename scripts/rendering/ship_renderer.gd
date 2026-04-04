@@ -495,13 +495,14 @@ func _draw_enemy_ship() -> void:
 
 func _draw_sentinel() -> void:
 	var s := 1.6
+	var w: float = 1.0 * s  # Base line width — all elements stay close to this
 	var r: float = 20.0 * s
 	var glow_col := hull_color
 	var inner_col := accent_color
 	var detail := detail_color
 
 	# Outer circle body
-	_circle(Vector2.ZERO, r, glow_col, 1.8 * s)
+	_circle(Vector2.ZERO, r, glow_col, w * 1.1)
 
 	# Inner spinning hexagon
 	var hex_pts := PackedVector2Array()
@@ -510,7 +511,7 @@ func _draw_sentinel() -> void:
 	for i in range(6):
 		var angle: float = TAU * float(i) / 6.0 + spin
 		hex_pts.append(Vector2(cos(angle) * hex_r, sin(angle) * hex_r))
-	_poly(hex_pts, inner_col, 1.2 * s)
+	_poly(hex_pts, inner_col, w)
 
 	# Inner spinning triangle (counter-rotation)
 	var tri_pts := PackedVector2Array()
@@ -519,21 +520,12 @@ func _draw_sentinel() -> void:
 	for i in range(3):
 		var angle: float = TAU * float(i) / 3.0 + tri_spin
 		tri_pts.append(Vector2(cos(angle) * tri_r, sin(angle) * tri_r))
-	_poly(tri_pts, detail, 1.0 * s)
-
-	# Cross-hairs / sensor lines
-	var line_len: float = r * 1.15
-	_line(Vector2(0, -line_len), Vector2(0, -r * 0.6), glow_col, 0.8 * s)
-	_line(Vector2(0, r * 0.6), Vector2(0, line_len), glow_col, 0.8 * s)
-	_line(Vector2(-line_len, 0), Vector2(-r * 0.6, 0), glow_col, 0.8 * s)
-	_line(Vector2(r * 0.6, 0), Vector2(line_len, 0), glow_col, 0.8 * s)
+	_poly(tri_pts, detail, w * 0.9)
 
 	# Pulsing center core
 	var pulse: float = 0.6 + sin(time * 3.0) * 0.4
 	var core_r: float = 3.0 * s * pulse
-	var core_col := Color(1.0, 1.0, 1.0, 0.8 * pulse)
-	draw_circle(Vector2.ZERO, core_r + 2.0, Color(glow_col.r, glow_col.g, glow_col.b, 0.3 * pulse))
-	draw_circle(Vector2.ZERO, core_r, core_col)
+	_circle(Vector2.ZERO, core_r, glow_col, w * 0.9)
 
 func _draw_dart() -> void:
 	var s := 1.0
@@ -714,14 +706,14 @@ func _draw_scythe() -> void:
 func _draw_tesseract() -> void:
 	var s := 1.6
 	# 3 concentric axis-aligned squares pulsing on offset sine waves
-	var sizes: Array[float] = [16.0, 11.0, 6.0]
+	var sizes: Array[float] = [18.0, 11.0, 4.0]
 	var phases: Array[float] = [0.0, 2.1, 4.2]
 	var colors: Array[Color] = [hull_color, accent_color, detail_color]
 	var widths: Array[float] = [2.0, 1.6, 1.2]
 
 	var square_corners: Array[Array] = []
 	for sq_idx in range(3):
-		var pulse: float = sizes[sq_idx] + sin(time * 1.2 + phases[sq_idx]) * 2.0
+		var pulse: float = sizes[sq_idx] + sin(time * 1.2 + phases[sq_idx]) * 1.2
 		var half: float = pulse * s
 		var sq := PackedVector2Array([
 			Vector2(-half, -half),
@@ -816,7 +808,7 @@ func _draw_obelisk() -> void:
 		var rx: float = c.x * cos(rot) - c.y * sin(rot)
 		var ry: float = c.x * sin(rot) + c.y * cos(rot)
 		rotated.append(Vector2(rx, ry))
-	_poly(rotated, hull_color, 2.0 * s)
+	_poly(rotated, hull_color, 1.7 * s)
 
 	# Horizontal scan line sweeping inside
 	var scan_t: float = fmod(time * 0.6, 1.0)
@@ -842,7 +834,7 @@ func _draw_obelisk() -> void:
 		var rx: float = c.x * cos(ghost_rot) - c.y * sin(ghost_rot)
 		var ry: float = c.x * sin(ghost_rot) + c.y * cos(ghost_rot)
 		ghost.append(Vector2(rx, ry))
-	var ghost_col := Color(hull_color.r, hull_color.g, hull_color.b, 0.15)
+	var ghost_col := Color(hull_color.r, hull_color.g, hull_color.b, 0.06)
 	if render_mode == RenderMode.CHROME:
 		draw_colored_polygon(ghost, ghost_col)
 	else:
@@ -931,7 +923,7 @@ func _draw_marauder() -> void:
 	for i in range(5):
 		var angle: float = TAU * float(i) / 5.0 + spin1
 		outer_pts.append(Vector2(cos(angle) * outer_r, sin(angle) * outer_r))
-	_poly(outer_pts, hull_color, 1.8 * s)
+	_poly(outer_pts, hull_color, 1.53 * s)
 
 	# Mid pentagon — counter-rotation, slightly faster
 	var spin2: float = -time * 0.55
@@ -1240,7 +1232,7 @@ func _draw_monolith() -> void:
 		Vector2(-hw, hh - 3.0 * s),
 		Vector2(-hw, -hh + 3.0 * s),
 	])
-	_poly(body, hull_color, 2.0 * s)
+	_poly(body, hull_color, 1.6 * s)
 
 	# Internal gear wheels — 3 stacked, contra-rotating
 	var gear_positions: Array[float] = [-16.0, 0.0, 16.0]
@@ -1366,8 +1358,10 @@ func _draw_pylon() -> void:
 	var hw: float = 6.0 * s
 	var hh: float = 36.0 * s  # extremely tall
 
-	# Central spine
-	_line(Vector2(0, -hh), Vector2(0, hh), hull_color, 1.5 * s)
+	# Central spine — stops at first/last diamond node to avoid convergence hotspots at tips
+	var spine_top: float = -hh + 8.0 * s  # matches first diamond node y
+	var spine_bot: float = hh - 8.0 * s   # matches last diamond node y
+	_line(Vector2(0, spine_top), Vector2(0, spine_bot), hull_color, 1.5 * s)
 	# Side rails
 	_line(Vector2(-hw, -hh + 4.0 * s), Vector2(-hw, hh - 4.0 * s), hull_color, 1.0 * s)
 	_line(Vector2(hw, -hh + 4.0 * s), Vector2(hw, hh - 4.0 * s), hull_color, 1.0 * s)
@@ -1570,7 +1564,7 @@ func _draw_conduit() -> void:
 			Vector2(seg_w, seg_y + seg_h),
 			Vector2(-seg_w, seg_y + seg_h),
 		])
-		_poly(seg_rect, seg_col, 0.6 * s)
+		_poly(seg_rect, seg_col, 1.0 * s)
 
 	# Cross-ribs — structural dividers
 	for ri in range(7):
@@ -1938,6 +1932,7 @@ func _draw_behemoth() -> void:
 func _draw_mycelia() -> void:
 	# Large — fungal network, branching fractal hyphae from a central spore body
 	var s := 3.4
+	var w: float = 1.0 * s  # Base line width — all elements stay close to this
 	var pulse: float = sin(time * 1.0)
 	# Central spore body — lumpy sphere
 	var cap := PackedVector2Array()
@@ -1945,14 +1940,14 @@ func _draw_mycelia() -> void:
 		var angle: float = TAU * float(i) / 16.0
 		var r: float = (8.0 + sin(angle * 4.0 + time * 0.4) * 2.0) * s
 		cap.append(Vector2(cos(angle) * r, sin(angle) * r))
-	_poly(cap, hull_color, 2.0 * s)
+	_poly(cap, hull_color, w * 1.1)
 	# Spore spots
 	for i in range(8):
 		var angle: float = TAU * float(i) / 8.0 + 0.3
 		var spot_r: float = 5.5 * s
 		var spot_pos := Vector2(cos(angle) * spot_r, sin(angle) * spot_r)
 		var spot_pulse: float = 0.15 + sin(time * 1.8 + float(i) * 1.1) * 0.1
-		_circle(spot_pos, 1.5 * s, Color(accent_color, spot_pulse), 0.8 * s)
+		_circle(spot_pos, 1.5 * s, Color(accent_color, spot_pulse), w * 0.85)
 	# Branching hyphae — 6 main branches, each with 2 sub-branches
 	for i in range(6):
 		var base_angle: float = TAU * float(i) / 6.0
@@ -1967,7 +1962,7 @@ func _draw_mycelia() -> void:
 			var tangent := Vector2(-forward.y, forward.x)
 			var wave: float = sin(phase + frac * 3.0) * 2.0 * s
 			var curr: Vector2 = prev + forward * (branch_len / float(seg_count)) + tangent * wave * 0.2
-			_line(prev, curr, Color(hull_color, 0.7 - frac * 0.2), (1.5 - frac * 0.7) * s)
+			_line(prev, curr, Color(hull_color, 0.7 - frac * 0.15), w * (1.0 - frac * 0.15))
 			prev = curr
 			branch_end = curr
 			# Sub-branch at midpoint and 75%
@@ -1980,12 +1975,12 @@ func _draw_mycelia() -> void:
 					var sub_tan := Vector2(-sub_fwd.y, sub_fwd.x)
 					var sw: float = sin(phase + sf * 2.0 + 1.0) * 1.5 * s
 					var sub_curr: Vector2 = sub_prev + sub_fwd * 4.0 * s + sub_tan * sw * 0.2
-					_line(sub_prev, sub_curr, Color(hull_color, 0.5 - sf * 0.2), (1.0 - sf * 0.4) * s)
+					_line(sub_prev, sub_curr, Color(hull_color, 0.5 - sf * 0.15), w * (0.9 - sf * 0.1))
 					sub_prev = sub_curr
 				# Tip node
-				_circle(sub_prev, 1.0 * s, Color(accent_color, 0.3 + pulse * 0.1), 0.6 * s)
+				_circle(sub_prev, 1.0 * s, Color(accent_color, 0.3 + pulse * 0.1), w * 0.85)
 		# Branch tip node
-		_circle(branch_end, 1.2 * s, Color(accent_color, 0.4 + pulse * 0.15), 0.8 * s)
+		_circle(branch_end, 1.2 * s, Color(accent_color, 0.4 + pulse * 0.15), w * 0.9)
 
 
 # ── Chrome drawing helpers ──

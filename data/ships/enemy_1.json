@@ -1,5 +1,7 @@
 {
 	"collision_height": 30.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "circle",
 	"collision_width": 80.0,
 	"display_name": "Sentinel",
@@ -19,6 +21,9 @@
 	"id": "enemy_1",
 	"level": "geometric",
 	"lines": [],
+	"neon_hdr": 3.23,
+	"neon_white": 0.23,
+	"neon_width": 0.32,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 600.0,

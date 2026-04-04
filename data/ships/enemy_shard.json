@@ -21,6 +21,9 @@
 	"id": "enemy_shard",
 	"level": "geometric",
 	"lines": [],
+	"neon_hdr": 2.48,
+	"neon_white": 0.28,
+	"neon_width": 0.435,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 900.0,

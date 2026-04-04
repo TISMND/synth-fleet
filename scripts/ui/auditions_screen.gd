@@ -58,6 +58,7 @@ func _build_ui() -> void:
 		["DETAILS", "res://scripts/ui/paint_auditions.gd"],
 		["ICONS", "res://scripts/ui/component_icon_auditions.gd"],
 		["LV2 BG", "res://scripts/ui/lv2_bg_auditions.gd"],
+		["DESTINATIONS", "res://scripts/ui/destinations_auditions.gd"],
 	]
 
 	for i in tabs.size():

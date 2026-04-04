@@ -9,6 +9,9 @@ var drift_speed: float = 100.0
 var enemy_color: Color = Color(1.0, 0.3, 0.5)
 var visual_id: String = ""
 var render_mode_str: String = "neon"
+var neon_hdr: float = 1.0
+var neon_white: float = 0.0
+var neon_width: float = 1.0
 var grid_size: Vector2i = Vector2i(32, 32)
 var ship_id: String = ""
 
@@ -136,6 +139,9 @@ func _ready() -> void:
 		_renderer.ship_id = -1
 		_renderer.enemy_visual_id = vid
 		_renderer.render_mode = _render_mode_from_string(render_mode_str)
+		_renderer.neon_hdr = neon_hdr
+		_renderer.neon_white = neon_white
+		_renderer.neon_width = neon_width
 		_renderer.hull_color = enemy_color
 		_renderer.accent_color = Color(1.0, 0.2, 0.6)
 		add_child(_renderer)

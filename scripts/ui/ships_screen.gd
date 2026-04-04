@@ -98,12 +98,12 @@ func _ready() -> void:
 	svc.add_child(_ship_viewport)
 	VFXFactory.add_bloom_to_viewport(_ship_viewport)
 
-	# Grid background inside SubViewport
+	# Dark background inside SubViewport
 	_ship_grid_bg = ColorRect.new()
 	_ship_grid_bg.size = Vector2(1920, 1080)
 	_ship_grid_bg.z_index = -10
+	_ship_grid_bg.color = Color(0.01, 0.01, 0.03, 1.0)
 	_ship_viewport.add_child(_ship_grid_bg)
-	ThemeManager.apply_grid_background(_ship_grid_bg)
 
 	_exhaust_draw = _ExhaustDraw.new()
 	_exhaust_draw.viewer = self
@@ -405,6 +405,15 @@ func _apply_render_mode() -> void:
 		"stealth": mode = ShipRenderer.RenderMode.STEALTH
 	_ship_draw.render_mode = mode
 	_ship_selector.render_mode = mode
+	# Apply per-ship neon parameters
+	if _category == "ENEMIES" and _working_enemy:
+		_ship_draw.neon_hdr = _working_enemy.neon_hdr
+		_ship_draw.neon_white = _working_enemy.neon_white
+		_ship_draw.neon_width = _working_enemy.neon_width
+	else:
+		_ship_draw.neon_hdr = 1.0
+		_ship_draw.neon_white = 0.0
+		_ship_draw.neon_width = 1.0
 	_ship_draw.queue_redraw()
 	_ship_selector.queue_redraw()
 
@@ -1196,6 +1205,27 @@ func _build_enemy_effects_tab(vbox: VBoxContainer) -> void:
 	_skin_dropdown.selected = maxi(enemy_skin_idx, 0)
 	_skin_dropdown.item_selected.connect(_on_skin_changed)
 	vbox.add_child(_skin_dropdown)
+
+	# ── NEON RENDERING ──
+	_add_section_spacer(vbox)
+	var neon_label := Label.new()
+	neon_label.text = "NEON RENDERING"
+	neon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(neon_label)
+
+	_add_slider_row(vbox, "neon_hdr", "HDR", 0.0, 4.0, 0.01)
+	_add_slider_row(vbox, "neon_white", "WHITE", 0.0, 1.0, 0.01)
+	_add_slider_row(vbox, "neon_width", "WIDTH", 0.01, 0.5, 0.005)
+
+	if _working_enemy:
+		_updating_sliders = true
+		if _sliders.has("neon_hdr"):
+			(_sliders["neon_hdr"] as HSlider).value = _working_enemy.neon_hdr
+		if _sliders.has("neon_white"):
+			(_sliders["neon_white"] as HSlider).value = _working_enemy.neon_white
+		if _sliders.has("neon_width"):
+			(_sliders["neon_width"] as HSlider).value = _working_enemy.neon_width
+		_updating_sliders = false
 
 	# ── EXPLOSION ──
 	_add_section_spacer(vbox)
@@ -2475,7 +2505,9 @@ func _on_attr_changed(value: float, key: String) -> void:
 		return
 
 	var slider: HSlider = _sliders.get(key)
-	if slider and slider.step < 1.0:
+	if slider and slider.step < 0.1:
+		_slider_labels[key].text = "%.2f" % value
+	elif slider and slider.step < 1.0:
 		_slider_labels[key].text = str(snapped(value, 0.1))
 	else:
 		_slider_labels[key].text = str(int(value))
@@ -2489,6 +2521,15 @@ func _on_attr_changed(value: float, key: String) -> void:
 		elif key == "collision_height":
 			_working_enemy.collision_height = value
 			_hitbox_overlay.queue_redraw()
+		elif key == "neon_hdr":
+			_working_enemy.neon_hdr = value
+			if _ship_draw: _ship_draw.neon_hdr = value
+		elif key == "neon_white":
+			_working_enemy.neon_white = value
+			if _ship_draw: _ship_draw.neon_white = value
+		elif key == "neon_width":
+			_working_enemy.neon_width = value
+			if _ship_draw: _ship_draw.neon_width = value
 		else:
 			_working_enemy.stats[key] = value
 		# Update HP readout

@@ -39,6 +39,11 @@ const DEFAULT_HP: Dictionary = {
 @export var explosion_size: float = 1.0                      # Explosion size multiplier
 @export var enable_screen_shake: bool = false                 # Screen shake on death (bosses)
 
+# Neon rendering parameters (per-ship tuning)
+@export var neon_hdr: float = 1.0         # HDR bloom intensity multiplier
+@export var neon_white: float = 0.0       # White-hot core (0=pure color, 1=white core)
+@export var neon_width: float = 1.0       # Line width multiplier
+
 # Hit effects (shared by player and enemy ships)
 @export var shield_style_id: String = ""         # Field style for shield hit visual (e.g. "blue_ripple")
 @export var hull_flash_opacity: float = 0.5      # White blink overlay opacity (0.0–1.0)
@@ -88,6 +93,9 @@ static func from_dict(data: Dictionary) -> ShipData:
 		s.explosion_color = Color(float(exp_color[0]), float(exp_color[1]), float(exp_color[2]), a)
 	s.explosion_size = float(data.get("explosion_size", 1.0))
 	s.enable_screen_shake = bool(data.get("enable_screen_shake", false))
+	s.neon_hdr = float(data.get("neon_hdr", 1.0))
+	s.neon_white = float(data.get("neon_white", 0.0))
+	s.neon_width = float(data.get("neon_width", 1.0))
 	s.hardpoint_offsets = data.get("hardpoint_offsets", [])
 	# Hit effects
 	s.shield_style_id = str(data.get("shield_style_id", ""))
@@ -122,6 +130,9 @@ func to_dict() -> Dictionary:
 		d["explosion_color"] = [explosion_color.r, explosion_color.g, explosion_color.b, explosion_color.a]
 		d["explosion_size"] = explosion_size
 		d["enable_screen_shake"] = enable_screen_shake
+		d["neon_hdr"] = neon_hdr
+		d["neon_white"] = neon_white
+		d["neon_width"] = neon_width
 		if hardpoint_offsets.size() > 0:
 			d["hardpoint_offsets"] = hardpoint_offsets
 	# Level assignment (saved for all ship types)

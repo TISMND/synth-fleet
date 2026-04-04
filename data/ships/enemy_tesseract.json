@@ -1,5 +1,7 @@
 {
 	"collision_height": 30.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "circle",
 	"collision_width": 78.0,
 	"display_name": "Tesseract",
@@ -19,6 +21,9 @@
 	"id": "enemy_tesseract",
 	"level": "geometric",
 	"lines": [],
+	"neon_hdr": 2.94,
+	"neon_white": 0.14,
+	"neon_width": 0.265,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 200.0,

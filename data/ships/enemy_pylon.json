@@ -1,5 +1,7 @@
 {
 	"collision_height": 220.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "rectangle",
 	"collision_width": 44.0,
 	"display_name": "Pylon",
@@ -19,6 +21,9 @@
 	"id": "enemy_pylon",
 	"level": "geometric",
 	"lines": [],
+	"neon_hdr": 2.92,
+	"neon_white": 0.03,
+	"neon_width": 0.26,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 350.0,

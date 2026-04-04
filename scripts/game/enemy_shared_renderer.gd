@@ -76,7 +76,12 @@ func register_appearances(appearances: Array, parent_node: Node) -> void:
 		var key: String = _make_key(vid, rmode_str, color)
 		if _entries.has(key):
 			continue
-		_create_bake_viewport(key, vid, rmode_str, color, parent_node)
+		var neon_params: Dictionary = {
+			"hdr": float(entry_dict.get("neon_hdr", 1.0)),
+			"white": float(entry_dict.get("neon_white", 0.0)),
+			"width": float(entry_dict.get("neon_width", 1.0)),
+		}
+		_create_bake_viewport(key, vid, rmode_str, color, parent_node, neon_params)
 
 
 ## Get the ViewportTexture for a given enemy appearance. Returns null if not registered.
@@ -145,7 +150,7 @@ func _make_key(visual_id: String, render_mode_str: String, color: Color) -> Stri
 	return "%s|%s|%s" % [visual_id, render_mode_str, color.to_html()]
 
 
-func _create_bake_viewport(key: String, visual_id: String, render_mode_str: String, color: Color, parent_node: Node) -> void:
+func _create_bake_viewport(key: String, visual_id: String, render_mode_str: String, color: Color, parent_node: Node, neon_params: Dictionary = {}) -> void:
 	var bake_size: int = get_bake_size(visual_id)
 
 	var vp := SubViewport.new()
@@ -162,6 +167,9 @@ func _create_bake_viewport(key: String, visual_id: String, render_mode_str: Stri
 	renderer.ship_id = -1
 	renderer.enemy_visual_id = visual_id
 	renderer.render_mode = Enemy._render_mode_from_string(render_mode_str)
+	renderer.neon_hdr = float(neon_params.get("hdr", 1.0))
+	renderer.neon_white = float(neon_params.get("white", 0.0))
+	renderer.neon_width = float(neon_params.get("width", 1.0))
 	renderer.hull_color = color
 	renderer.accent_color = Color(1.0, 0.2, 0.6)
 	renderer.position = Vector2(bake_size / 2.0, bake_size / 2.0)

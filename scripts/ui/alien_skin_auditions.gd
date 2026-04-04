@@ -191,7 +191,7 @@ func _build_ui() -> void:
 		_current_white = v
 		if _ship_renderer: _ship_renderer.neon_white = v
 	)
-	_build_slider(sliders_row, "WIDTH", 0.05, 3.0, 1.0, 0.01, func(v: float) -> void:
+	_build_slider(sliders_row, "WIDTH", 0.01, 0.5, 0.2, 0.005, func(v: float) -> void:
 		_current_width = v
 		if _ship_renderer: _ship_renderer.neon_width = v
 	)
