@@ -11,7 +11,8 @@ const SNAP_MODES: Array[Dictionary] = EditorConstants.SNAP_MODES
 const BARS_OPTIONS: Array[Dictionary] = EditorConstants.BARS_OPTIONS
 
 # UI references — shared
-var _load_button: OptionButton
+var _load_button: Button
+var _icon_popup: ComponentIconPopup
 var _save_button: Button
 var _delete_button: Button
 var _new_button: Button
@@ -108,9 +109,11 @@ func _build_ui() -> void:
 	load_label.text = "Load:"
 	top_bar.add_child(load_label)
 
-	_load_button = OptionButton.new()
+	_load_button = Button.new()
+	_load_button.text = "(select power core)"
 	_load_button.custom_minimum_size.x = 250
-	_load_button.item_selected.connect(_on_load_selected)
+	_load_button.pressed.connect(_open_icon_popup)
+	ThemeManager.apply_button_style(_load_button)
 	top_bar.add_child(_load_button)
 
 	var spacer := Control.new()
@@ -1070,15 +1073,22 @@ func _on_save() -> void:
 	_mark_clean()
 
 
-func _on_load_selected(idx: int) -> void:
-	if idx <= 0:
-		return
-	var id: String = _load_button.get_item_text(idx)
+func _open_icon_popup() -> void:
+	if not _icon_popup:
+		_icon_popup = ComponentIconPopup.new()
+		add_child(_icon_popup)
+		_icon_popup.item_selected.connect(_on_popup_selected)
+	_icon_popup.setup_power_cores(PowerCoreDataManager.load_all())
+	_icon_popup.show_centered()
+
+
+func _on_popup_selected(id: String) -> void:
 	var pc: PowerCoreData = PowerCoreDataManager.load_by_id(id)
 	if not pc:
 		_status_label.text = "Failed to load: " + id
 		return
 	_populate_from_power_core(pc)
+	_load_button.text = pc.display_name
 	_status_label.text = "Loaded: " + id
 
 
@@ -1096,6 +1106,7 @@ func _on_delete() -> void:
 func _on_new() -> void:
 	_populating = true
 	_current_id = ""
+	_load_button.text = "(select power core)"
 	_name_input.text = ""
 	_desc_input.text = ""
 	_merged_triggers.clear()
@@ -1146,16 +1157,20 @@ func _on_new() -> void:
 
 
 func _refresh_load_list() -> void:
-	_load_button.clear()
-	_load_button.add_item("(select power core)")
-	var ids: Array[String] = PowerCoreDataManager.list_ids()
-	for id in ids:
-		_load_button.add_item(id)
+	if _current_id != "":
+		var pc: PowerCoreData = PowerCoreDataManager.load_by_id(_current_id)
+		if pc:
+			_load_button.text = pc.display_name
+		else:
+			_load_button.text = _current_id
+	else:
+		_load_button.text = "(select power core)"
 
 
 func _populate_from_power_core(data: PowerCoreData) -> void:
 	_populating = true
 	_current_id = data.id
+	_load_button.text = data.display_name
 	_name_input.text = data.display_name
 	_desc_input.text = data.description
 

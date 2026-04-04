@@ -60,6 +60,10 @@ func _load_data(id: String) -> DeviceData:
 	return FieldEmitterDataManager.load_by_id(id)
 
 
+func _setup_icon_popup(popup: ComponentIconPopup) -> void:
+	popup.setup_field_emitters(FieldEmitterDataManager.load_all())
+
+
 func _build_visual_tab() -> Control:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -16,8 +16,14 @@ var _bg: ColorRect
 # Edit mode: "encounters" or "nebulas"
 var _edit_mode: String = "encounters"
 
+# Verse state
+var _all_verses: Array[VerseData] = []
+var _selected_verse: VerseData = null
+var _verse_dropdown: OptionButton
+
 # Level list
 var _all_levels: Array[LevelData] = []
+var _filtered_levels: Array[LevelData] = []
 var _selected_level: LevelData = null
 var _level_buttons: Array[Button] = []
 var _level_list_vbox: VBoxContainer
@@ -27,7 +33,7 @@ var _name_edit: LineEdit
 var _bpm_spin: SpinBox
 var _speed_spin: SpinBox
 var _length_spin: SpinBox
-var _bg_shader_dropdown: OptionButton
+var _bg_shader_label: Label
 var _deep_bg_dropdown: OptionButton
 
 # Map canvas
@@ -217,11 +223,23 @@ func _ready() -> void:
 	if restore_id != "":
 		for lv in _all_levels:
 			if lv.id == restore_id:
+				# Switch to the level's verse first
+				for i in range(_all_verses.size()):
+					if _all_verses[i].id == lv.verse_id:
+						_verse_dropdown.select(i)
+						_selected_verse = _all_verses[i]
+						_rebuild_level_list()
+						break
 				_select_level(lv)
 				restored = true
 				break
-	if not restored and _all_levels.size() > 0:
-		_select_level(_all_levels[0])
+	if not restored:
+		# Select first level in current verse, or just show empty
+		if _filtered_levels.size() > 0:
+			_select_level(_filtered_levels[0])
+		else:
+			_update_level_props_ui()
+			_apply_editor_background()
 
 
 func _cache_dropdown_data() -> void:
@@ -360,10 +378,12 @@ func _scan_deep_backgrounds() -> Array:
 
 
 func _apply_editor_background() -> void:
-	## Set the editor background to the selected level's shader, or default grid.
+	## Set the editor background from verse shader, level override, or default grid.
 	var shader_path: String = ""
-	if _selected_level:
+	if _selected_level and _selected_level.background_shader != "":
 		shader_path = _selected_level.background_shader
+	elif _selected_verse and _selected_verse.background_shader != "":
+		shader_path = _selected_verse.background_shader
 	if shader_path != "":
 		var shader: Shader = load(shader_path) as Shader
 		if shader:
@@ -397,12 +417,18 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	vbox.add_theme_constant_override("separation", 4)
 	panel.add_child(vbox)
 
-	# Header
-	var header := Label.new()
-	header.text = "LEVELS"
-	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ThemeManager.apply_text_glow(header, "header")
-	vbox.add_child(header)
+	# Verse dropdown
+	var verse_label := Label.new()
+	verse_label.text = "VERSE"
+	verse_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ThemeManager.apply_text_glow(verse_label, "header")
+	vbox.add_child(verse_label)
+
+	_verse_dropdown = OptionButton.new()
+	_verse_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_verse_dropdown.item_selected.connect(_on_verse_selected)
+	ThemeManager.apply_button_style(_verse_dropdown)
+	vbox.add_child(_verse_dropdown)
 
 	var spacer := Control.new()
 	spacer.custom_minimum_size.y = 4
@@ -540,36 +566,16 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	)
 	vbox.add_child(_deep_bg_dropdown)
 
-	# Background Shader
+	# Background (from verse — read-only display)
 	var bg_label := Label.new()
 	bg_label.text = "BACKGROUND"
 	ThemeManager.apply_text_glow(bg_label, "body")
 	vbox.add_child(bg_label)
 
-	_bg_shader_dropdown = OptionButton.new()
-	_bg_shader_dropdown.add_item("(default grid)", 0)
-	_bg_shader_dropdown.set_item_metadata(0, "")
-	var bg_shaders: Array = [
-		["Synthwave Etch", "res://assets/shaders/bg_synthwave_pulse.gdshader"],
-		["Microchip Die", "res://assets/shaders/bg_circuit_board.gdshader"],
-		["Bioluminescent Reef", "res://assets/shaders/bg_bioluminescent_reef.gdshader"],
-		["Industrial Platform", "res://assets/shaders/bg_industrial_platform.gdshader"],
-		["Lava Field", "res://assets/shaders/bg_lava_field.gdshader"],
-		["City District", "res://assets/shaders/bg_city_district.gdshader"],
-	]
-	for i in range(bg_shaders.size()):
-		var entry: Array = bg_shaders[i]
-		_bg_shader_dropdown.add_item(str(entry[0]), i + 1)
-		_bg_shader_dropdown.set_item_metadata(i + 1, str(entry[1]))
-	_bg_shader_dropdown.item_selected.connect(func(idx: int) -> void:
-		if _selected_level:
-			_selected_level.background_shader = str(_bg_shader_dropdown.get_item_metadata(idx))
-			_save_current_level()
-			_apply_editor_background()
-			if _preview_mode:
-				_rebuild_preview()
-	)
-	vbox.add_child(_bg_shader_dropdown)
+	_bg_shader_label = Label.new()
+	_bg_shader_label.text = "(from verse)"
+	ThemeManager.apply_text_glow(_bg_shader_label, "body")
+	vbox.add_child(_bg_shader_label)
 
 	# Play button
 	var play_sep := HSeparator.new()
@@ -627,8 +633,12 @@ func _rebuild_level_list() -> void:
 		_level_list_vbox.remove_child(child)
 		child.queue_free()
 	_level_buttons.clear()
+	_filtered_levels.clear()
 
+	var verse_id: String = _selected_verse.id if _selected_verse else ""
 	for lv in _all_levels:
+		if lv.verse_id != verse_id:
+			continue
 		var btn := Button.new()
 		btn.text = lv.display_name if lv.display_name != "" else lv.id
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -637,19 +647,21 @@ func _rebuild_level_list() -> void:
 		ThemeManager.apply_button_style(btn)
 		_level_list_vbox.add_child(btn)
 		_level_buttons.append(btn)
+		_filtered_levels.append(lv)
 
 	_highlight_selected_level()
 
 
 func _highlight_selected_level() -> void:
 	for i in range(_level_buttons.size()):
-		if i < _all_levels.size() and _all_levels[i] == _selected_level:
+		if i < _filtered_levels.size() and _filtered_levels[i] == _selected_level:
 			_level_buttons[i].modulate = Color(1.2, 1.2, 1.5)
 		else:
 			_level_buttons[i].modulate = Color.WHITE
 
 
 func _update_level_props_ui() -> void:
+	_update_bg_shader_label()
 	if _selected_level:
 		_name_edit.text = _selected_level.display_name
 		_bpm_spin.value = _selected_level.bpm
@@ -665,23 +677,12 @@ func _update_level_props_ui() -> void:
 				break
 		if not found_deep:
 			_deep_bg_dropdown.select(0)
-		# Sync background dropdown
-		var bg_path: String = _selected_level.background_shader
-		var found_bg := false
-		for i in range(_bg_shader_dropdown.item_count):
-			if str(_bg_shader_dropdown.get_item_metadata(i)) == bg_path:
-				_bg_shader_dropdown.select(i)
-				found_bg = true
-				break
-		if not found_bg:
-			_bg_shader_dropdown.select(0)
 	else:
 		_name_edit.text = ""
 		_bpm_spin.value = 110
 		_speed_spin.value = 80
 		_length_spin.value = 10000
 		_deep_bg_dropdown.select(0)
-		_bg_shader_dropdown.select(0)
 
 
 # ── Map canvas ─────────────────────────────────────────────────
@@ -768,10 +769,15 @@ func _rebuild_preview() -> void:
 	if not _selected_level:
 		return
 
-	# Apply background shader
-	var bg_applied := false
+	# Apply background shader: level override > verse > default grid
+	var bg_shader_path: String = ""
 	if _selected_level.background_shader != "":
-		var shader: Shader = load(_selected_level.background_shader) as Shader
+		bg_shader_path = _selected_level.background_shader
+	elif _selected_verse and _selected_verse.background_shader != "":
+		bg_shader_path = _selected_verse.background_shader
+	var bg_applied := false
+	if bg_shader_path != "":
+		var shader: Shader = load(bg_shader_path) as Shader
 		if shader:
 			var mat := ShaderMaterial.new()
 			mat.shader = shader
@@ -2658,8 +2664,51 @@ func _map_right_click_doodad(click_pos: Vector2) -> void:
 # ── Data operations ────────────────────────────────────────────
 
 func _load_all_levels() -> void:
+	_all_verses = VerseDataManager.load_all()
+	_rebuild_verse_dropdown()
 	_all_levels = LevelDataManager.load_all()
+	_all_levels.sort_custom(func(a: LevelData, b: LevelData) -> bool:
+		return a.display_name.naturalnocasecmp_to(b.display_name) < 0
+	)
 	_rebuild_level_list()
+
+
+func _rebuild_verse_dropdown() -> void:
+	_verse_dropdown.clear()
+	for i in range(_all_verses.size()):
+		_verse_dropdown.add_item(_all_verses[i].display_name, i)
+	# Restore selection
+	if _selected_verse:
+		for i in range(_all_verses.size()):
+			if _all_verses[i].id == _selected_verse.id:
+				_verse_dropdown.select(i)
+				_selected_verse = _all_verses[i]
+				return
+	# Default to first verse
+	if _all_verses.size() > 0:
+		_verse_dropdown.select(0)
+		_selected_verse = _all_verses[0]
+
+
+func _on_verse_selected(idx: int) -> void:
+	if idx >= 0 and idx < _all_verses.size():
+		_selected_verse = _all_verses[idx]
+	else:
+		_selected_verse = null
+	_selected_level = null
+	_rebuild_level_list()
+	_update_level_props_ui()
+	_apply_editor_background()
+	_update_bg_shader_label()
+	_map_canvas.queue_redraw()
+
+
+func _update_bg_shader_label() -> void:
+	if _selected_verse and _selected_verse.background_shader != "":
+		var path: String = _selected_verse.background_shader
+		_bg_shader_label.text = path.get_file().get_basename()
+	else:
+		_bg_shader_label.text = "(default grid)"
 
 
 func _select_level(lv: LevelData) -> void:
@@ -2694,6 +2743,7 @@ func _on_new_level() -> void:
 	var new_id: String = LevelDataManager.generate_id("level")
 	var data: Dictionary = {
 		"id": new_id,
+		"verse_id": _selected_verse.id if _selected_verse else "",
 		"display_name": "New Level",
 		"bpm": 110.0,
 		"scroll_speed": 80.0,

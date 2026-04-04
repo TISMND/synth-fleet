@@ -1,5 +1,5 @@
 {
-	"background_shader": "res://assets/shaders/bg_bioluminescent_reef.gdshader",
+	"background_shader": "",
 	"bg_particles": [
 		{
 			"color_a": "#1ae699",
@@ -34,7 +34,7 @@
 	],
 	"bpm": 110.0,
 	"deep_background": "",
-	"display_name": "02 - Beneath",
+	"display_name": "2-1  Beneath",
 	"doodads": [],
 	"encounters": [
 		{
@@ -327,5 +327,6 @@
 	"id": "level_2",
 	"level_length": 10000.0,
 	"nebula_placements": [],
-	"scroll_speed": 70.0
+	"scroll_speed": 70.0,
+	"verse_id": "verse_2"
 }

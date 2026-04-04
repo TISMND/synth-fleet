@@ -3,6 +3,7 @@ extends Resource
 ## Defines a complete level — BPM, scroll speed, length, and encounter placements.
 
 @export var id: String = ""
+@export var verse_id: String = ""  # Which verse this level belongs to
 @export var display_name: String = ""
 @export var bpm: float = 110.0
 @export var scroll_speed: float = 80.0
@@ -19,6 +20,7 @@ extends Resource
 static func from_dict(data: Dictionary) -> LevelData:
 	var l := LevelData.new()
 	l.id = data.get("id", "")
+	l.verse_id = str(data.get("verse_id", ""))
 	l.display_name = data.get("display_name", "")
 	l.bpm = float(data.get("bpm", 110.0))
 	l.scroll_speed = float(data.get("scroll_speed", 80.0))
@@ -109,6 +111,7 @@ static func from_dict(data: Dictionary) -> LevelData:
 func to_dict() -> Dictionary:
 	return {
 		"id": id,
+		"verse_id": verse_id,
 		"display_name": display_name,
 		"bpm": bpm,
 		"scroll_speed": scroll_speed,

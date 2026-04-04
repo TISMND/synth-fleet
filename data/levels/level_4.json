@@ -1,8 +1,7 @@
 {
-	"background_shader": "res://assets/shaders/bg_synthwave_pulse.gdshader",
+	"verse_id": "verse_1",
 	"bg_particles": [],
 	"bpm": 110.0,
-	"deep_background": "",
 	"display_name": "Test Level",
 	"doodads": [],
 	"encounters": [

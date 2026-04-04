@@ -83,7 +83,9 @@ All audio loops play simultaneously from level start and are muted/unmuted — n
 - **Display: 1920x1080, stretch mode `canvas_items`, aspect `keep`.** Non-16:9 monitors get letterboxing. Do not use `expand` — too many hardcoded positions in UI code.
 
 ### Vocabulary
+- **Verse** — a thematic group of levels sharing a visual identity (background shader, destination look). Levels belong to a verse via `verse_id`. Data in `res://data/verses/`. The level editor has a verse dropdown at the top of the left panel.
 - **Dev Studio** (`dev_studio_menu.*`) — the main menu with buttons for all dev tools. Not a single screen.
+- **Level Editor** — accessed via LEVEL EDITOR button in Dev Studio. Verse dropdown at top, levels filtered by verse below.
 - **Component Editor** (`component_editor.*`) — tabbed screen for Weapons, Beams, Fields, Projectiles, Power Cores, etc. Accessed via COMPONENTS button.
 - **Environments Screen** (`environments_screen.*`) — Nebulas, Key Changes. Accessed via ENVIRONMENTS button.
 - **Styles Screen** (`style_editor.*`) — Tabbed: VHS/CRT parameters + Boss Bar audition + Headers. Other theme values (colors, bars, buttons) are baked via ThemeManager defaults + `user://settings/aesthetic.json`.
@@ -122,7 +124,7 @@ scenes/
   ui/            Menus, dev studio, hangar, shop, editors
 scripts/
   autoload/      Singletons (9 — see list above)
-  data/          DataManagers (~19 — WeaponDataManager, ShipDataManager, LevelDataManager, etc.)
+  data/          DataManagers (~20 — WeaponDataManager, ShipDataManager, LevelDataManager, VerseDataManager, etc.)
   game/          Game logic (game, player_ship, hardpoint_controller, enemy, vfx_factory, etc.)
   rendering/     Ship rendering (ship_renderer, ship_thumbnails)
   test/          Test runner
@@ -154,7 +156,8 @@ res://data/field_styles/        Field visual styles
 res://data/flight_paths/        Enemy flight paths
 res://data/formations/          Enemy formations
 res://data/key_changes/         Key change definitions
-res://data/levels/              Level definitions
+res://data/verses/              Verse definitions (visual theme groups)
+res://data/levels/              Level definitions (each has verse_id)
 res://data/nebula_definitions/  Nebula definitions
 res://data/power_cores/         Power core definitions
 res://data/projectile_styles/   Projectile visual styles

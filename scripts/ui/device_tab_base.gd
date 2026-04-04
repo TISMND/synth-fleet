@@ -23,7 +23,8 @@ const DEVICE_MECHANIC_PARAMS: Dictionary = {
 }
 
 # UI references — shared
-var _load_button: OptionButton
+var _load_button: Button
+var _icon_popup: ComponentIconPopup
 var _save_button: Button
 var _delete_button: Button
 var _new_button: Button
@@ -204,9 +205,11 @@ func _build_ui() -> void:
 	load_label.text = "Load:"
 	top_bar.add_child(load_label)
 
-	_load_button = OptionButton.new()
+	_load_button = Button.new()
+	_load_button.text = "(select " + _get_type_label().to_lower() + ")"
 	_load_button.custom_minimum_size.x = 250
-	_load_button.item_selected.connect(_on_load_selected)
+	_load_button.pressed.connect(_open_icon_popup)
+	ThemeManager.apply_button_style(_load_button)
 	top_bar.add_child(_load_button)
 
 	var spacer := Control.new()
@@ -947,15 +950,27 @@ func _on_save() -> void:
 	_dirty = false
 
 
-func _on_load_selected(idx: int) -> void:
-	if idx <= 0:
-		return
-	var id: String = _load_button.get_item_text(idx)
+func _open_icon_popup() -> void:
+	if not _icon_popup:
+		_icon_popup = ComponentIconPopup.new()
+		add_child(_icon_popup)
+		_icon_popup.item_selected.connect(_on_popup_selected)
+	_setup_icon_popup(_icon_popup)
+	_icon_popup.show_centered()
+
+
+func _setup_icon_popup(_popup: ComponentIconPopup) -> void:
+	# Virtual — subclasses override to call the right setup method
+	pass
+
+
+func _on_popup_selected(id: String) -> void:
 	var device: DeviceData = _load_data(id)
 	if not device:
 		_status_label.text = "Failed to load: " + id
 		return
 	_populate_from_device(device)
+	_load_button.text = device.display_name
 	_status_label.text = "Loaded: " + id
 
 
@@ -972,6 +987,7 @@ func _on_delete() -> void:
 
 func _on_new() -> void:
 	_current_id = ""
+	_load_button.text = "(select " + _get_type_label().to_lower() + ")"
 	_populating = true
 	_name_input.text = ""
 	_desc_input.text = ""
@@ -1007,16 +1023,20 @@ func _on_new() -> void:
 
 
 func _refresh_load_list() -> void:
-	_load_button.clear()
-	_load_button.add_item("(select " + _get_type_label().to_lower() + ")")
-	var ids: Array[String] = _list_ids()
-	for id in ids:
-		_load_button.add_item(id)
+	if _current_id != "":
+		var device: DeviceData = _load_data(_current_id)
+		if device:
+			_load_button.text = device.display_name
+		else:
+			_load_button.text = _current_id
+	else:
+		_load_button.text = "(select " + _get_type_label().to_lower() + ")"
 
 
 func _populate_from_device(device: DeviceData) -> void:
 	_populating = true
 	_current_id = device.id
+	_load_button.text = device.display_name
 	_name_input.text = device.display_name
 	_desc_input.text = device.description
 

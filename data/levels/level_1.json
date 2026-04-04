@@ -1,9 +1,9 @@
 {
-	"background_shader": "res://assets/shaders/bg_synthwave_pulse.gdshader",
+	"background_shader": "",
 	"bg_particles": [],
 	"bpm": 110.0,
 	"deep_background": "",
-	"display_name": "01 - Welcome Void",
+	"display_name": "1-1  Welcome Void",
 	"doodads": [],
 	"encounters": [
 		{
@@ -1518,5 +1518,6 @@
 	"id": "level_1",
 	"level_length": 50000.0,
 	"nebula_placements": [],
-	"scroll_speed": 70.0
+	"scroll_speed": 70.0,
+	"verse_id": "verse_1"
 }

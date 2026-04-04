@@ -2313,9 +2313,19 @@ func _return_to_menu() -> void:
 
 
 func _setup_parallax() -> void:
+	# Resolve verse for background/deep-bg
+	var verse: VerseData = null
+	if _level_data and _level_data.verse_id != "":
+		verse = VerseDataManager.load_by_id(_level_data.verse_id)
+
 	# Deep background image — behind everything, static (no scroll)
+	var deep_bg_path: String = ""
 	if _level_data and _level_data.deep_background != "":
-		var tex: Texture2D = load(_level_data.deep_background) as Texture2D
+		deep_bg_path = _level_data.deep_background
+	elif verse and verse.deep_background != "":
+		deep_bg_path = verse.deep_background
+	if deep_bg_path != "":
+		var tex: Texture2D = load(deep_bg_path) as Texture2D
 		if tex:
 			var deep_bg := TextureRect.new()
 			deep_bg.texture = tex
@@ -2328,10 +2338,15 @@ func _setup_parallax() -> void:
 	var grid_bg := ColorRect.new()
 	grid_bg.size = Vector2(1920, 1080)
 	grid_bg.z_index = -10
-	# Use level-specific background shader if specified, otherwise default grid
-	var bg_applied := false
+	# Resolve background shader: level override > verse > default grid
+	var bg_shader_path: String = ""
 	if _level_data and _level_data.background_shader != "":
-		var shader: Shader = load(_level_data.background_shader) as Shader
+		bg_shader_path = _level_data.background_shader
+	elif verse and verse.background_shader != "":
+		bg_shader_path = verse.background_shader
+	var bg_applied := false
+	if bg_shader_path != "":
+		var shader: Shader = load(bg_shader_path) as Shader
 		if shader:
 			var mat := ShaderMaterial.new()
 			mat.shader = shader

@@ -63,7 +63,7 @@ text = "ENCOUNTERS"
 
 [node name="LevelsButton" type="Button" parent="ButtonLayout/Columns/LeftCol"]
 layout_mode = 2
-text = "LEVELS"
+text = "LEVEL EDITOR"
 
 [node name="ObjectsButton" type="Button" parent="ButtonLayout/Columns/LeftCol"]
 layout_mode = 2

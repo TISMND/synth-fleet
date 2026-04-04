@@ -1,0 +1,6 @@
+{
+	"id": "verse_1",
+	"display_name": "Verse 1 — Neon Void",
+	"background_shader": "res://assets/shaders/bg_synthwave_pulse.gdshader",
+	"deep_background": ""
+}

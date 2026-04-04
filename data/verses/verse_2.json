@@ -1,0 +1,6 @@
+{
+	"id": "verse_2",
+	"display_name": "Verse 2 — Bioluminescent Reef",
+	"background_shader": "res://assets/shaders/bg_bioluminescent_reef.gdshader",
+	"deep_background": ""
+}
