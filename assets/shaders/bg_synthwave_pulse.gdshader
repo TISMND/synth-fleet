@@ -20,6 +20,18 @@ uniform float speed_variation : hint_range(0.0, 1.0) = 0.7;
 uniform float line_length : hint_range(2000.0, 6000.0) = 3500.0;
 uniform float dark_gap : hint_range(100.0, 1500.0) = 600.0;
 uniform float core_intensity : hint_range(0.0, 4.0) = 2.5;
+uniform float grid_hdr : hint_range(1.0, 10.0) = 1.0;
+uniform float grid_white : hint_range(0.0, 1.0) = 0.0;
+
+// Scrolling HDR pulse waves
+uniform float pulse_intensity : hint_range(0.0, 1.0) = 0.0;
+uniform float pulse_hdr : hint_range(1.0, 20.0) = 2.0;
+uniform float pulse_speed : hint_range(0.0, 5.0) = 0.3;
+uniform float pulse_scale : hint_range(0.1, 10.0) = 1.0;
+uniform float pulse_wobble : hint_range(0.0, 3.0) = 0.3;
+uniform float pulse_threshold : hint_range(0.0, 1.0) = 0.0;
+uniform float pulse_softness : hint_range(0.01, 1.0) = 0.3;
+
 uniform bool manual_scroll = false;
 uniform float scroll_offset : hint_range(0.0, 100000.0) = 0.0;
 
@@ -152,6 +164,21 @@ void fragment() {
 	float node_fresh = min(h_etch, v_etch);
 	float node = exp(-node_dist * node_dist / 36.0) * node_fresh * 0.8;
 
+	// ── Scrolling HDR pulse waves ──
+	vec2 pulse_pos = pos * 0.008;
+	float py = pulse_pos.y + TIME * pulse_speed * 0.1;
+	float ppx = pulse_pos.x;
+	float w1 = sin(py * pulse_scale * 4.0 + ppx * pulse_wobble * 2.0);
+	float w2 = sin(py * pulse_scale * 6.8 - ppx * pulse_wobble * 1.5 + 1.3) * 0.6;
+	float w3 = sin(py * pulse_scale * 2.4 + ppx * pulse_wobble * 3.0 + 2.7) * 0.8;
+	float wave_raw = (w1 + w2 + w3) / 2.4 * 0.5 + 0.5;
+	float half_soft = pulse_softness * 0.5;
+	float wave = smoothstep(pulse_threshold - half_soft, pulse_threshold + half_soft, wave_raw);
+	float pulse_mult = mix(1.0, wave * pulse_hdr, pulse_intensity);
+
+	// ── White-out + HDR for grid color ──
+	vec3 gc = mix(grid_color.rgb, vec3(1.0), grid_white) * grid_hdr;
+
 	// ── Compose color ──
 	vec3 col = vec3(0.0);
 
@@ -160,21 +187,21 @@ void fragment() {
 	vec3 band_col = mix(band_color_b.rgb, band_color_a.rgb, band);
 	float band_alpha = mix(band_color_b.a, band_color_a.a, band);
 
-	// Color glow (wider, this is where the pink lives)
-	col += grid_color.rgb * h_glow;
-	col += grid_color.rgb * v_glow;
+	// Color glow (wider, this is where the color lives)
+	col += gc * h_glow;
+	col += gc * v_glow;
 
 	// Line body — color layer
-	col = mix(col, grid_color.rgb, h_line * grid_color.a);
-	col = mix(col, grid_color.rgb, v_line * grid_color.a);
+	col = mix(col, gc, h_line * grid_color.a);
+	col = mix(col, gc, v_line * grid_color.a);
 
 	// HDR white-hot core
 	col += vec3(h_core_val * core_intensity);
 	col += vec3(v_core_val * core_intensity);
 
 	// Intersection + node
-	col += grid_color.rgb * intersection * 0.4;
-	col += grid_color.rgb * node;
+	col += gc * intersection * 0.4;
+	col += gc * node;
 	float node_core = exp(-node_dist * node_dist / 12.0) * node_fresh;
 	col += vec3(node_core * core_intensity * 0.5);
 
@@ -184,14 +211,16 @@ void fragment() {
 	float total_tail_core = max(h_tail_core, v_tail_core);
 	float total_tail_halo = max(h_tail_halo, v_tail_halo);
 	// Halo layer — grid_color, wide and soft
-	col += grid_color.rgb * total_head_halo * 1.5;
-	col += grid_color.rgb * total_tail_halo * 1.0;
+	col += gc * total_head_halo * 1.5;
+	col += gc * total_tail_halo * 1.0;
 	// Core layer — white-hot HDR, tight and bright
 	col += head_color.rgb * total_head_core * 4.0;
 	col += head_color.rgb * total_tail_core * 3.0;
 
+	// Apply pulse to all grid content (not alpha — structure stays, brightness modulates)
+	col *= pulse_mult;
+
 	// ── Alpha: transparent where there's no content ──
-	// Accumulate all visible contributions into alpha
 	float content = 0.0;
 	content += h_glow + v_glow;
 	content += h_line + v_line;

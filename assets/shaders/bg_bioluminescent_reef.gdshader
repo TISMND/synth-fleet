@@ -16,7 +16,7 @@ uniform float strand_sharpness : hint_range(0.0, 1.0) = 0.0;
 uniform float fine_strand_sharpness : hint_range(0.0, 1.0) = 1.0;
 uniform float fine_strand_blur : hint_range(0.0, 1.0) = 0.04;
 uniform float strand_brightness : hint_range(0.0, 5.0) = 0.8;
-uniform float strand_hdr : hint_range(1.0, 6.0) = 4.9;
+uniform float strand_hdr : hint_range(1.0, 6.0) = 4.3;
 uniform float fine_strand_mix : hint_range(0.0, 1.0) = 0.8;
 
 // Neon white-out: 0 = pure coral_color, 1 = white-hot core (color lives in bloom only)
@@ -24,6 +24,15 @@ uniform float strand_white : hint_range(0.0, 1.0) = 0.1;
 
 // Density: lower = fewer, larger cells = more dark space
 uniform float density : hint_range(0.5, 6.0) = 1.4;
+
+// Scrolling HDR pulse waves — bioluminescent ripples through the reef
+uniform float pulse_intensity : hint_range(0.0, 1.0) = 0.3;
+uniform float pulse_hdr : hint_range(1.0, 20.0) = 8.9;
+uniform float pulse_speed : hint_range(0.0, 5.0) = 1.56;
+uniform float pulse_scale : hint_range(0.1, 10.0) = 7.1;
+uniform float pulse_wobble : hint_range(0.0, 3.0) = 3.0;
+uniform float pulse_threshold : hint_range(0.0, 1.0) = 0.92;
+uniform float pulse_softness : hint_range(0.01, 1.0) = 0.49;
 
 // Drift animation
 uniform float drift_speed : hint_range(0.0, 1.0) = 0.12;
@@ -92,13 +101,28 @@ void fragment() {
 	// Blended coral branches
 	float coral_branch = edge1 * 0.6 + edge2 * fine_strand_mix;
 
+	// ── Scrolling HDR pulse waves ──
+	// Evaluated in scroll-space so pulses scroll with the reef.
+	float py = cell_pos.y + TIME * pulse_speed * 0.1;
+	float px = cell_pos.x;
+	float w1 = sin(py * pulse_scale * 4.0 + px * pulse_wobble * 2.0);
+	float w2 = sin(py * pulse_scale * 6.8 - px * pulse_wobble * 1.5 + 1.3) * 0.6;
+	float w3 = sin(py * pulse_scale * 2.4 + px * pulse_wobble * 3.0 + 2.7) * 0.8;
+	float wave_raw = (w1 + w2 + w3) / 2.4 * 0.5 + 0.5;
+	// Threshold carves dead space; softness controls border falloff.
+	// threshold 0 = full coverage (original behavior), 1 = only sharpest peaks survive.
+	float half_soft = pulse_softness * 0.5;
+	float wave = smoothstep(pulse_threshold - half_soft, pulse_threshold + half_soft, wave_raw);
+	// At intensity 0: multiplier = 1.0 (no effect). At 1: ranges from ~0 to pulse_hdr.
+	float pulse_mult = mix(1.0, wave * pulse_hdr, pulse_intensity);
+
 	// ── Compose ──
 	vec3 col = deep_color.rgb;
 
-	// Coral strands with white-hot core + HDR bloom
+	// Coral strands with white-hot core + HDR bloom, modulated by pulse
 	vec3 white_core = mix(coral_color.rgb, vec3(1.0), strand_white);
 	vec3 strand_col = white_core * strand_hdr;
-	col += strand_col * coral_branch * strand_brightness;
+	col += strand_col * coral_branch * strand_brightness * pulse_mult;
 
 	COLOR = vec4(col, 1.0);
 }

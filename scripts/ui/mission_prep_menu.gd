@@ -5,6 +5,7 @@ var _vhs_overlay: ColorRect
 
 
 func _ready() -> void:
+	SynthwaveBgSetup.setup(self)
 	_setup_vhs_overlay()
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 

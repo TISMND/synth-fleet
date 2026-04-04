@@ -30,6 +30,7 @@ uniform float ring_tilt : hint_range(0.05, 0.8) = 0.15;
 uniform float ring_angle : hint_range(-0.8, 0.8) = 0.35;
 uniform vec3 ring_color : source_color = vec3(0.1, 0.8, 1.0);
 uniform float ring_hdr : hint_range(0.5, 6.0) = 2.5;
+uniform float ring_hdr_back : hint_range(0.5, 6.0) = 1.25;
 uniform float ring_band_width : hint_range(0.005, 0.08) = 0.018;
 uniform float ring_gap_base : hint_range(0.002, 0.05) = 0.010;
 uniform float ring_gap_grow : hint_range(0.0, 0.03) = 0.014;
@@ -47,14 +48,6 @@ uniform vec3 accent_color : source_color = vec3(0.1, 0.8, 1.0);
 uniform float nebula_intensity : hint_range(0.0, 0.5) = 0.12;
 uniform float nebula_scale : hint_range(1.0, 8.0) = 3.5;
 uniform float nebula_drift : hint_range(0.0, 0.1) = 0.015;
-
-// ── Stars ──
-uniform float star_density : hint_range(0.85, 0.99) = 0.94;
-uniform float star_size : hint_range(0.001, 0.008) = 0.003;
-uniform float star_glow_size : hint_range(0.0, 0.015) = 0.005;
-uniform float star_brightness : hint_range(0.5, 5.0) = 2.5;
-uniform float star_twinkle : hint_range(0.0, 1.0) = 0.6;
-uniform vec3 star_color : source_color = vec3(0.7, 0.85, 1.0);
 
 // ── Warp streaks ──
 uniform float warp_streak_intensity : hint_range(0.0, 2.0) = 0.5;
@@ -178,12 +171,12 @@ void fragment() {
 	if (in_ring && !on_planet) {
 		float back_amount = 1.0 - ring_front_blend;
 		if (back_amount > 0.001) {
-			col = mix(col, ring_color * ring_hdr * 0.5, ring_alpha * back_amount);
+			col = mix(col, ring_color * ring_hdr_back, ring_alpha * back_amount);
 		}
 	}
 	if (!on_planet) {
 		float back_amount = 1.0 - ring_front_blend;
-		col += ring_color * ring_glow_val * ring_hdr * 0.3 * back_amount;
+		col += ring_color * ring_glow_val * ring_hdr_back * back_amount;
 	}
 
 	if (on_planet) {
@@ -222,42 +215,6 @@ void fragment() {
 	}
 	if (!on_planet) {
 		col += ring_color * ring_glow_val * ring_hdr * 0.5 * ring_front_blend;
-	}
-
-	// ── Stars ──
-	{
-		for (int layer = 0; layer < 2; layer++) {
-			float grid_scale = (layer == 0) ? 100.0 : 160.0;
-			float layer_offset = float(layer) * 333.0;
-			vec2 cell = floor(uv * vec2(grid_scale, grid_scale * 0.5));
-			float h = hash(cell + layer_offset);
-			float threshold = (layer == 0) ? star_density : star_density + (1.0 - star_density) * 0.4;
-			if (h > threshold) {
-				vec2 soff = vec2(hash(cell + layer_offset + 111.0), hash(cell + layer_offset + 222.0));
-				vec2 sp = (cell + soff) / vec2(grid_scale, grid_scale * 0.5);
-				vec2 delta = (uv - sp) * vec2(ar, 1.0);
-				float d_star = length(delta);
-
-				float size_var = 0.5 + hash(cell + layer_offset + 333.0) * 0.8;
-				float this_size = star_size * size_var;
-				float this_glow = star_glow_size * (0.6 + size_var * 0.6);
-
-				float tw_speed = 1.0 + h * 3.0;
-				float tw_phase = h * 6.283;
-				float tw = sin(TIME * tw_speed + tw_phase);
-				float tw_amount = 0.5 + (1.0 - star_twinkle) * 0.5 + star_twinkle * tw * 0.5;
-
-				float core = smoothstep(this_size, this_size * 0.3, d_star);
-				float glow = exp(-d_star * d_star / max(this_glow * this_glow, 0.000001)) * 0.4;
-
-				float b = (core + glow) * tw_amount;
-				b *= 0.6 + uv.x * 0.8;
-				float planet_prox = length(vec2((uv.x - planet_x) * ar, uv.y - planet_cy));
-				b *= smoothstep(planet_radius * 1.5, planet_radius * 4.0, planet_prox);
-				b *= smoothstep(0.0, 0.08, dist_from_horizon);
-				col += star_color * b * star_brightness;
-			}
-		}
 	}
 
 	// ── Warp streaks ──

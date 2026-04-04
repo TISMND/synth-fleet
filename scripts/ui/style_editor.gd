@@ -22,6 +22,7 @@ var _synthwave_content: Control
 var _synthwave_rect: ColorRect          # grid overlay (root viewport bloom)
 var _synthwave_planet_rect: ColorRect   # planet layer (SubViewport bloom)
 var _synthwave_planet_vp: SubViewport
+var _synthwave_star_rect: ColorRect     # star layer (root viewport bloom)
 
 # Headers tab controls
 var _header_preview_label: Label
@@ -640,17 +641,25 @@ const _SW_SHARED_PARAMS: Array[String] = [
 	"horizon", "planet_x", "atmo_color",
 ]
 
+const _SW_STAR_SHARED_PARAMS: Array[String] = [
+	"horizon", "planet_x", "planet_radius",
+]
+
 const _SW_PLANET_PARAMS: Array[String] = [
 	"planet_x", "planet_radius", "planet_color_top", "planet_color_bot", "planet_hdr",
 	"slice_enabled", "slice_start", "slice_band_h", "slice_gap_base", "slice_gap_grow",
-	"ring_inner", "ring_outer", "ring_tilt", "ring_angle", "ring_color", "ring_hdr",
+	"ring_inner", "ring_outer", "ring_tilt", "ring_angle", "ring_color", "ring_hdr", "ring_hdr_back",
 	"ring_band_width", "ring_gap_base", "ring_gap_grow", "ring_glow_size",
 	"planet_tilted", "atmo_glow", "atmo_color",
 	"sky_top", "sky_mid", "sky_low", "horizon",
 	"accent_color", "nebula_intensity", "nebula_scale", "nebula_drift",
-	"star_density", "star_size", "star_glow_size", "star_brightness", "star_twinkle", "star_color",
 	"warp_streak_intensity", "warp_streak_speed", "warp_streak_count",
 	"warp_inner_radius", "warp_fade_width", "warp_max_length", "warp_streak_width",
+]
+
+const _SW_STAR_PARAMS: Array[String] = [
+	"star_density", "star_size", "star_hdr", "star_twinkle", "star_color", "star_core_white",
+	"horizon", "planet_x", "planet_radius",
 ]
 
 
@@ -689,6 +698,17 @@ func _build_synthwave_tab() -> void:
 	tex_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_synthwave_content.add_child(tex_rect)
+
+	# ── Star layer: root viewport, between planet and grid ──
+	_synthwave_star_rect = ColorRect.new()
+	_synthwave_star_rect.color = Color.WHITE
+	_synthwave_star_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var star_shader: Shader = load("res://assets/shaders/synthwave_stars.gdshader")
+	if star_shader:
+		var smat := ShaderMaterial.new()
+		smat.shader = star_shader
+		_synthwave_star_rect.material = smat
+	_synthwave_content.add_child(_synthwave_star_rect)
 
 	# ── Grid overlay on top (root viewport bloom) ──
 	_synthwave_rect = ColorRect.new()
@@ -742,7 +762,8 @@ func _build_synthwave_tab() -> void:
 
 	# ── RING ──
 	_sw_tab_section(vbox, "RING")
-	_sw_tab_slider(vbox, "ring_hdr", "HDR", 0.5, 6.0, 2.5)
+	_sw_tab_slider(vbox, "ring_hdr", "Front HDR", 0.5, 6.0, 2.5)
+	_sw_tab_slider(vbox, "ring_hdr_back", "Back HDR", 0.5, 6.0, 1.25)
 	_sw_tab_color(vbox, "ring_color", "Color", Color(0.1, 0.8, 1.0))
 	_sw_tab_slider(vbox, "ring_inner", "Inner Radius", 0.05, 0.5, 0.10)
 	_sw_tab_slider(vbox, "ring_outer", "Outer Radius", 0.1, 1.5, 1.1)
@@ -780,10 +801,10 @@ func _build_synthwave_tab() -> void:
 	_sw_tab_section(vbox, "STARS")
 	_sw_tab_slider(vbox, "star_density", "Density", 0.85, 0.99, 0.94)
 	_sw_tab_slider(vbox, "star_size", "Size", 0.001, 0.008, 0.003)
-	_sw_tab_slider(vbox, "star_glow_size", "Glow Size", 0.0, 0.015, 0.005)
-	_sw_tab_slider(vbox, "star_brightness", "Brightness", 0.5, 5.0, 2.5)
+	_sw_tab_slider(vbox, "star_hdr", "HDR", 1.0, 8.0, 3.0)
 	_sw_tab_slider(vbox, "star_twinkle", "Twinkle", 0.0, 1.0, 0.6)
 	_sw_tab_color(vbox, "star_color", "Color", Color(0.7, 0.85, 1.0))
+	_sw_tab_slider(vbox, "star_core_white", "Core White", 0.0, 1.0, 0.85)
 
 	vbox.add_child(HSeparator.new())
 
@@ -889,7 +910,15 @@ func _sw_set_param(param: String, value: Variant) -> void:
 		var pmat: ShaderMaterial = _synthwave_planet_rect.material as ShaderMaterial
 		if pmat:
 			pmat.set_shader_parameter(param, value)
-	if param not in _SW_PLANET_PARAMS or param in _SW_SHARED_PARAMS:
+	if param in _SW_STAR_PARAMS:
+		var smat: ShaderMaterial = _synthwave_star_rect.material as ShaderMaterial
+		if smat:
+			smat.set_shader_parameter(param, value)
+	if param not in _SW_PLANET_PARAMS and param not in _SW_STAR_PARAMS:
+		var gmat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
+		if gmat:
+			gmat.set_shader_parameter(param, value)
+	elif param in _SW_SHARED_PARAMS:
 		var gmat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
 		if gmat:
 			gmat.set_shader_parameter(param, value)
@@ -937,16 +966,26 @@ func _sw_load_settings() -> void:
 	var d: Dictionary = data as Dictionary
 	var planet_mat: ShaderMaterial = _synthwave_planet_rect.material as ShaderMaterial
 	var grid_mat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
+	var star_mat: ShaderMaterial = _synthwave_star_rect.material as ShaderMaterial
 	for key in d:
 		var val: Variant = d[key]
 		if val is Dictionary:
 			var cd: Dictionary = val as Dictionary
 			if cd.has("r"):
 				val = Color(float(cd["r"]), float(cd["g"]), float(cd["b"]))
-		if planet_mat and key in _SW_PLANET_PARAMS:
-			planet_mat.set_shader_parameter(key, val)
-		if grid_mat and (key not in _SW_PLANET_PARAMS or key in _SW_SHARED_PARAMS):
-			grid_mat.set_shader_parameter(key, val)
+		# Migrate old star params
+		var effective_key: String = key
+		if key == "star_brightness":
+			effective_key = "star_hdr"
+		if key == "star_glow_size":
+			continue
+		if planet_mat and effective_key in _SW_PLANET_PARAMS:
+			planet_mat.set_shader_parameter(effective_key, val)
+		if star_mat and effective_key in _SW_STAR_PARAMS:
+			star_mat.set_shader_parameter(effective_key, val)
+		if grid_mat and (effective_key not in _SW_PLANET_PARAMS or effective_key in _SW_SHARED_PARAMS):
+			if effective_key not in _SW_STAR_PARAMS or effective_key in _SW_STAR_SHARED_PARAMS:
+				grid_mat.set_shader_parameter(effective_key, val)
 	_sw_sync_controls(_synthwave_content, d)
 
 

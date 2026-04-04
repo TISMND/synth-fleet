@@ -3,37 +3,12 @@ extends Control
 ## Menu music: all layers start muted, each unmutes on-beat at its configured start_bar.
 ## Music persists across menu screens — fades out only when entering gameplay.
 ##
-## Background is split into two rendering layers to prevent HDR bloom blowout:
-##   1. Planet SubViewport — sky, planet, rings, stars, nebula, warps (own bloom)
-##   2. Grid overlay — grid lines, horizon glow, motion lights (root viewport bloom)
-## Each layer's bloom is resolved independently so complementary HDR colors
-## (pink grid + blue rings) never sum to white in the post-process pass.
+## Background is split into rendering layers to prevent HDR bloom blowout.
+## See SynthwaveBgSetup for the shared setup used across menu screens.
 
 var _vhs_overlay: ColorRect
 var _menu_loop_ids: Array[String] = []
 var _menu_fade_ms: int = 2000
-
-const SW_SETTINGS_PATH: String = "user://settings/synthwave_bg.json"
-
-# Planet/ring params live in the planet shader; grid params in the grid shader.
-# These params are shared between both shaders and must be synced.
-const _SHARED_PARAMS: Array[String] = [
-	"horizon", "planet_x", "atmo_color",
-]
-
-# Params that belong to the planet shader (SubViewport).
-const _PLANET_PARAMS: Array[String] = [
-	"planet_x", "planet_radius", "planet_color_top", "planet_color_bot", "planet_hdr",
-	"slice_enabled", "slice_start", "slice_band_h", "slice_gap_base", "slice_gap_grow",
-	"ring_inner", "ring_outer", "ring_tilt", "ring_angle", "ring_color", "ring_hdr",
-	"ring_band_width", "ring_gap_base", "ring_gap_grow", "ring_glow_size",
-	"planet_tilted", "atmo_glow", "atmo_color",
-	"sky_top", "sky_mid", "sky_low", "horizon",
-	"accent_color", "nebula_intensity", "nebula_scale", "nebula_drift",
-	"star_density", "star_size", "star_glow_size", "star_brightness", "star_twinkle", "star_color",
-	"warp_streak_intensity", "warp_streak_speed", "warp_streak_count",
-	"warp_inner_radius", "warp_fade_width", "warp_max_length", "warp_streak_width",
-]
 
 
 func _ready() -> void:
@@ -158,77 +133,7 @@ func _setup_title_shader() -> void:
 
 
 func _setup_synthwave_bg() -> void:
-	var bg: ColorRect = $Background
-
-	# ── Planet layer: SubViewport with its own bloom ──
-	var vp := SubViewport.new()
-	vp.size = Vector2i(
-		int(ProjectSettings.get_setting("display/window/size/viewport_width")),
-		int(ProjectSettings.get_setting("display/window/size/viewport_height"))
-	)
-	vp.transparent_bg = false
-	vp.use_hdr_2d = true
-	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	# Godot 2D bloom only works on root viewport — SubViewport glow is ignored.
-	# ACES tonemaps the planet HDR to SDR so root bloom won't re-process it.
-	var world_env := WorldEnvironment.new()
-	var env := Environment.new()
-	env.background_mode = Environment.BG_CANVAS
-	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.glow_enabled = false
-	world_env.environment = env
-	vp.add_child(world_env)
-
-	var planet_rect := ColorRect.new()
-	planet_rect.color = Color.WHITE
-	planet_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var planet_shader: Shader = load("res://assets/shaders/synthwave_planet.gdshader")
-	if planet_shader:
-		var planet_mat := ShaderMaterial.new()
-		planet_mat.shader = planet_shader
-		planet_rect.material = planet_mat
-	vp.add_child(planet_rect)
-	add_child(vp)
-	move_child(vp, 0)
-
-	# Show SubViewport via TextureRect behind everything
-	var tex_rect := TextureRect.new()
-	tex_rect.texture = vp.get_texture()
-	tex_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	add_child(tex_rect)
-	move_child(tex_rect, 1)
-
-	# ── Grid layer: renders on root viewport (root bloom = grid-only) ──
-	var grid_shader: Shader = load("res://assets/shaders/synthwave_bg.gdshader")
-	if grid_shader:
-		var grid_mat := ShaderMaterial.new()
-		grid_mat.shader = grid_shader
-		bg.material = grid_mat
-		bg.color = Color(1.0, 1.0, 1.0, 1.0)
-	# Move Background above the planet texture
-	move_child(bg, 2)
-
-	# ── Load saved settings, route to correct shader ──
-	if FileAccess.file_exists(SW_SETTINGS_PATH):
-		var f: FileAccess = FileAccess.open(SW_SETTINGS_PATH, FileAccess.READ)
-		if f:
-			var json := JSON.new()
-			if json.parse(f.get_as_text()) == OK and json.data is Dictionary:
-				var data: Dictionary = json.data as Dictionary
-				var planet_mat: ShaderMaterial = planet_rect.material as ShaderMaterial
-				var grid_mat: ShaderMaterial = bg.material as ShaderMaterial
-				for key in data:
-					var val: Variant = data[key]
-					if val is Dictionary:
-						var d: Dictionary = val as Dictionary
-						if d.has("r"):
-							val = Color(float(d["r"]), float(d["g"]), float(d["b"]))
-					if planet_mat and key in _PLANET_PARAMS:
-						planet_mat.set_shader_parameter(key, val)
-					if grid_mat and (key not in _PLANET_PARAMS or key in _SHARED_PARAMS):
-						grid_mat.set_shader_parameter(key, val)
-			f.close()
+	SynthwaveBgSetup.setup(self)
 
 
 func _apply_styles() -> void:
