@@ -95,7 +95,7 @@
 	"loop_file_path": "res://loop_zips/sorted/bass/NEW Thin Addition - 120 BPM - 5 - Bass - RW3_100_bass_loop_hawkeye_Gmaj.wav",
 	"loop_length_bars": 8,
 	"mirror_mode": "none",
-	"pierce_count": 1,
+	"pierce_count": 0,
 	"projectile_speed": 860.0,
 	"projectile_style_id": "blue_micro_beam",
 	"skips_shields": false,

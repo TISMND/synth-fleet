@@ -1,12 +1,11 @@
 extends MarginContainer
-## Skin auditions — cycle through render modes on a controllable ship.
+## Alien skin auditions — cycle through neon/alien render modes on enemy ships.
 
 var _time: float = 0.0
-var _ship_pos := Vector2(960.0, 540.0)
-var _ship_vel := Vector2.ZERO
-var _bank: float = 0.0
 var _ship_renderer: ShipRenderer = null
-var _exhaust: EngineExhaust = null
+var _current_hdr: float = 1.0
+var _current_white: float = 0.0
+var _current_width: float = 1.0
 var _skin_index: int = 0
 var _skin_label: Label = null
 var _ship_label: Label = null
@@ -14,32 +13,43 @@ var _ship_index: int = 0
 var _vp: SubViewport = null
 var _vp_size := Vector2i(1920, 1080)
 
-# Ships available for audition: [display_name, ship_id]
+# Enemy ships available for audition: [display_name, visual_id]
 const SHIP_LIST: Array[Array] = [
-	["STILETTO", 4],
-	["CARGO SHIP", 7],
+	["BEHEMOTH", "behemoth"],
+	["SENTINEL", "sentinel"],
+	["SPORE", "spore"],
+	["MITE", "mite"],
+	["POLYP", "polyp"],
+	["LAMPREY", "lamprey"],
+	["ANEMONE", "anemone"],
+	["MANTARAY", "mantaray"],
+	["NAUTILUS", "nautilus"],
+	["HYDRA", "hydra"],
+	["MYCELIA", "mycelia"],
 ]
 
-const SHIP_SPEED: float = 400.0
-const SHIP_ACCEL: float = 1200.0
-const SHIP_DECEL: float = 800.0
-
-# Skins to audition — order matters for cycling
+# Alien skins — neon-based and special effect modes
 const SKIN_MODES: Array[int] = [
 	ShipRenderer.RenderMode.DEBUG_MATERIALS,
-	ShipRenderer.RenderMode.CHROME,
-	ShipRenderer.RenderMode.STEALTH,
-	ShipRenderer.RenderMode.MILITIA,
-	ShipRenderer.RenderMode.GUNMETAL,
-	ShipRenderer.RenderMode.CAUTION,
+	ShipRenderer.RenderMode.NEON,
+	ShipRenderer.RenderMode.VOID,
+	ShipRenderer.RenderMode.HIVEMIND,
+	ShipRenderer.RenderMode.SPORE,
+	ShipRenderer.RenderMode.EMBER,
+	ShipRenderer.RenderMode.FROST,
+	ShipRenderer.RenderMode.SOLAR,
+	ShipRenderer.RenderMode.SPORT,
 ]
 const SKIN_NAMES: Array[String] = [
 	"DEBUG: Red=Hull  Blue=Structure  Green=Trim  Yellow=Canopy  Orange=Engine  Magenta=Unknown",
-	"CHROME",
-	"STEALTH",
-	"MILITIA",
-	"GUNMETAL",
-	"CAUTION",
+	"NEON",
+	"VOID",
+	"HIVEMIND",
+	"SPORE",
+	"EMBER",
+	"FROST",
+	"SOLAR",
+	"SPORT",
 ]
 
 
@@ -49,35 +59,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	var input_dir := Vector2.ZERO
-	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
-		input_dir.y -= 1.0
-	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
-		input_dir.y += 1.0
-	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
-		input_dir.x -= 1.0
-	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
-		input_dir.x += 1.0
-
-	if input_dir.length() > 0.0:
-		input_dir = input_dir.normalized()
-		_ship_vel = _ship_vel.move_toward(input_dir * SHIP_SPEED, SHIP_ACCEL * delta)
-	else:
-		_ship_vel = _ship_vel.move_toward(Vector2.ZERO, SHIP_DECEL * delta)
-
-	_ship_pos += _ship_vel * delta
-	_ship_pos.x = clampf(_ship_pos.x, 80.0, float(_vp_size.x) - 80.0)
-	_ship_pos.y = clampf(_ship_pos.y, 80.0, float(_vp_size.y) - 80.0)
-
-	var target_bank: float = clampf(-_ship_vel.x / maxf(SHIP_SPEED, 1.0), -1.0, 1.0)
-	_bank = lerpf(_bank, target_bank, minf(delta * 8.0, 1.0))
-
 	if _ship_renderer:
-		_ship_renderer.position = _ship_pos
-		_ship_renderer.bank = _bank
-	if _exhaust:
-		_exhaust.position = _ship_pos
-		_exhaust.update_thrust(_ship_vel.y, _bank, delta)
+		_ship_renderer.time = _time
 
 
 func _input(event: InputEvent) -> void:
@@ -103,28 +86,26 @@ func _cycle_skin(dir: int) -> void:
 
 func _cycle_ship(dir: int) -> void:
 	_ship_index = (_ship_index + dir + SHIP_LIST.size()) % SHIP_LIST.size()
-	var ship_id: int = SHIP_LIST[_ship_index][1]
 	if _ship_label:
 		_ship_label.text = SHIP_LIST[_ship_index][0] as String
-	if _vp and _ship_renderer:
+	_rebuild_ship()
+
+
+func _rebuild_ship() -> void:
+	if not _vp:
+		return
+	if _ship_renderer:
 		_ship_renderer.queue_free()
-		_ship_renderer = ShipRenderer.new()
-		_ship_renderer.ship_id = ship_id
-		_ship_renderer.render_mode = SKIN_MODES[_skin_index]
-		_ship_renderer.position = _ship_pos
-		_ship_renderer.bank = _bank
-		_ship_renderer.z_index = 1
-		_vp.add_child(_ship_renderer)
-	if _vp and _exhaust:
-		_exhaust.queue_free()
-		_exhaust = EngineExhaust.new()
-		var offsets: Array[Vector2] = ShipRenderer.get_engine_offsets(ship_id)
-		var sc: float = ShipRenderer.get_ship_scale(ship_id)
-		_exhaust.setup(offsets, sc)
-		_exhaust.scroll_speed = 80.0
-		_exhaust.position = _ship_pos
-		_vp.add_child(_exhaust)
-		_vp.move_child(_exhaust, _vp.get_child_count() - 2)
+	_ship_renderer = ShipRenderer.new()
+	_ship_renderer.ship_id = -1
+	_ship_renderer.enemy_visual_id = SHIP_LIST[_ship_index][1] as String
+	_ship_renderer.render_mode = SKIN_MODES[_skin_index]
+	_ship_renderer.neon_hdr = _current_hdr
+	_ship_renderer.neon_white = _current_white
+	_ship_renderer.neon_width = _current_width
+	_ship_renderer.position = Vector2(960.0, 540.0)
+	_ship_renderer.z_index = 1
+	_vp.add_child(_ship_renderer)
 
 
 func _build_ui() -> void:
@@ -135,7 +116,7 @@ func _build_ui() -> void:
 	add_child(main)
 
 	var header := Label.new()
-	header.text = "SKINS — WASD move, Q/E skins, 1/2 ship"
+	header.text = "ALIEN SKINS — Q/E skins, 1/2 ship"
 	ThemeManager.apply_text_glow(header, "header")
 	main.add_child(header)
 
@@ -156,7 +137,7 @@ func _build_ui() -> void:
 
 	var prev_ship_btn := Button.new()
 	prev_ship_btn.text = "< 1"
-	prev_ship_btn.pressed.connect(func(): _cycle_ship(-1))
+	prev_ship_btn.pressed.connect(func() -> void: _cycle_ship(-1))
 	ThemeManager.apply_button_style(prev_ship_btn)
 	ship_row.add_child(prev_ship_btn)
 
@@ -169,7 +150,7 @@ func _build_ui() -> void:
 
 	var next_ship_btn := Button.new()
 	next_ship_btn.text = "2 >"
-	next_ship_btn.pressed.connect(func(): _cycle_ship(1))
+	next_ship_btn.pressed.connect(func() -> void: _cycle_ship(1))
 	ThemeManager.apply_button_style(next_ship_btn)
 	ship_row.add_child(next_ship_btn)
 
@@ -180,7 +161,7 @@ func _build_ui() -> void:
 
 	var prev_btn := Button.new()
 	prev_btn.text = "< Q"
-	prev_btn.pressed.connect(func(): _cycle_skin(-1))
+	prev_btn.pressed.connect(func() -> void: _cycle_skin(-1))
 	ThemeManager.apply_button_style(prev_btn)
 	nav_row.add_child(prev_btn)
 
@@ -193,9 +174,27 @@ func _build_ui() -> void:
 
 	var next_btn := Button.new()
 	next_btn.text = "E >"
-	next_btn.pressed.connect(func(): _cycle_skin(1))
+	next_btn.pressed.connect(func() -> void: _cycle_skin(1))
 	ThemeManager.apply_button_style(next_btn)
 	nav_row.add_child(next_btn)
+
+	# Control sliders row
+	var sliders_row := HBoxContainer.new()
+	sliders_row.add_theme_constant_override("separation", 24)
+	main.add_child(sliders_row)
+
+	_build_slider(sliders_row, "HDR", 0.0, 4.0, 1.0, 0.01, func(v: float) -> void:
+		_current_hdr = v
+		if _ship_renderer: _ship_renderer.neon_hdr = v
+	)
+	_build_slider(sliders_row, "WHITE", 0.0, 1.0, 0.0, 0.01, func(v: float) -> void:
+		_current_white = v
+		if _ship_renderer: _ship_renderer.neon_white = v
+	)
+	_build_slider(sliders_row, "WIDTH", 0.05, 3.0, 1.0, 0.01, func(v: float) -> void:
+		_current_width = v
+		if _ship_renderer: _ship_renderer.neon_width = v
+	)
 
 	# Viewport
 	var vpc := SubViewportContainer.new()
@@ -205,37 +204,54 @@ func _build_ui() -> void:
 	main.add_child(vpc)
 
 	_vp = SubViewport.new()
-	var vp: SubViewport = _vp
-	vp.transparent_bg = false
-	vp.size = _vp_size
-	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	vpc.add_child(vp)
-	VFXFactory.add_bloom_to_viewport(vp)
+	_vp.transparent_bg = false
+	_vp.size = _vp_size
+	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vpc.add_child(_vp)
+	VFXFactory.add_bloom_to_viewport(_vp)
 
 	var bg := ColorRect.new()
 	bg.color = Color(0.01, 0.01, 0.03, 1.0)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vp.add_child(bg)
+	_vp.add_child(bg)
 
 	# Stars
 	var stars := _StarBG.new()
-	vp.add_child(stars)
-
-	# Engine exhaust
-	var initial_ship_id: int = SHIP_LIST[_ship_index][1]
-	_exhaust = EngineExhaust.new()
-	var offsets: Array[Vector2] = ShipRenderer.get_engine_offsets(initial_ship_id)
-	var sc: float = ShipRenderer.get_ship_scale(initial_ship_id)
-	_exhaust.setup(offsets, sc)
-	_exhaust.scroll_speed = 80.0
-	vp.add_child(_exhaust)
+	_vp.add_child(stars)
 
 	# Ship
-	_ship_renderer = ShipRenderer.new()
-	_ship_renderer.ship_id = initial_ship_id
-	_ship_renderer.render_mode = SKIN_MODES[_skin_index]
-	_ship_renderer.z_index = 1
-	vp.add_child(_ship_renderer)
+	_rebuild_ship()
+
+
+func _build_slider(parent: HBoxContainer, label_text: String, min_val: float, max_val: float,
+		default_val: float, step_val: float, on_change: Callable) -> void:
+	var box := HBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	parent.add_child(box)
+
+	var lbl := Label.new()
+	lbl.text = label_text + ":"
+	ThemeManager.apply_text_glow(lbl, "body")
+	box.add_child(lbl)
+
+	var val_lbl := Label.new()
+	val_lbl.text = "%.2f" % default_val
+	val_lbl.custom_minimum_size.x = 40
+	val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ThemeManager.apply_text_glow(val_lbl, "body")
+	box.add_child(val_lbl)
+
+	var slider := HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.step = step_val
+	slider.value = default_val
+	slider.custom_minimum_size = Vector2(280, 20)
+	slider.value_changed.connect(func(v: float) -> void:
+		val_lbl.text = "%.2f" % v
+		on_change.call(v)
+	)
+	box.add_child(slider)
 
 
 class _StarBG extends Node2D:

@@ -779,9 +779,9 @@ func _process(delta: float) -> void:
 	if _nebula_container:
 		_nebula_container.position.y = _scroll_distance
 	for gml in _glow_mote_layers:
-		var node: Control = gml["node"] as Control
+		var mote_field: Control = gml["node"] as Control
 		var ms: float = float(gml["motion_scale"])
-		node.position.y = fmod(_scroll_distance * ms, 1200.0)
+		mote_field.set_meta("scroll_y", _scroll_distance * ms)
 	if _bg_debug_grid and _bg_debug_grid.visible:
 		_bg_debug_grid.position.y = fmod(_scroll_distance, _bg_debug_grid.line_spacing)
 	if _wave_manager and not _death_sequence_active:
@@ -2711,19 +2711,31 @@ class _GlowMoteField extends Control:
 		queue_redraw()
 
 	func _draw() -> void:
+		var scroll_y: float = get_meta("scroll_y", 0.0) as float
+		var view_h: float = 1080.0
+		var tile_h: float = 1200.0
 		for i in _positions.size():
+			# Wrap each mote's Y position with the scroll offset
+			var pos: Vector2 = _positions[i]
+			var wrapped_y: float = fmod(pos.y + scroll_y, tile_h)
+			if wrapped_y < 0.0:
+				wrapped_y += tile_h
+			# Skip motes that are off-screen (with margin for glow radius)
+			if wrapped_y > view_h + 30.0:
+				continue
+			var draw_pos := Vector2(pos.x, wrapped_y)
 			var pulse: float = 0.3 + 0.7 * (0.5 + 0.5 * sin(_time * pulse_speed + _phases[i]))
 			var col: Color = color_a.lerp(color_b, _color_mix[i])
 			var r: float = _sizes[i] * (0.8 + 0.2 * pulse)
 			# Smooth gaussian-ish falloff: 4 layers blending outward
 			var a4 := Color(col.r * 0.4, col.g * 0.4, col.b * 0.4, pulse * 0.04)
-			draw_circle(_positions[i], r * 3.0, a4)
+			draw_circle(draw_pos, r * 3.0, a4)
 			var a3 := Color(col.r * 0.7, col.g * 0.7, col.b * 0.7, pulse * 0.08)
-			draw_circle(_positions[i], r * 2.2, a3)
+			draw_circle(draw_pos, r * 2.2, a3)
 			var a2 := Color(col.r * 1.2, col.g * 1.2, col.b * 1.2, pulse * 0.18)
-			draw_circle(_positions[i], r * 1.4, a2)
+			draw_circle(draw_pos, r * 1.4, a2)
 			var a1 := Color(col.r * 1.8, col.g * 1.8, col.b * 1.8, pulse * 0.4)
-			draw_circle(_positions[i], r, a1)
+			draw_circle(draw_pos, r, a1)
 
 
 class _GameOverBox extends Control:

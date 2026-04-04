@@ -87,9 +87,11 @@ var _chrome_bright := CHROME_BRIGHT
 var bank := 0.0
 var chrome_gleam_hdr: float = 1.35  # HDR multiplier for specular gleam
 var chrome_edge_hdr: float = 1.0    # HDR multiplier for chrome rim edges
+var neon_hdr: float = 1.0           # HDR multiplier for neon glow (scales bloom intensity)
+var neon_white: float = 0.0         # 0 = pure color, 1 = white-hot core (color from bloom only)
+var neon_width: float = 1.0         # Line width multiplier
 var ship_id := 0
 var render_mode: int = RenderMode.NEON
-var use_custom_palette: bool = false
 var time := 0.0
 var enemy_visual_id: String = ""
 var animate: bool = true
@@ -296,9 +298,8 @@ func _canopy(points: PackedVector2Array) -> void:
 				var dot_blend: float = sin(time * 0.3 + float(i) * 1.4) * 0.5 + 0.5
 				draw_circle(points[i], 2.0 * dot_pulse, SPORE_DOT.lerp(SPORE_DOT_ALT, dot_blend))
 		_:
-			var cf := canopy_color
-			cf.a = 0.3
-			draw_colored_polygon(points, cf)
+			var cc := _neon_col(canopy_color)
+			draw_colored_polygon(points, Color(cc.r * 0.4, cc.g * 0.4, cc.b * 0.4, 0.25))
 			_draw_neon_lines(points, canopy_color, 1.2 * 1.4)
 
 func _exhaust_line(a: Vector2, b: Vector2, width: float) -> void:
@@ -306,8 +307,6 @@ func _exhaust_line(a: Vector2, b: Vector2, width: float) -> void:
 	_line(a, b, engine_color, width)
 
 func _apply_palette() -> void:
-	if use_custom_palette:
-		return
 	match render_mode:
 		RenderMode.EMBER:
 			hull_color = EMBER_HULL
@@ -1716,7 +1715,7 @@ func _draw_lamprey() -> void:
 	for i in range(6):
 		var angle: float = TAU * float(i) / 6.0
 		var tooth := mouth_pos + Vector2(cos(angle) * 3.0 * s, sin(angle) * 3.0 * s)
-		draw_circle(tooth, 0.5 * s, accent_color)
+		_circle(tooth, 0.5 * s, accent_color, 0.8 * s)
 
 
 func _draw_anemone() -> void:
@@ -1785,8 +1784,8 @@ func _draw_mantaray() -> void:
 			_line(prev, curr, Color(hull_color, 0.8 - frac * 0.3), (2.0 - frac * 1.0) * s)
 			prev = curr
 	# Eyes
-	draw_circle(Vector2(-4.0 * s, 2.0 * s), 1.2 * s, accent_color)
-	draw_circle(Vector2(4.0 * s, 2.0 * s), 1.2 * s, accent_color)
+	_circle(Vector2(-4.0 * s, 2.0 * s), 1.2 * s, accent_color, 1.0 * s)
+	_circle(Vector2(4.0 * s, 2.0 * s), 1.2 * s, accent_color, 1.0 * s)
 	# Gill slits
 	for i in range(3):
 		var gy: float = (-1.0 + float(i) * 1.5) * s
@@ -1828,8 +1827,8 @@ func _draw_nautilus() -> void:
 		var outer := Vector2(cos(angle) * 8.5 * s, sin(angle) * 8.5 * s)
 		_line(inner, outer, Color(detail_color, 0.15), 0.4 * s)
 	# Eye
-	draw_circle(Vector2(3.0 * s, 6.0 * s), 1.5 * s, accent_color)
-	draw_circle(Vector2(3.0 * s, 6.0 * s), 0.6 * s, Color(0, 0, 0, 0.9))
+	_circle(Vector2(3.0 * s, 6.0 * s), 1.5 * s, accent_color, 1.0 * s)
+	draw_circle(Vector2(3.0 * s, 6.0 * s), 0.6 * s, Color(0, 0, 0, 0.9))  # Pupil (black, no HDR)
 	# Tentacles from opening
 	for i in range(5):
 		var base_x: float = (float(i) - 2.0) * 2.5 * s
@@ -1915,7 +1914,7 @@ func _draw_behemoth() -> void:
 		var gap_r: float = 13.0 * s
 		var gap_pos := Vector2(cos(angle) * gap_r, sin(angle) * gap_r * 1.1)
 		var gap_pulse: float = 0.2 + sin(time * 2.0 + float(i) * 1.3) * 0.15
-		draw_circle(gap_pos, 2.0 * s, Color(accent_color, gap_pulse))
+		_circle(gap_pos, 2.0 * s, Color(accent_color, gap_pulse), 1.0 * s)
 	# Central eye cluster
 	var eye_offsets: Array[Vector2] = [
 		Vector2(0, 2.0 * s), Vector2(-3.0 * s, -1.0 * s), Vector2(3.0 * s, -1.0 * s),
@@ -1923,8 +1922,8 @@ func _draw_behemoth() -> void:
 	]
 	for eo in eye_offsets:
 		var eye_r: float = (1.5 + sin(time * 1.5 + eo.x) * 0.3) * s
-		draw_circle(eo, eye_r, accent_color)
-		draw_circle(eo, eye_r * 0.4, Color(0, 0, 0, 0.9))
+		_circle(eo, eye_r, accent_color, 1.0 * s)
+		draw_circle(eo, eye_r * 0.4, Color(0, 0, 0, 0.9))  # Pupil (black, no HDR)
 	# Stubby legs/appendages
 	for i in range(4):
 		var ly: float = (2.0 - float(i) * 3.0) * s
@@ -1953,7 +1952,7 @@ func _draw_mycelia() -> void:
 		var spot_r: float = 5.5 * s
 		var spot_pos := Vector2(cos(angle) * spot_r, sin(angle) * spot_r)
 		var spot_pulse: float = 0.15 + sin(time * 1.8 + float(i) * 1.1) * 0.1
-		draw_circle(spot_pos, 1.5 * s, Color(accent_color, spot_pulse))
+		_circle(spot_pos, 1.5 * s, Color(accent_color, spot_pulse), 0.8 * s)
 	# Branching hyphae — 6 main branches, each with 2 sub-branches
 	for i in range(6):
 		var base_angle: float = TAU * float(i) / 6.0
@@ -1984,9 +1983,9 @@ func _draw_mycelia() -> void:
 					_line(sub_prev, sub_curr, Color(hull_color, 0.5 - sf * 0.2), (1.0 - sf * 0.4) * s)
 					sub_prev = sub_curr
 				# Tip node
-				draw_circle(sub_prev, 1.0 * s, Color(accent_color, 0.3 + pulse * 0.1))
+				_circle(sub_prev, 1.0 * s, Color(accent_color, 0.3 + pulse * 0.1), 0.6 * s)
 		# Branch tip node
-		draw_circle(branch_end, 1.2 * s, Color(accent_color, 0.4 + pulse * 0.15))
+		_circle(branch_end, 1.2 * s, Color(accent_color, 0.4 + pulse * 0.15), 0.8 * s)
 
 
 # ── Chrome drawing helpers ──
@@ -3236,76 +3235,42 @@ func _draw_debug_materials_line(a: Vector2, b: Vector2, color: Color, width: flo
 
 # ── Neon drawing helpers ──
 
+func _neon_col(color: Color) -> Color:
+	## Apply white-hot + HDR to a neon color.
+	var r: float = lerpf(color.r, 1.0, neon_white) * neon_hdr
+	var g: float = lerpf(color.g, 1.0, neon_white) * neon_hdr
+	var b: float = lerpf(color.b, 1.0, neon_white) * neon_hdr
+	return Color(r, g, b, color.a)
+
 func _draw_neon_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
-	var gc := color
-	gc.a = 0.25
-	draw_line(a, b, gc, width * 3.0, true)
-	gc.a = 0.5
-	draw_line(a, b, gc, width * 1.8, true)
-	draw_line(a, b, color, width, true)
-	var w := Color(1, 1, 1, 0.6)
-	draw_line(a, b, w, width * 0.4, true)
-	# Vertex glow caps — fill pizza-slice gaps at endpoints
-	for pt in [a, b]:
-		draw_circle(pt, width * 1.5, Color(color.r, color.g, color.b, 0.25))
-		draw_circle(pt, width * 0.9, Color(color.r, color.g, color.b, 0.5))
-		draw_circle(pt, width * 0.5, color)
-		draw_circle(pt, width * 0.2, Color(1, 1, 1, 0.6))
+	var w: float = width * 0.7 * neon_width
+	var col := _neon_col(color)
+	draw_line(a, b, col, w, true)
+	draw_circle(a, w * 0.5, col)
+	draw_circle(b, w * 0.5, col)
 
 func _draw_neon_polygon(points: PackedVector2Array, color: Color, width: float) -> void:
-	var glow := color
-	glow.a = 0.15
-	draw_colored_polygon(points, glow)
+	var fc := _neon_col(color)
+	draw_colored_polygon(points, Color(fc.r * 0.3, fc.g * 0.3, fc.b * 0.3, 0.08))
 	_draw_neon_lines(points, color, width)
 
 func _draw_neon_lines(points: PackedVector2Array, color: Color, width: float) -> void:
 	if points.size() < 2:
 		return
-	var gc := color
-	# Outer glow
-	gc.a = 0.25
+	var w: float = width * 0.7 * neon_width
+	var col := _neon_col(color)
 	for i in range(points.size()):
 		var ni: int = (i + 1) % points.size()
-		draw_line(points[i], points[ni], gc, width * 3.0, true)
-	# Mid glow
-	gc.a = 0.5
-	for i in range(points.size()):
-		var ni: int = (i + 1) % points.size()
-		draw_line(points[i], points[ni], gc, width * 1.8, true)
-	# Bright core
-	for i in range(points.size()):
-		var ni: int = (i + 1) % points.size()
-		draw_line(points[i], points[ni], color, width, true)
-	# White-hot center
-	var white := Color(1, 1, 1, 0.6)
-	for i in range(points.size()):
-		var ni: int = (i + 1) % points.size()
-		draw_line(points[i], points[ni], white, width * 0.4, true)
-	# Vertex glow caps — fill pizza-slice gaps at corners
+		draw_line(points[i], points[ni], col, w, true)
+	var cap_r: float = w * 0.5
 	for pt in points:
-		draw_circle(pt, width * 1.5, Color(color.r, color.g, color.b, 0.25))
-		draw_circle(pt, width * 0.9, Color(color.r, color.g, color.b, 0.5))
-		draw_circle(pt, width * 0.5, color)
-		draw_circle(pt, width * 0.2, Color(1, 1, 1, 0.6))
+		draw_circle(pt, cap_r, col)
 
 # ── Circle draw helpers (native primitives instead of polygon approximation) ──
 
 func _draw_neon_circle(center: Vector2, radius: float, color: Color, width: float) -> void:
-	# Fill
-	var glow := color
-	glow.a = 0.15
-	draw_circle(center, radius, glow)
-	# Outer glow arc
-	var gc := color
-	gc.a = 0.25
-	draw_arc(center, radius, 0.0, TAU, 128, gc, width * 3.0, true)
-	# Mid glow
-	gc.a = 0.5
-	draw_arc(center, radius, 0.0, TAU, 128, gc, width * 1.8, true)
-	# Bright core
-	draw_arc(center, radius, 0.0, TAU, 128, color, width, true)
-	# White-hot center
-	draw_arc(center, radius, 0.0, TAU, 128, Color(1, 1, 1, 0.6), width * 0.4, true)
+	var col := _neon_col(color)
+	draw_arc(center, radius, 0.0, TAU, 128, col, width * 0.7 * neon_width, true)
 
 func _draw_void_circle(center: Vector2, radius: float, width: float) -> void:
 	draw_circle(center, radius, VOID_FILL)

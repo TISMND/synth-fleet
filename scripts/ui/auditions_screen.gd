@@ -7,20 +7,8 @@ var _title_label: Label
 var _back_button: Button
 
 var _active_tab: int = 0
-var _tab_items_btn: Button
-var _tab_headsup_btn: Button
-var _tab_title_btn: Button
-var _items_content: MarginContainer
-var _headsup_content: MarginContainer
-var _title_content: MarginContainer
-var _tab_skins_btn: Button
-var _skins_content: MarginContainer
-var _tab_paint_btn: Button
-var _paint_content: MarginContainer
-var _tab_icons_btn: Button
-var _icons_content: MarginContainer
-var _tab_lv2bg_btn: Button
-var _lv2bg_content: MarginContainer
+var _tab_btns: Array[Button] = []
+var _tab_contents: Array[MarginContainer] = []
 
 
 func _ready() -> void:
@@ -62,126 +50,46 @@ func _build_ui() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(spacer)
 
-	_tab_items_btn = Button.new()
-	_tab_items_btn.text = "ITEMS"
-	_tab_items_btn.toggle_mode = true
-	_tab_items_btn.button_pressed = true
-	_tab_items_btn.pressed.connect(func(): _switch_to_tab(0))
-	header.add_child(_tab_items_btn)
+	# Tab definitions: [label, script_path]
+	var tabs: Array[Array] = [
+		["ITEMS", "res://scripts/ui/auditions_tab.gd"],
+		["HUMAN SKINS", "res://scripts/ui/skin_auditions.gd"],
+		["ALIEN SKINS", "res://scripts/ui/alien_skin_auditions.gd"],
+		["DETAILS", "res://scripts/ui/paint_auditions.gd"],
+		["ICONS", "res://scripts/ui/component_icon_auditions.gd"],
+		["LV2 BG", "res://scripts/ui/lv2_bg_auditions.gd"],
+	]
 
-	_tab_headsup_btn = Button.new()
-	_tab_headsup_btn.text = "HEADSUP"
-	_tab_headsup_btn.toggle_mode = true
-	_tab_headsup_btn.pressed.connect(func(): _switch_to_tab(1))
-	header.add_child(_tab_headsup_btn)
+	for i in tabs.size():
+		var tab_info: Array = tabs[i]
+		var btn := Button.new()
+		btn.text = tab_info[0] as String
+		btn.toggle_mode = true
+		btn.button_pressed = (i == 0)
+		var idx: int = i
+		btn.pressed.connect(func() -> void: _switch_to_tab(idx))
+		header.add_child(btn)
+		_tab_btns.append(btn)
 
-	_tab_title_btn = Button.new()
-	_tab_title_btn.text = "TITLE"
-	_tab_title_btn.toggle_mode = true
-	_tab_title_btn.pressed.connect(func(): _switch_to_tab(2))
-	header.add_child(_tab_title_btn)
-
-	_tab_skins_btn = Button.new()
-	_tab_skins_btn.text = "SKINS"
-	_tab_skins_btn.toggle_mode = true
-	_tab_skins_btn.pressed.connect(func(): _switch_to_tab(3))
-	header.add_child(_tab_skins_btn)
-
-	_tab_paint_btn = Button.new()
-	_tab_paint_btn.text = "DETAILS"
-	_tab_paint_btn.toggle_mode = true
-	_tab_paint_btn.pressed.connect(func(): _switch_to_tab(4))
-	header.add_child(_tab_paint_btn)
-
-	_tab_icons_btn = Button.new()
-	_tab_icons_btn.text = "ICONS"
-	_tab_icons_btn.toggle_mode = true
-	_tab_icons_btn.pressed.connect(func(): _switch_to_tab(5))
-	header.add_child(_tab_icons_btn)
-
-	_tab_lv2bg_btn = Button.new()
-	_tab_lv2bg_btn.text = "LV2 BG"
-	_tab_lv2bg_btn.toggle_mode = true
-	_tab_lv2bg_btn.pressed.connect(func(): _switch_to_tab(6))
-	header.add_child(_tab_lv2bg_btn)
-
-	var ItemsTabScript: GDScript = load("res://scripts/ui/auditions_tab.gd")
-	_items_content = ItemsTabScript.new()
-	_items_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_items_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main_vbox.add_child(_items_content)
-
-	var HeadsupTabScript: GDScript = load("res://scripts/ui/headsup_auditions.gd")
-	_headsup_content = HeadsupTabScript.new()
-	_headsup_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_headsup_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_headsup_content.visible = false
-	main_vbox.add_child(_headsup_content)
-
-	var TitleTabScript: GDScript = load("res://scripts/ui/title_auditions.gd")
-	_title_content = TitleTabScript.new()
-	_title_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_title_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_title_content.visible = false
-	main_vbox.add_child(_title_content)
-
-	var SkinsScript: GDScript = load("res://scripts/ui/skin_auditions.gd")
-	_skins_content = SkinsScript.new()
-	_skins_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_skins_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_skins_content.visible = false
-	main_vbox.add_child(_skins_content)
-
-	var PaintScript: GDScript = load("res://scripts/ui/paint_auditions.gd")
-	_paint_content = PaintScript.new()
-	_paint_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_paint_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_paint_content.visible = false
-	main_vbox.add_child(_paint_content)
-
-	var IconsScript: GDScript = load("res://scripts/ui/component_icon_auditions.gd")
-	_icons_content = IconsScript.new()
-	_icons_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_icons_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_icons_content.visible = false
-	main_vbox.add_child(_icons_content)
-
-	var Lv2BgScript: GDScript = load("res://scripts/ui/lv2_bg_auditions.gd")
-	_lv2bg_content = Lv2BgScript.new()
-	_lv2bg_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_lv2bg_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_lv2bg_content.visible = false
-	main_vbox.add_child(_lv2bg_content)
+		var script: GDScript = load(tab_info[1] as String) as GDScript
+		var content: MarginContainer = script.new() as MarginContainer
+		content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		content.visible = (i == 0)
+		main_vbox.add_child(content)
+		_tab_contents.append(content)
 
 	_setup_vhs_overlay()
 
 
 func _switch_to_tab(idx: int) -> void:
 	if _active_tab == idx:
-		match idx:
-			0: _tab_items_btn.button_pressed = true
-			1: _tab_headsup_btn.button_pressed = true
-			2: _tab_title_btn.button_pressed = true
-			3: _tab_skins_btn.button_pressed = true
-			4: _tab_paint_btn.button_pressed = true
-			5: _tab_icons_btn.button_pressed = true
-			6: _tab_lv2bg_btn.button_pressed = true
+		_tab_btns[idx].button_pressed = true
 		return
 	_active_tab = idx
-	_tab_items_btn.button_pressed = (idx == 0)
-	_tab_headsup_btn.button_pressed = (idx == 1)
-	_tab_title_btn.button_pressed = (idx == 2)
-	_tab_skins_btn.button_pressed = (idx == 3)
-	_tab_paint_btn.button_pressed = (idx == 4)
-	_tab_icons_btn.button_pressed = (idx == 5)
-	_tab_lv2bg_btn.button_pressed = (idx == 6)
-	_items_content.visible = (idx == 0)
-	_headsup_content.visible = (idx == 1)
-	_title_content.visible = (idx == 2)
-	_skins_content.visible = (idx == 3)
-	_paint_content.visible = (idx == 4)
-	_icons_content.visible = (idx == 5)
-	_lv2bg_content.visible = (idx == 6)
+	for i in _tab_btns.size():
+		_tab_btns[i].button_pressed = (i == idx)
+		_tab_contents[i].visible = (i == idx)
 
 
 # ── Theme ────────────────────────────────────────────────────────────
@@ -191,7 +99,7 @@ func _apply_theme() -> void:
 		ThemeManager.apply_grid_background(_bg)
 	if _back_button:
 		ThemeManager.apply_button_style(_back_button)
-	for btn in [_tab_items_btn, _tab_headsup_btn, _tab_title_btn, _tab_skins_btn, _tab_paint_btn, _tab_icons_btn, _tab_lv2bg_btn]:
+	for btn in _tab_btns:
 		if btn:
 			ThemeManager.apply_button_style(btn)
 	if _title_label:
