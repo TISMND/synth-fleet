@@ -19,7 +19,9 @@ var _vhs_content: ScrollContainer
 var _boss_bar_content: Control
 var _headers_content: Control
 var _synthwave_content: Control
-var _synthwave_rect: ColorRect
+var _synthwave_rect: ColorRect          # grid overlay (root viewport bloom)
+var _synthwave_planet_rect: ColorRect   # planet layer (SubViewport bloom)
+var _synthwave_planet_vp: SubViewport
 
 # Headers tab controls
 var _header_preview_label: Label
@@ -634,18 +636,77 @@ func _apply_theme_recursive(node: Node) -> void:
 
 const _SW_PATH: String = "user://settings/synthwave_bg.json"
 
+const _SW_SHARED_PARAMS: Array[String] = [
+	"horizon", "planet_x", "atmo_color",
+]
+
+const _SW_PLANET_PARAMS: Array[String] = [
+	"planet_x", "planet_radius", "planet_color_top", "planet_color_bot", "planet_hdr",
+	"slice_enabled", "slice_start", "slice_band_h", "slice_gap_base", "slice_gap_grow",
+	"ring_inner", "ring_outer", "ring_tilt", "ring_angle", "ring_color", "ring_hdr",
+	"ring_band_width", "ring_gap_base", "ring_gap_grow", "ring_glow_size",
+	"planet_tilted", "atmo_glow", "atmo_color",
+	"sky_top", "sky_mid", "sky_low", "horizon",
+	"accent_color", "nebula_intensity", "nebula_scale", "nebula_drift",
+	"star_density", "star_size", "star_glow_size", "star_brightness", "star_twinkle", "star_color",
+	"warp_streak_intensity", "warp_streak_speed", "warp_streak_count",
+	"warp_inner_radius", "warp_fade_width", "warp_max_length", "warp_streak_width",
+]
+
 
 func _build_synthwave_tab() -> void:
-	# Full-screen shader preview
+	# ── Planet layer: SubViewport with its own bloom (same as main menu) ──
+	_synthwave_planet_vp = SubViewport.new()
+	_synthwave_planet_vp.size = Vector2i(
+		int(ProjectSettings.get_setting("display/window/size/viewport_width")),
+		int(ProjectSettings.get_setting("display/window/size/viewport_height"))
+	)
+	_synthwave_planet_vp.transparent_bg = false
+	_synthwave_planet_vp.use_hdr_2d = true
+	_synthwave_planet_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	var world_env := WorldEnvironment.new()
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CANVAS
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	env.glow_enabled = true
+	env.glow_intensity = ThemeManager.get_float("glow_intensity")
+	env.glow_bloom = ThemeManager.get_float("glow_bloom")
+	env.glow_hdr_threshold = ThemeManager.get_float("glow_hdr_threshold")
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	for i in 7:
+		var val: float = ThemeManager.get_float("glow_level_%d" % i)
+		env.set_glow_level(i, val > 0.5)
+	world_env.environment = env
+	_synthwave_planet_vp.add_child(world_env)
+
+	_synthwave_planet_rect = ColorRect.new()
+	_synthwave_planet_rect.color = Color.WHITE
+	_synthwave_planet_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var planet_shader: Shader = load("res://assets/shaders/synthwave_planet.gdshader")
+	if planet_shader:
+		var pmat := ShaderMaterial.new()
+		pmat.shader = planet_shader
+		_synthwave_planet_rect.material = pmat
+	_synthwave_planet_vp.add_child(_synthwave_planet_rect)
+	_synthwave_content.add_child(_synthwave_planet_vp)
+
+	# Show SubViewport texture as background
+	var tex_rect := TextureRect.new()
+	tex_rect.texture = _synthwave_planet_vp.get_texture()
+	tex_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_synthwave_content.add_child(tex_rect)
+
+	# ── Grid overlay on top (root viewport bloom) ──
 	_synthwave_rect = ColorRect.new()
 	_synthwave_rect.color = Color.WHITE
 	_synthwave_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_synthwave_content.add_child(_synthwave_rect)
 
-	var shader: Shader = load("res://assets/shaders/synthwave_bg.gdshader")
-	if shader:
+	var grid_shader: Shader = load("res://assets/shaders/synthwave_bg.gdshader")
+	if grid_shader:
 		var mat := ShaderMaterial.new()
-		mat.shader = shader
+		mat.shader = grid_shader
 		_synthwave_rect.material = mat
 
 	# Semi-transparent slider panel on left
@@ -830,9 +891,15 @@ func _sw_tab_color(parent: VBoxContainer, param: String, display: String, defaul
 
 
 func _sw_set_param(param: String, value: Variant) -> void:
-	var mat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
-	if mat:
-		mat.set_shader_parameter(param, value)
+	# Route param to the correct shader(s)
+	if param in _SW_PLANET_PARAMS:
+		var pmat: ShaderMaterial = _synthwave_planet_rect.material as ShaderMaterial
+		if pmat:
+			pmat.set_shader_parameter(param, value)
+	if param not in _SW_PLANET_PARAMS or param in _SW_SHARED_PARAMS:
+		var gmat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
+		if gmat:
+			gmat.set_shader_parameter(param, value)
 	_sw_save_settings()
 
 
@@ -875,16 +942,18 @@ func _sw_load_settings() -> void:
 	if not data is Dictionary:
 		return
 	var d: Dictionary = data as Dictionary
-	var mat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
-	if not mat:
-		return
+	var planet_mat: ShaderMaterial = _synthwave_planet_rect.material as ShaderMaterial
+	var grid_mat: ShaderMaterial = _synthwave_rect.material as ShaderMaterial
 	for key in d:
 		var val: Variant = d[key]
 		if val is Dictionary:
 			var cd: Dictionary = val as Dictionary
 			if cd.has("r"):
 				val = Color(float(cd["r"]), float(cd["g"]), float(cd["b"]))
-		mat.set_shader_parameter(key, val)
+		if planet_mat and key in _SW_PLANET_PARAMS:
+			planet_mat.set_shader_parameter(key, val)
+		if grid_mat and (key not in _SW_PLANET_PARAMS or key in _SW_SHARED_PARAMS):
+			grid_mat.set_shader_parameter(key, val)
 	_sw_sync_controls(_synthwave_content, d)
 
 
