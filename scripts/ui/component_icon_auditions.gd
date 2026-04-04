@@ -32,6 +32,8 @@ const HDR_DEFAULTS: Dictionary = {
 	"fem_time_sphere": 5.00,
 	"beam_fractal_chamber": 0.85,
 	"fiddyfiddy": 1.85,
+	"low_key_core": 1.80,
+	"orbix80t": 1.40,
 	"p23cold": 1.45,
 	"radial_burst_core": 0.70,
 }
