@@ -10,20 +10,20 @@ uniform float scroll_offset : hint_range(0.0, 100000.0) = 0.0;
 
 // Cell/strand controls
 uniform float cell_scale : hint_range(0.3, 4.0) = 0.3;
-uniform float strand_thickness : hint_range(0.01, 0.5) = 0.04;
-uniform float fine_strand_thickness : hint_range(0.01, 0.5) = 0.095;
+uniform float strand_thickness : hint_range(0.01, 0.5) = 0.035;
+uniform float fine_strand_thickness : hint_range(0.01, 0.5) = 0.035;
 uniform float strand_sharpness : hint_range(0.0, 1.0) = 0.0;
 uniform float fine_strand_sharpness : hint_range(0.0, 1.0) = 1.0;
-uniform float fine_strand_blur : hint_range(0.0, 1.0) = 0.38;
+uniform float fine_strand_blur : hint_range(0.0, 1.0) = 0.04;
 uniform float strand_brightness : hint_range(0.0, 5.0) = 0.8;
-uniform float strand_hdr : hint_range(1.0, 6.0) = 3.7;
-uniform float fine_strand_mix : hint_range(0.0, 1.0) = 0.66;
+uniform float strand_hdr : hint_range(1.0, 6.0) = 4.9;
+uniform float fine_strand_mix : hint_range(0.0, 1.0) = 0.8;
 
 // Neon white-out: 0 = pure coral_color, 1 = white-hot core (color lives in bloom only)
-uniform float strand_white : hint_range(0.0, 1.0) = 0.08;
+uniform float strand_white : hint_range(0.0, 1.0) = 0.1;
 
-// Gap control: offsets edge distance so strands occupy less of each cell interior
-uniform float gap_size : hint_range(0.0, 0.5) = 0.0;
+// Density: lower = fewer, larger cells = more dark space
+uniform float density : hint_range(0.5, 6.0) = 1.4;
 
 // Drift animation
 uniform float drift_speed : hint_range(0.0, 1.0) = 0.12;
@@ -74,14 +74,13 @@ void fragment() {
 	float y_scroll = manual_scroll ? -scroll_offset : -TIME * scroll_speed;
 	vec2 cell_pos = (uv + vec2(0.0, y_scroll)) * 0.008 * cell_scale;
 
-	// Multi-scale voronoi for organic branching
-	vec3 vor1 = voronoi_smooth(cell_pos * 3.0, drift_speed);
-	vec3 vor2 = voronoi_smooth(cell_pos * 5.0 + vec2(13.7, 7.3), drift_speed * 0.7);
+	// Multi-scale voronoi for organic branching — density scales cell count
+	vec3 vor1 = voronoi_smooth(cell_pos * density, drift_speed);
+	vec3 vor2 = voronoi_smooth(cell_pos * (density * 1.667) + vec2(13.7, 7.3), drift_speed * 0.7);
 
 	// Edge detection — thickness controls the band width, sharpness controls falloff
-	// gap_size offsets edges inward so strands occupy less cell area (more dark space)
-	float edge1_raw = vor1.y - vor1.x + gap_size;
-	float edge2_raw = vor2.y - vor2.x + gap_size;
+	float edge1_raw = vor1.y - vor1.x;
+	float edge2_raw = vor2.y - vor2.x;
 	float strand_falloff = mix(0.6, 0.05, strand_sharpness);
 	float edge1 = smoothstep(strand_thickness + strand_thickness * strand_falloff, max(strand_thickness * 0.1, 0.005), edge1_raw);
 	float fine_falloff = mix(0.6, 0.05, fine_strand_sharpness);

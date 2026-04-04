@@ -169,19 +169,13 @@ func _setup_synthwave_bg() -> void:
 	vp.transparent_bg = false
 	vp.use_hdr_2d = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	# Own WorldEnvironment with bloom so ring/planet glow resolves here
+	# Godot 2D bloom only works on root viewport — SubViewport glow is ignored.
+	# ACES tonemaps the planet HDR to SDR so root bloom won't re-process it.
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CANVAS
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	env.glow_enabled = true
-	env.glow_intensity = ThemeManager.get_float("glow_intensity")
-	env.glow_bloom = ThemeManager.get_float("glow_bloom")
-	env.glow_hdr_threshold = ThemeManager.get_float("glow_hdr_threshold")
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	for i in 7:
-		var val: float = ThemeManager.get_float("glow_level_%d" % i)
-		env.set_glow_level(i, val > 0.5)
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.glow_enabled = false
 	world_env.environment = env
 	vp.add_child(world_env)
 

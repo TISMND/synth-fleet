@@ -20,15 +20,7 @@ var _hdr_fields: float = 1.0
 var _hdr_cores: float = 1.0
 var _weapon_sprites: Array[Dictionary] = []   # {sprite, base_intensity}
 var _field_materials: Array[Dictionary] = []   # {material, base_brightness}
-var _core_pies: Array = []  # Array of _PowerCorePie
-
-# Bar type colors for power core pie charts
-const BAR_COLORS: Dictionary = {
-	"shield": Color(0.3, 0.6, 1.0),
-	"hull": Color(0.2, 0.9, 0.3),
-	"thermal": Color(1.0, 0.4, 0.1),
-	"electric": Color(0.9, 0.8, 0.2),
-}
+var _core_pies: Array = []  # Array of _PowerCoreDevice
 
 var _scroll: ScrollContainer
 var _root_vbox: VBoxContainer
@@ -254,12 +246,33 @@ func _build_field_emitter_icons() -> void:
 
 # ── Power Cores ──────────────────────────────────────────────────────
 
+const CORE_VARIANT_NAMES: Array[String] = [
+	"REACTOR", "CELL", "PISTON", "CRYSTAL", "COIL", "CAPSULE", "TURBINE", "CONDUIT",
+]
+const CORE_AUDITION_SIZE: int = 48
+
 func _build_power_core_icons() -> void:
 	var cores: Array[PowerCoreData] = PowerCoreDataManager.load_all()
 	if cores.is_empty():
 		return
 
 	var section := _make_section("POWER CORE ICONS")
+
+	# Variant label header row
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", ITEM_GAP)
+	section.add_child(header)
+	var spacer := Control.new()
+	spacer.custom_minimum_size.x = 230
+	header.add_child(spacer)
+	for vname in CORE_VARIANT_NAMES:
+		var vlbl := Label.new()
+		vlbl.text = vname
+		vlbl.custom_minimum_size.x = CORE_AUDITION_SIZE
+		vlbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vlbl.add_theme_color_override("font_color", LABEL_COLOR)
+		vlbl.add_theme_font_size_override("font_size", 10)
+		header.add_child(vlbl)
 
 	for core in cores:
 		var row := HBoxContainer.new()
@@ -280,10 +293,10 @@ func _build_power_core_icons() -> void:
 		type_lbl.add_theme_font_size_override("font_size", 12)
 		row.add_child(type_lbl)
 
-		for sz in ICON_SIZES:
-			var cell := _make_icon_cell(sz)
+		for variant_idx in CORE_VARIANT_NAMES.size():
+			var cell := _make_icon_cell(CORE_AUDITION_SIZE)
 			row.add_child(cell)
-			_add_power_core_icon(cell, core, sz)
+			_add_power_core_icon(cell, core, CORE_AUDITION_SIZE, variant_idx)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -429,111 +442,312 @@ func _add_field_icon(cell: Control, style: FieldStyle, sz: int) -> void:
 	vp.add_child(sprite)
 
 
-# ── Power Core Icon (pie chart) ──────────────────────────────────────
+# ── Power Core Icon (chrome device) ──────────────────────────────────
 
-func _add_power_core_icon(cell: Control, core: PowerCoreData, sz: int) -> void:
+func _add_power_core_icon(cell: Control, core: PowerCoreData, sz: int, variant: int) -> void:
 	var vp: SubViewport = cell.get_child(0).get_child(0) as SubViewport
 
-	var pie := _PowerCorePie.new()
-	pie.core = core
-	pie.icon_size = sz
-	pie.hdr_mult = _hdr_cores
-	pie.position = Vector2(float(sz) / 2.0, float(sz) / 2.0)
-	_core_pies.append(pie)
-	vp.add_child(pie)
+	var device := _PowerCoreDevice.new()
+	device.core = core
+	device.icon_size = sz
+	device.variant = variant
+	device.hdr_mult = _hdr_cores
+	device.position = Vector2(float(sz) / 2.0, float(sz) / 2.0)
+	_core_pies.append(device)
+	vp.add_child(device)
 
 
-class _PowerCorePie extends Node2D:
-	## Draws a pie chart showing passive_effects distribution across bar types.
-	## Wedge size = magnitude of each bar type's passive effect.
-	## Ring segments show pulse_trigger count per bar type.
+class _PowerCoreDevice extends Node2D:
+	## Draws chrome-style vertical tech components with glowing colored internals.
+	## Each variant is a different device silhouette.
 	var core: PowerCoreData
 	var icon_size: int = 48
+	var variant: int = 0
 	var hdr_mult: float = 1.0
+
+	# Chrome palette
+	const CD := Color(0.12, 0.13, 0.18)
+	const CM := Color(0.30, 0.32, 0.38)
+	const CL := Color(0.55, 0.58, 0.65)
+	const CB := Color(0.80, 0.83, 0.90)
+	const CS := Color(1.0, 1.0, 1.0, 0.7)
+
+	func _get_glow_color() -> Color:
+		## Derive a glow color from the core's dominant bar type.
+		var best_type: String = "shield"
+		var best_val: float = 0.0
+		for bar_type in ["shield", "hull", "thermal", "electric"]:
+			var v: float = absf(float(core.passive_effects.get(bar_type, 0.0)))
+			var triggers: Array = core.pulse_triggers.get(bar_type, []) as Array
+			v += float(triggers.size()) * 0.5
+			if v > best_val:
+				best_val = v
+				best_type = bar_type
+		match best_type:
+			"shield": return Color(0.3, 0.55, 1.0)
+			"hull": return Color(0.2, 0.9, 0.35)
+			"thermal": return Color(1.0, 0.4, 0.1)
+			"electric": return Color(0.9, 0.75, 0.15)
+		return Color(0.4, 0.6, 1.0)
 
 	func _draw() -> void:
 		if not core:
 			return
-		var radius: float = float(icon_size) / 2.0 - 3.0
-		var center := Vector2.ZERO
+		match variant:
+			0: _draw_reactor()
+			1: _draw_cell()
+			2: _draw_piston()
+			3: _draw_crystal()
+			4: _draw_coil()
+			5: _draw_capsule()
+			6: _draw_turbine()
+			7: _draw_conduit()
 
-		# Gather passive effect magnitudes for pie slices
-		var slices: Array[Dictionary] = []
-		var total_magnitude: float = 0.0
-		for bar_type in ["shield", "hull", "thermal", "electric"]:
-			var val: float = absf(float(core.passive_effects.get(bar_type, 0.0)))
-			if val > 0.0:
-				var col: Color = BAR_COLORS.get(bar_type, Color.WHITE) as Color
-				slices.append({"type": bar_type, "value": val, "color": col})
-				total_magnitude += val
+	func _s(v: float) -> float:
+		return v * float(icon_size) / 48.0
 
-		# Gather pulse trigger counts for ring segments
-		var trigger_slices: Array[Dictionary] = []
-		var total_triggers: int = 0
-		for bar_type in ["shield", "hull", "thermal", "electric"]:
-			var triggers: Array = core.pulse_triggers.get(bar_type, []) as Array
-			if triggers.size() > 0:
-				var col: Color = BAR_COLORS.get(bar_type, Color.WHITE) as Color
-				trigger_slices.append({"type": bar_type, "count": triggers.size(), "color": col})
-				total_triggers += triggers.size()
+	func _chrome_fill(rect: Rect2) -> void:
+		## Horizontal chrome bands across a rect (bottom dark, top bright).
+		draw_rect(rect, CD)
+		var bands: Array[Color] = [
+			CD.lerp(CM, 0.3), CM, CL, CB,
+		]
+		var h: float = rect.size.y
+		for i in bands.size():
+			var t0: float = float(i) / float(bands.size())
+			var t1: float = float(i + 1) / float(bands.size())
+			var y0: float = rect.position.y + rect.size.y - t0 * h
+			var y1: float = rect.position.y + rect.size.y - t1 * h
+			var band := Rect2(rect.position.x, minf(y0, y1), rect.size.x, absf(y0 - y1))
+			draw_rect(band, bands[i])
 
-		# If we have passive effects, draw pie chart
-		if total_magnitude > 0.0:
-			var angle: float = -PI / 2.0  # Start from top
-			for slice in slices:
-				var sweep: float = float(slice["value"]) / total_magnitude * TAU
-				_draw_pie_wedge(center, radius, angle, angle + sweep, slice["color"] as Color)
-				angle += sweep
+	func _chrome_edges(rect: Rect2) -> void:
+		var tl := rect.position
+		var br := rect.position + rect.size
+		var tr := Vector2(br.x, tl.y)
+		var bl := Vector2(tl.x, br.y)
+		draw_line(tl, tr, CL, 1.0, true)  # top highlight
+		draw_line(tl, bl, CM, 1.0, true)   # left
+		draw_line(bl, br, CD, 1.0, true)   # bottom shadow
+		draw_line(tr, br, CD, 1.0, true)   # right shadow
 
-			# Inner ring showing trigger distribution
-			if total_triggers > 0:
-				var inner_r: float = radius * 0.45
-				var outer_r: float = radius * 0.65
-				var ring_angle: float = -PI / 2.0
-				for ts in trigger_slices:
-					var sweep: float = float(ts["count"]) / float(total_triggers) * TAU
-					_draw_ring_segment(center, inner_r, outer_r, ring_angle, ring_angle + sweep, ts["color"] as Color)
-					ring_angle += sweep
-		elif total_triggers > 0:
-			# No passive effects — just draw the trigger ring full size
-			var angle: float = -PI / 2.0
-			for ts in trigger_slices:
-				var sweep: float = float(ts["count"]) / float(total_triggers) * TAU
-				_draw_pie_wedge(center, radius, angle, angle + sweep, ts["color"] as Color)
-				angle += sweep
-		else:
-			# Fallback: empty gray circle
-			draw_circle(center, radius, Color(0.15, 0.15, 0.2))
+	func _chrome_rect(rect: Rect2) -> void:
+		_chrome_fill(rect)
+		_chrome_edges(rect)
 
-		# Thin border
-		draw_arc(center, radius, 0.0, TAU, 48, Color(0.4, 0.4, 0.5, 0.6), 1.0)
+	func _glow_rect(rect: Rect2, col: Color) -> void:
+		var m: float = 2.0 * hdr_mult
+		var hdr := Color(col.r * m, col.g * m, col.b * m, 0.85)
+		draw_rect(rect, hdr)
+		# Bright center core
+		var inner := rect.grow(-maxf(_s(1.5), 1.0))
+		if inner.size.x > 0.0 and inner.size.y > 0.0:
+			var mc: float = 3.5 * hdr_mult
+			draw_rect(inner, Color(col.r * mc, col.g * mc, col.b * mc, 0.6))
 
-	func _draw_pie_wedge(center: Vector2, radius: float, start_angle: float, end_angle: float, color: Color) -> void:
-		var segments: int = maxi(int((end_angle - start_angle) / TAU * 48.0), 3)
-		var points: PackedVector2Array = PackedVector2Array()
-		points.append(center)
-		for i in range(segments + 1):
-			var a: float = start_angle + (end_angle - start_angle) * float(i) / float(segments)
-			points.append(center + Vector2(cos(a), sin(a)) * radius)
-		# HDR color for bloom
-		var m: float = 1.8 * hdr_mult
-		var hdr := Color(color.r * m, color.g * m, color.b * m, 0.9)
-		draw_colored_polygon(points, hdr)
+	func _glow_circle(center: Vector2, radius: float, col: Color) -> void:
+		var m: float = 2.0 * hdr_mult
+		var hdr := Color(col.r * m, col.g * m, col.b * m, 0.85)
+		draw_circle(center, radius, hdr)
+		var mc: float = 3.5 * hdr_mult
+		draw_circle(center, radius * 0.5, Color(col.r * mc, col.g * mc, col.b * mc, 0.6))
 
-	func _draw_ring_segment(center: Vector2, inner_r: float, outer_r: float, start_angle: float, end_angle: float, color: Color) -> void:
-		var segments: int = maxi(int((end_angle - start_angle) / TAU * 32.0), 3)
-		var points: PackedVector2Array = PackedVector2Array()
-		# Outer arc forward
-		for i in range(segments + 1):
-			var a: float = start_angle + (end_angle - start_angle) * float(i) / float(segments)
-			points.append(center + Vector2(cos(a), sin(a)) * outer_r)
-		# Inner arc backward
-		for i in range(segments, -1, -1):
-			var a: float = start_angle + (end_angle - start_angle) * float(i) / float(segments)
-			points.append(center + Vector2(cos(a), sin(a)) * inner_r)
+	func _specular_line(rect: Rect2) -> void:
+		## Thin vertical specular gleam down the center.
+		var cx: float = rect.position.x + rect.size.x * 0.5
+		var top: float = rect.position.y + _s(2.0)
+		var bot: float = rect.position.y + rect.size.y - _s(2.0)
+		draw_line(Vector2(cx, top), Vector2(cx, bot), CS, maxf(_s(0.8), 0.5), true)
+
+
+	# ── Variant 0: REACTOR — tall hex body with central glow window ──
+	func _draw_reactor() -> void:
+		var w: float = _s(24.0)
+		var h: float = _s(38.0)
+		var gc := _get_glow_color()
+		# Main body
+		var body := Rect2(-w / 2.0, -h / 2.0, w, h)
+		_chrome_rect(body)
+		# Top/bottom caps (wider)
+		var cap_h: float = _s(5.0)
+		var cap_w: float = w + _s(4.0)
+		_chrome_rect(Rect2(-cap_w / 2.0, -h / 2.0, cap_w, cap_h))
+		_chrome_rect(Rect2(-cap_w / 2.0, h / 2.0 - cap_h, cap_w, cap_h))
+		# Central glow window
+		var gw: float = w - _s(8.0)
+		var gh: float = _s(14.0)
+		_glow_rect(Rect2(-gw / 2.0, -gh / 2.0, gw, gh), gc)
+		# Rivets
+		draw_circle(Vector2(-w / 2.0 + _s(3.0), -h / 2.0 + _s(3.0)), _s(1.2), CM)
+		draw_circle(Vector2(w / 2.0 - _s(3.0), -h / 2.0 + _s(3.0)), _s(1.2), CM)
+		_specular_line(body)
+
+	# ── Variant 1: CELL — battery-style stacked segments ──
+	func _draw_cell() -> void:
+		var w: float = _s(20.0)
+		var h: float = _s(36.0)
+		var gc := _get_glow_color()
+		# Terminal nub
+		var nub_w: float = _s(8.0)
+		_chrome_rect(Rect2(-nub_w / 2.0, -h / 2.0 - _s(3.0), nub_w, _s(4.0)))
+		# Main body
+		_chrome_rect(Rect2(-w / 2.0, -h / 2.0, w, h))
+		# Glow segments (3 horizontal slots)
+		var seg_h: float = _s(5.0)
+		var seg_w: float = w - _s(6.0)
+		var gap: float = _s(8.0)
+		for i in 3:
+			var y: float = -h / 2.0 + _s(6.0) + float(i) * gap
+			_glow_rect(Rect2(-seg_w / 2.0, y, seg_w, seg_h), gc)
+		# Side contacts
+		_chrome_rect(Rect2(-w / 2.0 - _s(2.5), -_s(4.0), _s(2.5), _s(8.0)))
+		_chrome_rect(Rect2(w / 2.0, -_s(4.0), _s(2.5), _s(8.0)))
+		_specular_line(Rect2(-w / 2.0, -h / 2.0, w, h))
+
+	# ── Variant 2: PISTON — mechanical cylinder with piston rod ──
+	func _draw_piston() -> void:
+		var w: float = _s(18.0)
+		var h: float = _s(32.0)
+		var gc := _get_glow_color()
+		# Cylinder body
+		_chrome_rect(Rect2(-w / 2.0, -h / 2.0, w, h))
+		# Piston rod (thin, extends top)
+		var rod_w: float = _s(4.0)
+		_chrome_rect(Rect2(-rod_w / 2.0, -h / 2.0 - _s(8.0), rod_w, _s(10.0)))
+		# Rod cap
+		_chrome_rect(Rect2(-_s(6.0), -h / 2.0 - _s(9.0), _s(12.0), _s(3.0)))
+		# Glow ring (horizontal slot near top of cylinder)
+		_glow_rect(Rect2(-w / 2.0 + _s(2.0), -h / 2.0 + _s(4.0), w - _s(4.0), _s(4.0)), gc)
+		# Exhaust port glow at bottom
+		_glow_rect(Rect2(-_s(5.0), h / 2.0 - _s(6.0), _s(10.0), _s(4.0)), gc)
+		# Mounting bolts
+		var bolt_y: float = h / 2.0 - _s(2.0)
+		draw_circle(Vector2(-w / 2.0 + _s(2.5), bolt_y), _s(1.5), CL)
+		draw_circle(Vector2(w / 2.0 - _s(2.5), bolt_y), _s(1.5), CL)
+		_specular_line(Rect2(-w / 2.0, -h / 2.0, w, h))
+
+	# ── Variant 3: CRYSTAL — angular shard held in a chrome bracket ──
+	func _draw_crystal() -> void:
+		var gc := _get_glow_color()
+		# Bracket frame (U-shape via two side rails + bottom bar)
+		var bw: float = _s(26.0)
+		var bh: float = _s(38.0)
+		var rail: float = _s(4.0)
+		_chrome_rect(Rect2(-bw / 2.0, -bh / 2.0, rail, bh))  # left rail
+		_chrome_rect(Rect2(bw / 2.0 - rail, -bh / 2.0, rail, bh))  # right rail
+		_chrome_rect(Rect2(-bw / 2.0, bh / 2.0 - rail, bw, rail))  # bottom bar
+		_chrome_rect(Rect2(-bw / 2.0, -bh / 2.0, bw, rail))  # top bar
+		# Crystal shard — diamond shape, glowing
+		var cx: float = 0.0
+		var cy: float = -_s(2.0)
+		var cw: float = _s(10.0)
+		var ch: float = _s(24.0)
 		var m: float = 2.5 * hdr_mult
-		var hdr := Color(color.r * m, color.g * m, color.b * m, 1.0)
-		draw_colored_polygon(points, hdr)
+		var hdr := Color(gc.r * m, gc.g * m, gc.b * m, 0.9)
+		var crystal_pts := PackedVector2Array([
+			Vector2(cx, cy - ch / 2.0),         # top point
+			Vector2(cx + cw / 2.0, cy - ch * 0.15),  # upper right
+			Vector2(cx + cw / 2.0, cy + ch * 0.15),  # lower right
+			Vector2(cx, cy + ch / 2.0),          # bottom point
+			Vector2(cx - cw / 2.0, cy + ch * 0.15),  # lower left
+			Vector2(cx - cw / 2.0, cy - ch * 0.15),  # upper left
+		])
+		draw_colored_polygon(crystal_pts, hdr)
+		# Bright core line
+		var mc: float = 4.0 * hdr_mult
+		draw_line(Vector2(cx, cy - ch / 2.0 + _s(3.0)), Vector2(cx, cy + ch / 2.0 - _s(3.0)),
+			Color(gc.r * mc, gc.g * mc, gc.b * mc, 0.7), _s(2.0), true)
+
+	# ── Variant 4: COIL — winding around a glowing core rod ──
+	func _draw_coil() -> void:
+		var gc := _get_glow_color()
+		var rod_w: float = _s(6.0)
+		var rod_h: float = _s(34.0)
+		# Central glow rod
+		_glow_rect(Rect2(-rod_w / 2.0, -rod_h / 2.0, rod_w, rod_h), gc)
+		# Chrome coil windings (horizontal bars at intervals)
+		var coil_w: float = _s(20.0)
+		var coil_h: float = _s(3.0)
+		var coil_count: int = 6
+		var spacing: float = (rod_h - _s(6.0)) / float(coil_count - 1)
+		for i in coil_count:
+			var y: float = -rod_h / 2.0 + _s(3.0) + float(i) * spacing - coil_h / 2.0
+			_chrome_rect(Rect2(-coil_w / 2.0, y, coil_w, coil_h))
+		# Top/bottom chrome caps
+		_chrome_rect(Rect2(-_s(10.0), -rod_h / 2.0 - _s(3.0), _s(20.0), _s(4.0)))
+		_chrome_rect(Rect2(-_s(10.0), rod_h / 2.0 - _s(1.0), _s(20.0), _s(4.0)))
+
+	# ── Variant 5: CAPSULE — rounded pill shape with viewport window ──
+	func _draw_capsule() -> void:
+		var gc := _get_glow_color()
+		var w: float = _s(20.0)
+		var h: float = _s(36.0)
+		var r: float = w / 2.0
+		# Capsule body (rect + circles for top/bottom rounding)
+		_chrome_rect(Rect2(-w / 2.0, -h / 2.0 + r, w, h - w))
+		# Top dome
+		draw_circle(Vector2(0.0, -h / 2.0 + r), r, CM)
+		draw_arc(Vector2(0.0, -h / 2.0 + r), r, 0.0, TAU, 24, CL, 1.0)
+		# Bottom dome
+		draw_circle(Vector2(0.0, h / 2.0 - r), r, CD)
+		draw_arc(Vector2(0.0, h / 2.0 - r), r, 0.0, TAU, 24, CM, 1.0)
+		# Viewport window (circular glow)
+		_glow_circle(Vector2(0.0, -_s(3.0)), _s(6.0), gc)
+		# Status light at bottom
+		_glow_circle(Vector2(0.0, h / 2.0 - r - _s(2.0)), _s(2.5), gc)
+		# Chrome band across middle
+		_chrome_rect(Rect2(-w / 2.0 - _s(2.0), -_s(1.5), w + _s(4.0), _s(3.0)))
+		_specular_line(Rect2(-w / 2.0, -h / 2.0, w, h))
+
+	# ── Variant 6: TURBINE — circular housing with radial blades ──
+	func _draw_turbine() -> void:
+		var gc := _get_glow_color()
+		var outer_r: float = _s(18.0)
+		var inner_r: float = _s(8.0)
+		# Outer housing ring
+		draw_circle(Vector2.ZERO, outer_r, CD)
+		draw_arc(Vector2.ZERO, outer_r, 0.0, TAU, 32, CL, _s(3.0))
+		draw_arc(Vector2.ZERO, outer_r - _s(2.5), 0.0, TAU, 32, CM, _s(1.0))
+		# Inner glowing core
+		_glow_circle(Vector2.ZERO, inner_r, gc)
+		# Radial chrome blades
+		var blade_count: int = 6
+		for i in blade_count:
+			var angle: float = float(i) / float(blade_count) * TAU - PI / 2.0
+			var from_pt: Vector2 = Vector2(cos(angle), sin(angle)) * (inner_r + _s(1.0))
+			var to_pt: Vector2 = Vector2(cos(angle), sin(angle)) * (outer_r - _s(2.0))
+			draw_line(from_pt, to_pt, CL, _s(2.5), true)
+			draw_line(from_pt, to_pt, CB, _s(1.0), true)
+		# Glow between blades (arc segments)
+		var m: float = 1.5 * hdr_mult
+		var glow := Color(gc.r * m, gc.g * m, gc.b * m, 0.4)
+		draw_arc(Vector2.ZERO, (inner_r + outer_r) * 0.5, 0.0, TAU, 32, glow, _s(4.0))
+		# Center bolt
+		draw_circle(Vector2.ZERO, _s(2.5), CB)
+		draw_circle(Vector2.ZERO, _s(1.5), CS)
+
+	# ── Variant 7: CONDUIT — vertical pipe with multiple glow segments ──
+	func _draw_conduit() -> void:
+		var gc := _get_glow_color()
+		var pipe_w: float = _s(12.0)
+		var pipe_h: float = _s(40.0)
+		# Main vertical pipe
+		_chrome_rect(Rect2(-pipe_w / 2.0, -pipe_h / 2.0, pipe_w, pipe_h))
+		# Junction flanges (wider discs at intervals)
+		var flange_w: float = pipe_w + _s(8.0)
+		var flange_h: float = _s(3.0)
+		var flange_positions: Array[float] = [-pipe_h / 2.0, -_s(8.0), _s(6.0), pipe_h / 2.0 - flange_h]
+		for fy in flange_positions:
+			_chrome_rect(Rect2(-flange_w / 2.0, fy, flange_w, flange_h))
+		# Glow segments between flanges
+		var glow_w: float = pipe_w - _s(4.0)
+		_glow_rect(Rect2(-glow_w / 2.0, -pipe_h / 2.0 + _s(4.0), glow_w, _s(8.0)), gc)
+		_glow_rect(Rect2(-glow_w / 2.0, -_s(4.0), glow_w, _s(8.0)), gc)
+		_glow_rect(Rect2(-glow_w / 2.0, _s(10.0), glow_w, _s(6.0)), gc)
+		# Side inlet stubs
+		_chrome_rect(Rect2(-flange_w / 2.0 - _s(4.0), -_s(10.0), _s(4.0), _s(4.0)))
+		_chrome_rect(Rect2(flange_w / 2.0, _s(4.0), _s(4.0), _s(4.0)))
+		_specular_line(Rect2(-pipe_w / 2.0, -pipe_h / 2.0, pipe_w, pipe_h))
 
 
 class _IconBorder extends Control:

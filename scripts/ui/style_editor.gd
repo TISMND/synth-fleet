@@ -667,15 +667,8 @@ func _build_synthwave_tab() -> void:
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CANVAS
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	env.glow_enabled = true
-	env.glow_intensity = ThemeManager.get_float("glow_intensity")
-	env.glow_bloom = ThemeManager.get_float("glow_bloom")
-	env.glow_hdr_threshold = ThemeManager.get_float("glow_hdr_threshold")
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	for i in 7:
-		var val: float = ThemeManager.get_float("glow_level_%d" % i)
-		env.set_glow_level(i, val > 0.5)
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.glow_enabled = false
 	world_env.environment = env
 	_synthwave_planet_vp.add_child(world_env)
 

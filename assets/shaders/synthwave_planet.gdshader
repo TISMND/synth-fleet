@@ -135,6 +135,9 @@ void fragment() {
 
 	float rdist = length(vec2(pd_rot.x, pd_rot.y / ring_tilt));
 	bool in_ring = rdist > ring_inner && rdist < ring_outer;
+	// Soft front/back blend instead of hard boolean — SubViewport bloom can't
+	// soften the boundary like root viewport bloom did in the original shader.
+	float ring_front_blend = smoothstep(-0.015, 0.015, pd_rot.y);
 	bool ring_front = pd_rot.y > 0.0;
 
 	float ring_alpha = 0.0;
@@ -171,11 +174,16 @@ void fragment() {
 	float atmo = exp(-pdist * 5.5 / planet_radius) * atmo_glow;
 	col += atmo_color * atmo;
 
-	if (in_ring && !ring_front && !on_planet) {
-		col = mix(col, ring_color * ring_hdr * 0.5, ring_alpha);
+	// Ring behind planet (blended by ring_front_blend)
+	if (in_ring && !on_planet) {
+		float back_amount = 1.0 - ring_front_blend;
+		if (back_amount > 0.001) {
+			col = mix(col, ring_color * ring_hdr * 0.5, ring_alpha * back_amount);
+		}
 	}
-	if (!ring_front && !on_planet) {
-		col += ring_color * ring_glow_val * ring_hdr * 0.3;
+	if (!on_planet) {
+		float back_amount = 1.0 - ring_front_blend;
+		col += ring_color * ring_glow_val * ring_hdr * 0.3 * back_amount;
 	}
 
 	if (on_planet) {
@@ -206,13 +214,14 @@ void fragment() {
 		col = mix(col, pcol * planet_hdr, edge);
 	}
 
-	if (in_ring && ring_front) {
-		float front_alpha = ring_alpha;
+	// Ring in front of planet (blended by ring_front_blend)
+	if (in_ring) {
+		float front_alpha = ring_alpha * ring_front_blend;
 		if (on_planet) { front_alpha *= 0.85; }
 		col = mix(col, ring_color * ring_hdr, front_alpha);
 	}
-	if (ring_front || !on_planet) {
-		col += ring_color * ring_glow_val * ring_hdr * 0.5;
+	if (!on_planet) {
+		col += ring_color * ring_glow_val * ring_hdr * 0.5 * ring_front_blend;
 	}
 
 	// ── Stars ──

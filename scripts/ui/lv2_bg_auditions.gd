@@ -11,16 +11,16 @@ const SHADER_PATH: String = "res://assets/shaders/bg_bioluminescent_reef.gdshade
 
 const SLIDER_DEFS: Array[Dictionary] = [
 	{"key": "cell_scale", "label": "CELL SCALE", "min": 0.3, "max": 4.0, "default": 0.3, "step": 0.05},
-	{"key": "gap_size", "label": "GAP SIZE", "min": 0.0, "max": 0.5, "default": 0.0, "step": 0.01},
-	{"key": "strand_thickness", "label": "STRAND THICKNESS", "min": 0.01, "max": 0.5, "default": 0.04, "step": 0.005},
+	{"key": "density", "label": "DENSITY", "min": 0.5, "max": 6.0, "default": 1.4, "step": 0.1},
+	{"key": "strand_thickness", "label": "STRAND THICKNESS", "min": 0.01, "max": 0.5, "default": 0.035, "step": 0.005},
 	{"key": "strand_sharpness", "label": "STRAND SHARPNESS", "min": 0.0, "max": 1.0, "default": 0.0, "step": 0.02},
-	{"key": "fine_strand_thickness", "label": "FINE THICKNESS", "min": 0.01, "max": 0.5, "default": 0.095, "step": 0.005},
+	{"key": "fine_strand_thickness", "label": "FINE THICKNESS", "min": 0.01, "max": 0.5, "default": 0.035, "step": 0.005},
 	{"key": "fine_strand_sharpness", "label": "FINE SHARPNESS", "min": 0.0, "max": 1.0, "default": 1.0, "step": 0.02},
-	{"key": "fine_strand_blur", "label": "FINE STRAND BLUR", "min": 0.0, "max": 1.0, "default": 0.38, "step": 0.02},
-	{"key": "fine_strand_mix", "label": "FINE STRAND MIX", "min": 0.0, "max": 1.0, "default": 0.66, "step": 0.02},
+	{"key": "fine_strand_blur", "label": "FINE STRAND BLUR", "min": 0.0, "max": 1.0, "default": 0.04, "step": 0.02},
+	{"key": "fine_strand_mix", "label": "FINE STRAND MIX", "min": 0.0, "max": 1.0, "default": 0.8, "step": 0.02},
 	{"key": "strand_brightness", "label": "STRAND BRIGHTNESS", "min": 0.0, "max": 5.0, "default": 0.8, "step": 0.05},
-	{"key": "strand_hdr", "label": "STRAND HDR", "min": 1.0, "max": 6.0, "default": 3.7, "step": 0.1},
-	{"key": "strand_white", "label": "STRAND WHITE", "min": 0.0, "max": 1.0, "default": 0.08, "step": 0.02},
+	{"key": "strand_hdr", "label": "STRAND HDR", "min": 1.0, "max": 6.0, "default": 4.9, "step": 0.1},
+	{"key": "strand_white", "label": "STRAND WHITE", "min": 0.0, "max": 1.0, "default": 0.1, "step": 0.02},
 	{"key": "drift_speed", "label": "DRIFT SPEED", "min": 0.0, "max": 1.0, "default": 0.12, "step": 0.02},
 ]
 
