@@ -1,5 +1,6 @@
 {
-	"background_shader": "",
+	"background_shader": "res://assets/shaders/bg_synthwave_pulse.gdshader",
+	"bg_particles": [],
 	"bpm": 110.0,
 	"deep_background": "",
 	"display_name": "Test Level",
@@ -52,15 +53,15 @@
 			"is_melee": false,
 			"mirror_h": false,
 			"mirror_v": false,
-			"path_id": "path_4",
+			"path_id": "path_5",
 			"rotate_with_path": false,
-			"ship_id": "cargo_ship",
+			"ship_id": "enemy_1",
 			"spacing": 200.0,
-			"speed": 200.0,
-			"trigger_y": 560.58394160584,
+			"speed": 50.0,
+			"trigger_y": 548.333333333333,
 			"turn_speed": 90.0,
-			"weapons_active": true,
-			"x_offset": -8.75912408759099
+			"weapons_active": false,
+			"x_offset": 310.0
 		}
 	],
 	"events": [],

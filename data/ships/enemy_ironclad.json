@@ -1,5 +1,7 @@
 {
 	"collision_height": 162.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "capsule",
 	"collision_width": 114.0,
 	"display_name": "Ironclad",
@@ -17,8 +19,12 @@
 	],
 	"hardpoints": [],
 	"id": "enemy_ironclad",
+	"level": "lifeform",
 	"lines": [],
-	"render_mode": "sport",
+	"neon_hdr": 1.0,
+	"neon_white": 0.0,
+	"neon_width": 1.0,
+	"render_mode": "neon",
 	"stats": {
 		"acceleration": 150.0,
 		"core_slots": 1.0,
@@ -37,6 +43,5 @@
 	},
 	"type": "enemy",
 	"visual_id": "ironclad",
-	"weapon_id": "enemy_beauty_beam",
-	"level": "lifeform"
+	"weapon_id": "enemy_beauty_beam"
 }

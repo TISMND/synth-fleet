@@ -21,6 +21,9 @@
 	"id": "enemy_helix",
 	"level": "lifeform",
 	"lines": [],
+	"neon_hdr": 2.34,
+	"neon_white": 0.0,
+	"neon_width": 0.24,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 400.0,

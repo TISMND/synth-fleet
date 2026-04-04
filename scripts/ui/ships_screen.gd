@@ -85,7 +85,7 @@ func _ready() -> void:
 	# UI panels (left/right/bottom) stay on root and render on top.
 	var svc := SubViewportContainer.new()
 	svc.name = "ShipViewportContainer"
-	svc.set_anchors_preset(Control.PRESET_FULL_RECT)
+	svc.size = Vector2(1920, 1080)
 	svc.stretch = true
 	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(svc)
@@ -95,8 +95,8 @@ func _ready() -> void:
 	_ship_viewport.size = Vector2i(1920, 1080)
 	_ship_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_ship_viewport.transparent_bg = false
+	_ship_viewport.use_hdr_2d = true  # HDR without ACES — matches enemy bake viewport so bloom is identical to in-game
 	svc.add_child(_ship_viewport)
-	VFXFactory.add_bloom_to_viewport(_ship_viewport)
 
 	# Dark background inside SubViewport
 	_ship_grid_bg = ColorRect.new()
@@ -117,6 +117,7 @@ func _ready() -> void:
 
 	_hitbox_overlay = _HitboxOverlay.new()
 	_hitbox_overlay.viewer = self
+	_hitbox_overlay.visible = false
 	_ship_viewport.add_child(_hitbox_overlay)
 
 	_ship_selector = _ShipSelector.new()
@@ -742,7 +743,7 @@ func _update_boss_preview() -> void:
 		return
 	# Show hitbox overlay for boss parts
 	if _hitbox_overlay:
-		_hitbox_overlay.visible = true
+		_hitbox_overlay.visible = false
 		_hitbox_overlay.queue_redraw()
 	var vp_size: Vector2 = get_viewport_rect().size
 	var center := Vector2(
@@ -1060,7 +1061,8 @@ func _build_enemy_right_panel() -> void:
 
 	# Set slider values from working enemy
 	_updating_sliders = true
-	var direct_keys: Array[String] = ["explosion_size", "collision_width", "collision_height"]
+	var direct_keys: Array[String] = ["explosion_size", "collision_width", "collision_height",
+		"neon_hdr", "neon_white", "neon_width"]
 	for key in _sliders:
 		var slider: HSlider = _sliders[key]
 		var val: float = 0.0
@@ -1069,7 +1071,12 @@ func _build_enemy_right_panel() -> void:
 		else:
 			val = float(_working_enemy.stats.get(key, slider.min_value))
 		slider.value = val
-		_slider_labels[key].text = str(int(val)) if slider.step >= 1.0 else str(snapped(val, 0.1))
+		if slider.step < 0.1:
+			_slider_labels[key].text = "%.2f" % val
+		elif slider.step < 1.0:
+			_slider_labels[key].text = str(snapped(val, 0.1))
+		else:
+			_slider_labels[key].text = str(int(val))
 	_updating_sliders = false
 
 
