@@ -31,6 +31,9 @@
 	"id": "enemy_archon_wing_l",
 	"level": "boss",
 	"lines": [],
+	"neon_hdr": 2.14,
+	"neon_white": 0.28,
+	"neon_width": 0.145,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 100.0,

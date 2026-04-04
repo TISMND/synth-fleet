@@ -21,9 +21,9 @@
 	"id": "enemy_prism",
 	"level": "geometric",
 	"lines": [],
-	"neon_hdr": 2.28,
+	"neon_hdr": 2.65,
 	"neon_white": 0.0,
-	"neon_width": 0.44,
+	"neon_width": 0.335,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 500.0,

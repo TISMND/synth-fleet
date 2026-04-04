@@ -3,7 +3,7 @@ extends Node2D
 ## Full-size ship renderer with banking, chrome+neon modes, all ships.
 ## Extracted from ships_screen.gd _ShipDraw for reuse across the codebase.
 
-enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT, GUNMETAL, MILITIA, STEALTH, CAUTION, DEBUG_MATERIALS }
+enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT, GUNMETAL, MILITIA, STEALTH, CAUTION, DEBUG_MATERIALS, BIOLUME, TOXIC, CORAL, ABYSSAL, BLOODMOON, PHANTOM, AURORA }
 
 const CHROME_DARK := Color(0.12, 0.13, 0.18)
 const CHROME_MID := Color(0.35, 0.38, 0.45)
@@ -73,6 +73,41 @@ const CAUTION_DETAIL := Color(0.06, 0.06, 0.04)  # Black (same as accent)
 const SPORE_CORE := Color(0.0, 0.8, 0.5, 0.12)
 const SPORE_DOT := Color(0.2, 1.0, 0.7)
 const SPORE_DOT_ALT := Color(0.8, 0.3, 1.0)
+
+# Biolume — deep ocean bioluminescent: near-black body, vivid magenta/cyan organs
+const BIOLUME_HULL := Color(0.05, 0.15, 0.25)
+const BIOLUME_ACCENT := Color(1.0, 0.1, 0.6)
+const BIOLUME_ENGINE := Color(0.0, 0.8, 1.0)
+const BIOLUME_CANOPY := Color(0.0, 0.4, 0.6)
+const BIOLUME_DETAIL := Color(0.0, 1.0, 0.8)
+
+# Toxic — radioactive warning: sickly green, hot yellow
+const TOXIC_HULL := Color(0.1, 0.9, 0.1)
+const TOXIC_ACCENT := Color(0.95, 0.95, 0.0)
+const TOXIC_ENGINE := Color(0.4, 1.0, 0.0)
+const TOXIC_CANOPY := Color(0.3, 0.5, 0.0)
+const TOXIC_DETAIL := Color(0.7, 1.0, 0.2)
+
+# Coral — warm reef: living pink, peach, warm orange
+const CORAL_HULL := Color(1.0, 0.4, 0.3)
+const CORAL_ACCENT := Color(1.0, 0.7, 0.4)
+const CORAL_ENGINE := Color(1.0, 0.5, 0.6)
+const CORAL_CANOPY := Color(0.8, 0.3, 0.4)
+const CORAL_DETAIL := Color(1.0, 0.85, 0.5)
+
+# Abyssal — deep void: faint pale traces on near-black, ghostly
+const ABYSSAL_HULL := Color(0.08, 0.08, 0.15)
+const ABYSSAL_ACCENT := Color(0.3, 0.35, 0.5)
+const ABYSSAL_ENGINE := Color(0.15, 0.2, 0.4)
+const ABYSSAL_CANOPY := Color(0.05, 0.06, 0.12)
+const ABYSSAL_DETAIL := Color(0.2, 0.25, 0.4)
+
+# Bloodmoon — aggressive crimson with pale bone accents
+const BLOOD_HULL := Color(0.8, 0.05, 0.05)
+const BLOOD_ACCENT := Color(0.95, 0.85, 0.7)
+const BLOOD_ENGINE := Color(1.0, 0.2, 0.0)
+const BLOOD_CANOPY := Color(0.4, 0.02, 0.05)
+const BLOOD_DETAIL := Color(0.7, 0.6, 0.5)
 
 var hull_color := Color(0.0, 0.9, 1.0)
 var accent_color := Color(1.0, 0.2, 0.6)
@@ -373,11 +408,57 @@ func _apply_palette() -> void:
 			_chrome_mid = Color(0.55, 0.44, 0.04)
 			_chrome_light = Color(0.7, 0.56, 0.05)
 			_chrome_bright = Color(0.85, 0.68, 0.08)
+		RenderMode.BIOLUME:
+			hull_color = BIOLUME_HULL
+			accent_color = BIOLUME_ACCENT
+			engine_color = BIOLUME_ENGINE
+			canopy_color = BIOLUME_CANOPY
+			detail_color = BIOLUME_DETAIL
+		RenderMode.TOXIC:
+			hull_color = TOXIC_HULL
+			accent_color = TOXIC_ACCENT
+			engine_color = TOXIC_ENGINE
+			canopy_color = TOXIC_CANOPY
+			detail_color = TOXIC_DETAIL
+		RenderMode.CORAL:
+			hull_color = CORAL_HULL
+			accent_color = CORAL_ACCENT
+			engine_color = CORAL_ENGINE
+			canopy_color = CORAL_CANOPY
+			detail_color = CORAL_DETAIL
+		RenderMode.ABYSSAL:
+			hull_color = ABYSSAL_HULL
+			accent_color = ABYSSAL_ACCENT
+			engine_color = ABYSSAL_ENGINE
+			canopy_color = ABYSSAL_CANOPY
+			detail_color = ABYSSAL_DETAIL
+		RenderMode.BLOODMOON:
+			hull_color = BLOOD_HULL
+			accent_color = BLOOD_ACCENT
+			engine_color = BLOOD_ENGINE
+			canopy_color = BLOOD_CANOPY
+			detail_color = BLOOD_DETAIL
+		RenderMode.PHANTOM:
+			# Ghostly phase-shift: colors fade in and out of visibility
+			var vis: float = 0.3 + sin(time * 0.8) * 0.25
+			hull_color = Color(0.4, 0.5, 0.7, vis)
+			accent_color = Color(0.7, 0.8, 1.0, vis * 1.5)
+			engine_color = Color(0.3, 0.4, 0.8, vis)
+			canopy_color = Color(0.2, 0.25, 0.4, vis * 0.5)
+			detail_color = Color(0.5, 0.6, 0.9, vis * 1.2)
+		RenderMode.AURORA:
+			# Northern lights: slow sweeping hue shift, but pastel/soft instead of SPORT's saturated
+			var hue_a: float = fmod(time * 0.08, 1.0)
+			hull_color = Color.from_hsv(hue_a, 0.4, 1.0)
+			accent_color = Color.from_hsv(fmod(hue_a + 0.15, 1.0), 0.5, 0.9)
+			engine_color = Color.from_hsv(fmod(hue_a + 0.3, 1.0), 0.3, 1.0)
+			canopy_color = Color.from_hsv(fmod(hue_a + 0.5, 1.0), 0.35, 0.8)
+			detail_color = Color.from_hsv(fmod(hue_a + 0.65, 1.0), 0.45, 0.95)
 		RenderMode.CHROME:
 			hull_color = Color(0.0, 0.9, 1.0)
 			accent_color = Color(1.0, 0.2, 0.6)
 			engine_color = Color(1.0, 0.5, 0.1)
-			canopy_color = Color(0.08, 0.1, 0.18)  # Dark blue-grey tinted glass
+			canopy_color = Color(0.08, 0.1, 0.18)
 			detail_color = Color(0.0, 1.0, 0.7)
 			_chrome_dark = CHROME_DARK
 			_chrome_mid = CHROME_MID
@@ -3346,7 +3427,7 @@ func _draw_archon_core() -> void:
 			Vector2(rx, ridge_y + ridge_r * 0.6),   # bottom (into hull)
 			Vector2(rx - ridge_r * 0.7, ridge_y),   # left
 		])
-		_poly(rdiamond, ridge_color, 1.2 * s)
+		_poly(rdiamond, ridge_color, 2.4 * s)
 
 	# Red corner spurs — larger diamonds at the top corners, angled outward
 	for corner_side in [-1.0, 1.0]:
@@ -3359,7 +3440,7 @@ func _draw_archon_core() -> void:
 			Vector2(cx, cy + corner_r * 0.5),                  # bottom (into hull)
 			Vector2(cx - corner_side * corner_r * 0.6, cy),    # inner side
 		])
-		_poly(corner_diamond, ridge_color, 1.8 * s)
+		_poly(corner_diamond, ridge_color, 3.6 * s)
 
 	# V-cut armor seams — angular lines across the face
 	var mid_y: float = crown_y + band_h * 0.5
@@ -3420,7 +3501,7 @@ func _draw_archon_core() -> void:
 		Vector2(0, bay_cy - br), Vector2(br, bay_cy),
 		Vector2(0, bay_cy + br), Vector2(-br, bay_cy),
 	])
-	_poly(bay_diamond, Color(engine_color.r, engine_color.g, engine_color.b, bay_pulse), 1.2 * s)
+	_poly(bay_diamond, Color(engine_color.r, engine_color.g, engine_color.b, bay_pulse), 4.8 * s)
 
 	# Crown nexus — sharp diamond with rotating inner cross
 	var crown_pulse: float = 0.5 + sin(time * 2.0) * 0.3

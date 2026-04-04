@@ -10,22 +10,22 @@ var _sliders: Dictionary = {}
 const SHADER_PATH: String = "res://assets/shaders/bg_bioluminescent_reef.gdshader"
 
 const SLIDER_DEFS: Array[Dictionary] = [
-	{"key": "density", "label": "BG TEXTURE SCALE", "min": 0.3, "max": 4.0, "default": 3.2, "step": 0.05},
-	{"key": "cell_scale", "label": "CELL SCALE", "min": 0.3, "max": 4.0, "default": 0.6, "step": 0.05},
-	{"key": "strand_thickness", "label": "STRAND THICKNESS", "min": 0.01, "max": 0.5, "default": 0.025, "step": 0.005},
-	{"key": "strand_sharpness", "label": "STRAND SHARPNESS", "min": 0.0, "max": 1.0, "default": 0.0, "step": 0.02},
+	{"key": "density", "label": "BG TEXTURE SCALE", "min": 0.3, "max": 4.0, "default": 4.0, "step": 0.05},
+	{"key": "cell_scale", "label": "CELL SCALE", "min": 0.3, "max": 4.0, "default": 0.75, "step": 0.05},
+	{"key": "strand_thickness", "label": "STRAND THICKNESS", "min": 0.01, "max": 0.5, "default": 0.04, "step": 0.005},
+	{"key": "strand_sharpness", "label": "STRAND SHARPNESS", "min": 0.0, "max": 1.0, "default": 0.56, "step": 0.02},
 	{"key": "fine_strand_thickness", "label": "FINE THICKNESS", "min": 0.01, "max": 0.5, "default": 0.01, "step": 0.005},
-	{"key": "fine_strand_sharpness", "label": "FINE SHARPNESS", "min": 0.0, "max": 1.0, "default": 0.68, "step": 0.02},
+	{"key": "fine_strand_sharpness", "label": "FINE SHARPNESS", "min": 0.0, "max": 1.0, "default": 1.0, "step": 0.02},
 	{"key": "fine_strand_blur", "label": "FINE STRAND BLUR", "min": 0.0, "max": 1.0, "default": 0.12, "step": 0.02},
 	{"key": "fine_strand_mix", "label": "FINE STRAND MIX", "min": 0.0, "max": 1.0, "default": 0.02, "step": 0.02},
 	{"key": "strand_brightness", "label": "STRAND BRIGHTNESS", "min": 0.0, "max": 5.0, "default": 1.95, "step": 0.05},
 	{"key": "strand_hdr", "label": "STRAND HDR", "min": 1.0, "max": 6.0, "default": 6.0, "step": 0.1},
 	{"key": "softness", "label": "EDGE SOFTNESS", "min": 0.0, "max": 1.0, "default": 0.24, "step": 0.02},
-	{"key": "tendril_intensity", "label": "TENDRIL INTENSITY", "min": 0.0, "max": 1.0, "default": 0.08, "step": 0.02},
+	{"key": "tendril_intensity", "label": "TENDRIL INTENSITY", "min": 0.0, "max": 1.0, "default": 0.06, "step": 0.02},
 	{"key": "bg_brightness", "label": "BG BRIGHTNESS", "min": 0.0, "max": 2.0, "default": 0.0, "step": 0.02},
-	{"key": "depth_intensity", "label": "DEPTH VARIATION", "min": 0.0, "max": 1.0, "default": 1.0, "step": 0.02},
+	{"key": "depth_intensity", "label": "DEPTH VARIATION", "min": 0.0, "max": 1.0, "default": 0.98, "step": 0.02},
 	{"key": "caustic_intensity", "label": "CAUSTIC INTENSITY", "min": 0.0, "max": 1.0, "default": 0.22, "step": 0.02},
-	{"key": "drift_speed", "label": "DRIFT SPEED", "min": 0.0, "max": 1.0, "default": 0.08, "step": 0.02},
+	{"key": "drift_speed", "label": "DRIFT SPEED", "min": 0.0, "max": 1.0, "default": 0.14, "step": 0.02},
 ]
 
 

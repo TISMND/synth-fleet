@@ -597,6 +597,13 @@ static func _render_mode_from_string(mode_str: String) -> int:
 		"militia": return ShipRenderer.RenderMode.MILITIA
 		"stealth": return ShipRenderer.RenderMode.STEALTH
 		"caution": return ShipRenderer.RenderMode.CAUTION
+		"biolume": return ShipRenderer.RenderMode.BIOLUME
+		"toxic": return ShipRenderer.RenderMode.TOXIC
+		"coral": return ShipRenderer.RenderMode.CORAL
+		"abyssal": return ShipRenderer.RenderMode.ABYSSAL
+		"bloodmoon": return ShipRenderer.RenderMode.BLOODMOON
+		"phantom": return ShipRenderer.RenderMode.PHANTOM
+		"aurora": return ShipRenderer.RenderMode.AURORA
 	return ShipRenderer.RenderMode.NEON
 
 

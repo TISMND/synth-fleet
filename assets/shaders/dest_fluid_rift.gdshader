@@ -96,12 +96,24 @@ void fragment() {
 	arms *= arm_fade * arm_outside;
 	col += fluid_color * arms * hdr_intensity * 0.5;
 
-	// Core glow
-	float core = exp(-dist * 10.0 / vortex_radius);
-	col += aurora_color * core * hdr_intensity * 0.4;
-	// Dark eye
-	float eye = smoothstep(vortex_radius * 0.15, vortex_radius * 0.04, dist);
-	col = mix(col, bg_color * 0.4, eye * 0.6);
+	// Nebula fill — FBM haze that fills gaps between spiral arms
+	float nebula_fill = fbm(d * 8.0 + TIME * vec2(0.02, 0.015));
+	float nebula_fill2 = fbm(d * 12.0 + vec2(5.0, 3.0) - TIME * vec2(0.015, 0.01));
+	float neb = nebula_fill * 0.6 + nebula_fill2 * 0.4;
+	float neb_mask = smoothstep(vortex_radius * 2.5, vortex_radius * 0.3, dist)
+	              * smoothstep(vortex_radius * 0.08, vortex_radius * 0.25, dist);
+	col += fluid_color * 0.4 * neb * neb_mask * hdr_intensity * 0.35;
+	col += aurora_color * 0.2 * pow(neb, 2.0) * neb_mask * hdr_intensity * 0.2;
+
+	// Bright core glow — wide and hot
+	float core = exp(-dist * 8.0 / vortex_radius);
+	col += aurora_color * core * hdr_intensity * 0.7;
+	float core_tight = exp(-dist * 20.0 / vortex_radius);
+	col += vec3(0.6, 0.95, 1.0) * core_tight * hdr_intensity * 0.5;
+
+	// Dark eye (smaller now)
+	float eye = smoothstep(vortex_radius * 0.1, vortex_radius * 0.03, dist);
+	col = mix(col, bg_color * 0.4, eye * 0.4);
 
 	// ── Tendrils from vortex ──
 	int ttc = int(tendril_count);
@@ -266,38 +278,39 @@ void fragment() {
 		float cycle_t = mod(TIME + phase, period);
 
 		// 80% off: ray flashes for first 20% of cycle
-		float active_window = period * 0.2;
-		float ray_alive = smoothstep(active_window, active_window - 0.04, cycle_t)
-		                 * smoothstep(0.0, 0.02, cycle_t);
+		float active_window = period * 0.05;
+		float ray_alive = smoothstep(active_window, active_window - 0.02, cycle_t)
+		                 * smoothstep(0.0, 0.01, cycle_t);
 		if (ray_alive < 0.01) continue;
 
 		// Ray angle — random each flash
 		float flash_id = floor((TIME + phase) / period);
 		float ray_angle = hash(vec2(fi * 3.0, flash_id * 7.0)) * 6.2832 - 3.14159;
 
-		// Angular width of the ray wedge (narrow: 8°-25°)
-		float ray_half_width = 0.07 + hash(vec2(fi * 5.0, flash_id * 11.0)) * 0.15;
+		// Angular width — wider wedge with soft feathered edges
+		float ray_half_width = 0.15 + hash(vec2(fi * 5.0, flash_id * 11.0)) * 0.2;
 
 		float angle_diff = abs(mod(pixel_angle - ray_angle + 3.14159, 6.2832) - 3.14159);
-		float ray_mask = smoothstep(ray_half_width, ray_half_width * 0.15, angle_diff);
+		// Hard core in the center, soft gaussian feather on outer edges
+		float core_mask = smoothstep(ray_half_width * 0.4, ray_half_width * 0.05, angle_diff);
+		float feather = exp(-angle_diff * angle_diff / (ray_half_width * ray_half_width));
+		float ray_mask = core_mask * 0.7 + feather * 0.3;
 		if (ray_mask < 0.01) continue;
 
-		// Fade along length: bright near center, fading outward
-		float radial_fade = smoothstep(0.6, 0.02, dist) * smoothstep(0.0, 0.04, dist);
+		// Fade along length: bright near center, reaches further out
+		float radial_fade = smoothstep(0.85, 0.02, dist) * smoothstep(0.0, 0.04, dist);
 
-		// Chaotic flicker within the flash
-		float flk = sin(TIME * 41.0 + fi * 7.0) * sin(TIME * 29.0 + fi * 13.0);
-		flk = flk * 0.5 + 0.5;
-		flk *= step(0.25, sin(TIME * 57.0 + fi * 19.0));
+		// Occasional flicker (less chaotic, more sustained)
+		float flk = step(0.15, sin(TIME * 31.0 + fi * 11.0) * 0.5 + 0.5);
 
 		float intensity = ray_alive * radial_fade * ray_mask * flk;
 		ring_boost += intensity;
 	}
-	ring_boost = min(ring_boost, 6.0);
+	ring_boost = min(ring_boost, 8.0);
 
-	// ── Strands lit by pulses ──
+	// ── Strands lit by rays ──
 	float base_dim = 0.03;
-	float ring_lit = ring_boost * pulse_hdr;
+	float ring_lit = ring_boost * pulse_hdr * 1.5;
 	float mesh_lit = base_dim + ring_lit;
 
 	col += strand_color * strand_total * mesh_lit * strand_brightness * hdr_intensity * 0.15 * strand_activity;

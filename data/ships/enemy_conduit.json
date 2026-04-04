@@ -21,7 +21,7 @@
 	"id": "enemy_conduit",
 	"level": "geometric",
 	"lines": [],
-	"neon_hdr": 3.0,
+	"neon_hdr": 3.16,
 	"neon_white": 0.29,
 	"neon_width": 0.18,
 	"render_mode": "neon",

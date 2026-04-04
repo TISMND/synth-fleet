@@ -45,9 +45,9 @@
 						1.0
 					],
 					"params": {
-						"length": 19.0,
+						"length": 11.0,
 						"width_end": 4.5,
-						"width_start": 24.0
+						"width_start": 11.0
 					},
 					"type": "ribbon"
 				}

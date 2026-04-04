@@ -5,33 +5,33 @@ shader_type canvas_item;
 uniform vec4 deep_color : source_color = vec4(0.0, 0.02, 0.06, 1.0);
 uniform vec4 coral_color : source_color = vec4(0.0, 0.6, 0.9, 0.8);
 uniform float scroll_speed : hint_range(0.0, 200.0) = 25.0;
-uniform float density : hint_range(0.2, 4.0) = 3.2;
+uniform float density : hint_range(0.2, 4.0) = 4.0;
 uniform float softness : hint_range(0.0, 1.0) = 0.24;
 uniform bool manual_scroll = false;
 uniform float scroll_offset : hint_range(0.0, 100000.0) = 0.0;
 
 // Cell/strand controls
-uniform float cell_scale : hint_range(0.3, 4.0) = 0.6;
-uniform float strand_thickness : hint_range(0.01, 0.5) = 0.025;
+uniform float cell_scale : hint_range(0.3, 4.0) = 0.75;
+uniform float strand_thickness : hint_range(0.01, 0.5) = 0.04;
 uniform float fine_strand_thickness : hint_range(0.01, 0.5) = 0.01;
-uniform float strand_sharpness : hint_range(0.0, 1.0) = 0.0;
-uniform float fine_strand_sharpness : hint_range(0.0, 1.0) = 0.68;
+uniform float strand_sharpness : hint_range(0.0, 1.0) = 0.56;
+uniform float fine_strand_sharpness : hint_range(0.0, 1.0) = 1.0;
 uniform float fine_strand_blur : hint_range(0.0, 1.0) = 0.12;
 uniform float strand_brightness : hint_range(0.0, 5.0) = 1.95;
 uniform float strand_hdr : hint_range(1.0, 6.0) = 6.0;
 uniform float fine_strand_mix : hint_range(0.0, 1.0) = 0.02;
 
 // Tendril controls
-uniform float tendril_intensity : hint_range(0.0, 1.0) = 0.08;
+uniform float tendril_intensity : hint_range(0.0, 1.0) = 0.06;
 uniform vec4 tendril_color : source_color = vec4(0.1, 0.9, 0.6, 1.0);
 
 // Background controls
 uniform float bg_brightness : hint_range(0.0, 2.0) = 0.0;
-uniform float depth_intensity : hint_range(0.0, 1.0) = 1.0;
+uniform float depth_intensity : hint_range(0.0, 1.0) = 0.98;
 uniform float caustic_intensity : hint_range(0.0, 1.0) = 0.22;
 
 // Drift animation
-uniform float drift_speed : hint_range(0.0, 1.0) = 0.08;
+uniform float drift_speed : hint_range(0.0, 1.0) = 0.14;
 
 float hash21(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);

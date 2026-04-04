@@ -3,8 +3,8 @@ extends Control
 ## Left panel: ship selection. Center: ship preview (WASD movement).
 ## Right panel: attribute sliders + skin dropdown + save. Bottom: HUD replica.
 
-const SKIN_NAMES: Array[String] = ["CHROME", "NEON", "VOID", "HIVEMIND", "SPORE", "EMBER", "FROST", "SOLAR", "SPORT", "GUNMETAL", "MILITIA", "STEALTH"]
-const SKIN_KEYS: Array[String] = ["chrome", "neon", "void", "hivemind", "spore", "ember", "frost", "solar", "sport", "gunmetal", "militia", "stealth"]
+const SKIN_NAMES: Array[String] = ["CHROME", "NEON", "VOID", "HIVEMIND", "SPORE", "EMBER", "FROST", "SOLAR", "SPORT", "GUNMETAL", "MILITIA", "STEALTH", "BIOLUME", "TOXIC", "CORAL", "ABYSSAL", "BLOODMOON", "PHANTOM", "AURORA"]
+const SKIN_KEYS: Array[String] = ["chrome", "neon", "void", "hivemind", "spore", "ember", "frost", "solar", "sport", "gunmetal", "militia", "stealth", "biolume", "toxic", "coral", "abyssal", "bloodmoon", "phantom", "aurora"]
 
 const BANK_LERP := 6.0
 const LEFT_PANEL_W := 200.0
@@ -809,6 +809,9 @@ func _update_boss_preview() -> void:
 			r.ship_id = -1
 			r.enemy_visual_id = core_ship.visual_id
 			r.render_mode = _ShipSelector._render_mode_from_string(core_ship.render_mode)
+			r.neon_hdr = core_ship.neon_hdr
+			r.neon_white = core_ship.neon_white
+			r.neon_width = core_ship.neon_width
 			r.position = center
 			r.animate = true
 			_ship_viewport.add_child(r)
@@ -829,6 +832,9 @@ func _update_boss_preview() -> void:
 		r.ship_id = -1
 		r.enemy_visual_id = seg_ship.visual_id
 		r.render_mode = _ShipSelector._render_mode_from_string(seg_ship.render_mode)
+		r.neon_hdr = seg_ship.neon_hdr
+		r.neon_white = seg_ship.neon_white
+		r.neon_width = seg_ship.neon_width
 		r.position = center + Vector2(ox, oy)
 		r.animate = true
 		_ship_viewport.add_child(r)
@@ -1364,9 +1370,9 @@ func _build_bosses_right_panel() -> void:
 		return
 
 	# Tab bar — multi-row
-	var tab_names: Array[String] = ["CORE", "WEAPONS", "HEALTH", "HITBOX", "DESTRUCTION", "ALIGNMENT", "ENRAGE"]
+	var tab_names: Array[String] = ["CORE", "WEAPONS", "HEALTH", "HITBOX", "DESTRUCTION", "ALIGNMENT", "ENRAGE", "GLOW"]
 	var row1_names: Array[String] = ["CORE", "WEAPONS", "HEALTH", "HITBOX"]
-	var row2_names: Array[String] = ["DESTRUCTION", "ALIGNMENT", "ENRAGE"]
+	var row2_names: Array[String] = ["DESTRUCTION", "ALIGNMENT", "ENRAGE", "GLOW"]
 
 	var tab_grid := VBoxContainer.new()
 	tab_grid.add_theme_constant_override("separation", 4)
@@ -1400,6 +1406,7 @@ func _build_bosses_right_panel() -> void:
 		"destruction": _build_boss_destruction_tab(vbox)
 		"alignment": _build_boss_alignment_tab(vbox)
 		"enrage": _build_boss_enrage_tab(vbox)
+		"glow": _build_boss_glow_tab(vbox)
 
 	# Spacer + buttons
 	var spacer_bottom := Control.new()
@@ -2367,6 +2374,103 @@ func _build_weapon_overrides_section(vbox: VBoxContainer, ship_id: String, overr
 		row.add_child(lead_spin)
 
 
+func _build_boss_glow_tab(vbox: VBoxContainer) -> void:
+	var glow_label := Label.new()
+	glow_label.text = "GLOW SETTINGS"
+	glow_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(glow_label)
+
+	if not _working_boss:
+		return
+
+	# Collect all unique ship IDs used by this boss
+	var part_ids: Array[Array] = []  # [label, ship_id]
+	if _working_boss.core_ship_id != "":
+		part_ids.append(["CORE", _working_boss.core_ship_id])
+	for si in range(_working_boss.segments.size()):
+		var seg: Dictionary = _working_boss.segments[si] as Dictionary
+		var seg_ship_id: String = str(seg.get("ship_id", ""))
+		if seg_ship_id != "":
+			var seg_label: String = str(seg.get("label", "Segment %d" % si))
+			# Skip duplicates
+			var found := false
+			for existing in part_ids:
+				if existing[1] == seg_ship_id:
+					found = true
+					break
+			if not found:
+				part_ids.append([seg_label.to_upper(), seg_ship_id])
+
+	for part in part_ids:
+		var plabel: String = part[0] as String
+		var pid: String = part[1] as String
+		var ship: ShipData = ShipDataManager.load_by_id(pid)
+		if not ship:
+			continue
+
+		_add_section_spacer(vbox)
+		var part_header := Label.new()
+		part_header.text = plabel + " (" + pid + ")"
+		part_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		part_header.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+		vbox.add_child(part_header)
+
+		# HDR slider
+		var hdr_key: String = "boss_glow_hdr_" + pid
+		_add_slider_row(vbox, hdr_key, "HDR", 0.0, 4.0, 0.01)
+		# WHITE slider
+		var white_key: String = "boss_glow_white_" + pid
+		_add_slider_row(vbox, white_key, "WHITE", 0.0, 1.0, 0.01)
+		# WIDTH slider
+		var width_key: String = "boss_glow_width_" + pid
+		_add_slider_row(vbox, width_key, "WIDTH", 0.01, 0.5, 0.005)
+
+		# Set initial values
+		_updating_sliders = true
+		if _sliders.has(hdr_key):
+			(_sliders[hdr_key] as HSlider).value = ship.neon_hdr
+		if _sliders.has(white_key):
+			(_sliders[white_key] as HSlider).value = ship.neon_white
+		if _sliders.has(width_key):
+			(_sliders[width_key] as HSlider).value = ship.neon_width
+		_updating_sliders = false
+
+		# Connect change handlers that save directly to the part's ShipData
+		var captured_pid: String = pid
+		if _sliders.has(hdr_key):
+			(_sliders[hdr_key] as HSlider).value_changed.connect(func(v: float) -> void:
+				_on_boss_glow_changed(captured_pid, "neon_hdr", v)
+			)
+		if _sliders.has(white_key):
+			(_sliders[white_key] as HSlider).value_changed.connect(func(v: float) -> void:
+				_on_boss_glow_changed(captured_pid, "neon_white", v)
+			)
+		if _sliders.has(width_key):
+			(_sliders[width_key] as HSlider).value_changed.connect(func(v: float) -> void:
+				_on_boss_glow_changed(captured_pid, "neon_width", v)
+			)
+
+
+func _on_boss_glow_changed(ship_id: String, prop: String, value: float) -> void:
+	if _updating_sliders:
+		return
+	var ship: ShipData = ShipDataManager.load_by_id(ship_id)
+	if not ship:
+		return
+	ship.set(prop, value)
+	ShipDataManager.save(ship_id, ship.to_dict())
+	# Update all boss preview renderers that use this ship_id
+	for node in _boss_preview_nodes:
+		if is_instance_valid(node) and node is ShipRenderer:
+			var r: ShipRenderer = node as ShipRenderer
+			# Check if this renderer uses the changed ship
+			var vid: String = ship.visual_id if ship.visual_id != "" else "sentinel"
+			if r.enemy_visual_id == vid:
+				if prop == "neon_hdr": r.neon_hdr = value
+				elif prop == "neon_white": r.neon_white = value
+				elif prop == "neon_width": r.neon_width = value
+
+
 func _build_boss_enrage_tab(vbox: VBoxContainer) -> void:
 	var enrage_label := Label.new()
 	enrage_label.text = "ENRAGE PHASE"
@@ -2560,6 +2664,9 @@ func _add_slider_row(parent: VBoxContainer, key: String, label_text: String, min
 
 func _on_attr_changed(value: float, key: String) -> void:
 	if _updating_sliders:
+		return
+	# Boss glow sliders are handled by dedicated callbacks
+	if key.begins_with("boss_glow_"):
 		return
 
 	var slider: HSlider = _sliders.get(key)

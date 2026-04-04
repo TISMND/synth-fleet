@@ -1,22 +1,20 @@
 extends MarginContainer
 ## Alien skin auditions — cycle through neon/alien render modes on enemy ships.
+## Renders through bake viewport to match in-game appearance.
 
 var _time: float = 0.0
 var _ship_renderer: ShipRenderer = null
-var _current_hdr: float = 1.0
-var _current_white: float = 0.0
-var _current_width: float = 1.0
-var _skin_index: int = 0
+var _skin_index: int = 1  # Start on NEON (skip debug)
 var _skin_label: Label = null
 var _ship_label: Label = null
 var _ship_index: int = 0
-var _vp: SubViewport = null
-var _vp_size := Vector2i(1920, 1080)
+var _main_vp: SubViewport = null
+var _bake_vp: SubViewport = null
+var _bake_sprite: Sprite2D = null
 
-# Enemy ships available for audition: [display_name, visual_id]
+# Lifeform-themed ships only
 const SHIP_LIST: Array[Array] = [
 	["BEHEMOTH", "behemoth"],
-	["SENTINEL", "sentinel"],
 	["SPORE", "spore"],
 	["MITE", "mite"],
 	["POLYP", "polyp"],
@@ -26,30 +24,40 @@ const SHIP_LIST: Array[Array] = [
 	["MANTARAY", "mantaray"],
 	["NAUTILUS", "nautilus"],
 	["MYCELIA", "mycelia"],
+	["COLOSSUS", "colossus"],
+	["IRONCLAD", "ironclad"],
 ]
 
-# Alien skins — neon-based and special effect modes
+# Alien skins for lifeforms
 const SKIN_MODES: Array[int] = [
 	ShipRenderer.RenderMode.DEBUG_MATERIALS,
 	ShipRenderer.RenderMode.NEON,
-	ShipRenderer.RenderMode.VOID,
-	ShipRenderer.RenderMode.HIVEMIND,
-	ShipRenderer.RenderMode.SPORE,
 	ShipRenderer.RenderMode.EMBER,
 	ShipRenderer.RenderMode.FROST,
 	ShipRenderer.RenderMode.SOLAR,
 	ShipRenderer.RenderMode.SPORT,
+	ShipRenderer.RenderMode.BIOLUME,
+	ShipRenderer.RenderMode.TOXIC,
+	ShipRenderer.RenderMode.CORAL,
+	ShipRenderer.RenderMode.ABYSSAL,
+	ShipRenderer.RenderMode.BLOODMOON,
+	ShipRenderer.RenderMode.PHANTOM,
+	ShipRenderer.RenderMode.AURORA,
 ]
 const SKIN_NAMES: Array[String] = [
-	"DEBUG: Red=Hull  Blue=Structure  Green=Trim  Yellow=Canopy  Orange=Engine  Magenta=Unknown",
+	"DEBUG MATERIALS",
 	"NEON",
-	"VOID",
-	"HIVEMIND",
-	"SPORE",
 	"EMBER",
 	"FROST",
 	"SOLAR",
 	"SPORT",
+	"BIOLUME",
+	"TOXIC",
+	"CORAL",
+	"ABYSSAL",
+	"BLOODMOON",
+	"PHANTOM",
+	"AURORA",
 ]
 
 
@@ -92,20 +100,41 @@ func _cycle_ship(dir: int) -> void:
 
 
 func _rebuild_ship() -> void:
-	if not _vp:
+	if not _bake_vp:
 		return
 	if _ship_renderer:
 		_ship_renderer.queue_free()
+
+	var vid: String = SHIP_LIST[_ship_index][1] as String
+	var bake_size: int = EnemySharedRenderer.get_bake_size(vid)
+	_bake_vp.size = Vector2i(bake_size, bake_size)
+
+	# Load saved neon params from ShipData if available
+	var neon_hdr: float = 1.0
+	var neon_white: float = 0.0
+	var neon_width: float = 1.0
+	# Find ship by visual_id
+	var ships: Array = ShipDataManager.load_all_by_type("enemy")
+	for ship in ships:
+		var sd: ShipData = ship as ShipData
+		if sd and sd.visual_id == vid:
+			neon_hdr = sd.neon_hdr
+			neon_white = sd.neon_white
+			neon_width = sd.neon_width
+			break
+
 	_ship_renderer = ShipRenderer.new()
 	_ship_renderer.ship_id = -1
-	_ship_renderer.enemy_visual_id = SHIP_LIST[_ship_index][1] as String
+	_ship_renderer.enemy_visual_id = vid
 	_ship_renderer.render_mode = SKIN_MODES[_skin_index]
-	_ship_renderer.neon_hdr = _current_hdr
-	_ship_renderer.neon_white = _current_white
-	_ship_renderer.neon_width = _current_width
-	_ship_renderer.position = Vector2(960.0, 540.0)
+	_ship_renderer.neon_hdr = neon_hdr
+	_ship_renderer.neon_white = neon_white
+	_ship_renderer.neon_width = neon_width
+	_ship_renderer.position = Vector2(bake_size / 2.0, bake_size / 2.0)
 	_ship_renderer.z_index = 1
-	_vp.add_child(_ship_renderer)
+	_bake_vp.add_child(_ship_renderer)
+
+	_bake_sprite.texture = _bake_vp.get_texture()
 
 
 func _build_ui() -> void:
@@ -178,80 +207,43 @@ func _build_ui() -> void:
 	ThemeManager.apply_button_style(next_btn)
 	nav_row.add_child(next_btn)
 
-	# Control sliders row
-	var sliders_row := HBoxContainer.new()
-	sliders_row.add_theme_constant_override("separation", 24)
-	main.add_child(sliders_row)
-
-	_build_slider(sliders_row, "HDR", 0.0, 4.0, 1.0, 0.01, func(v: float) -> void:
-		_current_hdr = v
-		if _ship_renderer: _ship_renderer.neon_hdr = v
-	)
-	_build_slider(sliders_row, "WHITE", 0.0, 1.0, 0.0, 0.01, func(v: float) -> void:
-		_current_white = v
-		if _ship_renderer: _ship_renderer.neon_white = v
-	)
-	_build_slider(sliders_row, "WIDTH", 0.01, 0.5, 0.2, 0.005, func(v: float) -> void:
-		_current_width = v
-		if _ship_renderer: _ship_renderer.neon_width = v
-	)
-
-	# Viewport
+	# Main display viewport (matches game pipeline)
 	var vpc := SubViewportContainer.new()
 	vpc.stretch = true
+	vpc.size = Vector2(1920, 1080)
 	vpc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vpc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main.add_child(vpc)
 
-	_vp = SubViewport.new()
-	_vp.transparent_bg = false
-	_vp.size = _vp_size
-	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	vpc.add_child(_vp)
-	VFXFactory.add_bloom_to_viewport(_vp)
+	_main_vp = SubViewport.new()
+	_main_vp.transparent_bg = false
+	_main_vp.size = Vector2i(1920, 1080)
+	_main_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_main_vp.use_hdr_2d = true
+	vpc.add_child(_main_vp)
 
 	var bg := ColorRect.new()
 	bg.color = Color(0.01, 0.01, 0.03, 1.0)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_vp.add_child(bg)
+	_main_vp.add_child(bg)
 
-	# Stars
 	var stars := _StarBG.new()
-	_vp.add_child(stars)
+	_main_vp.add_child(stars)
 
-	# Ship
+	# Bake viewport (matches EnemySharedRenderer — raw HDR, no tonemapping)
+	_bake_vp = SubViewport.new()
+	_bake_vp.transparent_bg = true
+	_bake_vp.use_hdr_2d = true
+	_bake_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_main_vp.add_child(_bake_vp)
+
+	# Bake sprite displays the bake texture in the main viewport
+	_bake_sprite = Sprite2D.new()
+	_bake_sprite.position = Vector2(960, 540)
+	_bake_sprite.z_index = 1
+	_main_vp.add_child(_bake_sprite)
+
 	_rebuild_ship()
-
-
-func _build_slider(parent: HBoxContainer, label_text: String, min_val: float, max_val: float,
-		default_val: float, step_val: float, on_change: Callable) -> void:
-	var box := HBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	parent.add_child(box)
-
-	var lbl := Label.new()
-	lbl.text = label_text + ":"
-	ThemeManager.apply_text_glow(lbl, "body")
-	box.add_child(lbl)
-
-	var val_lbl := Label.new()
-	val_lbl.text = "%.2f" % default_val
-	val_lbl.custom_minimum_size.x = 40
-	val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	ThemeManager.apply_text_glow(val_lbl, "body")
-	box.add_child(val_lbl)
-
-	var slider := HSlider.new()
-	slider.min_value = min_val
-	slider.max_value = max_val
-	slider.step = step_val
-	slider.value = default_val
-	slider.custom_minimum_size = Vector2(280, 20)
-	slider.value_changed.connect(func(v: float) -> void:
-		val_lbl.text = "%.2f" % v
-		on_change.call(v)
-	)
-	box.add_child(slider)
 
 
 class _StarBG extends Node2D:

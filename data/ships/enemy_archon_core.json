@@ -35,6 +35,9 @@
 	"id": "enemy_archon_core",
 	"level": "boss",
 	"lines": [],
+	"neon_hdr": 1.73,
+	"neon_white": 0.25,
+	"neon_width": 0.17,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 100.0,

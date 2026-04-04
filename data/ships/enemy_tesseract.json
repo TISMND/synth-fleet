@@ -21,7 +21,7 @@
 	"id": "enemy_tesseract",
 	"level": "geometric",
 	"lines": [],
-	"neon_hdr": 2.36,
+	"neon_hdr": 2.53,
 	"neon_white": 0.28,
 	"neon_width": 0.365,
 	"render_mode": "neon",

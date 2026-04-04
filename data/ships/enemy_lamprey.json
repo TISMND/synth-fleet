@@ -30,7 +30,7 @@
 		"core_slots": 1.0,
 		"electric_segments": 8.0,
 		"field_slots": 1.0,
-		"hull_hp": 30.0,
+		"hull_hp": 70.0,
 		"hull_segments": 8.0,
 		"particle_slots": 1.0,
 		"shield_hp": 0.0,
