@@ -15,6 +15,27 @@ var _icon_entries: Array[Dictionary] = []
 var _icon_names: Array[String] = []
 var _icon_sliders: Array[HSlider] = []
 
+const HDR_DEFAULTS: Dictionary = {
+	"broadside_pulse": 1.95,
+	"disruptor_spread": 1.35,
+	"eko_pulse_turret": 1.90,
+	"everything_gun": 0.85,
+	"fire_pick": 1.95,
+	"laser_turret": 1.20,
+	"terror_beam": 0.50,
+	"the_twins": 1.90,
+	"tuned_ion_pulse": 1.35,
+	"v_star": 0.95,
+	"fem_field_modulation_tuner": 1.95,
+	"fem_heavens_orb": 1.90,
+	"fem_inverted_crystal_capacitors": 3.85,
+	"fem_time_sphere": 5.00,
+	"beam_fractal_chamber": 0.85,
+	"fiddyfiddy": 1.85,
+	"p23cold": 1.45,
+	"radial_burst_core": 0.70,
+}
+
 var _scroll: ScrollContainer
 var _root_vbox: VBoxContainer
 
@@ -66,17 +87,18 @@ func _print_hdr_values() -> void:
 
 # ── Per-icon HDR slider ─────────────────────────────────────────────
 
-func _add_icon_hdr_slider(parent: HBoxContainer, entry_index: int, initial: float, icon_name: String) -> void:
+func _add_icon_hdr_slider(parent: HBoxContainer, entry_index: int, _initial: float, icon_name: String) -> void:
+	var default_val: float = HDR_DEFAULTS.get(icon_name, 1.0) as float
 	var slider := HSlider.new()
 	slider.min_value = 0.0
 	slider.max_value = 5.0
 	slider.step = 0.05
-	slider.value = initial
+	slider.value = default_val
 	slider.custom_minimum_size = Vector2(80, 0)
 	parent.add_child(slider)
 
 	var val_lbl := Label.new()
-	val_lbl.text = "%.2f" % initial
+	val_lbl.text = "%.2f" % default_val
 	val_lbl.custom_minimum_size.x = 36
 	val_lbl.add_theme_color_override("font_color", LABEL_COLOR)
 	val_lbl.add_theme_font_size_override("font_size", 11)
@@ -88,6 +110,10 @@ func _add_icon_hdr_slider(parent: HBoxContainer, entry_index: int, initial: floa
 
 	_icon_names.append(icon_name)
 	_icon_sliders.append(slider)
+
+	# Apply default HDR immediately
+	if not is_equal_approx(default_val, 1.0):
+		_apply_icon_hdr(entry_index, default_val)
 
 
 func _apply_icon_hdr(entry_index: int, mult: float) -> void:
@@ -132,7 +158,8 @@ func _build_weapon_icons() -> void:
 
 	for weapon in player_weapons:
 		var is_beam: bool = weapon.beam_style_id != ""
-		var is_double: bool = (weapon.mirror_mode == "mirror" or weapon.fire_pattern == "dual") and weapon.id != "laser_turret"
+		var single_overrides: Array[String] = ["laser_turret", "broadside_pulse", "v_star"]
+		var is_double: bool = (weapon.mirror_mode == "mirror" or weapon.fire_pattern == "dual") and not single_overrides.has(weapon.id)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", ITEM_GAP)
 		row.alignment = BoxContainer.ALIGNMENT_BEGIN
@@ -630,19 +657,26 @@ class _PowerCoreDevice extends Node2D:
 		var w: float = _s(18.0)
 		var h: float = _s(32.0)
 		var gc := _get_glow_color()
+		# Main cylinder body
 		_chrome_rect(Rect2(-w / 2.0, -h / 2.0, w, h))
+		# Symmetrical rods extending top and bottom
 		var rod_w: float = _s(4.0)
 		_chrome_rect(Rect2(-rod_w / 2.0, -h / 2.0 - _s(8.0), rod_w, _s(10.0)))
+		_chrome_rect(Rect2(-rod_w / 2.0, h / 2.0 - _s(2.0), rod_w, _s(10.0)))
+		# Symmetrical rod caps
 		_chrome_rect(Rect2(-_s(6.0), -h / 2.0 - _s(9.0), _s(12.0), _s(3.0)))
-		# Narrow glow slit near top
-		_glow_rect(Rect2(-w / 2.0 + _s(3.0), -h / 2.0 + _s(4.0), w - _s(6.0), _s(2.5)), gc)
-		# Small exhaust port glow
-		_glow_rect(Rect2(-_s(3.5), h / 2.0 - _s(5.0), _s(7.0), _s(2.5)), gc)
+		_chrome_rect(Rect2(-_s(6.0), h / 2.0 + _s(6.0), _s(12.0), _s(3.0)))
+		# Symmetrical glow slits near top and bottom
+		var slit_w: float = w - _s(6.0)
+		_glow_rect(Rect2(-slit_w / 2.0, -h / 2.0 + _s(4.0), slit_w, _s(2.5)), gc)
+		_glow_rect(Rect2(-slit_w / 2.0, h / 2.0 - _s(6.5), slit_w, _s(2.5)), gc)
 		# Chrome mid-plate
 		_chrome_rect(Rect2(-w / 2.0, -_s(2.0), w, _s(3.0)))
-		var bolt_y: float = h / 2.0 - _s(2.0)
-		draw_circle(Vector2(-w / 2.0 + _s(2.5), bolt_y), _s(1.5), CL)
-		draw_circle(Vector2(w / 2.0 - _s(2.5), bolt_y), _s(1.5), CL)
+		# Symmetrical bolts
+		draw_circle(Vector2(-w / 2.0 + _s(2.5), -h / 2.0 + _s(2.0)), _s(1.5), CL)
+		draw_circle(Vector2(w / 2.0 - _s(2.5), -h / 2.0 + _s(2.0)), _s(1.5), CL)
+		draw_circle(Vector2(-w / 2.0 + _s(2.5), h / 2.0 - _s(2.0)), _s(1.5), CL)
+		draw_circle(Vector2(w / 2.0 - _s(2.5), h / 2.0 - _s(2.0)), _s(1.5), CL)
 		_specular_line(Rect2(-w / 2.0, -h / 2.0, w, h))
 
 	func _draw_crystal() -> void:
@@ -679,21 +713,18 @@ class _PowerCoreDevice extends Node2D:
 
 	func _draw_coil() -> void:
 		var gc := _get_glow_color()
-		# Thinner glow rod — more coil visible
-		var rod_w: float = _s(3.5)
+		var rod_w: float = _s(6.0)
 		var rod_h: float = _s(34.0)
 		_glow_rect(Rect2(-rod_w / 2.0, -rod_h / 2.0, rod_w, rod_h), gc)
-		# Wider, thicker coil windings for more chrome
-		var coil_w: float = _s(22.0)
-		var coil_h: float = _s(4.0)
+		var coil_w: float = _s(20.0)
+		var coil_h: float = _s(3.0)
 		var coil_count: int = 6
 		var spacing: float = (rod_h - _s(6.0)) / float(coil_count - 1)
 		for i in coil_count:
 			var y: float = -rod_h / 2.0 + _s(3.0) + float(i) * spacing - coil_h / 2.0
 			_chrome_rect(Rect2(-coil_w / 2.0, y, coil_w, coil_h))
-		# Thicker caps
-		_chrome_rect(Rect2(-_s(11.0), -rod_h / 2.0 - _s(4.0), _s(22.0), _s(5.0)))
-		_chrome_rect(Rect2(-_s(11.0), rod_h / 2.0 - _s(1.0), _s(22.0), _s(5.0)))
+		_chrome_rect(Rect2(-_s(10.0), -rod_h / 2.0 - _s(3.0), _s(20.0), _s(4.0)))
+		_chrome_rect(Rect2(-_s(10.0), rod_h / 2.0 - _s(1.0), _s(20.0), _s(4.0)))
 
 	func _draw_capsule() -> void:
 		var gc := _get_glow_color()

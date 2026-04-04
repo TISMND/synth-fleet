@@ -8,27 +8,27 @@ var _sliders: Dictionary = {}
 const SHADER_PATH: String = "res://assets/shaders/bg_synthwave_pulse.gdshader"
 
 const SLIDER_DEFS: Array[Dictionary] = [
-	{"key": "grid_spacing", "label": "GRID SPACING", "min": 20.0, "max": 200.0, "default": 100.0, "step": 1.0},
-	{"key": "line_width", "label": "LINE WIDTH", "min": 0.5, "max": 4.0, "default": 1.2, "step": 0.1},
+	{"key": "grid_spacing", "label": "GRID SPACING", "min": 20.0, "max": 200.0, "default": 104.0, "step": 1.0},
+	{"key": "line_width", "label": "LINE WIDTH", "min": 0.5, "max": 4.0, "default": 1.9, "step": 0.1},
 	{"key": "glow_size", "label": "GLOW SIZE", "min": 0.0, "max": 30.0, "default": 12.0, "step": 0.5},
-	{"key": "core_intensity", "label": "CORE INTENSITY", "min": 0.0, "max": 4.0, "default": 2.5, "step": 0.1},
+	{"key": "core_intensity", "label": "CORE INTENSITY", "min": 0.0, "max": 4.0, "default": 1.0, "step": 0.1},
 	{"key": "grid_hdr", "label": "GRID HDR", "min": 1.0, "max": 10.0, "default": 1.0, "step": 0.1},
-	{"key": "grid_white", "label": "GRID WHITE", "min": 0.0, "max": 1.0, "default": 0.0, "step": 0.02},
+	{"key": "grid_white", "label": "GRID WHITE", "min": 0.0, "max": 1.0, "default": 0.18, "step": 0.02},
 	{"key": "_sep_etchers", "label": "", "separator": true, "header": "ETCHERS"},
-	{"key": "etch_speed", "label": "ETCH SPEED", "min": 10.0, "max": 400.0, "default": 140.0, "step": 5.0},
-	{"key": "min_etch_speed", "label": "MIN ETCH SPEED", "min": 10.0, "max": 400.0, "default": 80.0, "step": 5.0},
-	{"key": "speed_variation", "label": "SPEED VARIATION", "min": 0.0, "max": 1.0, "default": 0.7, "step": 0.02},
-	{"key": "etcher_size", "label": "ETCHER SIZE", "min": 10.0, "max": 80.0, "default": 35.0, "step": 1.0},
-	{"key": "line_length", "label": "LINE LENGTH", "min": 2000.0, "max": 6000.0, "default": 3500.0, "step": 50.0},
-	{"key": "dark_gap", "label": "DARK GAP", "min": 100.0, "max": 1500.0, "default": 600.0, "step": 10.0},
+	{"key": "etch_speed", "label": "ETCH SPEED", "min": 10.0, "max": 400.0, "default": 235.0, "step": 5.0},
+	{"key": "min_etch_speed", "label": "MIN ETCH SPEED", "min": 10.0, "max": 400.0, "default": 190.0, "step": 5.0},
+	{"key": "speed_variation", "label": "SPEED VARIATION", "min": 0.0, "max": 1.0, "default": 0.96, "step": 0.02},
+	{"key": "etcher_size", "label": "ETCHER SIZE", "min": 10.0, "max": 80.0, "default": 10.0, "step": 1.0},
+	{"key": "line_length", "label": "LINE LENGTH", "min": 2000.0, "max": 6000.0, "default": 2750.0, "step": 50.0},
+	{"key": "dark_gap", "label": "DARK GAP", "min": 100.0, "max": 1500.0, "default": 1280.0, "step": 10.0},
 	{"key": "_sep_pulse", "label": "", "separator": true, "header": "PULSE WAVES"},
-	{"key": "pulse_intensity", "label": "PULSE INTENSITY", "min": 0.0, "max": 1.0, "default": 0.0, "step": 0.02},
-	{"key": "pulse_hdr", "label": "PULSE HDR", "min": 1.0, "max": 20.0, "default": 2.0, "step": 0.1},
-	{"key": "pulse_threshold", "label": "PULSE DEAD SPACE", "min": 0.0, "max": 1.0, "default": 0.0, "step": 0.02},
-	{"key": "pulse_softness", "label": "PULSE SOFTNESS", "min": 0.01, "max": 1.0, "default": 0.3, "step": 0.01},
-	{"key": "pulse_speed", "label": "PULSE SPEED", "min": 0.0, "max": 5.0, "default": 0.3, "step": 0.02},
-	{"key": "pulse_scale", "label": "PULSE SCALE", "min": 0.1, "max": 10.0, "default": 1.0, "step": 0.1},
-	{"key": "pulse_wobble", "label": "PULSE WOBBLE", "min": 0.0, "max": 3.0, "default": 0.3, "step": 0.02},
+	{"key": "pulse_intensity", "label": "PULSE INTENSITY", "min": 0.0, "max": 1.0, "default": 0.42, "step": 0.02},
+	{"key": "pulse_hdr", "label": "PULSE HDR", "min": 1.0, "max": 20.0, "default": 2.8, "step": 0.1},
+	{"key": "pulse_threshold", "label": "PULSE DEAD SPACE", "min": 0.0, "max": 1.0, "default": 0.7, "step": 0.02},
+	{"key": "pulse_softness", "label": "PULSE SOFTNESS", "min": 0.01, "max": 1.0, "default": 0.22, "step": 0.01},
+	{"key": "pulse_speed", "label": "PULSE SPEED", "min": 0.0, "max": 5.0, "default": 5.0, "step": 0.02},
+	{"key": "pulse_scale", "label": "PULSE SCALE", "min": 0.1, "max": 10.0, "default": 0.9, "step": 0.1},
+	{"key": "pulse_wobble", "label": "PULSE WOBBLE", "min": 0.0, "max": 3.0, "default": 3.0, "step": 0.02},
 ]
 
 
@@ -92,9 +92,9 @@ func _build_ui() -> void:
 	slider_col.add_child(header)
 
 	# Color pickers
-	_build_color_row(slider_col, "grid_color", "GRID COLOR", Color(1.0, 0.1, 0.55))
-	_build_color_row(slider_col, "head_color", "HEAD COLOR", Color(1.0, 0.85, 0.95))
-	_build_color_row(slider_col, "band_color_a", "BAND COLOR A", Color(0.5, 0.0, 0.35))
+	_build_color_row(slider_col, "grid_color", "GRID COLOR", Color(1.0, 0.102, 0.7544))
+	_build_color_row(slider_col, "head_color", "HEAD COLOR", Color(1.0, 0.9414, 0.98))
+	_build_color_row(slider_col, "band_color_a", "BAND COLOR A", Color(0.9648, 0.5503, 0.9001))
 	_build_color_row(slider_col, "band_color_b", "BAND COLOR B", Color(0.15, 0.0, 0.25))
 
 	# Sliders

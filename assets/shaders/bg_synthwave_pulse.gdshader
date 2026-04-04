@@ -5,32 +5,32 @@ shader_type canvas_item;
 // Non-line areas are transparent so deep BG layer shows through.
 // Sparkle is irregular (hash noise, not sine).
 
-uniform vec4 grid_color : source_color = vec4(1.0, 0.1, 0.55, 0.8);
-uniform vec4 head_color : source_color = vec4(1.0, 0.85, 0.95, 1.0);
-uniform vec4 band_color_a : source_color = vec4(0.5, 0.0, 0.35, 0.12);
+uniform vec4 grid_color : source_color = vec4(1.0, 0.102, 0.7544, 0.8);
+uniform vec4 head_color : source_color = vec4(1.0, 0.9414, 0.98, 1.0);
+uniform vec4 band_color_a : source_color = vec4(0.9648, 0.5503, 0.9001, 0.12);
 uniform vec4 band_color_b : source_color = vec4(0.15, 0.0, 0.25, 0.08);
 uniform float scroll_speed : hint_range(0.0, 200.0) = 35.0;
-uniform float grid_spacing : hint_range(20.0, 200.0) = 100.0;
-uniform float line_width : hint_range(0.5, 4.0) = 1.2;
+uniform float grid_spacing : hint_range(20.0, 200.0) = 104.0;
+uniform float line_width : hint_range(0.5, 4.0) = 1.9;
 uniform float glow_size : hint_range(0.0, 30.0) = 12.0;
-uniform float etch_speed : hint_range(10.0, 400.0) = 140.0;
-uniform float min_etch_speed : hint_range(10.0, 400.0) = 80.0;
-uniform float etcher_size : hint_range(10.0, 80.0) = 35.0;
-uniform float speed_variation : hint_range(0.0, 1.0) = 0.7;
-uniform float line_length : hint_range(2000.0, 6000.0) = 3500.0;
-uniform float dark_gap : hint_range(100.0, 1500.0) = 600.0;
-uniform float core_intensity : hint_range(0.0, 4.0) = 2.5;
+uniform float etch_speed : hint_range(10.0, 400.0) = 235.0;
+uniform float min_etch_speed : hint_range(10.0, 400.0) = 190.0;
+uniform float etcher_size : hint_range(10.0, 80.0) = 10.0;
+uniform float speed_variation : hint_range(0.0, 1.0) = 0.96;
+uniform float line_length : hint_range(2000.0, 6000.0) = 2750.0;
+uniform float dark_gap : hint_range(100.0, 1500.0) = 1280.0;
+uniform float core_intensity : hint_range(0.0, 4.0) = 1.0;
 uniform float grid_hdr : hint_range(1.0, 10.0) = 1.0;
-uniform float grid_white : hint_range(0.0, 1.0) = 0.0;
+uniform float grid_white : hint_range(0.0, 1.0) = 0.18;
 
 // Scrolling HDR pulse waves
-uniform float pulse_intensity : hint_range(0.0, 1.0) = 0.0;
-uniform float pulse_hdr : hint_range(1.0, 20.0) = 2.0;
-uniform float pulse_speed : hint_range(0.0, 5.0) = 0.3;
-uniform float pulse_scale : hint_range(0.1, 10.0) = 1.0;
-uniform float pulse_wobble : hint_range(0.0, 3.0) = 0.3;
-uniform float pulse_threshold : hint_range(0.0, 1.0) = 0.0;
-uniform float pulse_softness : hint_range(0.01, 1.0) = 0.3;
+uniform float pulse_intensity : hint_range(0.0, 1.0) = 0.42;
+uniform float pulse_hdr : hint_range(1.0, 20.0) = 2.8;
+uniform float pulse_speed : hint_range(0.0, 5.0) = 5.0;
+uniform float pulse_scale : hint_range(0.1, 10.0) = 0.9;
+uniform float pulse_wobble : hint_range(0.0, 3.0) = 3.0;
+uniform float pulse_threshold : hint_range(0.0, 1.0) = 0.7;
+uniform float pulse_softness : hint_range(0.01, 1.0) = 0.22;
 
 uniform bool manual_scroll = false;
 uniform float scroll_offset : hint_range(0.0, 100000.0) = 0.0;
