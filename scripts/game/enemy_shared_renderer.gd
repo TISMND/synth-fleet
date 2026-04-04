@@ -40,10 +40,12 @@ void fragment() {
 var _flash_shader: Shader = null
 
 # Large enemies get bigger viewports for visual fidelity
-const LARGE_ENEMY_VISUALS: Array[String] = ["leviathan", "jellyfish", "marauder", "ironclad", "wraith", "colossus", "monolith", "nexus", "pylon", "aegis", "helix", "conduit", "dreadnought", "mantaray", "nautilus", "behemoth", "mycelia"]
+const LARGE_ENEMY_VISUALS: Array[String] = ["leviathan", "jellyfish", "marauder", "ironclad", "wraith", "monolith", "nexus", "pylon", "aegis", "helix", "conduit", "dreadnought", "mantaray", "nautilus", "behemoth", "mycelia"]
+const XLARGE_ENEMY_VISUALS: Array[String] = ["colossus"]
 const BOSS_ENEMY_VISUALS: Array[String] = ["archon_core", "archon_wing_l", "archon_wing_r", "archon_turret"]
 const BAKE_SIZE_SMALL: int = 128
 const BAKE_SIZE_LARGE: int = 256
+const BAKE_SIZE_XLARGE: int = 512
 const BAKE_SIZE_BOSS: int = 512
 
 
@@ -98,6 +100,8 @@ func get_texture(visual_id: String, render_mode_str: String, color: Color) -> Vi
 static func get_bake_size(visual_id: String) -> int:
 	if visual_id in BOSS_ENEMY_VISUALS:
 		return BAKE_SIZE_BOSS
+	if visual_id in XLARGE_ENEMY_VISUALS:
+		return BAKE_SIZE_XLARGE
 	return BAKE_SIZE_LARGE if visual_id in LARGE_ENEMY_VISUALS else BAKE_SIZE_SMALL
 
 

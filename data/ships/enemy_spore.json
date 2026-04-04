@@ -21,7 +21,7 @@
 	"id": "enemy_spore",
 	"level": "lifeform",
 	"lines": [],
-	"neon_hdr": 2.99,
+	"neon_hdr": 2.74,
 	"neon_white": 0.29,
 	"neon_width": 0.385,
 	"render_mode": "neon",

@@ -21,7 +21,7 @@
 	"id": "enemy_polyp",
 	"level": "lifeform",
 	"lines": [],
-	"neon_hdr": 3.37,
+	"neon_hdr": 2.42,
 	"neon_white": 0.21,
 	"neon_width": 0.205,
 	"render_mode": "neon",

@@ -864,20 +864,20 @@ func _draw_jellyfish() -> void:
 		dome.append(Vector2(cos(angle) * dome_r, dome_base_y + sin(angle) * dome_r * -0.7))
 	_poly(dome, hull_color, 2.0 * s)
 
-	# Internal organ glow — brighter, routed through _circle for HDR
+	# Internal organ glow — compressed to fit inside dome (base_y to base_y + 10*s)
 	var organ_pulse: float = 0.3 + sin(time * 1.8) * 0.2
-	_circle(Vector2(-4 * s, dome_base_y + 6 * s), 5.0 * s, Color(accent_color, organ_pulse * 0.6), 1.5 * s)
-	_circle(Vector2(3 * s, dome_base_y + 10 * s), 4.0 * s, Color(accent_color, organ_pulse * 0.7), 1.5 * s)
-	_circle(Vector2(-1 * s, dome_base_y + 14 * s), 3.0 * s, Color(detail_color, organ_pulse * 0.8), 1.5 * s)
+	_circle(Vector2(-3 * s, dome_base_y + 3 * s), 3.5 * s, Color(accent_color, organ_pulse * 0.6), 1.5 * s)
+	_circle(Vector2(2 * s, dome_base_y + 6 * s), 3.0 * s, Color(accent_color, organ_pulse * 0.7), 1.5 * s)
+	_circle(Vector2(-1 * s, dome_base_y + 9 * s), 2.5 * s, Color(detail_color, organ_pulse * 0.8), 1.5 * s)
 
-	# Bioluminescent vein lines inside bell — 50% thicker
+	# Bioluminescent vein lines inside bell — compressed vertically
 	for i in range(5):
-		var vx: float = lerpf(-12.0, 12.0, float(i) / 4.0) * s
-		var vein_wave: float = sin(time * 1.5 + float(i) * 0.8) * 2.0 * s
+		var vx: float = lerpf(-10.0, 10.0, float(i) / 4.0) * s
+		var vein_wave: float = sin(time * 1.5 + float(i) * 0.8) * 1.5 * s
 		var vein_alpha: float = 0.3 + sin(time * 2.0 + float(i)) * 0.2
 		_line(
-			Vector2(vx + vein_wave, dome_base_y + 4 * s),
-			Vector2(vx * 0.7 + vein_wave * 0.5, dome_base_y + 16 * s),
+			Vector2(vx + vein_wave, dome_base_y + 2 * s),
+			Vector2(vx * 0.6 + vein_wave * 0.5, dome_base_y + 10 * s),
 			Color(detail_color, vein_alpha), 0.9 * s
 		)
 
@@ -1140,30 +1140,39 @@ func _draw_colossus() -> void:
 		body.append(Vector2(cos(angle) * r, sin(angle) * r))
 	_poly(body, hull_color, 1.1 * s)
 
-	# Inner membrane layers — pulsing translucent rings
+	# Inner membrane layers — pulsing translucent rings, thicker
 	for ring in range(3):
 		var ring_r: float = (12.0 - float(ring) * 3.5) * s * breath_scale
-		var ring_alpha: float = 0.1 + float(ring) * 0.05 + sin(time * 1.5 + float(ring)) * 0.05
+		var ring_alpha: float = 0.15 + float(ring) * 0.08 + sin(time * 1.5 + float(ring)) * 0.08
 		var membrane := PackedVector2Array()
 		for i in range(16):
 			var angle: float = TAU * float(i) / 16.0
 			var mr: float = ring_r + sin(angle * 4.0 + time * (1.0 + float(ring) * 0.3)) * 1.5 * s
 			membrane.append(Vector2(cos(angle) * mr, sin(angle) * mr))
-		_poly(membrane, Color(accent_color, ring_alpha), 0.8 * s)
+		_poly(membrane, Color(accent_color, ring_alpha), 1.4 * s)
 
-	# Central eye / maw — routed through HDR helpers
+	# Radial vein lines inside body — connecting membranes
+	for i in range(6):
+		var vein_angle: float = TAU * float(i) / 6.0 + time * 0.2
+		var vein_pulse: float = 0.15 + sin(time * 2.0 + float(i) * 1.1) * 0.1
+		var inner_pt := Vector2(cos(vein_angle) * 4.0 * s, sin(vein_angle) * 4.0 * s)
+		var outer_pt := Vector2(cos(vein_angle) * 14.0 * s * breath_scale, sin(vein_angle) * 14.0 * s * breath_scale)
+		_line(inner_pt, outer_pt, Color(detail_color, vein_pulse), 0.8 * s)
+
+	# Central eye / maw — thicker rings for HDR visibility
 	var iris_r: float = 5.0 * s * (0.9 + sin(time * 2.0) * 0.1)
 	var pupil_r: float = 2.5 * s * (0.8 + sin(time * 1.5 + 0.5) * 0.2)
-	_circle(Vector2.ZERO, iris_r, accent_color, 2.5 * s)
-	_circle(Vector2.ZERO, iris_r * 0.7, Color(accent_color, 0.5), 1.5 * s)
+	_circle(Vector2.ZERO, iris_r, accent_color, 3.0 * s)
+	_circle(Vector2.ZERO, iris_r * 0.7, Color(accent_color, 0.6), 2.0 * s)
+	_circle(Vector2.ZERO, iris_r * 0.4, Color(detail_color, 0.4), 1.2 * s)
 	draw_circle(Vector2.ZERO, pupil_r, Color(0.0, 0.0, 0.0, 0.9))
 	var glint_offset := Vector2(sin(time * 0.7) * 1.0 * s, cos(time * 0.9) * 0.8 * s)
-	_circle(glint_offset, 1.0 * s, Color(1, 1, 1, 0.8), 1.0 * s)
+	_circle(glint_offset, 1.0 * s, Color(1, 1, 1, 0.8), 1.2 * s)
 
-	# Radiating tendrils — pre-HDR boost for thin tapered tips
+	# Radiating tendrils — pre-HDR boost, beefier base width
 	var tendril_count: int = 9
 	var saved_hdr: float = neon_hdr
-	neon_hdr = saved_hdr * 1.5  # Boost tentacle HDR
+	neon_hdr = saved_hdr * 2.0  # Stronger boost for tentacle tips
 	for t in range(tendril_count):
 		var base_angle: float = TAU * float(t) / float(tendril_count) + sin(time * 0.3) * 0.05
 		var tendril_len: float = (22.0 + sin(time * 0.6 + float(t) * 0.7) * 6.0) * s
@@ -1179,14 +1188,14 @@ func _draw_colossus() -> void:
 			var dist: float = 16.0 * s * breath_scale + frac * tendril_len
 			var curr: Vector2 = radial * dist + tangent * wave
 
-			var seg_alpha: float = 1.0 - frac * 0.7
-			var tw: float = (2.0 - frac * 1.4) * s
+			var seg_alpha: float = 1.0 - frac * 0.5
+			var tw: float = (2.5 - frac * 1.5) * s
 			_line(prev, curr, Color(hull_color, seg_alpha), tw)
 			prev = curr
 
 		# Tendril tip — bright hollow circle
-		var tip_pulse: float = 0.3 + sin(time * 2.5 + float(t) * 0.9) * 0.4
-		_circle(prev, 2.0 * s, Color(detail_color, tip_pulse), 1.5 * s)
+		var tip_pulse: float = 0.4 + sin(time * 2.5 + float(t) * 0.9) * 0.4
+		_circle(prev, 2.5 * s, Color(detail_color, tip_pulse), 2.0 * s)
 	neon_hdr = saved_hdr  # Restore
 
 	# Vein network
@@ -1459,7 +1468,9 @@ func _draw_aegis() -> void:
 
 func _draw_helix() -> void:
 	# Two elongated arms spiraling around a central axis with diamond core.
-	# Arms churn/rotate continuously. Very alien.
+	# Entire structure rotates slowly.
+	var rot: float = time * 0.25
+	draw_set_transform(Vector2.ZERO, rot)
 	var s := 3.0
 	var core_r: float = 5.0 * s
 	var arm_length: float = 28.0 * s
@@ -1517,6 +1528,7 @@ func _draw_helix() -> void:
 		var p2 := Vector2(cos(angle2) * spiral_r, by)
 		var ba: float = 0.12 + sin(time * 1.5 + float(bi)) * 0.08
 		_line(p1, p2, Color(detail_color.r, detail_color.g, detail_color.b, ba), 0.4 * s)
+	draw_set_transform(Vector2.ZERO, 0.0)  # Reset rotation
 
 
 func _draw_conduit() -> void:
@@ -1702,25 +1714,26 @@ func _draw_anemone() -> void:
 	# Medium sea anemone — domed body on top, dense tentacle forest hanging below
 	var s := 2.6
 	var breath: float = sin(time * 1.2)
-	# Dome body — top half circle
+	# Dome body — upper half, arc curving upward (negative Y)
 	var dome := PackedVector2Array()
+	var dome_r: float = 10.0 * s * (1.0 + breath * 0.03)
 	for i in range(16):
-		var angle: float = PI + TAU * 0.5 * float(i) / 15.0
-		var r: float = 10.0 * s * (1.0 + breath * 0.03)
-		dome.append(Vector2(cos(angle) * r, -sin(angle) * r * 0.7))
-	dome.append(Vector2(10.0 * s, 0))
-	dome.append(Vector2(-10.0 * s, 0))
+		var frac: float = float(i) / 15.0
+		var angle: float = PI * frac  # 0 to PI = right to left across top
+		dome.append(Vector2(cos(angle) * dome_r, -sin(angle) * dome_r * 0.7))
+	# Close flat bottom
+	dome.append(Vector2(-dome_r, 0))
 	_poly(dome, hull_color, 1.8 * s)
-	# Horizontal stripes on dome
+	# Horizontal stripes on dome (negative Y = inside dome)
 	for i in range(4):
-		var sy: float = float(i + 1) * 2.0 * s
+		var sy: float = -float(i + 1) * 1.5 * s
 		var sw: float = (9.0 - float(i) * 1.5) * s
-		_line(Vector2(-sw, -sy), Vector2(sw, -sy), Color(detail_color, 0.15), 0.5 * s)
-	# Dense tentacle forest — 12 tentacles hanging down
+		_line(Vector2(-sw, sy), Vector2(sw, sy), Color(detail_color, 0.15), 0.5 * s)
+	# Dense tentacle forest — 12 tentacles hanging down from flat bottom (y=0)
 	for i in range(12):
 		var spread: float = (float(i) - 5.5) / 5.5
 		var base_x: float = spread * 9.0 * s
-		var base_y: float = 2.0 * s + absf(spread) * 2.0 * s
+		var base_y: float = 1.0 * s
 		var length: float = (8.0 + sin(float(i) * 1.7) * 4.0) * s
 		var prev := Vector2(base_x, base_y)
 		for seg in range(1, 8):
@@ -1779,6 +1792,7 @@ func _draw_mantaray() -> void:
 
 func _draw_nautilus() -> void:
 	# Medium — spiral-shelled creature with trailing tentacles
+	draw_set_transform(Vector2.ZERO, PI)  # Rotate 180°
 	var s := 2.8
 	# Shell spiral — logarithmic spiral drawn as connected arcs
 	var spiral_pts: int = 40
@@ -1816,7 +1830,7 @@ func _draw_nautilus() -> void:
 			var curr := Vector2(base_x + wave, ny)
 			_line(prev, curr, Color(accent_color, 0.7 - frac * 0.3), (1.2 - frac * 0.6) * s)
 			prev = curr
-
+	draw_set_transform(Vector2.ZERO, 0.0)  # Reset rotation
 
 
 func _draw_behemoth() -> void:
@@ -1834,45 +1848,45 @@ func _draw_behemoth() -> void:
 		var r: float = base_r + bump
 		shell.append(Vector2(cos(angle) * r, sin(angle) * r * 1.1))
 	_poly(shell, hull_color, 2.5 * s)
-	# Shell plate lines — armored segments (doubled green thickness)
+	# Shell plate lines — armored segments (+50%)
 	for i in range(7):
 		var angle: float = TAU * float(i) / 7.0 + 0.2
 		var inner := Vector2(cos(angle) * 8.0 * s, sin(angle) * 8.0 * s * 1.1)
 		var outer := Vector2(cos(angle) * 17.0 * s, sin(angle) * 17.0 * s * 1.1)
-		_line(inner, outer, Color(detail_color, 0.2), 2.0 * s)
-	# Exposed organic gaps between plates — pulsing accent color (doubled)
+		_line(inner, outer, Color(detail_color, 0.3), 3.0 * s)
+	# Exposed organic gaps between plates (+50%)
 	for i in range(7):
 		var angle: float = TAU * float(i) / 7.0 + 0.2 + TAU / 14.0
 		var gap_r: float = 13.0 * s
 		var gap_pos := Vector2(cos(angle) * gap_r, sin(angle) * gap_r * 1.1)
-		var gap_pulse: float = 0.2 + sin(time * 2.0 + float(i) * 1.3) * 0.15
-		_circle(gap_pos, 2.0 * s, Color(accent_color, gap_pulse), 2.0 * s)
-	# Central eye cluster (doubled)
+		var gap_pulse: float = 0.3 + sin(time * 2.0 + float(i) * 1.3) * 0.2
+		_circle(gap_pos, 2.0 * s, Color(accent_color, gap_pulse), 3.0 * s)
+	# Central eye cluster — center eye kept as-is, outer 4 boosted +50%
 	var eye_offsets: Array[Vector2] = [
 		Vector2(0, 2.0 * s), Vector2(-3.0 * s, -1.0 * s), Vector2(3.0 * s, -1.0 * s),
 		Vector2(-1.5 * s, 4.0 * s), Vector2(1.5 * s, 4.0 * s),
 	]
-	for eo in eye_offsets:
+	for ei in range(eye_offsets.size()):
+		var eo: Vector2 = eye_offsets[ei]
 		var eye_r: float = (1.5 + sin(time * 1.5 + eo.x) * 0.3) * s
-		_circle(eo, eye_r, accent_color, 2.0 * s)
+		var eye_w: float = 2.0 * s if ei == 0 else 3.0 * s
+		_circle(eo, eye_r, accent_color, eye_w)
 		draw_circle(eo, eye_r * 0.4, Color(0, 0, 0, 0.9))
-	# Legs — 6 pairs, jointed at shell edge, animated crawl
-	for i in range(6):
-		var angle: float = TAU * float(i) / 6.0 + 0.5
-		var phase: float = time * 3.0 + float(i) * 1.0
-		for side in [-1.0, 1.0]:
-			var shell_r: float = 18.0 * s + (sin(angle * 5.0) * 3.0 + sin(angle * 3.0) * 2.0) * s
-			var joint_angle: float = angle + side * 0.15
-			var base := Vector2(cos(joint_angle) * shell_r, sin(joint_angle) * shell_r * 1.1)
-			var knee_ext: float = 5.0 * s
-			var knee := base + Vector2(cos(joint_angle) * knee_ext, sin(joint_angle) * knee_ext * 1.1)
-			knee.x += sin(phase + side) * 1.5 * s
-			knee.y += cos(phase + side + 1.0) * 1.5 * s
-			var foot := knee + Vector2(cos(joint_angle) * 4.0 * s, sin(joint_angle) * 4.0 * s * 1.1)
-			foot.x += sin(phase + side + 0.5) * 2.0 * s
-			foot.y += cos(phase + side + 1.5) * 1.0 * s
-			_line(base, knee, hull_color, 1.2 * s)
-			_line(knee, foot, hull_color, 0.8 * s)
+	# Legs — 8 evenly spaced, jointed at actual shell edge
+	for i in range(8):
+		var angle: float = TAU * float(i) / 8.0
+		var phase: float = time * 3.0 + float(i) * 0.8
+		# Compute actual shell radius at this angle (matching shell polygon formula)
+		var bump: float = (sin(angle * 5.0) * 3.0 + sin(angle * 3.0) * 2.0) * s
+		var shell_edge_r: float = 18.0 * s + bump
+		var base := Vector2(cos(angle) * shell_edge_r, sin(angle) * shell_edge_r * 1.1)
+		var outward := Vector2(cos(angle), sin(angle) * 1.1).normalized()
+		var knee := base + outward * 5.0 * s
+		knee += Vector2(sin(phase) * 1.5 * s, cos(phase + 1.0) * 1.5 * s)
+		var foot := knee + outward * 4.0 * s
+		foot += Vector2(sin(phase + 0.5) * 2.0 * s, cos(phase + 1.5) * 1.0 * s)
+		_line(base, knee, hull_color, 1.2 * s)
+		_line(knee, foot, hull_color, 0.8 * s)
 
 
 func _draw_mycelia() -> void:
@@ -1886,15 +1900,17 @@ func _draw_mycelia() -> void:
 		var angle: float = TAU * float(i) / 16.0
 		var r: float = (8.0 + sin(angle * 4.0 + time * 0.4) * 2.0) * s
 		cap.append(Vector2(cos(angle) * r, sin(angle) * r))
-	_poly(cap, hull_color, w * 1.1)
-	# Spore spots
+	_poly(cap, hull_color, w * 0.7)  # Dialed down body
+	# Spore spots — dialed down
 	for i in range(8):
 		var angle: float = TAU * float(i) / 8.0 + 0.3
 		var spot_r: float = 5.5 * s
 		var spot_pos := Vector2(cos(angle) * spot_r, sin(angle) * spot_r)
-		var spot_pulse: float = 0.15 + sin(time * 1.8 + float(i) * 1.1) * 0.1
-		_circle(spot_pos, 1.5 * s, Color(accent_color, spot_pulse), w * 0.85)
-	# Branching hyphae — 6 main branches, each with 2 sub-branches
+		var spot_pulse: float = 0.1 + sin(time * 1.8 + float(i) * 1.1) * 0.08
+		_circle(spot_pos, 1.5 * s, Color(accent_color, spot_pulse), w * 0.6)
+	# Branching hyphae — 6 main branches, boosted HDR for outer parts
+	var saved_hdr: float = neon_hdr
+	neon_hdr = saved_hdr * 1.5  # Boost branches
 	for i in range(6):
 		var base_angle: float = TAU * float(i) / 6.0
 		var branch_len: float = (14.0 + sin(time * 0.5 + float(i)) * 3.0) * s
@@ -1919,14 +1935,15 @@ func _draw_mycelia() -> void:
 					var sf: float = float(sub_seg) / 4.0
 					var sub_fwd := Vector2(cos(sub_angle), sin(sub_angle))
 					var sub_tan := Vector2(-sub_fwd.y, sub_fwd.x)
-					var sw: float = sin(phase + sf * 2.0 + 1.0) * 1.5 * s
-					var sub_curr: Vector2 = sub_prev + sub_fwd * 4.0 * s + sub_tan * sw * 0.2
+					var mw: float = sin(phase + sf * 2.0 + 1.0) * 1.5 * s
+					var sub_curr: Vector2 = sub_prev + sub_fwd * 4.0 * s + sub_tan * mw * 0.2
 					_line(sub_prev, sub_curr, Color(hull_color, 0.5 - sf * 0.15), w * (0.9 - sf * 0.1))
 					sub_prev = sub_curr
 				# Tip node
 				_circle(sub_prev, 1.0 * s, Color(accent_color, 0.3 + pulse * 0.1), w * 0.85)
 		# Branch tip node
 		_circle(branch_end, 1.2 * s, Color(accent_color, 0.4 + pulse * 0.15), w * 0.9)
+	neon_hdr = saved_hdr  # Restore
 
 
 # ── Chrome drawing helpers ──
@@ -3187,11 +3204,12 @@ func _draw_neon_line(a: Vector2, b: Vector2, color: Color, width: float) -> void
 	var w: float = width * 0.7 * neon_width
 	var col := _neon_col(color)
 	# Bloom halo for thin lines — wider semi-transparent pass so bloom has area to grab
-	if w < 1.8:
-		var halo_w: float = maxf(w * 3.0, 2.5)
-		draw_line(a, b, Color(col.r, col.g, col.b, col.a * 0.2), halo_w, true)
-		draw_circle(a, halo_w * 0.5, Color(col.r, col.g, col.b, col.a * 0.2))
-		draw_circle(b, halo_w * 0.5, Color(col.r, col.g, col.b, col.a * 0.2))
+	if w < 1.8 and w > 0.3:
+		var halo_w: float = maxf(w * 2.5, 1.5)
+		var halo_a: float = col.a * 0.15
+		draw_line(a, b, Color(col.r, col.g, col.b, halo_a), halo_w, true)
+		draw_circle(a, halo_w * 0.5, Color(col.r, col.g, col.b, halo_a))
+		draw_circle(b, halo_w * 0.5, Color(col.r, col.g, col.b, halo_a))
 	draw_line(a, b, col, w, true)
 	draw_circle(a, w * 0.5, col)
 	draw_circle(b, w * 0.5, col)
@@ -3207,9 +3225,9 @@ func _draw_neon_lines(points: PackedVector2Array, color: Color, width: float) ->
 	var w: float = width * 0.7 * neon_width
 	var col := _neon_col(color)
 	# Bloom halo pass for thin lines
-	if w < 1.8:
-		var halo_w: float = maxf(w * 3.0, 2.5)
-		var halo_col := Color(col.r, col.g, col.b, col.a * 0.2)
+	if w < 1.8 and w > 0.3:
+		var halo_w: float = maxf(w * 2.5, 1.5)
+		var halo_col := Color(col.r, col.g, col.b, col.a * 0.15)
 		for i in range(points.size()):
 			var ni: int = (i + 1) % points.size()
 			draw_line(points[i], points[ni], halo_col, halo_w, true)
@@ -3227,9 +3245,9 @@ func _draw_neon_lines(points: PackedVector2Array, color: Color, width: float) ->
 func _draw_neon_circle(center: Vector2, radius: float, color: Color, width: float) -> void:
 	var w: float = width * 0.7 * neon_width
 	var col := _neon_col(color)
-	if w < 1.8:
-		var halo_w: float = maxf(w * 3.0, 2.5)
-		draw_arc(center, radius, 0.0, TAU, 128, Color(col.r, col.g, col.b, col.a * 0.2), halo_w, true)
+	if w < 1.8 and w > 0.3:
+		var halo_w: float = maxf(w * 2.5, 1.5)
+		draw_arc(center, radius, 0.0, TAU, 128, Color(col.r, col.g, col.b, col.a * 0.15), halo_w, true)
 	draw_arc(center, radius, 0.0, TAU, 128, col, w, true)
 
 func _draw_void_circle(center: Vector2, radius: float, width: float) -> void:

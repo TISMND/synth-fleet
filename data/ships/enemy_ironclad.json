@@ -21,9 +21,9 @@
 	"id": "enemy_ironclad",
 	"level": "lifeform",
 	"lines": [],
-	"neon_hdr": 1.92,
-	"neon_white": 0.0,
-	"neon_width": 0.485,
+	"neon_hdr": 2.48,
+	"neon_white": 0.25,
+	"neon_width": 0.195,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 150.0,

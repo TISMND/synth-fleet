@@ -21,9 +21,9 @@
 	"id": "enemy_mycelia",
 	"level": "lifeform",
 	"lines": [],
-	"neon_hdr": 3.14,
-	"neon_white": 0.0,
-	"neon_width": 0.235,
+	"neon_hdr": 2.8,
+	"neon_white": 0.21,
+	"neon_width": 0.21,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 1200.0,

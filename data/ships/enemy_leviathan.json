@@ -21,9 +21,9 @@
 	"id": "enemy_leviathan",
 	"level": "lifeform",
 	"lines": [],
-	"neon_hdr": 2.61,
+	"neon_hdr": 2.98,
 	"neon_white": 0.0,
-	"neon_width": 0.21,
+	"neon_width": 0.11,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 200.0,

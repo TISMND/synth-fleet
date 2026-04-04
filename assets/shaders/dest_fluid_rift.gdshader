@@ -1,19 +1,18 @@
 shader_type canvas_item;
-// Fluid Rift — Spiral vortex + aurora curtains + geometric lightning + flickering
-// geometric HDR pulses with angular masking. Same mechanics as neon void, blue palette.
+// Fluid Rift — Spiral vortex + organic voronoi strand mesh (inspired by reef edge
+// detection) + angular lightning + flickering geometric HDR pulses.
 
 uniform float hdr_intensity : hint_range(0.5, 8.0) = 3.0;
 uniform vec3 bg_color : source_color = vec3(0.0, 0.01, 0.04);
 uniform vec3 fluid_color : source_color = vec3(0.2, 0.6, 1.0);
 uniform vec3 aurora_color : source_color = vec3(0.3, 0.85, 0.95);
-uniform vec3 line_color : source_color = vec3(0.12, 0.45, 0.85);
+uniform vec3 strand_color : source_color = vec3(0.1, 0.4, 0.8);
 uniform vec3 bolt_color : source_color = vec3(0.4, 0.8, 1.0);
 uniform float vortex_radius : hint_range(0.05, 0.3) = 0.18;
 uniform float swirl_speed : hint_range(0.0, 1.0) = 0.3;
-uniform float curtain_count : hint_range(2.0, 8.0) = 5.0;
-uniform float wave_amplitude : hint_range(0.01, 0.12) = 0.05;
-uniform float line_density : hint_range(8.0, 35.0) = 16.0;
-uniform float line_brightness : hint_range(0.2, 3.0) = 1.5;
+uniform float strand_scale : hint_range(3.0, 20.0) = 10.0;
+uniform float strand_thickness : hint_range(0.01, 0.15) = 0.04;
+uniform float strand_brightness : hint_range(0.2, 3.0) = 1.5;
 uniform float pulse_speed : hint_range(0.5, 5.0) = 2.0;
 uniform float pulse_count : hint_range(1.0, 8.0) = 5.0;
 uniform float pulse_hdr : hint_range(1.0, 30.0) = 21.0;
@@ -30,6 +29,10 @@ float hash(vec2 p) {
 	return fract((p3.x + p3.y) * p3.z);
 }
 
+vec2 hash22(vec2 p) {
+	return vec2(hash(p), hash(p + 57.0));
+}
+
 float vnoise(vec2 p) {
 	vec2 i = floor(p), f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
@@ -41,6 +44,23 @@ float fbm(vec2 p) {
 	float v = 0.0, a = 0.5;
 	for (int i = 0; i < 4; i++) { v += a * vnoise(p); p *= 2.0; a *= 0.5; }
 	return v;
+}
+
+// Voronoi returning (nearest_dist, second_nearest_dist)
+vec2 voronoi(vec2 p) {
+	vec2 i = floor(p), f = fract(p);
+	float d1 = 10.0, d2 = 10.0;
+	for (int y = -2; y <= 2; y++) {
+		for (int x = -2; x <= 2; x++) {
+			vec2 n = vec2(float(x), float(y));
+			vec2 pt = hash22(i + n);
+			pt = 0.5 + 0.4 * sin(TIME * drift_speed + 6.2832 * pt);
+			float dd = length(n + pt - f);
+			if (dd < d1) { d2 = d1; d1 = dd; }
+			else if (dd < d2) { d2 = dd; }
+		}
+	}
+	return vec2(d1, d2);
 }
 
 float seg_dist(vec2 p, vec2 a, vec2 b) {
@@ -61,34 +81,7 @@ void fragment() {
 	vec3 col = bg_color;
 
 	// ══════════════════════════════════════════════
-	// LAYER 1: Aurora curtains (background)
-	// ══════════════════════════════════════════════
-	int cc = int(curtain_count);
-	for (int i = 0; i < 8; i++) {
-		if (i >= cc) break;
-		float fi = float(i);
-		float base_x = 0.12 + fi * 0.76 / curtain_count;
-
-		float wave = sin(uv.y * 10.0 + TIME * swirl_speed * (0.6 + fi * 0.15) + fi * 2.0) * wave_amplitude;
-		wave += sin(uv.y * 18.0 - TIME * swirl_speed * 0.4 + fi * 3.5) * wave_amplitude * 0.35;
-		wave += sin(uv.y * 4.0 + TIME * swirl_speed * 0.2 + fi * 1.2) * wave_amplitude * 0.6;
-		float noise_disp = (fbm(vec2(uv.y * 2.5 + fi * 5.0, TIME * 0.06)) - 0.5) * 0.06;
-
-		float curtain_x = base_x + wave + noise_disp;
-		float dx = abs(uv.x - curtain_x);
-		float curtain = exp(-dx * dx * 1500.0);
-
-		float height_var = fbm(vec2(fi * 3.0 + uv.y * 3.0, TIME * 0.05));
-		height_var = smoothstep(0.25, 0.7, height_var);
-
-		vec3 c = mix(fluid_color, aurora_color, fract(fi * 0.4 + TIME * 0.03));
-		float val = curtain * height_var;
-		val *= smoothstep(vortex_radius * 0.5, vortex_radius * 1.8, abs(uv.x - center.x) * ar + abs(uv.y - center.y));
-		col += c * val * hdr_intensity * 0.6;
-	}
-
-	// ══════════════════════════════════════════════
-	// LAYER 2: Spiral vortex center
+	// Spiral vortex center
 	// ══════════════════════════════════════════════
 	float swirl_a = angle - dist * 10.0 + TIME * swirl_speed;
 	float arms = sin(swirl_a * 3.0) * 0.5 + 0.5;
@@ -116,7 +109,6 @@ void fragment() {
 		if (i >= ttc) break;
 		float fi = float(i);
 		float t_angle = fi * 6.2832 / tendril_count + TIME * swirl_speed * 0.15;
-		// Anchor at vortex edge
 		vec2 anchor = vec2(cos(t_angle), sin(t_angle)) * vortex_radius * 0.9;
 		vec2 outward = normalize(vec2(cos(t_angle), sin(t_angle)));
 		vec2 pixel_from_anchor = d - anchor;
@@ -139,8 +131,8 @@ void fragment() {
 	}
 
 	// ══════════════════════════════════════════════
-	// LIGHTNING STRIKES — geometric bolts from vortex edge
-	// Same mechanics as neon void: shaft + branches, short duration.
+	// LIGHTNING — organic angular bolts (not locked to 90°)
+	// Sharp turns at varied angles, more natural than neon void's grid-locked paths.
 	// ══════════════════════════════════════════════
 	float lightning_val = 0.0;
 	int bc = int(bolt_count);
@@ -148,7 +140,6 @@ void fragment() {
 		if (bolt >= bc) break;
 		float fb = float(bolt);
 
-		// Staggered cycles, longer gaps than neon void (more calm)
 		float cycle_period = 2.0 + hash(vec2(fb, 77.0)) * 3.0;
 		float cycle_phase = hash(vec2(fb, 66.0)) * cycle_period;
 		float cycle_t = mod(TIME + cycle_phase, cycle_period);
@@ -161,28 +152,28 @@ void fragment() {
 		float shaft_flash = shaft_alive * smoothstep(shaft_duration, 0.0, cycle_t);
 
 		float strike_id = floor((TIME + cycle_phase) / cycle_period);
-		// Bolts spiral out from vortex (angle includes swirl offset)
 		float bolt_angle = fb * 6.2832 / bolt_count
 		                 + hash(vec2(fb, strike_id * 3.0)) * 1.0 - 0.5
 		                 + TIME * swirl_speed * 0.1;
 		vec2 pos = vec2(cos(bolt_angle), sin(bolt_angle)) * vortex_radius * 0.8;
-		vec2 out_dir = normalize(vec2(cos(bolt_angle), sin(bolt_angle)));
-		vec2 perp_dir = vec2(-out_dir.y, out_dir.x);
+		// Current travel direction — starts outward, wanders organically
+		float cur_angle = bolt_angle;
 
-		for (int seg = 0; seg < 10; seg++) {
+		for (int seg = 0; seg < 12; seg++) {
 			float fs = float(seg);
 			float seg_seed = hash(vec2(fb * 13.0 + fs, strike_id * 7.0 + fs));
 
-			vec2 direction;
-			float seg_len;
-			if (seg % 2 == 0) {
-				direction = out_dir;
-				seg_len = 0.025 + seg_seed * 0.06;
-			} else {
-				float jog_sign = (seg_seed > 0.5) ? 1.0 : -1.0;
-				direction = perp_dir * jog_sign;
-				seg_len = 0.012 + seg_seed * 0.035;
-			}
+			// Jog the angle: sharp turn of 30°-120° in random direction
+			float jog = (seg_seed - 0.5) * 2.0; // -1..1
+			// Bigger jog every other segment, small corrections between
+			float jog_amount = (seg % 2 == 0) ? 0.3 : 0.8;
+			cur_angle += jog * jog_amount;
+			// Bias back toward outward to prevent bolts curling inward
+			float outward_angle = atan(pos.y, pos.x);
+			cur_angle = mix(cur_angle, outward_angle, 0.15);
+
+			vec2 direction = vec2(cos(cur_angle), sin(cur_angle));
+			float seg_len = 0.02 + seg_seed * 0.05;
 
 			vec2 next_pos = pos + direction * seg_len;
 			float sd = seg_dist(d, pos, next_pos);
@@ -192,9 +183,9 @@ void fragment() {
 
 			lightning_val += (s_core * 1.0 + s_glow * 0.3) * range_fade * shaft_flash;
 
-			// Branches
+			// Branches — organic angles too
 			float branch_chance = hash(vec2(fb * 5.0 + fs, strike_id + 100.0));
-			if (branch_chance > 0.6 && seg % 2 == 0) {
+			if (branch_chance > 0.6) {
 				float branch_delay = hash(vec2(fb * 9.0 + fs, strike_id + 200.0)) * 0.3;
 				float branch_t = cycle_t - branch_delay;
 				float branch_dur = 0.15;
@@ -203,22 +194,18 @@ void fragment() {
 				float branch_flash = branch_alive * smoothstep(branch_dur, 0.0, branch_t);
 
 				if (branch_flash > 0.01) {
-					float branch_sign = (hash(vec2(fb + fs * 3.0, strike_id + 300.0)) > 0.5) ? 1.0 : -1.0;
-					vec2 branch_dir = perp_dir * branch_sign;
+					// Branch forks off at a wide angle from current direction
+					float fork_sign = (hash(vec2(fb + fs * 3.0, strike_id + 300.0)) > 0.5) ? 1.0 : -1.0;
+					float branch_angle = cur_angle + fork_sign * (0.8 + hash(vec2(fb * 7.0, fs + strike_id)) * 0.8);
 					vec2 bpos = (pos + next_pos) * 0.5;
 
 					for (int bseg = 0; bseg < 5; bseg++) {
 						float bfs = float(bseg);
 						float bseed = hash(vec2(fb * 17.0 + fs * 3.0 + bfs, strike_id + bfs));
-						vec2 bdir;
-						float blen;
-						if (bseg % 2 == 0) {
-							bdir = branch_dir;
-							blen = 0.01 + bseed * 0.02;
-						} else {
-							bdir = out_dir * ((bseed > 0.5) ? 1.0 : -1.0);
-							blen = 0.007 + bseed * 0.012;
-						}
+						// Wander the branch angle
+						branch_angle += (bseed - 0.5) * 0.6;
+						vec2 bdir = vec2(cos(branch_angle), sin(branch_angle));
+						float blen = 0.008 + bseed * 0.018;
 						vec2 bnext = bpos + bdir * blen;
 						float bsd = seg_dist(d, bpos, bnext);
 						float bcore = smoothstep(0.003, 0.0008, bsd);
@@ -238,85 +225,87 @@ void fragment() {
 	col += bolt_color * lightning_val * bolt_brightness * hdr_intensity * 0.55;
 
 	// ══════════════════════════════════════════════
-	// HDR PULSES — geometric wavefronts, irregular, flickering, angular masked
+	// ORGANIC STRAND MESH — voronoi edge network (reef-inspired)
+	// Replaces the rigid right-angle grid with organic branching strands.
+	// ══════════════════════════════════════════════
+	// Two scales of voronoi for large + fine strands
+	vec2 mesh_uv = d * strand_scale;
+	vec2 vor1 = voronoi(mesh_uv);
+	vec2 vor2 = voronoi(mesh_uv * 1.7 + vec2(13.7, 7.3));
+
+	float edge1 = vor1.y - vor1.x; // large cell boundaries
+	float edge2 = vor2.y - vor2.x; // fine sub-structure
+
+	// Strand from edge distance — thin bright lines at cell borders
+	float strand1 = smoothstep(strand_thickness, strand_thickness * 0.1, edge1);
+	float strand1_glow = exp(-edge1 / (strand_thickness * 3.0));
+	float strand2 = smoothstep(strand_thickness * 0.6, strand_thickness * 0.06, edge2) * 0.4;
+	float strand2_glow = exp(-edge2 / (strand_thickness * 2.0)) * 0.2;
+
+	float strand_total = strand1 + strand2;
+	float strand_glow_total = strand1_glow + strand2_glow;
+
+	// Fade strands: present near vortex, sparser further out
+	float strand_activity = smoothstep(0.55, 0.03, dist);
+	strand_activity *= smoothstep(0.0, 0.06, dist - vortex_radius * 0.4);
+
+	// ══════════════════════════════════════════════
+	// HDR RAYS — radial flashes from center to edge, illuminating the mesh.
+	// Each ray is a thin angular wedge that flashes on/off at random intervals.
 	// ══════════════════════════════════════════════
 	float ring_boost = 0.0;
 	float pixel_angle = atan(d.y, d.x);
-	float manhattan_dist = abs(d.x) + abs(d.y);
-	float chebyshev_dist = max(abs(d.x), abs(d.y));
 	int pc = int(pulse_count);
 	for (int i = 0; i < 8; i++) {
 		if (i >= pc) break;
 		float fi = float(i);
 
-		float period = 1.5 + hash(vec2(fi, 11.0)) * 2.5;
+		// Each ray has its own irregular flash cycle
+		float period = 1.0 + hash(vec2(fi, 11.0)) * 2.5;
 		float phase = hash(vec2(fi, 22.0)) * period;
 		float cycle_t = mod(TIME + phase, period);
 
+		// 80% off: ray flashes for first 20% of cycle
 		float active_window = period * 0.2;
-		float pulse_alive = smoothstep(active_window, active_window - 0.05, cycle_t)
-		                   * smoothstep(0.0, 0.03, cycle_t);
-		if (pulse_alive < 0.01) continue;
+		float ray_alive = smoothstep(active_window, active_window - 0.04, cycle_t)
+		                 * smoothstep(0.0, 0.02, cycle_t);
+		if (ray_alive < 0.01) continue;
 
-		// Angular mask
-		float strike_id = floor((TIME + phase) / period);
-		float arc_center = hash(vec2(fi * 3.0, strike_id * 7.0)) * 6.2832 - 3.14159;
-		float arc_half = 0.52 + hash(vec2(fi * 5.0, strike_id * 11.0)) * 1.05;
-		float angle_diff = abs(mod(pixel_angle - arc_center + 3.14159, 6.2832) - 3.14159);
-		float arc_mask = smoothstep(arc_half, arc_half - 0.25, angle_diff);
-		if (arc_mask < 0.01) continue;
+		// Ray angle — random each flash
+		float flash_id = floor((TIME + phase) / period);
+		float ray_angle = hash(vec2(fi * 3.0, flash_id * 7.0)) * 6.2832 - 3.14159;
 
-		float ring_t = cycle_t / active_window;
-		float wave_radius = ring_t * 0.85;
+		// Angular width of the ray wedge (narrow: 8°-25°)
+		float ray_half_width = 0.07 + hash(vec2(fi * 5.0, flash_id * 11.0)) * 0.15;
 
-		// Alternate diamond / square wavefronts
-		float shape_pick = hash(vec2(fi * 7.0, strike_id * 13.0));
-		float geo_dist = (shape_pick > 0.5) ? chebyshev_dist : manhattan_dist;
-		float scale = (shape_pick > 0.5) ? 1.0 : 0.7;
-		float wave_match = abs(geo_dist * scale - wave_radius);
-		float ring = exp(-wave_match * wave_match / (pulse_width * pulse_width));
+		float angle_diff = abs(mod(pixel_angle - ray_angle + 3.14159, 6.2832) - 3.14159);
+		float ray_mask = smoothstep(ray_half_width, ray_half_width * 0.15, angle_diff);
+		if (ray_mask < 0.01) continue;
 
-		// Chaotic flicker
+		// Fade along length: bright near center, fading outward
+		float radial_fade = smoothstep(0.6, 0.02, dist) * smoothstep(0.0, 0.04, dist);
+
+		// Chaotic flicker within the flash
 		float flk = sin(TIME * 41.0 + fi * 7.0) * sin(TIME * 29.0 + fi * 13.0);
 		flk = flk * 0.5 + 0.5;
-		flk *= step(0.3, sin(TIME * 53.0 + fi * 19.0));
-		float intensity = (1.0 - ring_t * 0.4) * pulse_alive * flk;
-		ring_boost += ring * intensity * arc_mask;
+		flk *= step(0.25, sin(TIME * 57.0 + fi * 19.0));
+
+		float intensity = ray_alive * radial_fade * ray_mask * flk;
+		ring_boost += intensity;
 	}
 	ring_boost = min(ring_boost, 6.0);
 
-	// ── Geometric grid lines ──
-	vec2 grid_offset = vec2(sin(TIME * drift_speed * 0.6) * 0.008, cos(TIME * drift_speed) * 0.008);
-	vec2 grid_uv = (uv + grid_offset) * line_density;
-	vec2 cell_id = floor(grid_uv);
-	vec2 cell_f = fract(grid_uv);
-
-	float cell_dist = length((cell_id + 0.5) / line_density - center);
-	float base_activity = smoothstep(0.5, 0.03, cell_dist);
-	float thin_chance = smoothstep(0.07, 0.4, cell_dist);
-	float sparse_mask = step(thin_chance * 0.7, hash(cell_id + 200.0));
-	float activity = base_activity * sparse_mask;
-	activity *= smoothstep(0.0, 0.04, cell_dist - 0.02);
-
-	float h_active = step(0.35, hash(cell_id)) * activity;
-	float v_active = step(0.35, hash(cell_id + 77.0)) * activity;
-	float near_center = smoothstep(0.1, 0.03, cell_dist);
-	h_active = max(h_active, near_center);
-	v_active = max(v_active, near_center);
-
-	float line_w = 0.041;
-	float h_line = smoothstep(line_w, line_w * 0.12, abs(cell_f.y - 0.5)) * h_active;
-	float v_line = smoothstep(line_w, line_w * 0.12, abs(cell_f.x - 0.5)) * v_active;
-	float line_core = max(h_line, v_line);
-
+	// ── Strands lit by pulses ──
 	float base_dim = 0.03;
 	float ring_lit = ring_boost * pulse_hdr;
-	col += line_color * line_core * (base_dim + ring_lit) * line_brightness * hdr_intensity * 0.15;
+	float mesh_lit = base_dim + ring_lit;
 
-	// Nodes
-	float at_int = smoothstep(0.1, 0.02, max(abs(cell_f.x - 0.5), abs(cell_f.y - 0.5)));
-	float node_active = min(h_active, v_active);
-	col += line_color * at_int * node_active * (base_dim + ring_lit * 0.5) * hdr_intensity * 0.2;
+	col += strand_color * strand_total * mesh_lit * strand_brightness * hdr_intensity * 0.15 * strand_activity;
+	col += strand_color * strand_glow_total * mesh_lit * strand_brightness * hdr_intensity * 0.04 * strand_activity;
+
+	// Strand intersection nodes (where both scales overlap = bright spots)
+	float node_val = strand1 * strand2 * 4.0;
+	col += aurora_color * node_val * (base_dim + ring_lit * 0.5) * hdr_intensity * 0.2 * strand_activity;
 
 	// Ring ambient wash
 	float ambient_mask = smoothstep(0.0, 0.04, dist) * smoothstep(0.8, 0.05, dist);

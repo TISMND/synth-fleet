@@ -59,9 +59,9 @@
 	"id": "enemy_colossus",
 	"level": "lifeform",
 	"lines": [],
-	"neon_hdr": 1.0,
+	"neon_hdr": 1.24,
 	"neon_white": 0.0,
-	"neon_width": 1.0,
+	"neon_width": 0.365,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 120.0,
