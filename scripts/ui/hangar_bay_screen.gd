@@ -12,8 +12,13 @@ var _header_ship_renderer: ShipRenderer
 var _header_preview_area: Control
 var _plus_overlay: Control
 var _plus_pulse_time: float = 0.0
+var _cargo_renderer: ShipRenderer
+var _cargo_paint_overlay: Node2D
+var _cargo_light_overlay: Node2D
 var _name_edit: LineEdit
+var _level_label: Label
 var _class_label: Label
+var _desc_label: Label
 
 # ── Bay state ──
 var _bay_ship_ids: Array[int] = []  # ship_id per player bay (-1 = empty)
@@ -31,11 +36,12 @@ const SPOT_H: float = 140.0
 const SUPPORT_SPOT_H: float = 210.0  # support bays are 1.5x taller
 const SPACING_X: float = 200.0
 const SPACING_Y: float = 180.0
-const PLAYER_TOP: float = 160.0  # below the "YOUR SHIPS" header
+const PLAYER_TOP: float = 200.0  # below the back button row + "YOUR SHIPS" header
 const SUPPORT_GAP: float = 80.0  # extra gap between player and support rows
-const RIGHT_PANEL_W: float = 540.0
+const RIGHT_PANEL_W: float = 648.0  # 20% wider than original 540
 const HANGAR_LEFT_MARGIN: float = 30.0
 const HANGAR_RIGHT_GAP: float = 15.0  # gap between hangar area and right panel
+const TOP_BAR_HEIGHT: float = 50.0  # space for the back button row at top
 
 # Colors: military grid pattern, blueprint colors
 const FLOOR_COLOR := Color(0.01, 0.02, 0.06)
@@ -60,7 +66,7 @@ const SHIP_CLASSES: Array[String] = [
 var _right_panel: MarginContainer
 
 # ── Upgrade tabs ──
-const TAB_NAMES := ["SUBSYSTEMS", "AUGMENTS", "VANITY"]
+const TAB_NAMES := ["SUBSYSTEMS", "AUGMENTS", "CUSTOMIZE"]
 
 const AUGMENT_LAYOUT := [
 	{"section": "WEAPONS", "color": Color(0.14, 0.89, 0.89), "slots": [
@@ -78,13 +84,6 @@ const AUGMENT_LAYOUT := [
 	]},
 ]
 
-const VANITY_CATEGORIES := [
-	{"label": "SHIP SKIN", "id": "skin", "options": ["Default", "Chrome", "Void", "Hivemind", "Ember", "Frost", "Stealth", "Gunmetal"]},
-	{"label": "ENGINE EXHAUST", "id": "exhaust", "options": ["Standard Blue", "Hot Pink", "Plasma Green", "Solar Gold", "Ghostly White"]},
-	{"label": "WING TRAILS", "id": "trails", "options": ["None", "Cyan Streak", "Magenta Ribbon", "Rainbow Fade", "Ember Sparks"]},
-	{"label": "CANOPY TINT", "id": "canopy", "options": ["Default Cyan", "Amber", "Crimson", "Ultraviolet", "Frosted"]},
-]
-
 const SKIN_RENDER_MODES := {
 	"Default": 0, "Chrome": 1, "Void": 2, "Hivemind": 3,
 	"Ember": 6, "Frost": 7, "Stealth": 11, "Gunmetal": 9,
@@ -94,8 +93,8 @@ var _tab_buttons: Array[Button] = []
 var _tab_containers: Array[Control] = []
 var _active_tab: int = 0
 
-# Vanity state
-var _vanity_selections: Dictionary = {}
+# Subsystem LED bar refs (keyed by stat name)
+var _stat_bars: Dictionary = {}  # stat_key → {bar: ProgressBar, label: Label, plus_btn: Button}
 
 
 func _ready() -> void:
@@ -108,8 +107,7 @@ func _ready() -> void:
 
 
 func _init_upgrade_state() -> void:
-	for cat in VANITY_CATEGORIES:
-		_vanity_selections[cat["id"]] = 0
+	pass  # Reserved for future upgrade state initialization
 
 
 func _process(delta: float) -> void:
@@ -142,15 +140,27 @@ func _build_layout() -> void:
 	# Place ships in bays
 	_place_ships()
 
-	# Right panel pinned to the right edge
+	# ← BACK button at top-left (screen-level, not inside the pane)
+	var back_btn := Button.new()
+	back_btn.text = "\u2190  BACK"
+	back_btn.custom_minimum_size = Vector2(120, 40)
+	back_btn.position = Vector2(HANGAR_LEFT_MARGIN, 12)
+	ThemeManager.apply_button_style(back_btn)
+	back_btn.add_theme_font_size_override("font_size", 16)
+	back_btn.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	back_btn.add_theme_color_override("font_hover_color", ThemeManager.get_color("header"))
+	back_btn.pressed.connect(_on_back)
+	add_child(back_btn)
+
+	# Right panel pinned to the right edge with generous margins
 	var right_panel := MarginContainer.new()
 	right_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 	right_panel.offset_left = -RIGHT_PANEL_W
-	right_panel.offset_top = 20
-	right_panel.offset_right = -HANGAR_LEFT_MARGIN
-	right_panel.offset_bottom = -20
+	right_panel.offset_top = TOP_BAR_HEIGHT + 10
+	right_panel.offset_right = -40
+	right_panel.offset_bottom = -30
 	right_panel.add_theme_constant_override("margin_left", 15)
-	right_panel.add_theme_constant_override("margin_right", 0)
+	right_panel.add_theme_constant_override("margin_right", 10)
 	add_child(right_panel)
 	_right_panel = right_panel
 	_build_right_panel(right_panel)
@@ -179,6 +189,16 @@ func _ship_custom_name_for(ship_id: int) -> String:
 	return str(GameState.custom_ship_names.get(key, ShipRegistry.get_ship_name(ship_id)))
 
 
+func _ship_description_for(ship_id: int) -> String:
+	if ship_id < 0:
+		return ""
+	var ship_name: String = ShipRegistry.get_ship_name(ship_id).to_lower()
+	var ship_data: ShipData = ShipDataManager.load_by_id(ship_name)
+	if ship_data:
+		return ship_data.description
+	return ""
+
+
 func _on_ship_name_changed(new_text: String) -> void:
 	var sid: int = _selected_ship_id()
 	if sid < 0:
@@ -188,14 +208,16 @@ func _on_ship_name_changed(new_text: String) -> void:
 
 
 func _build_ship_header(parent: VBoxContainer) -> void:
-	# Ship preview area — fixed-size Control so the Node2D ship renderer can be centered
+	var initial_sid: int = _selected_ship_id()
+	var acc: Color = ThemeManager.get_color("accent")
+
+	# Ship preview area
 	_header_preview_area = Control.new()
 	_header_preview_area.custom_minimum_size = Vector2(0, 120)
 	_header_preview_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_header_preview_area.clip_contents = true
 	parent.add_child(_header_preview_area)
 
-	var initial_sid: int = _selected_ship_id()
 	_header_ship_renderer = ShipRenderer.new()
 	_header_ship_renderer.ship_id = maxi(initial_sid, 0)
 	_header_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
@@ -214,36 +236,30 @@ func _build_ship_header(parent: VBoxContainer) -> void:
 	_name_edit.text_changed.connect(_on_ship_name_changed)
 	parent.add_child(_name_edit)
 
-	# Class subtext
+	# Level
+	_level_label = Label.new()
+	_level_label.text = "Level 1"
+	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_level_label.add_theme_font_size_override("font_size", 13)
+	_level_label.add_theme_color_override("font_color", Color(acc.r, acc.g, acc.b, 0.85))
+	parent.add_child(_level_label)
+
+	# Class
 	_class_label = Label.new()
 	_class_label.text = _ship_class_for(initial_sid)
 	_class_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_class_label.add_theme_font_size_override("font_size", 12)
-	var acc: Color = ThemeManager.get_color("accent")
-	_class_label.add_theme_color_override("font_color", Color(acc.r, acc.g, acc.b, 0.7))
+	_class_label.add_theme_color_override("font_color", Color(acc.r, acc.g, acc.b, 0.6))
 	parent.add_child(_class_label)
 
-	# Action buttons: Activate / Make Profile
-	var btn_row := HBoxContainer.new()
-	btn_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_row.add_theme_constant_override("separation", 8)
-	parent.add_child(btn_row)
-
-	var activate_btn := Button.new()
-	activate_btn.text = "ACTIVATE SHIP"
-	activate_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	activate_btn.custom_minimum_size.y = 34
-	ThemeManager.apply_button_style(activate_btn)
-	activate_btn.pressed.connect(_on_activate_pressed)
-	btn_row.add_child(activate_btn)
-
-	var profile_btn := Button.new()
-	profile_btn.text = "MAKE PROFILE SHIP"
-	profile_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	profile_btn.custom_minimum_size.y = 34
-	ThemeManager.apply_button_style(profile_btn)
-	profile_btn.pressed.connect(_on_make_profile_pressed)
-	btn_row.add_child(profile_btn)
+	# Description
+	_desc_label = Label.new()
+	_desc_label.text = _ship_description_for(initial_sid)
+	_desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_desc_label.add_theme_font_size_override("font_size", 11)
+	_desc_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	parent.add_child(_desc_label)
 
 
 func _refresh_header_for_selection() -> void:
@@ -253,8 +269,13 @@ func _refresh_header_for_selection() -> void:
 		_header_ship_renderer.queue_redraw()
 	if _name_edit:
 		_name_edit.text = _ship_custom_name_for(sid)
+	if _level_label:
+		_level_label.text = "Level 1"  # placeholder until leveling is wired
 	if _class_label:
 		_class_label.text = _ship_class_for(sid)
+	if _desc_label:
+		_desc_label.text = _ship_description_for(sid)
+	_refresh_stat_bars()
 
 
 func _on_activate_pressed() -> void:
@@ -297,7 +318,7 @@ func _build_right_panel(parent: MarginContainer) -> void:
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 12)
+	col.add_theme_constant_override("separation", 10)
 	parent.add_child(col)
 
 	_build_ship_header(col)
@@ -328,14 +349,27 @@ func _build_right_panel(parent: MarginContainer) -> void:
 	_build_augments_tab(content_stack)
 	_build_vanity_tab(content_stack)
 
-	# Back button at bottom
-	var back_btn := Button.new()
-	back_btn.text = "BACK"
-	back_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	back_btn.custom_minimum_size = Vector2(160, 40)
-	ThemeManager.apply_button_style(back_btn)
-	back_btn.pressed.connect(_on_back)
-	col.add_child(back_btn)
+	# Action buttons at the bottom — these are final actions, separate from tabs
+	var btn_row := HBoxContainer.new()
+	btn_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_row.add_theme_constant_override("separation", 8)
+	col.add_child(btn_row)
+
+	var activate_btn := Button.new()
+	activate_btn.text = "ACTIVATE SHIP"
+	activate_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	activate_btn.custom_minimum_size.y = 34
+	ThemeManager.apply_button_style(activate_btn)
+	activate_btn.pressed.connect(_on_activate_pressed)
+	btn_row.add_child(activate_btn)
+
+	var profile_btn := Button.new()
+	profile_btn.text = "MAKE PROFILE SHIP"
+	profile_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	profile_btn.custom_minimum_size.y = 34
+	ThemeManager.apply_button_style(profile_btn)
+	profile_btn.pressed.connect(_on_make_profile_pressed)
+	btn_row.add_child(profile_btn)
 
 
 # ── Tab switching ──
@@ -356,21 +390,101 @@ func _switch_tab(index: int) -> void:
 			_tab_buttons[i].remove_theme_color_override("font_color")
 
 
-# ── Subsystems tab (placeholder until upgrade system returns) ──
+# ── Subsystems tab — LED stat bars ──
+
+const STAT_BARS_CONFIG := [
+	{"key": "shield_hp", "label": "SHIELDS", "color": Color(0.3, 0.6, 1.0)},
+	{"key": "hull_hp", "label": "HULL", "color": Color(0.2, 0.9, 0.3)},
+	{"key": "thermal_hp", "label": "THERMAL", "color": Color(1.0, 0.45, 0.1)},
+	{"key": "electric_hp", "label": "ELECTRIC", "color": Color(0.85, 0.75, 0.2)},
+]
+
 
 func _build_subsystems_tab(parent: Control) -> void:
 	var container := MarginContainer.new()
 	container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	container.add_theme_constant_override("margin_top", 40)
+	container.add_theme_constant_override("margin_top", 16)
 	parent.add_child(container)
 	_tab_containers.append(container)
 
-	var placeholder := Label.new()
-	placeholder.text = "Subsystem upgrades coming soon."
-	placeholder.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	placeholder.add_theme_font_size_override("font_size", 14)
-	placeholder.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
-	container.add_child(placeholder)
+	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 14)
+	container.add_child(vbox)
+
+	for cfg in STAT_BARS_CONFIG:
+		var stat_key: String = cfg["key"]
+		var stat_label: String = cfg["label"]
+		var stat_color: Color = cfg["color"]
+		_build_stat_bar_row(vbox, stat_key, stat_label, stat_color)
+
+	_refresh_stat_bars()
+
+
+func _build_stat_bar_row(parent: VBoxContainer, stat_key: String, stat_label: String, bar_color: Color) -> void:
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 8)
+	parent.add_child(row)
+
+	# "+" upgrade button — hidden until leveling is wired
+	var plus_btn := Button.new()
+	plus_btn.text = "+"
+	plus_btn.custom_minimum_size = Vector2(28, 28)
+	plus_btn.visible = false
+	ThemeManager.apply_button_style(plus_btn)
+	row.add_child(plus_btn)
+
+	# Label + value column
+	var info_col := VBoxContainer.new()
+	info_col.custom_minimum_size.x = 80
+	info_col.add_theme_constant_override("separation", 2)
+	row.add_child(info_col)
+
+	var name_lbl := Label.new()
+	name_lbl.text = stat_label
+	name_lbl.add_theme_font_size_override("font_size", 11)
+	name_lbl.add_theme_color_override("font_color", bar_color)
+	info_col.add_child(name_lbl)
+
+	var val_lbl := Label.new()
+	val_lbl.text = "0"
+	val_lbl.add_theme_font_size_override("font_size", 10)
+	val_lbl.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	info_col.add_child(val_lbl)
+
+	# LED bar
+	var bar := ProgressBar.new()
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.custom_minimum_size.y = 18
+	bar.show_percentage = false
+	bar.max_value = 200.0  # raw HP comparison range (not normalized)
+	ThemeManager.apply_led_bar(bar, bar_color, 0.0)
+	row.add_child(bar)
+
+	_stat_bars[stat_key] = {"bar": bar, "label": val_lbl, "plus_btn": plus_btn, "color": bar_color}
+
+
+func _refresh_stat_bars() -> void:
+	var sid: int = _selected_ship_id()
+	if sid < 0:
+		return
+	var stats: Dictionary = {}
+	if sid >= 0 and sid < ShipRegistry.SHIP_STATS.size():
+		stats = ShipRegistry.SHIP_STATS[sid]
+	for cfg in STAT_BARS_CONFIG:
+		var stat_key: String = cfg["key"]
+		if not _stat_bars.has(stat_key):
+			continue
+		var entry: Dictionary = _stat_bars[stat_key]
+		var val: float = float(stats.get(stat_key, 0))
+		var bar: ProgressBar = entry["bar"]
+		var lbl: Label = entry["label"]
+		var col: Color = entry["color"]
+		bar.value = val
+		lbl.text = str(int(val))
+		ThemeManager.apply_led_bar(bar, col, val / bar.max_value)
 
 
 # ── Augments tab ──
@@ -465,12 +579,40 @@ func _build_augments_tab(parent: Control) -> void:
 		vbox.add_child(spacer)
 
 
-# ── Vanity tab ──
+# ── Customize tab (Skin / Paint / Lighting) ──
+
+const SKIN_OPTIONS: Array[String] = [
+	"Default", "Chrome", "Void", "Hivemind", "Ember", "Frost", "Stealth", "Gunmetal",
+]
+
+const PAINT_PATTERNS: Array[String] = [
+	"(none)", "CENTER STRIPE", "WIDE BAND", "TRIPLE LINE", "NOSE CAP", "TAIL BAND",
+	"THREE BANDS", "DIAG LEFT", "DIAG RIGHT", "CHEVRON", "WING CHECK", "WING TIPS",
+	"WEDGE", "STARBURST", "FULL NOSE", "FULL BELLY", "FULL STERN", "TOP HALF",
+	"BOTTOM HALF", "SLATS x6", "SLATS x10", "SLATS x16", "WIDE SLATS",
+	"CENTER SPINE", "PORT/STARBOARD", "TRIPLE STRIPE", "CHECKERBOARD", "CROSS",
+	"SIDE PANELS", "ARMOR PLATES",
+]
+
+const LIGHT_PATTERNS: Array[String] = [
+	"(none)", "TWIN RACING", "DOUBLE CHEVRON", "STACKED V", "TIGHT CHEVRONS",
+	"NAV LIGHTS", "WING TIPS", "RUNNING LIGHTS", "CORNER MARKS", "BRIDGE SPOTS",
+	"DOCKING LIGHTS", "SIGNAL ARRAY", "DECK LINES", "HULL GLOW", "PORT WINDOWS",
+	"CABIN LIGHTS", "WIDE RACING", "TRIPLE BAND", "QUAD STRIPES",
+]
+
+var _skin_label: Label
+var _paint_pattern_label: Label
+var _paint_color_btn: ColorPickerButton
+var _light_pattern_label: Label
+var _light_color_btn: ColorPickerButton
+
 
 func _build_vanity_tab(parent: Control) -> void:
 	var container := MarginContainer.new()
 	container.set_anchors_preset(Control.PRESET_FULL_RECT)
 	container.visible = false
+	container.add_theme_constant_override("margin_top", 12)
 	parent.add_child(container)
 	_tab_containers.append(container)
 
@@ -482,114 +624,325 @@ func _build_vanity_tab(parent: Control) -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 14)
+	vbox.add_theme_constant_override("separation", 16)
 	scroll.add_child(vbox)
 
-	for cat in VANITY_CATEGORIES:
-		var cat_id: String = cat["id"]
-		var options: Array = cat["options"]
+	# ── SKIN ──
+	_build_customize_section(vbox, "SHIP SKIN", "_skin_label", SKIN_OPTIONS[0],
+		func() -> void: _show_picker_modal("SKIN", SKIN_OPTIONS, _get_current_skin_index(), _on_skin_picked))
 
-		var header := Label.new()
-		header.text = cat["label"]
-		header.add_theme_font_size_override("font_size", 15)
-		vbox.add_child(header)
+	# ── PAINT ──
+	var paint_section := VBoxContainer.new()
+	paint_section.add_theme_constant_override("separation", 6)
+	vbox.add_child(paint_section)
 
-		var sel_row := HBoxContainer.new()
-		sel_row.add_theme_constant_override("separation", 12)
-		sel_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		vbox.add_child(sel_row)
+	var paint_header := Label.new()
+	paint_header.text = "PAINT"
+	paint_header.add_theme_font_size_override("font_size", 14)
+	paint_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	paint_section.add_child(paint_header)
 
-		var prev_btn := Button.new()
-		prev_btn.text = "<"
-		prev_btn.custom_minimum_size = Vector2(32, 32)
-		ThemeManager.apply_button_style(prev_btn)
-		prev_btn.pressed.connect(_on_vanity_change.bind(cat_id, -1))
-		sel_row.add_child(prev_btn)
+	_paint_color_btn = ColorPickerButton.new()
+	_paint_color_btn.custom_minimum_size = Vector2(0, 28)
+	_paint_color_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_paint_color_btn.color = Color(0.85, 0.08, 0.08, 0.92)
+	_paint_color_btn.edit_alpha = false
+	_paint_color_btn.disabled = true
+	_paint_color_btn.tooltip_text = "Select a paint pattern first"
+	_paint_color_btn.color_changed.connect(_on_paint_color_changed)
+	paint_section.add_child(_paint_color_btn)
 
-		var sel_label := Label.new()
-		sel_label.text = str(options[0])
-		sel_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		sel_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		sel_row.add_child(sel_label)
+	_paint_pattern_label = Label.new()
+	_paint_pattern_label.text = "(none)"
+	_paint_pattern_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_paint_pattern_label.add_theme_font_size_override("font_size", 12)
+	_paint_pattern_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	paint_section.add_child(_paint_pattern_label)
 
-		var next_btn := Button.new()
-		next_btn.text = ">"
-		next_btn.custom_minimum_size = Vector2(32, 32)
-		ThemeManager.apply_button_style(next_btn)
-		next_btn.pressed.connect(_on_vanity_change.bind(cat_id, 1))
-		sel_row.add_child(next_btn)
+	var paint_btn := Button.new()
+	paint_btn.text = "CHANGE PATTERN"
+	paint_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	paint_btn.custom_minimum_size.y = 30
+	ThemeManager.apply_button_style(paint_btn)
+	paint_btn.pressed.connect(func() -> void:
+		_show_picker_modal("PAINT PATTERN", PAINT_PATTERNS, _get_current_paint_index(), _on_paint_pattern_picked))
+	paint_section.add_child(paint_btn)
 
-		var preview_row := HBoxContainer.new()
-		preview_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		preview_row.add_theme_constant_override("separation", 4)
-		vbox.add_child(preview_row)
-		for opt_i in range(options.size()):
-			var dot := ColorRect.new()
-			dot.custom_minimum_size = Vector2(20, 5)
-			dot.color = ThemeManager.get_color("accent") if opt_i == 0 else Color(0.2, 0.2, 0.25, 0.5)
-			preview_row.add_child(dot)
+	# ── LIGHTING ──
+	var light_section := VBoxContainer.new()
+	light_section.add_theme_constant_override("separation", 6)
+	vbox.add_child(light_section)
 
-		sel_row.set_meta("sel_label", sel_label)
-		sel_row.set_meta("preview_row", preview_row)
-		sel_row.set_meta("cat_id", cat_id)
-		sel_label.set_meta("options", options)
+	var light_header := Label.new()
+	light_header.text = "LIGHTING"
+	light_header.add_theme_font_size_override("font_size", 14)
+	light_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	light_section.add_child(light_header)
 
-		var sep := HSeparator.new()
-		vbox.add_child(sep)
+	_light_color_btn = ColorPickerButton.new()
+	_light_color_btn.custom_minimum_size = Vector2(0, 28)
+	_light_color_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_light_color_btn.color = Color(1.0, 0.85, 0.12)
+	_light_color_btn.edit_alpha = false
+	_light_color_btn.disabled = true
+	_light_color_btn.tooltip_text = "Select a light pattern first"
+	_light_color_btn.color_changed.connect(_on_light_color_changed)
+	light_section.add_child(_light_color_btn)
+
+	_light_pattern_label = Label.new()
+	_light_pattern_label.text = "(none)"
+	_light_pattern_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_light_pattern_label.add_theme_font_size_override("font_size", 12)
+	_light_pattern_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	light_section.add_child(_light_pattern_label)
+
+	var light_btn := Button.new()
+	light_btn.text = "CHANGE PATTERN"
+	light_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	light_btn.custom_minimum_size.y = 30
+	ThemeManager.apply_button_style(light_btn)
+	light_btn.pressed.connect(func() -> void:
+		_show_picker_modal("LIGHT PATTERN", LIGHT_PATTERNS, _get_current_light_index(), _on_light_pattern_picked))
+	light_section.add_child(light_btn)
 
 
-# ── Subsystem logic ──
+func _build_customize_section(parent: VBoxContainer, title: String, label_field: String,
+	default_text: String, on_change: Callable) -> void:
+	var section := VBoxContainer.new()
+	section.add_theme_constant_override("separation", 6)
+	parent.add_child(section)
 
-# ── Vanity logic ──
+	var header := Label.new()
+	header.text = title
+	header.add_theme_font_size_override("font_size", 14)
+	header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	section.add_child(header)
 
-func _on_vanity_change(cat_id: String, delta: int) -> void:
-	var cat_data: Dictionary = {}
-	for cat in VANITY_CATEGORIES:
-		if cat["id"] == cat_id:
-			cat_data = cat
+	var lbl := Label.new()
+	lbl.text = default_text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	section.add_child(lbl)
+	set(label_field, lbl)
+
+	var btn := Button.new()
+	btn.text = "CHANGE"
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.custom_minimum_size.y = 30
+	ThemeManager.apply_button_style(btn)
+	btn.pressed.connect(on_change)
+	section.add_child(btn)
+
+
+# ── Customize picker modal ──
+
+var _picker_overlay: Control = null
+
+
+func _show_picker_modal(title: String, options: Array, current_index: int, on_picked: Callable) -> void:
+	if _picker_overlay:
+		_picker_overlay.queue_free()
+
+	# Semi-transparent fullscreen backdrop
+	_picker_overlay = Control.new()
+	_picker_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_picker_overlay)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(0.0, 0.0, 0.0, 0.65)
+	_picker_overlay.add_child(backdrop)
+
+	# Centered panel
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.custom_minimum_size = Vector2(500, 350)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.02, 0.03, 0.08, 0.95)
+	sb.border_color = ThemeManager.get_color("accent")
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(8)
+	sb.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", sb)
+	_picker_overlay.add_child(panel)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 14)
+	panel.add_child(col)
+
+	# Title
+	var title_lbl := Label.new()
+	title_lbl.text = title
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_lbl.add_theme_font_size_override("font_size", 18)
+	title_lbl.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	col.add_child(title_lbl)
+
+	# Ship preview
+	var preview_area := Control.new()
+	preview_area.custom_minimum_size = Vector2(0, 140)
+	preview_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	preview_area.clip_contents = true
+	col.add_child(preview_area)
+
+	var preview_ship := ShipRenderer.new()
+	var sid: int = _selected_ship_id()
+	preview_ship.ship_id = maxi(sid, 0)
+	preview_ship.render_mode = ShipRenderer.RenderMode.CHROME
+	preview_ship.animate = true
+	preview_area.add_child(preview_ship)
+	preview_area.resized.connect(func() -> void:
+		preview_ship.position = preview_area.size * 0.5)
+	preview_ship.call_deferred("set", "position", Vector2(250, 70))
+
+	# Cycling row: [<] Label [>]
+	var picker_index: Array[int] = [clampi(current_index, 0, options.size() - 1)]
+	var sel_lbl := Label.new()
+	sel_lbl.text = str(options[picker_index[0]])
+	sel_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sel_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sel_lbl.add_theme_font_size_override("font_size", 16)
+	sel_lbl.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+
+	var cycle_row := HBoxContainer.new()
+	cycle_row.add_theme_constant_override("separation", 12)
+	cycle_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_child(cycle_row)
+
+	var prev_btn := Button.new()
+	prev_btn.text = "\u25C1"
+	prev_btn.custom_minimum_size = Vector2(48, 36)
+	ThemeManager.apply_button_style(prev_btn)
+	cycle_row.add_child(prev_btn)
+
+	cycle_row.add_child(sel_lbl)
+
+	var next_btn := Button.new()
+	next_btn.text = "\u25B7"
+	next_btn.custom_minimum_size = Vector2(48, 36)
+	ThemeManager.apply_button_style(next_btn)
+	cycle_row.add_child(next_btn)
+
+	# Dot indicators
+	var dot_row := HBoxContainer.new()
+	dot_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	dot_row.add_theme_constant_override("separation", 3)
+	col.add_child(dot_row)
+	for i in options.size():
+		var dot := ColorRect.new()
+		dot.custom_minimum_size = Vector2(12, 4)
+		dot.color = ThemeManager.get_color("accent") if i == picker_index[0] else Color(0.2, 0.2, 0.25, 0.5)
+		dot_row.add_child(dot)
+
+	# Apply live preview when cycling
+	var update_preview := func(delta: int) -> void:
+		picker_index[0] = (picker_index[0] + delta + options.size()) % options.size()
+		sel_lbl.text = str(options[picker_index[0]])
+		# Update dots
+		for di in dot_row.get_child_count():
+			var d: ColorRect = dot_row.get_child(di)
+			d.color = ThemeManager.get_color("accent") if di == picker_index[0] else Color(0.2, 0.2, 0.25, 0.5)
+		# Live skin preview on the modal ship
+		if title == "SKIN":
+			var mode: int = SKIN_RENDER_MODES.get(str(options[picker_index[0]]), 0)
+			preview_ship.render_mode = mode
+			preview_ship.queue_redraw()
+	prev_btn.pressed.connect(func() -> void: update_preview.call(-1))
+	next_btn.pressed.connect(func() -> void: update_preview.call(1))
+
+	# Confirm / Cancel row
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 12)
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_child(btn_row)
+
+	var confirm_btn := Button.new()
+	confirm_btn.text = "CONFIRM"
+	confirm_btn.custom_minimum_size = Vector2(140, 36)
+	ThemeManager.apply_button_style(confirm_btn)
+	confirm_btn.pressed.connect(func() -> void:
+		on_picked.call(picker_index[0])
+		_close_picker_modal())
+	btn_row.add_child(confirm_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "CANCEL"
+	cancel_btn.custom_minimum_size = Vector2(140, 36)
+	ThemeManager.apply_button_style(cancel_btn)
+	cancel_btn.pressed.connect(_close_picker_modal)
+	btn_row.add_child(cancel_btn)
+
+
+func _close_picker_modal() -> void:
+	if _picker_overlay and is_instance_valid(_picker_overlay):
+		_picker_overlay.queue_free()
+		_picker_overlay = null
+
+
+# ── Customize callbacks ──
+
+func _get_current_skin_index() -> int:
+	var sid: int = _selected_ship_id()
+	if sid < 0:
+		return 0
+	# Check which skin the header renderer is showing
+	if _header_ship_renderer:
+		for i in SKIN_OPTIONS.size():
+			if SKIN_RENDER_MODES.get(SKIN_OPTIONS[i], 0) == _header_ship_renderer.render_mode:
+				return i
+	return 0
+
+
+func _get_current_paint_index() -> int:
+	return 0  # placeholder — not yet persisted per player ship
+
+
+func _get_current_light_index() -> int:
+	return 0
+
+
+func _on_skin_picked(index: int) -> void:
+	var skin_name: String = SKIN_OPTIONS[index]
+	var mode: int = SKIN_RENDER_MODES.get(skin_name, 0)
+	for r in _ship_renderers:
+		if r.has_meta("bay_index") and int(r.get_meta("bay_index")) == _selected_bay:
+			r.render_mode = mode
+			r.queue_redraw()
 			break
-	if cat_data.is_empty():
-		return
-	var options: Array = cat_data["options"]
-	var current: int = _vanity_selections[cat_id]
-	var new_idx: int = (current + delta + options.size()) % options.size()
-	_vanity_selections[cat_id] = new_idx
-
-	# Skin changes update the SELECTED ship's bay renderer and the header preview
-	if cat_id == "skin":
-		var skin_name: String = str(options[new_idx])
-		var mode: int = SKIN_RENDER_MODES.get(skin_name, 0)
-		for r in _ship_renderers:
-			if int(r.get_meta("bay_index")) == _selected_bay:
-				r.render_mode = mode
-				r.queue_redraw()
-				break
-		if _header_ship_renderer:
-			_header_ship_renderer.render_mode = mode
-			_header_ship_renderer.queue_redraw()
-
-	_update_vanity_display()
+	if _header_ship_renderer:
+		_header_ship_renderer.render_mode = mode
+		_header_ship_renderer.queue_redraw()
+	if _skin_label:
+		_skin_label.text = skin_name
 
 
-func _update_vanity_display() -> void:
-	if _tab_containers.size() < 3:
-		return
-	var accent: Color = ThemeManager.get_color("accent")
-	# Walk the vanity tab and update each category row
-	var container: Control = _tab_containers[2]
-	var scroll: ScrollContainer = container.get_child(0) as ScrollContainer
-	var vbox: VBoxContainer = scroll.get_child(0) as VBoxContainer
-	for child in vbox.get_children():
-		if child is HBoxContainer and child.has_meta("cat_id"):
-			var cat_id: String = child.get_meta("cat_id")
-			var sel_label: Label = child.get_meta("sel_label")
-			var preview_row: HBoxContainer = child.get_meta("preview_row")
-			var options: Array = sel_label.get_meta("options")
-			var idx: int = _vanity_selections.get(cat_id, 0)
-			sel_label.text = str(options[idx])
-			for dot_i in range(preview_row.get_child_count()):
-				var dot: ColorRect = preview_row.get_child(dot_i)
-				dot.color = accent if dot_i == idx else Color(0.2, 0.2, 0.25, 0.5)
+func _on_paint_pattern_picked(index: int) -> void:
+	var pattern: String = PAINT_PATTERNS[index] if index > 0 else ""
+	if _paint_pattern_label:
+		_paint_pattern_label.text = PAINT_PATTERNS[index]
+	if _paint_color_btn:
+		_paint_color_btn.disabled = (pattern == "")
+		_paint_color_btn.tooltip_text = "" if pattern != "" else "Select a paint pattern first"
+
+
+func _on_paint_color_changed(_color: Color) -> void:
+	pass  # Will wire to ShipData persistence later
+
+
+func _on_light_pattern_picked(index: int) -> void:
+	var pattern: String = LIGHT_PATTERNS[index] if index > 0 else ""
+	if _light_pattern_label:
+		_light_pattern_label.text = LIGHT_PATTERNS[index]
+	if _light_color_btn:
+		_light_color_btn.disabled = (pattern == "")
+		_light_color_btn.tooltip_text = "" if pattern != "" else "Select a light pattern first"
+
+
+func _on_light_color_changed(_color: Color) -> void:
+	pass  # Will wire to ShipData persistence later
 
 
 # ── Spot positions ──
@@ -659,22 +1012,46 @@ func _place_ships() -> void:
 	for i in PLAYER_COLS * PLAYER_ROWS:
 		_add_bay_button(i)
 
-	# Plus marker on bay 03 (ship store) — pulses intensely
+	# Plus markers on empty ship-store bays — pulses softly
 	_plus_overlay = Control.new()
 	_plus_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_plus_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_plus_overlay.draw.connect(_draw_plus_marker_pulsing)
 	add_child(_plus_overlay)
 
-	# Cargo ship placeholder in support bay 01
-	var cargo_overlay := Control.new()
-	cargo_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	cargo_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cargo_overlay.draw.connect(func() -> void:
-		var sup_spot: Vector2 = _get_support_spots()[0]
-		_draw_cargo_placeholder(cargo_overlay, sup_spot)
-	)
-	add_child(cargo_overlay)
+	# Real cargo ship in support bay A (loaded from data/ships/cargo_ship.json)
+	_place_cargo_ship()
+
+
+func _place_cargo_ship() -> void:
+	var cargo: ShipData = ShipDataManager.load_by_id("cargo_ship")
+	_cargo_renderer = ShipRenderer.new()
+	_cargo_renderer.ship_id = -1
+	_cargo_renderer.enemy_visual_id = cargo.visual_id if cargo else "dreadnought"
+	_cargo_renderer.render_mode = NpcShip._render_mode_from_string(cargo.render_mode) if cargo else ShipRenderer.RenderMode.CHROME
+	_cargo_renderer.animate = true
+	if cargo:
+		_cargo_renderer.neon_hdr = cargo.neon_hdr
+		_cargo_renderer.neon_white = cargo.neon_white
+		_cargo_renderer.neon_width = cargo.neon_width
+	add_child(_cargo_renderer)
+	_ship_renderers.append(_cargo_renderer)
+
+	# Attach the same paint/light overlays used at runtime so this preview matches gameplay
+	if cargo:
+		var overlays: Array[Node2D] = ShipCosmetics.build_overlays(
+			cargo.visual_id,
+			cargo.paint_pattern, cargo.paint_color,
+			cargo.light_pattern, cargo.light_color,
+		)
+		if overlays[0]:
+			_cargo_paint_overlay = overlays[0]
+			_cargo_paint_overlay.z_index = 2
+			add_child(_cargo_paint_overlay)
+		if overlays[1]:
+			_cargo_light_overlay = overlays[1]
+			_cargo_light_overlay.z_index = 3
+			add_child(_cargo_light_overlay)
 
 
 func _find_bay_for_ship(ship_id: int) -> int:
@@ -732,6 +1109,8 @@ func _selected_ship_id() -> int:
 func _layout_ships() -> void:
 	var player_spots: Array[Vector2] = _get_player_spots()
 	for r in _ship_renderers:
+		if not r.has_meta("bay_index"):
+			continue
 		var bay_idx: int = r.get_meta("bay_index")
 		if bay_idx >= 0 and bay_idx < player_spots.size():
 			r.position = player_spots[bay_idx]
@@ -741,6 +1120,14 @@ func _layout_ships() -> void:
 		if bay_idx2 < player_spots.size():
 			var c: Vector2 = player_spots[bay_idx2]
 			btn.position = Vector2(c.x - SPOT_W / 2.0, c.y - SPOT_H / 2.0)
+	# Cargo ship + its overlays ride along with support bay A
+	var support_spots: Array[Vector2] = _get_support_spots()
+	if _cargo_renderer and support_spots.size() > 0:
+		_cargo_renderer.position = support_spots[0]
+		if _cargo_paint_overlay:
+			_cargo_paint_overlay.position = support_spots[0]
+		if _cargo_light_overlay:
+			_cargo_light_overlay.position = support_spots[0]
 
 
 # ── Hangar drawing ──
@@ -763,9 +1150,9 @@ func _draw_hangar() -> void:
 	var hfont: Font = ThemeManager.get_font("font_header")
 	var bfont: Font = ThemeManager.get_font("font_body")
 
-	# "YOUR SHIPS" label top-left
+	# "YOUR SHIPS" label below the back button row
 	if hfont:
-		_hangar_drawing.draw_string(hfont, Vector2(20, 35), "YOUR SHIPS", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, ACCENT)
+		_hangar_drawing.draw_string(hfont, Vector2(20, TOP_BAR_HEIGHT + 30), "YOUR SHIPS", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, ACCENT)
 
 	# Player spots — draw with state flags
 	var player_spots: Array[Vector2] = _get_player_spots()
@@ -773,7 +1160,7 @@ func _draw_hangar() -> void:
 	var profile_bay: int = _find_bay_for_ship(GameState.profile_ship_index)
 	for i in player_spots.size():
 		_draw_bay(
-			player_spots[i], i + 1, SPOT_H,
+			player_spots[i], "%02d" % (i + 1), SPOT_H,
 			i == active_bay, i == _selected_bay, i == _hovered_bay,
 		)
 
@@ -797,10 +1184,11 @@ func _draw_hangar() -> void:
 	# Support spots (taller than player spots)
 	var support_spots: Array[Vector2] = _get_support_spots()
 	for i in support_spots.size():
-		_draw_bay(support_spots[i], i + 1 + player_spots.size(), SUPPORT_SPOT_H, false, false, false)
+		var letter: String = char(65 + i)  # A, B, C, D
+		_draw_bay(support_spots[i], letter, SUPPORT_SPOT_H, false, false, false)
 
 
-func _draw_bay(pos: Vector2, bay_num: int, spot_h: float, active: bool, selected: bool, hovered: bool) -> void:
+func _draw_bay(pos: Vector2, bay_label: String, spot_h: float, active: bool, selected: bool, hovered: bool) -> void:
 	var rect := Rect2(pos.x - SPOT_W / 2, pos.y - spot_h / 2, SPOT_W, spot_h)
 
 	# Fill and border — active bay gets a yellow look
@@ -832,7 +1220,7 @@ func _draw_bay(pos: Vector2, bay_num: int, spot_h: float, active: bool, selected
 		var num_col: Color = ACTIVE_BORDER if active else ACCENT
 		if hovered:
 			num_col = _brighten(num_col, HOVER_BRIGHTEN)
-		_hangar_drawing.draw_string(font, Vector2(rect.position.x + 4, rect.position.y + 16), "%02d" % bay_num, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, num_col)
+		_hangar_drawing.draw_string(font, Vector2(rect.position.x + 4, rect.position.y + 16), bay_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, num_col)
 
 	# ACTIVE label above the bay
 	if active and font:
@@ -848,56 +1236,27 @@ func _brighten(c: Color, factor: float) -> Color:
 
 func _draw_plus_marker_pulsing() -> void:
 	var player_spots: Array[Vector2] = _get_player_spots()
-	if player_spots.size() <= PLUS_BAY_INDEX:
-		return
-	var t: float = 0.5 + 0.5 * sin(_plus_pulse_time * 3.5)  # faster pulse
+	var support_spots: Array[Vector2] = _get_support_spots()
+	var t: float = 0.5 + 0.5 * sin(_plus_pulse_time * 3.5)
 	var color: Color = ACCENT.lerp(PLUS_BRIGHT, t)
-	# Intensify: brighten further when near peak, boost alpha of glow
-	color = _brighten(color, 1.0 + 0.6 * t)
-	_draw_plus_marker(_plus_overlay, player_spots[PLUS_BAY_INDEX], color, 1.0 + 0.15 * t)
+	# Strong color swing — brightness lifts with the pulse
+	color = _brighten(color, 1.0 + 0.9 * t)
+	if player_spots.size() > PLUS_BAY_INDEX:
+		_draw_plus_marker(_plus_overlay, player_spots[PLUS_BAY_INDEX], color)
+	if support_spots.size() > 1:
+		_draw_plus_marker(_plus_overlay, support_spots[1], color)
 
 
-func _draw_plus_marker(canvas: Control, pos: Vector2, accent: Color, scale_factor: float = 1.0) -> void:
-	var half: float = 30.0 * scale_factor
-	var blen: float = 10.0 * scale_factor
-	var bcol := Color(accent.r, accent.g, accent.b, 0.9)
-	var bw: float = 2.5 * scale_factor
-
-	canvas.draw_line(Vector2(pos.x - half, pos.y - half), Vector2(pos.x - half + blen, pos.y - half), bcol, bw)
-	canvas.draw_line(Vector2(pos.x - half, pos.y - half), Vector2(pos.x - half, pos.y - half + blen), bcol, bw)
-	canvas.draw_line(Vector2(pos.x + half, pos.y - half), Vector2(pos.x + half - blen, pos.y - half), bcol, bw)
-	canvas.draw_line(Vector2(pos.x + half, pos.y - half), Vector2(pos.x + half, pos.y - half + blen), bcol, bw)
-	canvas.draw_line(Vector2(pos.x - half, pos.y + half), Vector2(pos.x - half + blen, pos.y + half), bcol, bw)
-	canvas.draw_line(Vector2(pos.x - half, pos.y + half), Vector2(pos.x - half, pos.y + half - blen), bcol, bw)
-	canvas.draw_line(Vector2(pos.x + half, pos.y + half), Vector2(pos.x + half - blen, pos.y + half), bcol, bw)
-	canvas.draw_line(Vector2(pos.x + half, pos.y + half), Vector2(pos.x + half, pos.y + half - blen), bcol, bw)
-
-	var plus_size: float = 14.0 * scale_factor
-	var plus_w: float = 3.5 * scale_factor
-	# Outer glow for intensity
+func _draw_plus_marker(canvas: Control, pos: Vector2, accent: Color) -> void:
+	var plus_size: float = 14.0
+	var plus_w: float = 3.5
+	# Outer glow — modulates color intensity rather than size
 	var glow := Color(accent.r, accent.g, accent.b, 0.35)
 	canvas.draw_line(Vector2(pos.x - plus_size, pos.y), Vector2(pos.x + plus_size, pos.y), glow, plus_w + 4.0)
 	canvas.draw_line(Vector2(pos.x, pos.y - plus_size), Vector2(pos.x, pos.y + plus_size), glow, plus_w + 4.0)
 	# Core plus
 	canvas.draw_line(Vector2(pos.x - plus_size, pos.y), Vector2(pos.x + plus_size, pos.y), accent, plus_w)
 	canvas.draw_line(Vector2(pos.x, pos.y - plus_size), Vector2(pos.x, pos.y + plus_size), accent, plus_w)
-
-
-func _draw_cargo_placeholder(canvas: Control, pos: Vector2) -> void:
-	# Draw a simple cargo ship silhouette placeholder
-	var col := Color(ACCENT.r, ACCENT.g, ACCENT.b, 0.35)
-	# Boxy hull outline
-	var hw: float = 20.0
-	var hh: float = 30.0
-	canvas.draw_rect(Rect2(pos.x - hw, pos.y - hh, hw * 2, hh * 2), Color(col.r, col.g, col.b, 0.1))
-	canvas.draw_rect(Rect2(pos.x - hw, pos.y - hh, hw * 2, hh * 2), col, false, 1.5)
-	# Cargo bay lines
-	canvas.draw_line(Vector2(pos.x - hw + 4, pos.y - 8), Vector2(pos.x + hw - 4, pos.y - 8), Color(col.r, col.g, col.b, 0.2), 1.0)
-	canvas.draw_line(Vector2(pos.x - hw + 4, pos.y + 8), Vector2(pos.x + hw - 4, pos.y + 8), Color(col.r, col.g, col.b, 0.2), 1.0)
-	# Label
-	var font: Font = ThemeManager.get_font("font_body")
-	if font:
-		canvas.draw_string(font, Vector2(pos.x - 22, pos.y + hh + 16), "CARGO", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, col)
 
 
 # ── Utility ──
@@ -919,7 +1278,6 @@ func _setup_vhs_overlay() -> void:
 
 func _on_theme_changed() -> void:
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
-	_update_vanity_display()
 
 
 func _input(event: InputEvent) -> void:

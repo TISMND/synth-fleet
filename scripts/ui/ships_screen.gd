@@ -1184,6 +1184,24 @@ func _build_enemy_stats_tab(vbox: VBoxContainer) -> void:
 	name_edit.text_changed.connect(_on_enemy_name_changed)
 	name_hbox.add_child(name_edit)
 
+	# Description
+	var desc_hbox := HBoxContainer.new()
+	desc_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(desc_hbox)
+	var desc_lbl := Label.new()
+	desc_lbl.text = "DESC"
+	desc_lbl.custom_minimum_size.x = 40
+	desc_hbox.add_child(desc_lbl)
+	var desc_edit := LineEdit.new()
+	desc_edit.text = _working_enemy.description
+	desc_edit.placeholder_text = "Ship description..."
+	desc_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc_edit.text_changed.connect(func(new_text: String) -> void:
+		if _working_enemy:
+			_working_enemy.description = new_text
+	)
+	desc_hbox.add_child(desc_edit)
+
 	# Level assignment dropdown
 	var level_hbox := HBoxContainer.new()
 	level_hbox.add_theme_constant_override("separation", 6)
@@ -1498,6 +1516,24 @@ func _build_ally_stats_tab(vbox: VBoxContainer) -> void:
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_edit.text_changed.connect(_on_enemy_name_changed)
 	name_hbox.add_child(name_edit)
+
+	# Description
+	var desc_hbox := HBoxContainer.new()
+	desc_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(desc_hbox)
+	var desc_lbl := Label.new()
+	desc_lbl.text = "DESC"
+	desc_lbl.custom_minimum_size.x = 40
+	desc_hbox.add_child(desc_lbl)
+	var desc_edit := LineEdit.new()
+	desc_edit.text = _working_enemy.description
+	desc_edit.placeholder_text = "Ship description..."
+	desc_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc_edit.text_changed.connect(func(new_text: String) -> void:
+		if _working_enemy:
+			_working_enemy.description = new_text
+	)
+	desc_hbox.add_child(desc_edit)
 
 	_add_section_spacer(vbox)
 

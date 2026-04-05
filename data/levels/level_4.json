@@ -55,13 +55,13 @@
 			"mirror_v": false,
 			"path_id": "path_5",
 			"rotate_with_path": false,
-			"ship_id": "enemy_1",
+			"ship_id": "cargo_ship",
 			"spacing": 200.0,
 			"speed": 50.0,
-			"trigger_y": 548.333333333333,
+			"trigger_y": 349.090909090909,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 310.0
+			"x_offset": 313.388429752066
 		}
 	],
 	"events": [],

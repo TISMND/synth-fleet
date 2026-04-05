@@ -1,8 +1,8 @@
 {
 	"bpm": 120.0,
-	"display_name": "Menu 2",
+	"display_name": "Menu 3",
 	"duration_bars": 16,
-	"id": "arrangement_1",
+	"id": "arrangement_2",
 	"in_rotation": true,
 	"tracks": [
 		{
@@ -10,9 +10,9 @@
 			"fade_in_bars": 0.0,
 			"fade_out_bars": 1.0,
 			"infinite_loop": true,
-			"label": "Track 1",
-			"loop_path": "res://loop_zips/sorted/synth/NEW Thin Addition - 120 BPM - 3 - Synth - NW_EID_123_synth_arp_lazlow_Amin.wav",
-			"start_bar": 0.0,
+			"label": "Drums",
+			"loop_path": "res://loop_zips/sorted/drums/Fortunate Interval - 120 BPM - 1 - Drums - PM_RW3_Full_Drum_Loop_115Bpm_Cliff.wav",
+			"start_bar": 4.0,
 			"volume_db": 0.0
 		},
 		{
@@ -20,8 +20,8 @@
 			"fade_in_bars": 0.0,
 			"fade_out_bars": 1.0,
 			"infinite_loop": true,
-			"label": "Track 2",
-			"loop_path": "res://loop_zips/sorted/drums/Oscillating Spoons - 120 BPM - 1 - Drums - or_drum_loop_space_full_130.wav",
+			"label": "Bass",
+			"loop_path": "res://loop_zips/sorted/bass/NEW Echoey Ritual - 120 BPM - 2 - Bass - nw_ms_90_kit_loop_dancewithyou_bass_Dmaj.wav",
 			"start_bar": 0.0,
 			"volume_db": 0.0
 		},
@@ -31,8 +31,8 @@
 			"fade_out_bars": 1.0,
 			"infinite_loop": true,
 			"label": "Track 3",
-			"loop_path": "res://loop_zips/sorted/synth/Please Don't Interest - 120 BPM - 3 - Synth - spm_melodic_loop_thehammer_115_Dm.wav",
-			"start_bar": 8.0,
+			"loop_path": "res://loop_zips/sorted/pads/NEW Overblown Choice - 120 BPM - 7 - Pads - SM_PW_80_synth_pad_cupid_Dmaj.wav",
+			"start_bar": 7.0,
 			"volume_db": 0.0
 		},
 		{
@@ -41,7 +41,7 @@
 			"fade_out_bars": 1.0,
 			"infinite_loop": true,
 			"label": "Track 4",
-			"loop_path": "res://loop_zips/sorted/synth/Sleepy The Tea - 120 BPM - 3 - Synth - sw2_mus100_lightwave5_Gm.wav",
+			"loop_path": "res://loop_zips/sorted/leads/Thinking About Reaction - 120 BPM - 5 - Leads - NW_NTN2_115_synth_loop_repeat_F#maj.wav",
 			"start_bar": 12.0,
 			"volume_db": 0.0
 		}

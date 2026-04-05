@@ -172,8 +172,8 @@ static func gen_shapes(pattern_name: String) -> Array[PackedVector2Array]:
 				shapes.append(rect(31.5, yv - 3.5, 38.5, yv + 3.5))
 		"RUNNING LIGHTS":
 			for yv in [-68, -46, -23, 0, 23, 46, 68]:
-				shapes.append(rect(-37.5, yv - 2.5, -32.5, yv + 2.5))
-				shapes.append(rect(32.5, yv - 2.5, 37.5, yv + 2.5))
+				shapes.append(rect(-36.25, yv - 1.25, -33.75, yv + 1.25))
+				shapes.append(rect(33.75, yv - 1.25, 36.25, yv + 1.25))
 		"CORNER MARKS":
 			for corner in [[-30, -76, -1, -1], [30, -76, 1, -1], [-30, 72, -1, 1], [30, 72, 1, 1]]:
 				var cx: float = corner[0]
@@ -252,7 +252,6 @@ class PaintOverlay extends Node2D:
 
 class LightOverlay extends Node2D:
 	var hull_poly: PackedVector2Array
-	var exclusion_polys: Array[PackedVector2Array] = []
 	var light_shapes: Array[PackedVector2Array] = []
 	var light_color: Color = Color(1.0, 0.85, 0.12)
 	var _time: float = 0.0
@@ -263,20 +262,12 @@ class LightOverlay extends Node2D:
 	const VENT_COLOR := Color(0.02, 0.02, 0.03, 1.0)
 
 	func _ready() -> void:
+		# Lights clip to the hull outline only — they render ON TOP of structural
+		# details (exclusion zones) so they're uniformly visible everywhere.
 		for shape in light_shapes:
-			var current: Array[PackedVector2Array] = []
 			var hull_clipped := Geometry2D.intersect_polygons(shape, hull_poly)
 			for hp in hull_clipped:
-				current.append(hp)
-			for excl in exclusion_polys:
-				var next_arr: Array[PackedVector2Array] = []
-				for poly in current:
-					var clipped := Geometry2D.clip_polygons(poly, excl)
-					for cp in clipped:
-						next_arr.append(cp)
-				current = next_arr
-			for fpoly in current:
-				_clipped_polys.append(fpoly)
+				_clipped_polys.append(hp)
 
 	func _process(delta: float) -> void:
 		_time += delta
@@ -326,7 +317,6 @@ static func build_overlays(
 		if shapes2.size() > 0:
 			var lo := LightOverlay.new()
 			lo.hull_poly = hull_poly
-			lo.exclusion_polys = exclusions
 			lo.light_shapes = shapes2
 			lo.light_color = light_color
 			result[1] = lo

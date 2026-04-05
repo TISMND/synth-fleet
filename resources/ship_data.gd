@@ -11,6 +11,7 @@ const DEFAULT_HP: Dictionary = {
 
 @export var id: String = ""
 @export var display_name: String = ""
+@export var description: String = ""  # Free-text flavor/lore description
 @export var type: String = "player"  # "player" or "enemy"
 @export var render_mode: String = "chrome"  # "neon" or "chrome"
 @export var grid_size: Vector2i = Vector2i(32, 32)
@@ -75,6 +76,7 @@ static func from_dict(data: Dictionary) -> ShipData:
 	var s := ShipData.new()
 	s.id = data.get("id", "")
 	s.display_name = data.get("display_name", "")
+	s.description = data.get("description", "")
 	s.type = data.get("type", "player")
 	s.render_mode = data.get("render_mode", "chrome")
 	var gs: Array = data.get("grid_size", [32, 32])
@@ -134,6 +136,7 @@ func to_dict() -> Dictionary:
 	var d: Dictionary = {
 		"id": id,
 		"display_name": display_name,
+		"description": description,
 		"type": type,
 		"render_mode": render_mode,
 		"grid_size": [grid_size.x, grid_size.y],
