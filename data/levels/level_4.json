@@ -1,7 +1,8 @@
 {
-	"verse_id": "verse_1",
+	"background_shader": "",
 	"bg_particles": [],
 	"bpm": 110.0,
+	"deep_background": "",
 	"display_name": "Test Level",
 	"doodads": [],
 	"encounters": [
@@ -65,6 +66,27 @@
 	],
 	"events": [],
 	"id": "level_4",
+	"intro_duration_bars": 8,
+	"intro_tracks": [
+		{
+			"end_bar": 4.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 3.0,
+			"label": "Drums",
+			"loop_path": "res://loop_zips/sorted/drums/BETA Begin - 120 BPM - 1 - Drums - 003_b__Drum_Beat_124bpm_Cm_-_80SCYBERPUNK_Zenhiser.wav",
+			"start_bar": 0.0,
+			"volume_db": 0.0
+		},
+		{
+			"end_bar": 4.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 2.75,
+			"label": "Track 2",
+			"loop_path": "res://loop_zips/sorted/bass/NEW Echoey Ritual - 120 BPM - 2 - Bass - nw_ms_90_kit_loop_dancewithyou_bass_Dmaj.wav",
+			"start_bar": 1.0,
+			"volume_db": 0.0
+		}
+	],
 	"level_length": 10000.0,
 	"nebula_placements": [
 		{
@@ -96,5 +118,6 @@
 			"x_offset": -320.583941605839
 		}
 	],
-	"scroll_speed": 80.0
+	"scroll_speed": 80.0,
+	"verse_id": "verse_1"
 }

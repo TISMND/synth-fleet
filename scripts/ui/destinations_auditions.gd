@@ -13,6 +13,12 @@ const MANMADE: Array[Dictionary] = [
 	{"label": "MONOLITH", "path": "res://assets/shaders/dest_monolith.gdshader", "hdr": 3.0},
 	{"label": "CHROME RING", "path": "res://assets/shaders/dest_chrome_ring.gdshader", "hdr": 3.0},
 	{"label": "RIFT GATE", "path": "res://assets/shaders/dest_rift_gate.gdshader", "hdr": 3.0},
+	{"label": "DEBRIS SWIRL", "path": "res://assets/shaders/dest_debris_swirl.gdshader", "hdr": 3.0},
+	{"label": "SHIPYARD", "path": "res://assets/shaders/dest_shipyard.gdshader", "hdr": 3.0},
+	{"label": "GRAVEYARD", "path": "res://assets/shaders/dest_graveyard.gdshader", "hdr": 3.0},
+	{"label": "HIVE", "path": "res://assets/shaders/dest_hive.gdshader", "hdr": 3.0},
+	{"label": "SPIRE CITY", "path": "res://assets/shaders/dest_spire_city.gdshader", "hdr": 3.0},
+	{"label": "FOUNDRY", "path": "res://assets/shaders/dest_foundry.gdshader", "hdr": 3.0},
 ]
 
 const VP_SIZE_LARGE := Vector2i(960, 480)
@@ -60,13 +66,16 @@ func _build_ui() -> void:
 	mm_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
 	main_col.add_child(mm_header)
 
-	# ── Man-made: 3 in a row ──
-	var mm_row := HBoxContainer.new()
-	mm_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mm_row.add_theme_constant_override("separation", 12)
-	main_col.add_child(mm_row)
-	for i in range(MANMADE.size()):
-		_build_cell(mm_row, MANMADE[i], VP_SIZE_MANMADE, 320)
+	# ── Man-made: 3 per row ──
+	for row_idx in range(0, MANMADE.size(), 3):
+		var mm_row := HBoxContainer.new()
+		mm_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		mm_row.add_theme_constant_override("separation", 12)
+		main_col.add_child(mm_row)
+		for col_idx in range(3):
+			var idx: int = row_idx + col_idx
+			if idx < MANMADE.size():
+				_build_cell(mm_row, MANMADE[idx], VP_SIZE_MANMADE, 320)
 
 
 func _build_cell(parent: HBoxContainer, def: Dictionary, vp_size: Vector2i, min_h: int) -> void:

@@ -799,7 +799,7 @@ func _draw_hangar() -> void:
 	# Support spots (taller than player spots)
 	var support_spots: Array[Vector2] = _get_support_spots()
 	for i in support_spots.size():
-		_draw_bay(support_spots[i], i + 1 + player_spots.size(), SUPPORT_SPOT_H, false)
+		_draw_bay(support_spots[i], i + 1 + player_spots.size(), SUPPORT_SPOT_H, false, false, false)
 
 
 func _draw_bay(pos: Vector2, bay_num: int, spot_h: float, active: bool, selected: bool, hovered: bool) -> void:
