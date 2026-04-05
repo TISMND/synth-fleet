@@ -3,7 +3,7 @@ extends Node2D
 ## Full-size ship renderer with banking, chrome+neon modes, all ships.
 ## Extracted from ships_screen.gd _ShipDraw for reuse across the codebase.
 
-enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT, GUNMETAL, MILITIA, STEALTH, CAUTION, DEBUG_MATERIALS, BIOLUME, TOXIC, CORAL, ABYSSAL, BLOODMOON, PHANTOM, AURORA }
+enum RenderMode { NEON, CHROME, VOID, HIVEMIND, SPORE, EMBER, FROST, SOLAR, SPORT, GUNMETAL, MILITIA, STEALTH, CAUTION, DEBUG_MATERIALS, BIOLUME, TOXIC, CORAL, ABYSSAL, BLOODMOON, PHANTOM, AURORA, PAINTED }
 
 const CHROME_DARK := Color(0.12, 0.13, 0.18)
 const CHROME_MID := Color(0.35, 0.38, 0.45)
@@ -238,6 +238,9 @@ func _color_close(a: Color, b: Color) -> bool:
 # ── Dispatch helpers ──
 
 func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
+	if render_mode == RenderMode.PAINTED:
+		_draw_painted_polygon(points, color, bank)
+		return
 	if _is_chrome_based():
 		_draw_chrome_polygon(points, color, bank)
 		return
@@ -253,6 +256,10 @@ func _poly(points: PackedVector2Array, color: Color, width: float) -> void:
 		_: _draw_neon_polygon(points, color, width)
 
 func _circle(center: Vector2, radius: float, color: Color, width: float) -> void:
+	if render_mode == RenderMode.PAINTED:
+		var pts: PackedVector2Array = _make_circle_points(center, radius, 64)
+		_draw_painted_polygon(pts, color, bank)
+		return
 	if _is_chrome_based():
 		var pts: PackedVector2Array = _make_circle_points(center, radius, 64)
 		_draw_chrome_polygon(pts, color, bank)
@@ -279,6 +286,9 @@ func _circle(center: Vector2, radius: float, color: Color, width: float) -> void
 		_: _draw_neon_circle(center, radius, color, width)
 
 func _line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
+	if render_mode == RenderMode.PAINTED:
+		_draw_painted_line(a, b, color, width)
+		return
 	if _is_chrome_based():
 		_draw_chrome_line(a, b, color, width)
 		return
@@ -312,6 +322,9 @@ func _arc(center: Vector2, radius: float, start_angle: float, end_angle: float, 
 
 func _canopy(points: PackedVector2Array) -> void:
 	match render_mode:
+		RenderMode.PAINTED:
+			_draw_painted_canopy(points, bank)
+			return
 		RenderMode.CHROME, RenderMode.GUNMETAL, RenderMode.MILITIA, RenderMode.STEALTH, RenderMode.CAUTION:
 			_draw_chrome_canopy(points, bank)
 			return
@@ -492,7 +505,7 @@ func _apply_palette() -> void:
 func _is_chrome_based() -> bool:
 	return render_mode in [
 		RenderMode.CHROME, RenderMode.GUNMETAL, RenderMode.MILITIA,
-		RenderMode.STEALTH, RenderMode.CAUTION,
+		RenderMode.STEALTH, RenderMode.CAUTION, RenderMode.PAINTED,
 	]
 
 
@@ -2212,6 +2225,162 @@ func _draw_chrome_canopy(points: PackedVector2Array, bk: float) -> void:
 	chrome_edge_hdr = 1.0
 	_draw_chrome_edges(points, bk)
 	chrome_edge_hdr = saved_edge_hdr
+
+# ── PAINTED render mode — glossy car-paint: your color IS the surface ──
+
+func _draw_painted_polygon(points: PackedVector2Array, tint_color: Color, bk: float) -> void:
+	if points.size() < 3:
+		return
+	# Base fill — the actual color, darkened slightly for depth
+	var base := Color(tint_color.r * 0.7, tint_color.g * 0.7, tint_color.b * 0.7)
+	draw_colored_polygon(points, base)
+
+	# Bounding box for gradient bands
+	var min_y := points[0].y
+	var max_y := points[0].y
+	var min_x := points[0].x
+	var max_x := points[0].x
+	for pt in points:
+		min_y = minf(min_y, pt.y)
+		max_y = maxf(max_y, pt.y)
+		min_x = minf(min_x, pt.x)
+		max_x = maxf(max_x, pt.x)
+	var height: float = max_y - min_y
+	var width: float = max_x - min_x
+	if height < 0.5 or width < 0.5:
+		return
+
+	# Colored gradient bands — darker at bottom, full color at top
+	var band_colors: Array[Color] = [
+		Color(tint_color.r * 0.5, tint_color.g * 0.5, tint_color.b * 0.5),
+		Color(tint_color.r * 0.75, tint_color.g * 0.75, tint_color.b * 0.75),
+		tint_color,
+		Color(minf(tint_color.r * 1.2, 1.0), minf(tint_color.g * 1.2, 1.0), minf(tint_color.b * 1.2, 1.0)),
+	]
+	var band_count: int = band_colors.size()
+	for i in range(band_count):
+		var t0: float = float(i) / float(band_count)
+		var t1: float = float(i + 1) / float(band_count)
+		var y0: float = max_y - t0 * height
+		var y1: float = max_y - t1 * height
+		var band_rect := PackedVector2Array([
+			Vector2(min_x - 5.0, y0),
+			Vector2(max_x + 5.0, y0),
+			Vector2(max_x + 5.0, y1),
+			Vector2(min_x - 5.0, y1),
+		])
+		var clipped: Array = Geometry2D.intersect_polygons(points, band_rect)
+		for clip_idx in range(clipped.size()):
+			var clip_poly: PackedVector2Array = clipped[clip_idx]
+			if clip_poly.size() >= 3:
+				draw_colored_polygon(clip_poly, band_colors[i])
+
+	# Bank-reactive shading (same as chrome)
+	var center_x: float = (min_x + max_x) * 0.5
+	var left_rect := PackedVector2Array([
+		Vector2(min_x - 5.0, min_y - 5.0), Vector2(center_x, min_y - 5.0),
+		Vector2(center_x, max_y + 5.0), Vector2(min_x - 5.0, max_y + 5.0),
+	])
+	var right_rect := PackedVector2Array([
+		Vector2(center_x, min_y - 5.0), Vector2(max_x + 5.0, min_y - 5.0),
+		Vector2(max_x + 5.0, max_y + 5.0), Vector2(center_x, max_y + 5.0),
+	])
+	var left_alpha: float = clampf(-bk * 0.15, -0.08, 0.15)
+	var right_alpha: float = clampf(bk * 0.15, -0.08, 0.15)
+	if left_alpha > 0.01:
+		var left_clips: Array = Geometry2D.intersect_polygons(points, left_rect)
+		for clip_idx in range(left_clips.size()):
+			var clip_poly: PackedVector2Array = left_clips[clip_idx]
+			if clip_poly.size() >= 3:
+				draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, left_alpha))
+	elif left_alpha < -0.01:
+		var left_clips: Array = Geometry2D.intersect_polygons(points, left_rect)
+		for clip_idx in range(left_clips.size()):
+			var clip_poly: PackedVector2Array = left_clips[clip_idx]
+			if clip_poly.size() >= 3:
+				draw_colored_polygon(clip_poly, Color(0.0, 0.0, 0.0, -left_alpha))
+	if right_alpha > 0.01:
+		var right_clips: Array = Geometry2D.intersect_polygons(points, right_rect)
+		for clip_idx in range(right_clips.size()):
+			var clip_poly: PackedVector2Array = right_clips[clip_idx]
+			if clip_poly.size() >= 3:
+				draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, right_alpha))
+	elif right_alpha < -0.01:
+		var right_clips: Array = Geometry2D.intersect_polygons(points, right_rect)
+		for clip_idx in range(right_clips.size()):
+			var clip_poly: PackedVector2Array = right_clips[clip_idx]
+			if clip_poly.size() >= 3:
+				draw_colored_polygon(clip_poly, Color(0.0, 0.0, 0.0, -right_alpha))
+
+	# Specular gleam — white highlight that slides with bank
+	var spec_x: float = center_x + bk * width * 0.4 + sin(time * 0.8) * width * 0.05
+	var spec_brightness: float = 0.9 + sin(time * 1.2) * 0.1
+	var gleam_steps: int = 12
+	var max_half_w: float = width * 0.2
+	var peak_alpha: float = 0.3 * spec_brightness
+	for gi in range(gleam_steps):
+		var frac: float = float(gi) / float(gleam_steps - 1)
+		var half_w: float = max_half_w * (1.0 - frac * 0.85)
+		var alpha: float = peak_alpha * frac * frac
+		if alpha < 0.005:
+			continue
+		var strip := PackedVector2Array([
+			Vector2(spec_x - half_w, min_y - 5.0), Vector2(spec_x + half_w, min_y - 5.0),
+			Vector2(spec_x + half_w, max_y + 5.0), Vector2(spec_x - half_w, max_y + 5.0),
+		])
+		var strip_clips: Array = Geometry2D.intersect_polygons(points, strip)
+		for clip_idx in range(strip_clips.size()):
+			var clip_poly: PackedVector2Array = strip_clips[clip_idx]
+			if clip_poly.size() >= 3:
+				draw_colored_polygon(clip_poly, Color(1.0, 1.0, 1.0, alpha))
+
+	# Colored edge lighting
+	_draw_painted_edges(points, tint_color, bk)
+
+
+func _draw_painted_edges(points: PackedVector2Array, color: Color, bk: float) -> void:
+	if points.size() < 2:
+		return
+	var light_dir := Vector2(bk * 0.7, -1.0).normalized()
+	var bright := Color(minf(color.r * 1.5, 1.0), minf(color.g * 1.5, 1.0), minf(color.b * 1.5, 1.0))
+	var dark := Color(color.r * 0.3, color.g * 0.3, color.b * 0.3)
+	for i in range(points.size()):
+		var ni: int = (i + 1) % points.size()
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[ni]
+		var edge_dir: Vector2 = (b - a).normalized()
+		var edge_normal := Vector2(-edge_dir.y, edge_dir.x)
+		var facing: float = edge_normal.dot(light_dir)
+		var brightness: float = clampf(facing * 0.5 + 0.5, 0.15, 1.0)
+		var edge_col: Color = dark.lerp(bright, brightness)
+		edge_col.a = 0.7 + brightness * 0.3
+		draw_line(a, b, edge_col, 1.5, true)
+
+
+func _draw_painted_line(a: Vector2, b: Vector2, color: Color, width: float) -> void:
+	# Dark shadow
+	var perp: Vector2 = (b - a).normalized()
+	perp = Vector2(-perp.y, perp.x)
+	var shadow_off: Vector2 = perp * 1.0
+	draw_line(a + shadow_off, b + shadow_off, Color(color.r * 0.3, color.g * 0.3, color.b * 0.3), width * 1.2, true)
+	# Bright highlight
+	draw_line(a - shadow_off, b - shadow_off, Color(minf(color.r * 1.4, 1.0), minf(color.g * 1.4, 1.0), minf(color.b * 1.4, 1.0)), width * 0.8, true)
+	# Core — full color
+	draw_line(a, b, color, width, true)
+	# Subtle specular center
+	var spec_brightness: float = 0.9 + sin(time * 1.2) * 0.1
+	draw_line(a, b, Color(1.0, 1.0, 1.0, 0.25 * spec_brightness), width * 0.3, true)
+
+
+func _draw_painted_canopy(points: PackedVector2Array, bk: float) -> void:
+	if points.size() < 3:
+		return
+	# Tinted glass — uses canopy_color directly with some transparency
+	var glass := Color(canopy_color.r, canopy_color.g, canopy_color.b, 0.85)
+	draw_colored_polygon(points, glass)
+	# Colored edge highlight
+	_draw_painted_edges(points, canopy_color, bk)
+
 
 # ── Ship 0: Switchblade — V-scissors opening forward ──
 func _draw_switchblade() -> void:

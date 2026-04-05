@@ -31,6 +31,7 @@ var _blink_time: float = 0.0
 
 # ── Panel refs ──
 var _button_panel: MarginContainer
+var _button_vbox: VBoxContainer
 var _verse_buttons: Array[Button] = []
 var _ready_btn: Button
 
@@ -45,11 +46,12 @@ const VERSES: Array[Dictionary] = [
 
 const VP_SIZE := Vector2i(800, 450)
 const MISSIONS_PER_VERSE: int = 4
-const ZOOM_SCALE: float = 8.0
+const ZOOM_SCALE: float = 3.0
 const ZOOM_DURATION: float = 1.8
 const BRACKET_SIZE: float = 40.0
 
 var _zoom_tween: Tween
+var _zooming: bool = false
 
 
 func _ready() -> void:
@@ -65,6 +67,9 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	# Keep pivot centered as layout changes during zoom animation
+	if _zooming and _vpc:
+		_vpc.pivot_offset = _vpc.size / 2.0
 	if _mode == "mission" and _mission_bracket and _mission_bracket.visible:
 		_blink_time += delta
 		var alpha: float = 0.7 + 0.3 * sin(_blink_time * 3.0)
@@ -371,6 +376,19 @@ func _draw_mission_bracket() -> void:
 
 # ── Mode transitions ──
 
+func _release_panel_min_size() -> void:
+	# Hide the VBox so its children stop enforcing minimum width on the panel
+	_button_vbox.visible = false
+	_button_panel.add_theme_constant_override("margin_left", 0)
+	_button_panel.add_theme_constant_override("margin_right", 0)
+
+
+func _restore_panel_min_size() -> void:
+	_button_vbox.visible = true
+	_button_panel.add_theme_constant_override("margin_left", 20)
+	_button_panel.add_theme_constant_override("margin_right", 60)
+
+
 func _kill_zoom_tween() -> void:
 	if _zoom_tween and _zoom_tween.is_valid():
 		_zoom_tween.kill()
@@ -381,9 +399,6 @@ func _enter_mission_mode() -> void:
 	_mode = "mission"
 	_title_label.text = "SELECT MISSION"
 
-	# Hide right panel — VersePanel auto-expands to fill
-	_button_panel.visible = false
-
 	# Hide internal verse arrows
 	_arrow_row.visible = false
 
@@ -391,18 +406,26 @@ func _enter_mission_mode() -> void:
 	_mission_bar.visible = true
 	_apply_mission_bar_styles()
 
-	# Animate zoom in
+	# Animate: zoom viewport + collapse right panel simultaneously
+	_zooming = true
 	_vpc.pivot_offset = _vpc.size / 2.0
 	_kill_zoom_tween()
-	_zoom_tween = create_tween().set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
+	var fade_dur: float = ZOOM_DURATION * 0.4
+	_zoom_tween = create_tween().set_parallel(true).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
 	_zoom_tween.tween_property(_vpc, "scale", Vector2(ZOOM_SCALE, ZOOM_SCALE), ZOOM_DURATION)
+	_zoom_tween.tween_property(_button_panel, "size_flags_stretch_ratio", 0.0, ZOOM_DURATION)
+	# Fade out buttons, then hide VBox to release minimum size so panel can fully collapse
+	_zoom_tween.tween_property(_button_panel, "modulate:a", 0.0, fade_dur)
+	_zoom_tween.tween_callback(_release_panel_min_size).set_delay(fade_dur)
 
-	# Show mission bracket after zoom completes
+	# After full animation: hide panel, show mission bracket
 	_mission_index = 0
 	_blink_time = 0.0
 	_mission_bracket.visible = false
 	_update_mission_label()
-	_zoom_tween.tween_callback(func() -> void:
+	_zoom_tween.chain().tween_callback(func() -> void:
+		_zooming = false
+		_button_panel.visible = false
 		_mission_bracket.visible = true
 		_mission_bracket.queue_redraw()
 	)
@@ -419,12 +442,21 @@ func _exit_mission_mode() -> void:
 	# Restore verse UI
 	_arrow_row.visible = true
 	_button_panel.visible = true
+	_button_panel.modulate.a = 0.0
+	_restore_panel_min_size()
 
-	# Animate zoom out
+	# Animate: unzoom + expand right panel simultaneously
+	_zooming = true
 	_kill_zoom_tween()
-	_zoom_tween = create_tween().set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
-	_zoom_tween.tween_property(_vpc, "scale", Vector2.ONE, ZOOM_DURATION * 0.7)
-	_zoom_tween.tween_callback(func() -> void:
+	_zoom_tween = create_tween().set_parallel(true).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
+	var out_duration: float = ZOOM_DURATION * 0.7
+	_zoom_tween.tween_property(_vpc, "scale", Vector2.ONE, out_duration)
+	_zoom_tween.tween_property(_button_panel, "size_flags_stretch_ratio", 0.7, out_duration)
+	# Fade in the right panel buttons (delayed slightly so they appear as panel expands)
+	_zoom_tween.tween_property(_button_panel, "modulate:a", 1.0, out_duration * 0.6).set_delay(out_duration * 0.3)
+
+	_zoom_tween.chain().tween_callback(func() -> void:
+		_zooming = false
 		_vpc.pivot_offset = Vector2.ZERO
 	)
 	_apply_verse()
@@ -503,7 +535,8 @@ func _style_holo_arrow(btn: Button) -> void:
 
 func _connect_buttons() -> void:
 	_button_panel = $HBoxContainer/ButtonPanel as MarginContainer
-	var btns: VBoxContainer = _button_panel.get_node("VBoxContainer") as VBoxContainer
+	_button_vbox = _button_panel.get_node("VBoxContainer") as VBoxContainer
+	var btns: VBoxContainer = _button_vbox
 	_ready_btn = btns.get_node("ReadyButton") as Button
 	var back: Button = btns.get_node("BackButton") as Button
 

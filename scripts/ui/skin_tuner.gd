@@ -46,10 +46,11 @@ var _part_hues: Array[float] = [0.55, 0.95, 0.45, 0.6, 0.08]
 var _part_sats: Array[float] = [0.9, 0.7, 0.8, 0.3, 0.8]
 var _part_vals: Array[float] = [0.9, 0.6, 0.7, 0.18, 0.5]
 
-# Base render mode — chrome-based first for solid metallic rendering
-var _base_mode: int = ShipRenderer.RenderMode.CHROME
+# Base render mode — PAINTED first for direct color control
+var _base_mode: int = ShipRenderer.RenderMode.PAINTED
 var _base_mode_label: Label = null
 const BASE_MODES: Array[int] = [
+	ShipRenderer.RenderMode.PAINTED,
 	ShipRenderer.RenderMode.CHROME,
 	ShipRenderer.RenderMode.GUNMETAL,
 	ShipRenderer.RenderMode.MILITIA,
@@ -59,7 +60,7 @@ const BASE_MODES: Array[int] = [
 	ShipRenderer.RenderMode.EMBER,
 	ShipRenderer.RenderMode.FROST,
 ]
-const BASE_MODE_NAMES: Array[String] = ["CHROME", "GUNMETAL", "MILITIA", "STEALTH", "CAUTION", "NEON", "EMBER", "FROST"]
+const BASE_MODE_NAMES: Array[String] = ["PAINTED", "CHROME", "GUNMETAL", "MILITIA", "STEALTH", "CAUTION", "NEON", "EMBER", "FROST"]
 var _base_mode_index: int = 0
 
 # Sliders
