@@ -29,49 +29,23 @@ func _ready() -> void:
 
 func _build_verse_select() -> void:
 	var panel: MarginContainer = $HBoxContainer/VersePanel
-
-	var col := VBoxContainer.new()
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 12)
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	panel.add_child(col)
-
-	# Title
-	var title := Label.new()
-	title.text = "SELECT VERSE"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ThemeManager.apply_text_glow(title, "header")
-	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	var hfont: Font = ThemeManager.get_font("font_header")
-	if hfont:
-		title.add_theme_font_override("font", hfont)
-	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	col.add_child(title)
 
-	# Row: [left arrow] [viewport + frame] [right arrow]
-	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 12)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_child(row)
-
-	# Left arrow
-	var left_btn := Button.new()
-	left_btn.text = "\u25C1 \u25C1"
-	left_btn.custom_minimum_size = Vector2(70, 0)
-	left_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_style_holo_arrow(left_btn)
-	left_btn.pressed.connect(func() -> void: _cycle_verse(-1))
-	row.add_child(left_btn)
-
-	# Frame container
+	# Outer container fills the panel
 	var frame_margin: int = 28
+	var outer := Control.new()
+	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.add_child(outer)
+
+	# Preview box: 85% size, centered via anchors
+	var inset: float = 0.075
 	var frame_container := Control.new()
-	frame_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	frame_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	row.add_child(frame_container)
+	frame_container.anchor_left = inset
+	frame_container.anchor_top = inset
+	frame_container.anchor_right = 1.0 - inset
+	frame_container.anchor_bottom = 1.0 - inset
+	outer.add_child(frame_container)
 
 	# SubViewportContainer inside frame
 	var vpc := SubViewportContainer.new()
@@ -123,31 +97,93 @@ func _build_verse_select() -> void:
 		frame_overlay.material = frame_mat
 	frame_container.add_child(frame_overlay)
 
-	# Right arrow
+	# ── UI overlay: all controls inside the frame, on top of viewport + frame shader ──
+	var ui_overlay := MarginContainer.new()
+	ui_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui_overlay.offset_left = frame_margin
+	ui_overlay.offset_top = frame_margin
+	ui_overlay.offset_right = -frame_margin
+	ui_overlay.offset_bottom = -frame_margin
+	ui_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_overlay.add_theme_constant_override("margin_left", 16)
+	ui_overlay.add_theme_constant_override("margin_top", 12)
+	ui_overlay.add_theme_constant_override("margin_right", 16)
+	ui_overlay.add_theme_constant_override("margin_bottom", 12)
+	frame_container.add_child(ui_overlay)
+
+	var inner_col := VBoxContainer.new()
+	inner_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner_col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	inner_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_overlay.add_child(inner_col)
+
+	# Title at top
+	var title := Label.new()
+	title.text = "SELECT VERSE"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ThemeManager.apply_text_glow(title, "header")
+	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	if hfont:
+		title.add_theme_font_override("font", hfont)
+	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	inner_col.add_child(title)
+
+	# Spacer pushes arrows to center
+	var top_spacer := Control.new()
+	top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	top_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner_col.add_child(top_spacer)
+
+	# Arrow row in the middle
+	var arrow_row := HBoxContainer.new()
+	arrow_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	arrow_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner_col.add_child(arrow_row)
+
+	var left_btn := Button.new()
+	left_btn.text = "\u25C1 \u25C1"
+	left_btn.custom_minimum_size = Vector2(70, 0)
+	_style_holo_arrow(left_btn)
+	left_btn.pressed.connect(func() -> void: _cycle_verse(-1))
+	arrow_row.add_child(left_btn)
+
+	var arrow_spacer := Control.new()
+	arrow_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	arrow_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	arrow_row.add_child(arrow_spacer)
+
 	var right_btn := Button.new()
 	right_btn.text = "\u25B7 \u25B7"
 	right_btn.custom_minimum_size = Vector2(70, 0)
-	right_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_style_holo_arrow(right_btn)
 	right_btn.pressed.connect(func() -> void: _cycle_verse(1))
-	row.add_child(right_btn)
+	arrow_row.add_child(right_btn)
 
-	# Verse name label
+	# Spacer pushes bottom labels down
+	var bottom_spacer := Control.new()
+	bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner_col.add_child(bottom_spacer)
+
+	# Verse name label at bottom
 	_verse_label = Label.new()
 	_verse_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_verse_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ThemeManager.apply_text_glow(_verse_label, "body")
 	_verse_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	if hfont:
 		_verse_label.add_theme_font_override("font", hfont)
 	_verse_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	col.add_child(_verse_label)
+	inner_col.add_child(_verse_label)
 
 	# Counter label
 	_verse_counter = Label.new()
 	_verse_counter.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_verse_counter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ThemeManager.apply_text_glow(_verse_counter, "body")
 	_verse_counter.add_theme_color_override("font_color", ThemeManager.get_color("text"))
-	col.add_child(_verse_counter)
+	inner_col.add_child(_verse_counter)
 
 	# Apply initial verse
 	_apply_verse()

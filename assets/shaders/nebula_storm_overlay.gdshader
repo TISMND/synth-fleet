@@ -23,12 +23,16 @@ float hash(vec2 p) {
 float noise(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
-	f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
-	float a = hash(i);
-	float b = hash(i + vec2(1.0, 0.0));
-	float c = hash(i + vec2(0.0, 1.0));
-	float d = hash(i + vec2(1.0, 1.0));
-	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	float ang_a = hash(i) * 6.2832;
+	float ang_b = hash(i + vec2(1.0, 0.0)) * 6.2832;
+	float ang_c = hash(i + vec2(0.0, 1.0)) * 6.2832;
+	float ang_d = hash(i + vec2(1.0, 1.0)) * 6.2832;
+	float a = dot(vec2(cos(ang_a), sin(ang_a)), f);
+	float b = dot(vec2(cos(ang_b), sin(ang_b)), f - vec2(1.0, 0.0));
+	float c = dot(vec2(cos(ang_c), sin(ang_c)), f - vec2(0.0, 1.0));
+	float d = dot(vec2(cos(ang_d), sin(ang_d)), f - vec2(1.0, 1.0));
+	return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 0.5 + 0.5;
 }
 
 // Short bolt along an arbitrary line segment with noise displacement
