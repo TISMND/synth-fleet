@@ -70,10 +70,9 @@ func _apply_theme() -> void:
 
 func _apply_grid_bg() -> void:
 	var parent_node: Node = get_parent()
-	if parent_node and parent_node.has_node("Background"):
-		var bg: ColorRect = parent_node.get_node("Background") as ColorRect
-		if bg:
-			ThemeManager.apply_grid_background(bg)
+	if parent_node is Control and not parent_node.has_meta("synthwave_bg_applied"):
+		SynthwaveBgSetup.setup(parent_node as Control)
+		parent_node.set_meta("synthwave_bg_applied", true)
 
 
 func _build_ui() -> void:

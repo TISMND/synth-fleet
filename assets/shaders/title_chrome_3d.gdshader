@@ -63,6 +63,27 @@ uniform vec4 specular_color : source_color = vec4(0.8, 0.9, 1.0, 1.0);
 uniform float surface_noise : hint_range(0.0, 1.0) = 0.0;
 uniform float surface_scale : hint_range(10.0, 500.0) = 120.0;
 
+// Outer glow — colored halo around silhouette (rendered behind text)
+uniform float outer_glow_strength : hint_range(0.0, 4.0) = 0.0;
+uniform float outer_glow_radius : hint_range(0.5, 16.0) = 4.0;
+uniform vec4 outer_glow_color : source_color = vec4(0.4, 0.7, 1.0, 1.0);
+
+// Outer bezel — bright ring hugging the silhouette outside
+uniform float outer_bezel_strength : hint_range(0.0, 2.0) = 0.0;
+uniform float outer_bezel_width : hint_range(0.5, 4.0) = 1.5;
+uniform vec4 outer_bezel_color : source_color = vec4(0.8, 0.9, 1.0, 1.0);
+
+// Film grain — animated noise on chrome surface
+uniform float grain_strength : hint_range(0.0, 1.0) = 0.0;
+uniform float grain_scale : hint_range(50.0, 2000.0) = 500.0;
+uniform float grain_speed : hint_range(0.0, 8.0) = 0.0;
+
+// Inner shadow — darkening near the inside edge (separate from groove)
+uniform float inner_shadow_strength : hint_range(0.0, 2.0) = 0.0;
+uniform float inner_shadow_size : hint_range(0.5, 8.0) = 3.0;
+uniform float inner_shadow_angle : hint_range(-3.14, 3.14) = 2.35;
+uniform vec4 inner_shadow_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
+
 // Overall
 uniform float hdr_boost : hint_range(1.0, 4.0) = 1.2;
 
@@ -94,6 +115,45 @@ void fragment() {
 	vec2 ps = SCREEN_PIXEL_SIZE;
 	vec4 tex = texture(TEXTURE, UV);
 	float base_alpha = tex.a * vert_color.a;
+
+	// ── Outer glow (rendered furthest behind — sample ring of alphas) ───
+	float outer_glow_alpha = 0.0;
+	if (outer_glow_strength > 0.001) {
+		float acc = 0.0;
+		float wsum = 0.0;
+		// 3 rings × 8 taps = 24 samples — cheap halo approx.
+		for (int ring = 1; ring <= 3; ring++) {
+			float fr = float(ring) / 3.0;
+			float r_px = fr * outer_glow_radius;
+			float w = 1.0 - fr * 0.6;
+			for (int i = 0; i < 8; i++) {
+				float ang = float(i) * 0.7853982; // PI/4
+				vec2 off = vec2(cos(ang), sin(ang)) * r_px * ps;
+				float s = texture(TEXTURE, UV + off).a;
+				acc += s * w;
+				wsum += w;
+			}
+		}
+		outer_glow_alpha = (acc / max(wsum, 0.001));
+		// subtract the silhouette so halo is only outside
+		outer_glow_alpha = max(outer_glow_alpha - base_alpha, 0.0);
+		outer_glow_alpha = clamp(outer_glow_alpha * outer_glow_strength, 0.0, 1.0);
+	}
+
+	// ── Outer bezel — bright ring outside silhouette ────────────────
+	float outer_bezel_alpha = 0.0;
+	if (outer_bezel_strength > 0.001) {
+		float ring_acc = 0.0;
+		for (int i = 0; i < 8; i++) {
+			float ang = float(i) * 0.7853982;
+			vec2 off = vec2(cos(ang), sin(ang)) * outer_bezel_width * ps;
+			ring_acc += texture(TEXTURE, UV + off).a;
+		}
+		ring_acc /= 8.0;
+		// Ring = soft dilation minus silhouette
+		outer_bezel_alpha = clamp((ring_acc - base_alpha) * 2.0, 0.0, 1.0);
+		outer_bezel_alpha *= outer_bezel_strength;
+	}
 
 	// ── Depth extrusion (rendered behind everything) ────────────────
 	float extrusion_alpha = 0.0;
@@ -199,6 +259,13 @@ void fragment() {
 		chrome *= mix(1.0, 0.7 + 0.6 * noise, surface_noise);
 	}
 
+	// ── Film grain (animated isotropic noise) ───────────────────────
+	if (grain_strength > 0.001) {
+		vec2 gp = UV * grain_scale + vec2(TIME * grain_speed, TIME * grain_speed * 0.7);
+		float g = hash(floor(gp));
+		chrome *= mix(1.0, 0.6 + 0.8 * g, grain_strength);
+	}
+
 	// ── Apply bevel ─────────────────────────────────────────────────
 	chrome += bevel_light_color.rgb * edge_light * bevel_strength;
 	chrome -= bevel_shadow_color.rgb * edge_dark * bevel_strength * 0.5;
@@ -207,6 +274,16 @@ void fragment() {
 	// ── Apply inner groove ──────────────────────────────────────────
 	if (groove_strength > 0.01) {
 		chrome = mix(chrome, groove_color.rgb, groove_factor * groove_strength);
+	}
+
+	// ── Inner shadow (directional darkening inside silhouette) ──────
+	if (inner_shadow_strength > 0.01 && base_alpha > 0.5) {
+		vec2 is_dir = vec2(cos(inner_shadow_angle), sin(inner_shadow_angle));
+		// Sample in the direction the "light" is coming FROM
+		float s = texture(TEXTURE, UV - is_dir * inner_shadow_size * ps).a;
+		float inside_edge = clamp(1.0 - s, 0.0, 1.0);
+		inside_edge = smoothstep(0.2, 0.9, inside_edge);
+		chrome = mix(chrome, inner_shadow_color.rgb, inside_edge * inner_shadow_strength);
 	}
 
 	// ── Specular band ───────────────────────────────────────────────
@@ -241,15 +318,25 @@ void fragment() {
 	// ── HDR boost ───────────────────────────────────────────────────
 	chrome *= hdr_boost;
 
-	// ── Composite: extrusion behind shadow behind chrome text ───────
-	// Start with extrusion
-	vec3 final_col = extrusion_color.rgb * extrusion_alpha;
-	float final_alpha = extrusion_alpha;
+	// ── Composite: glow ◂ extrusion ◂ shadow ◂ chrome ◂ bezel ───────
+	// Outer glow furthest back
+	vec3 final_col = outer_glow_color.rgb * outer_glow_alpha * outer_glow_color.a;
+	float final_alpha = outer_glow_alpha * outer_glow_color.a;
 
-	// Shadow on top of extrusion
-	float sa = shadow_alpha * shadow_color.a;
-	final_col = mix(final_col, shadow_color.rgb, sa * (1.0 - final_alpha) + sa * final_alpha);
+	// Extrusion over glow
+	float ea = extrusion_alpha * (1.0 - final_alpha);
+	final_col = mix(final_col, extrusion_color.rgb, ea);
+	final_alpha = clamp(final_alpha + ea, 0.0, 1.0);
+
+	// Shadow over extrusion/glow
+	float sa = shadow_alpha * shadow_color.a * (1.0 - base_alpha);
+	final_col = mix(final_col, shadow_color.rgb, sa);
 	final_alpha = clamp(final_alpha + sa, 0.0, 1.0);
+
+	// Outer bezel ring (between shadow and chrome)
+	float ba = outer_bezel_alpha * outer_bezel_color.a * (1.0 - base_alpha);
+	final_col = mix(final_col, outer_bezel_color.rgb, ba);
+	final_alpha = clamp(final_alpha + ba, 0.0, 1.0);
 
 	// Chrome text on top
 	final_col = mix(final_col, chrome, base_alpha);

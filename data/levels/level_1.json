@@ -25,10 +25,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 100.0,
 			"speed": 500.0,
-			"trigger_y": 561.640640411579,
+			"trigger_y": 331.557995783481,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -241.198904240741
+			"x_offset": -237.231962091981
 		},
 		{
 			"boss_id": "",
@@ -44,10 +44,10 @@
 			"ship_id": "enemy_obelisk",
 			"spacing": 150.0,
 			"speed": 500.0,
-			"trigger_y": 1168.60310421286,
+			"trigger_y": 1015.87583148559,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -25.5432372505543
+			"x_offset": -21.576295101794
 		},
 		{
 			"boss_id": "",
@@ -68,10 +68,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 100.0,
 			"speed": 600.0,
-			"trigger_y": 766.29711751663,
+			"trigger_y": 536.214472888531,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 42.5720620842573
+			"x_offset": 46.5390042330176
 		},
 		{
 			"boss_id": "",
@@ -87,10 +87,10 @@
 			"ship_id": "enemy_shard",
 			"spacing": 50.0,
 			"speed": 300.0,
-			"trigger_y": 1824.76054833541,
+			"trigger_y": 1672.03327560814,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -433.990321588684
+			"x_offset": -430.023379439924
 		},
 		{
 			"boss_id": "",
@@ -106,10 +106,10 @@
 			"ship_id": "enemy_prism",
 			"spacing": 150.0,
 			"speed": 300.0,
-			"trigger_y": 2000.88691796009,
+			"trigger_y": 1848.15964523282,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 404.434589800443
+			"x_offset": 408.401531949203
 		},
 		{
 			"boss_id": "",
@@ -125,7 +125,7 @@
 			"ship_id": "enemy_prism",
 			"spacing": 500.0,
 			"speed": 350.0,
-			"trigger_y": 2745.89800443459,
+			"trigger_y": 2622.92279782302,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 485.321507760533
@@ -149,10 +149,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 100.0,
 			"speed": 600.0,
-			"trigger_y": 1082.87633320925,
+			"trigger_y": 930.149060481978,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 257.580397170926
+			"x_offset": 261.547339319686
 		},
 		{
 			"boss_id": "",
@@ -168,7 +168,7 @@
 			"ship_id": "enemy_prism",
 			"spacing": 500.0,
 			"speed": 350.0,
-			"trigger_y": 2222.63660824896,
+			"trigger_y": 2099.66140163739,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 318.839747181036
@@ -192,7 +192,7 @@
 			"ship_id": "enemy_pylon",
 			"spacing": 500.0,
 			"speed": 130.0,
-			"trigger_y": 3167.36141906873,
+			"trigger_y": 3044.38621245716,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 40.4434589800443
@@ -216,7 +216,7 @@
 			"ship_id": "enemy_pylon",
 			"spacing": 500.0,
 			"speed": 130.0,
-			"trigger_y": 3401.50776053215,
+			"trigger_y": 3278.53255392058,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 325.676274944567
@@ -240,7 +240,7 @@
 			"ship_id": "enemy_pylon",
 			"spacing": 500.0,
 			"speed": 130.0,
-			"trigger_y": 3625.0110864745,
+			"trigger_y": 3502.03587986293,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 589.623059866962
@@ -259,7 +259,7 @@
 			"ship_id": "enemy_pylon",
 			"spacing": 500.0,
 			"speed": 130.0,
-			"trigger_y": 3716.54101995565,
+			"trigger_y": 3593.56581334408,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -647.095343680709
@@ -278,7 +278,7 @@
 			"ship_id": "enemy_pylon",
 			"spacing": 500.0,
 			"speed": 130.0,
-			"trigger_y": 3995.38802660754,
+			"trigger_y": 3886.29711751663,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -389.534368070954
@@ -297,7 +297,7 @@
 			"ship_id": "enemy_pylon",
 			"spacing": 500.0,
 			"speed": 130.0,
-			"trigger_y": 4255.07760532151,
+			"trigger_y": 4145.9866962306,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -129.844789356985
@@ -316,7 +316,7 @@
 			"ship_id": "enemy_prism",
 			"spacing": 500.0,
 			"speed": 350.0,
-			"trigger_y": 3052.41685144124,
+			"trigger_y": 2929.44164482967,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -736.49667405765
@@ -335,7 +335,7 @@
 			"ship_id": "enemy_prism",
 			"spacing": 500.0,
 			"speed": 350.0,
-			"trigger_y": 3548.38137472284,
+			"trigger_y": 3425.40616811127,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 321.419068736141
@@ -359,7 +359,7 @@
 			"ship_id": "enemy_tesseract",
 			"spacing": 150.0,
 			"speed": 100.0,
-			"trigger_y": 5033.87694822536,
+			"trigger_y": 4924.78603913445,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 3.99482631189943
@@ -378,7 +378,7 @@
 			"ship_id": "enemy_wraith",
 			"spacing": 150.0,
 			"speed": 80.0,
-			"trigger_y": 6257.64405673254,
+			"trigger_y": 6148.55314764163,
 			"turn_speed": 60.0,
 			"weapons_active": true,
 			"x_offset": 591.76242575299
@@ -397,7 +397,7 @@
 			"ship_id": "enemy_wraith",
 			"spacing": 150.0,
 			"speed": 80.0,
-			"trigger_y": 6600.34915651081,
+			"trigger_y": 6491.2582474199,
 			"turn_speed": 60.0,
 			"weapons_active": true,
 			"x_offset": 68.1260621166265
@@ -416,7 +416,7 @@
 			"ship_id": "enemy_wraith",
 			"spacing": 150.0,
 			"speed": 80.0,
-			"trigger_y": 6219.32920085671,
+			"trigger_y": 6110.2382917658,
 			"turn_speed": 60.0,
 			"weapons_active": true,
 			"x_offset": -587.483693980935
@@ -435,7 +435,7 @@
 			"ship_id": "enemy_wraith",
 			"spacing": 150.0,
 			"speed": 80.0,
-			"trigger_y": 6828.10968866158,
+			"trigger_y": 6719.01877957067,
 			"turn_speed": 60.0,
 			"weapons_active": true,
 			"x_offset": -770.54356094324
@@ -454,7 +454,7 @@
 			"ship_id": "enemy_wraith",
 			"spacing": 150.0,
 			"speed": 80.0,
-			"trigger_y": 7077.51360858002,
+			"trigger_y": 6968.42269948911,
 			"turn_speed": 60.0,
 			"weapons_active": true,
 			"x_offset": 739.634308187806
@@ -473,7 +473,7 @@
 			"ship_id": "enemy_wraith",
 			"spacing": 150.0,
 			"speed": 80.0,
-			"trigger_y": 7198.84398552015,
+			"trigger_y": 7089.75307642924,
 			"turn_speed": 60.0,
 			"weapons_active": true,
 			"x_offset": 41.4524900059883
@@ -492,7 +492,7 @@
 			"ship_id": "enemy_prism",
 			"spacing": 500.0,
 			"speed": 350.0,
-			"trigger_y": 2275.47671840355,
+			"trigger_y": 2152.50151179198,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -649.223946784923
@@ -511,7 +511,7 @@
 			"ship_id": "enemy_prism",
 			"spacing": 500.0,
 			"speed": 350.0,
-			"trigger_y": 2360.62084257206,
+			"trigger_y": 2237.64563596049,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 872.727272727273
@@ -530,7 +530,7 @@
 			"ship_id": "enemy_prism",
 			"spacing": 500.0,
 			"speed": 350.0,
-			"trigger_y": 3407.89356984479,
+			"trigger_y": 3284.91836323322,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -131.973392461197
@@ -554,10 +554,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 100.0,
 			"speed": 600.0,
-			"trigger_y": 946.381601307719,
+			"trigger_y": 716.29895667962,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -204.590609675174
+			"x_offset": -200.623667526414
 		},
 		{
 			"boss_id": "",
@@ -578,10 +578,10 @@
 			"ship_id": "enemy_1",
 			"spacing": 100.0,
 			"speed": 600.0,
-			"trigger_y": 1166.36185605386,
+			"trigger_y": 1013.63458332659,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -466.164079822616
+			"x_offset": -462.197137673856
 		},
 		{
 			"boss_id": "",
@@ -597,10 +597,10 @@
 			"ship_id": "enemy_obelisk",
 			"spacing": 150.0,
 			"speed": 500.0,
-			"trigger_y": 1485.76496674057,
+			"trigger_y": 1333.0376940133,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -27.6718403547671
+			"x_offset": -23.7048982060068
 		},
 		{
 			"boss_id": "",
@@ -654,7 +654,7 @@
 			"ship_id": "enemy_prism",
 			"spacing": 500.0,
 			"speed": 350.0,
-			"trigger_y": 7007.269706141,
+			"trigger_y": 6898.17879705009,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 88.2817582986712
@@ -817,7 +817,7 @@
 			"ship_id": "enemy_shard",
 			"spacing": 250.0,
 			"speed": 800.0,
-			"trigger_y": 3747.15328467153,
+			"trigger_y": 3624.17807805996,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 15.7664233576642
@@ -841,7 +841,7 @@
 			"ship_id": "enemy_shard",
 			"spacing": 100.0,
 			"speed": 800.0,
-			"trigger_y": 4015.18248175182,
+			"trigger_y": 3906.09157266091,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 24.5255474452555
@@ -865,7 +865,7 @@
 			"ship_id": "enemy_shard",
 			"spacing": 100.0,
 			"speed": 800.0,
-			"trigger_y": 5729.56204379562,
+			"trigger_y": 5620.47113470471,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 5.59610705596103
@@ -889,7 +889,7 @@
 			"ship_id": "enemy_shard",
 			"spacing": 100.0,
 			"speed": 800.0,
-			"trigger_y": 6091.77615571777,
+			"trigger_y": 5982.68524662686,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 21.2773722627737
@@ -951,7 +951,7 @@
 			"ship_id": "enemy_monolith",
 			"spacing": 200.0,
 			"speed": 140.0,
-			"trigger_y": 2333.43065693431,
+			"trigger_y": 2210.45545032274,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -71.8248175182482
@@ -970,7 +970,7 @@
 			"ship_id": "enemy_monolith",
 			"spacing": 200.0,
 			"speed": 140.0,
-			"trigger_y": 6682.14111922141,
+			"trigger_y": 6573.0502101305,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -311.569343065693
@@ -989,7 +989,7 @@
 			"ship_id": "enemy_monolith",
 			"spacing": 200.0,
 			"speed": 140.0,
-			"trigger_y": 6818.78345498784,
+			"trigger_y": 6709.69254589693,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 413.686131386862
@@ -1027,10 +1027,10 @@
 			"ship_id": "enemy_shard",
 			"spacing": 50.0,
 			"speed": 300.0,
-			"trigger_y": 1884.96350364964,
+			"trigger_y": 1732.23623092237,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 423.941605839416
+			"x_offset": 427.908547988176
 		},
 		{
 			"boss_id": "",
@@ -1046,10 +1046,10 @@
 			"ship_id": "enemy_shard",
 			"spacing": 50.0,
 			"speed": 300.0,
-			"trigger_y": 1280.58394160584,
+			"trigger_y": 1127.85666887857,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -203.211678832117
+			"x_offset": -199.244736683357
 		},
 		{
 			"boss_id": "",
@@ -1065,10 +1065,10 @@
 			"ship_id": "enemy_shard",
 			"spacing": 50.0,
 			"speed": 300.0,
-			"trigger_y": 1277.0802919708,
+			"trigger_y": 1124.35301924353,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 189.197080291971
+			"x_offset": 193.164022440731
 		},
 		{
 			"boss_id": "",
@@ -1317,7 +1317,7 @@
 			"ship_id": "enemy_monolith",
 			"spacing": 200.0,
 			"speed": 140.0,
-			"trigger_y": 2475.32846715328,
+			"trigger_y": 2352.35326054171,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 82.3357664233577
@@ -1341,7 +1341,7 @@
 			"ship_id": "enemy_monolith",
 			"spacing": 200.0,
 			"speed": 140.0,
-			"trigger_y": 2585.69343065693,
+			"trigger_y": 2462.71822404536,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 227.737226277372
@@ -1365,7 +1365,7 @@
 			"ship_id": "enemy_tesseract",
 			"spacing": 150.0,
 			"speed": 100.0,
-			"trigger_y": 5043.33333333333,
+			"trigger_y": 4934.24242424242,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 733.333333333333
@@ -1389,7 +1389,7 @@
 			"ship_id": "enemy_tesseract",
 			"spacing": 150.0,
 			"speed": 100.0,
-			"trigger_y": 5231.66666666667,
+			"trigger_y": 5122.57575757576,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 390.0
@@ -1413,7 +1413,7 @@
 			"ship_id": "enemy_tesseract",
 			"spacing": 150.0,
 			"speed": 100.0,
-			"trigger_y": 5401.66666666667,
+			"trigger_y": 5292.57575757576,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 10.0
@@ -1437,7 +1437,7 @@
 			"ship_id": "enemy_tesseract",
 			"spacing": 150.0,
 			"speed": 100.0,
-			"trigger_y": 5246.66666666667,
+			"trigger_y": 5137.57575757576,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -400.0
@@ -1461,7 +1461,7 @@
 			"ship_id": "enemy_tesseract",
 			"spacing": 150.0,
 			"speed": 100.0,
-			"trigger_y": 5021.66666666667,
+			"trigger_y": 4912.57575757576,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": -776.666666666667
@@ -1480,7 +1480,7 @@
 			"ship_id": "enemy_1",
 			"spacing": 300.0,
 			"speed": 300.0,
-			"trigger_y": 6793.33333333334,
+			"trigger_y": 6684.24242424243,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 98.333333333333
@@ -1499,7 +1499,7 @@
 			"ship_id": "cargo_ship",
 			"spacing": 200.0,
 			"speed": 200.0,
-			"trigger_y": 4548.33333333334,
+			"trigger_y": 4439.24242424243,
 			"turn_speed": 90.0,
 			"weapons_active": true,
 			"x_offset": 45.0

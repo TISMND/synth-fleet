@@ -44,7 +44,6 @@ var _credits_label: Label = null
 var _items_container: VBoxContainer = null
 var _title: Label = null
 var _continue_btn: Button = null
-var _bg: ColorRect = null
 var _vhs_overlay: ColorRect = null
 
 
@@ -55,12 +54,7 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	# Background
-	_bg = ColorRect.new()
-	_bg.color = ThemeManager.get_color("background")
-	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_bg)
-	ThemeManager.apply_grid_background(_bg)
+	SynthwaveBgSetup.setup(self)
 
 	var main_vbox := VBoxContainer.new()
 	main_vbox.set_anchors_preset(Control.PRESET_CENTER)
@@ -247,7 +241,6 @@ func _setup_vhs_overlay() -> void:
 
 
 func _on_theme_changed() -> void:
-	ThemeManager.apply_grid_background(_bg)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 	_apply_styles()
 

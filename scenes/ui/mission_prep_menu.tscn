@@ -74,10 +74,6 @@ text = "HANGAR BAY"
 layout_mode = 2
 text = "SONIC BALANCING"
 
-[node name="CrewButton" type="Button" parent="HBoxContainer/ButtonPanel/VBoxContainer"]
-layout_mode = 2
-text = "UPGRADES"
-
 [node name="BackButton" type="Button" parent="HBoxContainer/ButtonPanel/VBoxContainer"]
 layout_mode = 2
 text = "BACK"

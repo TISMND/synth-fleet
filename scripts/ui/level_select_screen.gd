@@ -2,7 +2,6 @@ extends Control
 ## Level selection screen — browse available levels, view details, launch game.
 
 var _vhs_overlay: ColorRect
-var _bg_rect: ColorRect
 var _title_label: Label
 var _level_list: VBoxContainer
 var _scroll_container: ScrollContainer
@@ -30,11 +29,7 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	# Grid background
-	_bg_rect = ColorRect.new()
-	_bg_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_bg_rect.z_index = -1
-	add_child(_bg_rect)
+	SynthwaveBgSetup.setup(self)
 
 	# Main layout: MarginContainer > HBoxContainer
 	var margin := MarginContainer.new()
@@ -247,7 +242,6 @@ func _setup_vhs_overlay() -> void:
 
 
 func _apply_theme() -> void:
-	ThemeManager.apply_grid_background(_bg_rect)
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
 	ThemeManager.apply_text_glow(_title_label, "header")
 	ThemeManager.apply_button_style(_play_button)

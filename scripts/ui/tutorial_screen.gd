@@ -4,7 +4,6 @@ extends Control
 ## Parallax star background, pulsing highlights on key bars.
 
 var _vhs_overlay: ColorRect
-var _bg: ColorRect
 var _title_label: Label
 var _body_label: Label
 var _nav_container: HBoxContainer
@@ -175,13 +174,10 @@ func _build_slides_data() -> void:
 
 
 func _build_ui() -> void:
-	# Dark background behind stars
-	_bg = ColorRect.new()
-	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_bg.color = Color(0.01, 0.01, 0.02)
-	add_child(_bg)
+	# Synthwave animated background (matches main menu)
+	SynthwaveBgSetup.setup(self)
 
-	# Star field layers (3 depths)
+	# Star field layers (3 depths) — parallax scroll on top of synthwave bg
 	_build_star_layers()
 
 	# Center content area (between HUD panels)

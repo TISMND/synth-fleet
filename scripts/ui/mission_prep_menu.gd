@@ -558,10 +558,6 @@ func _on_loadout() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/hangar_screen.tscn")
 
 
-func _on_crew() -> void:
-	get_tree().change_scene_to_file("res://scenes/ui/upgrade_screen.tscn")
-
-
 func _on_audio_mix() -> void:
 	var HangarScreen: GDScript = load("res://scripts/ui/hangar_screen.gd")
 	HangarScreen.set("initial_mode", "audio")
@@ -611,7 +607,6 @@ func _connect_buttons() -> void:
 	back.pressed.connect(_on_back)
 	btns.get_node("LoadoutButton").pressed.connect(_on_loadout)
 	btns.get_node("HangarButton").pressed.connect(_on_hangar)
-	btns.get_node("CrewButton").pressed.connect(_on_crew)
 	btns.get_node("AudioMixButton").pressed.connect(_on_audio_mix)
 
 	# The LaunchButton in the tscn is unused now — hide it
@@ -622,7 +617,6 @@ func _connect_buttons() -> void:
 		btns.get_node("LoadoutButton") as Button,
 		btns.get_node("HangarButton") as Button,
 		btns.get_node("AudioMixButton") as Button,
-		btns.get_node("CrewButton") as Button,
 	]
 
 
