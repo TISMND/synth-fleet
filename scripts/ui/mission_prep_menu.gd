@@ -85,12 +85,17 @@ func _build_verse_select() -> void:
 	vp.add_child(_grid_overlay)
 	ThemeManager.apply_grid_background(_grid_overlay)
 
-	# Holographic frame overlay
+	# Frame overlay — sits just outside the viewport so brackets frame it
+	var bracket_outset: int = 8
 	var frame_overlay := ColorRect.new()
-	frame_overlay.color = Color(0.0, 0.0, 0.0, 0.0)
+	frame_overlay.color = Color(1.0, 1.0, 1.0, 1.0)
 	frame_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame_overlay.offset_left = frame_margin - bracket_outset
+	frame_overlay.offset_top = frame_margin - bracket_outset
+	frame_overlay.offset_right = -(frame_margin - bracket_outset)
+	frame_overlay.offset_bottom = -(frame_margin - bracket_outset)
 	frame_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var frame_shader: Shader = load("res://assets/shaders/verse_frame_holographic.gdshader") as Shader
+	var frame_shader: Shader = load("res://assets/shaders/verse_frame_pulse_corners.gdshader") as Shader
 	if frame_shader:
 		var frame_mat := ShaderMaterial.new()
 		frame_mat.shader = frame_shader
@@ -143,7 +148,7 @@ func _build_verse_select() -> void:
 
 	var left_btn := Button.new()
 	left_btn.text = "\u25C1 \u25C1"
-	left_btn.custom_minimum_size = Vector2(70, 0)
+	left_btn.custom_minimum_size = Vector2(70, 100)
 	_style_holo_arrow(left_btn)
 	left_btn.pressed.connect(func() -> void: _cycle_verse(-1))
 	arrow_row.add_child(left_btn)
@@ -155,7 +160,7 @@ func _build_verse_select() -> void:
 
 	var right_btn := Button.new()
 	right_btn.text = "\u25B7 \u25B7"
-	right_btn.custom_minimum_size = Vector2(70, 0)
+	right_btn.custom_minimum_size = Vector2(70, 100)
 	_style_holo_arrow(right_btn)
 	right_btn.pressed.connect(func() -> void: _cycle_verse(1))
 	arrow_row.add_child(right_btn)
@@ -219,8 +224,8 @@ func _style_holo_arrow(btn: Button) -> void:
 	btn.add_theme_font_size_override("font_size", 28)
 
 	var sbox := StyleBoxFlat.new()
-	sbox.bg_color = Color(0.04, 0.06, 0.18, 0.85)
-	sbox.border_color = Color(0.15, 0.4, 0.9, 0.7)
+	sbox.bg_color = Color(0.18, 0.04, 0.1, 0.85)
+	sbox.border_color = Color(0.9, 0.15, 0.5, 0.7)
 	sbox.border_width_left = 2
 	sbox.border_width_right = 2
 	sbox.border_width_top = 2
@@ -232,17 +237,17 @@ func _style_holo_arrow(btn: Button) -> void:
 	btn.add_theme_stylebox_override("normal", sbox)
 
 	var hover := sbox.duplicate() as StyleBoxFlat
-	hover.bg_color = Color(0.06, 0.1, 0.28, 0.92)
-	hover.border_color = Color(0.25, 0.55, 1.0, 0.9)
+	hover.bg_color = Color(0.28, 0.06, 0.15, 0.92)
+	hover.border_color = Color(1.0, 0.25, 0.6, 0.9)
 	btn.add_theme_stylebox_override("hover", hover)
 
 	var pressed := sbox.duplicate() as StyleBoxFlat
-	pressed.bg_color = Color(0.08, 0.14, 0.35, 0.95)
-	pressed.border_color = Color(0.3, 0.6, 1.0, 1.0)
+	pressed.bg_color = Color(0.35, 0.08, 0.2, 0.95)
+	pressed.border_color = Color(1.0, 0.3, 0.65, 1.0)
 	btn.add_theme_stylebox_override("pressed", pressed)
 
-	btn.add_theme_color_override("font_color", Color(0.4, 0.65, 1.0, 0.9))
-	btn.add_theme_color_override("font_hover_color", Color(0.55, 0.8, 1.0, 1.0))
+	btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.65, 0.9))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.55, 0.75, 1.0))
 
 
 func _connect_buttons() -> void:

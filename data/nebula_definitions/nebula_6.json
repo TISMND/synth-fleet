@@ -2,10 +2,10 @@
 	"display_name": "Blue Plain",
 	"id": "nebula_6",
 	"shader_params": {
-		"animation_speed": 1.55,
-		"bottom_opacity": 1.0,
-		"brightness": 2.35,
-		"density": 0.65,
+		"animation_speed": 1.2,
+		"bottom_opacity": 0.55,
+		"brightness": 2.6,
+		"density": 1.7,
 		"nebula_color": [
 			0.275619506835938,
 			0.371243089437485,
@@ -25,9 +25,9 @@
 		"storm_frequency": 0.4,
 		"storm_glow_diameter": 0.3,
 		"storm_strike_size": 0.12,
-		"top_opacity": 1.04,
-		"veil_contrast": 0.27,
-		"wash_opacity": 0.01
+		"top_opacity": 2.0,
+		"veil_contrast": 0.39,
+		"wash_opacity": 0.15
 	},
 	"style_id": "classic_fbm"
 }

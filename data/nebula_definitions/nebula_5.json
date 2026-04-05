@@ -1,7 +1,7 @@
 {
+	"alarm_sfx_id": "nebula_alarm_1",
 	"bar_effects": {
 		"electric": 1.0,
-		"hull": -10.0,
 		"shield": -10.0
 	},
 	"display_name": "Blue Storm",
@@ -33,12 +33,20 @@
 		"seed_offset": 0.0,
 		"storm_duration": 0.13,
 		"storm_enabled": true,
-		"storm_frequency": 0.6,
+		"storm_frequency": 0.35,
 		"storm_glow_diameter": 0.23,
 		"storm_strike_size": 0.07,
-		"top_opacity": 1.01,
+		"top_opacity": 2.0,
 		"veil_contrast": 0.27,
 		"wash_opacity": 0.5
 	},
-	"style_id": "lightning_strike"
+	"style_id": "lightning_strike",
+	"warning_color": [
+		1.0,
+		0.4,
+		0.1,
+		1.0
+	],
+	"warning_enabled": true,
+	"warning_text": "SHIELD DAMAGE"
 }

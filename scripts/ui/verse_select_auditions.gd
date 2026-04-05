@@ -1,71 +1,40 @@
 extends MarginContainer
-## Verse Select UI auditions — 5 frame/arrow styles wrapping destination viewports.
-## Each concept has left/right arrows to cycle through destinations.
+## Verse Select frame auditions — 4 copies of the mission-prep verse selector,
+## each with a different border treatment for comparison.
 
-var _concept_states: Array[Dictionary] = []
-
-const DESTINATIONS: Array[Dictionary] = [
-	{"label": "NEON VOID RIFT", "path": "res://assets/shaders/dest_neon_void.gdshader", "hdr": 3.0},
-	{"label": "FLUID RIFT", "path": "res://assets/shaders/dest_fluid_rift.gdshader", "hdr": 3.0},
-	{"label": "FIRE", "path": "res://assets/shaders/dest_fire.gdshader", "hdr": 3.5},
-	{"label": "HAMMERED IRON", "path": "res://assets/shaders/dest_planet_hammered.gdshader", "hdr": 3.0},
-	{"label": "FROZEN STEEL", "path": "res://assets/shaders/dest_planet_frozen.gdshader", "hdr": 3.0},
-	{"label": "COPPER PATINA", "path": "res://assets/shaders/dest_planet_copper.gdshader", "hdr": 3.0},
-	{"label": "OBSIDIAN MIRROR", "path": "res://assets/shaders/dest_planet_obsidian.gdshader", "hdr": 3.0},
-	{"label": "VOLCANIC METAL", "path": "res://assets/shaders/dest_planet_volcanic.gdshader", "hdr": 3.5},
+const VERSES: Array[Dictionary] = [
+	{"label": "TUTORIAL", "shader": "", "hdr": 0.0},
+	{"label": "NEON RIFT", "shader": "res://assets/shaders/dest_neon_void.gdshader", "hdr": 3.0},
+	{"label": "FLUID", "shader": "res://assets/shaders/dest_fluid_rift.gdshader", "hdr": 3.0},
 ]
 
 const VP_SIZE := Vector2i(800, 450)
-const VP_HEIGHT := 380
 
-# ── Concept definitions ──
-const CONCEPTS: Array[Dictionary] = [
+const FRAME_CONCEPTS: Array[Dictionary] = [
 	{
-		"label": "HOLOGRAPHIC",
-		"desc": "Glitchy holo-projection frame. Scan-line border, corner brackets, data sweep.",
-		"frame_shader": "res://assets/shaders/verse_frame_holographic.gdshader",
-		"arrow_left": "◁ ◁",
-		"arrow_right": "▷ ▷",
-		"arrow_font_size": 28,
-		"frame_margin": 28,
+		"label": "NEON GLOW",
+		"desc": "Thick HDR neon border with blooming glow. White-hot core.",
+		"shader": "res://assets/shaders/verse_frame_neon_glow.gdshader",
 	},
 	{
-		"label": "NEON",
-		"desc": "Hot neon tube border. Glowing pink/cyan edges, corner accents, traveling light.",
-		"frame_shader": "res://assets/shaders/verse_frame_neon.gdshader",
-		"arrow_left": "⟨",
-		"arrow_right": "⟩",
-		"arrow_font_size": 52,
-		"frame_margin": 26,
+		"label": "PULSE CORNERS",
+		"desc": "Slender L-brackets that breathe and pulse. Targeting reticle feel.",
+		"shader": "res://assets/shaders/verse_frame_pulse_corners.gdshader",
 	},
 	{
-		"label": "METAL",
-		"desc": "Brushed gunmetal frame with rivets. Industrial, heavy, tactile.",
-		"frame_shader": "res://assets/shaders/verse_frame_metal.gdshader",
-		"arrow_left": "◀",
-		"arrow_right": "▶",
-		"arrow_font_size": 32,
-		"frame_margin": 32,
+		"label": "ELEGANT LINES",
+		"desc": "Hairline double border with subtle glow. Refined, minimal.",
+		"shader": "res://assets/shaders/verse_frame_elegant.gdshader",
 	},
 	{
-		"label": "SIMPLE",
-		"desc": "Clean minimal border. Thin accent line, understated.",
-		"frame_shader": "",
-		"arrow_left": "‹",
-		"arrow_right": "›",
-		"arrow_font_size": 48,
-		"frame_margin": 6,
-	},
-	{
-		"label": "NOTHING",
-		"desc": "No frame. Content bleeds to edges. Ghost arrows.",
-		"frame_shader": "",
-		"arrow_left": "←",
-		"arrow_right": "→",
-		"arrow_font_size": 24,
-		"frame_margin": 0,
+		"label": "NEON TRACE",
+		"desc": "Bright traces race along the border like circuit paths. HDR bloom.",
+		"shader": "res://assets/shaders/verse_frame_neon_trace.gdshader",
 	},
 ]
+
+# Per-concept state: verse_index, shader_mat, grid_overlay, labels
+var _states: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -84,22 +53,23 @@ func _build_ui() -> void:
 	main_col.add_theme_constant_override("separation", 30)
 	scroll.add_child(main_col)
 
-	for i in CONCEPTS.size():
-		_build_concept(main_col, CONCEPTS[i], i)
+	for i in FRAME_CONCEPTS.size():
+		_build_concept(main_col, FRAME_CONCEPTS[i], i)
 
 
-func _build_concept(parent: VBoxContainer, def: Dictionary, concept_idx: int) -> void:
+func _build_concept(parent: VBoxContainer, def: Dictionary, idx: int) -> void:
 	var section := VBoxContainer.new()
 	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	section.add_theme_constant_override("separation", 8)
 	parent.add_child(section)
 
-	# Header + description
+	var hfont: Font = ThemeManager.get_font("font_header")
+
+	# Header
 	var title := Label.new()
 	title.text = def["label"] as String
 	ThemeManager.apply_text_glow(title, "header")
 	title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
-	var hfont: Font = ThemeManager.get_font("font_header")
 	if hfont:
 		title.add_theme_font_override("font", hfont)
 	title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
@@ -111,28 +81,20 @@ func _build_concept(parent: VBoxContainer, def: Dictionary, concept_idx: int) ->
 	desc.add_theme_color_override("font_color", ThemeManager.get_color("text"))
 	section.add_child(desc)
 
-	# Main row: [left arrow] [viewport+frame] [right arrow]
-	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 12)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	section.add_child(row)
+	# Preview container — dimensions matching mission prep proportions
+	var preview_width: int = 1000
+	var preview_height: int = 580
+	var frame_margin: int = 28
 
-	# Left arrow
-	var left_btn := Button.new()
-	left_btn.text = def["arrow_left"] as String
-	left_btn.custom_minimum_size = Vector2(70, VP_HEIGHT)
-	_style_arrow(left_btn, def, concept_idx)
-	row.add_child(left_btn)
+	var center_wrap := CenterContainer.new()
+	center_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	section.add_child(center_wrap)
 
-	# Viewport area with frame
-	var frame_margin: int = int(def["frame_margin"])
 	var frame_container := Control.new()
-	frame_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	frame_container.custom_minimum_size = Vector2(0, VP_HEIGHT + frame_margin * 2)
-	row.add_child(frame_container)
+	frame_container.custom_minimum_size = Vector2(preview_width, preview_height)
+	center_wrap.add_child(frame_container)
 
-	# SubViewportContainer fills the frame area (with margin for frame border)
+	# SubViewportContainer
 	var vpc := SubViewportContainer.new()
 	vpc.stretch = true
 	vpc.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -149,30 +111,38 @@ func _build_concept(parent: VBoxContainer, def: Dictionary, concept_idx: int) ->
 	vpc.add_child(vp)
 	VFXFactory.add_bloom_to_viewport(vp)
 
+	# Dark background
 	var bg := ColorRect.new()
 	bg.color = Color(0.005, 0.005, 0.01, 1.0)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vp.add_child(bg)
 
+	# Destination shader rect
 	var shader_rect := ColorRect.new()
 	shader_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vp.add_child(shader_rect)
 
-	# Load initial destination
-	var dest: Dictionary = DESTINATIONS[0]
-	var shader: Shader = load(dest["path"] as String) as Shader
-	var mat := ShaderMaterial.new()
-	if shader:
-		mat.shader = shader
-		mat.set_shader_parameter("hdr_intensity", float(dest["hdr"]))
-	shader_rect.material = mat
+	var verse_mat := ShaderMaterial.new()
+	shader_rect.material = verse_mat
 
-	# Frame overlay (shader or simple border)
-	var frame_shader_path: String = def["frame_shader"] as String
+	# Grid overlay for Tutorial
+	var grid_overlay := ColorRect.new()
+	grid_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	grid_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vp.add_child(grid_overlay)
+	ThemeManager.apply_grid_background(grid_overlay)
+
+	# Frame shader overlay — sits just outside viewport so brackets frame it
+	var bracket_outset: int = 8
+	var frame_shader_path: String = def["shader"] as String
 	if frame_shader_path != "":
 		var frame_overlay := ColorRect.new()
-		frame_overlay.color = Color(0.0, 0.0, 0.0, 0.0)
+		frame_overlay.color = Color(1.0, 1.0, 1.0, 1.0)
 		frame_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+		frame_overlay.offset_left = frame_margin - bracket_outset
+		frame_overlay.offset_top = frame_margin - bracket_outset
+		frame_overlay.offset_right = -(frame_margin - bracket_outset)
+		frame_overlay.offset_bottom = -(frame_margin - bracket_outset)
 		frame_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var frame_shader: Shader = load(frame_shader_path) as Shader
 		if frame_shader:
@@ -180,194 +150,168 @@ func _build_concept(parent: VBoxContainer, def: Dictionary, concept_idx: int) ->
 			frame_mat.shader = frame_shader
 			frame_overlay.material = frame_mat
 		frame_container.add_child(frame_overlay)
-	elif def["label"] == "SIMPLE":
-		# Simple: thin accent border via Panel + StyleBoxFlat
-		var border_panel := Panel.new()
-		border_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-		border_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var sbox := StyleBoxFlat.new()
-		sbox.bg_color = Color(0.0, 0.0, 0.0, 0.0)
-		sbox.border_color = ThemeManager.get_color("accent")
-		sbox.border_width_left = 1
-		sbox.border_width_right = 1
-		sbox.border_width_top = 1
-		sbox.border_width_bottom = 1
-		border_panel.add_theme_stylebox_override("panel", sbox)
-		frame_container.add_child(border_panel)
 
-	# Right arrow
-	var right_btn := Button.new()
-	right_btn.text = def["arrow_right"] as String
-	right_btn.custom_minimum_size = Vector2(70, VP_HEIGHT)
-	_style_arrow(right_btn, def, concept_idx)
-	row.add_child(right_btn)
+	# ── UI overlay inside the frame ──
+	var ui_overlay := MarginContainer.new()
+	ui_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui_overlay.offset_left = frame_margin
+	ui_overlay.offset_top = frame_margin
+	ui_overlay.offset_right = -frame_margin
+	ui_overlay.offset_bottom = -frame_margin
+	ui_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_overlay.add_theme_constant_override("margin_left", 16)
+	ui_overlay.add_theme_constant_override("margin_top", 12)
+	ui_overlay.add_theme_constant_override("margin_right", 16)
+	ui_overlay.add_theme_constant_override("margin_bottom", 12)
+	frame_container.add_child(ui_overlay)
 
-	# Destination name label
-	var dest_label := Label.new()
-	dest_label.text = dest["label"] as String
-	dest_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ThemeManager.apply_text_glow(dest_label, "body")
-	dest_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	var inner_col := VBoxContainer.new()
+	inner_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner_col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	inner_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_overlay.add_child(inner_col)
+
+	# "SELECT VERSE" title inside viewport
+	var vp_title := Label.new()
+	vp_title.text = "SELECT VERSE"
+	vp_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vp_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ThemeManager.apply_text_glow(vp_title, "header")
+	vp_title.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	if hfont:
-		dest_label.add_theme_font_override("font", hfont)
-	dest_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
-	section.add_child(dest_label)
+		vp_title.add_theme_font_override("font", hfont)
+	vp_title.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	inner_col.add_child(vp_title)
 
-	# Counter label (e.g. "1 / 8")
+	var top_spacer := Control.new()
+	top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	top_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner_col.add_child(top_spacer)
+
+	# Arrow row
+	var arrow_row := HBoxContainer.new()
+	arrow_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	arrow_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner_col.add_child(arrow_row)
+
+	var left_btn := Button.new()
+	left_btn.text = "\u25C1 \u25C1"
+	left_btn.custom_minimum_size = Vector2(70, 100)
+	_style_holo_arrow(left_btn)
+	var ci: int = idx
+	left_btn.pressed.connect(func() -> void: _cycle(ci, -1))
+	arrow_row.add_child(left_btn)
+
+	var arrow_spacer := Control.new()
+	arrow_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	arrow_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	arrow_row.add_child(arrow_spacer)
+
+	var right_btn := Button.new()
+	right_btn.text = "\u25B7 \u25B7"
+	right_btn.custom_minimum_size = Vector2(70, 100)
+	_style_holo_arrow(right_btn)
+	right_btn.pressed.connect(func() -> void: _cycle(ci, 1))
+	arrow_row.add_child(right_btn)
+
+	var bottom_spacer := Control.new()
+	bottom_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner_col.add_child(bottom_spacer)
+
+	# Verse name label
+	var verse_label := Label.new()
+	verse_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	verse_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ThemeManager.apply_text_glow(verse_label, "body")
+	verse_label.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	if hfont:
+		verse_label.add_theme_font_override("font", hfont)
+	verse_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+	inner_col.add_child(verse_label)
+
+	# Counter label
 	var counter := Label.new()
-	counter.text = "1 / %d" % DESTINATIONS.size()
 	counter.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	counter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ThemeManager.apply_text_glow(counter, "body")
 	counter.add_theme_color_override("font_color", ThemeManager.get_color("text"))
-	section.add_child(counter)
+	inner_col.add_child(counter)
 
 	# Store state
 	var state := {
 		"index": 0,
-		"mat": mat,
-		"dest_label": dest_label,
+		"mat": verse_mat,
+		"grid": grid_overlay,
+		"verse_label": verse_label,
 		"counter": counter,
 	}
-	_concept_states.append(state)
+	_states.append(state)
 
-	# Connect arrows
-	var ci: int = concept_idx
-	left_btn.pressed.connect(func() -> void: _cycle(ci, -1))
-	right_btn.pressed.connect(func() -> void: _cycle(ci, 1))
+	# Apply initial verse
+	_apply_verse(idx)
 
 
 func _cycle(concept_idx: int, direction: int) -> void:
-	var state: Dictionary = _concept_states[concept_idx]
+	var state: Dictionary = _states[concept_idx]
 	var cur: int = int(state["index"])
-	var new_idx: int = (cur + direction) % DESTINATIONS.size()
+	var new_idx: int = (cur + direction) % VERSES.size()
 	if new_idx < 0:
-		new_idx += DESTINATIONS.size()
+		new_idx += VERSES.size()
 	state["index"] = new_idx
+	_apply_verse(concept_idx)
 
-	var dest: Dictionary = DESTINATIONS[new_idx]
+
+func _apply_verse(concept_idx: int) -> void:
+	var state: Dictionary = _states[concept_idx]
+	var vi: int = int(state["index"])
+	var verse: Dictionary = VERSES[vi]
+	var shader_path: String = verse["shader"] as String
 	var mat: ShaderMaterial = state["mat"] as ShaderMaterial
-	var shader: Shader = load(dest["path"] as String) as Shader
-	if shader:
-		mat.shader = shader
-		mat.set_shader_parameter("hdr_intensity", float(dest["hdr"]))
+	var grid: ColorRect = state["grid"] as ColorRect
 
-	var dest_label: Label = state["dest_label"] as Label
-	dest_label.text = dest["label"] as String
+	if shader_path != "":
+		var shader: Shader = load(shader_path) as Shader
+		if shader:
+			mat.shader = shader
+			mat.set_shader_parameter("hdr_intensity", float(verse["hdr"]))
+		grid.visible = false
+	else:
+		mat.shader = null
+		grid.visible = true
+
+	var verse_label: Label = state["verse_label"] as Label
+	verse_label.text = verse["label"] as String
 
 	var counter: Label = state["counter"] as Label
-	counter.text = "%d / %d" % [new_idx + 1, DESTINATIONS.size()]
+	counter.text = "%d / %d" % [vi + 1, VERSES.size()]
 
 
-func _style_arrow(btn: Button, def: Dictionary, concept_idx: int) -> void:
-	var font_size: int = int(def["arrow_font_size"])
-	btn.add_theme_font_size_override("font_size", font_size)
+func _style_holo_arrow(btn: Button) -> void:
+	btn.add_theme_font_size_override("font_size", 28)
 
-	var label_text: String = def["label"] as String
+	var sbox := StyleBoxFlat.new()
+	sbox.bg_color = Color(0.18, 0.04, 0.1, 0.85)
+	sbox.border_color = Color(0.9, 0.15, 0.5, 0.7)
+	sbox.border_width_left = 2
+	sbox.border_width_right = 2
+	sbox.border_width_top = 2
+	sbox.border_width_bottom = 2
+	sbox.corner_radius_top_left = 4
+	sbox.corner_radius_top_right = 4
+	sbox.corner_radius_bottom_left = 4
+	sbox.corner_radius_bottom_right = 4
+	btn.add_theme_stylebox_override("normal", sbox)
 
-	match label_text:
-		"HOLOGRAPHIC":
-			# Cyan translucent buttons, no background
-			var sbox := StyleBoxFlat.new()
-			sbox.bg_color = Color(0.0, 0.15, 0.2, 0.3)
-			sbox.border_color = Color(0.2, 0.7, 1.0, 0.6)
-			sbox.border_width_left = 1
-			sbox.border_width_right = 1
-			sbox.border_width_top = 1
-			sbox.border_width_bottom = 1
-			sbox.corner_radius_top_left = 2
-			sbox.corner_radius_top_right = 2
-			sbox.corner_radius_bottom_left = 2
-			sbox.corner_radius_bottom_right = 2
-			btn.add_theme_stylebox_override("normal", sbox)
-			var hover := sbox.duplicate() as StyleBoxFlat
-			hover.bg_color = Color(0.0, 0.2, 0.3, 0.5)
-			hover.border_color = Color(0.3, 0.8, 1.0, 0.9)
-			btn.add_theme_stylebox_override("hover", hover)
-			var pressed := sbox.duplicate() as StyleBoxFlat
-			pressed.bg_color = Color(0.0, 0.3, 0.4, 0.6)
-			btn.add_theme_stylebox_override("pressed", pressed)
-			btn.add_theme_color_override("font_color", Color(0.3, 0.8, 1.0, 0.8))
-			btn.add_theme_color_override("font_hover_color", Color(0.5, 0.9, 1.0, 1.0))
+	var hover := sbox.duplicate() as StyleBoxFlat
+	hover.bg_color = Color(0.28, 0.06, 0.15, 0.92)
+	hover.border_color = Color(1.0, 0.25, 0.6, 0.9)
+	btn.add_theme_stylebox_override("hover", hover)
 
-		"NEON":
-			# Big glowing neon buttons — hot pink
-			var sbox := StyleBoxFlat.new()
-			sbox.bg_color = Color(0.2, 0.0, 0.1, 0.4)
-			sbox.border_color = Color(1.0, 0.1, 0.5, 0.8)
-			sbox.border_width_left = 2
-			sbox.border_width_right = 2
-			sbox.border_width_top = 2
-			sbox.border_width_bottom = 2
-			sbox.corner_radius_top_left = 6
-			sbox.corner_radius_top_right = 6
-			sbox.corner_radius_bottom_left = 6
-			sbox.corner_radius_bottom_right = 6
-			btn.add_theme_stylebox_override("normal", sbox)
-			var hover := sbox.duplicate() as StyleBoxFlat
-			hover.bg_color = Color(0.3, 0.0, 0.15, 0.6)
-			hover.border_color = Color(1.0, 0.2, 0.6, 1.0)
-			btn.add_theme_stylebox_override("hover", hover)
-			var pressed := sbox.duplicate() as StyleBoxFlat
-			pressed.bg_color = Color(0.4, 0.0, 0.2, 0.7)
-			btn.add_theme_stylebox_override("pressed", pressed)
-			btn.add_theme_color_override("font_color", Color(1.0, 0.2, 0.6, 0.9))
-			btn.add_theme_color_override("font_hover_color", Color(1.0, 0.4, 0.7, 1.0))
+	var pressed := sbox.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color(0.35, 0.08, 0.2, 0.95)
+	pressed.border_color = Color(1.0, 0.3, 0.65, 1.0)
+	btn.add_theme_stylebox_override("pressed", pressed)
 
-		"METAL":
-			# Chunky embossed metal buttons
-			var sbox := StyleBoxFlat.new()
-			sbox.bg_color = Color(0.2, 0.22, 0.25, 0.9)
-			sbox.border_color = Color(0.4, 0.42, 0.48, 0.8)
-			sbox.border_width_left = 2
-			sbox.border_width_right = 2
-			sbox.border_width_top = 2
-			sbox.border_width_bottom = 3
-			sbox.corner_radius_top_left = 3
-			sbox.corner_radius_top_right = 3
-			sbox.corner_radius_bottom_left = 3
-			sbox.corner_radius_bottom_right = 3
-			btn.add_theme_stylebox_override("normal", sbox)
-			var hover := sbox.duplicate() as StyleBoxFlat
-			hover.bg_color = Color(0.28, 0.3, 0.34, 0.95)
-			hover.border_color = Color(0.5, 0.55, 0.6, 0.9)
-			btn.add_theme_stylebox_override("hover", hover)
-			var pressed := sbox.duplicate() as StyleBoxFlat
-			pressed.bg_color = Color(0.15, 0.16, 0.18, 0.95)
-			pressed.border_width_top = 3
-			pressed.border_width_bottom = 2
-			btn.add_theme_stylebox_override("pressed", pressed)
-			btn.add_theme_color_override("font_color", Color(0.7, 0.72, 0.78, 0.9))
-			btn.add_theme_color_override("font_hover_color", Color(0.85, 0.87, 0.92, 1.0))
-
-		"SIMPLE":
-			# Minimal thin border
-			var sbox := StyleBoxFlat.new()
-			sbox.bg_color = Color(0.0, 0.0, 0.0, 0.0)
-			sbox.border_color = ThemeManager.get_color("accent").darkened(0.5)
-			sbox.border_width_left = 0
-			sbox.border_width_right = 0
-			sbox.border_width_top = 0
-			sbox.border_width_bottom = 0
-			btn.add_theme_stylebox_override("normal", sbox)
-			var hover := sbox.duplicate() as StyleBoxFlat
-			hover.border_color = ThemeManager.get_color("accent")
-			hover.border_width_left = 1
-			hover.border_width_right = 1
-			hover.border_width_top = 1
-			hover.border_width_bottom = 1
-			btn.add_theme_stylebox_override("hover", hover)
-			btn.add_theme_stylebox_override("pressed", hover)
-			btn.add_theme_color_override("font_color", ThemeManager.get_color("text").darkened(0.2))
-			btn.add_theme_color_override("font_hover_color", ThemeManager.get_color("accent"))
-
-		"NOTHING":
-			# Nearly invisible ghost arrows
-			var sbox := StyleBoxFlat.new()
-			sbox.bg_color = Color(0.0, 0.0, 0.0, 0.0)
-			sbox.border_color = Color(0.0, 0.0, 0.0, 0.0)
-			btn.add_theme_stylebox_override("normal", sbox)
-			btn.add_theme_stylebox_override("hover", sbox)
-			btn.add_theme_stylebox_override("pressed", sbox)
-			btn.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.15))
-			btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0, 0.4))
-			btn.add_theme_color_override("font_pressed_color", Color(1.0, 1.0, 1.0, 0.6))
+	btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.65, 0.9))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.55, 0.75, 1.0))
