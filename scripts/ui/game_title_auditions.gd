@@ -19,7 +19,7 @@ const STAGE_H: int = 360
 const TITLE_SIZE: int = 180
 const TITLE_OFFSET_TOP: int = 120
 const TITLE_OFFSET_BOTTOM: int = 280
-const CARD_W: int = 1200
+const CARD_W: int = 1800
 const CARD_H: int = 360
 const BG_COLOR: Color = Color(0, 0, 0, 1)
 const TITLE_COLOR: Color = Color(0.4, 0.65, 1.0)
@@ -34,7 +34,7 @@ const BASELINE: Dictionary = {
 	"chrome_color_bottom": Color(0.01, 0.02, 0.06),
 	"band1_pos": 0.2, "band2_pos": 0.45, "band3_pos": 0.55, "band4_pos": 0.8,
 	"band_sharpness": 20.0,
-	"line_density": 70.0, "line_strength": 0.12,
+	"line_density": 0.0, "line_strength": 0.0,
 	"bevel_strength": 1.0, "bevel_size": 1.8,
 	"bevel_light_color": Color(0.5, 0.7, 1.0),
 	"bevel_shadow_color": Color(0.0, 0.0, 0.05, 1.0),
@@ -72,29 +72,116 @@ func _p(label: String, overrides: Dictionary) -> void:
 
 
 func _define_presets() -> void:
-	_p("Baseline — Specular Slit (main menu)", {})
+	_p("Baseline — Specular Slit (clean chrome)", {})
 
-	_p("Outer Glow — Soft Ice", {
-		"outer_glow_strength": 1.4, "outer_glow_radius": 6.0,
-		"outer_glow_color": Color(0.45, 0.75, 1.0, 1.0),
+	# ── Center-band highlights (bright stripe across middle of glyph) ──
+	_p("Center Beam — Wide Specular", {
+		"specular_pos": 0.5, "specular_width": 0.08, "specular_intensity": 2.8,
+		"specular_color": Color(0.95, 0.98, 1.0, 1.0),
+	})
+	_p("Center Beam — Laser Line", {
+		"specular_pos": 0.5, "specular_width": 0.015, "specular_intensity": 4.0,
+		"specular_color": Color(1.0, 1.0, 1.0, 1.0),
+	})
+	_p("Double Band — Twin Specular via Mid", {
+		# Shift gradient so the MID region acts as a second bright band,
+		# with the specular slit above it = two horizontal bright stripes.
+		"chrome_color_mid": Color(0.55, 0.78, 1.0),
+		"band2_pos": 0.52, "band3_pos": 0.62,
+		"specular_pos": 0.28, "specular_width": 0.02, "specular_intensity": 3.5,
 	})
 
-	_p("Film Grain — Light Static", {
-		"grain_strength": 0.18, "grain_scale": 700.0, "grain_speed": 2.5,
+	# ── Chrome gradient palettes (internal fill color) ─────────────
+	_p("Gradient — Liquid Gold", {
+		"chrome_color_top": Color(0.08, 0.04, 0.0),
+		"chrome_color_highlight1": Color(1.0, 0.85, 0.35),
+		"chrome_color_mid": Color(0.22, 0.12, 0.02),
+		"chrome_color_highlight2": Color(0.9, 0.65, 0.15),
+		"chrome_color_bottom": Color(0.05, 0.03, 0.0),
+		"bevel_light_color": Color(1.0, 0.9, 0.6),
+		"specular_color": Color(1.0, 0.95, 0.7, 1.0),
+		"shadow_color": Color(0.15, 0.05, 0.0, 0.85),
+		"hdr_boost": 1.7,
 	})
-	_p("Film Grain — Heavy VHS", {
-		"grain_strength": 0.4, "grain_scale": 450.0, "grain_speed": 3.5,
+	_p("Gradient — Deep Purple Synth", {
+		"chrome_color_top": Color(0.06, 0.0, 0.12),
+		"chrome_color_highlight1": Color(0.9, 0.4, 1.0),
+		"chrome_color_mid": Color(0.12, 0.02, 0.22),
+		"chrome_color_highlight2": Color(0.65, 0.25, 0.9),
+		"chrome_color_bottom": Color(0.04, 0.0, 0.08),
+		"bevel_light_color": Color(0.85, 0.4, 1.0),
+		"specular_color": Color(1.0, 0.75, 1.0, 1.0),
+		"shadow_color": Color(0.1, 0.0, 0.2, 0.85),
+		"hdr_boost": 1.7,
+	})
+	_p("Gradient — Cyan Plasma", {
+		"chrome_color_top": Color(0.0, 0.05, 0.08),
+		"chrome_color_highlight1": Color(0.3, 1.0, 1.0),
+		"chrome_color_mid": Color(0.0, 0.1, 0.15),
+		"chrome_color_highlight2": Color(0.2, 0.85, 1.0),
+		"chrome_color_bottom": Color(0.0, 0.03, 0.05),
+		"bevel_light_color": Color(0.4, 1.0, 1.0),
+		"specular_color": Color(0.7, 1.0, 1.0, 1.0),
+		"shadow_color": Color(0.0, 0.1, 0.15, 0.85),
+		"specular_intensity": 3.8,
+		"hdr_boost": 1.8,
+	})
+	_p("Gradient — Molten Core (warm inside, cool frame)", {
+		"chrome_color_top": Color(0.02, 0.04, 0.12),
+		"chrome_color_highlight1": Color(0.45, 0.65, 1.0),
+		"chrome_color_mid": Color(0.35, 0.08, 0.02),
+		"chrome_color_highlight2": Color(1.0, 0.55, 0.15),
+		"chrome_color_bottom": Color(0.02, 0.04, 0.1),
+		"bevel_light_color": Color(0.5, 0.7, 1.0),
+		"specular_color": Color(1.0, 0.85, 0.5, 1.0),
+		"specular_pos": 0.5, "specular_width": 0.04, "specular_intensity": 3.2,
 	})
 
-	_p("Brushed — Light Satin", {
-		"surface_noise": 0.25, "surface_scale": 180.0,
+	# ── Sharp bands (chiseled, high-contrast internal striping) ─────
+	_p("Sharp Bands — Crystal Prism", {
+		"band_sharpness": 40.0,
+		"band1_pos": 0.25, "band2_pos": 0.42, "band3_pos": 0.58, "band4_pos": 0.75,
+		"chrome_color_highlight1": Color(0.75, 0.9, 1.0),
+		"chrome_color_highlight2": Color(0.6, 0.8, 1.0),
+		"hdr_boost": 1.7,
 	})
-	_p("Brushed — Heavy Steel", {
-		"surface_noise": 0.5, "surface_scale": 140.0,
-		"bevel_strength": 1.3,
+	_p("Inverted Bands — Dark Stripe Center", {
+		# Center is darkest, highlights flank — creates a mirror-fold effect.
+		"chrome_color_top": Color(0.4, 0.6, 0.95),
+		"chrome_color_highlight1": Color(0.05, 0.1, 0.18),
+		"chrome_color_mid": Color(0.55, 0.78, 1.0),
+		"chrome_color_highlight2": Color(0.05, 0.1, 0.18),
+		"chrome_color_bottom": Color(0.4, 0.6, 0.95),
+		"band1_pos": 0.15, "band2_pos": 0.4, "band3_pos": 0.6, "band4_pos": 0.85,
+		"band_sharpness": 30.0,
 	})
-	_p("Brushed — Hairline", {
-		"surface_noise": 0.18, "surface_scale": 320.0,
+
+	# ── Brushed metal texture (internal surface) ────────────────────
+	_p("Brushed — Hairline Steel", {
+		"surface_noise": 0.28, "surface_scale": 260.0,
+	})
+	_p("Brushed + Center Beam", {
+		"surface_noise": 0.32, "surface_scale": 220.0,
+		"specular_pos": 0.5, "specular_width": 0.06, "specular_intensity": 3.0,
+	})
+
+	# ── Groove (engraved inner ring — internal bezel) ───────────────
+	_p("Engraved Groove — Chiseled Inside", {
+		"groove_strength": 1.3, "groove_size": 2.8,
+		"groove_color": Color(0.0, 0.0, 0.08, 1.0),
+	})
+	_p("Engraved Groove + Specular", {
+		"groove_strength": 1.4, "groove_size": 3.0,
+		"groove_color": Color(0.0, 0.0, 0.08, 1.0),
+		"specular_pos": 0.5, "specular_width": 0.04, "specular_intensity": 3.0,
+	})
+	_p("Deep Engrave — Gold on Black", {
+		"groove_strength": 1.6, "groove_size": 3.5,
+		"groove_color": Color(0.0, 0.0, 0.0, 1.0),
+		"chrome_color_highlight1": Color(1.0, 0.85, 0.35),
+		"chrome_color_highlight2": Color(0.9, 0.65, 0.15),
+		"bevel_light_color": Color(1.0, 0.9, 0.6),
+		"specular_color": Color(1.0, 0.95, 0.7, 1.0),
 	})
 
 

@@ -595,6 +595,13 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	ThemeManager.apply_button_style(_preview_toggle_btn)
 	vbox.add_child(_preview_toggle_btn)
 
+	var intro_btn := Button.new()
+	intro_btn.text = "INTRO MUSIC..."
+	intro_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	intro_btn.pressed.connect(_on_edit_intro_music)
+	ThemeManager.apply_button_style(intro_btn)
+	vbox.add_child(intro_btn)
+
 	# Debug grid toggles
 	var debug_sep := HSeparator.new()
 	vbox.add_child(debug_sep)
@@ -617,6 +624,18 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	_debug_bg_check.toggled.connect(func(_on: bool) -> void: _map_canvas.queue_redraw())
 	vbox.add_child(_debug_bg_check)
 
+
+
+var _intro_music_editor: IntroMusicEditor = null
+
+func _on_edit_intro_music() -> void:
+	if not _selected_level:
+		return
+	if _intro_music_editor == null:
+		_intro_music_editor = IntroMusicEditor.new()
+		_intro_music_editor.tracks_changed.connect(_save_current_level)
+		add_child(_intro_music_editor)
+	_intro_music_editor.open_for_level(_selected_level)
 
 
 func _on_play_level() -> void:

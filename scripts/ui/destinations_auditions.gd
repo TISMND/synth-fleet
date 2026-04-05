@@ -1,5 +1,5 @@
 extends MarginContainer
-## Destinations auditions — 3 single destinations + 8 planet variations.
+## Destinations auditions — single destinations + man-made experiments.
 
 var _shader_mats: Array[ShaderMaterial] = []
 
@@ -9,19 +9,14 @@ const SINGLES: Array[Dictionary] = [
 	{"label": "FIRE", "path": "res://assets/shaders/dest_fire.gdshader", "hdr": 3.5},
 ]
 
-const PLANETS: Array[Dictionary] = [
-	{"label": "HAMMERED IRON", "path": "res://assets/shaders/dest_planet_hammered.gdshader", "hdr": 3.0},
-	{"label": "FROZEN STEEL", "path": "res://assets/shaders/dest_planet_frozen.gdshader", "hdr": 3.0},
-	{"label": "COPPER PATINA", "path": "res://assets/shaders/dest_planet_copper.gdshader", "hdr": 3.0},
-	{"label": "OBSIDIAN MIRROR", "path": "res://assets/shaders/dest_planet_obsidian.gdshader", "hdr": 3.0},
-	{"label": "PLATED FORTRESS", "path": "res://assets/shaders/dest_planet_plated.gdshader", "hdr": 3.0},
-	{"label": "VOLCANIC METAL", "path": "res://assets/shaders/dest_planet_volcanic.gdshader", "hdr": 3.5},
-	{"label": "LIQUID MERCURY", "path": "res://assets/shaders/dest_planet_mercury.gdshader", "hdr": 3.0},
-	{"label": "ANCIENT RELIC", "path": "res://assets/shaders/dest_planet_relic.gdshader", "hdr": 3.5},
+const MANMADE: Array[Dictionary] = [
+	{"label": "MONOLITH", "path": "res://assets/shaders/dest_monolith.gdshader", "hdr": 3.0},
+	{"label": "CHROME RING", "path": "res://assets/shaders/dest_chrome_ring.gdshader", "hdr": 3.0},
+	{"label": "RIFT GATE", "path": "res://assets/shaders/dest_rift_gate.gdshader", "hdr": 3.0},
 ]
 
 const VP_SIZE_LARGE := Vector2i(960, 480)
-const VP_SIZE_PLANET := Vector2i(480, 400)
+const VP_SIZE_MANMADE := Vector2i(640, 420)
 
 
 func _ready() -> void:
@@ -54,28 +49,24 @@ func _build_ui() -> void:
 	main_col.add_child(singles_row2)
 	_build_cell(singles_row2, SINGLES[2], VP_SIZE_LARGE, 400)
 
-	# ── Planet header ──
-	var planet_header := Label.new()
-	planet_header.text = "── PLANET OPTIONS ──"
-	ThemeManager.apply_text_glow(planet_header, "header")
-	planet_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
+	# ── Man-made experiments header ──
+	var mm_header := Label.new()
+	mm_header.text = "── MAN-MADE EXPERIMENTS ──"
+	ThemeManager.apply_text_glow(mm_header, "header")
+	mm_header.add_theme_font_size_override("font_size", ThemeManager.get_font_size("font_size_header"))
 	var hfont: Font = ThemeManager.get_font("font_header")
 	if hfont:
-		planet_header.add_theme_font_override("font", hfont)
-	planet_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
-	main_col.add_child(planet_header)
+		mm_header.add_theme_font_override("font", hfont)
+	mm_header.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	main_col.add_child(mm_header)
 
-	# ── Planets: 4x2 grid ──
-	for row_idx in range(0, PLANETS.size(), 4):
-		var row := HBoxContainer.new()
-		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_theme_constant_override("separation", 10)
-		main_col.add_child(row)
-
-		for col_idx in range(4):
-			var idx: int = row_idx + col_idx
-			if idx < PLANETS.size():
-				_build_cell(row, PLANETS[idx], VP_SIZE_PLANET, 280)
+	# ── Man-made: 3 in a row ──
+	var mm_row := HBoxContainer.new()
+	mm_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mm_row.add_theme_constant_override("separation", 12)
+	main_col.add_child(mm_row)
+	for i in range(MANMADE.size()):
+		_build_cell(mm_row, MANMADE[i], VP_SIZE_MANMADE, 320)
 
 
 func _build_cell(parent: HBoxContainer, def: Dictionary, vp_size: Vector2i, min_h: int) -> void:

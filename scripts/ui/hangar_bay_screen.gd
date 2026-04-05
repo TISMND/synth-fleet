@@ -13,6 +13,14 @@ var _header_preview_area: Control
 var _plus_overlay: Control
 var _plus_pulse_time: float = 0.0
 var _name_edit: LineEdit
+var _class_label: Label
+
+# ── Bay state ──
+var _bay_ship_ids: Array[int] = []  # ship_id per player bay (-1 = empty)
+var _selected_bay: int = 0
+var _hovered_bay: int = -1
+var _bay_buttons: Array[Button] = []
+const PLUS_BAY_INDEX: int = 2
 
 # ── Layout constants ──
 const PLAYER_COLS: int = 4
@@ -40,7 +48,8 @@ const ACTIVE_FILL := Color(0.18, 0.16, 0.04, 0.55)  # warm yellow-tinted fill fo
 const ACTIVE_BORDER := Color(1.0, 0.85, 0.15, 0.95)  # yellow
 const PLUS_BRIGHT := Color(0.55, 0.85, 1.0, 1.0)  # bright blue for pulsing plus marker
 const PUBLIC_PROFILE_COLOR := Color(0.55, 0.85, 1.0, 0.9)  # cyan-blue badge
-const PUBLIC_PROFILE_BAY := 1  # which bay holds the ship on the public profile (placeholder)
+const SELECTED_RING_COLOR := Color(0.9, 0.3, 0.7, 0.9)  # pink ring around the selected bay
+const HOVER_BRIGHTEN: float = 1.5
 
 # Ship class labels (by ship_id)
 const SHIP_CLASSES: Array[String] = [
@@ -52,10 +61,6 @@ var _right_panel: MarginContainer
 
 # ── Upgrade tabs ──
 const TAB_NAMES := ["SUBSYSTEMS", "AUGMENTS", "VANITY"]
-const SUBSYSTEMS := ["WEAPONS", "ARMOR", "ENGINES", "POWER CORE"]
-const MAX_LEVEL := 10
-const BASE_COST := 500
-const COST_SCALE := 1.4
 
 const AUGMENT_LAYOUT := [
 	{"section": "WEAPONS", "color": Color(0.14, 0.89, 0.89), "slots": [
@@ -89,16 +94,6 @@ var _tab_buttons: Array[Button] = []
 var _tab_containers: Array[Control] = []
 var _active_tab: int = 0
 
-# Subsystems state
-var _subsystem_levels: Dictionary = {}
-var _original_levels: Dictionary = {}
-var _pending_costs: Dictionary = {}
-var _panel_nodes: Dictionary = {}
-var _finance_panel: PanelContainer
-var _bank_value_label: Label
-var _cost_value_label: Label
-var _confirm_button: Button
-
 # Vanity state
 var _vanity_selections: Dictionary = {}
 
@@ -110,14 +105,9 @@ func _ready() -> void:
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 	_build_layout()
 	_switch_tab(0)
-	_update_subsystems_display()
 
 
 func _init_upgrade_state() -> void:
-	for sub in SUBSYSTEMS:
-		_subsystem_levels[sub] = 1
-		_original_levels[sub] = 1
-		_pending_costs[sub] = 0
 	for cat in VANITY_CATEGORIES:
 		_vanity_selections[cat["id"]] = 0
 
@@ -176,21 +166,24 @@ func _on_resized() -> void:
 		_hangar_drawing.queue_redraw()
 
 
-func _get_active_ship_class() -> String:
-	var idx: int = GameState.current_ship_index
-	if idx >= 0 and idx < SHIP_CLASSES.size():
-		return SHIP_CLASSES[idx]
+func _ship_class_for(ship_id: int) -> String:
+	if ship_id >= 0 and ship_id < SHIP_CLASSES.size():
+		return SHIP_CLASSES[ship_id]
 	return ""
 
 
-func _get_active_ship_custom_name() -> String:
-	var key: String = str(GameState.current_ship_index)
-	return str(GameState.custom_ship_names.get(key, ShipRegistry.get_ship_name(GameState.current_ship_index)))
+func _ship_custom_name_for(ship_id: int) -> String:
+	if ship_id < 0:
+		return ""
+	var key: String = str(ship_id)
+	return str(GameState.custom_ship_names.get(key, ShipRegistry.get_ship_name(ship_id)))
 
 
 func _on_ship_name_changed(new_text: String) -> void:
-	var key: String = str(GameState.current_ship_index)
-	GameState.custom_ship_names[key] = new_text
+	var sid: int = _selected_ship_id()
+	if sid < 0:
+		return
+	GameState.custom_ship_names[str(sid)] = new_text
 	GameState.save_game()
 
 
@@ -202,8 +195,9 @@ func _build_ship_header(parent: VBoxContainer) -> void:
 	_header_preview_area.clip_contents = true
 	parent.add_child(_header_preview_area)
 
+	var initial_sid: int = _selected_ship_id()
 	_header_ship_renderer = ShipRenderer.new()
-	_header_ship_renderer.ship_id = GameState.current_ship_index
+	_header_ship_renderer.ship_id = maxi(initial_sid, 0)
 	_header_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
 	_header_ship_renderer.animate = true
 	_header_preview_area.add_child(_header_ship_renderer)
@@ -212,7 +206,7 @@ func _build_ship_header(parent: VBoxContainer) -> void:
 
 	# Editable name
 	_name_edit = LineEdit.new()
-	_name_edit.text = _get_active_ship_custom_name()
+	_name_edit.text = _ship_custom_name_for(initial_sid)
 	_name_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_name_edit.add_theme_font_size_override("font_size", 22)
@@ -221,12 +215,79 @@ func _build_ship_header(parent: VBoxContainer) -> void:
 	parent.add_child(_name_edit)
 
 	# Class subtext
-	var class_lbl := Label.new()
-	class_lbl.text = _get_active_ship_class()
-	class_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	class_lbl.add_theme_font_size_override("font_size", 12)
-	class_lbl.add_theme_color_override("font_color", Color(ThemeManager.get_color("accent").r, ThemeManager.get_color("accent").g, ThemeManager.get_color("accent").b, 0.7))
-	parent.add_child(class_lbl)
+	_class_label = Label.new()
+	_class_label.text = _ship_class_for(initial_sid)
+	_class_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_class_label.add_theme_font_size_override("font_size", 12)
+	var acc: Color = ThemeManager.get_color("accent")
+	_class_label.add_theme_color_override("font_color", Color(acc.r, acc.g, acc.b, 0.7))
+	parent.add_child(_class_label)
+
+	# Action buttons: Activate / Make Profile
+	var btn_row := HBoxContainer.new()
+	btn_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_row.add_theme_constant_override("separation", 8)
+	parent.add_child(btn_row)
+
+	var activate_btn := Button.new()
+	activate_btn.text = "ACTIVATE SHIP"
+	activate_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	activate_btn.custom_minimum_size.y = 34
+	ThemeManager.apply_button_style(activate_btn)
+	activate_btn.pressed.connect(_on_activate_pressed)
+	btn_row.add_child(activate_btn)
+
+	var profile_btn := Button.new()
+	profile_btn.text = "MAKE PROFILE SHIP"
+	profile_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	profile_btn.custom_minimum_size.y = 34
+	ThemeManager.apply_button_style(profile_btn)
+	profile_btn.pressed.connect(_on_make_profile_pressed)
+	btn_row.add_child(profile_btn)
+
+
+func _refresh_header_for_selection() -> void:
+	var sid: int = _selected_ship_id()
+	if _header_ship_renderer and sid >= 0:
+		_header_ship_renderer.ship_id = sid
+		_header_ship_renderer.queue_redraw()
+	if _name_edit:
+		_name_edit.text = _ship_custom_name_for(sid)
+	if _class_label:
+		_class_label.text = _ship_class_for(sid)
+
+
+func _on_activate_pressed() -> void:
+	var sid: int = _selected_ship_id()
+	if sid < 0:
+		return
+	GameState.current_ship_index = sid
+	GameState.save_game()
+	if _player_ship_renderer:
+		_player_ship_renderer.ship_id = sid
+		_player_ship_renderer.queue_redraw()
+	if _hangar_drawing:
+		_hangar_drawing.queue_redraw()
+
+
+func _on_make_profile_pressed() -> void:
+	var sid: int = _selected_ship_id()
+	if sid < 0:
+		return
+	GameState.profile_ship_index = sid
+	GameState.save_game()
+	if _hangar_drawing:
+		_hangar_drawing.queue_redraw()
+
+
+func _show_placeholder_popup(message: String) -> void:
+	var dlg := AcceptDialog.new()
+	dlg.dialog_text = message
+	dlg.title = "Placeholder"
+	add_child(dlg)
+	dlg.popup_centered()
+	dlg.confirmed.connect(func() -> void: dlg.queue_free())
+	dlg.canceled.connect(func() -> void: dlg.queue_free())
 
 
 func _layout_header_ship() -> void:
@@ -297,152 +358,21 @@ func _switch_tab(index: int) -> void:
 			_tab_buttons[i].remove_theme_color_override("font_color")
 
 
-# ── Subsystems tab ──
+# ── Subsystems tab (placeholder until upgrade system returns) ──
 
 func _build_subsystems_tab(parent: Control) -> void:
 	var container := MarginContainer.new()
 	container.set_anchors_preset(Control.PRESET_FULL_RECT)
+	container.add_theme_constant_override("margin_top", 40)
 	parent.add_child(container)
 	_tab_containers.append(container)
 
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	container.add_child(scroll)
-
-	var vbox := VBoxContainer.new()
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 8)
-	scroll.add_child(vbox)
-
-	_build_finance_pane(vbox)
-	for sub in SUBSYSTEMS:
-		_build_subsystem_panel(vbox, sub)
-
-	_confirm_button = Button.new()
-	_confirm_button.text = "CONFIRM UPGRADES"
-	_confirm_button.custom_minimum_size.y = 36
-	_confirm_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ThemeManager.apply_button_style(_confirm_button)
-	_confirm_button.pressed.connect(_on_confirm)
-	vbox.add_child(_confirm_button)
-
-
-func _build_finance_pane(parent: VBoxContainer) -> void:
-	_finance_panel = PanelContainer.new()
-	_finance_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	var accent: Color = ThemeManager.get_color("accent")
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.0, 0.0, 0.0, 0.65)
-	sb.border_color = Color(accent.r, accent.g, accent.b, 0.25)
-	sb.set_border_width_all(1)
-	sb.set_corner_radius_all(4)
-	sb.set_content_margin_all(10)
-	_finance_panel.add_theme_stylebox_override("panel", sb)
-	parent.add_child(_finance_panel)
-
-	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 40)
-	_finance_panel.add_child(hbox)
-
-	# BANK column
-	var bank_col := VBoxContainer.new()
-	bank_col.add_theme_constant_override("separation", 2)
-	hbox.add_child(bank_col)
-	var bank_key := Label.new()
-	bank_key.text = "BANK"
-	bank_key.add_theme_font_size_override("font_size", 11)
-	bank_col.add_child(bank_key)
-	_bank_value_label = Label.new()
-	_bank_value_label.text = str(GameState.credits)
-	_bank_value_label.add_theme_font_size_override("font_size", 24)
-	bank_col.add_child(_bank_value_label)
-
-	# COST column
-	var cost_col := VBoxContainer.new()
-	cost_col.add_theme_constant_override("separation", 2)
-	hbox.add_child(cost_col)
-	var cost_key := Label.new()
-	cost_key.text = "UPGRADE COST"
-	cost_key.add_theme_font_size_override("font_size", 11)
-	cost_col.add_child(cost_key)
-	_cost_value_label = Label.new()
-	_cost_value_label.text = "0"
-	_cost_value_label.add_theme_font_size_override("font_size", 24)
-	cost_col.add_child(_cost_value_label)
-
-
-func _build_subsystem_panel(parent: VBoxContainer, sub_name: String) -> void:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.0, 0.0, 0.0, 0.65)
-	sb.border_color = Color(0.5, 0.5, 0.5, 0.15)
-	sb.set_border_width_all(1)
-	sb.set_corner_radius_all(4)
-	sb.set_content_margin_all(8)
-	panel.add_theme_stylebox_override("panel", sb)
-	parent.add_child(panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-	panel.add_child(vbox)
-
-	var name_label := Label.new()
-	name_label.text = sub_name
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 15)
-	vbox.add_child(name_label)
-
-	var level_row := HBoxContainer.new()
-	level_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	level_row.add_theme_constant_override("separation", 12)
-	vbox.add_child(level_row)
-
-	var minus_btn := Button.new()
-	minus_btn.text = "-"
-	minus_btn.custom_minimum_size = Vector2(32, 28)
-	ThemeManager.apply_button_style(minus_btn)
-	minus_btn.pressed.connect(_on_level_change.bind(sub_name, -1))
-	level_row.add_child(minus_btn)
-
-	var level_label := Label.new()
-	level_label.text = "LVL 1"
-	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	level_label.custom_minimum_size = Vector2(70, 0)
-	level_row.add_child(level_label)
-
-	var plus_btn := Button.new()
-	plus_btn.text = "+"
-	plus_btn.custom_minimum_size = Vector2(32, 28)
-	ThemeManager.apply_button_style(plus_btn)
-	plus_btn.pressed.connect(_on_level_change.bind(sub_name, 1))
-	level_row.add_child(plus_btn)
-
-	var cost_label := Label.new()
-	cost_label.text = "—"
-	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cost_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(cost_label)
-
-	var bar_container := HBoxContainer.new()
-	bar_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	bar_container.add_theme_constant_override("separation", 3)
-	vbox.add_child(bar_container)
-	for i in range(MAX_LEVEL):
-		var seg := ColorRect.new()
-		seg.custom_minimum_size = Vector2(16, 6)
-		seg.color = Color(0.1, 0.1, 0.12, 0.5)
-		bar_container.add_child(seg)
-
-	_panel_nodes[sub_name] = {
-		"panel": panel, "name_label": name_label, "level_label": level_label,
-		"cost_label": cost_label, "minus_btn": minus_btn, "plus_btn": plus_btn,
-		"bar_container": bar_container,
-	}
+	var placeholder := Label.new()
+	placeholder.text = "Subsystem upgrades coming soon."
+	placeholder.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	placeholder.add_theme_font_size_override("font_size", 14)
+	placeholder.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	container.add_child(placeholder)
 
 
 # ── Augments tab ──
@@ -612,94 +542,6 @@ func _build_vanity_tab(parent: Control) -> void:
 
 # ── Subsystem logic ──
 
-func _on_level_change(sub_name: String, delta: int) -> void:
-	var current: int = _subsystem_levels[sub_name]
-	var new_level: int = clampi(current + delta, _original_levels[sub_name], MAX_LEVEL)
-	if new_level == current:
-		return
-	_subsystem_levels[sub_name] = new_level
-	_recalculate_cost(sub_name)
-	_update_subsystems_display()
-
-
-func _recalculate_cost(sub_name: String) -> void:
-	var orig: int = _original_levels[sub_name]
-	var target: int = _subsystem_levels[sub_name]
-	var total: int = 0
-	for lvl in range(orig, target):
-		total += int(BASE_COST * pow(COST_SCALE, lvl))
-	_pending_costs[sub_name] = total
-
-
-func _get_total_pending_cost() -> int:
-	var total: int = 0
-	for sub in SUBSYSTEMS:
-		total += _pending_costs[sub]
-	return total
-
-
-func _update_subsystems_display() -> void:
-	var accent: Color = ThemeManager.get_color("accent")
-	var disabled_color: Color = ThemeManager.get_color("disabled")
-
-	for sub in SUBSYSTEMS:
-		if not _panel_nodes.has(sub):
-			continue
-		var nodes: Dictionary = _panel_nodes[sub]
-		var level: int = _subsystem_levels[sub]
-
-		var level_lbl: Label = nodes["level_label"]
-		level_lbl.text = "LVL %d" % level
-		level_lbl.add_theme_color_override("font_color", accent)
-
-		var cost_lbl: Label = nodes["cost_label"]
-		if _pending_costs[sub] > 0:
-			cost_lbl.text = "%d CR" % _pending_costs[sub]
-			cost_lbl.add_theme_color_override("font_color", Color(0.95, 0.75, 0.2, 1.0))
-		else:
-			cost_lbl.text = "—"
-			cost_lbl.add_theme_color_override("font_color", disabled_color)
-
-		var bar: HBoxContainer = nodes["bar_container"]
-		for i in range(MAX_LEVEL):
-			var seg: ColorRect = bar.get_child(i)
-			if i < _original_levels[sub]:
-				seg.color = Color(accent.r * 0.5, accent.g * 0.5, accent.b * 0.5, 0.9)
-			elif i < level:
-				seg.color = accent
-			else:
-				seg.color = Color(0.1, 0.1, 0.12, 0.5)
-
-		var minus_btn: Button = nodes["minus_btn"]
-		var plus_btn: Button = nodes["plus_btn"]
-		minus_btn.disabled = (level <= _original_levels[sub])
-		plus_btn.disabled = (level >= MAX_LEVEL)
-
-	_bank_value_label.text = str(GameState.credits)
-	_bank_value_label.add_theme_color_override("font_color", Color(0.95, 0.75, 0.2, 1.0))
-
-	var total_cost: int = _get_total_pending_cost()
-	_cost_value_label.text = str(total_cost)
-	if total_cost > GameState.credits:
-		_cost_value_label.add_theme_color_override("font_color", Color(1.0, 0.2, 0.15, 1.0))
-		_confirm_button.disabled = true
-	elif total_cost > 0:
-		_cost_value_label.add_theme_color_override("font_color", Color(0.95, 0.75, 0.2, 1.0))
-		_confirm_button.disabled = false
-	else:
-		_cost_value_label.add_theme_color_override("font_color", disabled_color)
-		_confirm_button.disabled = true
-
-
-func _on_confirm() -> void:
-	var total_cost: int = _get_total_pending_cost()
-	if GameState.spend_credits(total_cost):
-		for sub in SUBSYSTEMS:
-			_original_levels[sub] = _subsystem_levels[sub]
-			_pending_costs[sub] = 0
-		_update_subsystems_display()
-
-
 # ── Vanity logic ──
 
 func _on_vanity_change(cat_id: String, delta: int) -> void:
@@ -791,24 +633,36 @@ func _get_divider_y() -> float:
 # ── Place ships ──
 
 func _place_ships() -> void:
-	# Player's current ship in bay 01 (always the ACTIVE one). Scale matches in-game.
+	# Populate bay → ship_id map. Bay 0 holds the player's current active ship,
+	# bay 1 holds the Switchblade, remaining bays are empty (-1).
+	_bay_ship_ids = [GameState.current_ship_index, 0, -1, -1, -1, -1, -1, -1]
+	# Initial selection = the bay that holds the active ship
+	_selected_bay = _find_bay_for_ship(GameState.current_ship_index)
+	if _selected_bay < 0:
+		_selected_bay = 0
+
+	# Ship renderer for bay 0 — the current active ship
 	var ship := ShipRenderer.new()
-	ship.ship_id = GameState.current_ship_index
+	ship.ship_id = _bay_ship_ids[0]
 	ship.render_mode = ShipRenderer.RenderMode.CHROME
 	ship.animate = true
 	add_child(ship)
 	_ship_renderers.append(ship)
 	_player_ship_renderer = ship
 
-	# Switchblade placeholder in bay 02 (visualization aid)
+	# Ship renderer for bay 1 — the Switchblade
 	var switchblade := ShipRenderer.new()
-	switchblade.ship_id = 0  # Switchblade
+	switchblade.ship_id = _bay_ship_ids[1]
 	switchblade.render_mode = ShipRenderer.RenderMode.CHROME
 	switchblade.animate = true
 	add_child(switchblade)
 	_ship_renderers.append(switchblade)
 
-	# Plus marker on bay 03 (ship store) — pulses softly
+	# Click/hover areas for each player bay (8 total)
+	for i in PLAYER_COLS * PLAYER_ROWS:
+		_add_bay_button(i)
+
+	# Plus marker on bay 03 (ship store) — pulses intensely
 	_plus_overlay = Control.new()
 	_plus_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_plus_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -826,12 +680,69 @@ func _place_ships() -> void:
 	add_child(cargo_overlay)
 
 
-func _layout_ships() -> void:
-	if _ship_renderers.size() < 2:
+func _find_bay_for_ship(ship_id: int) -> int:
+	for i in _bay_ship_ids.size():
+		if _bay_ship_ids[i] == ship_id:
+			return i
+	return -1
+
+
+func _add_bay_button(bay_index: int) -> void:
+	var btn := Button.new()
+	btn.flat = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.size = Vector2(SPOT_W, SPOT_H)
+	btn.set_meta("bay_index", bay_index)
+	btn.pressed.connect(_on_bay_clicked.bind(bay_index))
+	btn.mouse_entered.connect(_on_bay_hover_enter.bind(bay_index))
+	btn.mouse_exited.connect(_on_bay_hover_exit.bind(bay_index))
+	add_child(btn)
+	_bay_buttons.append(btn)
+
+
+func _on_bay_clicked(bay_index: int) -> void:
+	if bay_index == PLUS_BAY_INDEX:
+		_show_placeholder_popup("More ships coming soon")
 		return
+	if _bay_ship_ids[bay_index] < 0:
+		return  # empty bay
+	_selected_bay = bay_index
+	_refresh_header_for_selection()
+	if _hangar_drawing:
+		_hangar_drawing.queue_redraw()
+
+
+func _on_bay_hover_enter(bay_index: int) -> void:
+	_hovered_bay = bay_index
+	if _hangar_drawing:
+		_hangar_drawing.queue_redraw()
+
+
+func _on_bay_hover_exit(bay_index: int) -> void:
+	if _hovered_bay == bay_index:
+		_hovered_bay = -1
+		if _hangar_drawing:
+			_hangar_drawing.queue_redraw()
+
+
+func _selected_ship_id() -> int:
+	if _selected_bay >= 0 and _selected_bay < _bay_ship_ids.size():
+		return _bay_ship_ids[_selected_bay]
+	return -1
+
+
+func _layout_ships() -> void:
 	var player_spots: Array[Vector2] = _get_player_spots()
-	_ship_renderers[0].position = player_spots[0]
-	_ship_renderers[1].position = player_spots[1]
+	if _ship_renderers.size() >= 2:
+		_ship_renderers[0].position = player_spots[0]
+		_ship_renderers[1].position = player_spots[1]
+	# Position every bay click/hover button
+	for btn in _bay_buttons:
+		var bay_idx: int = btn.get_meta("bay_index")
+		if bay_idx < player_spots.size():
+			var c: Vector2 = player_spots[bay_idx]
+			btn.position = Vector2(c.x - SPOT_W / 2.0, c.y - SPOT_H / 2.0)
 
 
 # ── Hangar drawing ──
@@ -858,14 +769,19 @@ func _draw_hangar() -> void:
 	if hfont:
 		_hangar_drawing.draw_string(hfont, Vector2(20, 35), "YOUR SHIPS", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, ACCENT)
 
-	# Player spots — bay 1 (index 0) is the active ship
+	# Player spots — draw with state flags
 	var player_spots: Array[Vector2] = _get_player_spots()
+	var active_bay: int = _find_bay_for_ship(GameState.current_ship_index)
+	var profile_bay: int = _find_bay_for_ship(GameState.profile_ship_index)
 	for i in player_spots.size():
-		_draw_bay(player_spots[i], i + 1, SPOT_H, i == 0)
+		_draw_bay(
+			player_spots[i], i + 1, SPOT_H,
+			i == active_bay, i == _selected_bay, i == _hovered_bay,
+		)
 
-	# "PUBLIC PROFILE" badge under the designated bay
-	if hfont and PUBLIC_PROFILE_BAY >= 0 and PUBLIC_PROFILE_BAY < player_spots.size():
-		var pp_center: Vector2 = player_spots[PUBLIC_PROFILE_BAY]
+	# "PUBLIC PROFILE" badge under whichever bay holds the profile ship
+	if hfont and profile_bay >= 0 and profile_bay < player_spots.size():
+		var pp_center: Vector2 = player_spots[profile_bay]
 		var badge_w: float = 120.0
 		var badge_x: float = pp_center.x - badge_w / 2.0
 		var badge_y: float = pp_center.y + SPOT_H / 2.0 + 18
@@ -886,13 +802,17 @@ func _draw_hangar() -> void:
 		_draw_bay(support_spots[i], i + 1 + player_spots.size(), SUPPORT_SPOT_H, false)
 
 
-func _draw_bay(pos: Vector2, bay_num: int, spot_h: float, active: bool) -> void:
+func _draw_bay(pos: Vector2, bay_num: int, spot_h: float, active: bool, selected: bool, hovered: bool) -> void:
 	var rect := Rect2(pos.x - SPOT_W / 2, pos.y - spot_h / 2, SPOT_W, spot_h)
 
-	# Fill and border — active bay gets a brighter look
+	# Fill and border — active bay gets a yellow look
 	var fill_col: Color = ACTIVE_FILL if active else SPOT_FILL
 	var border_col: Color = ACTIVE_BORDER if active else LINE_COLOR
 	var border_w: float = 3.0 if active else 2.0
+	if hovered:
+		fill_col = _brighten(fill_col, HOVER_BRIGHTEN)
+		border_col = _brighten(border_col, HOVER_BRIGHTEN)
+		border_w += 1.0
 	_hangar_drawing.draw_rect(rect, fill_col)
 	_hangar_drawing.draw_rect(rect, border_col, false, border_w)
 
@@ -903,10 +823,17 @@ func _draw_bay(pos: Vector2, bay_num: int, spot_h: float, active: bool) -> void:
 		_hangar_drawing.draw_line(Vector2(pos.x, dash_y), Vector2(pos.x, end_y), Color(border_col.r, border_col.g, border_col.b, 0.2), 1.0)
 		dash_y += 16.0
 
+	# Selected ring — drawn just outside the bay
+	if selected:
+		var ring_rect := Rect2(rect.position.x - 4, rect.position.y - 4, rect.size.x + 8, rect.size.y + 8)
+		_hangar_drawing.draw_rect(ring_rect, SELECTED_RING_COLOR, false, 2.0)
+
 	# Bay number
 	var font: Font = ThemeManager.get_font("font_header")
 	if font:
 		var num_col: Color = ACTIVE_BORDER if active else ACCENT
+		if hovered:
+			num_col = _brighten(num_col, HOVER_BRIGHTEN)
 		_hangar_drawing.draw_string(font, Vector2(rect.position.x + 4, rect.position.y + 16), "%02d" % bay_num, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, num_col)
 
 	# ACTIVE label above the bay
@@ -917,20 +844,26 @@ func _draw_bay(pos: Vector2, bay_num: int, spot_h: float, active: bool) -> void:
 		_hangar_drawing.draw_string(font, Vector2(label_x, label_y), "ACTIVE", HORIZONTAL_ALIGNMENT_CENTER, label_w, 13, ACTIVE_BORDER)
 
 
+func _brighten(c: Color, factor: float) -> Color:
+	return Color(minf(c.r * factor, 1.0), minf(c.g * factor, 1.0), minf(c.b * factor, 1.0), c.a)
+
+
 func _draw_plus_marker_pulsing() -> void:
 	var player_spots: Array[Vector2] = _get_player_spots()
-	if player_spots.size() < 3:
+	if player_spots.size() <= PLUS_BAY_INDEX:
 		return
-	var t: float = 0.5 + 0.5 * sin(_plus_pulse_time * 2.0)  # 0..1 pulse
+	var t: float = 0.5 + 0.5 * sin(_plus_pulse_time * 3.5)  # faster pulse
 	var color: Color = ACCENT.lerp(PLUS_BRIGHT, t)
-	_draw_plus_marker(_plus_overlay, player_spots[2], color)
+	# Intensify: brighten further when near peak, boost alpha of glow
+	color = _brighten(color, 1.0 + 0.6 * t)
+	_draw_plus_marker(_plus_overlay, player_spots[PLUS_BAY_INDEX], color, 1.0 + 0.15 * t)
 
 
-func _draw_plus_marker(canvas: Control, pos: Vector2, accent: Color) -> void:
-	var half: float = 30.0
-	var blen: float = 10.0
-	var bcol := Color(accent.r, accent.g, accent.b, 0.7)
-	var bw: float = 2.0
+func _draw_plus_marker(canvas: Control, pos: Vector2, accent: Color, scale_factor: float = 1.0) -> void:
+	var half: float = 30.0 * scale_factor
+	var blen: float = 10.0 * scale_factor
+	var bcol := Color(accent.r, accent.g, accent.b, 0.9)
+	var bw: float = 2.5 * scale_factor
 
 	canvas.draw_line(Vector2(pos.x - half, pos.y - half), Vector2(pos.x - half + blen, pos.y - half), bcol, bw)
 	canvas.draw_line(Vector2(pos.x - half, pos.y - half), Vector2(pos.x - half, pos.y - half + blen), bcol, bw)
@@ -941,8 +874,13 @@ func _draw_plus_marker(canvas: Control, pos: Vector2, accent: Color) -> void:
 	canvas.draw_line(Vector2(pos.x + half, pos.y + half), Vector2(pos.x + half - blen, pos.y + half), bcol, bw)
 	canvas.draw_line(Vector2(pos.x + half, pos.y + half), Vector2(pos.x + half, pos.y + half - blen), bcol, bw)
 
-	var plus_size: float = 14.0
-	var plus_w: float = 3.0
+	var plus_size: float = 14.0 * scale_factor
+	var plus_w: float = 3.5 * scale_factor
+	# Outer glow for intensity
+	var glow := Color(accent.r, accent.g, accent.b, 0.35)
+	canvas.draw_line(Vector2(pos.x - plus_size, pos.y), Vector2(pos.x + plus_size, pos.y), glow, plus_w + 4.0)
+	canvas.draw_line(Vector2(pos.x, pos.y - plus_size), Vector2(pos.x, pos.y + plus_size), glow, plus_w + 4.0)
+	# Core plus
 	canvas.draw_line(Vector2(pos.x - plus_size, pos.y), Vector2(pos.x + plus_size, pos.y), accent, plus_w)
 	canvas.draw_line(Vector2(pos.x, pos.y - plus_size), Vector2(pos.x, pos.y + plus_size), accent, plus_w)
 
@@ -983,7 +921,6 @@ func _setup_vhs_overlay() -> void:
 
 func _on_theme_changed() -> void:
 	ThemeManager.apply_vhs_overlay(_vhs_overlay)
-	_update_subsystems_display()
 	_update_vanity_display()
 
 
