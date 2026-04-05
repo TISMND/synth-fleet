@@ -14,11 +14,7 @@ const MANMADE: Array[Dictionary] = [
 	{"label": "CHROME RING", "path": "res://assets/shaders/dest_chrome_ring.gdshader", "hdr": 3.0},
 	{"label": "RIFT GATE", "path": "res://assets/shaders/dest_rift_gate.gdshader", "hdr": 3.0},
 	{"label": "DEBRIS SWIRL", "path": "res://assets/shaders/dest_debris_swirl.gdshader", "hdr": 3.0},
-	{"label": "SHIPYARD", "path": "res://assets/shaders/dest_shipyard.gdshader", "hdr": 3.0},
-	{"label": "GRAVEYARD", "path": "res://assets/shaders/dest_graveyard.gdshader", "hdr": 3.0},
 	{"label": "HIVE", "path": "res://assets/shaders/dest_hive.gdshader", "hdr": 3.0},
-	{"label": "SPIRE CITY", "path": "res://assets/shaders/dest_spire_city.gdshader", "hdr": 3.0},
-	{"label": "FOUNDRY", "path": "res://assets/shaders/dest_foundry.gdshader", "hdr": 3.0},
 ]
 
 const VP_SIZE_LARGE := Vector2i(960, 480)

@@ -51,10 +51,10 @@
 			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
 			"speed": 70.0,
-			"trigger_y": 1240.11019283747,
+			"trigger_y": 1010.02754820937,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -611.088154269973
+			"x_offset": -615.055096418733
 		},
 		{
 			"boss_id": "",
@@ -70,10 +70,10 @@
 			"ship_id": "enemy_spore",
 			"spacing": 100.0,
 			"speed": 300.0,
-			"trigger_y": 1268.33333333333,
+			"trigger_y": 1038.25068870523,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -248.333333333333
+			"x_offset": -252.300275482093
 		},
 		{
 			"boss_id": "",
@@ -89,10 +89,10 @@
 			"ship_id": "enemy_spore",
 			"spacing": 100.0,
 			"speed": 300.0,
-			"trigger_y": 1303.33333333333,
+			"trigger_y": 1073.25068870523,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -366.666666666667
+			"x_offset": -370.633608815427
 		},
 		{
 			"boss_id": "",
@@ -108,10 +108,10 @@
 			"ship_id": "enemy_spore",
 			"spacing": 100.0,
 			"speed": 300.0,
-			"trigger_y": 1371.66666666667,
+			"trigger_y": 1141.58402203857,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -435.0
+			"x_offset": -438.96694214876
 		},
 		{
 			"boss_id": "",
@@ -127,10 +127,10 @@
 			"ship_id": "enemy_spore",
 			"spacing": 100.0,
 			"speed": 300.0,
-			"trigger_y": 754.999999999996,
+			"trigger_y": 524.917355371897,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 458.333333333334
+			"x_offset": 454.366391184574
 		},
 		{
 			"boss_id": "",
@@ -146,10 +146,10 @@
 			"ship_id": "enemy_spore",
 			"spacing": 100.0,
 			"speed": 300.0,
-			"trigger_y": 745.730027548206,
+			"trigger_y": 515.647382920107,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 511.749311294766
+			"x_offset": 507.782369146006
 		},
 		{
 			"boss_id": "",
@@ -165,10 +165,10 @@
 			"ship_id": "enemy_spore",
 			"spacing": 100.0,
 			"speed": 300.0,
-			"trigger_y": 737.768595041322,
+			"trigger_y": 507.685950413223,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 408.650137741047
+			"x_offset": 404.683195592287
 		},
 		{
 			"boss_id": "",
@@ -184,10 +184,10 @@
 			"ship_id": "enemy_ironclad",
 			"spacing": 200.0,
 			"speed": 120.0,
-			"trigger_y": 2195.0,
+			"trigger_y": 2056.15702479339,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 196.666666666667
+			"x_offset": 53.8567493112951
 		},
 		{
 			"boss_id": "",
@@ -203,7 +203,7 @@
 			"ship_id": "enemy_ironclad",
 			"spacing": 200.0,
 			"speed": 120.0,
-			"trigger_y": 2245.15151515151,
+			"trigger_y": 2102.34159779614,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -565.633608815427
@@ -222,7 +222,7 @@
 			"ship_id": "enemy_ironclad",
 			"spacing": 200.0,
 			"speed": 120.0,
-			"trigger_y": 2331.66666666667,
+			"trigger_y": 2188.8567493113,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 581.666666666667
@@ -241,10 +241,10 @@
 			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
 			"speed": 70.0,
-			"trigger_y": 1416.19834710744,
+			"trigger_y": 1186.11570247934,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 513.719008264463
+			"x_offset": 509.752066115703
 		},
 		{
 			"boss_id": "",
@@ -260,10 +260,10 @@
 			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
 			"speed": 70.0,
-			"trigger_y": 1084.95867768595,
+			"trigger_y": 854.876033057851,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 124.95867768595
+			"x_offset": 120.99173553719
 		},
 		{
 			"boss_id": "",
@@ -279,10 +279,10 @@
 			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
 			"speed": 70.0,
-			"trigger_y": 1872.39669421488,
+			"trigger_y": 1642.31404958678,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": -499.834710743802
+			"x_offset": -503.801652892562
 		},
 		{
 			"boss_id": "",
@@ -298,10 +298,10 @@
 			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
 			"speed": 70.0,
-			"trigger_y": 1989.42148760331,
+			"trigger_y": 1759.33884297521,
 			"turn_speed": 90.0,
 			"weapons_active": false,
-			"x_offset": 319.338842975207
+			"x_offset": 315.371900826447
 		},
 		{
 			"boss_id": "",
@@ -317,7 +317,7 @@
 			"ship_id": "enemy_spore",
 			"spacing": 100.0,
 			"speed": 300.0,
-			"trigger_y": 3094.21487603306,
+			"trigger_y": 2834.38016528926,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -59.5041322314049
@@ -336,7 +336,7 @@
 			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
 			"speed": 70.0,
-			"trigger_y": 2483.30578512397,
+			"trigger_y": 2340.4958677686,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -101.157024793388
@@ -355,7 +355,7 @@
 			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
 			"speed": 70.0,
-			"trigger_y": 2975.20661157025,
+			"trigger_y": 2715.37190082645,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -686.280991735537
@@ -374,7 +374,7 @@
 			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
 			"speed": 70.0,
-			"trigger_y": 3199.33884297521,
+			"trigger_y": 2939.50413223141,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 739.834710743802
@@ -393,7 +393,7 @@
 			"ship_id": "enemy_mycelia",
 			"spacing": 200.0,
 			"speed": 70.0,
-			"trigger_y": 3379.8347107438,
+			"trigger_y": 3120.0,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 335.206611570248
@@ -412,7 +412,7 @@
 			"ship_id": "enemy_helix",
 			"spacing": 200.0,
 			"speed": 100.0,
-			"trigger_y": 4022.47933884297,
+			"trigger_y": 3905.45454545454,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -468.099173553719
@@ -431,7 +431,7 @@
 			"ship_id": "enemy_helix",
 			"spacing": 200.0,
 			"speed": 100.0,
-			"trigger_y": 3838.01652892562,
+			"trigger_y": 3720.99173553719,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 698.181818181818
@@ -450,7 +450,7 @@
 			"ship_id": "enemy_helix",
 			"spacing": 200.0,
 			"speed": 100.0,
-			"trigger_y": 2949.42148760331,
+			"trigger_y": 2689.58677685951,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -222.148760330579
@@ -469,7 +469,7 @@
 			"ship_id": "enemy_helix",
 			"spacing": 200.0,
 			"speed": 100.0,
-			"trigger_y": 2731.23966942149,
+			"trigger_y": 2588.42975206612,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 700.165289256198
@@ -488,7 +488,7 @@
 			"ship_id": "enemy_spore",
 			"spacing": 100.0,
 			"speed": 300.0,
-			"trigger_y": 3096.19834710744,
+			"trigger_y": 2836.36363636364,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -7.93388429752066
@@ -507,7 +507,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 3471.07438016529,
+			"trigger_y": 3211.23966942149,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -485.950413223141
@@ -526,7 +526,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 3635.70247933884,
+			"trigger_y": 3375.86776859504,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 81.3223140495868
@@ -545,7 +545,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 3808.26446280992,
+			"trigger_y": 3691.23966942149,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -168.595041322314
@@ -564,7 +564,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 3542.47933884298,
+			"trigger_y": 3282.64462809918,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 749.752066115703
@@ -583,7 +583,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 3756.69421487603,
+			"trigger_y": 3639.6694214876,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 493.884297520661
@@ -602,7 +602,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 4137.52066115702,
+			"trigger_y": 4020.49586776859,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 355.04132231405
@@ -621,7 +621,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 4089.9173553719,
+			"trigger_y": 3972.89256198347,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -136.859504132231
@@ -640,7 +640,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 4068.09917355372,
+			"trigger_y": 3951.07438016529,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -587.107438016529
@@ -659,7 +659,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 3572.23140495868,
+			"trigger_y": 3312.39669421488,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -739.834710743802
@@ -678,7 +678,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 3451.23966942149,
+			"trigger_y": 3191.40495867769,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -101.157024793388
@@ -697,7 +697,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 3887.60330578512,
+			"trigger_y": 3770.57851239669,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 247.933884297521
@@ -716,7 +716,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 4091.90082644628,
+			"trigger_y": 3974.87603305785,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 862.809917355372
@@ -735,7 +735,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 4355.70247933884,
+			"trigger_y": 4238.67768595041,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 771.570247933884
@@ -754,7 +754,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 4329.9173553719,
+			"trigger_y": 4212.89256198347,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": 172.561983471074
@@ -773,7 +773,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 4327.93388429752,
+			"trigger_y": 4210.90909090909,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -224.132231404959
@@ -792,7 +792,7 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 4349.7520661157,
+			"trigger_y": 4232.72727272727,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -751.735537190083
@@ -811,14 +811,92 @@
 			"ship_id": "enemy_anemone",
 			"spacing": 100.0,
 			"speed": 50.0,
-			"trigger_y": 4294.21487603306,
+			"trigger_y": 4177.19008264463,
 			"turn_speed": 90.0,
 			"weapons_active": false,
 			"x_offset": -452.231404958678
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": true,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_anemone",
+			"spacing": 100.0,
+			"speed": 50.0,
+			"trigger_y": 2348.42975206612,
+			"turn_speed": 90.0,
+			"weapons_active": false,
+			"x_offset": 434.380165289256
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": true,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_anemone",
+			"spacing": 100.0,
+			"speed": 50.0,
+			"trigger_y": 1910.0826446281,
+			"turn_speed": 90.0,
+			"weapons_active": false,
+			"x_offset": -372.892561983471
+		},
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": true,
+			"path_id": "path_2",
+			"rotate_with_path": false,
+			"ship_id": "enemy_anemone",
+			"spacing": 100.0,
+			"speed": 50.0,
+			"trigger_y": 1759.33884297521,
+			"turn_speed": 90.0,
+			"weapons_active": false,
+			"x_offset": 105.123966942149
 		}
 	],
 	"events": [],
 	"id": "level_2",
+	"intro_duration_bars": 8,
+	"intro_tracks": [
+		{
+			"end_bar": 4.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 1.0,
+			"label": "Track 1",
+			"loop_path": "res://loop_zips/sorted/pads/NEW Echoey Ritual - 120 BPM - 6 - Pads - nw_ms_85_kit_loop_plastic_pad_Gmaj.wav",
+			"start_bar": 0.0,
+			"volume_db": 0.0
+		},
+		{
+			"end_bar": 4.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 1.0,
+			"label": "Track 2",
+			"loop_path": "res://loop_zips/sorted/bass/Thinking About Reaction - 120 BPM - 2 - Bass - STCR2_RF_120_Synth_Bass_Dover_WET_Emin.wav",
+			"start_bar": 0.0,
+			"volume_db": -3.0
+		}
+	],
 	"level_length": 10000.0,
 	"nebula_placements": [],
 	"scroll_speed": 70.0,

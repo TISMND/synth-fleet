@@ -8,6 +8,7 @@ extends Resource
 @export var display_name: String = ""
 @export var bpm: float = 120.0
 @export var duration_bars: int = 16
+@export var in_rotation: bool = true  # If true, eligible for random menu shuffle
 @export var tracks: Array = []  # Array of track dicts — see MusicTimelineEditor track schema
 
 
@@ -17,6 +18,7 @@ static func from_dict(data: Dictionary) -> MenuArrangement:
 	a.display_name = str(data.get("display_name", ""))
 	a.bpm = float(data.get("bpm", 120.0))
 	a.duration_bars = int(data.get("duration_bars", 16))
+	a.in_rotation = bool(data.get("in_rotation", true))
 	var raw: Array = data.get("tracks", [])
 	a.tracks = []
 	for tr in raw:
@@ -39,5 +41,6 @@ func to_dict() -> Dictionary:
 		"display_name": display_name,
 		"bpm": bpm,
 		"duration_bars": duration_bars,
+		"in_rotation": in_rotation,
 		"tracks": tracks,
 	}

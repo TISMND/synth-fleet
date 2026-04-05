@@ -62,27 +62,65 @@ void fragment() {
 	float angle = atan(d.y, d.x);
 	vec3 col = bg_color;
 
-	// ── Central vortex swirl ──
-	float swirl_a = angle - dist * 12.0 + TIME * swirl_speed;
-	float arms = sin(swirl_a * 3.0) * 0.5 + 0.5;
-	arms = pow(arms, 2.0);
-	float turb = fbm(vec2(swirl_a * 0.5, dist * 7.0) + TIME * vec2(0.0, -0.1)) * 0.3;
-	arms = clamp(arms + turb - 0.12, 0.0, 1.0);
-	float arm_fade = smoothstep(vortex_radius * 2.2, vortex_radius * 0.3, dist)
-	               * smoothstep(vortex_radius * 0.08, vortex_radius * 0.3, dist);
-	arms *= arm_fade;
-	col += swirl_color * arms * hdr_intensity * 0.45;
+	// ══════════════════════════════════════════════
+	// REACTOR CONTAINMENT CORE — distinct from fluid-rift spiral.
+	// Counter-rotating spokes + pulsing concentric shockwaves + plasma
+	// noise blooming from center. No arms, no vortex swirl.
+	// ══════════════════════════════════════════════
 
-	// Nebula fill
-	float neb = fbm(d * 9.0 + TIME * vec2(0.02, 0.015)) * fbm(d * 13.0 + vec2(4.0, 7.0));
-	float neb_mask = smoothstep(vortex_radius * 2.6, vortex_radius * 0.25, dist);
-	col += swirl_color * neb * neb_mask * 0.4 * hdr_intensity;
+	// Plasma core: fbm-driven bloom that pulses irregularly
+	float core_pulse = 0.75 + 0.25 * sin(TIME * 1.7) * sin(TIME * 0.9);
+	float plasma = fbm(d * 22.0 + TIME * vec2(0.0, 0.25));
+	plasma *= fbm(d * 38.0 - TIME * vec2(0.15, 0.0));
+	float plasma_mask = smoothstep(vortex_radius * 1.4, 0.0, dist);
+	col += core_color * plasma * plasma_mask * core_pulse * hdr_intensity * 0.8;
 
-	// Bright hot core
+	// Counter-rotating spokes — two layers, opposing directions
+	float spoke_a = angle + TIME * swirl_speed * 2.0;
+	float spoke_b = angle - TIME * swirl_speed * 1.3;
+	float spokes_a = abs(sin(spoke_a * 6.0));
+	float spokes_b = abs(sin(spoke_b * 4.0));
+	spokes_a = pow(spokes_a, 8.0);
+	spokes_b = pow(spokes_b, 6.0);
+	float spoke_fade = smoothstep(vortex_radius * 1.8, vortex_radius * 0.15, dist)
+	                 * smoothstep(0.0, vortex_radius * 0.2, dist);
+	col += swirl_color * spokes_a * spoke_fade * hdr_intensity * 0.5;
+	col += core_color * spokes_b * spoke_fade * hdr_intensity * 0.35;
+
+	// Concentric expanding shockwave rings
+	float ring_sum = 0.0;
+	for (int r = 0; r < 3; r++) {
+		float fr = float(r);
+		float ring_period = 1.4 + fr * 0.4;
+		float ring_t = fract(TIME / ring_period + fr * 0.33);
+		float ring_radius_now = ring_t * vortex_radius * 1.9;
+		float ring_fade = 1.0 - ring_t;
+		float ring_d = abs(dist - ring_radius_now);
+		float ring_w = 0.008;
+		ring_sum += exp(-ring_d * ring_d / (ring_w * ring_w)) * ring_fade;
+	}
+	col += swirl_color * ring_sum * hdr_intensity * 0.5;
+
+	// Hexagonal cell pattern containment grid (cool "field" look)
+	float hex_scale = 14.0;
+	vec2 hex_uv = d * hex_scale;
+	// Simple hex distance: use length of folded coordinates
+	vec2 hex_r = vec2(1.0, 1.732);
+	vec2 hex_h = hex_r * 0.5;
+	vec2 hex_a = mod(hex_uv, hex_r) - hex_h;
+	vec2 hex_b = mod(hex_uv - hex_h, hex_r) - hex_h;
+	float hex_d = min(dot(hex_a, hex_a), dot(hex_b, hex_b));
+	float hex_edge = 1.0 - smoothstep(0.0, 0.04, hex_d * 0.18);
+	// Fade hex grid outside core
+	float hex_mask = smoothstep(vortex_radius * 1.6, vortex_radius * 0.3, dist);
+	float hex_pulse = 0.4 + 0.6 * sin(TIME * 1.2);
+	col += swirl_color * hex_edge * hex_mask * hex_pulse * hdr_intensity * 0.15;
+
+	// Bright hot core (tight)
 	float core = exp(-dist * 9.0 / vortex_radius);
-	col += core_color * core * hdr_intensity * 0.55;
-	float core_tight = exp(-dist * 24.0 / vortex_radius);
-	col += vec3(0.9, 0.97, 1.0) * core_tight * hdr_intensity * 0.45;
+	col += core_color * core * core_pulse * hdr_intensity * 0.5;
+	float core_tight = exp(-dist * 28.0 / vortex_radius);
+	col += vec3(0.95, 0.98, 1.0) * core_tight * hdr_intensity * 0.6;
 
 	// Outer wash
 	float outer_wash = smoothstep(0.8, 0.1, dist);
@@ -168,9 +206,9 @@ void fragment() {
 	// ══════════════════════════════════════════════
 	// ARC DISCHARGES between random chunk pairs
 	// ══════════════════════════════════════════════
-	for (int arc = 0; arc < 4; arc++) {
+	for (int arc = 0; arc < 10; arc++) {
 		float fa = float(arc);
-		float period = 2.5 + hash(vec2(fa, 41.0)) * 2.0;
+		float period = 0.65 + hash(vec2(fa, 41.0)) * 0.8;
 		float phase = hash(vec2(fa, 43.0)) * period;
 		float ct = mod(TIME + phase, period);
 		float dur = 0.22;

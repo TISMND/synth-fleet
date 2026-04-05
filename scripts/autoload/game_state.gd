@@ -16,6 +16,7 @@ var stats: Dictionary = {}
 var current_ship_index: int = 4  # default Stiletto
 var profile_ship_index: int = 4  # ship shown on the public profile
 var custom_ship_names: Dictionary = {}  # ship_index (stringified) → player-given name
+var bay_ship_ids: Array[int] = [4, 0, -1, -1, -1, -1, -1, -1]  # hangar bay layout (ship_id per bay, -1 = empty)
 var slot_config: Dictionary = {}
 # slot_config structure (typed categories):
 # {
@@ -78,38 +79,55 @@ func calculate_grade() -> String:
 		return "F"
 
 
-## Menu music layer progression — runs in this autoload so it works across all menu screens
-var _menu_layer_start_bars: Dictionary = {}  # loop_id -> int
-var _menu_layer_unmuted: Dictionary = {}  # loop_id -> bool
-var _menu_bar_duration: float = 2.0
+## Menu music track scheduling — runs in this autoload so it works across all menu screens.
+## Each schedule entry drives two time-based events: unmute at start_bar (with fade-in),
+## and for finite tracks, mute at end_bar (with fade-out).
+var _menu_schedule: Array = []  # Array of dicts: loop_id, start_sec, end_sec, fade_in_ms, fade_out_ms, infinite, unmuted, muted
 var _menu_music_active: bool = false
 
 
-func start_menu_music_progression(layer_start_bars: Dictionary, bar_duration: float, already_unmuted: Dictionary) -> void:
-	_menu_layer_start_bars = layer_start_bars.duplicate()
-	_menu_bar_duration = bar_duration
-	_menu_layer_unmuted = already_unmuted.duplicate()
-	_menu_music_active = true
+func start_menu_arrangement(schedule: Array) -> void:
+	## schedule entries: {loop_id, start_sec, end_sec, fade_in_ms, fade_out_ms, infinite}
+	_menu_schedule = []
+	for entry in schedule:
+		var e: Dictionary = entry as Dictionary
+		_menu_schedule.append({
+			"loop_id": str(e.get("loop_id", "")),
+			"start_sec": float(e.get("start_sec", 0.0)),
+			"end_sec": float(e.get("end_sec", 0.0)),
+			"fade_in_ms": int(e.get("fade_in_ms", 100)),
+			"fade_out_ms": int(e.get("fade_out_ms", 500)),
+			"infinite": bool(e.get("infinite", true)),
+			"unmuted": false,
+			"muted": false,
+		})
+	_menu_music_active = _menu_schedule.size() > 0
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if not _menu_music_active:
 		return
 	var start_ticks: int = int(get_meta("menu_music_start_ticks", 0))
 	var elapsed: float = float(Time.get_ticks_msec() - start_ticks) / 1000.0
-	var current_bar: int = int(elapsed / _menu_bar_duration)
 	var all_done: bool = true
-	for loop_id in _menu_layer_start_bars:
-		if bool(_menu_layer_unmuted.get(loop_id, false)):
-			continue
-		var start_bar: int = int(_menu_layer_start_bars[loop_id])
-		if current_bar >= start_bar:
-			var bar_pos: float = fmod(elapsed, _menu_bar_duration)
-			if bar_pos < delta * 2.0 or current_bar > start_bar:
-				LoopMixer.unmute(loop_id, 100)
-				_menu_layer_unmuted[loop_id] = true
-		else:
-			all_done = false
+	for entry in _menu_schedule:
+		var loop_id: String = str(entry["loop_id"])
+		if not bool(entry["unmuted"]):
+			if elapsed >= float(entry["start_sec"]):
+				if LoopMixer.has_loop(loop_id):
+					LoopMixer.unmute(loop_id, int(entry["fade_in_ms"]))
+				entry["unmuted"] = true
+			else:
+				all_done = false
+		if not bool(entry["muted"]):
+			if bool(entry["infinite"]):
+				entry["muted"] = true  # never mute infinite tracks
+			elif elapsed >= float(entry["end_sec"]):
+				if LoopMixer.has_loop(loop_id):
+					LoopMixer.mute(loop_id, int(entry["fade_out_ms"]))
+				entry["muted"] = true
+			else:
+				all_done = false
 	if all_done:
 		_menu_music_active = false
 
@@ -221,6 +239,7 @@ func save_game() -> void:
 		"current_ship_index": current_ship_index,
 		"profile_ship_index": profile_ship_index,
 		"custom_ship_names": custom_ship_names,
+		"bay_ship_ids": bay_ship_ids,
 		"slot_config": slot_config,
 		"current_level": current_level,
 		"completed_levels": completed_levels,
@@ -264,6 +283,13 @@ func load_game() -> void:
 	current_ship_index = int(data.get("current_ship_index", 4))
 	profile_ship_index = int(data.get("profile_ship_index", current_ship_index))
 	custom_ship_names = data.get("custom_ship_names", {}) as Dictionary
+	var saved_bays: Array = data.get("bay_ship_ids", [])
+	if saved_bays.size() == 8:
+		bay_ship_ids.clear()
+		for v in saved_bays:
+			bay_ship_ids.append(int(v))
+	else:
+		bay_ship_ids = [4, 0, -1, -1, -1, -1, -1, -1]
 	var saved_slots: Dictionary = data.get("slot_config", {})
 	if saved_slots.size() > 0:
 		slot_config = saved_slots
@@ -281,6 +307,7 @@ func _set_defaults() -> void:
 	current_ship_index = 4
 	profile_ship_index = 4
 	custom_ship_names = {}
+	bay_ship_ids = [4, 0, -1, -1, -1, -1, -1, -1]
 	_init_slot_config()
 	current_level = 0
 	completed_levels = {}

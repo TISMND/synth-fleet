@@ -1517,7 +1517,17 @@
 	],
 	"id": "level_1",
 	"intro_duration_bars": 8,
-	"intro_tracks": [],
+	"intro_tracks": [
+		{
+			"end_bar": 6.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 3.0,
+			"label": "Track 1",
+			"loop_path": "res://loop_zips/sorted/drums/Globular Barnyard - 120 BPM - 1 - Drums - SC_EAS_105_melodic_loop_synth_bass_drums_blue_lofi_Fmin.wav",
+			"start_bar": 0.0,
+			"volume_db": 0.0
+		}
+	],
 	"level_length": 50000.0,
 	"nebula_placements": [],
 	"scroll_speed": 70.0,

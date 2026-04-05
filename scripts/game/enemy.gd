@@ -1,7 +1,9 @@
-class_name Enemy
+class_name NpcShip
 extends Area2D
-## Enemy that drifts down the screen or follows a flight path curve.
-## Takes damage from projectiles, awards credits on death.
+## Non-player ship (hostile enemies AND friendly allies like cargo ships).
+## Drifts, follows a flight path, or melee-chases. Allies set is_friendly=true
+## to opt out of damage and skip player collision. File name stays enemy.gd
+## for now; class was renamed to reflect its dual-purpose role.
 
 var health: int = 30
 var shield: int = 0
@@ -36,6 +38,14 @@ var weapons_active: bool = true
 var is_friendly: bool = false  # Ally ships: no friendly fire, no player collision
 var _bank: float = 0.0  # Banking for friendly ships (-1 to 1)
 var _engine_exhaust: EngineExhaust = null
+
+# Cosmetic paint/light overlays (allies only; set from ShipData by WaveManager)
+var paint_pattern: String = ""
+var paint_color: Color = Color(0.85, 0.08, 0.08, 0.92)
+var light_pattern: String = ""
+var light_color: Color = Color(1.0, 0.85, 0.12)
+var _paint_overlay: Node2D = null
+var _light_overlay: Node2D = null
 var _current_speed_mult: float = 1.0  # Eased speed multiplier
 
 # Currency drop config (set by encounter data via WaveManager)
@@ -68,9 +78,9 @@ const _V_SWEEP_POINTS: Array[Vector2] = [
 var _v_sweep_index: int = 0
 
 # Boss segment linking
-var boss_core: Enemy = null           # if set, this segment follows the core
+var boss_core: NpcShip = null           # if set, this segment follows the core
 var boss_segment_offset: Vector2 = Vector2.ZERO  # offset from core position
-var boss_segments: Array = []         # core tracks its segments (Array[Enemy])
+var boss_segments: Array = []         # core tracks its segments (Array[NpcShip])
 var is_boss_immune: bool = false      # if true, takes no damage (plays immune VFX/SFX instead)
 
 # Boss enrage state
@@ -159,6 +169,20 @@ func _ready() -> void:
 		_engine_exhaust.setup(engine_offsets, exhaust_scale)
 		_engine_exhaust.scroll_speed = level_scroll_speed
 		add_child(_engine_exhaust)
+
+		# Paint + light cosmetic overlays, same code path as the Ships Screen preview
+		var vid2: String = visual_id if visual_id != "" else "sentinel"
+		var overlays: Array[Node2D] = ShipCosmetics.build_overlays(
+			vid2, paint_pattern, paint_color, light_pattern, light_color,
+		)
+		if overlays[0]:
+			_paint_overlay = overlays[0]
+			_paint_overlay.z_index = 2
+			add_child(_paint_overlay)
+		if overlays[1]:
+			_light_overlay = overlays[1]
+			_light_overlay.z_index = 3
+			add_child(_light_overlay)
 
 	# Universal enemy hit effects from VFX config
 	var vfx: VfxConfig = VfxConfigManager.load_config()
@@ -515,7 +539,7 @@ func _finish_boss_death() -> void:
 	# Kill all remaining segments
 	for seg in boss_segments:
 		if is_instance_valid(seg):
-			var segment: Enemy = seg as Enemy
+			var segment: NpcShip = seg as NpcShip
 			segment.boss_core = null
 			segment._die()
 	boss_segments.clear()

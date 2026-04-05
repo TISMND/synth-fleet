@@ -38,34 +38,44 @@ func _start_menu_music() -> void:
 		if existing.size() > 0 and LoopMixer.has_loop(str(existing[0])):
 			return
 
-	var config: Dictionary = MenuMusicConfigManager.load_config()
-	_menu_fade_ms = int(config.get("fade_out_duration_ms", 2000))
-	var bpm: float = float(config.get("bpm", 120.0))
-	var bar_duration: float = 60.0 / maxf(bpm, 1.0) * 4.0
-	var layers: Array = config.get("layers", []) as Array
-	var layer_start_bars: Dictionary = {}
-	var layer_unmuted: Dictionary = {}
-	_menu_loop_ids.clear()
+	# Load all arrangements, filter to in-rotation ones, pick random
+	var arrangements: Array[MenuArrangement] = MenuArrangementManager.load_all()
+	var eligible: Array[MenuArrangement] = []
+	for a in arrangements:
+		if a.in_rotation and a.tracks.size() > 0:
+			eligible.append(a)
+	if eligible.is_empty():
+		return  # no menu music — menu is silent
+	var chosen: MenuArrangement = eligible[randi() % eligible.size()]
+	var bpm: float = chosen.bpm if chosen.bpm > 0.0 else 120.0
+	var bar_dur: float = 60.0 / bpm * 4.0
 
-	for layer in layers:
-		var d: Dictionary = layer as Dictionary
-		var layer_id: String = str(d.get("id", ""))
-		var file_path: String = str(d.get("file_path", ""))
-		var vol: float = float(d.get("volume_db", 0.0))
-		var start_bar: int = int(d.get("start_bar", 0))
-		if layer_id == "" or file_path == "":
+	_menu_loop_ids.clear()
+	var schedule: Array = []
+	for i in range(chosen.tracks.size()):
+		var tr: Dictionary = chosen.tracks[i]
+		var file_path: String = str(tr.get("loop_path", ""))
+		if file_path == "":
 			continue
 		if not FileAccess.file_exists(file_path) and not ResourceLoader.exists(file_path):
 			push_warning("MenuMusic: missing audio file '%s'" % file_path)
 			continue
-		LoopMixer.add_loop(layer_id, file_path, "Master", vol, true)
-		_menu_loop_ids.append(layer_id)
-		layer_start_bars[layer_id] = start_bar
-		layer_unmuted[layer_id] = false
+		var loop_id: String = "menu_arr_%s_%d" % [chosen.id, i]
+		var vol: float = float(tr.get("volume_db", 0.0))
+		LoopMixer.add_loop(loop_id, file_path, "Master", vol, true)
+		_menu_loop_ids.append(loop_id)
+		schedule.append({
+			"loop_id": loop_id,
+			"start_sec": float(tr.get("start_bar", 0.0)) * bar_dur,
+			"end_sec": float(tr.get("end_bar", 4.0)) * bar_dur,
+			"fade_in_ms": int(float(tr.get("fade_in_bars", 0.0)) * bar_dur * 1000.0),
+			"fade_out_ms": int(float(tr.get("fade_out_bars", 1.0)) * bar_dur * 1000.0),
+			"infinite": bool(tr.get("infinite_loop", false)),
+		})
 	if _menu_loop_ids.size() > 0:
 		LoopMixer.start_all()
 		GameState.set_meta("menu_music_start_ticks", Time.get_ticks_msec())
-		GameState.start_menu_music_progression(layer_start_bars, bar_duration, layer_unmuted)
+		GameState.start_menu_arrangement(schedule)
 	# Store on GameState so any screen can find and fade them
 	GameState.set_meta("menu_loop_ids", _menu_loop_ids.duplicate())
 	GameState.set_meta("menu_fade_ms", _menu_fade_ms)
@@ -96,38 +106,26 @@ func _on_dev_studio() -> void:
 
 func _setup_title_shader() -> void:
 	var title_label: Label = $TitleLabel
-	var shader: Shader = load("res://assets/shaders/title_chrome_3d.gdshader")
+	# Normal-from-alpha lighting — Deep Bulge Saturated preset.
+	# 8-tap Sobel gradient on font alpha → pseudo-normal → Blinn-Phong.
+	var shader: Shader = load("res://assets/shaders/title_3d_normal.gdshader")
 	if not shader:
 		return
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
-	# Ethnocentric — Specular Slit (no gleam)
-	mat.set_shader_parameter("chrome_color_top", Color(0.01, 0.03, 0.1))
-	mat.set_shader_parameter("chrome_color_highlight1", Color(0.5, 0.75, 1.0))
-	mat.set_shader_parameter("chrome_color_mid", Color(0.03, 0.06, 0.15))
-	mat.set_shader_parameter("chrome_color_highlight2", Color(0.35, 0.55, 0.85))
-	mat.set_shader_parameter("chrome_color_bottom", Color(0.01, 0.02, 0.06))
-	mat.set_shader_parameter("band1_pos", 0.2)
-	mat.set_shader_parameter("band2_pos", 0.45)
-	mat.set_shader_parameter("band3_pos", 0.55)
-	mat.set_shader_parameter("band4_pos", 0.8)
-	mat.set_shader_parameter("band_sharpness", 20.0)
-	mat.set_shader_parameter("line_density", 0.0)
-	mat.set_shader_parameter("line_strength", 0.0)
-	mat.set_shader_parameter("bevel_strength", 1.0)
-	mat.set_shader_parameter("bevel_size", 1.8)
-	mat.set_shader_parameter("bevel_light_color", Color(0.5, 0.7, 1.0))
-	mat.set_shader_parameter("shadow_offset_x", 2.5)
-	mat.set_shader_parameter("shadow_offset_y", 3.5)
-	mat.set_shader_parameter("shadow_softness", 3.0)
-	mat.set_shader_parameter("shadow_color", Color(0.0, 0.0, 0.15, 0.85))
-	mat.set_shader_parameter("gleam_enabled", 0.0)
-	mat.set_shader_parameter("specular_enabled", 1.0)
-	mat.set_shader_parameter("specular_pos", 0.32)
-	mat.set_shader_parameter("specular_width", 0.015)
-	mat.set_shader_parameter("specular_intensity", 3.0)
-	mat.set_shader_parameter("specular_color", Color(0.9, 0.95, 1.0, 1.0))
-	mat.set_shader_parameter("hdr_boost", 1.5)
+	# Front-Lit Chrome (light overhead) — auditions preset [A]
+	mat.set_shader_parameter("base_color", Color(0.06, 0.12, 0.32, 1.0))
+	mat.set_shader_parameter("highlight_color", Color(0.40, 0.65, 1.00, 1.0))
+	mat.set_shader_parameter("specular_color", Color(1.0, 1.0, 1.0, 1.0))
+	mat.set_shader_parameter("light_angle", 2.36)
+	mat.set_shader_parameter("light_elevation", 0.92)
+	mat.set_shader_parameter("ambient", 0.35)
+	mat.set_shader_parameter("diffuse_strength", 0.95)
+	mat.set_shader_parameter("specular_strength", 1.2)
+	mat.set_shader_parameter("specular_power", 64.0)
+	mat.set_shader_parameter("normal_sample_radius", 2.5)
+	mat.set_shader_parameter("depth_scale", 3.0)
+	mat.set_shader_parameter("hdr_boost", 1.0)
 	title_label.material = mat
 	title_label.add_theme_color_override("font_color", Color(0.4, 0.65, 1.0))
 

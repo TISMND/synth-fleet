@@ -1,0 +1,49 @@
+{
+	"id": "menu_default",
+	"display_name": "Menu Default",
+	"bpm": 120.0,
+	"duration_bars": 16,
+	"in_rotation": true,
+	"tracks": [
+		{
+			"loop_path": "res://loop_zips/sorted/synth/Sleeping Symphony - 120 BPM - 3 - Synth - NW_NDRE_110_kit_finalfight_arp_Abmin.wav",
+			"label": "Sleeping Symphony (synth)",
+			"start_bar": 0.0,
+			"end_bar": 16.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 0.0,
+			"volume_db": -1.5,
+			"infinite_loop": true
+		},
+		{
+			"loop_path": "res://loop_zips/sorted/bass/Thinking About Reaction - 120 BPM - 2 - Bass - STCR2_RF_120_Synth_Bass_Dover_WET_Emin.wav",
+			"label": "Thinking About Reaction (bass)",
+			"start_bar": 4.0,
+			"end_bar": 16.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 0.0,
+			"volume_db": -0.5,
+			"infinite_loop": true
+		},
+		{
+			"loop_path": "res://loop_zips/sorted/drums/Globular Barnyard - 120 BPM - 1 - Drums - SC_EAS_105_melodic_loop_synth_bass_drums_blue_lofi_Fmin.wav",
+			"label": "Globular Barnyard (drums)",
+			"start_bar": 8.0,
+			"end_bar": 16.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 0.0,
+			"volume_db": -4.5,
+			"infinite_loop": true
+		},
+		{
+			"loop_path": "res://loop_zips/sorted/leads/NEW Overblown Choice - 120 BPM - 6 - Leads - nw_ntn_110_synth_loop_maul_Cmaj.wav",
+			"label": "NEW Overblown Choice (leads)",
+			"start_bar": 12.0,
+			"end_bar": 16.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 0.0,
+			"volume_db": -0.5,
+			"infinite_loop": true
+		}
+	]
+}

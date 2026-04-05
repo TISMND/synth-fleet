@@ -53,19 +53,22 @@ const CHROME_BASELINE: Dictionary = {
 }
 
 # Default Normal-from-alpha config — balanced chrome metal.
+# HDR boost kept at 1.0 so only the specular hot-spots exceed the root
+# bloom threshold; lowering this was the fix for the "everything blooms
+# to white" problem in the first round.
 const NORMAL_BASELINE: Dictionary = {
-	"base_color": Color(0.04, 0.08, 0.18, 1.0),
-	"highlight_color": Color(0.55, 0.75, 1.0, 1.0),
+	"base_color": Color(0.06, 0.12, 0.32, 1.0),
+	"highlight_color": Color(0.40, 0.65, 1.00, 1.0),
 	"specular_color": Color(1.0, 1.0, 1.0, 1.0),
 	"light_angle": 2.36,  # ~135 degrees, top-left
 	"light_elevation": 0.5,
-	"ambient": 0.55,
-	"diffuse_strength": 1.2,
-	"specular_strength": 1.8,
-	"specular_power": 48.0,
+	"ambient": 0.35,
+	"diffuse_strength": 0.95,
+	"specular_strength": 1.2,
+	"specular_power": 56.0,
 	"normal_sample_radius": 2.5,
 	"depth_scale": 3.0,
-	"hdr_boost": 1.3,
+	"hdr_boost": 1.0,
 }
 
 var _presets: Array[Dictionary] = []
@@ -129,11 +132,18 @@ func _define_presets() -> void:
 		"specular_strength": 2.6,
 	})
 
-	_p("A", "Normal — Deep Bulge (puffy letters)", NORMAL_SHADER, {
+	_p("A", "Normal — Deep Bulge Saturated (puffy, rich blue body)", NORMAL_SHADER, {
+		"base_color": Color(0.10, 0.20, 0.55, 1.0),    # saturated royal blue body
+		"highlight_color": Color(0.35, 0.62, 1.0, 1.0), # blue sky lighting, not washed white
+		"specular_color": Color(1.0, 1.0, 1.0, 1.0),
 		"light_angle": 2.36, "light_elevation": 0.55,
-		"depth_scale": 9.0,
+		"ambient": 0.30,
+		"diffuse_strength": 0.85,
+		"specular_strength": 1.3,
+		"specular_power": 40.0,
 		"normal_sample_radius": 3.5,
-		"specular_power": 32.0,
+		"depth_scale": 9.0,
+		"hdr_boost": 1.0,
 	})
 
 	_p("A", "Normal — Sharp Phong Pin-Point (tight speculars)", NORMAL_SHADER, {

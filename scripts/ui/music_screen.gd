@@ -18,6 +18,7 @@ var _arrangement_buttons: Array[Button] = []
 var _list_vbox: VBoxContainer
 var _name_edit: LineEdit
 var _bpm_spin: SpinBox
+var _rotation_check: CheckBox
 var _timeline_editor: MusicTimelineEditor
 var _editor_header: Label
 
@@ -149,6 +150,12 @@ func _build_left_panel(parent: HSplitContainer) -> void:
 	ThemeManager.apply_text_glow(props_header, "header")
 	vbox.add_child(props_header)
 
+	_rotation_check = CheckBox.new()
+	_rotation_check.text = "IN ROTATION"
+	_rotation_check.tooltip_text = "Eligible for random selection as menu music on launch"
+	_rotation_check.toggled.connect(_on_rotation_toggled)
+	vbox.add_child(_rotation_check)
+
 	var name_lbl := Label.new()
 	name_lbl.text = "NAME"
 	ThemeManager.apply_text_glow(name_lbl, "body")
@@ -218,7 +225,8 @@ func _rebuild_list() -> void:
 	_arrangement_buttons.clear()
 	for a in _arrangements:
 		var btn := Button.new()
-		btn.text = a.display_name if a.display_name != "" else a.id
+		var prefix: String = "" if a.in_rotation else "◌ "
+		btn.text = prefix + (a.display_name if a.display_name != "" else a.id)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.toggle_mode = true
 		btn.button_pressed = (a == _selected)
@@ -236,6 +244,7 @@ func _select_arrangement(a: MenuArrangement) -> void:
 		_arrangement_buttons[i].button_pressed = (_arrangements[i] == a)
 	_name_edit.text = a.display_name
 	_bpm_spin.set_value_no_signal(a.bpm)
+	_rotation_check.set_pressed_no_signal(a.in_rotation)
 	_editor_header.text = "ARRANGEMENT — " + a.display_name
 	_timeline_editor.set_data(a.tracks, a.bpm, a.duration_bars, true, "Master")
 	_refresh_editor_enabled()
@@ -245,6 +254,7 @@ func _refresh_editor_enabled() -> void:
 	var enabled: bool = _selected != null
 	_name_edit.editable = enabled
 	_bpm_spin.editable = enabled
+	_rotation_check.disabled = not enabled
 	if not enabled:
 		_name_edit.text = ""
 		_editor_header.text = "(no arrangement selected)"
@@ -309,7 +319,7 @@ func _on_name_changed(new_text: String) -> void:
 	# Update list button label
 	for i in range(_arrangements.size()):
 		if _arrangements[i] == _selected:
-			_arrangement_buttons[i].text = new_text if new_text != "" else _selected.id
+			_rebuild_list_label(i)
 			break
 	_save_selected()
 
@@ -321,6 +331,24 @@ func _on_bpm_changed(v: float) -> void:
 	# Rebind so timeline header shows new BPM
 	_timeline_editor.set_data(_selected.tracks, _selected.bpm, _selected.duration_bars, true, "Master")
 	_save_selected()
+
+
+func _on_rotation_toggled(pressed: bool) -> void:
+	if not _selected:
+		return
+	_selected.in_rotation = pressed
+	# Reflect on/off in list button label
+	for i in range(_arrangements.size()):
+		if _arrangements[i] == _selected:
+			_rebuild_list_label(i)
+			break
+	_save_selected()
+
+
+func _rebuild_list_label(i: int) -> void:
+	var a: MenuArrangement = _arrangements[i]
+	var prefix: String = "" if a.in_rotation else "◌ "
+	_arrangement_buttons[i].text = prefix + (a.display_name if a.display_name != "" else a.id)
 
 
 func _on_tracks_changed() -> void:

@@ -105,7 +105,7 @@ static func get_bake_size(visual_id: String) -> int:
 	return BAKE_SIZE_LARGE if visual_id in LARGE_ENEMY_VISUALS else BAKE_SIZE_SMALL
 
 
-## Called by Enemy when it enters the tree — wakes up the viewport if needed.
+## Called by NpcShip when it enters the tree — wakes up the viewport if needed.
 func ref(visual_id: String, render_mode_str: String, color: Color) -> void:
 	var key: String = _make_key(visual_id, render_mode_str, color)
 	if not _entries.has(key):
@@ -126,7 +126,7 @@ func ref(visual_id: String, render_mode_str: String, color: Color) -> void:
 			vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 
 
-## Called by Enemy when it exits the tree — pauses the viewport when last enemy dies.
+## Called by NpcShip when it exits the tree — pauses the viewport when last enemy dies.
 func unref(visual_id: String, render_mode_str: String, color: Color) -> void:
 	var key: String = _make_key(visual_id, render_mode_str, color)
 	if not _entries.has(key):
@@ -170,7 +170,7 @@ func _create_bake_viewport(key: String, visual_id: String, render_mode_str: Stri
 	var renderer := ShipRenderer.new()
 	renderer.ship_id = -1
 	renderer.enemy_visual_id = visual_id
-	renderer.render_mode = Enemy._render_mode_from_string(render_mode_str)
+	renderer.render_mode = NpcShip._render_mode_from_string(render_mode_str)
 	renderer.neon_hdr = float(neon_params.get("hdr", 1.0))
 	renderer.neon_white = float(neon_params.get("white", 0.0))
 	renderer.neon_width = float(neon_params.get("width", 1.0))

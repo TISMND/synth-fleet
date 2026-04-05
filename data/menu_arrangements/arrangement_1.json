@@ -1,0 +1,38 @@
+{
+	"bpm": 120.0,
+	"display_name": "Menu 2",
+	"duration_bars": 16,
+	"id": "arrangement_1",
+	"tracks": [
+		{
+			"end_bar": 4.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 1.0,
+			"infinite_loop": false,
+			"label": "Track 1",
+			"loop_path": "res://loop_zips/sorted/synth/NEW Thin Addition - 120 BPM - 3 - Synth - NW_EID_123_synth_arp_lazlow_Amin.wav",
+			"start_bar": 0.0,
+			"volume_db": 0.0
+		},
+		{
+			"end_bar": 4.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 1.0,
+			"infinite_loop": false,
+			"label": "Track 2",
+			"loop_path": "res://loop_zips/sorted/drums/Oscillating Spoons - 120 BPM - 1 - Drums - or_drum_loop_space_full_130.wav",
+			"start_bar": 0.0,
+			"volume_db": 0.0
+		},
+		{
+			"end_bar": 4.0,
+			"fade_in_bars": 0.0,
+			"fade_out_bars": 1.0,
+			"infinite_loop": false,
+			"label": "Track 3",
+			"loop_path": "",
+			"start_bar": 0.0,
+			"volume_db": 0.0
+		}
+	]
+}

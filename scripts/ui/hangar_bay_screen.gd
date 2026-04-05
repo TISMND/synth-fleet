@@ -261,11 +261,9 @@ func _on_activate_pressed() -> void:
 	var sid: int = _selected_ship_id()
 	if sid < 0:
 		return
+	# Activation only moves the yellow ACTIVE marker — bay assignments are untouched.
 	GameState.current_ship_index = sid
 	GameState.save_game()
-	if _player_ship_renderer:
-		_player_ship_renderer.ship_id = sid
-		_player_ship_renderer.queue_redraw()
 	if _hangar_drawing:
 		_hangar_drawing.queue_redraw()
 
@@ -557,13 +555,15 @@ func _on_vanity_change(cat_id: String, delta: int) -> void:
 	var new_idx: int = (current + delta + options.size()) % options.size()
 	_vanity_selections[cat_id] = new_idx
 
-	# Skin changes update the hangar ship on the left and the header preview
+	# Skin changes update the SELECTED ship's bay renderer and the header preview
 	if cat_id == "skin":
 		var skin_name: String = str(options[new_idx])
 		var mode: int = SKIN_RENDER_MODES.get(skin_name, 0)
-		if _player_ship_renderer:
-			_player_ship_renderer.render_mode = mode
-			_player_ship_renderer.queue_redraw()
+		for r in _ship_renderers:
+			if int(r.get_meta("bay_index")) == _selected_bay:
+				r.render_mode = mode
+				r.queue_redraw()
+				break
 		if _header_ship_renderer:
 			_header_ship_renderer.render_mode = mode
 			_header_ship_renderer.queue_redraw()
@@ -633,30 +633,27 @@ func _get_divider_y() -> float:
 # ── Place ships ──
 
 func _place_ships() -> void:
-	# Populate bay → ship_id map. Bay 0 holds the player's current active ship,
-	# bay 1 holds the Switchblade, remaining bays are empty (-1).
-	_bay_ship_ids = [GameState.current_ship_index, 0, -1, -1, -1, -1, -1, -1]
-	# Initial selection = the bay that holds the active ship
+	# Bay layout is persisted in GameState — never recomputed from current_ship_index.
+	_bay_ship_ids = GameState.bay_ship_ids.duplicate()
+	# Initial selection = the bay that holds the active ship (if any)
 	_selected_bay = _find_bay_for_ship(GameState.current_ship_index)
 	if _selected_bay < 0:
 		_selected_bay = 0
 
-	# Ship renderer for bay 0 — the current active ship
-	var ship := ShipRenderer.new()
-	ship.ship_id = _bay_ship_ids[0]
-	ship.render_mode = ShipRenderer.RenderMode.CHROME
-	ship.animate = true
-	add_child(ship)
-	_ship_renderers.append(ship)
-	_player_ship_renderer = ship
-
-	# Ship renderer for bay 1 — the Switchblade
-	var switchblade := ShipRenderer.new()
-	switchblade.ship_id = _bay_ship_ids[1]
-	switchblade.render_mode = ShipRenderer.RenderMode.CHROME
-	switchblade.animate = true
-	add_child(switchblade)
-	_ship_renderers.append(switchblade)
+	# Spawn a ShipRenderer for every non-empty bay
+	for i in _bay_ship_ids.size():
+		var sid: int = _bay_ship_ids[i]
+		if sid < 0:
+			continue
+		var ship := ShipRenderer.new()
+		ship.ship_id = sid
+		ship.render_mode = ShipRenderer.RenderMode.CHROME
+		ship.animate = true
+		ship.set_meta("bay_index", i)
+		add_child(ship)
+		_ship_renderers.append(ship)
+		if i == 0:
+			_player_ship_renderer = ship
 
 	# Click/hover areas for each player bay (8 total)
 	for i in PLAYER_COLS * PLAYER_ROWS:
@@ -734,14 +731,15 @@ func _selected_ship_id() -> int:
 
 func _layout_ships() -> void:
 	var player_spots: Array[Vector2] = _get_player_spots()
-	if _ship_renderers.size() >= 2:
-		_ship_renderers[0].position = player_spots[0]
-		_ship_renderers[1].position = player_spots[1]
+	for r in _ship_renderers:
+		var bay_idx: int = r.get_meta("bay_index")
+		if bay_idx >= 0 and bay_idx < player_spots.size():
+			r.position = player_spots[bay_idx]
 	# Position every bay click/hover button
 	for btn in _bay_buttons:
-		var bay_idx: int = btn.get_meta("bay_index")
-		if bay_idx < player_spots.size():
-			var c: Vector2 = player_spots[bay_idx]
+		var bay_idx2: int = btn.get_meta("bay_index")
+		if bay_idx2 < player_spots.size():
+			var c: Vector2 = player_spots[bay_idx2]
 			btn.position = Vector2(c.x - SPOT_W / 2.0, c.y - SPOT_H / 2.0)
 
 

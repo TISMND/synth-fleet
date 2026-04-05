@@ -54,7 +54,7 @@ func _build_ui() -> void:
 	var tabs: Array[Array] = [
 		["POWERUPS", "res://scripts/ui/auditions_tab.gd"],
 		["SHADER BGS", "res://scripts/ui/shader_bg_auditions.gd"],
-		["DESTINATIONS", "res://scripts/ui/destinations_auditions.gd"],
+		["VERSES", "res://scripts/ui/destinations_auditions.gd"],
 		["VERSE SELECT", "res://scripts/ui/verse_select_auditions.gd"],
 		["GAME TITLE", "res://scripts/ui/game_title_auditions.gd"],
 	]

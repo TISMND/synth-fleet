@@ -52,8 +52,8 @@ void fragment() {
 	vec3 col = bg_color;
 
 	// ── Cubes: hardcoded arrangement for interesting composition ──
-	const int N_CUBES = 9;
-	vec2 cube_centers[9] = vec2[9](
+	const int N_CUBES = 16;
+	vec2 cube_centers[16] = vec2[16](
 		vec2(0.0, 0.0),
 		vec2(-0.09, -0.06),
 		vec2(0.08, -0.05),
@@ -62,9 +62,16 @@ void fragment() {
 		vec2(0.12, 0.04),
 		vec2(-0.05, 0.11),
 		vec2(0.07, 0.12),
-		vec2(0.18, -0.01)
+		vec2(0.18, -0.01),
+		vec2(-0.20, -0.02),
+		vec2(0.15, -0.11),
+		vec2(-0.08, 0.19),
+		vec2(0.20, 0.10),
+		vec2(-0.18, 0.12),
+		vec2(0.03, 0.22),
+		vec2(-0.02, -0.21)
 	);
-	vec2 cube_sizes[9] = vec2[9](
+	vec2 cube_sizes[16] = vec2[16](
 		vec2(0.055, 0.055),
 		vec2(0.035, 0.04),
 		vec2(0.04, 0.035),
@@ -73,7 +80,14 @@ void fragment() {
 		vec2(0.035, 0.035),
 		vec2(0.042, 0.03),
 		vec2(0.028, 0.035),
-		vec2(0.03, 0.025)
+		vec2(0.03, 0.025),
+		vec2(0.032, 0.032),
+		vec2(0.026, 0.036),
+		vec2(0.038, 0.022),
+		vec2(0.022, 0.028),
+		vec2(0.028, 0.03),
+		vec2(0.034, 0.024),
+		vec2(0.036, 0.026)
 	);
 
 	// Combined silhouette SDF
@@ -93,14 +107,21 @@ void fragment() {
 
 	// ── Connecting tubes between adjacent cubes ──
 	float tube_sd = 10.0;
-	// Explicit connections (8 tubes)
-	int tube_pairs[16] = int[16](0,1, 0,2, 0,3, 0,4, 0,5, 0,6, 6,7, 2,8);
-	for (int t = 0; t < 8; t++) {
+	// Explicit connections (14 tubes)
+	int tube_pairs[28] = int[28](
+		0,1, 0,2, 0,3, 0,4, 0,5, 0,6, 6,7, 2,8,
+		1,9, 2,10, 7,11, 5,12, 4,13, 7,14
+	);
+	for (int t = 0; t < 14; t++) {
 		vec2 a = cube_centers[tube_pairs[t*2]];
 		vec2 b = cube_centers[tube_pairs[t*2+1]];
 		float ts = sd_capsule(d, a, b, 0.007);
 		tube_sd = min(tube_sd, ts);
 	}
+	// Extra tube to node 15
+	tube_sd = min(tube_sd, sd_capsule(d, cube_centers[3], cube_centers[15], 0.007));
+	tube_sd = min(tube_sd, sd_capsule(d, cube_centers[9], cube_centers[4], 0.006));
+	tube_sd = min(tube_sd, sd_capsule(d, cube_centers[12], cube_centers[5], 0.006));
 
 	// Combined hull
 	float combined_sd = min(hive_sd, tube_sd);
@@ -198,11 +219,40 @@ void fragment() {
 		col += thruster_color * plume * noise_break * hdr_intensity * 0.4;
 	}
 
-	// ── Drift haze ──
+	// ── Atmospheric swirl orbiting the hive ──
+	// Slow rotating nebula shell that hugs the silhouette
+	float swirl_angle = atan(d.y, d.x);
+	float swirl_dist = length(d);
+	vec2 swirl_uv = vec2(swirl_angle * 1.5 + TIME * 0.06, swirl_dist * 6.0 - TIME * 0.04);
+	float swirl_n = vnoise(swirl_uv * 2.5) * vnoise(swirl_uv * 4.2 + 3.0);
+	float swirl_mask = smoothstep(0.02, 0.08, combined_sd) * smoothstep(0.35, 0.05, combined_sd);
+	col += window_color * swirl_n * swirl_mask * 0.18 * hdr_intensity;
+	col += warm_color * pow(swirl_n, 2.0) * swirl_mask * 0.08 * hdr_intensity;
+
+	// ── Drift haze (base layer) ──
 	vec2 haze_uv = uv * 3.2 + vec2(TIME * 0.01, TIME * 0.007);
 	float haze = vnoise(haze_uv) * vnoise(haze_uv * 1.6 + 3.0);
 	float haze_mask = smoothstep(0.6, 0.08, length(d));
 	col += window_color * haze * haze_mask * 0.035 * hdr_intensity;
+
+	// ── Floating dust particles around hive ──
+	for (int p = 0; p < 3; p++) {
+		float fp = float(p);
+		float grid = 70.0 + fp * 15.0;
+		vec2 flow = vec2(TIME * 0.015 * (1.0 + fp * 0.3), TIME * 0.009 * (0.7 + fp * 0.25));
+		vec2 pcell = floor(uv * grid + flow);
+		vec2 pfrac = fract(uv * grid + flow);
+		float ph = hash(pcell + fp * 77.0);
+		if (ph > 0.97) {
+			vec2 poff = vec2(hash(pcell + 11.0), hash(pcell + 22.0));
+			float pdist = length(pfrac - poff);
+			float twinkle = 0.5 + 0.5 * sin(TIME * (2.0 + ph * 4.0) + ph * 12.0);
+			float particle = smoothstep(0.08, 0.0, pdist) * twinkle;
+			// Only around the hive, not too close
+			float ring_mask = smoothstep(0.02, 0.08, combined_sd) * smoothstep(0.45, 0.1, length(d));
+			col += window_color * particle * ring_mask * hdr_intensity * 0.3;
+		}
+	}
 
 	// ── Stars ──
 	for (int layer = 0; layer < 2; layer++) {

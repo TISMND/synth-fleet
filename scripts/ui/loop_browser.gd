@@ -24,6 +24,7 @@ var _current_index: int = -1
 var _category_button: OptionButton
 var _prev_button: Button
 var _next_button: Button
+var _stop_button: Button
 var _song_label: Label
 var _file_label: Label
 var _count_label: Label
@@ -116,6 +117,12 @@ func _build_ui() -> void:
 	_next_button.custom_minimum_size.x = 100
 	_next_button.pressed.connect(_on_next)
 	nav_row.add_child(_next_button)
+
+	_stop_button = Button.new()
+	_stop_button.text = "STOP"
+	_stop_button.custom_minimum_size.x = 70
+	_stop_button.pressed.connect(_stop_playback)
+	nav_row.add_child(_stop_button)
 
 	# Set initial list
 	_on_category_changed(0)
@@ -377,5 +384,7 @@ func _apply_theme() -> void:
 		ThemeManager.apply_button_style(_prev_button)
 	if _next_button:
 		ThemeManager.apply_button_style(_next_button)
+	if _stop_button:
+		ThemeManager.apply_button_style(_stop_button)
 	if _hide_used_button:
 		_hide_used_button.add_theme_color_override("font_color", ThemeManager.get_color("text"))

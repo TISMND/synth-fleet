@@ -10,7 +10,7 @@ uniform vec3 hull_color : source_color = vec3(0.92, 0.95, 1.0);
 uniform vec3 seam_color : source_color = vec3(0.45, 0.52, 0.62);
 uniform vec3 accent_color : source_color = vec3(0.55, 0.85, 1.0);
 uniform vec3 ship_color : source_color = vec3(0.8, 0.92, 1.0);
-uniform vec3 warm_scanner : source_color = vec3(1.0, 0.92, 0.75);
+uniform vec3 warm_scanner : source_color = vec3(0.45, 0.78, 1.0);
 uniform float hull_w : hint_range(0.03, 0.2) = 0.075;
 uniform float hull_h : hint_range(0.15, 0.42) = 0.32;
 uniform float corner_r : hint_range(0.005, 0.04) = 0.012;
@@ -54,13 +54,18 @@ float beam(vec2 p, vec2 a, vec2 b, float half_width_at_target, float falloff) {
 	vec2 n = axis / len;
 	vec2 from_a = p - a;
 	float along = dot(from_a, n);
-	if (along < 0.0 || along > len * 1.4) return 0.0;
+	if (along < 0.0 || along > len * 1.05) return 0.0;
 	vec2 perp_v = from_a - n * along;
 	float perp_d = length(perp_v);
-	float half_w = mix(0.004, half_width_at_target, along / len);
+	float t = along / len;
+	float half_w = mix(0.004, half_width_at_target, t);
 	float edge = smoothstep(half_w, half_w * 0.35, perp_d);
+	// Taper along length: fade at source, fade toward target, hard zero past target
+	float near_source = smoothstep(0.0, 0.08, t);
+	float near_target = smoothstep(1.05, 0.75, t);
+	float length_taper = near_source * near_target;
 	float dist_fade = 1.0 / (1.0 + along * along * falloff);
-	return edge * dist_fade;
+	return edge * dist_fade * length_taper;
 }
 
 void fragment() {

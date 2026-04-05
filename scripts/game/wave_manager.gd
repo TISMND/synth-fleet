@@ -271,7 +271,7 @@ func _start_stagger_timer(delay: float, spawn_data: Dictionary) -> void:
 func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 	if not _enemies_container:
 		return
-	var enemy := Enemy.new()
+	var enemy := NpcShip.new()
 	var curve_val: Variant = spawn_data.get("curve")
 	if curve_val is Curve2D:
 		enemy.path_curve = curve_val as Curve2D
@@ -300,6 +300,11 @@ func _do_spawn_enemy(spawn_data: Dictionary) -> void:
 			if ship.type == "ally":
 				enemy.is_friendly = true
 				enemy.weapons_active = false
+				# Forward cosmetic paint/light so the game matches the Ships Screen preview
+				enemy.paint_pattern = ship.paint_pattern
+				enemy.paint_color = ship.paint_color
+				enemy.light_pattern = ship.light_pattern
+				enemy.light_color = ship.light_color
 			# Pass weapon data for EnemyWeaponController
 			if ship.type == "enemy" and ship.weapon_id != "":
 				enemy.ship_data_ref = ship
@@ -377,7 +382,7 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 	var enc_weapons_active: bool = bool(enc.get("weapons_active", true))
 
 	# Spawn core enemy
-	var core_enemy: Enemy = _make_boss_part(boss.core_ship_id, Vector2(spawn_x, spawn_y), enc_weapons_active)
+	var core_enemy: NpcShip = _make_boss_part(boss.core_ship_id, Vector2(spawn_x, spawn_y), enc_weapons_active)
 	if not core_enemy:
 		push_warning("WaveManager: boss core ship '%s' not found" % boss.core_ship_id)
 		return
@@ -406,7 +411,7 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 		var oy: float = float(offset_arr[1]) if offset_arr.size() > 1 else 0.0
 		var seg_offset := Vector2(ox, oy)
 
-		var seg_enemy: Enemy = _make_boss_part(seg_ship_id, Vector2(spawn_x + ox, spawn_y + oy), enc_weapons_active)
+		var seg_enemy: NpcShip = _make_boss_part(seg_ship_id, Vector2(spawn_x + ox, spawn_y + oy), enc_weapons_active)
 		if not seg_enemy:
 			continue
 
@@ -435,12 +440,12 @@ func _spawn_boss_encounter(enc: Dictionary, boss_id: String) -> void:
 	core_enemy._boss_data_ref = boss
 
 
-func _make_boss_part(ship_id: String, pos: Vector2, weapons_active: bool) -> Enemy:
+func _make_boss_part(ship_id: String, pos: Vector2, weapons_active: bool) -> NpcShip:
 	var ship: ShipData = ShipDataManager.load_by_id(ship_id)
 	if not ship:
 		return null
 
-	var enemy := Enemy.new()
+	var enemy := NpcShip.new()
 	enemy.health = int(ship.stats.get("hull_hp", 30))
 	enemy.shield = int(ship.stats.get("shield_hp", 0))
 	enemy.enemy_color = ENEMY_COLORS[ship_id.hash() % ENEMY_COLORS.size()]
@@ -509,7 +514,7 @@ func _on_spawn() -> void:
 	var speed_min: float = float(wave.get("speed_min", 80.0))
 	var speed_max: float = float(wave.get("speed_max", 150.0))
 
-	var enemy := Enemy.new()
+	var enemy := NpcShip.new()
 	enemy.shared_renderer = shared_renderer
 	enemy.position = Vector2(randf_range(100.0, 1820.0), -30.0)
 	enemy.drift_speed = randf_range(speed_min, speed_max)

@@ -1557,7 +1557,7 @@ func apply_bar_effects(effects: Dictionary) -> void:
 				_hud.trigger_drain_wave(hud_bar_name)
 
 
-var docked_friendly: Enemy = null  # Currently overlapping friendly ship
+var docked_friendly: NpcShip = null  # Currently overlapping friendly ship
 
 func _on_contact(area: Area2D) -> void:
 	# Currency pickups
@@ -1565,8 +1565,8 @@ func _on_contact(area: Area2D) -> void:
 		(area as Pickup).collect()
 		return
 	# Friendly ships — track for docking, no damage
-	if area is Enemy and (area as Enemy).is_friendly:
-		docked_friendly = area as Enemy
+	if area is NpcShip and (area as NpcShip).is_friendly:
+		docked_friendly = area as NpcShip
 		return
 	# Enemy projectiles handle their own damage via their _on_area_entered
 	if area is EnemyProjectile:
@@ -1577,7 +1577,7 @@ func _on_contact(area: Area2D) -> void:
 
 
 func _on_contact_exit(area: Area2D) -> void:
-	if area is Enemy and (area as Enemy).is_friendly:
+	if area is NpcShip and (area as NpcShip).is_friendly:
 		if docked_friendly == area:
 			docked_friendly = null
 		return

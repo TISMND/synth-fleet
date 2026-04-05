@@ -36,7 +36,7 @@ func stop() -> void:
 func _on_spawn() -> void:
 	if not _enemies_container:
 		return
-	var enemy := Enemy.new()
+	var enemy := NpcShip.new()
 	enemy.position = Vector2(randf_range(100.0, 1820.0), -30.0)
 	enemy.drift_speed = randf_range(80.0, 150.0)
 	enemy.health = randi_range(20, 50)

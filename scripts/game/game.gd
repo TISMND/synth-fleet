@@ -1283,7 +1283,7 @@ func _update_cargo_indicator(delta: float) -> void:
 	var found: bool = false
 	var cargo_pos := Vector2.ZERO
 	for child in _enemies.get_children():
-		if child is Enemy and child.ship_id == "cargo_ship":
+		if child is NpcShip and child.ship_id == "cargo_ship":
 			var pos: Vector2 = child.position
 			if pos.x > -100.0 and pos.x < 2020.0 and pos.y > -100.0 and pos.y < 1180.0:
 				_hud.update_cargo_indicator(pos, true)
