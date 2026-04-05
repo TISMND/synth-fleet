@@ -21,6 +21,7 @@ const _PLANET_PARAMS: Array[String] = [
 	"planet_tilted", "atmo_glow", "atmo_color",
 	"sky_top", "sky_mid", "sky_low", "horizon",
 	"accent_color", "nebula_intensity", "nebula_scale", "nebula_drift",
+	"warp_streak_color", "warp_streak_hdr",
 	"warp_streak_intensity", "warp_streak_speed", "warp_streak_count",
 	"warp_inner_radius", "warp_fade_width", "warp_max_length", "warp_streak_width",
 ]

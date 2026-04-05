@@ -20,7 +20,7 @@ float hash(vec2 p) {
 float noise(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
+	f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
 	float a = hash(i);
 	float b = hash(i + vec2(1.0, 0.0));
 	float c = hash(i + vec2(0.0, 1.0));
@@ -57,10 +57,11 @@ void fragment() {
 
 	float cloud = combined * falloff;
 
-	// Edge contrast: sharpen alpha to make tuft boundaries crisp
-	float edge_power = mix(1.0, 6.0, veil_contrast);
-	float edge_threshold = mix(0.0, 0.35, veil_contrast);
-	float edge_alpha = smoothstep(edge_threshold, edge_threshold + 0.12, cloud);
+	// Edge contrast: gentle sharpening to define tuft boundaries without hard lines
+	float edge_power = mix(1.0, 2.5, veil_contrast);
+	float edge_threshold = mix(0.0, 0.2, veil_contrast);
+	float edge_width = mix(0.5, 0.3, veil_contrast);
+	float edge_alpha = smoothstep(edge_threshold, edge_threshold + edge_width, cloud);
 	edge_alpha = pow(edge_alpha, edge_power);
 	float final_alpha = mix(cloud, edge_alpha, veil_contrast);
 

@@ -673,6 +673,7 @@ const _SW_PLANET_PARAMS: Array[String] = [
 	"planet_tilted", "atmo_glow", "atmo_color",
 	"sky_top", "sky_mid", "sky_low", "horizon",
 	"accent_color", "nebula_intensity", "nebula_scale", "nebula_drift",
+	"warp_streak_color", "warp_streak_hdr",
 	"warp_streak_intensity", "warp_streak_speed", "warp_streak_count",
 	"warp_inner_radius", "warp_fade_width", "warp_max_length", "warp_streak_width",
 ]
@@ -837,6 +838,8 @@ func _build_synthwave_tab() -> void:
 
 	# ── WARP STREAKS ──
 	_sw_tab_section(vbox, "WARP STREAKS")
+	_sw_tab_color(vbox, "warp_streak_color", "Color", Color(0.1, 0.8, 1.0))
+	_sw_tab_slider(vbox, "warp_streak_hdr", "HDR", 0.5, 10.0, 5.0)
 	_sw_tab_slider(vbox, "warp_streak_intensity", "Intensity", 0.0, 2.0, 0.5)
 	_sw_tab_slider(vbox, "warp_streak_speed", "Speed", 0.1, 5.0, 1.0)
 	_sw_tab_slider(vbox, "warp_streak_count", "Count", 4.0, 40.0, 20.0)

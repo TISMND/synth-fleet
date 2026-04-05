@@ -50,6 +50,8 @@ uniform float nebula_scale : hint_range(1.0, 8.0) = 3.5;
 uniform float nebula_drift : hint_range(0.0, 0.1) = 0.015;
 
 // ── Warp streaks ──
+uniform vec3 warp_streak_color : source_color = vec3(0.1, 0.8, 1.0);
+uniform float warp_streak_hdr : hint_range(0.5, 10.0) = 5.0;
 uniform float warp_streak_intensity : hint_range(0.0, 2.0) = 0.5;
 uniform float warp_streak_speed : hint_range(0.1, 5.0) = 1.0;
 uniform float warp_streak_count : hint_range(4.0, 40.0) = 20.0;
@@ -257,7 +259,7 @@ void fragment() {
 			b2 *= smoothstep(w, w * 0.15, perp);
 			b2 *= smoothstep(warp_inner_radius, warp_inner_radius + warp_fade_width, pixel_dist);
 			b2 *= warp_streak_intensity;
-			col += accent_color * b2 * 5.0;
+			col += warp_streak_color * b2 * warp_streak_hdr;
 		}
 	}
 

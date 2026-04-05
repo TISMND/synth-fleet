@@ -424,6 +424,13 @@ func _apply_render_mode() -> void:
 		"gunmetal": mode = ShipRenderer.RenderMode.GUNMETAL
 		"militia": mode = ShipRenderer.RenderMode.MILITIA
 		"stealth": mode = ShipRenderer.RenderMode.STEALTH
+		"biolume": mode = ShipRenderer.RenderMode.BIOLUME
+		"toxic": mode = ShipRenderer.RenderMode.TOXIC
+		"coral": mode = ShipRenderer.RenderMode.CORAL
+		"abyssal": mode = ShipRenderer.RenderMode.ABYSSAL
+		"bloodmoon": mode = ShipRenderer.RenderMode.BLOODMOON
+		"phantom": mode = ShipRenderer.RenderMode.PHANTOM
+		"aurora": mode = ShipRenderer.RenderMode.AURORA
 	_ship_draw.render_mode = mode
 	_ship_selector.render_mode = mode
 	# Apply per-ship neon parameters and bake mode for enemies
@@ -3408,6 +3415,13 @@ class _ShipSelector extends Node2D:
 			"gunmetal": return ShipRenderer.RenderMode.GUNMETAL
 			"militia": return ShipRenderer.RenderMode.MILITIA
 			"stealth": return ShipRenderer.RenderMode.STEALTH
+			"biolume": return ShipRenderer.RenderMode.BIOLUME
+			"toxic": return ShipRenderer.RenderMode.TOXIC
+			"coral": return ShipRenderer.RenderMode.CORAL
+			"abyssal": return ShipRenderer.RenderMode.ABYSSAL
+			"bloodmoon": return ShipRenderer.RenderMode.BLOODMOON
+			"phantom": return ShipRenderer.RenderMode.PHANTOM
+			"aurora": return ShipRenderer.RenderMode.AURORA
 		return ShipRenderer.RenderMode.NEON
 
 	func _draw_boss_list() -> void:
