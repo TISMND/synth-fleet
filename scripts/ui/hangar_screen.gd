@@ -426,6 +426,27 @@ func _create_slot_row(slot_key: String, item_name: String, disabled: bool = fals
 	return panel
 
 
+func _build_slot_icon(slot_key: String) -> Control:
+	var icon_cell: Control = ComponentIconBuilder.make_icon_cell()
+	var slot_data: Dictionary = GameState.slot_config.get(slot_key, {})
+	if slot_key.begins_with("weapon_"):
+		var weapon_id: String = str(slot_data.get("weapon_id", ""))
+		var w: WeaponData = _weapon_cache.get(weapon_id) as WeaponData
+		if w:
+			ComponentIconBuilder.add_weapon_icon(icon_cell, w)
+	elif slot_key.begins_with("core_"):
+		var device_id: String = str(slot_data.get("device_id", ""))
+		var pc: PowerCoreData = _power_core_cache.get(device_id) as PowerCoreData
+		if pc:
+			ComponentIconBuilder.add_power_core_icon(icon_cell, pc)
+	elif slot_key.begins_with("field_"):
+		var device_id: String = str(slot_data.get("device_id", ""))
+		var d: DeviceData = _device_cache.get(device_id) as DeviceData
+		if d:
+			ComponentIconBuilder.add_field_emitter_icon(icon_cell, d)
+	return icon_cell
+
+
 func _on_slot_toggle(slot_key: String) -> void:
 	var new_state: bool = not _slot_active.get(slot_key, false)
 	_slot_active[slot_key] = new_state
@@ -521,9 +542,31 @@ func _add_picker_item(item_id: String, label: String, description: String, slot_
 	style.border_color = Color(accent.r, accent.g, accent.b, 0.15)
 	panel.add_theme_stylebox_override("panel", style)
 
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 8)
+	hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
+	panel.add_child(hbox)
+
+	# Animated icon
+	var icon_cell: Control = ComponentIconBuilder.make_icon_cell()
+	if slot_key.begins_with("weapon_"):
+		var w: WeaponData = _weapon_cache.get(item_id) as WeaponData
+		if w:
+			ComponentIconBuilder.add_weapon_icon(icon_cell, w)
+	elif slot_key.begins_with("core_"):
+		var pc: PowerCoreData = _power_core_cache.get(item_id) as PowerCoreData
+		if pc:
+			ComponentIconBuilder.add_power_core_icon(icon_cell, pc)
+	elif slot_key.begins_with("field_"):
+		var d: DeviceData = _device_cache.get(item_id) as DeviceData
+		if d:
+			ComponentIconBuilder.add_field_emitter_icon(icon_cell, d)
+	hbox.add_child(icon_cell)
+
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 2)
-	panel.add_child(vbox)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(vbox)
 
 	# Title label
 	var title_lbl := Label.new()
@@ -976,6 +1019,7 @@ func _rebuild_workshop_content() -> void:
 			# Power toggle — wrapped in fixed-size container to prevent layout shift
 			var toggle_wrapper := Control.new()
 			toggle_wrapper.custom_minimum_size = Vector2(36, 36)
+			toggle_wrapper.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			row.add_child(toggle_wrapper)
 
 			var toggle_btn := Button.new()
@@ -987,6 +1031,10 @@ func _rebuild_workshop_content() -> void:
 			var bound_slot: String = slot_key
 			toggle_btn.pressed.connect(func() -> void: _on_fg_slot_toggle(bound_slot))
 			toggle_wrapper.add_child(toggle_btn)
+
+			# Component icon
+			var ws_icon: Control = _build_slot_icon(slot_key)
+			row.add_child(ws_icon)
 
 			# Slot name — styled button to open picker
 			var name_btn := Button.new()
@@ -1124,11 +1172,12 @@ func _rebuild_controls_content() -> void:
 		row.add_theme_constant_override("separation", 8)
 		slot_vbox.add_child(row)
 
-		# Power toggle button (circular)
+		# Power toggle button — HDR glow style
 		var toggle_btn := Button.new()
 		toggle_btn.text = "\u23fb"
 		toggle_btn.custom_minimum_size = Vector2(40, 40)
 		toggle_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		toggle_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		_apply_power_toggle_style(toggle_btn, is_active)
 		if has_group:
 			var bound_slot: String = slot_key
@@ -1136,6 +1185,10 @@ func _rebuild_controls_content() -> void:
 		else:
 			toggle_btn.disabled = true
 		row.add_child(toggle_btn)
+
+		# Component icon
+		var fg_icon: Control = _build_slot_icon(slot_key)
+		row.add_child(fg_icon)
 
 		# Slot name label
 		var name_lbl := Label.new()
@@ -1596,40 +1649,35 @@ func _animate_fg_totals(delta: float) -> void:
 
 
 func _apply_power_toggle_style(btn: Button, is_on: bool) -> void:
-	# Desaturated pink/purple for ON, dark grey for OFF
-	var on_color := Color(0.65, 0.4, 0.7)       # muted lavender
-	var on_border := Color(0.75, 0.5, 0.85)      # slightly brighter border
-	var on_bg := Color(0.25, 0.12, 0.3, 0.9)     # dark purple fill
-	var on_bg_hover := Color(0.32, 0.18, 0.38, 0.9)
-	var r: int = 20  # half of 40px → circular
+	# HDR glow style matching SIMULATOR / FIREGROUPS headers
+	var header_color: Color = ThemeManager.get_color("header")
+	var off_color := Color(0.25, 0.25, 0.3)
+	var font_color: Color = header_color if is_on else off_color
+	var hover_color: Color = Color(header_color.r * 1.2, header_color.g * 1.2, header_color.b * 1.2) if is_on else Color(0.4, 0.4, 0.45)
+
+	# Transparent flat style — no background, let the glow do the work
+	var empty_sb := StyleBoxEmpty.new()
 	for state in ["normal", "hover", "pressed", "focus"]:
-		var sb := StyleBoxFlat.new()
-		sb.corner_radius_top_left = r
-		sb.corner_radius_top_right = r
-		sb.corner_radius_bottom_left = r
-		sb.corner_radius_bottom_right = r
-		sb.content_margin_left = 4
-		sb.content_margin_right = 4
-		sb.content_margin_top = 4
-		sb.content_margin_bottom = 4
-		sb.border_width_left = 2
-		sb.border_width_right = 2
-		sb.border_width_top = 2
-		sb.border_width_bottom = 2
-		if is_on:
-			sb.bg_color = on_bg_hover if state == "hover" else on_bg
-			sb.border_color = on_border
-			sb.shadow_color = Color(0.4, 0.15, 0.5, 0.4)
-			sb.shadow_size = 5
-		else:
-			sb.bg_color = Color(0.06, 0.06, 0.06, 0.9) if state != "hover" else Color(0.12, 0.12, 0.12, 0.9)
-			sb.border_color = Color(0.25, 0.25, 0.25)
-			sb.shadow_color = Color(0.0, 0.0, 0.0, 0.3)
-			sb.shadow_size = 2
-		btn.add_theme_stylebox_override(state, sb)
-	btn.add_theme_color_override("font_color", on_color if is_on else Color(0.3, 0.3, 0.3))
-	btn.add_theme_color_override("font_hover_color", Color(0.8, 0.55, 0.9) if is_on else Color(0.4, 0.4, 0.4))
-	btn.add_theme_font_size_override("font_size", 18)
+		btn.add_theme_stylebox_override(state, empty_sb)
+
+	var header_font: Font = ThemeManager.get_font("font_header")
+	if header_font:
+		btn.add_theme_font_override("font", header_font)
+	btn.add_theme_color_override("font_color", font_color)
+	btn.add_theme_color_override("font_hover_color", hover_color)
+	btn.add_theme_font_size_override("font_size", 22)
+
+	# Apply HDR text shader for bloom when active
+	var hdr_val: float = ThemeManager.get_float("header_hdr_bloom")
+	if is_on and hdr_val > 0.0:
+		var shader: Shader = load("res://assets/shaders/text_hdr.gdshader") as Shader
+		if shader:
+			var mat := ShaderMaterial.new()
+			mat.shader = shader
+			mat.set_shader_parameter("hdr_multiplier", 1.0 + hdr_val)
+			btn.material = mat
+	else:
+		btn.material = null
 
 
 func _select_fire_group(index: int) -> void:

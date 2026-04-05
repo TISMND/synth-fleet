@@ -48,7 +48,7 @@ const VERSES: Array[Dictionary] = [
 const VP_SIZE := Vector2i(800, 450)
 const ZOOM_SCALE: float = 3.0
 const ZOOM_DURATION: float = 1.8
-const BRACKET_SIZE: float = 40.0
+const BRACKET_SIZE: float = 60.0
 
 var _zoom_tween: Tween
 var _zooming: bool = false
@@ -72,8 +72,7 @@ func _process(delta: float) -> void:
 		_vpc.pivot_offset = _vpc.size / 2.0
 	if _mode == "mission" and _mission_bracket and _mission_bracket.visible:
 		_blink_time += delta
-		var alpha: float = 0.7 + 0.3 * sin(_blink_time * 3.0)
-		_mission_bracket.modulate.a = alpha
+		_mission_bracket.modulate.a = 1.0
 		_mission_bracket.queue_redraw()
 
 
@@ -380,25 +379,63 @@ func _update_mission_label() -> void:
 		_verse_counter.text = ""
 
 
+func _draw_corner(center: Vector2, half: float, line_len: float, w: float, col: Color) -> void:
+	# Top-left
+	_mission_bracket.draw_line(Vector2(center.x - half, center.y - half), Vector2(center.x - half + line_len, center.y - half), col, w)
+	_mission_bracket.draw_line(Vector2(center.x - half, center.y - half), Vector2(center.x - half, center.y - half + line_len), col, w)
+	# Top-right
+	_mission_bracket.draw_line(Vector2(center.x + half, center.y - half), Vector2(center.x + half - line_len, center.y - half), col, w)
+	_mission_bracket.draw_line(Vector2(center.x + half, center.y - half), Vector2(center.x + half, center.y - half + line_len), col, w)
+	# Bottom-left
+	_mission_bracket.draw_line(Vector2(center.x - half, center.y + half), Vector2(center.x - half + line_len, center.y + half), col, w)
+	_mission_bracket.draw_line(Vector2(center.x - half, center.y + half), Vector2(center.x - half, center.y + half - line_len), col, w)
+	# Bottom-right
+	_mission_bracket.draw_line(Vector2(center.x + half, center.y + half), Vector2(center.x + half - line_len, center.y + half), col, w)
+	_mission_bracket.draw_line(Vector2(center.x + half, center.y + half), Vector2(center.x + half, center.y + half - line_len), col, w)
+
+
 func _draw_mission_bracket() -> void:
 	if _mission_positions.is_empty():
 		return
 	var pos: Vector2 = _mission_positions[_mission_index]
 	var rect_size: Vector2 = _mission_bracket.size
 	var center := Vector2(pos.x * rect_size.x, pos.y * rect_size.y)
-	var half: float = BRACKET_SIZE * 0.5
-	var line_len: float = BRACKET_SIZE * 0.35
-	var w: float = 2.0
-	var col := Color(1.0, 0.4, 0.65, 1.0)
+	var t: float = _blink_time
 
-	_mission_bracket.draw_line(Vector2(center.x - half, center.y - half), Vector2(center.x - half + line_len, center.y - half), col, w)
-	_mission_bracket.draw_line(Vector2(center.x - half, center.y - half), Vector2(center.x - half, center.y - half + line_len), col, w)
-	_mission_bracket.draw_line(Vector2(center.x + half, center.y - half), Vector2(center.x + half - line_len, center.y - half), col, w)
-	_mission_bracket.draw_line(Vector2(center.x + half, center.y - half), Vector2(center.x + half, center.y - half + line_len), col, w)
-	_mission_bracket.draw_line(Vector2(center.x - half, center.y + half), Vector2(center.x - half + line_len, center.y + half), col, w)
-	_mission_bracket.draw_line(Vector2(center.x - half, center.y + half), Vector2(center.x - half, center.y + half - line_len), col, w)
-	_mission_bracket.draw_line(Vector2(center.x + half, center.y + half), Vector2(center.x + half - line_len, center.y + half), col, w)
-	_mission_bracket.draw_line(Vector2(center.x + half, center.y + half), Vector2(center.x + half, center.y + half - line_len), col, w)
+	# Pulsing size — breathes between 80% and 120% of base
+	var pulse: float = 1.0 + 0.2 * sin(t * 2.5)
+	var half: float = BRACKET_SIZE * 0.5 * pulse
+	var line_len: float = BRACKET_SIZE * 0.4 * pulse
+
+	# Color cycling: hot pink → cyan → white → hot pink
+	var hue_shift: float = fmod(t * 0.3, 1.0)
+	var col_a := Color.from_hsv(fmod(0.93 + hue_shift, 1.0), 0.7, 1.0)  # cycling hue
+	var col_b := Color.from_hsv(fmod(0.93 + hue_shift + 0.5, 1.0), 0.5, 1.0)  # opposite hue
+
+	# Outer glow layer — thick, semi-transparent
+	var glow_half: float = half + 6.0
+	var glow_len: float = line_len + 8.0
+	var glow_col := Color(col_a.r, col_a.g, col_a.b, 0.3)
+	_draw_corner(center, glow_half, glow_len, 6.0, glow_col)
+
+	# Main bracket — bright, thick
+	_draw_corner(center, half, line_len, 3.0, col_a)
+
+	# Inner accent — thinner, offset color
+	var inner_half: float = half - 3.0
+	var inner_len: float = line_len - 4.0
+	if inner_len > 2.0:
+		_draw_corner(center, inner_half, inner_len, 1.5, col_b)
+
+	# Crosshair lines through center — subtle
+	var cross_len: float = 8.0
+	var cross_col := Color(col_a.r, col_a.g, col_a.b, 0.6)
+	_mission_bracket.draw_line(Vector2(center.x - cross_len, center.y), Vector2(center.x + cross_len, center.y), cross_col, 1.0)
+	_mission_bracket.draw_line(Vector2(center.x, center.y - cross_len), Vector2(center.x, center.y + cross_len), cross_col, 1.0)
+
+	# Center dot — pulsing
+	var dot_radius: float = 2.0 + 1.0 * sin(t * 4.0)
+	_mission_bracket.draw_circle(center, dot_radius, col_a)
 
 
 # ── Mode transitions ──

@@ -52,10 +52,10 @@
 	],
 	"shader_params": {
 		"animation_speed": 1.1,
-		"brightness": 1.6,
-		"color_mix": 0.0,
+		"brightness": 4.0,
+		"color_mix": 0.04,
 		"edge_softness": 0.0,
-		"flame_detail": 1.0,
+		"flame_detail": 6.0,
 		"heat_distortion": 0.0,
 		"scroll_speed": 3.7
 	}

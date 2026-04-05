@@ -38,7 +38,8 @@ func _populate_grid() -> void:
 		child.queue_free()
 
 	var ship_data: Dictionary = _ships[_ship_index]
-	for l in _get_light_patterns():
+	var patterns: Array[Dictionary] = ship_data.get("light_patterns", []) as Array[Dictionary]
+	for l in patterns:
 		_grid.add_child(_make_light_cell(l, ship_data))
 
 
@@ -261,27 +262,38 @@ func _gen_shapes(pattern: Dictionary) -> Array[PackedVector2Array]:
 				for i in range(count):
 					var cx: float = start_x + float(i) * spacing
 					shapes.append(_rect(cx - hw, yf - hw, cx + hw, yf + hw))
+		"dots":
+			# Individual small squares at exact positions — like airplane nav lights
+			var positions: Array = p.get("positions", [])
+			var r: float = p.get("r", 2.0)
+			for pos in positions:
+				var px: float = float(pos[0])
+				var py: float = float(pos[1])
+				shapes.append(_rect(px - r, py - r, px + r, py + r))
+		"edge_dots":
+			# Dots placed along hull edges at regular intervals
+			var hw_e: float = p.get("x", 18.0)  # x extent (how far out)
+			var r: float = p.get("r", 2.0)
+			var ys: Array = p.get("ys", [])
+			for yv in ys:
+				var yf: float = float(yv)
+				# Port and starboard
+				shapes.append(_rect(-hw_e - r, yf - r, -hw_e + r, yf + r))
+				shapes.append(_rect(hw_e - r, yf - r, hw_e + r, yf + r))
+		"corner_marks":
+			# Small L-shaped marks at hull corners
+			var corners: Array = p.get("corners", [])
+			var arm: float = p.get("arm", 6.0)
+			var w: float = p.get("w", 2.0)
+			for corner in corners:
+				var cx: float = float(corner[0])
+				var cy: float = float(corner[1])
+				var sx: float = float(corner[2])  # direction x: 1 or -1
+				var sy: float = float(corner[3])  # direction y: 1 or -1
+				shapes.append(_rect(cx, cy, cx + sx * arm, cy + w * sy))
+				shapes.append(_rect(cx, cy, cx + w * sx, cy + sy * arm))
 
 	return shapes
-
-
-# ── Pattern definitions ──
-
-func _get_light_patterns() -> Array[Dictionary]:
-	var pats: Array[Dictionary] = []
-	pats.append({name = "TWIN RACING", type = "vstripes", params = {positions = [-8, 8], w = 4.0}})
-	pats.append({name = "DOUBLE CHEVRON", type = "chevrons", params = {ys = [-15, 8], w = 4.0, spread = 26.0}})
-	pats.append({name = "STACKED V", type = "chevrons", params = {ys = [-28, -14, 0, 14], w = 3.0, spread = 20.0}})
-	pats.append({name = "TIGHT CHEVRONS", type = "chevrons", params = {ys = [-20, -10, 0, 10, 20], w = 2.0, spread = 16.0}})
-	pats.append({name = "DECK LIGHTS", type = "hbands", params = {bands = [[-30, -26], [-8, -4], [14, 18], [30, 34]]}})
-	pats.append({name = "X CROSS", type = "cross", params = {w = 4.0}})
-	pats.append({name = "DIAG SWEEP", type = "diagonal", params = {angle = 0.5, w = 8.0}})
-	pats.append({name = "DIAMOND GRID", type = "diamond_grid", params = {size = 10.0}})
-	pats.append({name = "PORT ROWS", type = "port_rows", params = {rows = [-25, -10, 5, 20], w = 3.0, spacing = 8.0, count = 4}})
-	pats.append({name = "WIDE RACING", type = "vstripes", params = {positions = [-12, 12], w = 6.0}})
-	pats.append({name = "TRIPLE BAND", type = "hbands", params = {bands = [[-35, -30], [-3, 3], [28, 33]]}})
-	pats.append({name = "QUAD STRIPES", type = "vstripes", params = {positions = [-15, -5, 5, 15], w = 2.5}})
-	return pats
 
 
 # ── Ship geometry data ──
@@ -312,17 +324,25 @@ func _make_stiletto_data() -> Dictionary:
 	exclusions.append(_thick_line(Vector2(-4 * s, 22 * s), Vector2(-4 * s, 30 * s), 3.0))
 	exclusions.append(_thick_line(Vector2(4 * s, 22 * s), Vector2(4 * s, 30 * s), 3.0))
 
+	var pats: Array[Dictionary] = []
+	pats.append({name = "TWIN RACING", type = "vstripes", params = {positions = [-8, 8], w = 4.0}})
+	pats.append({name = "DOUBLE CHEVRON", type = "chevrons", params = {ys = [-15, 8], w = 4.0, spread = 26.0}})
+	pats.append({name = "STACKED V", type = "chevrons", params = {ys = [-28, -14, 0, 14], w = 3.0, spread = 20.0}})
+	pats.append({name = "TIGHT CHEVRONS", type = "chevrons", params = {ys = [-20, -10, 0, 10, 20], w = 2.0, spread = 16.0}})
+
 	return {
 		display_name = "STILETTO",
 		ship_id = 4,
 		hull = hull,
 		exclusions = exclusions,
 		ship_pos = Vector2(90.0, 105.0),
+		light_patterns = pats,
 	}
 
 
 func _make_cargo_data() -> Dictionary:
-	var s := 1.0
+	# Must match _draw_dreadnought render scale so overlay aligns with the drawn ship
+	var s := 1.9
 	var hull := PackedVector2Array([
 		Vector2(-4 * s, -48 * s), Vector2(4 * s, -48 * s),
 		Vector2(16 * s, -40 * s), Vector2(20 * s, -26 * s),
@@ -336,9 +356,9 @@ func _make_cargo_data() -> Dictionary:
 		Vector2(-8 * s, -42 * s), Vector2(8 * s, -42 * s),
 		Vector2(10 * s, -32 * s), Vector2(-10 * s, -32 * s),
 	]))
-	exclusions.append(_thick_line(Vector2(0, -30 * s), Vector2(0, 38 * s), 2.5))
+	exclusions.append(_thick_line(Vector2(0, -30 * s), Vector2(0, 38 * s), 2.5 * s))
 	for y in [-20, -10, 0, 12, 24, 34]:
-		exclusions.append(_thick_line(Vector2(-18 * s, y * s), Vector2(18 * s, y * s), 1.5))
+		exclusions.append(_thick_line(Vector2(-18 * s, y * s), Vector2(18 * s, y * s), 1.5 * s))
 	exclusions.append(PackedVector2Array([
 		Vector2(20 * s, -8 * s), Vector2(26 * s, -6 * s),
 		Vector2(26 * s, 8 * s), Vector2(20 * s, 10 * s),
@@ -348,7 +368,51 @@ func _make_cargo_data() -> Dictionary:
 		Vector2(-26 * s, 8 * s), Vector2(-20 * s, 10 * s),
 	]))
 	for ex in [-14, -10, -6, -2, 2, 6, 10, 14]:
-		exclusions.append(_thick_line(Vector2(ex * s, 40 * s), Vector2(ex * s, 48 * s), 2.0))
+		exclusions.append(_thick_line(Vector2(ex * s, 40 * s), Vector2(ex * s, 48 * s), 2.0 * s))
+
+	# Hull spans at s=1.9: x ~ -38..+38, y ~ -91..+80. Hangars to ±49.
+	var pats: Array[Dictionary] = []
+
+	# Nav lights — dots along the outer hull edges, like airplane strobes
+	pats.append({name = "NAV LIGHTS", type = "edge_dots", params = {x = 35.0, r = 3.5, ys = [-57, -19, 19, 57]}})
+	pats.append({name = "WING TIPS", type = "edge_dots", params = {x = 35.0, r = 4.0, ys = [-46, 46]}})
+	pats.append({name = "RUNNING LIGHTS", type = "edge_dots", params = {x = 35.0, r = 2.5, ys = [-68, -46, -23, 0, 23, 46, 68]}})
+
+	# Corner markers — L-shaped marks at the four hull corners
+	pats.append({name = "CORNER MARKS", type = "corner_marks", params = {
+		corners = [
+			[-30, -76, -1, -1],
+			[30, -76, 1, -1],
+			[-30, 72, -1, 1],
+			[30, 72, 1, 1],
+		], arm = 14.0, w = 3.5
+	}})
+
+	# Placed dots — bridge, mid-hull, stern
+	pats.append({name = "BRIDGE SPOTS", type = "dots", params = {r = 3.5, positions = [
+		[-23, -72], [23, -72],
+		[0, -84],
+	]}})
+	pats.append({name = "DOCKING LIGHTS", type = "dots", params = {r = 4.0, positions = [
+		[-35, -38], [35, -38],
+		[-35, 38], [35, 38],
+		[-35, 0], [35, 0],
+	]}})
+	pats.append({name = "SIGNAL ARRAY", type = "dots", params = {r = 2.5, positions = [
+		[0, -84],
+		[-35, -57], [35, -57],
+		[-35, 0], [35, 0],
+		[-35, 57], [35, 57],
+		[0, 76],
+	]}})
+
+	# Thin deck bands — horizontal glow lines spanning full width
+	pats.append({name = "DECK LINES", type = "hbands", params = {bands = [[-53, -49], [-8, -4], [42, 46]]}})
+	pats.append({name = "HULL GLOW", type = "hbands", params = {bands = [[-84, -80], [-38, -34], [4, 8], [46, 50], [72, 76]]}})
+
+	# Port windows — rows of small dots like cabin windows
+	pats.append({name = "PORT WINDOWS", type = "port_rows", params = {rows = [-30, -8, 15, 38], w = 3.5, spacing = 13.0, count = 4}})
+	pats.append({name = "CABIN LIGHTS", type = "port_rows", params = {rows = [-42, -19, 4, 27, 49], w = 2.5, spacing = 11.0, count = 5}})
 
 	return {
 		display_name = "CARGO SHIP",
@@ -356,6 +420,7 @@ func _make_cargo_data() -> Dictionary:
 		hull = hull,
 		exclusions = exclusions,
 		ship_pos = Vector2(90.0, 100.0),
+		light_patterns = pats,
 	}
 
 

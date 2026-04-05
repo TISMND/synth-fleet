@@ -46,7 +46,8 @@ func _populate_grid() -> void:
 	_static_viewports.clear()
 
 	var ship_data: Dictionary = _ships[_ship_index]
-	for p in _get_paint_patterns():
+	var patterns: Array[Dictionary] = ship_data.get("paint_patterns", []) as Array[Dictionary]
+	for p in patterns:
 		_grid.add_child(_make_paint_cell(p, ship_data))
 
 	# Let viewports render 2 frames then freeze
@@ -287,31 +288,32 @@ func _gen_shapes(pattern: Dictionary) -> Array[PackedVector2Array]:
 			var w: float = p.get("w", 6.0)
 			shapes.append(_rect(-w * 0.5, -100, w * 0.5, 100))
 			shapes.append(_rect(-100, -w * 0.5, 100, w * 0.5))
+		"full_width":
+			# Full left-to-right band at a given y range
+			var y1: float = p.get("y1", -10.0)
+			var y2: float = p.get("y2", 10.0)
+			shapes.append(_rect(-100, y1, 100, y2))
+		"slats":
+			# Horizontal slats — evenly spaced thin bands spanning full width
+			var start_y: float = p.get("start_y", -40.0)
+			var end_y: float = p.get("end_y", 40.0)
+			var count: int = p.get("count", 8)
+			var hw: float = p.get("w", 2.0) * 0.5
+			for i in range(count):
+				var y: float = lerpf(start_y, end_y, float(i) / float(count - 1)) if count > 1 else (start_y + end_y) * 0.5
+				shapes.append(_rect(-100, y - hw, 100, y + hw))
+		"half_top":
+			shapes.append(_rect(-100, -100, 100, p.get("split_y", 0.0)))
+		"half_bottom":
+			shapes.append(_rect(-100, p.get("split_y", 0.0), 100, 100))
+		"checkerboard":
+			var sz: float = p.get("size", 8.0)
+			for ix in range(-10, 11):
+				for iy in range(-10, 11):
+					if (ix + iy) % 2 == 0:
+						shapes.append(_rect(ix * sz, iy * sz, (ix + 1) * sz, (iy + 1) * sz))
 
 	return shapes
-
-
-# ── Pattern definitions ──
-
-func _get_paint_patterns() -> Array[Dictionary]:
-	var pats: Array[Dictionary] = []
-	pats.append({name = "CENTER STRIPE", type = "vstripe", params = {x = 0.0, w = 6.0}})
-	pats.append({name = "WIDE BAND", type = "vstripe", params = {x = 0.0, w = 18.0}})
-	pats.append({name = "TRIPLE LINE", type = "vstripes", params = {positions = [-14, 0, 14], w = 3.0}})
-	pats.append({name = "NOSE CAP", type = "hband", params = {y1 = -50.0, y2 = -20.0}})
-	pats.append({name = "TAIL BAND", type = "hband", params = {y1 = 15.0, y2 = 35.0}})
-	pats.append({name = "THREE BANDS", type = "hbands", params = {bands = [[-45, -32], [-6, 6], [20, 32]]}})
-	pats.append({name = "DIAG LEFT", type = "diagonal", params = {angle = -0.6, w = 10.0}})
-	pats.append({name = "DIAG RIGHT", type = "diagonal", params = {angle = 0.6, w = 10.0}})
-	pats.append({name = "CHEVRON", type = "chevron", params = {y = -5.0, w = 5.0, spread = 32.0}})
-	pats.append({name = "WING CHECK", type = "wing_check", params = {size = 6.0}})
-	pats.append({name = "WING TIPS", type = "wing_tips"})
-	pats.append({name = "WEDGE", type = "wedge"})
-	pats.append({name = "STARBURST", type = "starburst"})
-	pats.append({name = "SIDE PANELS", type = "side_panels", params = {gap = 4.0}})
-	pats.append({name = "ARMOR PLATES", type = "armor_plates", params = {spacing = 12.0, w = 3.0, count = 6}})
-	pats.append({name = "CROSS", type = "cross", params = {w = 6.0}})
-	return pats
 
 
 # ── Ship geometry data ──
@@ -346,19 +348,34 @@ func _make_stiletto_data() -> Dictionary:
 	exclusions.append(_thick_line(Vector2(-4 * s, 22 * s), Vector2(-4 * s, 30 * s), 3.0))
 	exclusions.append(_thick_line(Vector2(4 * s, 22 * s), Vector2(4 * s, 30 * s), 3.0))
 
+	var pats: Array[Dictionary] = []
+	pats.append({name = "CENTER STRIPE", type = "vstripe", params = {x = 0.0, w = 6.0}})
+	pats.append({name = "WIDE BAND", type = "vstripe", params = {x = 0.0, w = 18.0}})
+	pats.append({name = "TRIPLE LINE", type = "vstripes", params = {positions = [-14, 0, 14], w = 3.0}})
+	pats.append({name = "NOSE CAP", type = "hband", params = {y1 = -50.0, y2 = -20.0}})
+	pats.append({name = "TAIL BAND", type = "hband", params = {y1 = 15.0, y2 = 35.0}})
+	pats.append({name = "THREE BANDS", type = "hbands", params = {bands = [[-45, -32], [-6, 6], [20, 32]]}})
+	pats.append({name = "DIAG LEFT", type = "diagonal", params = {angle = -0.6, w = 10.0}})
+	pats.append({name = "DIAG RIGHT", type = "diagonal", params = {angle = 0.6, w = 10.0}})
+	pats.append({name = "CHEVRON", type = "chevron", params = {y = -5.0, w = 5.0, spread = 32.0}})
+	pats.append({name = "WING CHECK", type = "wing_check", params = {size = 6.0}})
+	pats.append({name = "WING TIPS", type = "wing_tips"})
+	pats.append({name = "WEDGE", type = "wedge"})
+	pats.append({name = "STARBURST", type = "starburst"})
+
 	return {
 		display_name = "STILETTO",
 		ship_id = 4,
 		hull = hull,
 		exclusions = exclusions,
 		ship_pos = Vector2(90.0, 105.0),
+		paint_patterns = pats,
 	}
 
 
 func _make_cargo_data() -> Dictionary:
-	# Simplified static hull polygon matching _draw_dreadnought at s=1.9
-	# but scaled down to fit in cells. We use a smaller s for the overlay.
-	var s := 1.0
+	# Must match _draw_dreadnought render scale so overlay aligns with the drawn ship
+	var s := 1.9
 	var hull := PackedVector2Array([
 		Vector2(-4 * s, -48 * s), Vector2(4 * s, -48 * s),
 		Vector2(16 * s, -40 * s), Vector2(20 * s, -26 * s),
@@ -374,10 +391,10 @@ func _make_cargo_data() -> Dictionary:
 		Vector2(10 * s, -32 * s), Vector2(-10 * s, -32 * s),
 	]))
 	# Spine accent
-	exclusions.append(_thick_line(Vector2(0, -30 * s), Vector2(0, 38 * s), 2.5))
+	exclusions.append(_thick_line(Vector2(0, -30 * s), Vector2(0, 38 * s), 2.5 * s))
 	# Armor plate lines (horizontal detail lines)
 	for y in [-20, -10, 0, 12, 24, 34]:
-		exclusions.append(_thick_line(Vector2(-18 * s, y * s), Vector2(18 * s, y * s), 1.5))
+		exclusions.append(_thick_line(Vector2(-18 * s, y * s), Vector2(18 * s, y * s), 1.5 * s))
 	# Right hangar bay
 	exclusions.append(PackedVector2Array([
 		Vector2(20 * s, -8 * s), Vector2(26 * s, -6 * s),
@@ -390,7 +407,31 @@ func _make_cargo_data() -> Dictionary:
 	]))
 	# Engines (8 of them)
 	for ex in [-14, -10, -6, -2, 2, 6, 10, 14]:
-		exclusions.append(_thick_line(Vector2(ex * s, 40 * s), Vector2(ex * s, 48 * s), 2.0))
+		exclusions.append(_thick_line(Vector2(ex * s, 40 * s), Vector2(ex * s, 48 * s), 2.0 * s))
+
+	# Hull spans: x ~ -38..+38, y ~ -91..+80 (at s=1.9)
+	var pats: Array[Dictionary] = []
+	# Full-width horizontal coverage — big bold swaths
+	pats.append({name = "FULL NOSE", type = "full_width", params = {y1 = -91.0, y2 = -50.0}})
+	pats.append({name = "FULL BELLY", type = "full_width", params = {y1 = -19.0, y2 = 27.0}})
+	pats.append({name = "FULL STERN", type = "full_width", params = {y1 = 46.0, y2 = 80.0}})
+	pats.append({name = "TOP HALF", type = "half_top", params = {split_y = -8.0}})
+	pats.append({name = "BOTTOM HALF", type = "half_bottom", params = {split_y = -8.0}})
+	# Horizontal slats — spanning full width, using the tall hull
+	pats.append({name = "SLATS x6", type = "slats", params = {start_y = -80.0, end_y = 70.0, count = 6, w = 6.0}})
+	pats.append({name = "SLATS x10", type = "slats", params = {start_y = -85.0, end_y = 76.0, count = 10, w = 4.0}})
+	pats.append({name = "SLATS x16", type = "slats", params = {start_y = -85.0, end_y = 76.0, count = 16, w = 3.0}})
+	pats.append({name = "WIDE SLATS", type = "slats", params = {start_y = -70.0, end_y = 60.0, count = 4, w = 12.0}})
+	# Vertical stripes at full hull width
+	pats.append({name = "CENTER SPINE", type = "vstripe", params = {x = 0.0, w = 16.0}})
+	pats.append({name = "PORT/STARBOARD", type = "vstripes", params = {positions = [-27, 27], w = 10.0}})
+	pats.append({name = "TRIPLE STRIPE", type = "vstripes", params = {positions = [-24, 0, 24], w = 6.0}})
+	# Full coverage
+	pats.append({name = "CHECKERBOARD", type = "checkerboard", params = {size = 13.0}})
+	pats.append({name = "DIAG LEFT", type = "diagonal", params = {angle = -0.4, w = 26.0}})
+	pats.append({name = "DIAG RIGHT", type = "diagonal", params = {angle = 0.4, w = 26.0}})
+	pats.append({name = "CROSS", type = "cross", params = {w = 14.0}})
+	pats.append({name = "CHEVRON", type = "chevron", params = {y = -20.0, w = 8.0, spread = 38.0}})
 
 	return {
 		display_name = "CARGO SHIP",
@@ -398,6 +439,7 @@ func _make_cargo_data() -> Dictionary:
 		hull = hull,
 		exclusions = exclusions,
 		ship_pos = Vector2(90.0, 100.0),
+		paint_patterns = pats,
 	}
 
 

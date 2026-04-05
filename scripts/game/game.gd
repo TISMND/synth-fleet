@@ -3091,11 +3091,11 @@ class _IntroTitleBox extends Control:
 # ── Mouse Navigation Indicator ────────────────────────────────────────
 
 class _MouseNavIndicator extends Node2D:
-	## Tiny hollow diamond at the mouse position — subtle navigation hint.
-	const SIZE: float = 4.0
-	const LINE_W: float = 1.0
+	## Hollow diamond at the mouse position — navigation cursor.
+	const SIZE: float = 12.0
+	const LINE_W: float = 2.4
 	const COL := Color(0.5, 0.7, 1.0)
-	const HDR: float = 1.0
+	const HDR: float = 1.7
 	var _time: float = 0.0
 
 	func _process(delta: float) -> void:
@@ -3104,7 +3104,7 @@ class _MouseNavIndicator extends Node2D:
 
 	func _draw() -> void:
 		var pulse: float = 0.9 + 0.1 * sin(_time * 2.5)
-		var col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.35 * pulse)
+		var col := Color(COL.r * HDR, COL.g * HDR, COL.b * HDR, 0.9 * pulse)
 		var s: float = SIZE
 		var pts: PackedVector2Array = PackedVector2Array([
 			Vector2(0, -s), Vector2(s, 0), Vector2(0, s), Vector2(-s, 0), Vector2(0, -s)
