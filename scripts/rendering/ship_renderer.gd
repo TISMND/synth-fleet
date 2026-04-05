@@ -134,6 +134,7 @@ var hit_flash: float = 0.0
 var hull_flash_duration: float = 0.1
 var hull_blink_speed: float = 8.0
 var hull_flash_opacity: float = 0.5
+var palette_override: Dictionary = {}  # If non-empty, overrides palette colors: {"hull": Color, "accent": Color, etc.}
 var show_hardpoint_marker: bool = false  # Editor-only: draw crosshair at weapon fire origin
 var hardpoint_marker_offsets: Array = []  # Array of [x, y] — empty draws at center only
 var _flash_material: ShaderMaterial = null
@@ -474,6 +475,18 @@ func _apply_palette() -> void:
 			_chrome_mid = CHROME_MID
 			_chrome_light = CHROME_LIGHT
 			_chrome_bright = CHROME_BRIGHT
+	# Apply per-instance palette override (used by skin tuner)
+	if not palette_override.is_empty():
+		if palette_override.has("hull"):
+			hull_color = palette_override["hull"] as Color
+		if palette_override.has("accent"):
+			accent_color = palette_override["accent"] as Color
+		if palette_override.has("engine"):
+			engine_color = palette_override["engine"] as Color
+		if palette_override.has("canopy"):
+			canopy_color = palette_override["canopy"] as Color
+		if palette_override.has("detail"):
+			detail_color = palette_override["detail"] as Color
 
 
 func _is_chrome_based() -> bool:

@@ -53,9 +53,14 @@ size_flags_horizontal = 3
 size_flags_vertical = 4
 theme_override_constants/separation = 16
 
+[node name="ReadyButton" type="Button" parent="HBoxContainer/ButtonPanel/VBoxContainer"]
+layout_mode = 2
+text = "READY"
+
 [node name="LaunchButton" type="Button" parent="HBoxContainer/ButtonPanel/VBoxContainer"]
 layout_mode = 2
 text = "LAUNCH"
+visible = false
 
 [node name="LoadoutButton" type="Button" parent="HBoxContainer/ButtonPanel/VBoxContainer"]
 layout_mode = 2

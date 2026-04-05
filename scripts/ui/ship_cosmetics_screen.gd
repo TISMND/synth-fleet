@@ -54,6 +54,7 @@ func _build_ui() -> void:
 		["HUMAN SKINS", "res://scripts/ui/skin_auditions.gd"],
 		["ALIEN SKINS", "res://scripts/ui/alien_skin_auditions.gd"],
 		["DETAILS", "res://scripts/ui/paint_auditions.gd"],
+		["SKIN TUNER", "res://scripts/ui/skin_tuner.gd"],
 	]
 
 	for i in tabs.size():
