@@ -51,6 +51,7 @@ var _selected_enemy_index: int = -1
 var _working_enemy: ShipData = null
 var _enemy_idle_time: float = 0.0
 var _enemy_tab: String = "stats"  # "stats" or "effects"
+var _ally_tab: String = "stats"   # "stats" or "cosmetic"
 # Boss state
 var _boss_list: Array[BossData] = []
 var _filtered_boss_list: Array[BossData] = []
@@ -75,6 +76,8 @@ var _ship_viewport: SubViewport = null
 var _ship_grid_bg: ColorRect = null
 var _bake_viewport: SubViewport = null  # Small bake viewport matching in-game resolution
 var _bake_sprite: Sprite2D = null       # Displays bake texture in main viewport
+var _paint_overlay: Node2D = null       # Paint pattern overlay for allies
+var _light_overlay: Node2D = null       # Lightning pattern overlay for allies
 var _weapon_preview_controller: HardpointController = null
 
 
@@ -259,6 +262,11 @@ func _process_enemy(delta: float) -> void:
 		_bake_sprite.position = enemy_pos
 	else:
 		_ship_draw.position = enemy_pos
+	# Sync cosmetic overlays to ship position
+	if _paint_overlay and is_instance_valid(_paint_overlay):
+		_paint_overlay.position = enemy_pos
+	if _light_overlay and is_instance_valid(_light_overlay):
+		_light_overlay.position = enemy_pos
 	_exhaust_particles.clear()
 	_exhaust_draw.queue_redraw()
 
@@ -434,6 +442,8 @@ func _apply_render_mode() -> void:
 		"bloodmoon": mode = ShipRenderer.RenderMode.BLOODMOON
 		"phantom": mode = ShipRenderer.RenderMode.PHANTOM
 		"aurora": mode = ShipRenderer.RenderMode.AURORA
+		"caution": mode = ShipRenderer.RenderMode.CAUTION
+		"painted": mode = ShipRenderer.RenderMode.PAINTED
 	_ship_draw.render_mode = mode
 	_ship_selector.render_mode = mode
 	# Apply per-ship neon parameters and bake mode for enemies
@@ -532,6 +542,7 @@ func _select_enemy(index: int) -> void:
 	_ship_draw.show_hardpoint_marker = true
 	_ship_draw.hardpoint_marker_offsets = _working_enemy.hardpoint_offsets
 	_apply_render_mode()
+	_update_cosmetic_overlays()
 
 	_rebuild_right_panel()
 	_update_enemy_hud()
@@ -542,6 +553,7 @@ func _switch_category(cat: String) -> void:
 	if cat == _category:
 		return
 	_stop_weapon_preview()
+	_clear_cosmetic_overlays()
 	_category = cat
 	_update_category_tab_buttons()
 
@@ -667,7 +679,10 @@ func _save_enemy() -> void:
 		return
 	var saved_id: String = _working_enemy.id
 	ShipDataManager.save(saved_id, _working_enemy.to_dict())
-	_load_enemy_ships()
+	if _category == "ALLIES":
+		_filtered_enemy_ships = ShipDataManager.load_all_by_type("ally")
+	else:
+		_load_enemy_ships()
 	_ship_selector.enemy_ships = _filtered_enemy_ships
 	# Re-select — if level changed, enemy may have left this filter
 	var found := false
@@ -922,6 +937,8 @@ func _rebuild_right_panel_contents() -> void:
 
 	if _category == "ENEMIES":
 		_build_enemy_right_panel()
+	elif _category == "ALLIES":
+		_build_ally_right_panel()
 	elif _category == "BOSSES":
 		_build_bosses_right_panel()
 	else:
@@ -1348,6 +1365,313 @@ func _build_enemy_effects_tab(vbox: VBoxContainer) -> void:
 	preview_btn.pressed.connect(_preview_explosion)
 	vbox.add_child(preview_btn)
 	ThemeManager.apply_button_style(preview_btn)
+
+
+# ── Ally panel ──────────────────────────────────────────────────
+
+const ALLY_SKIN_NAMES: Array[String] = ["CHROME", "GUNMETAL", "MILITIA", "STEALTH", "CAUTION", "PAINTED"]
+const ALLY_SKIN_KEYS: Array[String] = ["chrome", "gunmetal", "militia", "stealth", "caution", "painted"]
+
+# All paint pattern names (superset across ships — clipping handles per-ship fit)
+const PAINT_PATTERNS: Array[String] = [
+	"(none)", "CENTER STRIPE", "WIDE BAND", "TRIPLE LINE", "NOSE CAP", "TAIL BAND",
+	"THREE BANDS", "DIAG LEFT", "DIAG RIGHT", "CHEVRON", "WING CHECK", "WING TIPS",
+	"WEDGE", "STARBURST", "FULL NOSE", "FULL BELLY", "FULL STERN", "TOP HALF",
+	"BOTTOM HALF", "SLATS x6", "SLATS x10", "SLATS x16", "WIDE SLATS",
+	"CENTER SPINE", "PORT/STARBOARD", "TRIPLE STRIPE", "CHECKERBOARD", "CROSS",
+	"SIDE PANELS", "ARMOR PLATES",
+]
+
+const LIGHT_PATTERNS: Array[String] = [
+	"(none)", "TWIN RACING", "DOUBLE CHEVRON", "STACKED V", "TIGHT CHEVRONS",
+	"NAV LIGHTS", "WING TIPS", "RUNNING LIGHTS", "CORNER MARKS", "BRIDGE SPOTS",
+	"DOCKING LIGHTS", "SIGNAL ARRAY", "DECK LINES", "HULL GLOW", "PORT WINDOWS",
+	"CABIN LIGHTS", "WIDE RACING", "TRIPLE BAND", "QUAD STRIPES",
+]
+
+
+func _build_ally_right_panel() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.offset_left = 10
+	scroll.offset_right = -10
+	scroll.offset_top = 14
+	scroll.offset_bottom = -10
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_right_panel.add_child(scroll)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 5)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+
+	var header := Label.new()
+	header.text = "ALLY ATTRIBUTES"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(header)
+
+	if not _working_enemy:
+		var hint := Label.new()
+		hint.text = "Select an ally"
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		vbox.add_child(hint)
+		return
+
+	# Tab bar
+	var tab_row := HBoxContainer.new()
+	tab_row.add_theme_constant_override("separation", 6)
+	tab_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(tab_row)
+
+	var stats_btn := Button.new()
+	stats_btn.text = "STATS"
+	stats_btn.toggle_mode = true
+	stats_btn.button_pressed = (_ally_tab == "stats")
+	stats_btn.pressed.connect(func() -> void:
+		_ally_tab = "stats"
+		_rebuild_right_panel()
+	)
+	tab_row.add_child(stats_btn)
+	ThemeManager.apply_button_style(stats_btn)
+
+	var cosmetic_btn := Button.new()
+	cosmetic_btn.text = "COSMETIC"
+	cosmetic_btn.toggle_mode = true
+	cosmetic_btn.button_pressed = (_ally_tab == "cosmetic")
+	cosmetic_btn.pressed.connect(func() -> void:
+		_ally_tab = "cosmetic"
+		_rebuild_right_panel()
+	)
+	tab_row.add_child(cosmetic_btn)
+	ThemeManager.apply_button_style(cosmetic_btn)
+
+	_add_section_spacer(vbox)
+
+	if _ally_tab == "stats":
+		_build_ally_stats_tab(vbox)
+	else:
+		_build_ally_cosmetic_tab(vbox)
+
+	# Spacer + save
+	var spacer_bottom := Control.new()
+	spacer_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(spacer_bottom)
+
+	var save_btn := Button.new()
+	save_btn.text = "SAVE"
+	save_btn.pressed.connect(_save_enemy)
+	vbox.add_child(save_btn)
+	ThemeManager.apply_button_style(save_btn)
+
+	# Set slider values from working enemy
+	_updating_sliders = true
+	var direct_keys: Array[String] = ["collision_width", "collision_height"]
+	for key in _sliders:
+		var slider: HSlider = _sliders[key]
+		var val: float = 0.0
+		if key in direct_keys:
+			val = float(_working_enemy.get(key))
+		else:
+			val = float(_working_enemy.stats.get(key, slider.min_value))
+		slider.value = val
+		if slider.step < 0.1:
+			_slider_labels[key].text = "%.2f" % val
+		elif slider.step < 1.0:
+			_slider_labels[key].text = str(snapped(val, 0.1))
+		else:
+			_slider_labels[key].text = str(int(val))
+	_updating_sliders = false
+
+
+func _build_ally_stats_tab(vbox: VBoxContainer) -> void:
+	# Name
+	var name_hbox := HBoxContainer.new()
+	name_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(name_hbox)
+	var name_lbl := Label.new()
+	name_lbl.text = "NAME"
+	name_lbl.custom_minimum_size.x = 40
+	name_hbox.add_child(name_lbl)
+	var name_edit := LineEdit.new()
+	name_edit.text = _working_enemy.display_name
+	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_edit.text_changed.connect(_on_enemy_name_changed)
+	name_hbox.add_child(name_edit)
+
+	_add_section_spacer(vbox)
+
+	# Propulsion
+	var prop_label := Label.new()
+	prop_label.text = "PROPULSION"
+	prop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(prop_label)
+	_add_slider_row(vbox, "speed", "SPEED", 100, 600, 10)
+	_add_slider_row(vbox, "acceleration", "ACCEL", 200, 5000, 50)
+
+	_add_section_spacer(vbox)
+
+	# Bars
+	var bars_label := Label.new()
+	bars_label.text = "BAR SEGMENTS"
+	bars_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(bars_label)
+	_add_slider_row(vbox, "shield_segments", "SHD", 4, 25, 1)
+	_add_slider_row(vbox, "hull_segments", "HUL", 4, 25, 1)
+	_add_slider_row(vbox, "thermal_segments", "THR", 2, 25, 1)
+	_add_slider_row(vbox, "electric_segments", "ELC", 2, 25, 1)
+
+	_add_section_spacer(vbox)
+
+	# Health
+	var health_label := Label.new()
+	health_label.text = "HEALTH"
+	health_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(health_label)
+	_add_slider_row(vbox, "shield_hp", "SHD", 0, 400, 5)
+	_add_slider_row(vbox, "hull_hp", "HULL", 10, 1000, 5)
+
+	_add_section_spacer(vbox)
+
+	# Slots
+	var slots_label := Label.new()
+	slots_label.text = "SLOTS"
+	slots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(slots_label)
+	_add_slider_row(vbox, "weapon_slots", "WEAPONS", 1, 6, 1)
+	_add_slider_row(vbox, "core_slots", "CORES", 1, 3, 1)
+	_add_slider_row(vbox, "field_slots", "FIELDS", 0, 1, 1)
+
+	_add_section_spacer(vbox)
+
+	# Hitbox
+	_build_hitbox_section(vbox, _working_enemy)
+
+
+func _build_ally_cosmetic_tab(vbox: VBoxContainer) -> void:
+	# ── SKIN ──
+	var skin_label := Label.new()
+	skin_label.text = "SKIN"
+	skin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(skin_label)
+
+	_skin_dropdown = OptionButton.new()
+	_skin_dropdown.clip_text = true
+	for i in range(ALLY_SKIN_NAMES.size()):
+		_skin_dropdown.add_item(ALLY_SKIN_NAMES[i], i)
+	var ally_skin_idx: int = ALLY_SKIN_KEYS.find(_working_render_mode)
+	_skin_dropdown.selected = maxi(ally_skin_idx, 0)
+	_skin_dropdown.item_selected.connect(func(index: int) -> void:
+		if _updating_sliders:
+			return
+		_working_render_mode = ALLY_SKIN_KEYS[index] if index < ALLY_SKIN_KEYS.size() else "chrome"
+		if _working_enemy:
+			_working_enemy.render_mode = _working_render_mode
+		_apply_render_mode()
+	)
+	vbox.add_child(_skin_dropdown)
+	ThemeManager.apply_button_style(_skin_dropdown)
+
+	_add_section_spacer(vbox)
+
+	# ── PAINT ──
+	var paint_label := Label.new()
+	paint_label.text = "PAINT PATTERN"
+	paint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(paint_label)
+
+	var paint_dd := OptionButton.new()
+	paint_dd.clip_text = true
+	for i in range(PAINT_PATTERNS.size()):
+		paint_dd.add_item(PAINT_PATTERNS[i], i)
+	var paint_idx: int = PAINT_PATTERNS.find(_working_enemy.paint_pattern) if _working_enemy.paint_pattern != "" else 0
+	paint_dd.selected = maxi(paint_idx, 0)
+	paint_dd.item_selected.connect(func(index: int) -> void:
+		if _working_enemy:
+			_working_enemy.paint_pattern = PAINT_PATTERNS[index] if index > 0 else ""
+			_update_cosmetic_overlays()
+	)
+	vbox.add_child(paint_dd)
+	ThemeManager.apply_button_style(paint_dd)
+
+	# Paint color
+	var pc_hbox := HBoxContainer.new()
+	pc_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(pc_hbox)
+	var pc_lbl := Label.new()
+	pc_lbl.text = "COLOR"
+	pc_lbl.custom_minimum_size.x = 50
+	pc_hbox.add_child(pc_lbl)
+	var pc_btn := ColorPickerButton.new()
+	pc_btn.color = _working_enemy.paint_color
+	pc_btn.custom_minimum_size = Vector2(0, 28)
+	pc_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pc_btn.edit_alpha = true
+	pc_btn.color_changed.connect(func(c: Color) -> void:
+		if _working_enemy:
+			_working_enemy.paint_color = c
+			if _paint_overlay and is_instance_valid(_paint_overlay):
+				(_paint_overlay as _AllyPaintOverlay).paint_color = c
+				_paint_overlay.queue_redraw()
+	)
+	pc_hbox.add_child(pc_btn)
+	var pc_swatch := ColorRect.new()
+	pc_swatch.custom_minimum_size = Vector2(28, 28)
+	pc_swatch.color = _working_enemy.paint_color
+	pc_btn.color_changed.connect(func(c: Color) -> void:
+		pc_swatch.color = c
+	)
+	pc_hbox.add_child(pc_swatch)
+
+	_add_section_spacer(vbox)
+
+	# ── LIGHTNING ──
+	var light_label := Label.new()
+	light_label.text = "LIGHTNING PATTERN"
+	light_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(light_label)
+
+	var light_dd := OptionButton.new()
+	light_dd.clip_text = true
+	for i in range(LIGHT_PATTERNS.size()):
+		light_dd.add_item(LIGHT_PATTERNS[i], i)
+	var light_idx: int = LIGHT_PATTERNS.find(_working_enemy.light_pattern) if _working_enemy.light_pattern != "" else 0
+	light_dd.selected = maxi(light_idx, 0)
+	light_dd.item_selected.connect(func(index: int) -> void:
+		if _working_enemy:
+			_working_enemy.light_pattern = LIGHT_PATTERNS[index] if index > 0 else ""
+			_update_cosmetic_overlays()
+	)
+	vbox.add_child(light_dd)
+	ThemeManager.apply_button_style(light_dd)
+
+	# Lightning color
+	var lc_hbox := HBoxContainer.new()
+	lc_hbox.add_theme_constant_override("separation", 6)
+	vbox.add_child(lc_hbox)
+	var lc_lbl := Label.new()
+	lc_lbl.text = "COLOR"
+	lc_lbl.custom_minimum_size.x = 50
+	lc_hbox.add_child(lc_lbl)
+	var lc_btn := ColorPickerButton.new()
+	lc_btn.color = _working_enemy.light_color
+	lc_btn.custom_minimum_size = Vector2(0, 28)
+	lc_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lc_btn.edit_alpha = false
+	lc_btn.color_changed.connect(func(c: Color) -> void:
+		if _working_enemy:
+			_working_enemy.light_color = c
+			if _light_overlay and is_instance_valid(_light_overlay):
+				(_light_overlay as _AllyLightOverlay).light_color = c
+	)
+	lc_hbox.add_child(lc_btn)
+	var lc_swatch := ColorRect.new()
+	lc_swatch.custom_minimum_size = Vector2(28, 28)
+	lc_swatch.color = _working_enemy.light_color
+	lc_btn.color_changed.connect(func(c: Color) -> void:
+		lc_swatch.color = c
+	)
+	lc_hbox.add_child(lc_swatch)
 
 
 func _build_bosses_right_panel() -> void:
@@ -3456,3 +3780,332 @@ class _ShipSelector extends Node2D:
 			var text_width: float = font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x
 			var name_pos := Vector2((PANEL_WIDTH - text_width) * 0.5, slot_y + SLOT_HEIGHT - 10)
 			draw_string(font, name_pos, name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, label_col)
+
+
+# ── Cosmetic overlay management ────────────────────────────────────
+
+func _update_cosmetic_overlays() -> void:
+	_clear_cosmetic_overlays()
+	if _category != "ALLIES" or not _working_enemy:
+		return
+	var hull_data: Dictionary = _get_ally_hull_geometry(_working_enemy.visual_id)
+	if hull_data.is_empty():
+		return
+	var hull_poly: PackedVector2Array = hull_data.hull
+	var exclusions: Array[PackedVector2Array]
+	exclusions.assign(hull_data.exclusions)
+
+	# Paint overlay
+	if _working_enemy.paint_pattern != "":
+		var shapes: Array[PackedVector2Array] = _gen_cosmetic_shapes(_working_enemy.paint_pattern)
+		if shapes.size() > 0:
+			_paint_overlay = _AllyPaintOverlay.new()
+			(_paint_overlay as _AllyPaintOverlay).hull_poly = hull_poly
+			(_paint_overlay as _AllyPaintOverlay).exclusion_polys = exclusions
+			(_paint_overlay as _AllyPaintOverlay).paint_shapes = shapes
+			(_paint_overlay as _AllyPaintOverlay).paint_color = _working_enemy.paint_color
+			_paint_overlay.z_index = 2
+			_ship_viewport.add_child(_paint_overlay)
+
+	# Light overlay
+	if _working_enemy.light_pattern != "":
+		var shapes: Array[PackedVector2Array] = _gen_cosmetic_shapes(_working_enemy.light_pattern)
+		if shapes.size() > 0:
+			_light_overlay = _AllyLightOverlay.new()
+			(_light_overlay as _AllyLightOverlay).hull_poly = hull_poly
+			(_light_overlay as _AllyLightOverlay).exclusion_polys = exclusions
+			(_light_overlay as _AllyLightOverlay).light_shapes = shapes
+			(_light_overlay as _AllyLightOverlay).light_color = _working_enemy.light_color
+			_light_overlay.z_index = 3
+			_ship_viewport.add_child(_light_overlay)
+
+
+func _clear_cosmetic_overlays() -> void:
+	if _paint_overlay and is_instance_valid(_paint_overlay):
+		_paint_overlay.queue_free()
+		_paint_overlay = null
+	if _light_overlay and is_instance_valid(_light_overlay):
+		_light_overlay.queue_free()
+		_light_overlay = null
+
+
+func _get_ally_hull_geometry(vid: String) -> Dictionary:
+	match vid:
+		"dreadnought": return _cargo_hull_geometry()
+		_: return {}
+
+
+func _cargo_hull_geometry() -> Dictionary:
+	var s := 1.9
+	var hull := PackedVector2Array([
+		Vector2(-4 * s, -48 * s), Vector2(4 * s, -48 * s),
+		Vector2(16 * s, -40 * s), Vector2(20 * s, -26 * s),
+		Vector2(20 * s, 26 * s), Vector2(18 * s, 36 * s),
+		Vector2(16 * s, 42 * s), Vector2(-16 * s, 42 * s),
+		Vector2(-18 * s, 36 * s), Vector2(-20 * s, 26 * s),
+		Vector2(-20 * s, -26 * s), Vector2(-16 * s, -40 * s),
+	])
+	var exclusions: Array[PackedVector2Array] = []
+	exclusions.append(PackedVector2Array([
+		Vector2(-8 * s, -42 * s), Vector2(8 * s, -42 * s),
+		Vector2(10 * s, -32 * s), Vector2(-10 * s, -32 * s),
+	]))
+	exclusions.append(_cosmetic_thick_line(Vector2(0, -30 * s), Vector2(0, 38 * s), 2.5 * s))
+	for y in [-20, -10, 0, 12, 24, 34]:
+		exclusions.append(_cosmetic_thick_line(Vector2(-18 * s, y * s), Vector2(18 * s, y * s), 1.5 * s))
+	exclusions.append(PackedVector2Array([
+		Vector2(20 * s, -8 * s), Vector2(26 * s, -6 * s),
+		Vector2(26 * s, 8 * s), Vector2(20 * s, 10 * s),
+	]))
+	exclusions.append(PackedVector2Array([
+		Vector2(-20 * s, -8 * s), Vector2(-26 * s, -6 * s),
+		Vector2(-26 * s, 8 * s), Vector2(-20 * s, 10 * s),
+	]))
+	for ex in [-14, -10, -6, -2, 2, 6, 10, 14]:
+		exclusions.append(_cosmetic_thick_line(Vector2(ex * s, 40 * s), Vector2(ex * s, 48 * s), 2.0 * s))
+	return {hull = hull, exclusions = exclusions}
+
+
+func _cosmetic_thick_line(a: Vector2, b: Vector2, hw: float) -> PackedVector2Array:
+	var dir := (b - a).normalized()
+	var n := Vector2(-dir.y, dir.x)
+	return PackedVector2Array([a + n * hw, b + n * hw, b - n * hw, a - n * hw])
+
+
+func _cosmetic_rect(x1: float, y1: float, x2: float, y2: float) -> PackedVector2Array:
+	return PackedVector2Array([Vector2(x1, y1), Vector2(x2, y1), Vector2(x2, y2), Vector2(x1, y2)])
+
+
+func _cosmetic_rotated_rect(cx: float, cy: float, hw: float, hh: float, angle: float) -> PackedVector2Array:
+	var ca := cos(angle)
+	var sa := sin(angle)
+	var pts := PackedVector2Array()
+	for c in [Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, hh), Vector2(-hw, hh)]:
+		pts.append(Vector2(cx + c.x * ca - c.y * sa, cy + c.x * sa + c.y * ca))
+	return pts
+
+
+func _gen_cosmetic_shapes(pattern_name: String) -> Array[PackedVector2Array]:
+	var shapes: Array[PackedVector2Array] = []
+	match pattern_name:
+		"CENTER STRIPE": shapes.append(_cosmetic_rect(-3, -100, 3, 100))
+		"WIDE BAND": shapes.append(_cosmetic_rect(-9, -100, 9, 100))
+		"TRIPLE LINE":
+			for x in [-14, 0, 14]:
+				shapes.append(_cosmetic_rect(x - 1.5, -100, x + 1.5, 100))
+		"NOSE CAP": shapes.append(_cosmetic_rect(-100, -50, 100, -20))
+		"TAIL BAND": shapes.append(_cosmetic_rect(-100, 15, 100, 35))
+		"THREE BANDS":
+			for b in [[-45, -32], [-6, 6], [20, 32]]:
+				shapes.append(_cosmetic_rect(-100, b[0], 100, b[1]))
+		"DIAG LEFT": shapes.append(_cosmetic_rotated_rect(0, 0, 13, 100, -0.4))
+		"DIAG RIGHT": shapes.append(_cosmetic_rotated_rect(0, 0, 13, 100, 0.4))
+		"CHEVRON":
+			shapes.append(_cosmetic_thick_line(Vector2(0, -20), Vector2(-38, -20 + 38 * 0.6), 4))
+			shapes.append(_cosmetic_thick_line(Vector2(0, -20), Vector2(38, -20 + 38 * 0.6), 4))
+		"WING CHECK":
+			var sz := 6.0
+			var wing_left := _cosmetic_rect(-100, -100, -10, 100)
+			var wing_right := _cosmetic_rect(10, -100, 100, 100)
+			for ix in range(-10, 11):
+				for iy in range(-12, 12):
+					if (ix + iy) % 2 == 0:
+						var tile := _cosmetic_rect(ix * sz, iy * sz, (ix + 1) * sz, (iy + 1) * sz)
+						for lp in Geometry2D.intersect_polygons(tile, wing_left):
+							shapes.append(lp)
+						for rp in Geometry2D.intersect_polygons(tile, wing_right):
+							shapes.append(rp)
+		"WING TIPS":
+			shapes.append(_cosmetic_rect(-100, -100, -15, 100))
+			shapes.append(_cosmetic_rect(15, -100, 100, 100))
+		"WEDGE":
+			shapes.append(PackedVector2Array([
+				Vector2(-35, -50), Vector2(35, -50), Vector2(6, 0), Vector2(-6, 0)]))
+		"STARBURST":
+			for i in range(8):
+				var a: float = float(i) / 8.0 * TAU
+				shapes.append(_cosmetic_thick_line(Vector2.ZERO, Vector2(cos(a) * 60, sin(a) * 60), 2.0))
+		"FULL NOSE": shapes.append(_cosmetic_rect(-100, -91, 100, -50))
+		"FULL BELLY": shapes.append(_cosmetic_rect(-100, -19, 100, 27))
+		"FULL STERN": shapes.append(_cosmetic_rect(-100, 46, 100, 80))
+		"TOP HALF": shapes.append(_cosmetic_rect(-100, -100, 100, -8))
+		"BOTTOM HALF": shapes.append(_cosmetic_rect(-100, -8, 100, 100))
+		"SLATS x6":
+			for i in range(6):
+				var y: float = lerpf(-80, 70, float(i) / 5.0)
+				shapes.append(_cosmetic_rect(-100, y - 3, 100, y + 3))
+		"SLATS x10":
+			for i in range(10):
+				var y: float = lerpf(-85, 76, float(i) / 9.0)
+				shapes.append(_cosmetic_rect(-100, y - 2, 100, y + 2))
+		"SLATS x16":
+			for i in range(16):
+				var y: float = lerpf(-85, 76, float(i) / 15.0)
+				shapes.append(_cosmetic_rect(-100, y - 1.5, 100, y + 1.5))
+		"WIDE SLATS":
+			for i in range(4):
+				var y: float = lerpf(-70, 60, float(i) / 3.0)
+				shapes.append(_cosmetic_rect(-100, y - 6, 100, y + 6))
+		"CENTER SPINE": shapes.append(_cosmetic_rect(-8, -100, 8, 100))
+		"PORT/STARBOARD":
+			shapes.append(_cosmetic_rect(-32, -100, -22, 100))
+			shapes.append(_cosmetic_rect(22, -100, 32, 100))
+		"TRIPLE STRIPE":
+			for x in [-24, 0, 24]:
+				shapes.append(_cosmetic_rect(x - 3, -100, x + 3, 100))
+		"CHECKERBOARD":
+			var sz := 13.0
+			for ix in range(-10, 11):
+				for iy in range(-10, 11):
+					if (ix + iy) % 2 == 0:
+						shapes.append(_cosmetic_rect(ix * sz, iy * sz, (ix + 1) * sz, (iy + 1) * sz))
+		"CROSS":
+			shapes.append(_cosmetic_rect(-7, -100, 7, 100))
+			shapes.append(_cosmetic_rect(-100, -7, 100, 7))
+		"SIDE PANELS":
+			shapes.append(_cosmetic_rect(-100, -100, -4, 100))
+			shapes.append(_cosmetic_rect(4, -100, 100, 100))
+		"ARMOR PLATES":
+			for i in range(6):
+				var y: float = -30 + float(i) * 12
+				shapes.append(_cosmetic_rect(-100, y - 1.5, 100, y + 1.5))
+		"TWIN RACING":
+			shapes.append(_cosmetic_rect(-10, -100, -6, 100))
+			shapes.append(_cosmetic_rect(6, -100, 10, 100))
+		"DOUBLE CHEVRON":
+			for yc in [-15, 8]:
+				shapes.append(_cosmetic_thick_line(Vector2(0, yc), Vector2(-26, yc + 26 * 0.6), 2))
+				shapes.append(_cosmetic_thick_line(Vector2(0, yc), Vector2(26, yc + 26 * 0.6), 2))
+		"STACKED V":
+			for yc in [-28, -14, 0, 14]:
+				shapes.append(_cosmetic_thick_line(Vector2(0, yc), Vector2(-20, yc + 20 * 0.6), 1.5))
+				shapes.append(_cosmetic_thick_line(Vector2(0, yc), Vector2(20, yc + 20 * 0.6), 1.5))
+		"TIGHT CHEVRONS":
+			for yc in [-20, -10, 0, 10, 20]:
+				shapes.append(_cosmetic_thick_line(Vector2(0, yc), Vector2(-16, yc + 16 * 0.6), 1))
+				shapes.append(_cosmetic_thick_line(Vector2(0, yc), Vector2(16, yc + 16 * 0.6), 1))
+		"NAV LIGHTS":
+			for yv in [-57, -19, 19, 57]:
+				shapes.append(_cosmetic_rect(-38.5, yv - 3.5, -31.5, yv + 3.5))
+				shapes.append(_cosmetic_rect(31.5, yv - 3.5, 38.5, yv + 3.5))
+		"RUNNING LIGHTS":
+			for yv in [-68, -46, -23, 0, 23, 46, 68]:
+				shapes.append(_cosmetic_rect(-37.5, yv - 2.5, -32.5, yv + 2.5))
+				shapes.append(_cosmetic_rect(32.5, yv - 2.5, 37.5, yv + 2.5))
+		"CORNER MARKS":
+			for corner in [[-30, -76, -1, -1], [30, -76, 1, -1], [-30, 72, -1, 1], [30, 72, 1, 1]]:
+				var cx: float = corner[0]
+				var cy: float = corner[1]
+				var sx: float = corner[2]
+				var sy: float = corner[3]
+				shapes.append(_cosmetic_rect(cx, cy, cx + sx * 14, cy + 3.5 * sy))
+				shapes.append(_cosmetic_rect(cx, cy, cx + 3.5 * sx, cy + sy * 14))
+		"BRIDGE SPOTS":
+			for pos in [[-23, -72], [23, -72], [0, -84]]:
+				shapes.append(_cosmetic_rect(pos[0] - 3.5, pos[1] - 3.5, pos[0] + 3.5, pos[1] + 3.5))
+		"DOCKING LIGHTS":
+			for pos in [[-35, -38], [35, -38], [-35, 38], [35, 38], [-35, 0], [35, 0]]:
+				shapes.append(_cosmetic_rect(pos[0] - 4, pos[1] - 4, pos[0] + 4, pos[1] + 4))
+		"SIGNAL ARRAY":
+			for pos in [[0, -84], [-35, -57], [35, -57], [-35, 0], [35, 0], [-35, 57], [35, 57], [0, 76]]:
+				shapes.append(_cosmetic_rect(pos[0] - 2.5, pos[1] - 2.5, pos[0] + 2.5, pos[1] + 2.5))
+		"DECK LINES":
+			for b in [[-53, -49], [-8, -4], [42, 46]]:
+				shapes.append(_cosmetic_rect(-100, b[0], 100, b[1]))
+		"HULL GLOW":
+			for b in [[-84, -80], [-38, -34], [4, 8], [46, 50], [72, 76]]:
+				shapes.append(_cosmetic_rect(-100, b[0], 100, b[1]))
+		"PORT WINDOWS":
+			for row_y in [-30, -8, 15, 38]:
+				var hw := 1.75
+				var total_w: float = 3.0 * 13.0
+				var start_x: float = -total_w * 0.5
+				for i in range(4):
+					var cx: float = start_x + float(i) * 13.0
+					shapes.append(_cosmetic_rect(cx - hw, row_y - hw, cx + hw, row_y + hw))
+		"CABIN LIGHTS":
+			for row_y in [-42, -19, 4, 27, 49]:
+				var hw := 1.25
+				var total_w: float = 4.0 * 11.0
+				var start_x: float = -total_w * 0.5
+				for i in range(5):
+					var cx: float = start_x + float(i) * 11.0
+					shapes.append(_cosmetic_rect(cx - hw, row_y - hw, cx + hw, row_y + hw))
+		"WIDE RACING":
+			shapes.append(_cosmetic_rect(-15, -100, -9, 100))
+			shapes.append(_cosmetic_rect(9, -100, 15, 100))
+		"TRIPLE BAND":
+			for b in [[-35, -30], [-3, 3], [28, 33]]:
+				shapes.append(_cosmetic_rect(-100, b[0], 100, b[1]))
+		"QUAD STRIPES":
+			for x in [-15, -5, 5, 15]:
+				shapes.append(_cosmetic_rect(x - 1.25, -100, x + 1.25, 100))
+	return shapes
+
+
+class _AllyPaintOverlay extends Node2D:
+	var hull_poly: PackedVector2Array
+	var exclusion_polys: Array[PackedVector2Array] = []
+	var paint_shapes: Array[PackedVector2Array] = []
+	var paint_color: Color = Color(0.85, 0.08, 0.08, 0.92)
+
+	func _draw() -> void:
+		for shape in paint_shapes:
+			var current: Array[PackedVector2Array] = []
+			var hull_clipped := Geometry2D.intersect_polygons(shape, hull_poly)
+			for hp in hull_clipped:
+				current.append(hp)
+			for excl in exclusion_polys:
+				var next_arr: Array[PackedVector2Array] = []
+				for poly in current:
+					var clipped := Geometry2D.clip_polygons(poly, excl)
+					for cp in clipped:
+						next_arr.append(cp)
+				current = next_arr
+			for fpoly in current:
+				draw_colored_polygon(fpoly, paint_color)
+
+
+class _AllyLightOverlay extends Node2D:
+	var hull_poly: PackedVector2Array
+	var exclusion_polys: Array[PackedVector2Array] = []
+	var light_shapes: Array[PackedVector2Array] = []
+	var light_color: Color = Color(1.0, 0.85, 0.12)
+	var _time: float = 0.0
+	var _clipped_polys: Array[PackedVector2Array] = []
+
+	const PULSE_PERIOD: float = 1.8
+	const HDR_MULT: float = 2.5
+	const VENT_COLOR := Color(0.02, 0.02, 0.03, 1.0)
+
+	func _ready() -> void:
+		for shape in light_shapes:
+			var current: Array[PackedVector2Array] = []
+			var hull_clipped := Geometry2D.intersect_polygons(shape, hull_poly)
+			for hp in hull_clipped:
+				current.append(hp)
+			for excl in exclusion_polys:
+				var next_arr: Array[PackedVector2Array] = []
+				for poly in current:
+					var clipped := Geometry2D.clip_polygons(poly, excl)
+					for cp in clipped:
+						next_arr.append(cp)
+				current = next_arr
+			for fpoly in current:
+				_clipped_polys.append(fpoly)
+
+	func _process(delta: float) -> void:
+		_time += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		for poly in _clipped_polys:
+			draw_colored_polygon(poly, VENT_COLOR)
+		var phase: float = fmod(_time, PULSE_PERIOD) / PULSE_PERIOD
+		var intensity: float = (sin(phase * TAU - PI * 0.5) + 1.0) * 0.5
+		if intensity < 0.01:
+			return
+		var hdr: float = intensity * HDR_MULT
+		var col := Color(light_color.r * hdr, light_color.g * hdr, light_color.b * hdr, intensity * 0.95)
+		for poly in _clipped_polys:
+			draw_colored_polygon(poly, col)

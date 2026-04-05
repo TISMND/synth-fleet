@@ -1,17 +1,44 @@
 {
 	"collision_height": 180.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "capsule",
 	"collision_width": 90.0,
 	"display_name": "Cargo Ship",
-	"type": "ally",
-	"hull_blink_speed": 6.0,
-	"hull_flash_duration": 0.12,
-	"hull_flash_opacity": 0.5,
+	"enable_screen_shake": false,
+	"explosion_color": [
+		1.0,
+		0.300000011920929,
+		0.5,
+		1.0
+	],
+	"explosion_size": 1.0,
+	"grid_size": [
+		64,
+		64
+	],
+	"hardpoints": [],
 	"id": "cargo_ship",
-	"visual_id": "dreadnought",
-	"render_mode": "chrome",
-	"grid_size": [64, 64],
-	"shield_style_id": "",
+	"level": "misc",
+	"light_color": [
+		1.48471105098724,
+		0.0,
+		0.0,
+		1.0
+	],
+	"light_pattern": "RUNNING LIGHTS",
+	"lines": [],
+	"neon_hdr": 1.0,
+	"neon_white": 0.0,
+	"neon_width": 1.0,
+	"paint_color": [
+		1.0,
+		0.470588237047195,
+		0.0,
+		0.450980395078659
+	],
+	"paint_pattern": "WIDE SLATS",
+	"render_mode": "stealth",
 	"stats": {
 		"acceleration": 900.0,
 		"collision_height": 180.0,
@@ -32,5 +59,8 @@
 		"thermal_hp": 60.0,
 		"thermal_segments": 11.0,
 		"weapon_slots": 3.0
-	}
+	},
+	"type": "ally",
+	"visual_id": "dreadnought",
+	"weapon_id": ""
 }

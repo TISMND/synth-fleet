@@ -44,6 +44,12 @@ const DEFAULT_HP: Dictionary = {
 @export var neon_white: float = 0.0       # White-hot core (0=pure color, 1=white core)
 @export var neon_width: float = 1.0       # Line width multiplier
 
+# Cosmetic overlays (ally/player ships)
+@export var paint_pattern: String = ""            # Paint pattern name (e.g. "CENTER STRIPE")
+@export var paint_color: Color = Color(0.85, 0.08, 0.08, 0.92)  # Paint overlay color
+@export var light_pattern: String = ""            # Lightning pattern name (e.g. "TWIN RACING")
+@export var light_color: Color = Color(1.0, 0.85, 0.12)         # Lightning glow color
+
 # Hit effects (shared by player and enemy ships)
 @export var shield_style_id: String = ""         # Field style for shield hit visual (e.g. "blue_ripple")
 @export var hull_flash_opacity: float = 0.5      # White blink overlay opacity (0.0–1.0)
@@ -97,6 +103,17 @@ static func from_dict(data: Dictionary) -> ShipData:
 	s.neon_white = float(data.get("neon_white", 0.0))
 	s.neon_width = float(data.get("neon_width", 1.0))
 	s.hardpoint_offsets = data.get("hardpoint_offsets", [])
+	# Cosmetic overlays
+	s.paint_pattern = data.get("paint_pattern", "")
+	var pc: Array = data.get("paint_color", [0.85, 0.08, 0.08, 0.92])
+	if pc.size() >= 3:
+		var pca: float = float(pc[3]) if pc.size() >= 4 else 0.92
+		s.paint_color = Color(float(pc[0]), float(pc[1]), float(pc[2]), pca)
+	s.light_pattern = data.get("light_pattern", "")
+	var lc: Array = data.get("light_color", [1.0, 0.85, 0.12, 1.0])
+	if lc.size() >= 3:
+		var lca: float = float(lc[3]) if lc.size() >= 4 else 1.0
+		s.light_color = Color(float(lc[0]), float(lc[1]), float(lc[2]), lca)
 	# Hit effects
 	s.shield_style_id = str(data.get("shield_style_id", ""))
 	s.hull_flash_opacity = float(data.get("hull_flash_opacity", 0.5))
@@ -124,7 +141,7 @@ func to_dict() -> Dictionary:
 		"hardpoints": hardpoints,
 		"stats": stats,
 	}
-	if type == "enemy":
+	if type == "enemy" or type == "ally":
 		d["visual_id"] = visual_id
 		d["weapon_id"] = weapon_id
 		d["explosion_color"] = [explosion_color.r, explosion_color.g, explosion_color.b, explosion_color.a]
@@ -135,6 +152,11 @@ func to_dict() -> Dictionary:
 		d["neon_width"] = neon_width
 		if hardpoint_offsets.size() > 0:
 			d["hardpoint_offsets"] = hardpoint_offsets
+	if type == "ally" or type == "player":
+		d["paint_pattern"] = paint_pattern
+		d["paint_color"] = [paint_color.r, paint_color.g, paint_color.b, paint_color.a]
+		d["light_pattern"] = light_pattern
+		d["light_color"] = [light_color.r, light_color.g, light_color.b, light_color.a]
 	# Level assignment (saved for all ship types)
 	d["level"] = level
 	# Collision hitbox (saved for all ship types)

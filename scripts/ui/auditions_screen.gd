@@ -56,6 +56,7 @@ func _build_ui() -> void:
 		["SHADER BGS", "res://scripts/ui/shader_bg_auditions.gd"],
 		["DESTINATIONS", "res://scripts/ui/destinations_auditions.gd"],
 		["VERSE SELECT", "res://scripts/ui/verse_select_auditions.gd"],
+		["HANGAR BAY", "res://scripts/ui/hangar_bay_auditions.gd"],
 	]
 
 	for i in tabs.size():

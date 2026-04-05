@@ -548,8 +548,8 @@ func _on_back() -> void:
 		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 
-func _on_change_ship() -> void:
-	pass
+func _on_hangar() -> void:
+	get_tree().change_scene_to_file("res://scenes/ui/hangar_bay_screen.tscn")
 
 
 func _on_loadout() -> void:
@@ -609,13 +609,21 @@ func _connect_buttons() -> void:
 
 	_ready_btn.pressed.connect(_on_ready_pressed)
 	back.pressed.connect(_on_back)
-	btns.get_node("ChangeShipButton").pressed.connect(_on_change_ship)
 	btns.get_node("LoadoutButton").pressed.connect(_on_loadout)
+	btns.get_node("HangarButton").pressed.connect(_on_hangar)
 	btns.get_node("CrewButton").pressed.connect(_on_crew)
 	btns.get_node("AudioMixButton").pressed.connect(_on_audio_mix)
 
 	# The LaunchButton in the tscn is unused now — hide it
 	btns.get_node("LaunchButton").visible = false
+
+	# Track which buttons hide in mission mode
+	_verse_buttons = [
+		btns.get_node("LoadoutButton") as Button,
+		btns.get_node("HangarButton") as Button,
+		btns.get_node("AudioMixButton") as Button,
+		btns.get_node("CrewButton") as Button,
+	]
 
 
 func _apply_styles() -> void:
