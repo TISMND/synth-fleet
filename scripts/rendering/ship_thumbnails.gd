@@ -73,6 +73,7 @@ static func draw_enemy_on(ci: CanvasItem, visual_id: String, at_origin: Vector2,
 		"nautilus": ctx.draw_nautilus(o)
 		"behemoth": ctx.draw_behemoth(o)
 		"mycelia": ctx.draw_mycelia(o)
+		"dreadnought": ctx.draw_dreadnought(o)
 		_: ctx.draw_sentinel(o)
 
 ## Draw a sentinel enemy thumbnail on any CanvasItem.

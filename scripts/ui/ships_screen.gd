@@ -196,7 +196,7 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
-	if _category == "ENEMIES":
+	if _category == "ENEMIES" or _category == "ALLIES":
 		_process_enemy(delta)
 		return
 	if _category == "BOSSES":
@@ -351,6 +351,9 @@ func _input(event: InputEvent) -> void:
 				elif _category == "ENEMIES":
 					if slot >= 0 and slot < _filtered_enemy_ships.size():
 						_select_enemy(slot)
+				elif _category == "ALLIES":
+					if slot >= 0 and slot < _filtered_enemy_ships.size():
+						_select_enemy(slot)
 				elif _category == "BOSSES":
 					if slot >= 0 and slot < _filtered_boss_list.size():
 						_select_boss(slot)
@@ -434,7 +437,7 @@ func _apply_render_mode() -> void:
 	_ship_draw.render_mode = mode
 	_ship_selector.render_mode = mode
 	# Apply per-ship neon parameters and bake mode for enemies
-	if _category == "ENEMIES" and _working_enemy:
+	if (_category == "ENEMIES" or _category == "ALLIES") and _working_enemy:
 		_ship_draw.neon_hdr = _working_enemy.neon_hdr
 		_ship_draw.neon_white = _working_enemy.neon_white
 		_ship_draw.neon_width = _working_enemy.neon_width
@@ -2628,7 +2631,7 @@ func _on_hitbox_shape_changed(index: int) -> void:
 	match index:
 		1: shape_name = "rectangle"
 		2: shape_name = "capsule"
-	if _category == "ENEMIES" and _working_enemy:
+	if (_category == "ENEMIES" or _category == "ALLIES") and _working_enemy:
 		_working_enemy.collision_shape = shape_name
 	elif _category == "PLAYER":
 		_working_stats["collision_shape"] = shape_name
@@ -2684,7 +2687,7 @@ func _on_attr_changed(value: float, key: String) -> void:
 	else:
 		_slider_labels[key].text = str(int(value))
 
-	if _category == "ENEMIES" and _working_enemy:
+	if (_category == "ENEMIES" or _category == "ALLIES") and _working_enemy:
 		if key == "explosion_size":
 			_working_enemy.explosion_size = value
 		elif key == "collision_width":
@@ -2729,7 +2732,7 @@ func _on_skin_changed(index: int) -> void:
 	if _updating_sliders:
 		return
 	_working_render_mode = SKIN_KEYS[index] if index < SKIN_KEYS.size() else "chrome"
-	if _category == "ENEMIES" and _working_enemy:
+	if (_category == "ENEMIES" or _category == "ALLIES") and _working_enemy:
 		_working_enemy.render_mode = _working_render_mode
 	_apply_render_mode()
 
