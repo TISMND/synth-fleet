@@ -8,9 +8,11 @@ var _vhs_overlay: ColorRect
 var _hangar_drawing: Control
 var _ship_renderers: Array[ShipRenderer] = []
 var _player_ship_renderer: ShipRenderer
-var _bay_click_buttons: Array[Button] = []
+var _header_ship_renderer: ShipRenderer
+var _header_preview_area: Control
 var _plus_overlay: Control
 var _plus_pulse_time: float = 0.0
+var _name_edit: LineEdit
 
 # ── Layout constants ──
 const PLAYER_COLS: int = 4
@@ -36,12 +38,17 @@ const GRID_SPACING: float = 40.0
 const DIVIDER_COLOR := Color(0.2, 0.4, 0.8, 0.25)
 const ACTIVE_FILL := Color(0.18, 0.16, 0.04, 0.55)  # warm yellow-tinted fill for the active ship
 const ACTIVE_BORDER := Color(1.0, 0.85, 0.15, 0.95)  # yellow
-const SELECTED_LINE_COLOR := Color(1.0, 0.4, 0.75, 0.8)  # hot pink connector from pane → selected ship
 const PLUS_BRIGHT := Color(0.55, 0.85, 1.0, 1.0)  # bright blue for pulsing plus marker
+const PUBLIC_PROFILE_COLOR := Color(0.55, 0.85, 1.0, 0.9)  # cyan-blue badge
+const PUBLIC_PROFILE_BAY := 1  # which bay holds the ship on the public profile (placeholder)
+
+# Ship class labels (by ship_id)
+const SHIP_CLASSES: Array[String] = [
+	"INTERCEPTOR", "STEALTH", "GUARDIAN", "ASSAULT", "ALL-ROUNDER",
+	"MULTIROLE", "EXOTIC", "CAPITAL", "FORTRESS",
+]
 
 var _right_panel: MarginContainer
-var _selector_overlay: Control
-var _selected_bay: int = 0  # 0 = active player ship by default
 
 # ── Upgrade tabs ──
 const TAB_NAMES := ["SUBSYSTEMS", "AUGMENTS", "VANITY"]
@@ -119,6 +126,9 @@ func _process(delta: float) -> void:
 	for r in _ship_renderers:
 		r.time += delta
 		r.queue_redraw()
+	if _header_ship_renderer:
+		_header_ship_renderer.time += delta
+		_header_ship_renderer.queue_redraw()
 	_plus_pulse_time += delta
 	if _plus_overlay:
 		_plus_overlay.queue_redraw()
@@ -155,10 +165,7 @@ func _build_layout() -> void:
 	_right_panel = right_panel
 	_build_right_panel(right_panel)
 
-	# Selector line overlay on top
-	_build_selector_overlay()
-
-	# Reposition ships/buttons/drawing when the window resizes
+	# Reposition ships/drawing when the window resizes
 	resized.connect(_on_resized)
 	call_deferred("_on_resized")
 
@@ -167,8 +174,64 @@ func _on_resized() -> void:
 	_layout_ships()
 	if _hangar_drawing:
 		_hangar_drawing.queue_redraw()
-	if _selector_overlay:
-		_selector_overlay.queue_redraw()
+
+
+func _get_active_ship_class() -> String:
+	var idx: int = GameState.current_ship_index
+	if idx >= 0 and idx < SHIP_CLASSES.size():
+		return SHIP_CLASSES[idx]
+	return ""
+
+
+func _get_active_ship_custom_name() -> String:
+	var key: String = str(GameState.current_ship_index)
+	return str(GameState.custom_ship_names.get(key, ShipRegistry.get_ship_name(GameState.current_ship_index)))
+
+
+func _on_ship_name_changed(new_text: String) -> void:
+	var key: String = str(GameState.current_ship_index)
+	GameState.custom_ship_names[key] = new_text
+	GameState.save_game()
+
+
+func _build_ship_header(parent: VBoxContainer) -> void:
+	# Ship preview area — fixed-size Control so the Node2D ship renderer can be centered
+	_header_preview_area = Control.new()
+	_header_preview_area.custom_minimum_size = Vector2(0, 120)
+	_header_preview_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_header_preview_area.clip_contents = true
+	parent.add_child(_header_preview_area)
+
+	_header_ship_renderer = ShipRenderer.new()
+	_header_ship_renderer.ship_id = GameState.current_ship_index
+	_header_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	_header_ship_renderer.animate = true
+	_header_preview_area.add_child(_header_ship_renderer)
+	_header_preview_area.resized.connect(_layout_header_ship)
+	call_deferred("_layout_header_ship")
+
+	# Editable name
+	_name_edit = LineEdit.new()
+	_name_edit.text = _get_active_ship_custom_name()
+	_name_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_name_edit.add_theme_font_size_override("font_size", 22)
+	_name_edit.add_theme_color_override("font_color", ThemeManager.get_color("header"))
+	_name_edit.text_changed.connect(_on_ship_name_changed)
+	parent.add_child(_name_edit)
+
+	# Class subtext
+	var class_lbl := Label.new()
+	class_lbl.text = _get_active_ship_class()
+	class_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	class_lbl.add_theme_font_size_override("font_size", 12)
+	class_lbl.add_theme_color_override("font_color", Color(ThemeManager.get_color("accent").r, ThemeManager.get_color("accent").g, ThemeManager.get_color("accent").b, 0.7))
+	parent.add_child(class_lbl)
+
+
+func _layout_header_ship() -> void:
+	if _header_ship_renderer and _header_preview_area:
+		_header_ship_renderer.position = _header_preview_area.size * 0.5
 
 
 func _build_right_panel(parent: MarginContainer) -> void:
@@ -177,6 +240,8 @@ func _build_right_panel(parent: MarginContainer) -> void:
 	col.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", 12)
 	parent.add_child(col)
+
+	_build_ship_header(col)
 
 	# Tab bar
 	var tab_bar := HBoxContainer.new()
@@ -650,12 +715,16 @@ func _on_vanity_change(cat_id: String, delta: int) -> void:
 	var new_idx: int = (current + delta + options.size()) % options.size()
 	_vanity_selections[cat_id] = new_idx
 
-	# Skin changes update the hangar ship on the left
-	if cat_id == "skin" and _player_ship_renderer:
+	# Skin changes update the hangar ship on the left and the header preview
+	if cat_id == "skin":
 		var skin_name: String = str(options[new_idx])
 		var mode: int = SKIN_RENDER_MODES.get(skin_name, 0)
-		_player_ship_renderer.render_mode = mode
-		_player_ship_renderer.queue_redraw()
+		if _player_ship_renderer:
+			_player_ship_renderer.render_mode = mode
+			_player_ship_renderer.queue_redraw()
+		if _header_ship_renderer:
+			_header_ship_renderer.render_mode = mode
+			_header_ship_renderer.queue_redraw()
 
 	_update_vanity_display()
 
@@ -722,26 +791,22 @@ func _get_divider_y() -> float:
 # ── Place ships ──
 
 func _place_ships() -> void:
-	# Player's current ship in bay 01 (always the ACTIVE one)
+	# Player's current ship in bay 01 (always the ACTIVE one). Scale matches in-game.
 	var ship := ShipRenderer.new()
 	ship.ship_id = GameState.current_ship_index
 	ship.render_mode = ShipRenderer.RenderMode.CHROME
 	ship.animate = true
-	ship.scale = Vector2(0.7, 0.7)
 	add_child(ship)
 	_ship_renderers.append(ship)
 	_player_ship_renderer = ship
-	_add_bay_click_area(Vector2.ZERO, SPOT_H, 0)  # positions set by _layout_ships
 
 	# Switchblade placeholder in bay 02 (visualization aid)
 	var switchblade := ShipRenderer.new()
 	switchblade.ship_id = 0  # Switchblade
 	switchblade.render_mode = ShipRenderer.RenderMode.CHROME
 	switchblade.animate = true
-	switchblade.scale = Vector2(0.7, 0.7)
 	add_child(switchblade)
 	_ship_renderers.append(switchblade)
-	_add_bay_click_area(Vector2.ZERO, SPOT_H, 1)
 
 	# Plus marker on bay 03 (ship store) — pulses softly
 	_plus_overlay = Control.new()
@@ -762,80 +827,11 @@ func _place_ships() -> void:
 
 
 func _layout_ships() -> void:
-	if _ship_renderers.size() < 2 or _bay_click_buttons.size() < 2:
+	if _ship_renderers.size() < 2:
 		return
 	var player_spots: Array[Vector2] = _get_player_spots()
-
-	# Position the active ship (bay 0) and switchblade (bay 1)
 	_ship_renderers[0].position = player_spots[0]
 	_ship_renderers[1].position = player_spots[1]
-
-	# Position click buttons using their bay index + cached height
-	for btn in _bay_click_buttons:
-		var bay_idx: int = btn.get_meta("bay_index")
-		var spot_h: float = btn.get_meta("spot_h")
-		if bay_idx < player_spots.size():
-			var c: Vector2 = player_spots[bay_idx]
-			btn.position = Vector2(c.x - SPOT_W / 2.0, c.y - spot_h / 2.0)
-
-
-func _add_bay_click_area(bay_center: Vector2, spot_h: float, bay_index: int) -> void:
-	var btn := Button.new()
-	btn.flat = true
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn.position = Vector2(bay_center.x - SPOT_W / 2.0, bay_center.y - spot_h / 2.0)
-	btn.size = Vector2(SPOT_W, spot_h)
-	btn.pressed.connect(_on_bay_clicked.bind(bay_index))
-	btn.set_meta("bay_index", bay_index)
-	btn.set_meta("spot_h", spot_h)
-	add_child(btn)
-	_bay_click_buttons.append(btn)
-
-
-func _on_bay_clicked(bay_index: int) -> void:
-	_selected_bay = bay_index
-	if _selector_overlay:
-		_selector_overlay.queue_redraw()
-
-
-func _build_selector_overlay() -> void:
-	_selector_overlay = Control.new()
-	_selector_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_selector_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_selector_overlay.draw.connect(_draw_selector_line)
-	add_child(_selector_overlay)
-	resized.connect(func() -> void: _selector_overlay.queue_redraw())
-	call_deferred("_deferred_selector_redraw")
-
-
-func _deferred_selector_redraw() -> void:
-	if _selector_overlay:
-		_selector_overlay.queue_redraw()
-
-
-func _draw_selector_line() -> void:
-	if not _right_panel:
-		return
-	var player_spots: Array[Vector2] = _get_player_spots()
-	if _selected_bay < 0 or _selected_bay >= player_spots.size():
-		return
-
-	# Everything is in screen space now — no viewport transform needed
-	var bay_center: Vector2 = player_spots[_selected_bay]
-	var ship_anchor := Vector2(bay_center.x + SPOT_W / 2.0, bay_center.y)
-
-	# Right panel left edge, vertically aligned with the selected ship
-	var pane_rect: Rect2 = _right_panel.get_global_rect()
-	var self_origin: Vector2 = get_global_rect().position
-	var pane_point := Vector2(pane_rect.position.x - self_origin.x, ship_anchor.y)
-
-	# Connector: glow + core line + dot anchors
-	var glow_col := Color(SELECTED_LINE_COLOR.r, SELECTED_LINE_COLOR.g, SELECTED_LINE_COLOR.b, 0.25)
-	_selector_overlay.draw_line(ship_anchor, pane_point, glow_col, 6.0)
-	_selector_overlay.draw_line(ship_anchor, pane_point, SELECTED_LINE_COLOR, 2.0)
-	_selector_overlay.draw_circle(ship_anchor, 4.0, SELECTED_LINE_COLOR)
-	_selector_overlay.draw_circle(pane_point, 4.0, SELECTED_LINE_COLOR)
 
 
 # ── Hangar drawing ──
@@ -866,6 +862,14 @@ func _draw_hangar() -> void:
 	var player_spots: Array[Vector2] = _get_player_spots()
 	for i in player_spots.size():
 		_draw_bay(player_spots[i], i + 1, SPOT_H, i == 0)
+
+	# "PUBLIC PROFILE" badge under the designated bay
+	if hfont and PUBLIC_PROFILE_BAY >= 0 and PUBLIC_PROFILE_BAY < player_spots.size():
+		var pp_center: Vector2 = player_spots[PUBLIC_PROFILE_BAY]
+		var badge_w: float = 120.0
+		var badge_x: float = pp_center.x - badge_w / 2.0
+		var badge_y: float = pp_center.y + SPOT_H / 2.0 + 18
+		_hangar_drawing.draw_string(hfont, Vector2(badge_x, badge_y), "PUBLIC PROFILE", HORIZONTAL_ALIGNMENT_CENTER, badge_w, 11, PUBLIC_PROFILE_COLOR)
 
 	# Divider line between player and support rows
 	var div_y: float = _get_divider_y()

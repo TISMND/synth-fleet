@@ -7,10 +7,21 @@ extends MarginContainer
 const TITLE_TEXT: String = "SYNTHERION"
 const SHADER_PATH: String = "res://assets/shaders/title_chrome_3d.gdshader"
 const ETHNO_FONT: String = "res://assets/fonts/Ethnocentric-Regular.otf"
-const VP_W: int = 900
-const VP_H: int = 180
-const TITLE_SIZE: int = 72
-const BG_COLOR: Color = Color(0.015, 0.015, 0.03, 1.0)
+# Render each preview DIRECTLY in the root viewport (no SubViewport) so:
+#  (a) SCREEN_PIXEL_SIZE matches main_menu exactly (1/1920, 1/1080) — every
+#      pixel-space effect (bevel, shadow, outer_glow, bezel, grain, etc.)
+#      renders at the same strength it will on the real title.
+#  (b) The ThemeManager root WorldEnvironment bloom applies to the title
+#      the same way it does on main_menu — no extra tonemapping step.
+# We use a clipping card that windows a central slice of the 1920-wide stage.
+const STAGE_W: int = 1920
+const STAGE_H: int = 360
+const TITLE_SIZE: int = 180
+const TITLE_OFFSET_TOP: int = 120
+const TITLE_OFFSET_BOTTOM: int = 280
+const CARD_W: int = 1200
+const CARD_H: int = 360
+const BG_COLOR: Color = Color(0, 0, 0, 1)
 const TITLE_COLOR: Color = Color(0.4, 0.65, 1.0)
 
 # Baseline = exact main_menu.gd Specular Slit config. Every preset merges
@@ -23,7 +34,7 @@ const BASELINE: Dictionary = {
 	"chrome_color_bottom": Color(0.01, 0.02, 0.06),
 	"band1_pos": 0.2, "band2_pos": 0.45, "band3_pos": 0.55, "band4_pos": 0.8,
 	"band_sharpness": 20.0,
-	"line_density": 0.0, "line_strength": 0.0,
+	"line_density": 70.0, "line_strength": 0.12,
 	"bevel_strength": 1.0, "bevel_size": 1.8,
 	"bevel_light_color": Color(0.5, 0.7, 1.0),
 	"bevel_shadow_color": Color(0.0, 0.0, 0.05, 1.0),
@@ -131,28 +142,37 @@ func _build_preset_cell(preset: Dictionary) -> void:
 	name_label.add_theme_color_override("font_color", Color(0.55, 0.6, 0.7))
 	cell.add_child(name_label)
 
-	var svc := SubViewportContainer.new()
-	svc.custom_minimum_size = Vector2(VP_W, VP_H)
-	svc.size = Vector2(VP_W, VP_H)
-	svc.stretch = true
-	cell.add_child(svc)
-
-	var svp := SubViewport.new()
-	svp.size = Vector2i(VP_W, VP_H)
-	svp.transparent_bg = false
-	svp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	svc.add_child(svp)
+	# Clipping card — windows a central slice of the 1920-wide stage so the
+	# title shows at its true main-menu pixel scale without needing a 1920-wide
+	# cell. Everything inside renders directly in the root viewport.
+	var card := Control.new()
+	card.custom_minimum_size = Vector2(CARD_W, CARD_H)
+	card.size = Vector2(CARD_W, CARD_H)
+	card.size_flags_horizontal = 0  # don't let VBox stretch us
+	card.clip_contents = true
+	cell.add_child(card)
 
 	var bg := ColorRect.new()
 	bg.color = BG_COLOR
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	svp.add_child(bg)
+	bg.position = Vector2.ZERO
+	bg.size = Vector2(CARD_W, CARD_H)
+	card.add_child(bg)
 
+	# Stage is a 1920-wide virtual frame matching main_menu's root viewport.
+	# We shift it left so the centered title lands in the middle of the card.
+	var stage := Control.new()
+	stage.position = Vector2(-float(STAGE_W - CARD_W) * 0.5, 0.0)
+	stage.size = Vector2(STAGE_W, STAGE_H)
+	card.add_child(stage)
+
+	# Label geometry mirrors main_menu.tscn TitleLabel exactly:
+	# offset_left=0, offset_top=120, offset_right=1920, offset_bottom=280,
+	# font_size=180, horizontal_alignment=1 (centered).
 	var title := Label.new()
 	title.text = TITLE_TEXT
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.set_anchors_preset(Control.PRESET_FULL_RECT)
+	title.position = Vector2(0.0, float(TITLE_OFFSET_TOP))
+	title.size = Vector2(float(STAGE_W), float(TITLE_OFFSET_BOTTOM - TITLE_OFFSET_TOP))
 
 	var font_res: Font = load(ETHNO_FONT)
 	if font_res:
@@ -169,8 +189,7 @@ func _build_preset_cell(preset: Dictionary) -> void:
 			mat.set_shader_parameter(key, params[key])
 		title.material = mat
 
-	svp.add_child(title)
-	VFXFactory.add_bloom_to_viewport(svp)
+	stage.add_child(title)
 
 	var sep := HSeparator.new()
 	var sep_style := StyleBoxFlat.new()

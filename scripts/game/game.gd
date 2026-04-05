@@ -312,8 +312,66 @@ func _ready() -> void:
 		# Waves start immediately (scroll-based spawning)
 		_start_waves()
 
+	# Level intro music — register intro loops muted so they play in sync with everything else
+	_register_intro_tracks()
+
 	# Start all loops in sync
 	LoopMixer.start_all()
+
+	# Schedule intro track fades now that playback has begun
+	_schedule_intro_tracks()
+
+
+# ── Level intro music ────────────────────────────────────────────────
+
+const INTRO_TRACK_PREFIX: String = "__intro_"
+
+func _register_intro_tracks() -> void:
+	if not _level_data or _level_data.intro_tracks.is_empty():
+		return
+	for i in range(_level_data.intro_tracks.size()):
+		var tr: Dictionary = _level_data.intro_tracks[i]
+		var path: String = str(tr.get("loop_path", ""))
+		if path == "" or not ResourceLoader.exists(path):
+			continue
+		var loop_id: String = INTRO_TRACK_PREFIX + str(i)
+		var vol: float = float(tr.get("volume_db", 0.0))
+		LoopMixer.add_loop(loop_id, path, "Atmosphere", vol, true)
+
+
+func _schedule_intro_tracks() -> void:
+	if not _level_data or _level_data.intro_tracks.is_empty():
+		return
+	var bpm: float = _level_data.bpm if _level_data.bpm > 0.0 else 110.0
+	var bar_dur: float = 60.0 / bpm * 4.0  # 4/4 time
+	for i in range(_level_data.intro_tracks.size()):
+		var tr: Dictionary = _level_data.intro_tracks[i]
+		var loop_id: String = INTRO_TRACK_PREFIX + str(i)
+		if not LoopMixer.has_loop(loop_id):
+			continue
+		var start_bar: float = float(tr.get("start_bar", 0.0))
+		var end_bar: float = float(tr.get("end_bar", 4.0))
+		var fade_in_bars: float = float(tr.get("fade_in_bars", 0.0))
+		var fade_out_bars: float = float(tr.get("fade_out_bars", 1.0))
+		var start_t: float = start_bar * bar_dur
+		var end_t: float = end_bar * bar_dur
+		var fade_in_ms: int = int(fade_in_bars * bar_dur * 1000.0)
+		var fade_out_ms: int = int(fade_out_bars * bar_dur * 1000.0)
+		# Unmute at start_bar with fade-in
+		if start_t <= 0.0:
+			LoopMixer.unmute(loop_id, fade_in_ms)
+		else:
+			get_tree().create_timer(start_t).timeout.connect(func() -> void:
+				LoopMixer.unmute(loop_id, fade_in_ms)
+			)
+		# Mute at end_bar with fade-out, then remove once silence is reached
+		get_tree().create_timer(end_t).timeout.connect(func() -> void:
+			LoopMixer.mute(loop_id, fade_out_ms)
+		)
+		get_tree().create_timer(end_t + float(fade_out_ms) / 1000.0 + 0.1).timeout.connect(func() -> void:
+			if LoopMixer.has_loop(loop_id):
+				LoopMixer.remove_loop(loop_id)
+		)
 
 
 # ── Warp In effect ───────────────────────────────────────────────────

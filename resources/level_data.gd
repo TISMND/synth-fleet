@@ -15,6 +15,8 @@ extends Resource
 @export var nebula_placements: Array = []  # Array of placement dicts
 @export var bg_particles: Array = []  # Array of parallaxed particle layer dicts
 @export var events: Array = []  # Array of event dicts (boss transitions, etc.)
+@export var intro_tracks: Array = []  # Array of intro music track dicts (loop_path, start_bar, end_bar, fades, volume)
+@export var intro_duration_bars: int = 8  # Total length of the intro timeline in bars
 
 
 static func from_dict(data: Dictionary) -> LevelData:
@@ -95,6 +97,19 @@ static func from_dict(data: Dictionary) -> LevelData:
 			"motion_scale": float(bp.get("motion_scale", 0.35)),
 			"z_index": int(bp.get("z_index", -9)),
 		})
+	l.intro_duration_bars = int(data.get("intro_duration_bars", 8))
+	var raw_intro: Array = data.get("intro_tracks", [])
+	l.intro_tracks = []
+	for tr in raw_intro:
+		l.intro_tracks.append({
+			"loop_path": str(tr.get("loop_path", "")),
+			"label": str(tr.get("label", "")),
+			"start_bar": float(tr.get("start_bar", 0.0)),
+			"end_bar": float(tr.get("end_bar", 4.0)),
+			"fade_in_bars": float(tr.get("fade_in_bars", 0.0)),
+			"fade_out_bars": float(tr.get("fade_out_bars", 1.0)),
+			"volume_db": float(tr.get("volume_db", 0.0)),
+		})
 	var raw_neb: Array = data.get("nebula_placements", [])
 	l.nebula_placements = []
 	for neb in raw_neb:
@@ -123,6 +138,8 @@ func to_dict() -> Dictionary:
 		"doodads": doodads,
 		"bg_particles": bg_particles,
 		"nebula_placements": nebula_placements,
+		"intro_tracks": intro_tracks,
+		"intro_duration_bars": intro_duration_bars,
 	}
 
 

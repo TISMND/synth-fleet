@@ -14,6 +14,7 @@ var stats: Dictionary = {}
 
 # Ship/slot system
 var current_ship_index: int = 4  # default Stiletto
+var custom_ship_names: Dictionary = {}  # ship_index (stringified) → player-given name
 var slot_config: Dictionary = {}
 # slot_config structure (typed categories):
 # {
@@ -217,6 +218,7 @@ func save_game() -> void:
 		"owned_ship_ids": owned_ship_ids,
 		"owned_device_ids": owned_device_ids,
 		"current_ship_index": current_ship_index,
+		"custom_ship_names": custom_ship_names,
 		"slot_config": slot_config,
 		"current_level": current_level,
 		"completed_levels": completed_levels,
@@ -258,6 +260,7 @@ func load_game() -> void:
 	stats = data.get("stats", {})
 
 	current_ship_index = int(data.get("current_ship_index", 4))
+	custom_ship_names = data.get("custom_ship_names", {}) as Dictionary
 	var saved_slots: Dictionary = data.get("slot_config", {})
 	if saved_slots.size() > 0:
 		slot_config = saved_slots
@@ -273,6 +276,7 @@ func _set_defaults() -> void:
 	owned_ship_ids = []
 	owned_device_ids = []
 	current_ship_index = 4
+	custom_ship_names = {}
 	_init_slot_config()
 	current_level = 0
 	completed_levels = {}
