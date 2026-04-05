@@ -4,14 +4,15 @@ extends Control
 
 var _vhs_overlay: ColorRect
 
-# ── Hangar viewport ──
-var _hangar_viewport: SubViewport
+# ── Hangar (direct full-screen drawing, no SubViewport) ──
 var _hangar_drawing: Control
 var _ship_renderers: Array[ShipRenderer] = []
 var _player_ship_renderer: ShipRenderer
+var _bay_click_buttons: Array[Button] = []
+var _plus_overlay: Control
+var _plus_pulse_time: float = 0.0
 
 # ── Layout constants ──
-const HANGAR_VP_SIZE := Vector2i(1000, 900)
 const PLAYER_COLS: int = 4
 const PLAYER_ROWS: int = 2
 const SUPPORT_COLS: int = 4
@@ -20,8 +21,11 @@ const SPOT_H: float = 140.0
 const SUPPORT_SPOT_H: float = 210.0  # support bays are 1.5x taller
 const SPACING_X: float = 200.0
 const SPACING_Y: float = 180.0
-const PLAYER_TOP: float = 160.0  # shifted down 2 grid squares so bays clear the "YOUR SHIPS" header
+const PLAYER_TOP: float = 160.0  # below the "YOUR SHIPS" header
 const SUPPORT_GAP: float = 80.0  # extra gap between player and support rows
+const RIGHT_PANEL_W: float = 540.0
+const HANGAR_LEFT_MARGIN: float = 30.0
+const HANGAR_RIGHT_GAP: float = 15.0  # gap between hangar area and right panel
 
 # Colors: military grid pattern, blueprint colors
 const FLOOR_COLOR := Color(0.01, 0.02, 0.06)
@@ -30,11 +34,11 @@ const SPOT_FILL := Color(0.015, 0.03, 0.07, 0.4)
 const ACCENT := Color(0.3, 0.6, 1.0)
 const GRID_SPACING: float = 40.0
 const DIVIDER_COLOR := Color(0.2, 0.4, 0.8, 0.25)
-const ACTIVE_FILL := Color(0.08, 0.22, 0.45, 0.55)  # brighter blueprint fill for the active ship
-const ACTIVE_BORDER := Color(0.55, 0.85, 1.0, 0.95)
+const ACTIVE_FILL := Color(0.18, 0.16, 0.04, 0.55)  # warm yellow-tinted fill for the active ship
+const ACTIVE_BORDER := Color(1.0, 0.85, 0.15, 0.95)  # yellow
 const SELECTED_LINE_COLOR := Color(1.0, 0.4, 0.75, 0.8)  # hot pink connector from pane → selected ship
+const PLUS_BRIGHT := Color(0.55, 0.85, 1.0, 1.0)  # bright blue for pulsing plus marker
 
-var _vpc: SubViewportContainer
 var _right_panel: MarginContainer
 var _selector_overlay: Control
 var _selected_bay: int = 0  # 0 = active player ship by default
@@ -115,73 +119,56 @@ func _process(delta: float) -> void:
 	for r in _ship_renderers:
 		r.time += delta
 		r.queue_redraw()
+	_plus_pulse_time += delta
+	if _plus_overlay:
+		_plus_overlay.queue_redraw()
 
 
 func _build_layout() -> void:
-	var hbox := HBoxContainer.new()
-	hbox.set_anchors_preset(Control.PRESET_FULL_RECT)
-	hbox.add_theme_constant_override("separation", 0)
-	add_child(hbox)
-
-	# ── Left: Hangar viewport (bulk of screen) ──
-	var left_panel := MarginContainer.new()
-	left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_panel.size_flags_stretch_ratio = 1.4
-	left_panel.add_theme_constant_override("margin_left", 30)
-	left_panel.add_theme_constant_override("margin_top", 20)
-	left_panel.add_theme_constant_override("margin_right", 15)
-	left_panel.add_theme_constant_override("margin_bottom", 20)
-	hbox.add_child(left_panel)
-	_build_hangar(left_panel)
-
-	# ── Right: Interface placeholder ──
-	var right_panel := MarginContainer.new()
-	right_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_panel.size_flags_stretch_ratio = 0.6
-	right_panel.add_theme_constant_override("margin_left", 15)
-	right_panel.add_theme_constant_override("margin_top", 20)
-	right_panel.add_theme_constant_override("margin_right", 30)
-	right_panel.add_theme_constant_override("margin_bottom", 20)
-	hbox.add_child(right_panel)
-	_right_panel = right_panel
-	_build_right_panel(right_panel)
-	_build_selector_overlay()
-
-
-func _build_hangar(parent: MarginContainer) -> void:
-	var frame := Control.new()
-	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	parent.add_child(frame)
-
-	var vpc := SubViewportContainer.new()
-	vpc.stretch = true
-	vpc.set_anchors_preset(Control.PRESET_FULL_RECT)
-	frame.add_child(vpc)
-	_vpc = vpc
-
-	_hangar_viewport = SubViewport.new()
-	_hangar_viewport.transparent_bg = false
-	_hangar_viewport.size = HANGAR_VP_SIZE
-	_hangar_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	vpc.add_child(_hangar_viewport)
-	VFXFactory.add_bloom_to_viewport(_hangar_viewport)
-
-	# Floor fills entire viewport
+	# Blueprint floor fills the whole screen
 	var floor_rect := ColorRect.new()
 	floor_rect.color = FLOOR_COLOR
 	floor_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_hangar_viewport.add_child(floor_rect)
+	floor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(floor_rect)
 
-	# Hangar markings (grid, spots, labels, divider)
+	# Hangar markings (grid, spots, labels, divider) — drawn directly on self
 	_hangar_drawing = Control.new()
 	_hangar_drawing.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_hangar_drawing.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hangar_viewport.add_child(_hangar_drawing)
+	add_child(_hangar_drawing)
 	_hangar_drawing.draw.connect(_draw_hangar)
 
 	# Place ships in bays
 	_place_ships()
+
+	# Right panel pinned to the right edge
+	var right_panel := MarginContainer.new()
+	right_panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	right_panel.offset_left = -RIGHT_PANEL_W
+	right_panel.offset_top = 20
+	right_panel.offset_right = -HANGAR_LEFT_MARGIN
+	right_panel.offset_bottom = -20
+	right_panel.add_theme_constant_override("margin_left", 15)
+	right_panel.add_theme_constant_override("margin_right", 0)
+	add_child(right_panel)
+	_right_panel = right_panel
+	_build_right_panel(right_panel)
+
+	# Selector line overlay on top
+	_build_selector_overlay()
+
+	# Reposition ships/buttons/drawing when the window resizes
+	resized.connect(_on_resized)
+	call_deferred("_on_resized")
+
+
+func _on_resized() -> void:
+	_layout_ships()
+	if _hangar_drawing:
+		_hangar_drawing.queue_redraw()
+	if _selector_overlay:
+		_selector_overlay.queue_redraw()
 
 
 func _build_right_panel(parent: MarginContainer) -> void:
@@ -696,10 +683,14 @@ func _update_vanity_display() -> void:
 
 # ── Spot positions ──
 
+func _get_hangar_area_width() -> float:
+	return maxf(size.x - RIGHT_PANEL_W - HANGAR_RIGHT_GAP, 400.0)
+
+
 func _get_player_spots() -> Array[Vector2]:
 	var positions: Array[Vector2] = []
 	var total_w: float = (PLAYER_COLS - 1) * SPACING_X
-	var start_x: float = (HANGAR_VP_SIZE.x - total_w) / 2.0
+	var start_x: float = HANGAR_LEFT_MARGIN + (_get_hangar_area_width() - HANGAR_LEFT_MARGIN - total_w) / 2.0
 	for row in PLAYER_ROWS:
 		for col_idx in PLAYER_COLS:
 			positions.append(Vector2(
@@ -712,7 +703,7 @@ func _get_player_spots() -> Array[Vector2]:
 func _get_support_spots() -> Array[Vector2]:
 	var positions: Array[Vector2] = []
 	var total_w: float = (SUPPORT_COLS - 1) * SPACING_X
-	var start_x: float = (HANGAR_VP_SIZE.x - total_w) / 2.0
+	var start_x: float = HANGAR_LEFT_MARGIN + (_get_hangar_area_width() - HANGAR_LEFT_MARGIN - total_w) / 2.0
 	var support_top: float = PLAYER_TOP + PLAYER_ROWS * SPACING_Y + SUPPORT_GAP
 	for col_idx in SUPPORT_COLS:
 		positions.append(Vector2(
@@ -731,51 +722,61 @@ func _get_divider_y() -> float:
 # ── Place ships ──
 
 func _place_ships() -> void:
-	var player_spots: Array[Vector2] = _get_player_spots()
-	var support_spots: Array[Vector2] = _get_support_spots()
-
 	# Player's current ship in bay 01 (always the ACTIVE one)
 	var ship := ShipRenderer.new()
 	ship.ship_id = GameState.current_ship_index
 	ship.render_mode = ShipRenderer.RenderMode.CHROME
 	ship.animate = true
-	ship.position = player_spots[0]
 	ship.scale = Vector2(0.7, 0.7)
-	_hangar_viewport.add_child(ship)
+	add_child(ship)
 	_ship_renderers.append(ship)
 	_player_ship_renderer = ship
-	_add_bay_click_area(player_spots[0], SPOT_H, 0)
+	_add_bay_click_area(Vector2.ZERO, SPOT_H, 0)  # positions set by _layout_ships
 
 	# Switchblade placeholder in bay 02 (visualization aid)
 	var switchblade := ShipRenderer.new()
 	switchblade.ship_id = 0  # Switchblade
 	switchblade.render_mode = ShipRenderer.RenderMode.CHROME
 	switchblade.animate = true
-	switchblade.position = player_spots[1]
 	switchblade.scale = Vector2(0.7, 0.7)
-	_hangar_viewport.add_child(switchblade)
+	add_child(switchblade)
 	_ship_renderers.append(switchblade)
-	_add_bay_click_area(player_spots[1], SPOT_H, 1)
+	_add_bay_click_area(Vector2.ZERO, SPOT_H, 1)
 
-	# Plus marker on bay 03 (ship store)
-	var plus_overlay := Control.new()
-	plus_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	plus_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var spot3: Vector2 = player_spots[2]
-	plus_overlay.draw.connect(func() -> void:
-		_draw_plus_marker(plus_overlay, spot3, ACCENT)
-	)
-	_hangar_viewport.add_child(plus_overlay)
+	# Plus marker on bay 03 (ship store) — pulses softly
+	_plus_overlay = Control.new()
+	_plus_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_plus_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plus_overlay.draw.connect(_draw_plus_marker_pulsing)
+	add_child(_plus_overlay)
 
 	# Cargo ship placeholder in support bay 01
 	var cargo_overlay := Control.new()
 	cargo_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	cargo_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sup_spot: Vector2 = support_spots[0]
 	cargo_overlay.draw.connect(func() -> void:
+		var sup_spot: Vector2 = _get_support_spots()[0]
 		_draw_cargo_placeholder(cargo_overlay, sup_spot)
 	)
-	_hangar_viewport.add_child(cargo_overlay)
+	add_child(cargo_overlay)
+
+
+func _layout_ships() -> void:
+	if _ship_renderers.size() < 2 or _bay_click_buttons.size() < 2:
+		return
+	var player_spots: Array[Vector2] = _get_player_spots()
+
+	# Position the active ship (bay 0) and switchblade (bay 1)
+	_ship_renderers[0].position = player_spots[0]
+	_ship_renderers[1].position = player_spots[1]
+
+	# Position click buttons using their bay index + cached height
+	for btn in _bay_click_buttons:
+		var bay_idx: int = btn.get_meta("bay_index")
+		var spot_h: float = btn.get_meta("spot_h")
+		if bay_idx < player_spots.size():
+			var c: Vector2 = player_spots[bay_idx]
+			btn.position = Vector2(c.x - SPOT_W / 2.0, c.y - spot_h / 2.0)
 
 
 func _add_bay_click_area(bay_center: Vector2, spot_h: float, bay_index: int) -> void:
@@ -786,7 +787,10 @@ func _add_bay_click_area(bay_center: Vector2, spot_h: float, bay_index: int) -> 
 	btn.position = Vector2(bay_center.x - SPOT_W / 2.0, bay_center.y - spot_h / 2.0)
 	btn.size = Vector2(SPOT_W, spot_h)
 	btn.pressed.connect(_on_bay_clicked.bind(bay_index))
-	_hangar_viewport.add_child(btn)
+	btn.set_meta("bay_index", bay_index)
+	btn.set_meta("spot_h", spot_h)
+	add_child(btn)
+	_bay_click_buttons.append(btn)
 
 
 func _on_bay_clicked(bay_index: int) -> void:
@@ -811,44 +815,44 @@ func _deferred_selector_redraw() -> void:
 
 
 func _draw_selector_line() -> void:
-	if not _vpc or not _right_panel:
+	if not _right_panel:
 		return
 	var player_spots: Array[Vector2] = _get_player_spots()
 	if _selected_bay < 0 or _selected_bay >= player_spots.size():
 		return
 
-	# Map the selected bay's viewport coords to screen coords (inside self's rect)
-	var vpc_rect: Rect2 = _vpc.get_global_rect()
-	var self_origin: Vector2 = get_global_rect().position
+	# Everything is in screen space now — no viewport transform needed
 	var bay_center: Vector2 = player_spots[_selected_bay]
-	var vp_size := Vector2(HANGAR_VP_SIZE)
-	var bay_edge_viewport := Vector2(bay_center.x + SPOT_W / 2.0, bay_center.y)
-	var ship_screen: Vector2 = vpc_rect.position - self_origin + (bay_edge_viewport / vp_size) * vpc_rect.size
+	var ship_anchor := Vector2(bay_center.x + SPOT_W / 2.0, bay_center.y)
 
-	# Right panel left edge, vertically centered
+	# Right panel left edge, vertically aligned with the selected ship
 	var pane_rect: Rect2 = _right_panel.get_global_rect()
-	var pane_point: Vector2 = pane_rect.position - self_origin + Vector2(0, pane_rect.size.y * 0.5)
+	var self_origin: Vector2 = get_global_rect().position
+	var pane_point := Vector2(pane_rect.position.x - self_origin.x, ship_anchor.y)
 
-	# Draw the connector: glow + core line + dot anchors
+	# Connector: glow + core line + dot anchors
 	var glow_col := Color(SELECTED_LINE_COLOR.r, SELECTED_LINE_COLOR.g, SELECTED_LINE_COLOR.b, 0.25)
-	_selector_overlay.draw_line(ship_screen, pane_point, glow_col, 6.0)
-	_selector_overlay.draw_line(ship_screen, pane_point, SELECTED_LINE_COLOR, 2.0)
-	_selector_overlay.draw_circle(ship_screen, 4.0, SELECTED_LINE_COLOR)
+	_selector_overlay.draw_line(ship_anchor, pane_point, glow_col, 6.0)
+	_selector_overlay.draw_line(ship_anchor, pane_point, SELECTED_LINE_COLOR, 2.0)
+	_selector_overlay.draw_circle(ship_anchor, 4.0, SELECTED_LINE_COLOR)
 	_selector_overlay.draw_circle(pane_point, 4.0, SELECTED_LINE_COLOR)
 
 
 # ── Hangar drawing ──
 
 func _draw_hangar() -> void:
-	# Floor grid fills entire viewport
+	var hangar_w: float = _get_hangar_area_width()
+	var screen_h: float = size.y
+
+	# Floor grid — only across the hangar area (leaves the right pane alone)
 	var grid_col := Color(LINE_COLOR.r, LINE_COLOR.g, LINE_COLOR.b, 0.08)
 	var x: float = 0.0
-	while x < HANGAR_VP_SIZE.x:
-		_hangar_drawing.draw_line(Vector2(x, 0), Vector2(x, HANGAR_VP_SIZE.y), grid_col, 1.0)
+	while x < hangar_w:
+		_hangar_drawing.draw_line(Vector2(x, 0), Vector2(x, screen_h), grid_col, 1.0)
 		x += GRID_SPACING
 	var y: float = 0.0
-	while y < HANGAR_VP_SIZE.y:
-		_hangar_drawing.draw_line(Vector2(0, y), Vector2(HANGAR_VP_SIZE.x, y), grid_col, 1.0)
+	while y < screen_h:
+		_hangar_drawing.draw_line(Vector2(0, y), Vector2(hangar_w, y), grid_col, 1.0)
 		y += GRID_SPACING
 
 	var hfont: Font = ThemeManager.get_font("font_header")
@@ -865,7 +869,7 @@ func _draw_hangar() -> void:
 
 	# Divider line between player and support rows
 	var div_y: float = _get_divider_y()
-	_hangar_drawing.draw_line(Vector2(20, div_y), Vector2(HANGAR_VP_SIZE.x - 20, div_y), DIVIDER_COLOR, 1.0)
+	_hangar_drawing.draw_line(Vector2(20, div_y), Vector2(hangar_w - 20, div_y), DIVIDER_COLOR, 1.0)
 
 	# "SUPPORT" label
 	if hfont:
@@ -907,6 +911,15 @@ func _draw_bay(pos: Vector2, bay_num: int, spot_h: float, active: bool) -> void:
 		var label_x: float = pos.x - label_w / 2.0
 		var label_y: float = rect.position.y - 10
 		_hangar_drawing.draw_string(font, Vector2(label_x, label_y), "ACTIVE", HORIZONTAL_ALIGNMENT_CENTER, label_w, 13, ACTIVE_BORDER)
+
+
+func _draw_plus_marker_pulsing() -> void:
+	var player_spots: Array[Vector2] = _get_player_spots()
+	if player_spots.size() < 3:
+		return
+	var t: float = 0.5 + 0.5 * sin(_plus_pulse_time * 2.0)  # 0..1 pulse
+	var color: Color = ACCENT.lerp(PLUS_BRIGHT, t)
+	_draw_plus_marker(_plus_overlay, player_spots[2], color)
 
 
 func _draw_plus_marker(canvas: Control, pos: Vector2, accent: Color) -> void:
