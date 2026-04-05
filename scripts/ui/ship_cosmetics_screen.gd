@@ -53,7 +53,8 @@ func _build_ui() -> void:
 	var tabs: Array[Array] = [
 		["HUMAN SKINS", "res://scripts/ui/skin_auditions.gd"],
 		["ALIEN SKINS", "res://scripts/ui/alien_skin_auditions.gd"],
-		["DETAILS", "res://scripts/ui/paint_auditions.gd"],
+		["PAINT", "res://scripts/ui/paint_patterns.gd"],
+		["LIGHTNING", "res://scripts/ui/lightning_patterns.gd"],
 		["SKIN TUNER", "res://scripts/ui/skin_tuner.gd"],
 	]
 

@@ -107,6 +107,7 @@ var _fg_total_target: Dictionary = {}   # bar_type -> float (target value)
 func _ready() -> void:
 	_mode = initial_mode
 	GameState.fade_out_menu_music()
+	SynthwaveBgSetup.setup(get_parent())
 	_cache_weapons()
 	_init_slot_active()
 	_auto_select_first_fg()

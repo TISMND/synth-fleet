@@ -3,15 +3,15 @@ shader_type canvas_item;
 // Softened voronoi with blend transitions, no particles (those belong on flight layer).
 
 uniform vec4 deep_color : source_color = vec4(0.0, 0.02, 0.06, 1.0);
-uniform vec4 coral_color : source_color = vec4(0.0, 0.6, 0.9, 0.8);
+uniform vec4 coral_color : source_color = vec4(0.0, 0.6, 0.9, 1.0);
 uniform float scroll_speed : hint_range(0.0, 200.0) = 25.0;
 uniform bool manual_scroll = false;
 uniform float scroll_offset : hint_range(0.0, 100000.0) = 0.0;
 
 // Cell/strand controls
 uniform float cell_scale : hint_range(0.3, 4.0) = 0.3;
-uniform float strand_thickness : hint_range(0.01, 0.5) = 0.035;
-uniform float fine_strand_thickness : hint_range(0.01, 0.5) = 0.035;
+uniform float strand_thickness : hint_range(0.01, 0.5) = 0.02;
+uniform float fine_strand_thickness : hint_range(0.01, 0.5) = 0.01;
 uniform float strand_sharpness : hint_range(0.0, 1.0) = 0.0;
 uniform float fine_strand_sharpness : hint_range(0.0, 1.0) = 1.0;
 uniform float fine_strand_blur : hint_range(0.0, 1.0) = 0.04;
@@ -20,22 +20,22 @@ uniform float strand_hdr : hint_range(1.0, 6.0) = 4.3;
 uniform float fine_strand_mix : hint_range(0.0, 1.0) = 0.8;
 
 // Neon white-out: 0 = pure coral_color, 1 = white-hot core (color lives in bloom only)
-uniform float strand_white : hint_range(0.0, 1.0) = 0.1;
+uniform float strand_white : hint_range(0.0, 1.0) = 0.08;
 
 // Density: lower = fewer, larger cells = more dark space
-uniform float density : hint_range(0.5, 6.0) = 1.4;
+uniform float density : hint_range(0.5, 6.0) = 0.5;
 
 // Scrolling HDR pulse waves — bioluminescent ripples through the reef
 uniform float pulse_intensity : hint_range(0.0, 1.0) = 0.3;
 uniform float pulse_hdr : hint_range(1.0, 20.0) = 8.9;
-uniform float pulse_speed : hint_range(0.0, 5.0) = 1.56;
+uniform float pulse_speed : hint_range(0.0, 5.0) = 0.5;
 uniform float pulse_scale : hint_range(0.1, 10.0) = 7.1;
 uniform float pulse_wobble : hint_range(0.0, 3.0) = 3.0;
 uniform float pulse_threshold : hint_range(0.0, 1.0) = 0.92;
 uniform float pulse_softness : hint_range(0.01, 1.0) = 0.49;
 
 // Drift animation
-uniform float drift_speed : hint_range(0.0, 1.0) = 0.12;
+uniform float drift_speed : hint_range(0.0, 1.0) = 0.06;
 
 float hash21(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);

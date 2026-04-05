@@ -26,6 +26,7 @@ var _arrow_row: HBoxContainer
 # ── Mission state ──
 var _mission_index: int = 0
 var _mission_positions: Array[Vector2] = []
+var _mission_levels: Array[LevelData] = []
 var _mission_bracket: Control
 var _blink_time: float = 0.0
 
@@ -39,13 +40,12 @@ var _ready_btn: Button
 var _mission_bar: VBoxContainer
 
 const VERSES: Array[Dictionary] = [
-	{"label": "TUTORIAL", "shader": "", "hdr": 0.0},
-	{"label": "NEON RIFT", "shader": "res://assets/shaders/dest_neon_void.gdshader", "hdr": 3.0},
-	{"label": "FLUID", "shader": "res://assets/shaders/dest_fluid_rift.gdshader", "hdr": 3.0},
+	{"label": "TUTORIAL", "shader": "", "hdr": 0.0, "verse_id": ""},
+	{"label": "NEON RIFT", "shader": "res://assets/shaders/dest_neon_void.gdshader", "hdr": 3.0, "verse_id": "verse_1"},
+	{"label": "FLUID", "shader": "res://assets/shaders/dest_fluid_rift.gdshader", "hdr": 3.0, "verse_id": "verse_2"},
 ]
 
 const VP_SIZE := Vector2i(800, 450)
-const MISSIONS_PER_VERSE: int = 4
 const ZOOM_SCALE: float = 3.0
 const ZOOM_DURATION: float = 1.8
 const BRACKET_SIZE: float = 40.0
@@ -331,26 +331,53 @@ func _apply_verse() -> void:
 
 func _generate_mission_positions() -> void:
 	_mission_positions.clear()
-	for i in MISSIONS_PER_VERSE:
-		_mission_positions.append(Vector2(
-			randf_range(0.2, 0.8),
-			randf_range(0.25, 0.75),
-		))
+	_mission_levels.clear()
 	_mission_index = 0
+
+	var verse_id: String = VERSES[_verse_index]["verse_id"] as String
+	if verse_id == "":
+		# Tutorial has no real levels yet — placeholder
+		_mission_levels.append(null)
+		_mission_positions.append(Vector2(0.5, 0.5))
+		return
+
+	# Load all levels belonging to this verse
+	var all_levels: Array[LevelData] = LevelDataManager.load_all()
+	for level in all_levels:
+		if level.verse_id == verse_id:
+			_mission_levels.append(level)
+			# Stable random position seeded from level id
+			var h: int = level.id.hash()
+			_mission_positions.append(Vector2(
+				0.2 + fmod(absf(float(h & 0xFFFF) / 65535.0), 0.6),
+				0.25 + fmod(absf(float((h >> 16) & 0xFFFF) / 65535.0), 0.5),
+			))
+
+	# Fallback if no levels found
+	if _mission_levels.is_empty():
+		_mission_levels.append(null)
+		_mission_positions.append(Vector2(0.5, 0.5))
 
 
 func _cycle_mission(direction: int) -> void:
-	_mission_index = (_mission_index + direction) % _mission_positions.size()
+	if _mission_levels.size() <= 1:
+		return
+	_mission_index = (_mission_index + direction) % _mission_levels.size()
 	if _mission_index < 0:
-		_mission_index += _mission_positions.size()
+		_mission_index += _mission_levels.size()
 	_blink_time = 0.0
 	_update_mission_label()
 	_mission_bracket.queue_redraw()
 
 
 func _update_mission_label() -> void:
-	_verse_label.text = "MISSION %d" % [_mission_index + 1]
-	_verse_counter.text = "%d / %d" % [_mission_index + 1, _mission_positions.size()]
+	var level: LevelData = _mission_levels[_mission_index] if _mission_index < _mission_levels.size() else null
+	if level:
+		_verse_label.text = level.display_name
+		_verse_counter.text = "%d / %d" % [_mission_index + 1, _mission_levels.size()]
+	else:
+		_verse_label.text = "NO MISSIONS"
+		_verse_counter.text = ""
 
 
 func _draw_mission_bracket() -> void:
@@ -469,7 +496,10 @@ func _on_ready_pressed() -> void:
 
 
 func _on_launch() -> void:
-	GameState.current_level_id = "level_1"
+	var level: LevelData = _mission_levels[_mission_index] if _mission_index < _mission_levels.size() else null
+	if not level:
+		return  # No valid level to launch
+	GameState.current_level_id = level.id
 	GameState.return_scene = "res://scenes/ui/mission_prep_menu.tscn"
 	SceneLoader.load_scene("res://scenes/game/game.tscn")
 
