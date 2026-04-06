@@ -1,0 +1,37 @@
+{
+	"background_shader": "",
+	"bg_particles": [],
+	"bpm": 110.0,
+	"deep_background": "",
+	"display_name": "Low Pass",
+	"doodads": [],
+	"encounters": [
+		{
+			"boss_id": "",
+			"count": 1,
+			"drop_chance": 0.0,
+			"drop_table": [],
+			"formation_id": "",
+			"is_melee": false,
+			"mirror_h": false,
+			"mirror_v": false,
+			"path_id": "path_1",
+			"rotate_with_path": false,
+			"ship_id": "enemy_1",
+			"spacing": 200.0,
+			"speed": 200.0,
+			"trigger_y": 634.710743801653,
+			"turn_speed": 90.0,
+			"weapons_active": true,
+			"x_offset": 19.8347107438017
+		}
+	],
+	"events": [],
+	"id": "level_3",
+	"intro_duration_bars": 8,
+	"intro_tracks": [],
+	"level_length": 10000.0,
+	"nebula_placements": [],
+	"scroll_speed": 80.0,
+	"verse_id": "verse_3"
+}

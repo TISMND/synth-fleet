@@ -4,6 +4,7 @@
 	"collision_offset_y": 0.0,
 	"collision_shape": "circle",
 	"collision_width": 184.0,
+	"description": "",
 	"display_name": "Behemoth",
 	"enable_screen_shake": false,
 	"explosion_color": [
@@ -21,7 +22,7 @@
 	"id": "enemy_behemoth",
 	"level": "lifeform",
 	"lines": [],
-	"neon_hdr": 2.75,
+	"neon_hdr": 3.26,
 	"neon_white": 0.36,
 	"neon_width": 0.1,
 	"render_mode": "neon",

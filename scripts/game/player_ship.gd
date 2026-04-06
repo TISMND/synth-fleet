@@ -136,11 +136,24 @@ func setup(ship: ShipData, loadout: LoadoutData, proj_container: Node2D) -> void
 	_engine_exhaust.setup(engine_offsets, ship_scale)
 	add_child(_engine_exhaust)
 
-	# Ship renderer
+	# Ship renderer — render_mode from ShipData (set in hangar), not hardcoded
 	_ship_renderer = ShipRenderer.new()
 	_ship_renderer.ship_id = resolved_id
-	_ship_renderer.render_mode = ShipRenderer.RenderMode.CHROME
+	_ship_renderer.render_mode = NpcShip._render_mode_from_string(ship_data.render_mode)
 	add_child(_ship_renderer)
+
+	# Cosmetic paint/light overlays from ShipData (same path as hangar + dev studio)
+	var hull_key: String = "player_%d" % resolved_id
+	var cosmetic_overlays: Array[Node2D] = ShipCosmetics.build_overlays(
+		hull_key, ship_data.paint_pattern, ship_data.paint_color,
+		ship_data.light_pattern, ship_data.light_color,
+	)
+	if cosmetic_overlays[0]:
+		cosmetic_overlays[0].z_index = 2
+		add_child(cosmetic_overlays[0])
+	if cosmetic_overlays[1]:
+		cosmetic_overlays[1].z_index = 3
+		add_child(cosmetic_overlays[1])
 
 	# Electric arc container — holds Line2D lightning bolts spawned during crisis
 	_electric_arc_container = Node2D.new()

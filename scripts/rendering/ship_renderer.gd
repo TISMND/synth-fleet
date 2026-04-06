@@ -2006,15 +2006,15 @@ func _draw_behemoth() -> void:
 		var gap_pos := Vector2(cos(angle) * gap_r, sin(angle) * gap_r * 1.1)
 		var gap_pulse: float = 0.3 + sin(time * 2.0 + float(i) * 1.3) * 0.2
 		_circle(gap_pos, 1.5 * s, Color(accent_color, gap_pulse), 4.0 * s)
-	# Central eye cluster — center eye kept as-is, outer 4 thickened
+	# Central eye cluster — spread out to reduce HDR stacking
 	var eye_offsets: Array[Vector2] = [
-		Vector2(0, 2.0 * s), Vector2(-3.0 * s, -1.0 * s), Vector2(3.0 * s, -1.0 * s),
-		Vector2(-1.5 * s, 4.0 * s), Vector2(1.5 * s, 4.0 * s),
+		Vector2(0, 2.0 * s), Vector2(-5.0 * s, -2.0 * s), Vector2(5.0 * s, -2.0 * s),
+		Vector2(-3.0 * s, 6.0 * s), Vector2(3.0 * s, 6.0 * s),
 	]
 	for ei in range(eye_offsets.size()):
 		var eo: Vector2 = eye_offsets[ei]
-		var eye_r: float = (1.5 + sin(time * 1.5 + eo.x) * 0.3) * s
-		var eye_w: float = 2.0 * s if ei == 0 else 3.0 * s
+		var eye_r: float = (1.2 + sin(time * 1.5 + eo.x) * 0.2) * s
+		var eye_w: float = 1.2 * s if ei == 0 else 1.8 * s
 		_circle(eo, eye_r, accent_color, eye_w)
 		draw_circle(eo, eye_r * 0.4, Color(0, 0, 0, 0.9))
 

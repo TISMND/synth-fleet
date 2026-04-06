@@ -166,6 +166,10 @@ func _ready() -> void:
 	if ship_override:
 		ship.stats = ship_override.stats
 		ship.render_mode = ship_override.render_mode
+		ship.paint_pattern = ship_override.paint_pattern
+		ship.paint_color = ship_override.paint_color
+		ship.light_pattern = ship_override.light_pattern
+		ship.light_color = ship_override.light_color
 	var loadout: LoadoutData = GameState.get_loadout_data()
 
 	# Load level data if available

@@ -28,7 +28,7 @@
 		0.921568632125854
 	],
 	"paint_pattern": "",
-	"render_mode": "chrome",
+	"render_mode": "stealth",
 	"stats": {
 		"acceleration": 3200.0,
 		"collision_height": 90.0,

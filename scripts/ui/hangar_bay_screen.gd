@@ -569,7 +569,7 @@ func _build_subsystems_tab(parent: Control) -> void:
 
 func _build_stat_bar_row(parent: VBoxContainer, stat_key: String, stat_label: String, bar_color: Color, hdr_mult: float, max_segs: int) -> void:
 	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	row.add_theme_constant_override("separation", 6)
 	row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	parent.add_child(row)
@@ -583,9 +583,8 @@ func _build_stat_bar_row(parent: VBoxContainer, stat_key: String, stat_label: St
 	HudBuilder.apply_bar_label_theme(name_lbl, bar_color, body_font, 13)
 	row.add_child(name_lbl)
 
-	# Segmented bar
+	# Segmented bar — no expand, packs tightly with neighbours
 	var seg_row := HBoxContainer.new()
-	seg_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	seg_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	seg_row.add_theme_constant_override("separation", int(SEG_GAP))
 	row.add_child(seg_row)
@@ -598,22 +597,22 @@ func _build_stat_bar_row(parent: VBoxContainer, stat_key: String, stat_label: St
 		seg_row.add_child(seg)
 		segments.append(seg)
 
-	# Count — glowing, matching bar color, right of the segments
+	# Count — glowing, matching bar color, snug against the last segment
 	var val_lbl := Label.new()
 	val_lbl.text = "0"
-	val_lbl.custom_minimum_size.x = 28
-	val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	val_lbl.custom_minimum_size.x = 30
+	val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	val_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	HudBuilder.apply_bar_label_theme(val_lbl, bar_color, body_font, 12)
+	HudBuilder.apply_bar_label_theme(val_lbl, bar_color, body_font, 15)
 	row.add_child(val_lbl)
 
-	# [+] upgrade button — right side, greyed out when no points available
+	# + upgrade button — larger, clear definition, snug after the count
 	var plus_btn := Button.new()
 	plus_btn.text = "+"
-	plus_btn.custom_minimum_size = Vector2(26, 24)
+	plus_btn.custom_minimum_size = Vector2(36, 30)
 	plus_btn.disabled = true
 	ThemeManager.apply_button_style(plus_btn)
-	plus_btn.add_theme_font_size_override("font_size", 14)
+	plus_btn.add_theme_font_size_override("font_size", 20)
 	row.add_child(plus_btn)
 
 	_stat_bars[stat_key] = {

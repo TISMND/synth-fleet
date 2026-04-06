@@ -332,6 +332,7 @@ class PaintOverlay extends Node2D:
 
 class LightOverlay extends Node2D:
 	var hull_poly: PackedVector2Array
+	var exclusion_polys: Array[PackedVector2Array] = []
 	var light_shapes: Array[PackedVector2Array] = []
 	var light_color: Color = Color(1.0, 0.85, 0.12)
 	var _time: float = 0.0
@@ -342,12 +343,22 @@ class LightOverlay extends Node2D:
 	const VENT_COLOR := Color(0.02, 0.02, 0.03, 1.0)
 
 	func _ready() -> void:
-		# Lights clip to the hull outline only — they render ON TOP of structural
-		# details (exclusion zones) so they're uniformly visible everywhere.
+		# Clip to hull, then clip out exclusion zones (structural details)
+		# so lights render UNDER trim/structure, matching the dev studio preview.
 		for shape in light_shapes:
+			var current: Array[PackedVector2Array] = []
 			var hull_clipped := Geometry2D.intersect_polygons(shape, hull_poly)
 			for hp in hull_clipped:
-				_clipped_polys.append(hp)
+				current.append(hp)
+			for excl in exclusion_polys:
+				var next_arr: Array[PackedVector2Array] = []
+				for poly in current:
+					var clipped := Geometry2D.clip_polygons(poly, excl)
+					for cp in clipped:
+						next_arr.append(cp)
+				current = next_arr
+			for fpoly in current:
+				_clipped_polys.append(fpoly)
 
 	func _process(delta: float) -> void:
 		_time += delta
@@ -397,6 +408,7 @@ static func build_overlays(
 		if shapes2.size() > 0:
 			var lo := LightOverlay.new()
 			lo.hull_poly = hull_poly
+			lo.exclusion_polys = exclusions
 			lo.light_shapes = shapes2
 			lo.light_color = light_color
 			result[1] = lo

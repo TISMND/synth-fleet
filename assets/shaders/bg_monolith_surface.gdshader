@@ -21,36 +21,36 @@ uniform vec4 active_vent_color : source_color = vec4(0.3, 0.65, 1.0, 1.0);
 uniform float scroll_speed : hint_range(0.0, 200.0) = 45.0;
 uniform bool manual_scroll = false;
 uniform float scroll_offset : hint_range(0.0, 100000.0) = 0.0;
-uniform float grid_spacing_x : hint_range(40.0, 250.0) = 110.0;
-uniform float grid_spacing_y : hint_range(20.0, 140.0) = 62.0;
+uniform float grid_spacing_x : hint_range(40.0, 250.0) = 120.0;
+uniform float grid_spacing_y : hint_range(20.0, 140.0) = 66.0;
 uniform float seam_width : hint_range(0.5, 4.0) = 2.0;
 uniform float seam_depth : hint_range(0.0, 1.0) = 0.76;
 
 // Major seams — randomly promoted small-grid seam segments
-uniform float major_seam_chance : hint_range(0.0, 1.0) = 0.3;
-uniform float major_seam_extra_width : hint_range(0.0, 6.0) = 2.0;
-uniform float major_seam_depth : hint_range(0.0, 1.0) = 0.55;
+uniform float major_seam_chance : hint_range(0.0, 1.0) = 0.24;
+uniform float major_seam_extra_width : hint_range(0.0, 6.0) = 2.5;
+uniform float major_seam_depth : hint_range(0.0, 1.0) = 0.8;
 
 // Sub-panel detail
 uniform float sub_panel_density : hint_range(0.0, 1.0) = 0.96;
-uniform float vent_density : hint_range(0.0, 0.5) = 0.14;
-uniform float vent_active_ratio : hint_range(0.0, 1.0) = 0.4;
-uniform float active_vent_glow : hint_range(0.0, 2.0) = 0.6;
+uniform float vent_density : hint_range(0.0, 0.5) = 0.04;
+uniform float vent_active_ratio : hint_range(0.0, 1.0) = 0.48;
+uniform float active_vent_glow : hint_range(0.0, 2.0) = 1.75;
 uniform float marking_density : hint_range(0.0, 0.5) = 0.22;
 
 // Flush-mounted light fixtures
-uniform float light_density : hint_range(0.0, 0.6) = 0.22;
+uniform float light_density : hint_range(0.0, 0.6) = 0.1;
 uniform float light_hdr : hint_range(1.0, 12.0) = 5.3;
 uniform float light_rim_width : hint_range(0.5, 4.0) = 1.9;
-uniform float light_ambient : hint_range(0.0, 1.0) = 0.5;
+uniform float light_ambient : hint_range(0.0, 1.0) = 0.48;
 uniform float light_bezel : hint_range(0.0, 3.0) = 0.7;
 
 // HDR pulse wave (only affects light fixtures + active vents, invisible on hull)
-uniform float pulse_intensity : hint_range(0.0, 1.0) = 0.38;
-uniform float pulse_hdr : hint_range(1.0, 20.0) = 9.2;
-uniform float pulse_speed : hint_range(0.0, 5.0) = 1.3;
-uniform float pulse_scale : hint_range(0.1, 8.0) = 7.1;
-uniform float pulse_threshold : hint_range(0.0, 1.0) = 0.22;
+uniform float pulse_intensity : hint_range(0.0, 1.0) = 0.66;
+uniform float pulse_hdr : hint_range(1.0, 20.0) = 10.5;
+uniform float pulse_speed : hint_range(0.0, 5.0) = 1.0;
+uniform float pulse_scale : hint_range(0.1, 8.0) = 2.2;
+uniform float pulse_threshold : hint_range(0.0, 1.0) = 0.12;
 uniform float pulse_softness : hint_range(0.01, 1.0) = 1.0;
 uniform float pulse_wobble : hint_range(0.0, 3.0) = 3.0;
 
@@ -73,7 +73,7 @@ float vnoise(vec2 p) {
 void fragment() {
 	float modulate_alpha = COLOR.a;
 	vec2 px = FRAGCOORD.xy;
-	float effective_scroll = manual_scroll ? scroll_offset : TIME * scroll_speed;
+	float effective_scroll = manual_scroll ? -scroll_offset : -TIME * scroll_speed;
 	vec2 scrolled = px + vec2(0.0, effective_scroll);
 
 	// ══════════════════════════════════════════════
@@ -266,7 +266,7 @@ void fragment() {
 	// ══════════════════════════════════════════════
 	float light_val = 0.0;
 	float fixture_hash = hash(cell_id + 81.0);
-	if (fixture_hash < light_density) {
+	if (fixture_hash < light_density && vent_hash >= vent_density) {
 		float shape_pick = hash(cell_id + 83.0);
 		vec2 fix_center = vec2(
 			0.3 + hash(cell_id + 85.0) * 0.4,
