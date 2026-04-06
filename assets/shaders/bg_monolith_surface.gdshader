@@ -1,9 +1,10 @@
 shader_type canvas_item;
 // Monolith Surface — Player flies along the face of a massive white hull.
 // THX 1138 / Apple Store: predominantly white panels, thin dark recessed
-// seams, clinical and sterile. Two-tier grid: macro sections (raised/sunken
-// zones) containing smaller brick panels. Flush-mounted light fixtures with
-// metal bezels bloom when an invisible HDR pulse wave sweeps across.
+// seams. Some seam segments randomly promoted to "major" (deeper/darker),
+// creating irregular zig-zag boundaries through the surface. Unified vents
+// with a slider controlling what fraction glow blue. Flush-mounted light
+// fixtures with metal bezels. HDR pulse wave only affects lights + active vents.
 
 // Panel surface
 uniform vec4 panel_bright : source_color = vec4(0.82, 0.84, 0.88, 1.0);
@@ -14,6 +15,7 @@ uniform vec4 vent_color : source_color = vec4(0.12, 0.13, 0.16, 1.0);
 // Accent lighting
 uniform vec4 warm_tint : source_color = vec4(1.0, 0.92, 0.78, 1.0);
 uniform vec4 light_color : source_color = vec4(1.0, 0.98, 0.95, 1.0);
+uniform vec4 active_vent_color : source_color = vec4(0.3, 0.65, 1.0, 1.0);
 
 // scroll_speed is for audition preview only; game uses manual_scroll + scroll_offset
 uniform float scroll_speed : hint_range(0.0, 200.0) = 45.0;
@@ -24,15 +26,16 @@ uniform float grid_spacing_y : hint_range(20.0, 140.0) = 62.0;
 uniform float seam_width : hint_range(0.5, 4.0) = 2.0;
 uniform float seam_depth : hint_range(0.0, 1.0) = 0.76;
 
-// Macro grid (large sections containing small panels)
-uniform float macro_cells_x : hint_range(2.0, 8.0) = 4.0;
-uniform float macro_cells_y : hint_range(2.0, 8.0) = 4.0;
-uniform float macro_seam_width : hint_range(1.0, 8.0) = 3.5;
-uniform float macro_depth : hint_range(0.0, 1.0) = 0.44;
+// Major seams — randomly promoted small-grid seam segments
+uniform float major_seam_chance : hint_range(0.0, 1.0) = 0.3;
+uniform float major_seam_extra_width : hint_range(0.0, 6.0) = 2.0;
+uniform float major_seam_depth : hint_range(0.0, 1.0) = 0.55;
 
 // Sub-panel detail
 uniform float sub_panel_density : hint_range(0.0, 1.0) = 0.96;
 uniform float vent_density : hint_range(0.0, 0.5) = 0.14;
+uniform float vent_active_ratio : hint_range(0.0, 1.0) = 0.4;
+uniform float active_vent_glow : hint_range(0.0, 2.0) = 0.6;
 uniform float marking_density : hint_range(0.0, 0.5) = 0.22;
 
 // Flush-mounted light fixtures
@@ -42,7 +45,7 @@ uniform float light_rim_width : hint_range(0.5, 4.0) = 1.9;
 uniform float light_ambient : hint_range(0.0, 1.0) = 0.5;
 uniform float light_bezel : hint_range(0.0, 3.0) = 0.7;
 
-// HDR pulse wave (only affects light fixtures, invisible on hull)
+// HDR pulse wave (only affects light fixtures + active vents, invisible on hull)
 uniform float pulse_intensity : hint_range(0.0, 1.0) = 0.38;
 uniform float pulse_hdr : hint_range(1.0, 20.0) = 9.2;
 uniform float pulse_speed : hint_range(0.0, 5.0) = 1.3;
@@ -74,29 +77,7 @@ void fragment() {
 	vec2 scrolled = px + vec2(0.0, effective_scroll);
 
 	// ══════════════════════════════════════════════
-	// MACRO GRID — large sections, aligned to small grid
-	// Each macro cell spans macro_cells_x * macro_cells_y small panels.
-	// Some sections are raised (brighter), some sunken (darker).
-	// ══════════════════════════════════════════════
-	float macro_sx = grid_spacing_x * macro_cells_x;
-	float macro_sy = grid_spacing_y * macro_cells_y;
-	float macro_row = floor(scrolled.y / macro_sy);
-	float macro_col = floor(scrolled.x / macro_sx);
-	vec2 macro_id = vec2(macro_col, macro_row);
-	float macro_fx = fract(scrolled.x / macro_sx);
-	float macro_fy = fract(scrolled.y / macro_sy);
-
-	// Macro seam distance
-	float macro_dx = min(macro_fx, 1.0 - macro_fx) * macro_sx;
-	float macro_dy = min(macro_fy, 1.0 - macro_fy) * macro_sy;
-	float macro_seam_dist = min(macro_dx, macro_dy);
-
-	// Per-section raised/sunken variation
-	float macro_hash = hash(macro_id + 101.0);
-	float macro_shade = mix(0.88, 1.05, macro_hash); // sunken=darker, raised=brighter
-
-	// ══════════════════════════════════════════════
-	// SMALL PANEL GRID — offset brick pattern within macro sections
+	// SMALL PANEL GRID — offset brick pattern
 	// ══════════════════════════════════════════════
 	float row_idx = floor(scrolled.y / grid_spacing_y);
 	float row_offset = mod(row_idx, 2.0) * grid_spacing_x * 0.5;
@@ -108,40 +89,68 @@ void fragment() {
 	float fx = fract(col_adj_x / grid_spacing_x);
 	float fy = fract(scrolled.y / grid_spacing_y);
 
-	// ── Small seam distance ──
+	// ── Seam distances ──
 	float dx_seam = min(fx, 1.0 - fx) * grid_spacing_x;
 	float dy_seam = min(fy, 1.0 - fy) * grid_spacing_y;
 	float seam_dist = min(dx_seam, dy_seam);
 
-	float seam_core = smoothstep(seam_width * 1.3, seam_width * 0.3, seam_dist);
-	float bevel = smoothstep(seam_width * 3.0, seam_width * 1.3, seam_dist);
+	// ══════════════════════════════════════════════
+	// MAJOR SEAM PROMOTION — per-segment along existing grid lines
+	// Each horizontal seam segment (between row r and r+1, at column c)
+	// and each vertical seam segment independently hashed to determine
+	// if it's "major". Creates irregular zig-zag dark boundaries.
+	// ══════════════════════════════════════════════
+	// Which seam boundary are we near?
+	// Horizontal: top edge (fy < 0.5 → row boundary = row_idx) or bottom (row_idx + 1)
+	float h_boundary_row = (fy < 0.5) ? row_idx : row_idx + 1.0;
+	// Vertical: left edge (fx < 0.5 → col boundary = col_idx) or right (col_idx + 1)
+	float v_boundary_col = (fx < 0.5) ? col_idx : col_idx + 1.0;
+
+	// Hash per seam segment: h_seam identified by (col_idx, boundary_row)
+	float h_seg_hash = hash(vec2(col_idx, h_boundary_row) + 201.0);
+	float v_seg_hash = hash(vec2(v_boundary_col, row_idx) + 307.0);
+
+	bool h_is_major = h_seg_hash < major_seam_chance;
+	bool v_is_major = v_seg_hash < major_seam_chance;
+
+	// Effective seam width: wider if this segment is major
+	float h_eff_width = seam_width + (h_is_major ? major_seam_extra_width : 0.0);
+	float v_eff_width = seam_width + (v_is_major ? major_seam_extra_width : 0.0);
+
+	// Effective depth: deeper if major
+	float h_eff_depth = h_is_major ? max(seam_depth, major_seam_depth) : seam_depth;
+	float v_eff_depth = v_is_major ? max(seam_depth, major_seam_depth) : seam_depth;
+
+	// Compute seam contributions separately for h and v
+	float h_seam_core = smoothstep(h_eff_width * 1.3, h_eff_width * 0.3, dy_seam);
+	float v_seam_core = smoothstep(v_eff_width * 1.3, v_eff_width * 0.3, dx_seam);
+
+	float bevel_h = smoothstep(h_eff_width * 3.0, h_eff_width * 1.3, dy_seam);
+	float bevel_v = smoothstep(v_eff_width * 3.0, v_eff_width * 1.3, dx_seam);
 
 	// ── Base panel color ──
 	float cell_hash = hash(cell_id);
 	float shade_t = cell_hash * 0.6 + 0.4;
 	vec3 panel_base = mix(panel_dim.rgb, panel_bright.rgb, shade_t);
 
-	// Apply macro section shading (raised/sunken)
-	panel_base *= macro_shade;
-
-	// Bevel shadow near small seams
+	// Bevel shadow near seams
+	float bevel = max(bevel_h, bevel_v);
 	panel_base *= mix(1.0, 0.92, bevel);
 
-	// Small seam fill
-	vec3 col = mix(panel_base, seam_dark.rgb, seam_core * seam_depth);
-
-	// ── Macro seam (deeper, wider groove over small grid) ──
-	float macro_seam_core = smoothstep(macro_seam_width * 1.4, macro_seam_width * 0.3, macro_seam_dist);
-	float macro_bevel = smoothstep(macro_seam_width * 4.0, macro_seam_width * 1.5, macro_seam_dist);
-	// Darken for macro seams on top of whatever small-grid produced
-	col = mix(col, seam_dark.rgb * 0.7, macro_seam_core * macro_depth);
-	// Bevel shadow along macro edges
-	col *= mix(1.0, 0.88, macro_bevel * macro_depth * 0.5);
+	// Seam fill — take the stronger of h/v seam at this pixel
+	vec3 col = panel_base;
+	// Major seams use darker color
+	vec3 h_seam_col = h_is_major ? seam_dark.rgb * 0.65 : seam_dark.rgb;
+	vec3 v_seam_col = v_is_major ? seam_dark.rgb * 0.65 : seam_dark.rgb;
+	col = mix(col, h_seam_col, h_seam_core * h_eff_depth);
+	col = mix(col, v_seam_col, v_seam_core * v_eff_depth);
 
 	float inside = smoothstep(seam_width * 1.5, seam_width * 3.5, seam_dist);
-	// Also suppress detail near macro seams
-	float inside_macro = smoothstep(macro_seam_width * 1.5, macro_seam_width * 4.0, macro_seam_dist);
-	float detail_mask = inside * inside_macro;
+	// Suppress detail near major seams too
+	float major_near = 0.0;
+	if (h_is_major) major_near = max(major_near, smoothstep(h_eff_width * 3.5, h_eff_width * 1.5, dy_seam));
+	if (v_is_major) major_near = max(major_near, smoothstep(v_eff_width * 3.5, v_eff_width * 1.5, dx_seam));
+	float detail_mask = inside * (1.0 - major_near * 0.7);
 
 	// ══════════════════════════════════════════════
 	// SUB-PANEL DETAIL — secondary seam dividing some panels
@@ -161,8 +170,9 @@ void fragment() {
 	}
 
 	// ══════════════════════════════════════════════
-	// RECESSED VENTS — dark thin slots in some panels
+	// VENTS — unified pool, vent_active_ratio controls how many glow
 	// ══════════════════════════════════════════════
+	float active_vent_val = 0.0;
 	float vent_hash = hash(cell_id + 37.0);
 	if (vent_hash < vent_density) {
 		float vent_y = 0.4 + hash(cell_id + 41.0) * 0.2;
@@ -172,9 +182,25 @@ void fragment() {
 		float in_vent_y = smoothstep(vent_h, vent_h * 0.3, abs(fy - vent_y));
 		float in_vent_x = step(vent_x_start, fx) * step(fx, vent_x_end);
 		float vent = in_vent_y * in_vent_x * detail_mask;
+
+		// Dark slot body (all vents)
 		col = mix(col, vent_color.rgb, vent * 0.85);
-		float vent_flick = 0.3 + 0.7 * (0.5 + 0.5 * sin(TIME * 0.8 + cell_hash * 10.0));
-		col += warm_tint.rgb * vent * 0.04 * vent_flick;
+
+		// Is this vent active? Hash determines per-vent, ratio sets the threshold
+		float active_hash = hash(cell_id + 149.0);
+		bool is_active = active_hash < vent_active_ratio;
+
+		if (is_active) {
+			// Blue interior glow
+			float av_inner = smoothstep(vent_h, 0.0, abs(fy - vent_y));
+			active_vent_val = av_inner * in_vent_x * detail_mask;
+			float av_flick = 0.8 + 0.2 * sin(TIME * 1.2 + cell_hash * 8.0);
+			col += active_vent_color.rgb * active_vent_val * active_vent_glow * av_flick;
+		} else {
+			// Inactive: subtle warm glow only
+			float vent_flick = 0.3 + 0.7 * (0.5 + 0.5 * sin(TIME * 0.8 + cell_hash * 10.0));
+			col += warm_tint.rgb * vent * 0.04 * vent_flick;
+		}
 	}
 
 	// ══════════════════════════════════════════════
@@ -264,31 +290,25 @@ void fragment() {
 			fix_dist = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
 		}
 
-		// ── Metal bezel frame (dark border around the light) ──
-		// The bezel sits at fix_dist ≈ 0 (the boundary between light and panel)
+		// ── Metal bezel frame ──
 		float bezel_outer = smoothstep(light_bezel * 1.5, light_bezel * 0.3, fix_dist);
 		float bezel_inner = smoothstep(-light_bezel * 0.3, -light_bezel * 1.0, fix_dist);
 		float bezel_ring = bezel_outer * bezel_inner;
-		// Dark metal frame
 		col = mix(col, seam_dark.rgb * 0.8, bezel_ring * 0.9 * detail_mask);
-		// Highlight catch on outer lip of bezel
 		float bezel_highlight = smoothstep(light_bezel * 2.0, light_bezel * 1.2, fix_dist)
 		                      - smoothstep(light_bezel * 1.2, light_bezel * 0.6, fix_dist);
 		bezel_highlight = max(bezel_highlight, 0.0);
 		col += panel_bright.rgb * bezel_highlight * 0.12 * detail_mask;
 
-		// ── Light emitting surface (inside the bezel) ──
-		// Raised rim glow at the inner edge
+		// ── Light emitting surface ──
 		float rim = exp(-fix_dist * fix_dist / (light_rim_width * light_rim_width));
-		// Bright fill
 		float fill = smoothstep(0.5, -2.0, fix_dist);
-
 		light_val = (fill * 0.85 + rim * 0.5) * detail_mask;
 		col += light_color.rgb * light_val * light_ambient;
 	}
 
 	// ══════════════════════════════════════════════
-	// HDR PULSE WAVE — invisible sweep that blooms lights
+	// HDR PULSE WAVE — invisible sweep that blooms lights + active vents
 	// ══════════════════════════════════════════════
 	float pulse_val = 0.0;
 	if (pulse_intensity > 0.001) {
@@ -299,8 +319,9 @@ void fragment() {
 		float wave2 = vnoise(vec2(py * 1.7 + 7.0, scrolled.x * 0.0012 + TIME * 0.1));
 		pulse_val *= (0.6 + wave2 * 0.8);
 
-		// Light fixtures flare into HDR when pulse passes (hull stays unaffected)
+		// Light fixtures + active vents flare into HDR when pulse passes
 		col += light_color.rgb * light_val * pulse_val * pulse_intensity * pulse_hdr;
+		col += active_vent_color.rgb * active_vent_val * pulse_val * pulse_intensity * pulse_hdr * 0.6;
 	}
 
 	// ══════════════════════════════════════════════

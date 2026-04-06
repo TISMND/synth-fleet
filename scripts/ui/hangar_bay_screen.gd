@@ -526,10 +526,10 @@ func _switch_tab(index: int) -> void:
 # ── Subsystems tab — LED stat bars ──
 
 const STAT_BARS_CONFIG := [
-	{"key": "shield_segments", "label": "SHIELDS", "color": Color(0.300, 0.600, 1.000), "hdr": 1.7, "max_segs": 20},
-	{"key": "hull_segments", "label": "HULL", "color": Color(0.356, 0.859, 0.430), "hdr": 1.8, "max_segs": 20},
-	{"key": "thermal_segments", "label": "THERMAL", "color": Color(1.000, 0.508, 0.484), "hdr": 1.9, "max_segs": 20},
-	{"key": "electric_segments", "label": "ELECTRIC", "color": Color(0.850, 0.750, 0.200), "hdr": 1.9, "max_segs": 20},
+	{"key": "shield_segments", "label": "SHLD", "color": Color(0.300, 0.600, 1.000), "hdr": 1.7, "max_segs": 15},
+	{"key": "hull_segments", "label": "HULL", "color": Color(0.356, 0.859, 0.430), "hdr": 1.8, "max_segs": 15},
+	{"key": "thermal_segments", "label": "THRM", "color": Color(1.000, 0.508, 0.484), "hdr": 1.9, "max_segs": 15},
+	{"key": "electric_segments", "label": "ELEC", "color": Color(0.850, 0.750, 0.200), "hdr": 1.9, "max_segs": 15},
 ]
 const SEG_WIDTH: float = 18.0
 const SEG_HEIGHT: float = 14.0
@@ -552,7 +552,7 @@ func _build_subsystems_tab(parent: Control) -> void:
 	_available_points_label = Label.new()
 	_available_points_label.text = "Available Points: 0"
 	_available_points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_available_points_label.add_theme_font_size_override("font_size", 13)
+	_available_points_label.add_theme_font_size_override("font_size", 17)
 	_available_points_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 	vbox.add_child(_available_points_label)
 
@@ -570,36 +570,20 @@ func _build_subsystems_tab(parent: Control) -> void:
 func _build_stat_bar_row(parent: VBoxContainer, stat_key: String, stat_label: String, bar_color: Color, hdr_mult: float, max_segs: int) -> void:
 	var row := HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 6)
+	row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	parent.add_child(row)
 
-	# [+] upgrade button — always visible, greyed out when no points available
-	var plus_btn := Button.new()
-	plus_btn.text = "[+]"
-	plus_btn.custom_minimum_size = Vector2(34, 28)
-	plus_btn.disabled = true
-	ThemeManager.apply_button_style(plus_btn)
-	row.add_child(plus_btn)
-
-	# Label + segment count
-	var info_col := VBoxContainer.new()
-	info_col.custom_minimum_size.x = 80
-	info_col.add_theme_constant_override("separation", 2)
-	row.add_child(info_col)
-
+	# Label — HUD style with glow shader, abbreviated name
 	var name_lbl := Label.new()
 	name_lbl.text = stat_label
-	name_lbl.add_theme_font_size_override("font_size", 11)
-	name_lbl.add_theme_color_override("font_color", bar_color)
-	info_col.add_child(name_lbl)
+	name_lbl.custom_minimum_size.x = 46
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var body_font: Font = ThemeManager.get_font("font_body")
+	HudBuilder.apply_bar_label_theme(name_lbl, bar_color, body_font, 13)
+	row.add_child(name_lbl)
 
-	var val_lbl := Label.new()
-	val_lbl.text = "0"
-	val_lbl.add_theme_font_size_override("font_size", 10)
-	val_lbl.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
-	info_col.add_child(val_lbl)
-
-	# Segmented bar — max_segs ColorRects, lit or dim
+	# Segmented bar
 	var seg_row := HBoxContainer.new()
 	seg_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	seg_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -610,9 +594,27 @@ func _build_stat_bar_row(parent: VBoxContainer, stat_key: String, stat_label: St
 	for i in max_segs:
 		var seg := ColorRect.new()
 		seg.custom_minimum_size = Vector2(SEG_WIDTH, SEG_HEIGHT)
-		seg.color = Color(0.08, 0.08, 0.1, 0.4)  # dim/empty
+		seg.color = Color(0.08, 0.08, 0.1, 0.4)
 		seg_row.add_child(seg)
 		segments.append(seg)
+
+	# Count — glowing, matching bar color, right of the segments
+	var val_lbl := Label.new()
+	val_lbl.text = "0"
+	val_lbl.custom_minimum_size.x = 28
+	val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	val_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	HudBuilder.apply_bar_label_theme(val_lbl, bar_color, body_font, 12)
+	row.add_child(val_lbl)
+
+	# [+] upgrade button — right side, greyed out when no points available
+	var plus_btn := Button.new()
+	plus_btn.text = "+"
+	plus_btn.custom_minimum_size = Vector2(26, 24)
+	plus_btn.disabled = true
+	ThemeManager.apply_button_style(plus_btn)
+	plus_btn.add_theme_font_size_override("font_size", 14)
+	row.add_child(plus_btn)
 
 	_stat_bars[stat_key] = {
 		"segments": segments, "label": val_lbl, "plus_btn": plus_btn,

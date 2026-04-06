@@ -13,14 +13,15 @@ const SLIDER_DEFS: Array[Dictionary] = [
 	{"key": "grid_spacing_y", "label": "GRID SPACING Y", "min": 20.0, "max": 140.0, "default": 62.0, "step": 1.0},
 	{"key": "seam_width", "label": "SEAM WIDTH", "min": 0.5, "max": 4.0, "default": 2.0, "step": 0.1},
 	{"key": "seam_depth", "label": "SEAM DEPTH", "min": 0.0, "max": 1.0, "default": 0.76, "step": 0.02},
-	{"key": "_sep_macro", "label": "", "separator": true, "header": "MACRO GRID"},
-	{"key": "macro_cells_x", "label": "MACRO CELLS X", "min": 2.0, "max": 8.0, "default": 4.0, "step": 1.0},
-	{"key": "macro_cells_y", "label": "MACRO CELLS Y", "min": 2.0, "max": 8.0, "default": 4.0, "step": 1.0},
-	{"key": "macro_seam_width", "label": "MACRO SEAM WIDTH", "min": 1.0, "max": 8.0, "default": 3.5, "step": 0.5},
-	{"key": "macro_depth", "label": "MACRO DEPTH", "min": 0.0, "max": 1.0, "default": 0.44, "step": 0.02},
+	{"key": "_sep_major", "label": "", "separator": true, "header": "MAJOR SEAMS"},
+	{"key": "major_seam_chance", "label": "CHANCE", "min": 0.0, "max": 1.0, "default": 0.3, "step": 0.02},
+	{"key": "major_seam_extra_width", "label": "EXTRA WIDTH", "min": 0.0, "max": 6.0, "default": 2.0, "step": 0.5},
+	{"key": "major_seam_depth", "label": "DEPTH", "min": 0.0, "max": 1.0, "default": 0.55, "step": 0.02},
 	{"key": "_sep_detail", "label": "", "separator": true, "header": "PANEL DETAIL"},
 	{"key": "sub_panel_density", "label": "SUB-PANELS", "min": 0.0, "max": 1.0, "default": 0.96, "step": 0.02},
 	{"key": "vent_density", "label": "VENT DENSITY", "min": 0.0, "max": 0.5, "default": 0.14, "step": 0.02},
+	{"key": "vent_active_ratio", "label": "ACTIVE RATIO", "min": 0.0, "max": 1.0, "default": 0.4, "step": 0.02},
+	{"key": "active_vent_glow", "label": "ACTIVE GLOW", "min": 0.0, "max": 2.0, "default": 0.6, "step": 0.05},
 	{"key": "marking_density", "label": "MARKINGS", "min": 0.0, "max": 0.5, "default": 0.22, "step": 0.02},
 	{"key": "_sep_lights", "label": "", "separator": true, "header": "LIGHT FIXTURES"},
 	{"key": "light_density", "label": "LIGHT DENSITY", "min": 0.0, "max": 0.6, "default": 0.22, "step": 0.02},
@@ -106,6 +107,7 @@ func _build_ui() -> void:
 	_build_color_row(slider_col, "seam_dark", "SEAM DARK", Color(0.22, 0.24, 0.28))
 	_build_color_row(slider_col, "vent_color", "VENT COLOR", Color(0.12, 0.13, 0.16))
 	_build_color_row(slider_col, "light_color", "LIGHT COLOR", Color(1.0, 0.98, 0.95))
+	_build_color_row(slider_col, "active_vent_color", "ACTIVE VENT", Color(0.3, 0.65, 1.0))
 	_build_color_row(slider_col, "warm_tint", "WARM TINT", Color(1.0, 0.92, 0.78))
 
 	# Sliders

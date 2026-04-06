@@ -1754,8 +1754,8 @@ func _draw_mite() -> void:
 
 
 func _draw_polyp() -> void:
-	# Small spiked shell — vertically symmetrical, cowrie/almond shape with radiating spines
-	var s := 2.2
+	# Spiked shell — vertically symmetrical, cowrie/almond shape with radiating spines
+	var s := 4.4
 	# Shell body — eye/almond shape, wider horizontally, symmetrical top and bottom
 	var shell := PackedVector2Array()
 	var shell_pts: int = 24

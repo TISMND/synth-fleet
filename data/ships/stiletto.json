@@ -19,16 +19,16 @@
 		0.119999997317791,
 		1.0
 	],
-	"light_pattern": "STACKED V",
+	"light_pattern": "DOUBLE CHEVRON",
 	"lines": [],
 	"paint_color": [
-		0.98828125,
-		0.0733489990234375,
-		0.0733489990234375,
-		0.920000016689301
+		1.18400001525879,
+		0.0989999994635582,
+		0.0989999994635582,
+		0.921568632125854
 	],
-	"paint_pattern": "THREE BANDS",
-	"render_mode": "stealth",
+	"paint_pattern": "",
+	"render_mode": "chrome",
 	"stats": {
 		"acceleration": 3200.0,
 		"collision_height": 90.0,
