@@ -7,10 +7,90 @@ extends RefCounted
 
 # ── Hull geometry lookup ──────────────────────────────────────────
 ## Returns { hull: PackedVector2Array, exclusions: Array[PackedVector2Array] } or {}.
+## Accepts visual_id (enemy/ally) or "player_N" for player ship N.
 static func get_hull_geometry(visual_id: String) -> Dictionary:
 	match visual_id:
 		"dreadnought": return _cargo_hull_geometry()
+		"player_0": return _player_hull(0)
+		"player_1": return _player_hull(1)
+		"player_2": return _player_hull(2)
+		"player_3": return _player_hull(3)
+		"player_4": return _player_hull(4)
+		"player_5": return _player_hull(5)
+		"player_6": return _player_hull(6)
+		"player_7": return _cargo_hull_geometry()  # Dreadnought = ship 7
+		"player_8": return _player_hull(8)
 		_: return {}
+
+
+## Lookup by numeric ship_id (0-8 for player ships).
+static func get_hull_geometry_for_ship_id(ship_id: int) -> Dictionary:
+	return get_hull_geometry("player_%d" % ship_id)
+
+
+static func _player_hull(id: int) -> Dictionary:
+	var hull: PackedVector2Array
+	var exclusions: Array[PackedVector2Array] = []
+	match id:
+		0:  # Switchblade (s=1.2) — narrow swept interceptor
+			hull = PackedVector2Array([
+				Vector2(0, -44), Vector2(14, -28), Vector2(26, -43),
+				Vector2(20, -10), Vector2(10, 19),
+				Vector2(-10, 19), Vector2(-20, -10),
+				Vector2(-26, -43), Vector2(-14, -28),
+			])
+		1:  # Phantom (s=1.4) — teardrop stealth
+			hull = PackedVector2Array([
+				Vector2(0, -50), Vector2(14, -22), Vector2(22, 11),
+				Vector2(17, 28), Vector2(8, 36),
+				Vector2(-8, 36), Vector2(-17, 28),
+				Vector2(-22, 11), Vector2(-14, -22),
+			])
+		2:  # Mantis (s=1.4) — very wide wings
+			hull = PackedVector2Array([
+				Vector2(0, -39), Vector2(14, -20), Vector2(62, 11),
+				Vector2(56, 20), Vector2(11, 25),
+				Vector2(-11, 25), Vector2(-56, 20),
+				Vector2(-62, 11), Vector2(-14, -20),
+			])
+		3:  # Corsair (s=1.4) — asymmetric
+			hull = PackedVector2Array([
+				Vector2(-3, -48), Vector2(10, -31), Vector2(10, 22),
+				Vector2(7, 36), Vector2(-10, 36),
+				Vector2(-13, 22), Vector2(-13, -6), Vector2(-10, -31),
+			])
+		4:  # Stiletto (s=1.4) — diamond all-rounder
+			hull = PackedVector2Array([
+				Vector2(0, -49), Vector2(20, -17), Vector2(39, 6),
+				Vector2(31, 20), Vector2(14, 34),
+				Vector2(-14, 34), Vector2(-31, 20),
+				Vector2(-39, 6), Vector2(-20, -17),
+			])
+		5:  # Trident (s=1.4) — narrow 3-prong
+			hull = PackedVector2Array([
+				Vector2(0, -56), Vector2(11, -8), Vector2(13, 22),
+				Vector2(10, 39), Vector2(-10, 39),
+				Vector2(-13, 22), Vector2(-11, -8),
+			])
+		6:  # Orrery (s=1.7) — circular exotic
+			var pts := PackedVector2Array()
+			for i in 12:
+				var a: float = float(i) / 12.0 * TAU - PI * 0.5
+				pts.append(Vector2(cos(a) * 24, sin(a) * 24))
+			hull = pts
+		8:  # Bastion (s=1.8) — wide fortress
+			hull = PackedVector2Array([
+				Vector2(-18, -86), Vector2(18, -86),
+				Vector2(29, -61), Vector2(40, -25),
+				Vector2(50, 18), Vector2(50, 79),
+				Vector2(-50, 79), Vector2(-50, 18),
+				Vector2(-40, -25), Vector2(-29, -61),
+			])
+		_:
+			hull = PackedVector2Array()
+	if hull.size() == 0:
+		return {}
+	return {hull = hull, exclusions = exclusions}
 
 
 static func _cargo_hull_geometry() -> Dictionary:

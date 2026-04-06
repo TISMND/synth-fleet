@@ -10,6 +10,8 @@ var _ship_renderers: Array[ShipRenderer] = []
 var _player_ship_renderer: ShipRenderer
 var _header_ship_renderer: ShipRenderer
 var _header_preview_area: Control
+var _header_paint_overlay: Node2D
+var _header_light_overlay: Node2D
 var _plus_overlay: Control
 var _plus_pulse_time: float = 0.0
 var _cargo_renderer: ShipRenderer
@@ -19,6 +21,7 @@ var _name_edit: LineEdit
 var _level_label: Label
 var _class_label: Label
 var _desc_label: Label
+var _bay_overlays: Dictionary = {}  # bay_index → {paint: Node2D or null, light: Node2D or null}
 
 # ── Bay state ──
 var _bay_ship_ids: Array[int] = []  # ship_id per player bay (-1 = empty)
@@ -94,7 +97,9 @@ var _tab_containers: Array[Control] = []
 var _active_tab: int = 0
 
 # Subsystem LED bar refs (keyed by stat name)
-var _stat_bars: Dictionary = {}  # stat_key → {bar: ProgressBar, label: Label, plus_btn: Button}
+var _stat_bars: Dictionary = {}  # stat_key → {segments, label, plus_btn, color, hdr, max_segs}
+var _available_points_label: Label
+var _available_points: int = 0  # placeholder — not wired to leveling yet
 
 
 func _ready() -> void:
@@ -104,6 +109,7 @@ func _ready() -> void:
 	ThemeManager.theme_changed.connect(_on_theme_changed)
 	_build_layout()
 	_switch_tab(0)
+	call_deferred("_refresh_header_for_selection")
 
 
 func _init_upgrade_state() -> void:
@@ -120,6 +126,17 @@ func _process(delta: float) -> void:
 	_plus_pulse_time += delta
 	if _plus_overlay:
 		_plus_overlay.queue_redraw()
+	# Pulse upgrade points label + [+] buttons when points > 0
+	if _available_points > 0:
+		var pulse: float = 0.6 + 0.4 * sin(_plus_pulse_time * 3.0)
+		var accent: Color = ThemeManager.get_color("accent")
+		var pulse_col := Color(accent.r, accent.g, accent.b, pulse)
+		if _available_points_label:
+			_available_points_label.add_theme_color_override("font_color", pulse_col)
+		for stat_key in _stat_bars:
+			var plus_btn: Button = _stat_bars[stat_key]["plus_btn"]
+			if not plus_btn.disabled:
+				plus_btn.add_theme_color_override("font_color", pulse_col)
 
 
 func _build_layout() -> void:
@@ -165,6 +182,9 @@ func _build_layout() -> void:
 	_right_panel = right_panel
 	_build_right_panel(right_panel)
 
+	# Build overlays for all populated bays (reads paint/light from ShipData JSON)
+	call_deferred("_rebuild_all_bay_overlays")
+
 	# Reposition ships/drawing when the window resizes
 	resized.connect(_on_resized)
 	call_deferred("_on_resized")
@@ -192,11 +212,62 @@ func _ship_custom_name_for(ship_id: int) -> String:
 func _ship_description_for(ship_id: int) -> String:
 	if ship_id < 0:
 		return ""
+	var sd: ShipData = _load_ship_data(ship_id)
+	return sd.description if sd else ""
+
+
+func _load_ship_data(ship_id: int) -> ShipData:
+	if ship_id < 0:
+		return null
 	var ship_name: String = ShipRegistry.get_ship_name(ship_id).to_lower()
-	var ship_data: ShipData = ShipDataManager.load_by_id(ship_name)
-	if ship_data:
-		return ship_data.description
-	return ""
+	return ShipDataManager.load_by_id(ship_name)
+
+
+func _save_ship_data(ship_id: int, sd: ShipData) -> void:
+	if sd:
+		var ship_name: String = ShipRegistry.get_ship_name(ship_id).to_lower()
+		ShipDataManager.save(ship_name, sd.to_dict())
+
+
+func _rebuild_bay_overlays(bay_index: int) -> void:
+	# Remove old overlays for this bay
+	if _bay_overlays.has(bay_index):
+		var old: Dictionary = _bay_overlays[bay_index]
+		if old.get("paint") and is_instance_valid(old["paint"]):
+			(old["paint"] as Node).queue_free()
+		if old.get("light") and is_instance_valid(old["light"]):
+			(old["light"] as Node).queue_free()
+	_bay_overlays[bay_index] = {"paint": null, "light": null}
+
+	var sid: int = _bay_ship_ids[bay_index] if bay_index < _bay_ship_ids.size() else -1
+	if sid < 0:
+		return
+	var sd: ShipData = _load_ship_data(sid)
+	if not sd:
+		return
+	var hull_key: String = "player_%d" % sid
+	var overlays: Array[Node2D] = ShipCosmetics.build_overlays(
+		hull_key, sd.paint_pattern, sd.paint_color, sd.light_pattern, sd.light_color,
+	)
+	# Position at the bay's spot
+	var spots: Array[Vector2] = _get_player_spots()
+	var pos: Vector2 = spots[bay_index] if bay_index < spots.size() else Vector2.ZERO
+	if overlays[0]:
+		overlays[0].position = pos
+		overlays[0].z_index = 2
+		add_child(overlays[0])
+		_bay_overlays[bay_index]["paint"] = overlays[0]
+	if overlays[1]:
+		overlays[1].position = pos
+		overlays[1].z_index = 3
+		add_child(overlays[1])
+		_bay_overlays[bay_index]["light"] = overlays[1]
+
+
+func _rebuild_all_bay_overlays() -> void:
+	for i in _bay_ship_ids.size():
+		if _bay_ship_ids[i] >= 0:
+			_rebuild_bay_overlays(i)
 
 
 func _on_ship_name_changed(new_text: String) -> void:
@@ -277,6 +348,33 @@ func _refresh_header_for_selection() -> void:
 		_desc_label.text = _ship_description_for(sid)
 	_refresh_stat_bars()
 
+	# Sync customize tab labels/colors from ShipData
+	var sd: ShipData = _load_ship_data(sid) if sid >= 0 else null
+	if sd:
+		if _skin_label:
+			# Reverse-lookup skin name from render_mode
+			var skin_name: String = "Default"
+			for opt in SKIN_OPTIONS:
+				if SKIN_RENDER_MODES.get(opt, 0) == NpcShip._render_mode_from_string(sd.render_mode):
+					skin_name = opt
+					break
+			_skin_label.text = skin_name
+			# Also set header renderer to match
+			if _header_ship_renderer:
+				_header_ship_renderer.render_mode = NpcShip._render_mode_from_string(sd.render_mode)
+				_header_ship_renderer.queue_redraw()
+		if _paint_pattern_label:
+			_paint_pattern_label.text = sd.paint_pattern if sd.paint_pattern != "" else "(none)"
+		if _paint_color_btn:
+			_paint_color_btn.color = sd.paint_color
+			_paint_color_btn.disabled = (sd.paint_pattern == "")
+		if _light_pattern_label:
+			_light_pattern_label.text = sd.light_pattern if sd.light_pattern != "" else "(none)"
+		if _light_color_btn:
+			_light_color_btn.color = sd.light_color
+			_light_color_btn.disabled = (sd.light_pattern == "")
+	_rebuild_header_overlays()
+
 
 func _on_activate_pressed() -> void:
 	var sid: int = _selected_ship_id()
@@ -311,7 +409,42 @@ func _show_placeholder_popup(message: String) -> void:
 
 func _layout_header_ship() -> void:
 	if _header_ship_renderer and _header_preview_area:
-		_header_ship_renderer.position = _header_preview_area.size * 0.5
+		var center: Vector2 = _header_preview_area.size * 0.5
+		_header_ship_renderer.position = center
+		if _header_paint_overlay:
+			_header_paint_overlay.position = center
+		if _header_light_overlay:
+			_header_light_overlay.position = center
+
+
+func _rebuild_header_overlays() -> void:
+	if _header_paint_overlay and is_instance_valid(_header_paint_overlay):
+		_header_paint_overlay.queue_free()
+		_header_paint_overlay = null
+	if _header_light_overlay and is_instance_valid(_header_light_overlay):
+		_header_light_overlay.queue_free()
+		_header_light_overlay = null
+	var sid: int = _selected_ship_id()
+	if sid < 0 or not _header_preview_area:
+		return
+	var sd: ShipData = _load_ship_data(sid)
+	if not sd:
+		return
+	var hull_key: String = "player_%d" % sid
+	var overlays: Array[Node2D] = ShipCosmetics.build_overlays(
+		hull_key, sd.paint_pattern, sd.paint_color, sd.light_pattern, sd.light_color,
+	)
+	var center: Vector2 = _header_preview_area.size * 0.5
+	if overlays[0]:
+		_header_paint_overlay = overlays[0]
+		_header_paint_overlay.position = center
+		_header_paint_overlay.z_index = 2
+		_header_preview_area.add_child(_header_paint_overlay)
+	if overlays[1]:
+		_header_light_overlay = overlays[1]
+		_header_light_overlay.position = center
+		_header_light_overlay.z_index = 3
+		_header_preview_area.add_child(_header_light_overlay)
 
 
 func _build_right_panel(parent: MarginContainer) -> void:
@@ -393,11 +526,14 @@ func _switch_tab(index: int) -> void:
 # ── Subsystems tab — LED stat bars ──
 
 const STAT_BARS_CONFIG := [
-	{"key": "shield_hp", "label": "SHIELDS", "color": Color(0.3, 0.6, 1.0)},
-	{"key": "hull_hp", "label": "HULL", "color": Color(0.2, 0.9, 0.3)},
-	{"key": "thermal_hp", "label": "THERMAL", "color": Color(1.0, 0.45, 0.1)},
-	{"key": "electric_hp", "label": "ELECTRIC", "color": Color(0.85, 0.75, 0.2)},
+	{"key": "shield_segments", "label": "SHIELDS", "color": Color(0.300, 0.600, 1.000), "hdr": 1.7, "max_segs": 20},
+	{"key": "hull_segments", "label": "HULL", "color": Color(0.356, 0.859, 0.430), "hdr": 1.8, "max_segs": 20},
+	{"key": "thermal_segments", "label": "THERMAL", "color": Color(1.000, 0.508, 0.484), "hdr": 1.9, "max_segs": 20},
+	{"key": "electric_segments", "label": "ELECTRIC", "color": Color(0.850, 0.750, 0.200), "hdr": 1.9, "max_segs": 20},
 ]
+const SEG_WIDTH: float = 18.0
+const SEG_HEIGHT: float = 14.0
+const SEG_GAP: float = 3.0
 
 
 func _build_subsystems_tab(parent: Control) -> void:
@@ -412,30 +548,40 @@ func _build_subsystems_tab(parent: Control) -> void:
 	vbox.add_theme_constant_override("separation", 14)
 	container.add_child(vbox)
 
+	# Available upgrade points indicator
+	_available_points_label = Label.new()
+	_available_points_label.text = "Available Points: 0"
+	_available_points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_available_points_label.add_theme_font_size_override("font_size", 13)
+	_available_points_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
+	vbox.add_child(_available_points_label)
+
 	for cfg in STAT_BARS_CONFIG:
 		var stat_key: String = cfg["key"]
 		var stat_label: String = cfg["label"]
 		var stat_color: Color = cfg["color"]
-		_build_stat_bar_row(vbox, stat_key, stat_label, stat_color)
+		var hdr_mult: float = cfg["hdr"]
+		var max_segs: int = cfg["max_segs"]
+		_build_stat_bar_row(vbox, stat_key, stat_label, stat_color, hdr_mult, max_segs)
 
 	_refresh_stat_bars()
 
 
-func _build_stat_bar_row(parent: VBoxContainer, stat_key: String, stat_label: String, bar_color: Color) -> void:
+func _build_stat_bar_row(parent: VBoxContainer, stat_key: String, stat_label: String, bar_color: Color, hdr_mult: float, max_segs: int) -> void:
 	var row := HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 8)
 	parent.add_child(row)
 
-	# "+" upgrade button — hidden until leveling is wired
+	# [+] upgrade button — always visible, greyed out when no points available
 	var plus_btn := Button.new()
-	plus_btn.text = "+"
-	plus_btn.custom_minimum_size = Vector2(28, 28)
-	plus_btn.visible = false
+	plus_btn.text = "[+]"
+	plus_btn.custom_minimum_size = Vector2(34, 28)
+	plus_btn.disabled = true
 	ThemeManager.apply_button_style(plus_btn)
 	row.add_child(plus_btn)
 
-	# Label + value column
+	# Label + segment count
 	var info_col := VBoxContainer.new()
 	info_col.custom_minimum_size.x = 80
 	info_col.add_theme_constant_override("separation", 2)
@@ -453,17 +599,25 @@ func _build_stat_bar_row(parent: VBoxContainer, stat_key: String, stat_label: St
 	val_lbl.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 	info_col.add_child(val_lbl)
 
-	# LED bar
-	var bar := ProgressBar.new()
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	bar.custom_minimum_size.y = 18
-	bar.show_percentage = false
-	bar.max_value = 200.0  # raw HP comparison range (not normalized)
-	ThemeManager.apply_led_bar(bar, bar_color, 0.0)
-	row.add_child(bar)
+	# Segmented bar — max_segs ColorRects, lit or dim
+	var seg_row := HBoxContainer.new()
+	seg_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	seg_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	seg_row.add_theme_constant_override("separation", int(SEG_GAP))
+	row.add_child(seg_row)
 
-	_stat_bars[stat_key] = {"bar": bar, "label": val_lbl, "plus_btn": plus_btn, "color": bar_color}
+	var segments: Array[ColorRect] = []
+	for i in max_segs:
+		var seg := ColorRect.new()
+		seg.custom_minimum_size = Vector2(SEG_WIDTH, SEG_HEIGHT)
+		seg.color = Color(0.08, 0.08, 0.1, 0.4)  # dim/empty
+		seg_row.add_child(seg)
+		segments.append(seg)
+
+	_stat_bars[stat_key] = {
+		"segments": segments, "label": val_lbl, "plus_btn": plus_btn,
+		"color": bar_color, "hdr": hdr_mult, "max_segs": max_segs,
+	}
 
 
 func _refresh_stat_bars() -> void:
@@ -478,13 +632,28 @@ func _refresh_stat_bars() -> void:
 		if not _stat_bars.has(stat_key):
 			continue
 		var entry: Dictionary = _stat_bars[stat_key]
-		var val: float = float(stats.get(stat_key, 0))
-		var bar: ProgressBar = entry["bar"]
-		var lbl: Label = entry["label"]
+		var seg_count: int = int(stats.get(stat_key, 0))
+		var segments: Array = entry["segments"]
 		var col: Color = entry["color"]
-		bar.value = val
-		lbl.text = str(int(val))
-		ThemeManager.apply_led_bar(bar, col, val / bar.max_value)
+		var hdr: float = entry["hdr"]
+		var max_segs: int = entry["max_segs"]
+		var lbl: Label = entry["label"]
+		lbl.text = str(seg_count)
+		var glow := Color(col.r * hdr, col.g * hdr, col.b * hdr, 1.0)
+		var dim := Color(0.08, 0.08, 0.1, 0.4)
+		for i in max_segs:
+			var seg: ColorRect = segments[i]
+			seg.color = glow if i < seg_count else dim
+		# [+] button: enabled only when points are available
+		var plus_btn: Button = entry["plus_btn"]
+		plus_btn.disabled = (_available_points <= 0)
+	# Update points label
+	if _available_points_label:
+		_available_points_label.text = "Available Points: %d" % _available_points
+		if _available_points > 0:
+			_available_points_label.add_theme_color_override("font_color", ThemeManager.get_color("accent"))
+		else:
+			_available_points_label.add_theme_color_override("font_color", ThemeManager.get_color("disabled"))
 
 
 # ── Augments tab ──
@@ -791,12 +960,20 @@ func _show_picker_modal(title: String, options: Array, current_index: int, on_pi
 	var preview_ship := ShipRenderer.new()
 	var sid: int = _selected_ship_id()
 	preview_ship.ship_id = maxi(sid, 0)
-	preview_ship.render_mode = ShipRenderer.RenderMode.CHROME
+	# Carry the currently selected skin into the modal
+	preview_ship.render_mode = _header_ship_renderer.render_mode if _header_ship_renderer else ShipRenderer.RenderMode.CHROME
 	preview_ship.animate = true
 	preview_area.add_child(preview_ship)
-	preview_area.resized.connect(func() -> void:
-		preview_ship.position = preview_area.size * 0.5)
-	preview_ship.call_deferred("set", "position", Vector2(250, 70))
+	var _center_ship := func() -> void:
+		preview_ship.position = preview_area.size * 0.5
+	preview_area.resized.connect(_center_ship)
+	call_deferred("_deferred_call", _center_ship)
+
+	# Overlay container for live paint/light preview (sits at same position as ship)
+	var overlay_container := Control.new()
+	overlay_container.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	preview_area.add_child(overlay_container)
 
 	# Cycling row: [<] Label [>]
 	var picker_index: Array[int] = [clampi(current_index, 0, options.size() - 1)]
@@ -837,6 +1014,15 @@ func _show_picker_modal(title: String, options: Array, current_index: int, on_pi
 		dot.color = ThemeManager.get_color("accent") if i == picker_index[0] else Color(0.2, 0.2, 0.25, 0.5)
 		dot_row.add_child(dot)
 
+	# Resolve hull geometry key — player ships use "player_N", allies use visual_id
+	var hull_key: String = "player_%d" % maxi(sid, 0)
+
+	# Current paint/light state for the modal preview
+	var cur_paint_pattern: String = _paint_pattern_label.text if _paint_pattern_label and _paint_pattern_label.text != "(none)" else ""
+	var cur_paint_color: Color = _paint_color_btn.color if _paint_color_btn else Color(0.85, 0.08, 0.08, 0.92)
+	var cur_light_pattern: String = _light_pattern_label.text if _light_pattern_label and _light_pattern_label.text != "(none)" else ""
+	var cur_light_color: Color = _light_color_btn.color if _light_color_btn else Color(1.0, 0.85, 0.12)
+
 	# Apply live preview when cycling
 	var update_preview := func(delta: int) -> void:
 		picker_index[0] = (picker_index[0] + delta + options.size()) % options.size()
@@ -845,11 +1031,32 @@ func _show_picker_modal(title: String, options: Array, current_index: int, on_pi
 		for di in dot_row.get_child_count():
 			var d: ColorRect = dot_row.get_child(di)
 			d.color = ThemeManager.get_color("accent") if di == picker_index[0] else Color(0.2, 0.2, 0.25, 0.5)
-		# Live skin preview on the modal ship
+		# Live skin preview
 		if title == "SKIN":
 			var mode: int = SKIN_RENDER_MODES.get(str(options[picker_index[0]]), 0)
 			preview_ship.render_mode = mode
 			preview_ship.queue_redraw()
+		# Live paint/light overlay preview
+		if (title == "PAINT PATTERN" or title == "LIGHT PATTERN") and hull_key != "":
+			# Clear old overlays
+			for oc_child in overlay_container.get_children():
+				oc_child.queue_free()
+			var pat: String = str(options[picker_index[0]])
+			if pat == "(none)":
+				pat = ""
+			var pp: String = pat if title == "PAINT PATTERN" else cur_paint_pattern
+			var pc: Color = cur_paint_color
+			var lp: String = pat if title == "LIGHT PATTERN" else cur_light_pattern
+			var lc: Color = cur_light_color
+			var overlays: Array[Node2D] = ShipCosmetics.build_overlays(hull_key, pp, pc, lp, lc)
+			if overlays[0]:
+				overlays[0].position = preview_ship.position
+				overlays[0].z_index = 2
+				overlay_container.add_child(overlays[0])
+			if overlays[1]:
+				overlays[1].position = preview_ship.position
+				overlays[1].z_index = 3
+				overlay_container.add_child(overlays[1])
 	prev_btn.pressed.connect(func() -> void: update_preview.call(-1))
 	next_btn.pressed.connect(func() -> void: update_preview.call(1))
 
@@ -876,6 +1083,10 @@ func _show_picker_modal(title: String, options: Array, current_index: int, on_pi
 	btn_row.add_child(cancel_btn)
 
 
+func _deferred_call(callable: Callable) -> void:
+	callable.call()
+
+
 func _close_picker_modal() -> void:
 	if _picker_overlay and is_instance_valid(_picker_overlay):
 		_picker_overlay.queue_free()
@@ -897,16 +1108,26 @@ func _get_current_skin_index() -> int:
 
 
 func _get_current_paint_index() -> int:
-	return 0  # placeholder — not yet persisted per player ship
+	if _paint_pattern_label:
+		var idx: int = PAINT_PATTERNS.find(_paint_pattern_label.text)
+		if idx >= 0:
+			return idx
+	return 0
 
 
 func _get_current_light_index() -> int:
+	if _light_pattern_label:
+		var idx: int = LIGHT_PATTERNS.find(_light_pattern_label.text)
+		if idx >= 0:
+			return idx
 	return 0
 
 
 func _on_skin_picked(index: int) -> void:
+	var sid: int = _selected_ship_id()
 	var skin_name: String = SKIN_OPTIONS[index]
 	var mode: int = SKIN_RENDER_MODES.get(skin_name, 0)
+	# Update hangar bay renderer
 	for r in _ship_renderers:
 		if r.has_meta("bay_index") and int(r.get_meta("bay_index")) == _selected_bay:
 			r.render_mode = mode
@@ -917,32 +1138,67 @@ func _on_skin_picked(index: int) -> void:
 		_header_ship_renderer.queue_redraw()
 	if _skin_label:
 		_skin_label.text = skin_name
+	# Persist to ShipData
+	var sd: ShipData = _load_ship_data(sid)
+	if sd:
+		# Reverse-lookup render_mode string from the enum
+		for key in SKIN_RENDER_MODES:
+			if SKIN_RENDER_MODES[key] == mode:
+				sd.render_mode = str(key).to_lower()
+				break
+		_save_ship_data(sid, sd)
 
 
 func _on_paint_pattern_picked(index: int) -> void:
+	var sid: int = _selected_ship_id()
 	var pattern: String = PAINT_PATTERNS[index] if index > 0 else ""
 	if _paint_pattern_label:
 		_paint_pattern_label.text = PAINT_PATTERNS[index]
 	if _paint_color_btn:
 		_paint_color_btn.disabled = (pattern == "")
 		_paint_color_btn.tooltip_text = "" if pattern != "" else "Select a paint pattern first"
+	var sd: ShipData = _load_ship_data(sid)
+	if sd:
+		sd.paint_pattern = pattern
+		_save_ship_data(sid, sd)
+	_rebuild_bay_overlays(_selected_bay)
+	_rebuild_header_overlays()
 
 
-func _on_paint_color_changed(_color: Color) -> void:
-	pass  # Will wire to ShipData persistence later
+func _on_paint_color_changed(color: Color) -> void:
+	var sid: int = _selected_ship_id()
+	var sd: ShipData = _load_ship_data(sid)
+	if sd:
+		sd.paint_color = color
+		_save_ship_data(sid, sd)
+	_rebuild_bay_overlays(_selected_bay)
+	_rebuild_header_overlays()
 
 
 func _on_light_pattern_picked(index: int) -> void:
+	var sid: int = _selected_ship_id()
 	var pattern: String = LIGHT_PATTERNS[index] if index > 0 else ""
 	if _light_pattern_label:
 		_light_pattern_label.text = LIGHT_PATTERNS[index]
 	if _light_color_btn:
 		_light_color_btn.disabled = (pattern == "")
 		_light_color_btn.tooltip_text = "" if pattern != "" else "Select a light pattern first"
+	var sd: ShipData = _load_ship_data(sid)
+	if sd:
+		sd.light_pattern = pattern
+		_save_ship_data(sid, sd)
+	_rebuild_bay_overlays(_selected_bay)
+	_rebuild_header_overlays()
 
 
-func _on_light_color_changed(_color: Color) -> void:
-	pass  # Will wire to ShipData persistence later
+func _on_light_color_changed(color: Color) -> void:
+	var sid: int = _selected_ship_id()
+	var sd: ShipData = _load_ship_data(sid)
+	if sd:
+		sd.light_color = color
+		_save_ship_data(sid, sd)
+	_rebuild_bay_overlays(_selected_bay)
+	_rebuild_header_overlays()
 
 
 # ── Spot positions ──
@@ -1000,7 +1256,8 @@ func _place_ships() -> void:
 			continue
 		var ship := ShipRenderer.new()
 		ship.ship_id = sid
-		ship.render_mode = ShipRenderer.RenderMode.CHROME
+		var sd: ShipData = _load_ship_data(sid)
+		ship.render_mode = NpcShip._render_mode_from_string(sd.render_mode) if sd else ShipRenderer.RenderMode.CHROME
 		ship.animate = true
 		ship.set_meta("bay_index", i)
 		add_child(ship)
@@ -1120,6 +1377,15 @@ func _layout_ships() -> void:
 		if bay_idx2 < player_spots.size():
 			var c: Vector2 = player_spots[bay_idx2]
 			btn.position = Vector2(c.x - SPOT_W / 2.0, c.y - SPOT_H / 2.0)
+	# Reposition bay overlays
+	for bay_idx3 in _bay_overlays:
+		if bay_idx3 < player_spots.size():
+			var pos: Vector2 = player_spots[bay_idx3]
+			var entry: Dictionary = _bay_overlays[bay_idx3]
+			if entry.get("paint") and is_instance_valid(entry["paint"]):
+				(entry["paint"] as Node2D).position = pos
+			if entry.get("light") and is_instance_valid(entry["light"]):
+				(entry["light"] as Node2D).position = pos
 	# Cargo ship + its overlays ride along with support bay A
 	var support_spots: Array[Vector2] = _get_support_spots()
 	if _cargo_renderer and support_spots.size() > 0:

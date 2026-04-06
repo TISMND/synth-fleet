@@ -1,0 +1,6 @@
+{
+	"id": "verse_3",
+	"display_name": "Verse 3 — Monolith",
+	"background_shader": "res://assets/shaders/bg_monolith_surface.gdshader",
+	"deep_background": ""
+}

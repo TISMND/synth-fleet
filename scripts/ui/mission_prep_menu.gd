@@ -40,9 +40,9 @@ var _ready_btn: Button
 var _mission_bar: VBoxContainer
 
 const VERSES: Array[Dictionary] = [
-	{"label": "TUTORIAL", "shader": "", "hdr": 0.0, "verse_id": ""},
 	{"label": "NEON RIFT", "shader": "res://assets/shaders/dest_neon_void.gdshader", "hdr": 3.0, "verse_id": "verse_1"},
 	{"label": "FLUID", "shader": "res://assets/shaders/dest_fluid_rift.gdshader", "hdr": 3.0, "verse_id": "verse_2"},
+	{"label": "MONOLITH", "shader": "res://assets/shaders/dest_monolith.gdshader", "hdr": 3.0, "verse_id": "verse_3"},
 ]
 
 const VP_SIZE := Vector2i(800, 450)

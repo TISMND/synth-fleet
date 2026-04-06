@@ -1,10 +1,34 @@
 {
 	"collision_height": 90.0,
+	"collision_offset_x": 0.0,
+	"collision_offset_y": 0.0,
 	"collision_shape": "capsule",
 	"collision_width": 60.0,
+	"description": "",
 	"display_name": "Stiletto",
+	"grid_size": [
+		32,
+		32
+	],
+	"hardpoints": [],
 	"id": "stiletto",
-	"render_mode": "chrome",
+	"level": "misc",
+	"light_color": [
+		1.0,
+		0.850000023841858,
+		0.119999997317791,
+		1.0
+	],
+	"light_pattern": "STACKED V",
+	"lines": [],
+	"paint_color": [
+		0.98828125,
+		0.0733489990234375,
+		0.0733489990234375,
+		0.920000016689301
+	],
+	"paint_pattern": "THREE BANDS",
+	"render_mode": "stealth",
 	"stats": {
 		"acceleration": 3200.0,
 		"collision_height": 90.0,
@@ -26,5 +50,6 @@
 		"thermal_hp": 120.0,
 		"thermal_segments": 9.0,
 		"weapon_slots": 4.0
-	}
+	},
+	"type": "player"
 }

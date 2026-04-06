@@ -53,6 +53,8 @@ func _build_ui() -> void:
 	var tabs: Array[Array] = [
 		["VERSE 1 BG", "res://scripts/ui/lv1_bg_auditions.gd"],
 		["VERSE 2 BG", "res://scripts/ui/lv2_bg_auditions.gd"],
+		["VERSE 3 BG", "res://scripts/ui/lv3_bg_auditions.gd"],
+		["TBD VERSE BG", "res://scripts/ui/tbd_bg_auditions.gd"],
 	]
 
 	for i in tabs.size():

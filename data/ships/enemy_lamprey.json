@@ -4,6 +4,7 @@
 	"collision_offset_y": 0.0,
 	"collision_shape": "circle",
 	"collision_width": 30.0,
+	"description": "",
 	"display_name": "Lamprey",
 	"enable_screen_shake": false,
 	"explosion_color": [
@@ -21,9 +22,9 @@
 	"id": "enemy_lamprey",
 	"level": "lifeform",
 	"lines": [],
-	"neon_hdr": 2.95,
-	"neon_white": 0.0,
-	"neon_width": 0.13,
+	"neon_hdr": 2.66,
+	"neon_white": 0.24,
+	"neon_width": 0.18,
 	"render_mode": "neon",
 	"stats": {
 		"acceleration": 1200.0,
